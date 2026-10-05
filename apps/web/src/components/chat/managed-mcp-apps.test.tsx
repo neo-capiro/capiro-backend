@@ -151,22 +151,47 @@ describe('ManagedMcpAppsProvider', () => {
     expect(win.close).toHaveBeenCalledOnce();
   });
 
-  test('closing sign-in returns a recoverable error and preserves the draft', async () => {
+  test.each(['closed', 'blocked'] as const)(
+    'preserves authorization when browser isolation makes the popup handle %s', async (mode) => {
+      const win = popup();
+      vi.spyOn(window, 'open').mockReturnValue(win as unknown as Window);
+      mocks.post.mockResolvedValue({ data: { authUrl: 'https://provider.example/authorize' } });
+      await start();
+      vi.useFakeTimers();
+      await act(async () => {
+        fireEvent.click(screen.getByText('Connect HubSpot'));
+      });
+      Object.defineProperty(win, 'closed', {
+        get: () => {
+          if (mode === 'blocked') throw new DOMException('Cross-origin window access blocked', 'SecurityError');
+          return true;
+        },
+      });
+      mocks.get.mockResolvedValue(state('pending'));
+      await tick();
+      await tick();
+      expect(screen.getByTestId('error')).toBeEmptyDOMElement();
+      expect(screen.getByTestId('busy')).toHaveTextContent('hubspot');
+      expect(mocks.post).not.toHaveBeenCalledWith('/api/clio/v3/apps/hubspot/cancel', {});
+      mocks.get.mockResolvedValue(state('connected'));
+      await tick();
+      expect(screen.getByTestId('status')).toHaveTextContent('connected');
+      expect(screen.getByTestId('busy')).toBeEmptyDOMElement();
+      expect(screen.getByLabelText('Draft')).toHaveValue('Keep this draft');
+  });
+
+  test('an abandoned sign-in still times out and clears pending authorization', async () => {
     const win = popup();
     vi.spyOn(window, 'open').mockReturnValue(win as unknown as Window);
     mocks.post.mockResolvedValue({ data: { authUrl: 'https://provider.example/authorize' } });
     await start();
     vi.useFakeTimers();
-    await act(async () => {
-      fireEvent.click(screen.getByText('Connect HubSpot'));
-    });
-    win.closed = true;
-    await tick();
-    await tick();
-    expect(screen.getByTestId('error')).toHaveTextContent('closed before it finished');
+    await act(async () => { fireEvent.click(screen.getByText('Connect HubSpot')); });
+    mocks.get.mockResolvedValue(state('pending'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5 * 60_000); });
+    expect(screen.getByTestId('error')).toHaveTextContent('Sign-in took too long');
     expect(screen.getByTestId('busy')).toBeEmptyDOMElement();
     expect(mocks.post).toHaveBeenCalledWith('/api/clio/v3/apps/hubspot/cancel', {});
-    expect(screen.getByLabelText('Draft')).toHaveValue('Keep this draft');
   });
 
   test('a failed request remains visible after focus refresh', async () => {

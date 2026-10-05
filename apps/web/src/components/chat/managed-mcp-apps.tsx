@@ -187,16 +187,9 @@ export function ManagedMcpAppsProvider({ children }: { children: ReactNode }) {
             fail(app.lastError || 'Sign-in did not complete. Please try again.');
             return;
           }
-          if (popup.closed) {
-            await new Promise<void>((resolve) => window.setTimeout(resolve, POLL_MS));
-            if (!isCurrent()) return;
-            const finalApps = await refresh();
-            if (!finalApps.find((item) => item.id === appId)?.connected) {
-              fail('Sign-in was closed before it finished. You can try again.');
-              await cancelPending();
-            }
-            return;
-          }
+          // Provider COOP isolation can make an open sign-in window's handle
+          // report closed (or block access). Only backend status or the timeout
+          // may end this authorization; cancelling here deletes its PKCE state.
         }
         if (isCurrent()) {
           fail('Sign-in took too long. Please try again.');
