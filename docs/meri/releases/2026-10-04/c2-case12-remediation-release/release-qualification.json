@@ -1,0 +1,67 @@
+{
+  "kind": "meri-case12-remediation-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGES_TESTS_AND_RETIREMENT_COMPATIBILITY_PASS",
+  "at": "2026-10-05T00:03:24.136267+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "89402fd7cb60ef1e1a5c7cbb9e6a112a6defd544",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:8a724eb24c1b0e6a57e09ee9c728583d87e42db2434972942fb5022cb2c601d6",
+      "buildId": "capiro-build-web-dev:83f2ffd9-1ad3-4433-921d-b56e12954aad",
+      "packagedMarkersPassed": 29
+    }
+  ],
+  "schemaChange": false,
+  "providerCalls": 0,
+  "c2Complete": false,
+  "authorizationBasis": "User authorized continuing C2, established CodeBuild backup shipping and doing necessary work to advance real cases. Hermes stopped at user request.",
+  "reviewer": "Root source integration and packaged build verification",
+  "sourceEvidence": "https://github.com/neo-capiro/capirov2/blob/89402fd7cb60ef1e1a5c7cbb9e6a112a6defd544/docs/meri/releases/2026-10-04/c2-case12-remediation/qualification.json",
+  "validation": {
+    "focusedSourceTestsPassed": 102,
+    "typechecks": [
+      "API"
+    ],
+    "packagedProbesPassed": 29,
+    "retirementCompatibility": "Current API533 verified. Schema, package lock and API runtime setup unchanged. Orchestrator125, Web390 and worker configuration retained.",
+    "firstBuildFailure": "Build v1 probe prompt was corrupted by local cp1252 decoding. V2 preserved qualified UTF-8 probe bytes; all 29 passed."
+  },
+  "artifactPins": [
+    {
+      "path": "api/build-readback.json",
+      "bytes": 5709,
+      "sha256": "10d860559235890e056f5c11cfef4cc70e5bfbde55bad5fdb7ed8c759fd121a3"
+    },
+    {
+      "path": "api/build.log",
+      "bytes": 71820,
+      "sha256": "ba5f13a5000e87016431f940caebe8500649f408b2f92faedf1dcf54a7e4d275"
+    },
+    {
+      "path": "api/buildspec.json",
+      "bytes": 21393,
+      "sha256": "78d86db07837a4cf016e36620ecce740581978d751c9dd4ea08043ef74a9f6c2"
+    },
+    {
+      "path": "api/image-manifest.json",
+      "bytes": 8461,
+      "sha256": "8a724eb24c1b0e6a57e09ee9c728583d87e42db2434972942fb5022cb2c601d6"
+    },
+    {
+      "path": "api/launch-intent.json",
+      "bytes": 811,
+      "sha256": "59b7bf6e5a9f2e58b73e6dbb5a9e026f3e79a2615d75f256f9831e58a66ac3f0"
+    },
+    {
+      "path": "api/build-start.json",
+      "bytes": 1829,
+      "sha256": "aaf88caa49106b06bf72ee41f6f22bcd4d5e590bea5ca6edd008b73919127b4b"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 3926,
+      "sha256": "5f5d2ac7b29ac933f656bf904e927b09cf87a152094ae75bf4cd049c119e548a"
+    }
+  ]
+}
