@@ -142,12 +142,16 @@ export class SenateScheduleAdapter implements CommitteeSourceAdapter {
       // observation's idempotency key even though it is not a Congress.gov one.
       externalEventId: row.identifier ?? `${code}-${row.dateIso}-${row.timeIso ?? 'na'}`,
       congress: this.options.congress,
-      chamber: 'senate',
+      chamber: code.startsWith('jc') ? 'joint' : 'senate',
       committeeSystemCode: parentCode,
       subcommitteeSystemCode: isSub ? code : null,
       committeeName:
         this.options.resolveCommitteeName?.(parentCode) ??
-        (row.committeeName ? `Senate Committee on ${row.committeeName}` : null),
+        (row.committeeName
+          ? code.startsWith('jc')
+            ? row.committeeName
+            : `Senate Committee on ${row.committeeName}`
+          : null),
       title: row.matter,
       eventType: row.type,
       eventStatus: normalizeEventStatus(row.type),

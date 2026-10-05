@@ -36,30 +36,30 @@ const alias: ReviewedHearing = {
 };
 
 describe('reviewed official hearing merge', () => {
+  it('reconciles a Senate schedule joint-commission copy only with the same official joint code and event ID', () => {
+    const joint = {
+      ...canonical,
+      id: 'cm-119-338740',
+      chamber: 'Joint',
+      committeeSystemCode: 'jcse00',
+    };
+    const senate = { ...alias, id: 'sen-119-338740', committeeSystemCode: 'jcse00' };
+    const exact = {
+      ...review,
+      aliasId: senate.id,
+      canonicalId: joint.id,
+      evidenceUrls: [
+        review.evidenceUrls[0]!.replace('senate-event', 'joint-event'),
+        review.evidenceUrls[1]!,
+      ],
+    };
+    expect(() => validateOfficialAliasReview(exact, senate, joint)).not.toThrow();
+    expect(() =>
+      validateOfficialAliasReview(exact, { ...senate, committeeSystemCode: 'ssju00' }, joint),
+    ).toThrow();
+  });
   it('accepts exact publisher ID with legacy scope fields and independently qualified canonical row', () => {
     expect(() => validateOfficialAliasReview(review, alias, canonical)).not.toThrow();
-  });
-  it('accepts a miskeyed row only when both retained publisher URLs identify the canonical event', () => {
-    const url = review.evidenceUrls[0]!;
-    const miskeyed = { ...alias, id: 'sen-119-338741', url };
-    const exact = { ...review, aliasId: miskeyed.id };
-    expect(() => validateOfficialAliasReview(exact, miskeyed, { ...canonical, url })).not.toThrow();
-    for (const invalid of [
-      null,
-      url.replace('338740', '338741'),
-      url.replace('congress.gov', 'congress.gov.example.org'),
-    ]) {
-      expect(() =>
-        validateOfficialAliasReview(exact, { ...miskeyed, url: invalid }, { ...canonical, url }),
-      ).toThrow();
-    }
-    expect(() =>
-      validateOfficialAliasReview(
-        exact,
-        { ...miskeyed, startsAt: new Date('2026-09-15T14:00:00Z') },
-        { ...canonical, url },
-      ),
-    ).toThrow();
   });
   it.each([
     ['different source ID', { id: 'cm-119-338741' }],

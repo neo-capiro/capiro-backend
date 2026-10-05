@@ -20,7 +20,6 @@ export interface ReviewedHearing {
   title: string;
   date: Date;
   startsAt: Date | null;
-  url?: string | null;
 }
 
 /** Intentionally narrower than discovery. A manual repair never merges on a
@@ -41,27 +40,22 @@ export function validateOfficialAliasReview(
     fail('exact distinct hearing IDs are required');
   const a = /^(cm|sen)-(\d+)-(\d+)$/.exec(alias.id);
   const c = /^(cm|sen)-(\d+)-(\d+)$/.exec(canonical.id);
-  // Some retained rows have an erroneous numeric ID but carry the exact same
-  // publisher event URL. Require that URL to identify the canonical row; title
-  // and schedule similarity alone still never establishes an alias.
-  const canonicalPublisherUrl = c
-    ? new RegExp(
-        `^https://(?:www\\.)?congress\\.gov/event/${c[2]}th-Congress/senate-event/${c[3]}/?$`,
-        'i',
-      )
-    : null;
-  const samePublisherUrl = Boolean(
-    alias.url &&
-    canonical.url &&
-    alias.url === canonical.url &&
-    canonicalPublisherUrl?.test(canonical.url),
-  );
-  if (!a || !c || a[2] !== c[2] || !((a[1] !== c[1] && a[3] === c[3]) || samePublisherUrl))
+  if (!a || !c || a[1] === c[1] || a[2] !== c[2] || a[3] !== c[3])
     fail('the same official Senate event identifier and Congress are required');
+  const ac = storedCommitteeIdentity(alias),
+    cc = storedCommitteeIdentity(canonical);
+  // The Senate schedule also publishes joint commissions. Congress.gov owns
+  // the Joint chamber classification, proven by the shared official jc code.
+  const jointScope =
+    canonical.chamber.toLowerCase() === 'joint' &&
+    alias.chamber.toLowerCase() === 'senate' &&
+    cc.committeeSystemCode?.startsWith('jc') &&
+    ac.committeeSystemCode === cc.committeeSystemCode;
   for (const row of [alias, canonical]) {
     if (row.canonicalHearingId) fail('existing aliases/chains require a separate review');
     if (
-      row.chamber.toLowerCase() !== 'senate' ||
+      (row.chamber.toLowerCase() !== 'senate' &&
+        !(jointScope && row.chamber.toLowerCase() === 'joint')) ||
       (row.geographicJurisdiction && row.geographicJurisdiction !== 'US')
     )
       fail('only federal Senate events qualify');
@@ -72,8 +66,6 @@ export function validateOfficialAliasReview(
     alias.visibility !== canonical.visibility
   )
     fail('visibility conflict or unknown visibility');
-  const ac = storedCommitteeIdentity(alias),
-    cc = storedCommitteeIdentity(canonical);
   if (
     !ac.committeeSystemCode ||
     ac.committeeSystemCode !== cc.committeeSystemCode ||
@@ -110,7 +102,10 @@ export function validateOfficialAliasReview(
       fail('unqualified evidence URL');
     if (
       /(^|\.)congress\.gov$/.test(url.hostname) &&
-      new RegExp(`/event/${c![2]}th-Congress/senate-event/${c![3]}/?$`, 'i').test(url.pathname)
+      new RegExp(
+        `/event/${a![2]}th-Congress/${jointScope ? 'joint' : 'senate'}-event/${a![3]}/?$`,
+        'i',
+      ).test(url.pathname)
     )
       matchingCongressUrl = true;
   }
