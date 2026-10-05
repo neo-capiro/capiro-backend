@@ -1,0 +1,44 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in C:/dev/main/meri-c1-20261002/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL src/meri/meri-context-plane.service.spec.ts (8.2 s)
+  ● Console
+
+    console.log
+      SHORT_STEERING_WIRE_BYTES 24235 RECORDS 24
+
+      at Object.<anonymous> (src/meri/meri-context-plane.service.spec.ts:41:11)
+
+    console.log
+      FINAL_REQUEST_RESERVATION {"logicalOperationId":"openai-responses:74d179dbb86802cbbbc147efa376cf87c33ec65c691644c3acb084c3539824d7","attemptId":"openai-responses:74d179dbb86802cbbbc147efa376cf87c33ec65c691644c3acb084c3539824d7:0","retryOfAttemptId":null,"kind":"openai_responses","phase":"acquisition","provider":"openai","model":"gpt-6-astra","maxInputTokens":73530,"maxOutputTokens":16384,"retry":false}
+
+      at Object.<anonymous> (src/meri/meri-context-plane.service.spec.ts:59:13)
+
+  ● short steering records cannot expand the model prompt beyond the serialized evidence budget
+
+    expect(received).rejects.toBe(expected) // Object.is equality
+
+    Expected: [Error: STOP_BEFORE_PROVIDER_DISPATCH]
+    Received: [Error: expect(received).toBeLessThan(expected)·
+    Expected: < 2700000
+    Received:   3067050]
+
+      73 |       input: [{ role: 'user', content: 'Export that briefing and give me the file.' }],
+      74 |       tools: [], budget: { reserveProviderAttempt } as never,
+    > 75 |     })).rejects.toBe(stop);
+         |                 ^
+      76 |     expect(reserveProviderAttempt).toHaveBeenCalledTimes(1);
+      77 |     expect(fetch).not.toHaveBeenCalled();
+      78 |   } finally {
+
+      at Object.toBe (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (src/meri/meri-context-plane.service.spec.ts:75:17)
+
+PASS src/meri/meri-context-evidence-projection.spec.ts
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       1 failed, 103 passed, 104 total
+Snapshots:   0 total
+Time:        10.069 s
+Ran all test suites matching /src\\meri\\meri-context-plane.service.spec.ts|src\\meri\\meri-context-evidence-projection.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -1,0 +1,29 @@
+{
+  "status": "SOURCE_TESTS_AND_REVIEW_PASS",
+  "totalTestsPassed": 104,
+  "typecheck": "API_PASS",
+  "schemaChange": false,
+  "c2Complete": false,
+  "sourcePins": [
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.ts",
+      "sha256Lf": "30efdbc9c3449cd7a902765e1df18cff5bd0727277a408a9210e5c1889ae361a"
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.spec.ts",
+      "sha256Lf": "44b26b851771d89b8baad8e2a22d90713fad7f6fe896ca91f77cdb8409099408"
+    }
+  ],
+  "cause": "The compiler body character limit excludes per-record provenance and numbered citation overhead. 512 short records expanded to479638 serialized bytes before remaining instructions/tools.",
+  "change": "Budget steering records by serialized UTF-8 bytes including JSON escaping and numbered citations; retain exact admitted evidence and disclose omissions.",
+  "validation": {
+    "contextPromptBytes": 9343,
+    "finalRequestInputUpperBound": 58638,
+    "finalRequestOutputUpperBound": 16384,
+    "conservativeReservationMicros": 2694750,
+    "providerFetchCalls": 0,
+    "limitations": "Offline final request includes real base prompt and citations but no runtime assurance additions or tool schemas; live capture remains required."
+  },
+  "liveAcceptance": "NOT_RUN_AFTER_FIX",
+  "failedCase46Run": "e9ac5e1a-6562-49b6-b59b-139bd7ba8325"
+}

@@ -3,7 +3,7 @@ import { Injectable, NotFoundException, ServiceUnavailableException } from '@nes
 import { assertCaptureApiRetrievalPlan } from './meri-capture-api-provider-scope.js';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
-import { isMeriDocumentLocationClarification, resolveMeriDocumentRequest } from '@capiro/shared';
+import { isMeriDocumentLocationClarification, resolveMeriDocumentRequest, extractCitationsFromToolResult, formatCitationsForPrompt } from '@capiro/shared';
 import { explicitMeriSubjectHint, hasExplicitMeriPortfolioScope, validateMeriFixtureSemanticClock } from '@capiro/meriv2-core';
 import type {
   ContextRequest,
@@ -32,6 +32,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 const PHASE_19 = 19;
 const MODEL_CONTEXT_CHAR_BUDGET = 72_000;
 const MODEL_RECORD_CHAR_BUDGET = 3_000;
+// Include JSON escaping, provenance and the numbered citation copy, not just bodies.
+const MODEL_STEERING_WIRE_BYTE_BUDGET = 8_000;
 const MAILBOX_PROVIDERS = ['microsoft_365', 'google_workspace', 'imap_caldav'] as const;
 
 type MeriContextPlaneOperation = MeriGovernedTurnContext['operationId'];
@@ -392,7 +394,10 @@ export class MeriContextPlaneService {
     )) throw new Error('meri_fixture_semantic_clock_compiler_evidence_missing');
 
     const projection = buildModelContextProjection(result.context.retrieval?.records ?? []);
-    const steeringEvidence = buildSteeringEvidenceProjection(result.packet);
+    const sourceSteeringEvidence = buildSteeringEvidenceProjection(result.packet);
+    const steeringEvidence = boundSteeringEvidenceProjection(sourceSteeringEvidence);
+    const steeringTruncated = steeringEvidence.length < sourceSteeringEvidence.length ||
+      steeringEvidence.some((record) => record.projection.truncated);
     const packetSummary = toMeriContextPacketSummary(result.packet, result.kind);
     const retrieval = toMeriRetrievalProjection({
       plan,
@@ -400,7 +405,7 @@ export class MeriContextPlaneService {
       packet: result.packet,
       projectedRecords: projection.records,
       projectionTruncated:
-        projection.truncated || steeringEvidence.some((record) => record.projection.truncated),
+        projection.truncated || steeringTruncated,
     });
     const prompt = buildMeriContextPrompt({
       packet: result.packet,
@@ -408,6 +413,7 @@ export class MeriContextPlaneService {
       context: result.context,
       evidenceText: projection.text,
       steeringEvidence,
+      steeringSourceCount: sourceSteeringEvidence.length,
       retrieval,
       releaseSwitchRollback: result.kind === 'release_switch_rollback',
     });
@@ -423,11 +429,11 @@ export class MeriContextPlaneService {
         userId: ctx.userId,
         packetId: packetSummary.packetId ?? null,
         sourceRecordCount:
-          (result.context.retrieval?.records.length ?? 0) + steeringEvidence.length,
+          (result.context.retrieval?.records.length ?? 0) + sourceSteeringEvidence.length,
         projectedRecordCount: projection.records.length + steeringEvidence.length,
         truncated:
           retrieval.coverage.truncated ||
-          steeringEvidence.some((record) => record.projection.truncated),
+          steeringTruncated,
         records: [...steeringEvidence, ...projection.records],
       },
       contextPacket: packetSummary,
@@ -731,6 +737,22 @@ function noRetrievalPlan(subjectScope: ContextSubjectScope): ResolvedTurnPlan {
     requireComplete: false,
     timeWindow: null,
   };
+}
+
+function boundSteeringEvidenceProjection(records: MeriContextEvidenceRecord[]): MeriContextEvidenceRecord[] {
+  const admitted: MeriContextEvidenceRecord[] = [];
+  let used = 0;
+  for (const record of records) {
+    const citation = formatCitationsForPrompt(extractCitationsFromToolResult(
+      'context_plane', { records: [record] }, admitted.length + 1, 1,
+    ));
+    const block = `[S:context_plane:${record.recordId}]\n${JSON.stringify(record)}\n\n${citation}\n\n`;
+    const bytes = Buffer.byteLength(JSON.stringify(block), 'utf8');
+    if (used + bytes > MODEL_STEERING_WIRE_BYTE_BUDGET) continue;
+    admitted.push(record);
+    used += bytes;
+  }
+  return admitted;
 }
 
 /** Only bodies actually admitted/rendered by the canonical packet compiler. */
@@ -1046,7 +1068,7 @@ export function toMeriRetrievalProjection(input: {
       },
       coverage: {
         version: 1,
-        complete: !retrievalWasPlanned,
+        complete: !retrievalWasPlanned && !input.projectionTruncated,
         requestedDomains: requested,
         searchedDomains: [],
         missingDomains: retrievalWasPlanned ? requested : [],
@@ -1056,7 +1078,7 @@ export function toMeriRetrievalProjection(input: {
         recordsEvaluated: 0,
         recordsReturned: 0,
         paginationComplete: !retrievalWasPlanned,
-        truncated: false,
+        truncated: input.projectionTruncated,
         sourceHealth: retrievalWasPlanned
           ? requested.map((source) => ({
               source,
@@ -1068,7 +1090,7 @@ export function toMeriRetrievalProjection(input: {
           ? requested.map((source) => ({ source, reason }))
           : [],
         toolsInvoked: [],
-        stopReason: reason,
+        stopReason: input.projectionTruncated ? 'model_context_projection_truncated' : reason,
       },
     };
   }
@@ -1196,6 +1218,7 @@ function buildMeriContextPrompt(input: {
   };
   evidenceText: string;
   steeringEvidence: MeriContextEvidenceRecord[];
+  steeringSourceCount: number;
   retrieval: MeriGovernedTurnContext['retrieval'];
   releaseSwitchRollback: boolean;
 }): string {
@@ -1241,6 +1264,7 @@ function buildMeriContextPrompt(input: {
     'Source sync time, record update time and event time are distinct; none implies verification at response time. Missing timestamps mean freshness is unknown. Retrieve current authoritative detail before a time-sensitive recommendation.',
     '',
     'GOVERNED STEERING:',
+    `Steering records selected=${input.steeringSourceCount}; displayed=${input.steeringEvidence.length}; omitted=${input.steeringSourceCount - input.steeringEvidence.length}. Omitted records are not model evidence; use authorized retrieval when needed.`,
     rendered || '(no steering items selected)',
     '',
     'RETRIEVED EVIDENCE:',
