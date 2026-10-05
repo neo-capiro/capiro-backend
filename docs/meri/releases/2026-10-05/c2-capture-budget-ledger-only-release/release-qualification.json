@@ -1,0 +1,113 @@
+{
+  "kind": "meri-capture-budget-ledger-only-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_TESTS_AND_RETIREMENT_COMPATIBILITY_PASS",
+  "at": "2026-10-05T05:30:43.166779+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "42811d70783636ad2c999ba6ddb8b3f58ee26e4f",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:15e6ff6a2f040b31c3d1bcc13c38c00049492ba179df5e4efbc27073e2f1d3fd",
+      "buildId": "capiro-build-web-dev:6bd8c10b-a1ee-4969-8ab0-fd2c074e2513",
+      "packagedMarkersPassed": 33
+    }
+  ],
+  "schemaChange": false,
+  "providerCalls": 0,
+  "c2Complete": false,
+  "change": "PR #1964: authenticated capture provider budgets (Case46 governed artifact, server read-only captures, synthetic reads) are admitted ledger-only: priced reservations and settlements are still recorded against the declared qualification figures, but dispatch is never refused on attempts, tokens or cost. The hard-coded $3/$15 per-capture ceilings are removed; production research budgets stay enforced; the operator spend journal remains the approved-budget authority. PR #1965: exact generation-2 retained-history recovery binding for the second failed Case46 run (3a5b5609), preserving both failures and the generation-1 retirement record.",
+  "authorizationBasis": "User directed removal of the per-capture provider budget (2026-10-05). CodeBuild backup shipping, PR merges and the native release operator were already authorized.",
+  "reviewer": "Lead agent: focused source tests, typecheck, packaged image probes and served baseline review",
+  "sourceEvidence": [
+    "https://github.com/neo-capiro/capirov2/pull/1964",
+    "https://github.com/neo-capiro/capirov2/pull/1965",
+    "https://github.com/neo-capiro/capirov2/commit/42811d70783636ad2c999ba6ddb8b3f58ee26e4f"
+  ],
+  "validation": {
+    "focusedSourceTestsPassed": 146,
+    "coreReceiptSpecTestsPassed": 96,
+    "typechecks": [
+      "API"
+    ],
+    "packagedProbesPassed": 33,
+    "buildspecDelta": "Receipt probe asserts maxCostMicros>15000000 and charged>declared are no longer malformed (maxCostMicros<=0 still is); adds OFFLINE_PACKAGED_CAPTURE_LEDGER_ONLY_PASS. A packaged generation-2 probe did not fit the 25,600-character buildspec limit; generation 2 is covered by 56 source tests and the API typecheck.",
+    "retirementCompatibility": "Verified API541 baseline (image sha256:2a9d5aef\u2026) before promotion. Schema, lockfile, migrations (452) and service runtime setup unchanged; orchestrator127 and Web390 untouched."
+  },
+  "artifactPins": [
+    {
+      "path": "api/build-readback.json",
+      "bytes": 7448,
+      "sha256": "266f3f66fdcbcf7d32f0fc70e928e27b6200be860b8a99262786b817037e34b5"
+    },
+    {
+      "path": "api/build.log",
+      "bytes": 75145,
+      "sha256": "6e64f89b8924e4b3d4431f8a55b097785ce3aee9cf75fe13bef41c5fbafd937b"
+    },
+    {
+      "path": "api/buildspec.json",
+      "bytes": 25275,
+      "sha256": "20f412dc769332cb9656b5d0b72d8a3c7e8d142a6c5ad995d168b44e8122910d"
+    },
+    {
+      "path": "api/image-manifest.json",
+      "bytes": 507,
+      "sha256": "ad9e509335dd470a2ef3692d0873e470cb990c67f9480be2c6c05afaf848a173"
+    },
+    {
+      "path": "api/launch-intent.json",
+      "bytes": 899,
+      "sha256": "b10713cc2e04d0a4086ab4418b257a09df7397a0af60705fe21d5098149f5180"
+    },
+    {
+      "path": "api/build-start.json",
+      "bytes": 2184,
+      "sha256": "e15aaff3434649b1853b78e0aac6e4efcdba7c211252296afea78fc7b307f4f4"
+    },
+    {
+      "path": "api/phase-pre_build.sh",
+      "bytes": 880,
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427"
+    },
+    {
+      "path": "api/phase-build.sh",
+      "bytes": 62224,
+      "sha256": "5f29e251b69531cb1ab35b449fb0063cf11a78c21146456baf5666ecc15ae34c"
+    },
+    {
+      "path": "api/phase-post_build.sh",
+      "bytes": 863,
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 978,
+      "sha256": "d4b04ffab90ebc9107eb77fe7fe12084d6177d82441b35f867709a4c533212f1"
+    },
+    {
+      "path": "source-tests/capture-budget-removal-api-typecheck-v1.log",
+      "bytes": 11,
+      "sha256": "a6ce7f41eaf235b981cdbfe9a3d6a5d9a3502b6bd605ffc2acf78679a4ee9a2f"
+    },
+    {
+      "path": "source-tests/capture-budget-removal-api-tests-v1.log",
+      "bytes": 10224,
+      "sha256": "de86bad86be6a202db423c170baf5287aca104abe5617a040c33fe4c4bbf86ef"
+    },
+    {
+      "path": "source-tests/capture-budget-removal-api-tests-v2.log",
+      "bytes": 619,
+      "sha256": "51609ad7b92d46c5d9e5b65239d0fadff5f9c3c8bce202f4240058f53b5e7b80"
+    },
+    {
+      "path": "source-tests/case46-gen2-api-tests-v2.log",
+      "bytes": 1682,
+      "sha256": "0d615322d8d34b40bcccd10c6a115c97592828ff4341b829637598512d097ae2"
+    },
+    {
+      "path": "source-tests/case46-gen2-api-typecheck-v2.log",
+      "bytes": 11,
+      "sha256": "a6ce7f41eaf235b981cdbfe9a3d6a5d9a3502b6bd605ffc2acf78679a4ee9a2f"
+    }
+  ]
+}
