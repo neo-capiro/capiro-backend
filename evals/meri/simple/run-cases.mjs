@@ -182,15 +182,18 @@ async function runCase(c, session, clients) {
   }
   save(adir, 'proposals.json', allProposals);
   let download = null;
-  if (c.expectDownloadText) {
+  if (c.expectDownloadText || c.expectDownloadKind) {
     const text = JSON.stringify(actions.map((a) => a.result));
     const link = text.match(/\/api\/clio\/artifacts\/[A-Za-z0-9-]+\/download/)?.[0];
     if (link) {
       const got = await session.download(link);
       writeFileSync(`${adir}/download.bin`, got.bytes);
       const norm = (v) => v.replace(/\r\n/g, '\n').trim();
+      // A .docx is a zip container: readable bytes start with "PK" and carry the Word media type.
+      const docx = got.status === 200 && got.bytes.length > 100 && got.bytes.subarray(0, 2).toString('latin1') === 'PK' &&
+        /officedocument\.wordprocessingml/.test(String(got.contentType ?? ''));
       download = { link, status: got.status, contentType: got.contentType, bytes: got.bytes.length,
-        matches: norm(got.bytes.toString('utf8')) === norm(c.expectDownloadText) };
+        matches: c.expectDownloadKind === 'docx' ? docx : norm(got.bytes.toString('utf8')) === norm(c.expectDownloadText) };
     } else download = { link: null, matches: false };
   }
   let candidate = null;
