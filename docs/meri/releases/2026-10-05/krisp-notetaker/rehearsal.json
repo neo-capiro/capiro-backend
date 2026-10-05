@@ -1,0 +1,110 @@
+{
+  "sourceSha": "be4d886ffa774f72e0ed5c5268995109cbd11220",
+  "startedAt": "2026-10-05T18:37:45.882Z",
+  "isolated": true,
+  "sharedDatabaseTouched": false,
+  "containerId": "26380f2a79fe07217ce235b028f9c32010eabb7d05f46a25433b61c28c771e71",
+  "runs": [
+    {
+      "label": "fresh454",
+      "status": "passed",
+      "logSha256": "cadb8b1ac3e20d24543226ea8f6cbf98d09d8b1fab60c0900a1b47ae2aab86b4"
+    },
+    {
+      "label": "baseline453",
+      "status": "passed",
+      "logSha256": "c9f5840b3428b4a1ad5d1468be1f464acf0134db4942cb79095ea62e0b1e6d1f"
+    },
+    {
+      "label": "upgrade454",
+      "status": "passed",
+      "logSha256": "1f17160e7a04c258ce70efd47889f51c55277f6959d4ac498e7444fec9cc812a"
+    }
+  ],
+  "krisp_fresh": {
+    "count": 454,
+    "exactChecksums": true,
+    "retiredTablesAbsent": true,
+    "scope": [
+      {
+        "relname": "krisp_meeting_imports",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true,
+        "grants": true
+      },
+      {
+        "relname": "krisp_notetaker_preferences",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true,
+        "grants": true
+      }
+    ],
+    "policies": [
+      {
+        "policyname": "krisp_meeting_imports_scope",
+        "qual": "(rls_bypass() OR ((tenant_id = current_tenant_id()) AND (user_id = (NULLIF(current_setting('app.current_user'::text, true), ''::text))::uuid)))",
+        "with_check": "(rls_bypass() OR ((tenant_id = current_tenant_id()) AND (user_id = (NULLIF(current_setting('app.current_user'::text, true), ''::text))::uuid)))"
+      },
+      {
+        "policyname": "krisp_notetaker_preferences_scope",
+        "qual": "(rls_bypass() OR ((tenant_id = current_tenant_id()) AND (user_id = (NULLIF(current_setting('app.current_user'::text, true), ''::text))::uuid)))",
+        "with_check": "(rls_bypass() OR ((tenant_id = current_tenant_id()) AND (user_id = (NULLIF(current_setting('app.current_user'::text, true), ''::text))::uuid)))"
+      }
+    ]
+  },
+  "krisp_upgrade": {
+    "count": 454,
+    "exactChecksums": true,
+    "retiredTablesAbsent": true,
+    "scope": [
+      {
+        "relname": "krisp_meeting_imports",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true,
+        "grants": true
+      },
+      {
+        "relname": "krisp_notetaker_preferences",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true,
+        "grants": true
+      }
+    ],
+    "policies": [
+      {
+        "policyname": "krisp_notetaker_preferences_scope",
+        "qual": "(rls_bypass() OR ((tenant_id = current_tenant_id()) AND (user_id = (NULLIF(current_setting('app.current_user'::text, true), ''::text))::uuid)))",
+        "with_check": "(rls_bypass() OR ((tenant_id = current_tenant_id()) AND (user_id = (NULLIF(current_setting('app.current_user'::text, true), ''::text))::uuid)))"
+      },
+      {
+        "policyname": "krisp_meeting_imports_scope",
+        "qual": "(rls_bypass() OR ((tenant_id = current_tenant_id()) AND (user_id = (NULLIF(current_setting('app.current_user'::text, true), ''::text))::uuid)))",
+        "with_check": "(rls_bypass() OR ((tenant_id = current_tenant_id()) AND (user_id = (NULLIF(current_setting('app.current_user'::text, true), ''::text))::uuid)))"
+      }
+    ]
+  },
+  "flags": [
+    {
+      "slug": "c2-strategies",
+      "enabled": "true",
+      "kept": null
+    },
+    {
+      "slug": "capiro-internal",
+      "enabled": "true",
+      "kept": "1"
+    },
+    {
+      "slug": "krisp-unrelated",
+      "enabled": null,
+      "kept": null
+    }
+  ],
+  "priorLedgerUnchanged": true,
+  "migration": {
+    "name": "20261005160000_krisp_notetaker",
+    "sha256": "7cd2d04b002fedfc9e40d9f051d587637f52e32b5719d0111a5f77e496c81454"
+  },
+  "status": "passed",
+  "completedAt": "2026-10-05T18:38:53.677Z"
+}

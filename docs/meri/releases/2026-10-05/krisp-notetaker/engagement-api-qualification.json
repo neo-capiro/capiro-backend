@@ -1,0 +1,49 @@
+{
+  "reviewer": "Codex release agent; owner explicitly authorized merge and AWS deployment",
+  "service": "engagement-api",
+  "schemaChange": true,
+  "sourceSha": "be4d886ffa774f72e0ed5c5268995109cbd11220",
+  "checks": [
+    {
+      "name": "build",
+      "sourceSha": "be4d886ffa774f72e0ed5c5268995109cbd11220",
+      "url": "https://github.com/neo-capiro/capirov2/blob/b400a0d5498f180c7e6f97e887f6b61bc1c2d7f7/docs/meri/releases/2026-10-05/krisp-notetaker/qualification.md",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:6beba60479aeb70d572de9cbfdbc989cc094790c611f5637a6d6e7a51f49b7cd",
+      "status": "passed"
+    },
+    {
+      "name": "automated-tests",
+      "sourceSha": "be4d886ffa774f72e0ed5c5268995109cbd11220",
+      "url": "https://github.com/neo-capiro/capirov2/blob/b400a0d5498f180c7e6f97e887f6b61bc1c2d7f7/docs/meri/releases/2026-10-05/krisp-notetaker/qualification.md",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:6beba60479aeb70d572de9cbfdbc989cc094790c611f5637a6d6e7a51f49b7cd",
+      "status": "passed"
+    },
+    {
+      "name": "retirement-compatibility",
+      "sourceSha": "be4d886ffa774f72e0ed5c5268995109cbd11220",
+      "url": "https://github.com/neo-capiro/capirov2/blob/b400a0d5498f180c7e6f97e887f6b61bc1c2d7f7/docs/meri/releases/2026-10-05/krisp-notetaker/qualification.md",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:6beba60479aeb70d572de9cbfdbc989cc094790c611f5637a6d6e7a51f49b7cd",
+      "status": "passed"
+    }
+  ],
+  "expiresAt": "2026-10-06T06:52:21.9116784Z",
+  "retiredUpgrade": {
+    "url": "https://github.com/neo-capiro/capirov2/blob/b400a0d5498f180c7e6f97e887f6b61bc1c2d7f7/docs/meri/releases/2026-10-05/krisp-notetaker/qualification.md",
+    "status": "passed"
+  },
+  "compatibility": {
+    "url": "https://github.com/neo-capiro/capirov2/blob/b400a0d5498f180c7e6f97e887f6b61bc1c2d7f7/docs/meri/releases/2026-10-05/krisp-notetaker/qualification.md",
+    "status": "passed"
+  },
+  "status": "qualified",
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/b400a0d5498f180c7e6f97e887f6b61bc1c2d7f7/docs/meri/releases/2026-10-05/krisp-notetaker/qualification.md"
+  ],
+  "schemaVersion": 1,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:6beba60479aeb70d572de9cbfdbc989cc094790c611f5637a6d6e7a51f49b7cd",
+  "freshDatabase": {
+    "url": "https://github.com/neo-capiro/capirov2/blob/b400a0d5498f180c7e6f97e887f6b61bc1c2d7f7/docs/meri/releases/2026-10-05/krisp-notetaker/qualification.md",
+    "status": "passed"
+  },
+  "reviewedAt": "2026-10-05T18:52:21.9116577Z"
+}

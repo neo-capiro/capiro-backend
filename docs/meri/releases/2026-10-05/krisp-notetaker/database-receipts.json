@@ -1,0 +1,97 @@
+[
+  {
+    "mode": "apply",
+    "stage": "preflight",
+    "ledgerHash": "64e524fa11c794272695d166b4553523c637651c0429ec6f9adaeef029b73772",
+    "ledgerRows": 609,
+    "pending": [
+      {
+        "name": "20261005160000_krisp_notetaker",
+        "sha256": "7cd2d04b002fedfc9e40d9f051d587637f52e32b5719d0111a5f77e496c81454"
+      },
+      {
+        "name": "20281007020000_clio_attachments_xlsx_kind",
+        "sha256": "3cd4c702906031345ed2c7c6db45fcceb60b1bb73b4568804cb9576f54ec1a0b"
+      }
+    ],
+    "flags": [
+      {
+        "slug": "c2-strategies",
+        "enabled": null
+      },
+      {
+        "slug": "capiro-internal",
+        "enabled": null
+      }
+    ],
+    "tables": [],
+    "role": {
+      "rolsuper": false,
+      "rolbypassrls": false
+    },
+    "manifestSha256": "e8ceb2841d044f99f6df327c87a8e4b5fa38a0a70ffcdf7be242384bee0b1adf",
+    "tlsVerified": true
+  },
+  {
+    "stage": "migrate",
+    "status": "intent",
+    "pending": [
+      {
+        "name": "20261005160000_krisp_notetaker",
+        "sha256": "7cd2d04b002fedfc9e40d9f051d587637f52e32b5719d0111a5f77e496c81454"
+      },
+      {
+        "name": "20281007020000_clio_attachments_xlsx_kind",
+        "sha256": "3cd4c702906031345ed2c7c6db45fcceb60b1bb73b4568804cb9576f54ec1a0b"
+      }
+    ]
+  },
+  {
+    "stage": "migrate",
+    "exitCode": 0,
+    "outputSha256": "aba44e653c1e835162baa04b576d91e5734bb6ad8285431db8383e31a4b3af5d",
+    "errorCode": null
+  },
+  {
+    "stage": "complete",
+    "status": "passed",
+    "sourceSha": "be4d886ffa774f72e0ed5c5268995109cbd11220",
+    "ledgerHash": "a21b14ba73cfa18df342615d6cb6b239ff17ce3d35b2fb22cf64682ef1aff7d9",
+    "priorLedgerUnchanged": true,
+    "otherTenantsUnchanged": true,
+    "flags": [
+      {
+        "slug": "c2-strategies",
+        "enabled": "true"
+      },
+      {
+        "slug": "capiro-internal",
+        "enabled": "true"
+      }
+    ],
+    "tables": [
+      {
+        "relname": "krisp_meeting_imports",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true,
+        "grants": true
+      },
+      {
+        "relname": "krisp_notetaker_preferences",
+        "relrowsecurity": true,
+        "relforcerowsecurity": true,
+        "grants": true
+      }
+    ],
+    "pendingApplied": [
+      {
+        "name": "20261005160000_krisp_notetaker",
+        "sha256": "7cd2d04b002fedfc9e40d9f051d587637f52e32b5719d0111a5f77e496c81454"
+      },
+      {
+        "name": "20281007020000_clio_attachments_xlsx_kind",
+        "sha256": "3cd4c702906031345ed2c7c6db45fcceb60b1bb73b4568804cb9576f54ec1a0b"
+      }
+    ]
+  }
+]

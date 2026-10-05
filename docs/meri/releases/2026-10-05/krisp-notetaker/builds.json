@@ -1,0 +1,35 @@
+[
+  {
+    "service": "api",
+    "sourceSha": "be4d886ffa774f72e0ed5c5268995109cbd11220",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:cbf7edf880d958b74cacdef19d31ad4e90b6831887f78d93b1b5f9b3a742352a",
+    "buildId": "capiro-build-web-dev:cb443783-2a06-458a-9a33-145d84bf5d5d",
+    "status": "SUCCEEDED",
+    "startedAt": "2026-10-05T14:36:57.691000-04:00",
+    "endedAt": "2026-10-05T14:43:35.962000-04:00",
+    "packagedProbePassed": true,
+    "packagedMigrationsMatched": 454
+  },
+  {
+    "service": "engagement-api",
+    "sourceSha": "be4d886ffa774f72e0ed5c5268995109cbd11220",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:6beba60479aeb70d572de9cbfdbc989cc094790c611f5637a6d6e7a51f49b7cd",
+    "buildId": "capiro-build-web-dev:d6749b6b-9032-4091-a393-32f75add7384",
+    "status": "SUCCEEDED",
+    "startedAt": "2026-10-05T14:36:58.727000-04:00",
+    "endedAt": "2026-10-05T14:43:33.305000-04:00",
+    "packagedProbePassed": true,
+    "packagedMigrationsMatched": 454
+  },
+  {
+    "service": "web-vnext",
+    "sourceSha": "be4d886ffa774f72e0ed5c5268995109cbd11220",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:f181b3c064a0253546343a61b75073d1348fcfb08b085a827ece9a82260991f5",
+    "buildId": "capiro-build-web-dev:9a8a7054-c2a6-4e5c-9003-48a502c55dd7",
+    "status": "SUCCEEDED",
+    "startedAt": "2026-10-05T14:35:11.751000-04:00",
+    "endedAt": "2026-10-05T14:40:36.562000-04:00",
+    "packagedProbePassed": true,
+    "packagedMigrationsMatched": null
+  }
+]
