@@ -1,0 +1,211 @@
+{
+  "at": "2026-10-05T11:09:26.347Z",
+  "service": "api",
+  "status": "SUCCEEDED",
+  "qualification": "IMMUTABLE_BUILD_AND_OFFLINE_PROBES_PASS",
+  "sourceSha": "aa8f360b759110d7bb61039dede185c17cbfe694",
+  "resolvedSourceSha": "aa8f360b759110d7bb61039dede185c17cbfe694",
+  "buildId": "capiro-build-web-dev:29924b1b-1884-4988-80b4-0fb61b4b0f9e",
+  "startedAt": "2026-10-05T07:01:47.890000-04:00",
+  "finishedAt": "2026-10-05T07:08:54.358000-04:00",
+  "buildspecSha256": "81460b899ebbab92d1a1bc400b2017813323d67b38fa90a81b304f52e9294270",
+  "buildLogSha256": "2a1666eada79024529498ab949cf50f7b9ef31a21ad1cf5748d99bc80140807a",
+  "phases": [
+    {
+      "phaseType": "SUBMITTED",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T07:01:47.890000-04:00",
+      "endTime": "2026-10-05T07:01:47.990000-04:00",
+      "durationInSeconds": 0
+    },
+    {
+      "phaseType": "QUEUED",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T07:01:47.990000-04:00",
+      "endTime": "2026-10-05T07:01:48.590000-04:00",
+      "durationInSeconds": 0
+    },
+    {
+      "phaseType": "PROVISIONING",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T07:01:48.590000-04:00",
+      "endTime": "2026-10-05T07:01:56.537000-04:00",
+      "durationInSeconds": 7,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "DOWNLOAD_SOURCE",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T07:01:56.537000-04:00",
+      "endTime": "2026-10-05T07:02:07.970000-04:00",
+      "durationInSeconds": 11,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "INSTALL",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T07:02:07.970000-04:00",
+      "endTime": "2026-10-05T07:02:08.054000-04:00",
+      "durationInSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "PRE_BUILD",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T07:02:08.054000-04:00",
+      "endTime": "2026-10-05T07:02:23.453000-04:00",
+      "durationInSeconds": 15,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "BUILD",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T07:02:23.453000-04:00",
+      "endTime": "2026-10-05T07:07:16.130000-04:00",
+      "durationInSeconds": 292,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "POST_BUILD",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T07:07:16.130000-04:00",
+      "endTime": "2026-10-05T07:08:53.934000-04:00",
+      "durationInSeconds": 97,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "UPLOAD_ARTIFACTS",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T07:08:53.934000-04:00",
+      "endTime": "2026-10-05T07:08:54.051000-04:00",
+      "durationInSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "FINALIZING",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T07:08:54.051000-04:00",
+      "endTime": "2026-10-05T07:08:54.358000-04:00",
+      "durationInSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "COMPLETED",
+      "startTime": "2026-10-05T07:08:54.358000-04:00"
+    }
+  ],
+  "requiredMarkers": [
+    "CASE12_IMAGE_ASSET_MANIFEST_MATCH_SOURCE_PASS",
+    "EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+    "MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS",
+    "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS",
+    "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+    "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS",
+    "OFFLINE_CASE01_POSTSEED_IMPORT_PASS",
+    "OFFLINE_CASE12_REMEDIATION_OWNER_AND_CONVERSATION_FENCE_PASS",
+    "OFFLINE_PACKAGED_C2_CANONICAL_MEMORY_SOURCE_PASS",
+    "OFFLINE_PACKAGED_C2_MEMORY_PASS",
+    "OFFLINE_PACKAGED_C2_RECONCILIATION_PASS",
+    "OFFLINE_PACKAGED_C2_RECORDED_SOURCE_PRIVACY_PASS",
+    "OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS",
+    "OFFLINE_PACKAGED_C2_TOOL_HTTP_SUCCESS_PASS",
+    "OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_LEDGER_ONLY_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_RECEIPT_CONTRACT_PASS",
+    "OFFLINE_PACKAGED_CASE12_ACTUAL_ECS_DEFAULT_PARITY_PASS",
+    "OFFLINE_PACKAGED_CASE12_ASSET_MANIFEST_PASS",
+    "OFFLINE_PACKAGED_CASE12_CORE_SETUP_BINDING_PASS",
+    "OFFLINE_PACKAGED_CASE12_MODULES_PASS",
+    "OFFLINE_PACKAGED_CASE12_NEGATIVE_HELPER_INGRESS_PASS",
+    "OFFLINE_PACKAGED_CASE12_PREHOLD_510_DERIVATION_PASS",
+    "OFFLINE_PACKAGED_CASE12_RECIPE_510_BODY_PLANNER_PASS",
+    "OFFLINE_PACKAGED_CASE46_RECONCILED_RECOVERY_GATES_PASS",
+    "OFFLINE_PACKAGED_MERI_COMPATIBILITY_CONTEXT_BOUND_PASS",
+    "OFFLINE_PACKAGED_MERI_SERIALIZED_STEERING_BOUND_PASS",
+    "OFFLINE_PACKAGED_RETROSPECTIVE_APPROVAL_PLANNER_PASS",
+    "OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS",
+    "OFFLINE_PACKAGED_SOL_POLICY_AND_PRICE_PASS",
+    "OFFLINE_RUNTIME_IMPORT_PASS"
+  ],
+  "passedMarkers": [
+    "CASE12_IMAGE_ASSET_MANIFEST_MATCH_SOURCE_PASS",
+    "EXACT_452_IMAGE_MIGRATION_HASHES_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+    "MAIL_ACTIVE_OWNER_INDEX_MIGRATION_PACKAGE_PASS",
+    "OFFLINE_CASE01_CONTINUATION_IMPORT_PASS",
+    "OFFLINE_CASE01_FIXTURE_PACKAGE_IMPORT_PASS",
+    "OFFLINE_CASE01_POSTAPPROVAL_IMPORT_PASS",
+    "OFFLINE_CASE01_POSTSEED_IMPORT_PASS",
+    "OFFLINE_CASE12_REMEDIATION_OWNER_AND_CONVERSATION_FENCE_PASS",
+    "OFFLINE_PACKAGED_C2_CANONICAL_MEMORY_SOURCE_PASS",
+    "OFFLINE_PACKAGED_C2_MEMORY_PASS",
+    "OFFLINE_PACKAGED_C2_RECONCILIATION_PASS",
+    "OFFLINE_PACKAGED_C2_RECORDED_SOURCE_PRIVACY_PASS",
+    "OFFLINE_PACKAGED_C2_TERMINAL_LIFECYCLE_PASS",
+    "OFFLINE_PACKAGED_C2_TOOL_HTTP_SUCCESS_PASS",
+    "OFFLINE_PACKAGED_C2_TS_SOURCE_IMPORT_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_LEDGER_ONLY_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_PROVIDER_API_GUARDS_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_RECEIPT_CONTRACT_PASS",
+    "OFFLINE_PACKAGED_CASE12_ACTUAL_ECS_DEFAULT_PARITY_PASS",
+    "OFFLINE_PACKAGED_CASE12_ASSET_MANIFEST_PASS",
+    "OFFLINE_PACKAGED_CASE12_CORE_SETUP_BINDING_PASS",
+    "OFFLINE_PACKAGED_CASE12_MODULES_PASS",
+    "OFFLINE_PACKAGED_CASE12_NEGATIVE_HELPER_INGRESS_PASS",
+    "OFFLINE_PACKAGED_CASE12_PREHOLD_510_DERIVATION_PASS",
+    "OFFLINE_PACKAGED_CASE12_RECIPE_510_BODY_PLANNER_PASS",
+    "OFFLINE_PACKAGED_CASE46_RECONCILED_RECOVERY_GATES_PASS",
+    "OFFLINE_PACKAGED_MERI_COMPATIBILITY_CONTEXT_BOUND_PASS",
+    "OFFLINE_PACKAGED_MERI_SERIALIZED_STEERING_BOUND_PASS",
+    "OFFLINE_PACKAGED_RETROSPECTIVE_APPROVAL_PLANNER_PASS",
+    "OFFLINE_PACKAGED_SEMANTIC_CLOCK_API_CORE_PASS",
+    "OFFLINE_PACKAGED_SOL_POLICY_AND_PRICE_PASS",
+    "OFFLINE_RUNTIME_IMPORT_PASS"
+  ],
+  "missingMarkers": [],
+  "serviceMutations": 0,
+  "providerCalls": 0,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:0ca53ebe0b6e9f51c92455052d765243edd33595e9521435d924b214bf06dea6"
+}

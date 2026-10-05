@@ -1,0 +1,167 @@
+{
+  "kind": "meri-case46-export-read-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGES_TESTS_AND_RETIREMENT_COMPATIBILITY_PASS",
+  "at": "2026-10-05T11:16:09.397804+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "aa8f360b759110d7bb61039dede185c17cbfe694",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:0ca53ebe0b6e9f51c92455052d765243edd33595e9521435d924b214bf06dea6",
+      "buildId": "capiro-build-web-dev:29924b1b-1884-4988-80b4-0fb61b4b0f9e",
+      "packagedMarkersPassed": 33
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "35d1f3c2200cedfcaffa64a2afad3d0cbd8350fe",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:149d127f9a70c0a2330a65f33f4e021bff35886c1e28d54159b5cc648dae5fe3",
+      "buildId": "capiro-build-web-dev:83ba666c-ae82-4d6c-9a21-4cc4cb7e0905",
+      "packagedMarkersPassed": 18
+    }
+  ],
+  "schemaChange": false,
+  "providerCalls": 0,
+  "c2Complete": false,
+  "change": "Orchestrator (PRs #1970, #1972): governed artifact captures expose read-only read_client_documents with create_word; an inexact export returns a blocked tool result instead of failing the turn, with field-level reasons; the chat prompt states the exact-export rule. API (PR #1971): generation-3 retained-history Case46 recovery binding with known settled cost. Deploy order: API, then orchestrator.",
+  "authorizationBasis": "User directed continuing until the goal is met (2026-10-05); established native release operator, CodeBuild backup shipping and PR merges already authorized.",
+  "reviewer": "Lead agent: focused and full source tests, typechecks, packaged image probes and served baseline review",
+  "sourceEvidence": [
+    "https://github.com/neo-capiro/capirov2/pull/1970",
+    "https://github.com/neo-capiro/capirov2/pull/1971",
+    "https://github.com/neo-capiro/capirov2/pull/1972"
+  ],
+  "validation": {
+    "orchestratorSourceTests": "1578 passed, 2 known live skips",
+    "apiCase46Tests": 70,
+    "typechecks": [
+      "API",
+      "ORCHESTRATOR"
+    ],
+    "packagedProbesPassed": {
+      "api": 33,
+      "meriv2-orchestrator": 18
+    }
+  },
+  "artifactPins": [
+    {
+      "path": "api/build-readback.json",
+      "bytes": 7448,
+      "sha256": "c0dcedc6e38ba0bf0a3d84634bc8ea0180f9f523bf9a65e9e258c86e6e999934"
+    },
+    {
+      "path": "api/build.log",
+      "bytes": 76155,
+      "sha256": "2a1666eada79024529498ab949cf50f7b9ef31a21ad1cf5748d99bc80140807a"
+    },
+    {
+      "path": "api/buildspec.json",
+      "bytes": 25275,
+      "sha256": "20f412dc769332cb9656b5d0b72d8a3c7e8d142a6c5ad995d168b44e8122910d"
+    },
+    {
+      "path": "api/image-manifest.json",
+      "bytes": 507,
+      "sha256": "6035e3ec50914e6b3e24bd6973b2f29f8cc630f26e7d6add91bea00e14a937e5"
+    },
+    {
+      "path": "api/launch-intent.json",
+      "bytes": 899,
+      "sha256": "ccf85b9bb4c3b3e4f3a511e843d0feefe183ebd3ecd295797ee609d7e258e925"
+    },
+    {
+      "path": "api/build-start.json",
+      "bytes": 2184,
+      "sha256": "1cb009e999fe059584a90cc35c64927b5ad15b7398b46ad039f727f74139a8fd"
+    },
+    {
+      "path": "api/phase-pre_build.sh",
+      "bytes": 880,
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427"
+    },
+    {
+      "path": "api/phase-build.sh",
+      "bytes": 62224,
+      "sha256": "5f29e251b69531cb1ab35b449fb0063cf11a78c21146456baf5666ecc15ae34c"
+    },
+    {
+      "path": "api/phase-post_build.sh",
+      "bytes": 863,
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d"
+    },
+    {
+      "path": "meriv2-orchestrator/build-readback.json",
+      "bytes": 5926,
+      "sha256": "203850f50bca6a2c969a259b89e1ebf133ba4aae2a5019715acf56615f3bf1a5"
+    },
+    {
+      "path": "meriv2-orchestrator/build.log",
+      "bytes": 775490,
+      "sha256": "4a3df3a03cf7fc898e257128d99125cbd5e28dc313b38088a61bf456d710c03d"
+    },
+    {
+      "path": "meriv2-orchestrator/buildspec.json",
+      "bytes": 14483,
+      "sha256": "ef4a9d53096e8a1d9d78cbab5e495b8d9b5558cea6b571c78ac2d2eac16cd485"
+    },
+    {
+      "path": "meriv2-orchestrator/image-manifest.json",
+      "bytes": 522,
+      "sha256": "9f27c36bb6258460e60cf33e298eb7fd9c7c937d2dd46d71cb4d26444a703d8d"
+    },
+    {
+      "path": "meriv2-orchestrator/launch-intent.json",
+      "bytes": 915,
+      "sha256": "4836c951d11f4b0c981e1bbe4f97b2aa6d09b7fe1c7499fa7d41724303e4dc7c"
+    },
+    {
+      "path": "meriv2-orchestrator/build-start.json",
+      "bytes": 1423,
+      "sha256": "b3812ea15875d2ddb7f47d99f0fa548a214bd10609f4a38820af9a8e3eb9de54"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-pre_build.sh",
+      "bytes": 1493,
+      "sha256": "7214275629cfe2732e11020877ba4e0717d67711fe649f5eddb6f7b1b8d7c317"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-build.sh",
+      "bytes": 28431,
+      "sha256": "4a55881054592913ffe648d16c21ef4a38063f04bf08dee31d7b85bb749ac522"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-post_build.sh",
+      "bytes": 971,
+      "sha256": "20b5e9bb3ba9f445f70dbaa058e126ef736992331e71b3cae5ee5dd6bfbc4d9d"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 3149,
+      "sha256": "a88dc739e8d8f92d58964bb1164a18b81d30509b6d41eea3a6720b1ceda60e23"
+    },
+    {
+      "path": "source-tests/case46-export-read-orch-tests-v1.log",
+      "bytes": 696357,
+      "sha256": "c0a7788f2c9b7fb4824a7477ef909175d04b98c09f76719e59b9d52ffd4ab77d"
+    },
+    {
+      "path": "source-tests/case46-export-read-orch-typecheck-v1.log",
+      "bytes": 11,
+      "sha256": "a6ce7f41eaf235b981cdbfe9a3d6a5d9a3502b6bd605ffc2acf78679a4ee9a2f"
+    },
+    {
+      "path": "source-tests/case46-mismatch-orch-typecheck-v1.log",
+      "bytes": 11,
+      "sha256": "a6ce7f41eaf235b981cdbfe9a3d6a5d9a3502b6bd605ffc2acf78679a4ee9a2f"
+    },
+    {
+      "path": "source-tests/case46-gen3-api-tests-v1.log",
+      "bytes": 1739,
+      "sha256": "a65c32a197f5ac30a1efb88e3ce4f1f803c477bfb17bcee6eb824d385965ba9e"
+    },
+    {
+      "path": "source-tests/case46-gen3-api-typecheck-v1.log",
+      "bytes": 11,
+      "sha256": "a6ce7f41eaf235b981cdbfe9a3d6a5d9a3502b6bd605ffc2acf78679a4ee9a2f"
+    }
+  ]
+}
