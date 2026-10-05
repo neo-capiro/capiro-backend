@@ -122,7 +122,7 @@ docker buildx build --platform linux/arm64 -f apps/web/Dockerfile \
   -t 967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext:$SHA --push .
 ```
 
-Read `.github/workflows/web-vnext-deploy.yml` lines 75 to 125 for the Node heap setting it used, and keep the same tag-by-SHA, digest-in-readback discipline. Add a `BUILD_SERVICE=web-vnext` branch to the launcher when you do this; it is a one-time tooling PR (S1-0 below recommends committing the launcher).
+The launcher now does this: `BUILD_SERVICE=web-vnext` builds `apps/web/Dockerfile` with `NODE_VERSION=22.23.3`, `GIT_SHA` and `CAPIRO_WEB_BUILD_SURFACE=vnext` (the Dockerfile sets the 6 GB Node heap itself), checks the static bundle offline, and with `BUILD_WEB_PROBE='<text>'` also requires a release-specific string in the bundle. Same tag-by-SHA, digest-in-readback discipline; about five minutes. Other workstreams promoted web-vnext revisions 394 to 398 on 2026-10-05 through the same CodeBuild project and `meri-release.mjs` (for example `releases/2026-10-05/krisp-signin-fix`), so the build and roll path is already exercised.
 
 ### 2.3 Qualify, prepare, promote
 
