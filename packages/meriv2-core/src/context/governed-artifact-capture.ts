@@ -184,8 +184,10 @@ export function describeMeriCase46ExportMismatch(
   else if (input.text !== MERI_CASE46.text)
     reasons.push(
       input.text.trimEnd() === MERI_CASE46.text.trimEnd()
-        ? 'text differs from the source only in trailing whitespace: keep the source text exactly, including its final newline'
-        : 'text differs from the source document: copy the text returned by the document read exactly, without editing it',
+        ? `text differs from the source only in trailing whitespace: the source text ends with ${JSON.stringify(
+            MERI_CASE46.text.slice(MERI_CASE46.text.trimEnd().length),
+          )} and yours ends with ${JSON.stringify(input.text.slice(input.text.trimEnd().length))}; keep every other character unchanged`
+        : 'text differs from the source document: copy the source document text exactly, without editing it',
     );
   return reasons;
 }

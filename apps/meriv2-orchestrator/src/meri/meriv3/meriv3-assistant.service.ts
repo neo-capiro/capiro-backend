@@ -230,14 +230,12 @@ const AUTO_CORRECTION_BUDGET = {
 /** Promoted material claims assessed per turn; later claims stay byte-identical. */
 const AUTO_CORRECTION_MAX_CLAIMS = 12;
 const PAGE_WRITE_DRAFT_TOOLS = new Set(['draft_policy_memo', 'create_meeting_brief']);
-// A governed export may read the client's documents (ACL-checked, read-only)
-// to find and reproduce its source; the only write remains the guarded export.
-const GOVERNED_ARTIFACT_CAPTURE_TOOLS: ReadonlySet<string> = new Set([
-  'create_word',
-  'read_client_documents',
-]);
+// A governed export capture exposes only the guarded export. A document read
+// would record extraction bookkeeping on the pinned source row, and the
+// source text is already in the governed turn context.
+const GOVERNED_ARTIFACT_CAPTURE_TOOLS: ReadonlySet<string> = new Set(['create_word']);
 const GOVERNED_EXPORT_MISMATCH_DETAIL =
-  'This export was not proposed: exporting an existing document must reproduce it exactly. Read the document first, use its file name without the extension as the title, keep its format (format txt for a .txt file, with an empty sections array) and pass its exact text unchanged.';
+  'This export was not proposed: exporting an existing document must reproduce it exactly. Fix each listed difference and call create_word again with the corrected input.';
 const UNKNOWN_PUBLIC_TOOL = {
   tool: 'unknown_tool',
   label: 'Unavailable tool',
