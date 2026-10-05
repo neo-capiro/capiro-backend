@@ -17,6 +17,12 @@ export const CASE46_RETIRED_SETUP_KEY = 'case46RetiredExecutionSetup';
 export const CASE46_REMEDIATION_PROOF_2 =
   '0d7ecf1e7768161398d995d3de1549a6d022e18bbaaa1306cd67d5aef9bf0795';
 export const CASE46_RETIRED_SETUP_KEY_2 = 'case46RetiredExecutionSetup2';
+/** Third failure (journal43): run 53ce0db1 dispatched the model once, but the
+ * capture exposed no document read; the inexact export was refused and no
+ * proposal was created. Its server-settled cost is known and retained. */
+export const CASE46_REMEDIATION_PROOF_3 =
+  'db04f809d08a7dd545a2430b506ac0cd7e7259cb427fa343ba2fe628478acbf6';
+export const CASE46_RETIRED_SETUP_KEY_3 = 'case46RetiredExecutionSetup3';
 
 interface Case46RemediationGeneration {
   proof: string;
@@ -27,6 +33,11 @@ interface Case46RemediationGeneration {
   failedClaimSha: string;
   failedBudgetSha: string;
   expiredAt: number;
+  /** Messages the failed conversation holds: the original turn, plus the
+   * saved failure answer when the model was dispatched. */
+  messages: bigint;
+  /** Server-settled provider cost, or null when the run never dispatched. */
+  knownCostMicros: number | null;
   /** Earlier retirements that must still be present, byte-for-byte. */
   priorRetired: ReadonlyArray<{ key: string; sha256: string }>;
 }
@@ -40,6 +51,8 @@ const GENERATIONS: readonly Case46RemediationGeneration[] = [
     failedClaimSha: '0de12eb3226c0f24b7330d3c1b2847263eaabd4ddad2c14de63f6b5cdac1bed3',
     failedBudgetSha: 'c1c674509fa9909798960f2cf80d9279b5e83398c7f158debd24d026bd2c1bf2',
     expiredAt: Date.parse('2026-10-05T01:25:09.429Z'),
+    messages: 1n,
+    knownCostMicros: null,
     priorRetired: [],
   },
   {
@@ -51,10 +64,34 @@ const GENERATIONS: readonly Case46RemediationGeneration[] = [
     failedClaimSha: 'd8137fa4999ba29936bcc946d93f3f2c9c6977a9088ea9debe6d0e21e8a5037f',
     failedBudgetSha: 'a59aca054b9404da543cb81f0f92efd5a961afd4a815342353e0e6c72bb82841',
     expiredAt: Date.parse('2026-10-05T03:40:14.876Z'),
+    messages: 1n,
+    knownCostMicros: null,
     priorRetired: [
       {
         key: CASE46_RETIRED_SETUP_KEY,
         sha256: 'f61c82f5b748684000dc26bef3e4e6131cf059ddf21cc25df39a8e1ecdb25a7e',
+      },
+    ],
+  },
+  {
+    proof: CASE46_REMEDIATION_PROOF_3,
+    retiredKey: CASE46_RETIRED_SETUP_KEY_3,
+    failedRun: '53ce0db1-c4f2-448f-a71a-47b45ee96bb4',
+    failedConversation: 'f95c54d4-31a7-489f-87cf-22d0898358c0',
+    failedTurn: 'a946a29c-b131-4db8-a41f-fd6d424fc1ef',
+    failedClaimSha: '44e4459e1bc8fa4466a8f9bf1806870f984749760d38331791cc824c4556c5c0',
+    failedBudgetSha: '803aa81ec5c538664b68a614816bab570f875bef1ffe0f6405277e2adc5e181c',
+    expiredAt: Date.parse('2026-10-05T10:52:35.312Z'),
+    messages: 2n,
+    knownCostMicros: 1_187_250,
+    priorRetired: [
+      {
+        key: CASE46_RETIRED_SETUP_KEY,
+        sha256: 'f61c82f5b748684000dc26bef3e4e6131cf059ddf21cc25df39a8e1ecdb25a7e',
+      },
+      {
+        key: CASE46_RETIRED_SETUP_KEY_2,
+        sha256: '848e21925ae24107f860ee5760081a632e7f0a98f19f3eb9abf11a732f671cc5',
       },
     ],
   },
@@ -111,7 +148,7 @@ export async function assertCase46RemediationInTx(
       (SELECT count(*) FROM clio_artifacts WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${g.failedConversation}::uuid) AS artifacts`;
   if (
     counts.length !== 1 ||
-    counts[0]!.messages !== 1n ||
+    counts[0]!.messages !== g.messages ||
     counts[0]!.original !== 1n ||
     counts[0]!.proposals !== 0n ||
     counts[0]!.artifacts !== 0n
@@ -127,8 +164,8 @@ export function case46RetiredSetup(fixture: Record<string, unknown>, proof?: str
     priorClaim: fixture.case46ExecutionSetup,
     failedConversationId: g.failedConversation,
     terminalProofSha256: g.proof,
-    conservativeCostMicros: 3_000_000,
-    actualCostMicros: null,
+    conservativeCostMicros: g.knownCostMicros ?? 3_000_000,
+    actualCostMicros: g.knownCostMicros,
     acceptanceAuthority: false,
   };
 }
