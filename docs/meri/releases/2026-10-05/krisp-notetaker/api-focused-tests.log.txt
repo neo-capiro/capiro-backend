@@ -1,0 +1,50 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+[Nest] 22204  - 10/05/2026, 2:16:23 PM   ERROR [NotetakerService] automatic bot removal s1: vendor unavailable
+[Nest] 22204  - 10/05/2026, 2:16:23 PM   ERROR [NotetakerService] failed to record bot id for session s1 — removing bot bot_1 from the call: db blip
+[Nest] 22204  - 10/05/2026, 2:16:23 PM   ERROR [NotetakerService] reconciliation failed for session s-stale: db blip
+[Nest] 22204  - 10/05/2026, 2:16:23 PM   ERROR [NotetakerService] recording-leg reconciliation failed for session s-rec: recall 502
+[Nest] 22204  - 10/05/2026, 2:16:23 PM   ERROR [NotetakerService] retention: failed to erase transcript attachment a1: s3 down
+PASS src/engagement/notetaker/notetaker.service.spec.ts (32.832 s)
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] createAsyncTranscript failed (session s1): boom
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] createAsyncTranscript failed (session s1): Recall API error (HTTP 400)
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] getRecordingId failed (session s1): recall 502
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] debrief auto-create failed (session s1): db blip
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] Recall webhook could not be matched to a session (event=test, bot=bot_x)
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] reconciling session s-stale — transcript tr1 is done but no transcript.done webhook arrived; finishing it directly
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] reconciling session s-stale — transcript tr1 is done but no transcript.done webhook arrived; finishing it directly
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] transcript tr1 not ready at finish (session s-stale) — releasing claim
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] reconciling session s-stale — transcript tr1 is done but no transcript.done webhook arrived; finishing it directly
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] reconciling session s-rec — bot bot_1 ended but no call_ended/recording webhook arrived; starting transcription directly
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] retention: erased 1 notetaker transcript(s) older than 30d
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] retention: erased 1 notetaker transcript(s) older than 30d
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] retention: erased 1 notetaker transcript(s) older than 30d
+[Nest] 22204  - 10/05/2026, 2:16:23 PM    WARN [NotetakerService] reconcile: reset 1 stranded 'drafting' notetaker session(s) to 'processing' for re-drive
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+[Nest] 22204  - 10/05/2026, 2:16:27 PM    WARN [MeriMcpService] MCP discovery failed for server server
+[Nest] 22204  - 10/05/2026, 2:16:27 PM    WARN [MeriMcpService] MCP discovery failed for server server
+[Nest] 22204  - 10/05/2026, 2:16:27 PM    WARN [MeriMcpService] MCP discovery failed for server server
+PASS src/meri/meri-mcp.managed-boundary.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/engagement-workers/krisp-notetaker-worker.service.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/engagement/krisp/krisp-notetaker.service.spec.ts
+PASS src/meri/meri-mcp-oauth.provider.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/meri/meri-mcp-oauth.service.spec.ts
+PASS src/meri/meri-managed-mcp.service.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/engagement/krisp/krisp.helpers.spec.ts
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/meri/meri-managed-mcp.helpers.spec.ts
+
+Test Suites: 9 passed, 9 total
+Tests:       154 passed, 154 total
+Snapshots:   0 total
+Time:        46.174 s, estimated 116 s
+Ran all test suites matching /src\\engagement\\krisp|src\\engagement-workers\\krisp-notetaker-worker.service.spec.ts|src\\meri\\meri-managed-mcp.service.spec.ts|src\\meri\\meri-managed-mcp.helpers.spec.ts|src\\meri\\meri-mcp-oauth.provider.spec.ts|src\\meri\\meri-mcp-oauth.service.spec.ts|src\\meri\\meri-mcp.managed-boundary.spec.ts|src\\engagement\\notetaker\\notetaker.service.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
