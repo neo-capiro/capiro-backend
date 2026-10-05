@@ -14,3 +14,7 @@ Builds use the lean Stage 1 launcher (`phase-*.sh` here): native ARM64 CodeBuild
 Pending migrations already in the API image and NOT applied by this roll: `20261005160000_krisp_notetaker` (from #2000) and `20281007020000_clio_attachments_xlsx_kind` (#1996). They are applied separately with Neo's OK.
 
 Served baseline before the roll: `served-baseline.json` (api:555 from `be4d886ff`, orchestrator:139 from `a442cafb3`, web-vnext:392). Both are ancestors of the candidate.
+
+## API rebuilt (api-2)
+
+While this release was in progress, LegiWatch QA (#1967) deployed API 557 from `ccd28769d`, which the first API candidate did not contain. The API candidate built from `c805ed15c` was prepared but never promoted. The API was rebuilt from main `33174828a` (contains both) and shipped from `api-2/`. The orchestrator shipped from `c805ed15c` as revision 141.
