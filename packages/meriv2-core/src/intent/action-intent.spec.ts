@@ -41,6 +41,8 @@ describe('classifyActionIntent', () => {
     ['Q1', 'Draft an email and memo for me.', 'draft_policy_memo'],
     ['S1', 'Summarize this meeting as a leave-behind.', 'create_meeting_brief'],
     ['T2', 'What do you remember about this client?', 'save_memory'],
+    ['recall format', 'Remember how I like my own answers formatted.', 'save_memory'],
+    ['negative remember', 'Do not remember for this client that briefs are weekly.', 'save_memory'],
     ['draft only', 'Draft an email to Alex.', 'send_email'],
     ['negative file intent', 'Draft the memo here without creating a Word file.', 'create_word'],
     [
@@ -61,6 +63,8 @@ describe('classifyActionIntent', () => {
     ['Could you email Alex the approved response?', 'send_email'],
     ['Make me a Word doc with the analysis.', 'create_word'],
     ['Remember that Project Falcon means the radar modernization effort.', 'save_memory'],
+    ['Remember for this client that briefs should include the program office.', 'save_memory'],
+    ['Remember for Aster that briefs are monthly.', 'save_memory'],
     ['Save the updated prospect brief.', 'save_business_development_brief'],
   ])('allows explicit request: %s', (prompt, tool) => {
     expect(classifyActionIntent(prompt, tool)).toMatchObject({
