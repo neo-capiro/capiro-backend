@@ -1,6 +1,6 @@
 # Meri program plan — one runtime, a coworker you can delegate to
 
-Date: 2026-10-05. Author: lead agent session with Neo.
+Date: 2026-10-05, updated the same day after Neo's second round of decisions (D7 to D10). Author: lead agent session with Neo.
 
 This file controls execution for the rest of the Meri program. It supersedes the execution sections of `01-Meri-Foundation-and-Reliability.md` ("Start here" through §7), `02-Meri-Coworker-and-Congressional-Drafting.md` ("Instructions for Neo" through "Release, acceptance and handover"), `03-Meri-Specialist-Models-and-Fine-Tuning.md` ("What Neo should do" through "Required deliverables and closeout") and the whole of `01-Meri-Foundation-Closeout-Plan-2026-10-02.md`. The reference annexes of files 01, 02 and 03 remain the requirement reference. Where an annex conflicts with this file, this file wins. `STATUS.md` records progress; `01-handover.md`, `02-handover.md` and `03-handover.md` remain the stage records.
 
@@ -18,6 +18,10 @@ Recorded with Neo on 2026-10-05. They are not open for re-litigation by a later 
 | D4 | V1 and the V2 chat path are deleted once the kill switch is proven. | Stage 1 deletes about 3,600 lines of runtime code plus specs and config after one week of proven kill-switch behavior. |
 | D5 | Done means 10 to 15 real tasks, each run once as neo@capiro.ai in capiro-internal, with Neo's pass or fail verdict. Automatic checks exist only for safety: tenant and client walls, approvals, truthful sources, readable downloads. | §8 lists the tasks. The 75-case benchmark and the CD, CW, M, DR, TRN and MOD extensions are reference material, not gates. |
 | D6 | Do not over-test. Per PR: typecheck and the focused specs. Per user-visible change: one live check on capiro-internal. No capture receipts, no graders, no repeat runs, no release-qualification kits. | §9 is the complete testing policy. |
+| D7 | Congressional Drafting is scheduled after the four Cowork traits pass. It is not deferred indefinitely. | Stage 2 §5.7 is the exact-text drafting slice, started only when §5.8 passes. The drafting acquisitions from file 02 come back into force for it. |
+| D8 | Decommission Hermes safely. | Stage 1 §4.8 inventories and removes the pilot-runtime residue in order. Nothing is restarted; history is preserved. |
+| D9 | The second reviewer for approval tasks is one of the synthetic accounts in capiro-internal, never a customer identity. | T3, T8 and T18 become runnable; the runner gets a second allowed sign-in (§8). |
+| D10 | The xlsx attachment migration and the WAF exception for PowerPoint uploads may be applied at any time. | Both move into Stage 1 §4.5 as authorized work. The migration rides the first Stage 1 API roll. |
 
 Standing constraints from the 2026-10-05 handover remain in force: no Hermes restart; approvals, journal history, failed runs, tenant boundaries and existing authorizations are preserved; paid turns run one at a time; state-changing test setup only on client ZZ-QA-Meri1651-Test-DoNotUse; nothing with an external effect is approved during testing except delivery to the tester's own mailbox; production changes with side effects (migration apply, WAF change, closing a tenant flag) need Neo's OK at the time.
 
@@ -63,8 +67,8 @@ Served revisions at the time of writing: API `capiro-dev-api:553` (e06432d88), o
 
 1. Budget and bill answers carry no attached citations even when correct (cases 20 to 24, 28, 31, 32). P1.
 2. Case 21 attaches an unrelated evidence-limitation sentence to a budget answer. P1.
-3. XLSX upload fails with 500: migration `20281007020000_clio_attachments_xlsx_kind` (#1996) is merged but not applied. Applying it means a new API image that contains it and a re-registered `capiro-dev-api-admin-migrate` task definition. Needs Neo's OK.
-4. PPTX upload fails with 403 from the WAF cross-site-scripting rule on `/api/clio/attachments`. Needs Neo's OK for the exception, and the live `allow-msgraph-webhook-validation` rule drift should be codified in the same change.
+3. XLSX upload fails with 500: migration `20281007020000_clio_attachments_xlsx_kind` (#1996) is merged but not applied. Applying it means a new API image that contains it and a re-registered `capiro-dev-api-admin-migrate` task definition. Authorized on 2026-10-05 (D10); apply with the first Stage 1 API roll.
+4. PPTX upload fails with 403 from the WAF cross-site-scripting rule on `/api/clio/attachments`. Authorized on 2026-10-05 (D10): add a scoped exception for that path and codify the live `allow-msgraph-webhook-validation` rule drift in the same change.
 5. The Case 45 fix (attached file read counts as reading the document; no false "contents have not been read") is uncommitted on `codex/meri-document-completion-attachments-20261005`. Commit after the orchestrator suite and typecheck.
 6. Cases 02 and 17 passed weakly before #1995; rerun once on API 553.
 
@@ -96,10 +100,11 @@ OpenAI remains the default. A tenant whose model policy names a Claude model get
 5. Keep the architecture small (file 01 annex §14.4): no second memory store, tool catalog, scheduler, browser platform or model estate. No new connector unless a task in §8 needs it.
 6. Every PR: typecheck, the focused specs, and one live check on capiro-internal when the change is user-visible. Nothing else is required (§9).
 7. Delete only after a reachability audit: grep for importers, typecheck across apps, run the focused specs, then one live turn after deploy. Deleted code stays in git history; nothing is archived elsewhere.
+8. Reuse proven open-source code where it replaces code we would otherwise write, never as a prerequisite and never as a framework fork. Each adoption records the upstream URL and SHA, license and notice, the exact slice, the Capiro destination and the regression that proves it in `01-source-acquisition.md`. Slices already adapted during File 01 stay: Hermes guardrails (H1), compaction (H2), governed discovery (H4) and procedures (H5). Conditional items keep their recorded triggers and stay inactive: Docling, LangGraph, the pgvector RRF example, GovCon playbooks, the retrieval harness. The drafting acquisitions (USLM, bill DTD, jsdiff, xmldiff, unitedstates/congress fetch patterns) return to scope with §5.7.
 
 ## 4. Stage 1 — one runtime, honest kill switch, cheaper turns
 
-Replaces the remaining File 01 work. Estimate: about 12 PRs over two weeks. Exit: `01_READY_FOR_02` as redefined in §4.7.
+Replaces the remaining File 01 work. Estimate: about 14 PRs over two weeks. Exit: `01_READY_FOR_02` as redefined in §4.7.
 
 ### 4.1 Default-on V3 with a real kill switch
 
@@ -142,7 +147,32 @@ Measure first: a weekly query over `meri.api.turn.finalized` usage fields gives 
 
 ### 4.7 Stage 1 acceptance and handover
 
-Run tasks T1 to T4 and T15 from §8 once each. Record Neo's verdicts. Write `docs/meri/implementation/01-handover.md` with `01_READY_FOR_02` when all of the following hold: V3 is the only runtime that can serve a user and the kill-switch drill is recorded; §4.2 is merged; §4.3 and §4.4 are merged and deployed (or their PRs are open with green gates and the exact remaining step named); the Stage 1 tasks have verdicts with no open fail on walls, approvals or truthfulness. Otherwise `01_BLOCKED` with the exact blocker. Update `STATUS.md`.
+Run tasks T1 to T4 and T15 from §8 once each. Record Neo's verdicts. Write `docs/meri/implementation/01-handover.md` with `01_READY_FOR_02` when all of the following hold: V3 is the only runtime that can serve a user and the kill-switch drill is recorded; §4.2 is merged; §4.3 and §4.4 are merged and deployed (or their PRs are open with green gates and the exact remaining step named); §4.8 steps 1 to 3 are done; the Stage 1 tasks have verdicts with no open fail on walls, approvals or truthfulness. Otherwise `01_BLOCKED` with the exact blocker. Update `STATUS.md`.
+
+### 4.8 Decommission Hermes safely (D8)
+
+The Meri and Hermes runtime integration is already out of the source tree: the rollback merged as PR #1892, migration `20280929010000_remove_meri_hermes_runtime` dropped the five Hermes tables, and the live API task definition carries no `MERI_HERMES_*` keys. What remains is residue, inventoried read-only on 2026-10-05.
+
+| Residue | Identity | Observed state |
+| --- | --- | --- |
+| ECS task-definition families | `capiro-hermesval-worker` (rev 5), `capiro-hermesval-worker-v4a` (rev 1), `capiro-hermesval-worker-v5` (rev 1), all ACTIVE; `capiro-staging-meri-hermes-continuity-proof` with no active revision | No service, no running task, no EventBridge rule, no target group |
+| ECR repository | `capiro/dev/meri-hermes-worker`, 4 images | Referenced only by the families above |
+| EFS file system | `fs-0a641cad57e8bff4e` (`capiro-hermesval-efs`), 72 MB | Worker scratch |
+| Security groups | `sg-0c488a0562b1d271a` (`capiro-hermesval-worker-port`), `sg-036302af841a987f6` (`capiro-hermesval-efs`) | The worker group allowed HTTPS egress to anywhere |
+| IAM roles | `capiro-hermesval-worker-exec`, `capiro-hermesval-worker-task` | |
+| CloudWatch log group | `/capiro/dev/meri-hermes-worker`, 84 MB | |
+| Secret | `hermes/jumpbox/openrouter-api-key` | Last accessed 2026-09-26 |
+| Repository | `.hermes/` (64 prompt files) and `tools/hermes-qa/` (jumpbox tooling for the Windows Hermes CLI QA board); `RUNTIME_NAME = 'Hermes'` in `meri.service.ts`; the Hermes pin comment in `skills/commitments-audit.procedure.ts`; `docs/meri/hermes*` | The CLI tooling is developer tooling, not the runtime |
+
+Order, each step its own recorded change, nothing started to verify anything:
+
+1. Re-check read-only that no service, task, rule or other task definition references the families, roles or security groups, and that the log group has no events after 2026-09-27. The Phase 0 and Phase 1 evidence folders already live in the repository; keep the log group's retention or export it before deletion if any run history is wanted.
+2. Deregister the active revisions of the three families. Delete the EFS file system after confirming its contents are worker scratch. Delete the two security groups and the two roles once nothing references them.
+3. Delete the ECR images and the repository. Schedule the secret for deletion with the standard recovery window after confirming its only reader was the retired jumpbox flow.
+4. Remove `RUNTIME_NAME = 'Hermes'` with the V1 deletion (§4.3) and point the pin comment at `01-source-acquisition.md`. Keep `docs/meri/hermes*` as history. Remove `.hermes/` and `tools/hermes-qa/` only if Neo confirms the Hermes CLI QA board is no longer in use (§11).
+5. Record every removal in `STATUS.md` and `infra/cdk/DRIFT-FINDINGS.md`. The database is not touched; approvals and journal history stay as they are.
+
+Safely means: the pilot gate stays closed (it is), no Hermes process is started, and each deletion follows a read-only reference check.
 
 ## 5. Stage 2 — the Cowork layer
 
@@ -176,9 +206,20 @@ A `ClioScheduledTask` tick creates a job with `kind: 'scheduled'` so results app
 
 A client writing profile is a governed memory item (audience, structure, tone, terminology, length, citation style, exclusions) plus up to five approved exemplar documents linked from the client workspace and retrieved at draft time. Precedence: current instruction, client profile, firm profile, defaults. No new tables unless memory items and document links cannot carry it. Build this only when a task in §8 produces a draft Neo judges off-voice.
 
-### 5.7 Deferred from File 02
+### 5.7 Congressional Drafting, after the four traits pass (D7)
 
-The exact-text amendment engine (D3 and D4: `DraftSource`, `DraftOperation`, `DraftPackageRevision`, USLM and bill-DTD schemas, jsdiff and xmldiff, DR-09 to DR-30), Florida drafting (DR-27, DR-28), in-workspace draft approval bound to revision hashes, and the Hermes and LibreChat acquisition register are deferred. They start only when a task in §8 needs operative legislative text and Neo schedules them. Recommendation: keep deferred through this program; the Cowork traits do not depend on them. See §11.
+Starts only when §5.8 has passed. It may run alongside Stage 3, because it touches the API domain layer and the web workbench while Stage 3 touches the orchestrator provider seam. It does not gate `02_READY_FOR_03`; its result is recorded as an addendum to `02-handover.md`.
+
+Scope, in order:
+
+1. Federal exact-text amendment against an immutable base snapshot: uniquely anchored replacement, insertion and deletion through the `DraftSource`, `DraftOperation`, `DraftPackageRevision` and `DraftFinding` contracts in file 02 annex §8.6, carried on existing entities. Duplicate anchors require disambiguation; zero matches fail; no fuzzy patching; a preview is atomic for its claimed scope.
+2. Two comparison views, local revision diff and legal-baseline comparison, with deterministic checks for exact text, numbering, known reference scope, amounts and fiscal year. Schema success does not certify legal effect, and the output says so.
+3. In-workspace draft approval bound to revision hash, reviewer and time (the D4 slice). A new edit or an affected source change creates a new review state; the old approval stays historical. Approving a draft does not send or file anything.
+4. Deferred within this section until a task needs them: node replacement and renumbering, amendment-to-amendment baseline chains, page-and-line or OCR edits, Florida (DR-27, DR-28), USLM proposed 2.1.1 as default.
+
+Open-source reuse for this section, under rule 8 of §3: USLM schemas and the bill DTD (public domain) for validation and local resolvers; jsdiff (BSD-3-Clause) for text comparison, never as the legal executor; xmldiff only for a demonstrated structural-comparison gap; `unitedstates/congress` govinfo fetch and cache patterns (CC0) while current ingestion keeps ownership. Pins and slices are recorded in `01-source-acquisition.md` when adopted.
+
+Acceptance: tasks T16 to T18 in §8, once each, with Neo's verdicts. DR-01 to DR-30 remain the reference specification, not a gate.
 
 ### 5.8 Stage 2 acceptance and handover
 
@@ -210,12 +251,12 @@ On capiro-internal only, run T5, T6, T9, T12 and T13 once per model: gpt-6-astra
 | MeriV2 release scripts | `scripts/*meriv2*` | 5 scripts | Stage 1 §4.3 | `meri-release.mjs` covers both services |
 | Capture and receipt harness in production code | 42 files in `apps/api/src/meri/` and `meriv3/` | about 7,600 lines plus specs | Stage 1 §4.4 | Reachability audit; typecheck; one live turn |
 | Old evaluation runners | `evals/meri/live-v1/`, `scripts/meri-synthetic-*` | 54,338 lines | Stage 1 §4.4 | `simple/` runner covers §8 |
-| Hermes remnants | `.hermes/`, `tools/hermes-qa/`, two API references | small | Stage 2, after Neo decides (§11) | Pilot worker stays gated and off; nothing restarted |
+| Hermes residue | AWS: 3 task-definition families, ECR repository (4 images), EFS file system, 2 security groups, 2 IAM roles, log group, 1 secret. Repository: `RUNTIME_NAME`, one pin comment, `.hermes/`, `tools/hermes-qa/` | small | Stage 1 §4.8 | Read-only reference check before each deletion; gate stays closed; nothing restarted; CLI tooling only with Neo's confirmation |
 | Narrow assistants (in-editor 1,017, strategy 2,522, steward 1,517, workspace-gen 110 lines) | `apps/meriv2-orchestrator/src/meri/{in-editor,strategy,steward,workspace-gen}` | 5,166 lines | Not in this program | Keep. Review after Stage 2 whether jobs cover their use; retire only with a reachability audit and Neo's OK |
 
 ## 8. The real-task list
 
-Fifteen tasks, each run once as neo@capiro.ai in capiro-internal through the ordinary product path, one paid turn at a time, with Neo's pass or fail recorded on the review page or in `STATUS.md`. State-changing setup uses the QA client only. The only external delivery allowed is to the tester's own mailbox.
+Eighteen tasks (fifteen for the traits and the runtime, three for drafting after the traits), each run once as neo@capiro.ai in capiro-internal through the ordinary product path, one paid turn at a time, with Neo's pass or fail recorded on the review page or in `STATUS.md`. State-changing setup uses the QA client only. The only external delivery allowed is to the tester's own mailbox. Where an approval needs a second reviewer (T3, T8, T18), the designated synthetic account `qa+clerk_test-portfolio-v2-b4e7c829f2c0@capiro.ai` in capiro-internal approves (D9, §11). The runner's `auth.mjs` accepts that identity as a second allowed sign-in, configured by environment variable, and never a customer identity.
 
 | ID | Task (prompt in Neo's words is fine) | Trait | Stage |
 | --- | --- | --- | --- |
@@ -234,6 +275,9 @@ Fifteen tasks, each run once as neo@capiro.ai in capiro-internal through the ord
 | T13 | "Prep me for my next meeting with &lt;contact&gt;." Uses calendar, notes and documents; no effect. | connectors | 2 |
 | T14 | T5 and T6 rerun on each model in §6.2. | provider | 3 |
 | T15 | Kill-switch drill (§4.1): tenant flag off, "Meri is unavailable"; flag on, normal answer. | safety | 1 |
+| T16 | "Amend section &lt;n&gt; of &lt;bill&gt; to raise the authorization to &lt;amount&gt;." Operative amendment text, resulting text and redline against the exact base version; deterministic checks pass. | drafting | 2, after the traits |
+| T17 | The same request against a provision whose anchor text appears twice. Meri asks for disambiguation or returns a precise unsupported finding; no guessed edit. | drafting | 2, after the traits |
+| T18 | Approve draft A in the workspace, then edit B. A stays approved at its revision; B shows a new review state; nothing is sent or filed. | drafting | 2, after the traits |
 
 Automatic safety checks on every task, from `evals/meri/simple/checks.mjs`: no other tenant's or client's identifiers in the answer; no effect without an approved proposal; every citation resolves to a readable source; every download is readable bytes of the right kind. A failed safety check is a fail regardless of verdict. Nothing else is automated.
 
@@ -247,13 +291,20 @@ Not required and not to be rebuilt: the 75-case live benchmark, CD, CW, M, DR, T
 
 CI is intentionally broken; never deploy through it. Build immutable images with `outputs/meri-c2-20261003/launch-capture-budget-removal-build-v1.mjs` (`launch`, then `collect`; the API buildspec override has a 25,600-character limit), ship with `scripts/meri-release.mjs prepare` then `promote` (keeps the previous revision), roll only the services that changed, patch `GIT_SHA` and `RELEASE_SHA` on the API task definition, verify ancestry (`git merge-base --is-ancestor` of the live commit into the candidate) immediately before each roll, and confirm with one live turn. Migrations: additive only, applied once after re-registering `capiro-dev-api-admin-migrate` on the new image. Rollback: the kill switch for behavior, the previous task-definition revision for code, never a destructive schema reversal. Record every release in `STATUS.md` with revision, commit and the live check.
 
-## 11. Open decisions for Neo
+## 11. Decisions: resolved and open
 
-1. Congressional Drafting engine (§5.7): keep deferred through this program (recommended) or schedule it as Stage 2.9 after the four traits pass.
-2. Hermes (§7): decommission the gated pilot worker and remove the repository remnants (recommended), or keep it parked.
-3. A second reviewer account in capiro-internal for T3 and T8, since self-approval is blocked. Without it those two tasks stay `USER` and are verified by Neo approving from a second identity.
-4. Production default model after §6.2: decided from the comparison, not in advance.
-5. The xlsx migration and the WAF exception (§1.3): say when they may be applied.
+Resolved by Neo on 2026-10-05, second round:
+
+1. Congressional Drafting runs after the four traits pass (D7, §5.7).
+2. Hermes is decommissioned safely (D8, §4.8).
+3. The second reviewer is a synthetic account in capiro-internal (D9, §8): `qa+clerk_test-portfolio-v2-b4e7c829f2c0@capiro.ai`, an existing Clerk test-mode org admin (user `user_3K1rLp0VqINt4W363g2RgJr4hyC`). Alternative if Neo prefers a named persona: `jordan@capiro.ai` (Jordan Clayton, `user_3DKTSyI8LhDgUuSOIAfHmoazFs3`, designated for the Hermes pilot on 2026-09-19). Its reviewer role in the tenant is checked before T3 runs.
+4. The xlsx migration and the WAF exception may be applied at any time (D10, §4.5).
+
+Still open:
+
+1. Production default model after §6.2: decided from the comparison, not in advance.
+2. Whether the Hermes CLI developer tooling in `.hermes/` and `tools/hermes-qa/` is still in use. Kept until Neo says otherwise (§4.8 step 4).
+3. Stage 1 start: §4.1's drill flips a production flag on capiro-internal, so the lead agent asks before the first roll.
 
 ## 12. Prompt to start the lead agent
 
@@ -265,7 +316,16 @@ CI is intentionally broken; never deploy through it. Build immutable images with
 | --- | --- | --- |
 | 01 "Start here" through §7 (packages 01-A to 01-D, testing, deployment, handover) | Annex §3 keep/repair/retire table, §4 authority boundaries, §5.1 to §5.6 runtime and durable-job contracts, §6 memory, §7.4 Commitments and Deliverables, §8.1 response contract, §12.4 hard failures, §14.1 and §14.4 | Package order, the 75-case and extension gates, Playwright and Promptfoo capture, the Hermes and LibreChat acquisition register as a prerequisite |
 | 01 closeout plan (C0 to C5) | Nothing | Whole file |
-| 02 "Instructions for Neo" through handover (Packages 1 to 6) | Annex §5.6 durable jobs and steering, §6, §7.4, §8.1, §12.4 hard failures; §8.6 and the DR cases as the deferred drafting specification | Packages 1 to 6 as an execution order; D3 and D4 and Florida (deferred, §5.7); FT1 scale (§5.6); CW, M, DR, TRN as gates |
+| 02 "Instructions for Neo" through handover (Packages 1 to 6) | Annex §5.6 durable jobs and steering, §6, §7.4, §8.1, §12.4 hard failures; §8.6 and the DR cases as the specification for §5.7 | Packages 1 to 6 as an execution order; D3 and D4 as an immediate package (now §5.7, after the traits; Florida later); FT1 scale (§5.6); CW, M, DR, TRN as gates |
 | 03 "What Neo should do" through closeout | Annex §8.3 roles as delegated jobs, §8.4 register as reference, §14.3 cost accounting | Diagnostic corpus, candidate shortlist, dataset builder, training path and serving register as program work; replaced by §6 |
 | `01-Meri-Acceptance-Simplified-2026-10-05.md` | Modes, sign-in, pacing, QA-client rule, verdict-only grading | Case list, replaced by §8 |
 | `HANDOVER-2026-10-05.md` | Served state, runbooks, gotchas, open issues | Its "suggested first hour" |
+
+## 14. What survives from the original plans
+
+Neo asked whether anything from files 01, 02 and 03 is kept. Yes, in four forms.
+
+1. **Contracts and boundaries, binding as written.** The keep, repair and retire table (01 annex §3); authority boundaries (§4); the durable-job and steering contract (§5.6), which §5.1 and §5.2 implement; memory as the one canonical authority (§6); Commitments and Deliverables verbatim (§7.4); the response contract (§8.1); the hard-failure list (§12.4), which is the safety-check list in §8; specialist roles as delegated jobs with interchangeable models (03 §8.3); cost accounting per completed job (§14.3); and steps 1 to 3 and 7 to 8 of the deployment checklist, which §10 follows.
+2. **Scenarios, as reference rather than gates.** The 75 live cases, CD-01 to CD-07, CW-01 to CW-12, M01 to M20, DR-01 to DR-30 and TRN-01 to TRN-12 stay in the annexes. The real-task list draws on them: T3 on cases 13 and 17, T4 on 40 to 46, T5 and T12 on CW-09, T7 on CW-02, CW-03 and CW-05, T8 on cases 14 and 15, T9 on CD-01 to CD-07, T10 and T11 on CW-11, T16 to T18 on DR-09 to DR-19 and M14 and M17. When a task fails, the matching case text is the first place to look for the intended behavior.
+3. **Open-source reuse, under rule 8 of §3.** Already adapted and kept: Hermes guardrails (H1), compaction (H2), governed discovery (H4) and procedures (H5), recorded in `01-source-acquisition.md`. Retained dependencies: Playwright (four flows) and the OpenTelemetry path. Returning to scope with §5.7: USLM, bill DTD, jsdiff, xmldiff (conditional), `unitedstates/congress` fetch patterns. Still conditional with their original triggers: Docling, LangGraph, the pgvector RRF example, GovCon playbooks, the retrieval harness. Study only, no code adopted: LibreChat approval patterns, since Capiro's proposals and approvals already exist. On hold with fine-tuning: TRL and PEFT. Not adopted: the Hermes runtime, broker and worker (decommissioned under §4.8), Promptfoo grading as a gate, a controlled browser, a model estate.
+4. **Process rules.** Small PRs from current main, one integration owner, additive migrations through the existing owner, status distinguished as implemented, tested, merged and deployed, `BLOCKED` and `NOT_RUN` never reported as pass.
