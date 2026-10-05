@@ -1,6 +1,13 @@
 # Krisp sign-in popup repair
 
 PR #2008 merged as `ac45312b829615a276dbe654065e7326bcfdaf06`.
+AWS promotion completed with healthy web task revision `capiro-dev-web-vnext:394`.
+The saved rollback revision is `:393`. The public runtime configuration serves
+the exact repaired source SHA; the page and health endpoint return 200, and the
+unauthenticated Krisp route remains protected with 401. The promotion receipt
+requires manual acceptance: a fresh authenticated Krisp connection and meeting
+import have not yet been verified. The user has been asked to retry sign-in.
+
 The user reported the callback completion page failing after approving Krisp.
 A scoped read-only production inspection found the pilot connector transitioned
 from creation to disconnected in approximately three seconds, with all pending
@@ -37,5 +44,6 @@ The user previously authorized merge and AWS deployment, then reported this
 failure in that release. The implementing agent reviewed these results under
 that continuing repair authorization. This is not an independent human review.
 The previous failed authorization cannot be reused; live acceptance requires
-refreshing Meri and starting a new Krisp connection after rollout. Build and
-promotion receipts are added beside this record as they complete.
+refreshing Meri and starting a new Krisp connection after rollout. Build,
+qualification, promotion, and public health receipts are included beside this
+record.
