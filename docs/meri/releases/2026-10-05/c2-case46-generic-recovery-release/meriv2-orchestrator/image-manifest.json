@@ -1,0 +1,13 @@
+{
+  "registryId": "967807252336",
+  "repositoryName": "capiro/dev/meriv2-orchestrator",
+  "imageDigest": "sha256:4cf9ba198117ebdfeacb020ca7f7ee4f357ff110f917bb80150e3e8293d5689b",
+  "imageTags": [
+    "e5ed6825f46a0e4acf99232a9193b3ba8500c094"
+  ],
+  "imageSizeInBytes": 824688212,
+  "imagePushedAt": "2026-10-05T08:39:42.650000-04:00",
+  "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
+  "artifactMediaType": "application/vnd.docker.container.image.v1+json",
+  "imageStatus": "ACTIVE"
+}
