@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s1-roll-3-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-05T21:31:51.888484+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "27f1ebda1b222daef1d963439a42650e885eb282",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:7c8f43c823197f21f55c53f8e76ee247f737fa535e2694a9bbdd4c9e59691cd7",
+      "buildId": "capiro-build-web-dev:48433697-a47b-4522-a146-c7d823c8932e"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Stage 1 roll 3, orchestrator only: generated documents keep their outcome and download link in the model-visible result, and classification uses the typed request rather than appended attachment text (#2026). API unchanged (561).",
+  "reviewer": "Lead agent (Stage 1): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo: \"implement stage 1\" (2026-10-05); program plan \u00a710 release path."
+}
