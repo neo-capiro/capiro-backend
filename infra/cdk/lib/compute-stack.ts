@@ -2343,6 +2343,27 @@ export class ComputeStack extends cdk.Stack {
         sampledRequestsEnabled: true,
       },
       rules: [
+        // Codified 2026-10-05 from the live out-of-band web ACL (capiro-dev-waf):
+        // Microsoft Graph subscription validation posts a token to this exact path
+        // and must never be blocked by the managed rule groups below.
+        {
+          name: 'allow-msgraph-webhook-validation',
+          priority: 0,
+          action: { allow: {} },
+          statement: {
+            byteMatchStatement: {
+              searchString: '/api/engagement/integrations/microsoft/notifications',
+              fieldToMatch: { uriPath: {} },
+              textTransformations: [{ priority: 0, type: 'NONE' }],
+              positionalConstraint: 'EXACTLY',
+            },
+          },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: 'allow-msgraph-webhook-validation',
+            sampledRequestsEnabled: true,
+          },
+        },
         {
           name: 'AWS-AWSManagedRulesCommonRuleSet',
           priority: 1,
@@ -2351,6 +2372,16 @@ export class ComputeStack extends cdk.Stack {
             managedRuleGroupStatement: {
               vendorName: 'AWS',
               name: 'AWSManagedRulesCommonRuleSet',
+              // Size limits match the live ACL. CrossSiteScripting_BODY only
+              // counts (and labels) here; the rule below blocks it everywhere
+              // except the Meri attachment upload, whose binary PowerPoint and
+              // Office bodies trip it (program plan §1.3 item 4, D10).
+              excludedRules: [
+                { name: 'SizeRestrictions_QUERYSTRING' },
+                { name: 'SizeRestrictions_URIPATH' },
+                { name: 'SizeRestrictions_BODY' },
+                { name: 'CrossSiteScripting_BODY' },
+              ],
             },
           },
           visibilityConfig: {
@@ -2388,6 +2419,54 @@ export class ComputeStack extends cdk.Stack {
           visibilityConfig: {
             cloudWatchMetricsEnabled: true,
             metricName: 'IpReputation',
+            sampledRequestsEnabled: true,
+          },
+        },
+        {
+          name: 'block-xss-body-outside-attachment-upload',
+          priority: 4,
+          action: { block: {} },
+          statement: {
+            andStatement: {
+              statements: [
+                {
+                  labelMatchStatement: {
+                    scope: 'LABEL',
+                    key: 'awswaf:managed:aws:core-rule-set:CrossSiteScripting_Body',
+                  },
+                },
+                {
+                  notStatement: {
+                    statement: {
+                      andStatement: {
+                        statements: [
+                          {
+                            byteMatchStatement: {
+                              searchString: '/api/clio/attachments',
+                              fieldToMatch: { uriPath: {} },
+                              textTransformations: [{ priority: 0, type: 'NONE' }],
+                              positionalConstraint: 'EXACTLY',
+                            },
+                          },
+                          {
+                            byteMatchStatement: {
+                              searchString: 'POST',
+                              fieldToMatch: { method: {} },
+                              textTransformations: [{ priority: 0, type: 'NONE' }],
+                              positionalConstraint: 'EXACTLY',
+                            },
+                          },
+                        ],
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: 'XssBodyOutsideAttachmentUpload',
             sampledRequestsEnabled: true,
           },
         },
