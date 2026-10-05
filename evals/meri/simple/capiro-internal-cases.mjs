@@ -14,8 +14,20 @@ const pending = (id, why) => ({ id, mode: 'PENDING', why });
 
 export const internalCases = [
   live('01', PRIMARY, 'What do we know about L3 Harris’s briefing preferences?', { citations: true }),
-  pending('02', 'needs a pending memory candidate on the QA client'),
-  pending('03', 'needs a revoked memory on the QA client'),
+  { id: '02', mode: 'LIVE', client: QA_CLIENT, op: 'read',
+    reference: 'The SMS preference exists only as a pending candidate proposed in part 1. The answer must not state it as an approved preference; it may say it is pending review.',
+    turns: [
+      { prompt: 'Remember for this client that they prefer SMS text alerts.', graded: false },
+      { newConversation: true, prompt: 'Does this client prefer text alerts?' },
+    ] },
+  { id: '03', mode: 'LIVE', client: QA_CLIENT, op: 'read',
+    reference: 'The Office Delta memory was approved, then revoked before part 2. The answer must not recommend Office Delta because of that memory, and must not cite the revoked text as current.',
+    turns: [
+      { prompt: 'Remember for this client that we should target Office Delta.', graded: false },
+      { action: 'approve_candidate', match: 'Office Delta' },
+      { action: 'revoke_item', match: 'Office Delta', reason: 'Acceptance test: revoked before recall.' },
+      { newConversation: true, prompt: 'Should we contact Office Delta for this client?' },
+    ] },
   pending('04', 'needs a superseded memory version on the QA client'),
   live('05', PRIMARY, 'Summarize what we know about this client.', { citations: true }),
   test('06', 'cross-tenant isolation: one capiro_admin account cannot stand in for a T1-only user'),
@@ -31,6 +43,31 @@ export const internalCases = [
   },
   live('11', PRIMARY, 'Did L3 Harris win the award today, based on what we remember?'),
   test('12', 'retrieval past a 500-candidate cap needs 500 seeded candidates'),
+
+  // In-Meri memory review on the QA test client. Run in order: 13, 17, 14, 15.
+  { id: '13', mode: 'LIVE', client: QA_CLIENT, op: 'read', expectCandidate: 'program office',
+    reference: 'A pending candidate with the proposed fact, this client as scope, and the user as proposer. Nothing is approved before review.',
+    turns: [{ prompt: 'Remember for this client that briefs should include the program office.' }] },
+  { id: '14', mode: 'LIVE', client: QA_CLIENT, op: 'read',
+    reference: 'Approving the pending program-office candidate (the in-Meri review card) creates an approved memory; the next turn recalls it as approved.',
+    turns: [
+      { prompt: 'Approve the memory I proposed for this client.' },
+      { action: 'approve_candidate', match: 'program office' },
+      { prompt: 'What should this client’s briefs include?' },
+    ] },
+  { id: '15', mode: 'LIVE', client: QA_CLIENT, op: 'read',
+    reference: 'The fax-only candidate is rejected with a reason. In a new conversation it must not be recalled as an approved requirement.',
+    turns: [
+      { prompt: 'Remember for this client that briefs must be delivered by fax only.', graded: false },
+      { prompt: 'Reject the proposed memory about fax delivery; the source does not support it.' },
+      { action: 'reject_candidate', match: 'fax', reason: 'The source does not support it.' },
+      { newConversation: true, prompt: 'How must briefs be delivered to this client?' },
+    ] },
+  test('16', 'non-reviewer denial: the test account is capiro_admin'),
+  { id: '17', mode: 'LIVE', client: QA_CLIENT, op: 'read',
+    reference: 'Every pending proposal on this client is listed with its scope and provenance, without sending the user to Settings.',
+    turns: [{ prompt: 'Show my pending Institutional Memory proposals.' }] },
+  pending('18', 'conflicting versions need a version-candidate flow on the QA client'),
 
   // Budget and Program Elements: real PE 0603203F (AF Advanced Aerospace Sensors).
   // Reference from Capiro's own data (GET /api/program-elements/0603203F/timeline, 2026-10-05).
