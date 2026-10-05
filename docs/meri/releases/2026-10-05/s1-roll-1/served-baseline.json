@@ -1,0 +1,47 @@
+{
+  "kind": "meri-stage1-roll1-served-baseline",
+  "at": "2026-10-05T19:31:29.920Z",
+  "services": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:555",
+        "serviceHash": "35025bfd49344fa4244cfbbfa2f4f45b6e0afe48441832264e95a3a3ea3efe34",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "0833ebd038ed406cc56350e74cfd567a9ea2d4f33a5abf5fcbe40823a161132d",
+        "imageDigest": "sha256:cbf7edf880d958b74cacdef19d31ad4e90b6831887f78d93b1b5f9b3a742352a",
+        "desiredCount": 2
+      },
+      "taskImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:cbf7edf880d958b74cacdef19d31ad4e90b6831887f78d93b1b5f9b3a742352a",
+      "observedAt": "2026-10-05T19:31:29.920Z"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:139",
+        "serviceHash": "54bf5fa235da4b124a064683bbecc89157551bca7052ad9aad231020739aea8e",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "55dc11b0f2dfa35fff62b70451374ae99c2287f626082403cc8da309e38bee98",
+        "imageDigest": "sha256:93e690b91f441c89bac5093d9c39c06a7450fbe5ef5aea05bfcaa55d53b65bd8",
+        "desiredCount": 1
+      },
+      "taskImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:93e690b91f441c89bac5093d9c39c06a7450fbe5ef5aea05bfcaa55d53b65bd8",
+      "observedAt": "2026-10-05T19:31:36.284Z"
+    },
+    {
+      "service": "web-vnext",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:392",
+        "serviceHash": "b2bb1e11995a52a428c427d2c998de98f67ec7e90a1230efb20fd71b1d4d12c1",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "3a5a59b821514f217ee6a929e03e95dfc862f2d991da3d71ad464754b8910a65",
+        "imageDigest": "sha256:f181b3c064a0253546343a61b75073d1348fcfb08b085a827ece9a82260991f5",
+        "desiredCount": 1
+      },
+      "taskImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:f181b3c064a0253546343a61b75073d1348fcfb08b085a827ece9a82260991f5",
+      "observedAt": "2026-10-05T19:31:42.791Z"
+    }
+  ],
+  "awsWrites": 0,
+  "providerCalls": 0
+}

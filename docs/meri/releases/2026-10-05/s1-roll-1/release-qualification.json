@@ -1,0 +1,49 @@
+{
+  "kind": "meri-stage1-roll1-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-05T19:33:51.170372+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "c805ed15ce355debb7aa15c82ea8fe0d4ff2b070",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:4ee1bfcdd1d2f950c11b0c8d5d00d575522e162f65771c774e9a451d408dbcaa",
+      "buildId": "capiro-build-web-dev:fffd0a9e-a881-435b-ae4d-087947b169db"
+    },
+    {
+      "service": "api",
+      "sourceSha": "c805ed15ce355debb7aa15c82ea8fe0d4ff2b070",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:9f71e4869ce65d9ce5851a8f4a0c457689c5b626ee8aa7d17e3bc3de2d0fe9fd",
+      "buildId": "capiro-build-web-dev:47d1586b-88cc-41b4-af01-70f7b39061ac"
+    }
+  ],
+  "schemaChange": false,
+  "migrationsInImageNotApplied": [
+    "20261005160000_krisp_notetaker",
+    "20281007020000_clio_attachments_xlsx_kind"
+  ],
+  "change": "Stage 1 roll 1 from main c805ed15c: two-key V3 kill switch with an honest meri_unavailable refusal (#2003), Case 45 attachment coverage (#2001), structured budget/bill citations (#2005), budget how-did not a vote (#2006), OpenAI Retry-After (#2007). Orchestrator first, then API. Code only; the two pending migrations are applied separately with Neo's OK.",
+  "sourceEvidence": [
+    "https://github.com/neo-capiro/capirov2/pull/2001",
+    "https://github.com/neo-capiro/capirov2/pull/2003",
+    "https://github.com/neo-capiro/capirov2/pull/2004",
+    "https://github.com/neo-capiro/capirov2/pull/2005",
+    "https://github.com/neo-capiro/capirov2/pull/2006",
+    "https://github.com/neo-capiro/capirov2/pull/2007"
+  ],
+  "validation": {
+    "typechecks": [
+      "API (8 GB heap)",
+      "orchestrator",
+      "meriv2-core",
+      "shared",
+      "infra/cdk"
+    ],
+    "orchestratorFullSuite": "130 suites, 1584 passed, 2 known skips (Case 45 branch); focused specs on every later PR",
+    "meriv2CoreFullSuite": "117 suites, 1674 passed",
+    "apiFocusedSpecs": "kill switch 152 + proxy 63 + users 12 passed; citation consumers pass; one pre-existing Case46 sizing failure reproduced on main",
+    "imageSmoke": "IMAGE_SMOKE_PASS in both images (gate, refusal method, migrations present, citations, Retry-After, classifier)"
+  },
+  "reviewer": "Lead agent (Stage 1): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo: \"implement stage 1\" (2026-10-05); program plan \u00a710 release path. Migration apply, WAF, flag drill and Hermes deletions are asked separately."
+}
