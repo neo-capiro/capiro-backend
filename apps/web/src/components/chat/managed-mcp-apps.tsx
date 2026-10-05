@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useApi } from '../../lib/use-api.js';
 
-export const MANAGED_APP_IDS = ['hubspot', 'airtable', 'monday', 'google-drive'] as const;
+export const MANAGED_APP_IDS = ['hubspot', 'airtable', 'monday', 'google-drive', 'krisp'] as const;
 export type ManagedAppId = (typeof MANAGED_APP_IDS)[number];
 export type ManagedAppConnectionStatus =
   'connected' | 'disconnected' | 'pending' | 'needs_reauth' | 'error';

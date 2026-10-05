@@ -1,3 +1,4 @@
+import { krispTenantEnabled } from '../common/krisp-notetaker-flags.js';
 import {
   managedAppDefinition,
   managedAppAvailable,
@@ -399,6 +400,7 @@ export class MeriMcpService {
       tx.clioMcpServer.findFirst({ where: { id: serverId, tenantId } }),
     );
     if (!server || !server.enabled || server.connectionStatus === 'disconnected') return 0;
+    if (server.catalogId === 'meriv3-krisp' && !(await krispTenantEnabled(this.prisma, tenantId))) return 0;
     const managed = managedAppDefinition(server.catalogId);
     try {
       const client = this.clientFor(server);
@@ -687,11 +689,11 @@ export class MeriMcpService {
   // ── Internals ────────────────────────────────────────────────────────────
 
   /** Servers visible to the caller: firm-wide ∪ own personal. RLS scopes to tenant. */
-  private visibleServers(
+  private async visibleServers(
     ctx: TenantContext,
     opts?: { where?: Prisma.ClioMcpServerWhereInput },
   ): Promise<ServerRow[]> {
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioMcpServer.findMany({
         where: {
           tenantId: ctx.tenantId,
@@ -701,6 +703,9 @@ export class MeriMcpService {
         orderBy: { createdAt: 'asc' },
       }),
     );
+    if (!rows.some((row) => row.catalogId === 'meriv3-krisp')) return rows;
+    const enabled = await krispTenantEnabled(this.prisma, ctx.tenantId);
+    return rows.filter((row) => row.catalogId !== 'meriv3-krisp' || enabled);
   }
 
   /** Load a server the caller may manage, or throw 404/403. */

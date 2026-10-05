@@ -1,0 +1,189 @@
+{
+  "at": "2026-10-05T15:04:04.688Z",
+  "service": "meriv2-orchestrator",
+  "status": "SUCCEEDED",
+  "qualification": "IMMUTABLE_BUILD_AND_OFFLINE_PROBES_PASS",
+  "sourceSha": "1382903005aeb1e0a31e9659f8cd5a89664c6f64",
+  "resolvedSourceSha": "1382903005aeb1e0a31e9659f8cd5a89664c6f64",
+  "buildId": "capiro-build-web-dev:9ff7016a-f409-475c-a7cb-47e5cf58a98e",
+  "startedAt": "2026-10-05T10:55:57.240000-04:00",
+  "finishedAt": "2026-10-05T11:03:42.131000-04:00",
+  "buildspecSha256": "b88e9cd13e08bb291297208b371841dd4179b03d562e094eb8f2d1ad2765c74e",
+  "buildLogSha256": "4e767a61ae5c0fb3cc850073d9c8a4c7b59808c7636a31bc298d0e8e26a0ff26",
+  "phases": [
+    {
+      "phaseType": "SUBMITTED",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T10:55:57.240000-04:00",
+      "endTime": "2026-10-05T10:55:57.328000-04:00",
+      "durationInSeconds": 0
+    },
+    {
+      "phaseType": "QUEUED",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T10:55:57.328000-04:00",
+      "endTime": "2026-10-05T10:55:57.995000-04:00",
+      "durationInSeconds": 0
+    },
+    {
+      "phaseType": "PROVISIONING",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T10:55:57.995000-04:00",
+      "endTime": "2026-10-05T10:56:06.782000-04:00",
+      "durationInSeconds": 8,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "DOWNLOAD_SOURCE",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T10:56:06.782000-04:00",
+      "endTime": "2026-10-05T10:56:18.494000-04:00",
+      "durationInSeconds": 11,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "INSTALL",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T10:56:18.494000-04:00",
+      "endTime": "2026-10-05T10:56:18.589000-04:00",
+      "durationInSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "PRE_BUILD",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T10:56:18.589000-04:00",
+      "endTime": "2026-10-05T10:56:44.429000-04:00",
+      "durationInSeconds": 25,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "BUILD",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T10:56:44.429000-04:00",
+      "endTime": "2026-10-05T11:02:27.670000-04:00",
+      "durationInSeconds": 343,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "POST_BUILD",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T11:02:27.670000-04:00",
+      "endTime": "2026-10-05T11:03:41.137000-04:00",
+      "durationInSeconds": 73,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "UPLOAD_ARTIFACTS",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T11:03:41.137000-04:00",
+      "endTime": "2026-10-05T11:03:41.816000-04:00",
+      "durationInSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "FINALIZING",
+      "phaseStatus": "SUCCEEDED",
+      "startTime": "2026-10-05T11:03:41.816000-04:00",
+      "endTime": "2026-10-05T11:03:42.131000-04:00",
+      "durationInSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phaseType": "COMPLETED",
+      "startTime": "2026-10-05T11:03:42.131000-04:00"
+    }
+  ],
+  "requiredMarkers": [
+    "CORE_CANONICAL_MEMORY_SOURCE_NATIVE_TESTS_PASS",
+    "CORE_CASE12_FIVE_SUITE_191_TESTS_PASS",
+    "CORE_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+    "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+    "OFFLINE_PACKAGED_CASE46_QUALIFIED_PROVIDER_WIRE_PASS",
+    "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+    "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+    "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+    "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+    "OFFLINE_PACKAGED_SOL_POLICY_AND_PRICE_PASS",
+    "ORCHESTRATOR_CANONICAL_MEMORY_SOURCE_LOOPBACK_PASS",
+    "ORCHESTRATOR_CAPTURE_CONTRACT_LOOPBACK_TESTS_PASS",
+    "ORCHESTRATOR_CASE12_CONTROLLED_HTTP_MEMORY_LOOPBACK_PASS",
+    "ORCHESTRATOR_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+    "ORCHESTRATOR_CASE46_EXPORT_EXACT_TEXT_PASS",
+    "ORCHESTRATOR_CASE46_EXPORT_EXACT_TEXT_PASS",
+    "ORCHESTRATOR_CASE46_EXPORT_WRITE_ONLY_PASS",
+    "ORCHESTRATOR_CASE46_EXPORT_WRITE_ONLY_PASS",
+    "ORCHESTRATOR_EXACT_EXISTING_LIVE_SKIPS_PASS",
+    "ORCHESTRATOR_PE_TIMELINE_SUMMARY_PASS"
+  ],
+  "passedMarkers": [
+    "CORE_CANONICAL_MEMORY_SOURCE_NATIVE_TESTS_PASS",
+    "CORE_CASE12_FIVE_SUITE_191_TESTS_PASS",
+    "CORE_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+    "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+    "OFFLINE_PACKAGED_CASE46_QUALIFIED_PROVIDER_WIRE_PASS",
+    "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+    "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+    "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+    "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+    "OFFLINE_PACKAGED_SOL_POLICY_AND_PRICE_PASS",
+    "ORCHESTRATOR_CANONICAL_MEMORY_SOURCE_LOOPBACK_PASS",
+    "ORCHESTRATOR_CAPTURE_CONTRACT_LOOPBACK_TESTS_PASS",
+    "ORCHESTRATOR_CASE12_CONTROLLED_HTTP_MEMORY_LOOPBACK_PASS",
+    "ORCHESTRATOR_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+    "ORCHESTRATOR_CASE46_EXPORT_EXACT_TEXT_PASS",
+    "ORCHESTRATOR_CASE46_EXPORT_EXACT_TEXT_PASS",
+    "ORCHESTRATOR_CASE46_EXPORT_WRITE_ONLY_PASS",
+    "ORCHESTRATOR_CASE46_EXPORT_WRITE_ONLY_PASS",
+    "ORCHESTRATOR_EXACT_EXISTING_LIVE_SKIPS_PASS",
+    "ORCHESTRATOR_PE_TIMELINE_SUMMARY_PASS"
+  ],
+  "missingMarkers": [],
+  "serviceMutations": 0,
+  "providerCalls": 0,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:32022fa67916827b4406fb46a8d531f400b4fc963fc2cded6c00354d7b79639d"
+}

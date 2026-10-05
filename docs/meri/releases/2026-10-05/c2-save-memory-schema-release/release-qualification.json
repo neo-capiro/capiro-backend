@@ -1,0 +1,95 @@
+{
+  "kind": "meri-save-memory-schema-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-05T16:44:04.089046+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "e06432d88393d579c7457eeef89394d1a77ea977",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:210010b53817b87f7a685b0493759c36f50f7977cee466b9c8fb903d1ed5c08a",
+      "buildId": "capiro-build-web-dev:670ce5c2-36e5-453e-95a8-063f823f990b",
+      "packagedMarkersPassed": 35
+    }
+  ],
+  "schemaChange": false,
+  "providerCalls": 0,
+  "c2Complete": false,
+  "change": "API: the save_memory schema declares the server-set conversation clientId, fixing the client-scoped save 400 introduced with PR #1990 (simplified acceptance case 13). Orchestrator unchanged.",
+  "authorizationBasis": "User directed continuing until the goal is met (2026-10-05); established native release operator, CodeBuild backup shipping and PR merges already authorized.",
+  "reviewer": "Lead agent: focused and full source tests, typechecks, packaged image probes and served baseline review",
+  "sourceEvidence": [
+    "https://github.com/neo-capiro/capirov2/pull/1995"
+  ],
+  "validation": {
+    "apiFocusedTests": "registration/write-input 53 passed; meri-tools, action-proposal, capture and parity suites pass (scheduler-postgres needs local Postgres config, unrelated)",
+    "typechecks": [
+      "API"
+    ],
+    "packagedProbesPassed": {
+      "api": 35
+    }
+  },
+  "artifactPins": [
+    {
+      "path": "api/build-readback.json",
+      "bytes": 8232,
+      "sha256": "6800627ae64f0b1d4b9ce6a72588168e453ff1ec19c7d7c98cfc24b73dcf0270"
+    },
+    {
+      "path": "api/build.log",
+      "bytes": 74364,
+      "sha256": "d6cc5dc8a2e66ebd57c1e941d805f8d2da8b40a1291a0a71c56c2473034604b6"
+    },
+    {
+      "path": "api/buildspec.json",
+      "bytes": 24231,
+      "sha256": "39b5eb2fc7e62386652024e278dae01cb4f5feab86189acba8c5fc47a6bc9214"
+    },
+    {
+      "path": "api/image-manifest.json",
+      "bytes": 507,
+      "sha256": "eddf83ca34aef77bbe63d0803fbb4b859198abee5d43d052efaa8a479abc7d06"
+    },
+    {
+      "path": "api/launch-intent.json",
+      "bytes": 899,
+      "sha256": "9761b6732e66f50b8e93e34ab7e8611d5e129fede9f80dd5b23d7f9f2d5a3b65"
+    },
+    {
+      "path": "api/build-start.json",
+      "bytes": 2576,
+      "sha256": "04845594b02c6db139d4aa19a472c472cd3120d69a17c28f10daddb774bd9875"
+    },
+    {
+      "path": "api/phase-pre_build.sh",
+      "bytes": 880,
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427"
+    },
+    {
+      "path": "api/phase-build.sh",
+      "bytes": 60870,
+      "sha256": "996308b627a340edad52583c3c71ff436d3905bf2113c17e17158780f849ce06"
+    },
+    {
+      "path": "api/phase-post_build.sh",
+      "bytes": 863,
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 3156,
+      "sha256": "d285b68e6ee5f53e64f073ac77a8651ce59cf1f434a562a735b4b51429f74ac1"
+    },
+    {
+      "path": "source-tests/memschema-api-tests-v1.log",
+      "bytes": 3305,
+      "sha256": "fd2f054896721f42c8103d4f4676470273dadd8bcc1e4c653c97ec38d2eb8a82"
+    },
+    {
+      "path": "source-tests/memschema-api-typecheck-v1.log",
+      "bytes": 11,
+      "sha256": "cbf7de6a7ab22aa8f3b63eed31368677222a5389d4a0bcaa112a952910051cec"
+    }
+  ]
+}

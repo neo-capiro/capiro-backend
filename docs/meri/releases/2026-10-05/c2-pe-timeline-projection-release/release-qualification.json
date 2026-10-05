@@ -1,0 +1,95 @@
+{
+  "kind": "meri-pe-timeline-projection-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-05T15:04:27.806059+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "1382903005aeb1e0a31e9659f8cd5a89664c6f64",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:32022fa67916827b4406fb46a8d531f400b4fc963fc2cded6c00354d7b79639d",
+      "buildId": "capiro-build-web-dev:9ff7016a-f409-475c-a7cb-47e5cf58a98e",
+      "packagedMarkersPassed": 20
+    }
+  ],
+  "schemaChange": false,
+  "providerCalls": 0,
+  "c2Complete": false,
+  "change": "Orchestrator: an oversized PE budget timeline (get_pe_budget_timeline) keeps its authoritative fundingSummary and the current-cycle row for the model. The generic projection dropped the summary and showed no rows, so Meri reported budget figures as unverifiable (simplified acceptance cases 20-24). API unchanged.",
+  "authorizationBasis": "User directed continuing until the goal is met (2026-10-05); established native release operator, CodeBuild backup shipping and PR merges already authorized.",
+  "reviewer": "Lead agent: focused and full source tests, typechecks, packaged image probes and served baseline review",
+  "sourceEvidence": [
+    "https://github.com/neo-capiro/capirov2/pull/1982"
+  ],
+  "validation": {
+    "orchestratorSourceTests": "see source-tests/pe-timeline-orch-tests-v1.log",
+    "typechecks": [
+      "ORCHESTRATOR"
+    ],
+    "packagedProbesPassed": {
+      "meriv2-orchestrator": 20
+    }
+  },
+  "artifactPins": [
+    {
+      "path": "meriv2-orchestrator/build-readback.json",
+      "bytes": 6312,
+      "sha256": "0e564655d90a56e5b9930507344838f0d7cfec3cdf28f823a6f30ea093ae23b2"
+    },
+    {
+      "path": "meriv2-orchestrator/build.log",
+      "bytes": 773175,
+      "sha256": "4e767a61ae5c0fb3cc850073d9c8a4c7b59808c7636a31bc298d0e8e26a0ff26"
+    },
+    {
+      "path": "meriv2-orchestrator/buildspec.json",
+      "bytes": 14623,
+      "sha256": "4ba954bba0312e2f8bf27503af19f407046b9c325e68c140e26ac74b2b2ffe92"
+    },
+    {
+      "path": "meriv2-orchestrator/image-manifest.json",
+      "bytes": 522,
+      "sha256": "269edbb39f7d6a09ae7e70de2e4f8eaf7dd96344705dfb3696a8e805950298e9"
+    },
+    {
+      "path": "meriv2-orchestrator/launch-intent.json",
+      "bytes": 915,
+      "sha256": "d7115d81623df07cc29980dc680fce639ea7dcf5dfc77774871b861e91b541f6"
+    },
+    {
+      "path": "meriv2-orchestrator/build-start.json",
+      "bytes": 1616,
+      "sha256": "cb012068024c4a70a0b291ce897981fa697ff675269c6c06f375dd24bc106ea3"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-pre_build.sh",
+      "bytes": 1493,
+      "sha256": "7214275629cfe2732e11020877ba4e0717d67711fe649f5eddb6f7b1b8d7c317"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-build.sh",
+      "bytes": 28785,
+      "sha256": "6f0112afb5cabbffaf2b85435973ec9ea3dcf09ed0df599ffa4e84145bd9813a"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-post_build.sh",
+      "bytes": 971,
+      "sha256": "20b5e9bb3ba9f445f70dbaa058e126ef736992331e71b3cae5ee5dd6bfbc4d9d"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 3149,
+      "sha256": "bdfc4199a7cafd393479aa555e50bea93268efb5bc64b8d3dd1efea79f4ef1d0"
+    },
+    {
+      "path": "source-tests/pe-timeline-orch-tests-v1.log",
+      "bytes": 2246,
+      "sha256": "bcbd0cea08c671d5cf273bc49b59cc47f65eede6efee798d97633e55251fe133"
+    },
+    {
+      "path": "source-tests/pe-timeline-orch-typecheck-v1.log",
+      "bytes": 11,
+      "sha256": "cbf7de6a7ab22aa8f3b63eed31368677222a5389d4a0bcaa112a952910051cec"
+    }
+  ]
+}

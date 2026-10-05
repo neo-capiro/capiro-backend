@@ -26,6 +26,7 @@ function make() {
     readOnlyTools: ['list_bases', 'execute_api'],
   };
   const tx = {
+    tenant: { findUnique: jest.fn(async () => ({ slug: 'capiro-internal', settings: { clioFeatureFlags: { 'notetaker.krisp.enabled': true } } })) },
     clioMcpServer: {
       findFirst: jest.fn(async () => row),
       findMany: jest.fn(async () => [row]),
@@ -193,5 +194,22 @@ describe('managed MCP runtime boundary', () => {
       service.updateServer(ctx, 'server', { endpoint: 'https://elsewhere.example' }),
     ).rejects.toThrow('Meri integrations');
     expect(tx.clioMcpServer.update).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('Krisp tenant rollout at the MCP execution boundary', () => {
+  test('flag rollback blocks cached schemas, calls, and tool rediscovery immediately', async () => {
+    const { service, row, tx, client } = make();
+    Object.assign(row, { name: 'meriv3-krisp', catalogId: 'meriv3-krisp', endpoint: 'https://mcp.krisp.ai/mcp',
+      toolAllowlist: ['search_meetings', 'import_recording'], readOnlyTools: ['search_meetings', 'import_recording'] });
+    client.listTools.mockResolvedValue([{ name: 'search_meetings', inputSchema: { type: 'object' } }, { name: 'import_recording', inputSchema: { type: 'object' } }]);
+    expect((await service.bridgedSchemasFor(ctx)).map((tool) => tool.name)).toEqual(['mcp__meriv3_krisp__search_meetings']);
+    tx.tenant.findUnique.mockResolvedValue({ slug: 'capiro-internal', settings: { clioFeatureFlags: { 'notetaker.krisp.enabled': false } } });
+    client.listTools.mockClear(); client.callTool.mockClear();
+    expect(await service.bridgedSchemasFor(ctx)).toEqual([]);
+    await expect(service.executeBridged(ctx, 'mcp__meriv3_krisp__search_meetings', {})).rejects.toThrow();
+    expect(await service.discoverTools('tenant', 'server')).toBe(0);
+    expect(client.listTools).not.toHaveBeenCalled(); expect(client.callTool).not.toHaveBeenCalled();
   });
 });

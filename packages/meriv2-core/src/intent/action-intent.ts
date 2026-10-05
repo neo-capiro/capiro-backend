@@ -76,7 +76,10 @@ const ACTIONS: Record<
     category: 'memory_change',
     verbs: /\b(save|store)\b/i,
     nouns: /\b(memory|fact|preference|positioning|alias)\b/i,
-    directives: /\bremember(?=\s+(?:that|this|these|the following|for future))\b/i,
+    // "Remember that X", and the scoped form "Remember for <client> that X".
+    // A recall question ("Remember how I like ...", "What do you remember") is not a save.
+    directives:
+      /\bremember(?=\s+(?:that|this|these|the following|for future|for\b[^.?!]{1,80}?\bthat\b))\b/i,
   },
   confirm_memory: {
     category: 'memory_change',

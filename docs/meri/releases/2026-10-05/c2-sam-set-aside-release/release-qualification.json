@@ -1,0 +1,90 @@
+{
+  "kind": "meri-sam-set-aside-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-05T15:24:43.329400+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "d7303eadf6372c1c37194519ad48038da972585a",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:4ae8bd1573c5b7985544245127fe44422dd3aed73d3d1eaeb45d1b7871ba1a10",
+      "buildId": "capiro-build-web-dev:04395b40-1639-4c5a-b79e-98514c30ab3e",
+      "packagedMarkersPassed": 35
+    }
+  ],
+  "schemaChange": false,
+  "providerCalls": 0,
+  "c2Complete": false,
+  "change": "API: SAM.gov set-aside codes are decoded (setAsideDescription) in the Meri opportunity tool facts and listed as an eligibility restriction in the v2 detail (simplified acceptance case 36). Orchestrator unchanged.",
+  "authorizationBasis": "User directed continuing until the goal is met (2026-10-05); established native release operator, CodeBuild backup shipping and PR merges already authorized.",
+  "reviewer": "Lead agent: focused and full source tests, typechecks, packaged image probes and served baseline review",
+  "sourceEvidence": [
+    "https://github.com/neo-capiro/capirov2/pull/1985"
+  ],
+  "validation": {
+    "apiFocusedTests": "59 passed (sam-set-aside, meri-opportunity-tools)",
+    "typechecks": [
+      "API"
+    ],
+    "packagedProbesPassed": {
+      "api": 35
+    }
+  },
+  "artifactPins": [
+    {
+      "path": "api/build-readback.json",
+      "bytes": 7942,
+      "sha256": "bf856573d191fd4c34fdeadc948a7cf75c84639ba919163299e5da0f0e1edd2a"
+    },
+    {
+      "path": "api/build.log",
+      "bytes": 74951,
+      "sha256": "c9f9700c496be842483698cac7f569a58146f7546c90a4a4105bcf4877565a70"
+    },
+    {
+      "path": "api/buildspec.json",
+      "bytes": 24231,
+      "sha256": "39b5eb2fc7e62386652024e278dae01cb4f5feab86189acba8c5fc47a6bc9214"
+    },
+    {
+      "path": "api/image-manifest.json",
+      "bytes": 507,
+      "sha256": "660223dd8e7ff4bc24379ff2c45e793745535bf6fcd75b0a03af3b2c84a51043"
+    },
+    {
+      "path": "api/launch-intent.json",
+      "bytes": 899,
+      "sha256": "86ed86446dad4af56297a66c41d8d86ee8520ce04d25d71a8b2c975d693ce6ac"
+    },
+    {
+      "path": "api/build-start.json",
+      "bytes": 2431,
+      "sha256": "d53ddf8f8b0e11fb1be225f4ba0023995ce1fea43bd6bbf3a7f61030c2463052"
+    },
+    {
+      "path": "api/phase-pre_build.sh",
+      "bytes": 880,
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427"
+    },
+    {
+      "path": "api/phase-build.sh",
+      "bytes": 60870,
+      "sha256": "996308b627a340edad52583c3c71ff436d3905bf2113c17e17158780f849ce06"
+    },
+    {
+      "path": "api/phase-post_build.sh",
+      "bytes": 863,
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 3151,
+      "sha256": "ef8b883b3eacac3a22bd92a620a539dcacd282629083593f58b50840b3374ca7"
+    },
+    {
+      "path": "source-tests/setaside-api-typecheck-v1.log",
+      "bytes": 11,
+      "sha256": "cbf7de6a7ab22aa8f3b63eed31368677222a5389d4a0bcaa112a952910051cec"
+    }
+  ]
+}

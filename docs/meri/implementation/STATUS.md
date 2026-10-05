@@ -1,5 +1,59 @@
 # Meri File01 checkpoint — C0/C1 complete, C2 active
 
+**Program plan, October 5, 2026 (controls execution from here):** read [00-Meri-Program-Plan-2026-10-05.md](00-Meri-Program-Plan-2026-10-05.md) first. It supersedes the execution sections of files 01, 02 and 03 and the whole closeout plan; their annexes remain the requirement reference. Decisions recorded with Neo: all four Cowork traits (delegated jobs with deliverables; stop, steer, resume; files and connectors behind permission gates; scheduled and proactive work); OpenAI default with Claude as a second provider; build around V3, not inside it; delete V1 and V2 chat after the kill switch is proven; done means 10 to 15 real tasks with Neo's verdict and safety-only automatic checks. Files 02 and 03 are now committed beside file 01. The checkpoint below is history for Stage 1 context.
+
+**Session handover, October 5, 2026 (~16:30Z):** read [HANDOVER-2026-10-05.md](HANDOVER-2026-10-05.md) first.
+
+- **Served:** API551 (`d7303eadf`), orchestrator139 (`a442cafb3`), Web390.
+- **Acceptance:** 0/75 and 0/7; no user verdicts yet. 36 cases have run, with saved answers on the review page.
+- **P0 open:** client memory saves return `400 input.clientId: is not an allowed property`, a regression from PR #1990 (fix: add `clientId` to the API `save_memory` schema).
+- **Gate:** File01 returns to the original plan's gate, `01_READY_FOR_02` when the §7 boundaries hold (original plan §7, annex §12.4). It no longer waits on all 82 cases.
+
+**October 5, 2026 — acceptance contract simplified (user-directed).** File01 acceptance now follows [01-Meri-Acceptance-Simplified-2026-10-05.md](01-Meri-Acceptance-Simplified-2026-10-05.md):
+
+- Each case runs once through the ordinary product path as neo@capiro.ai in capiro-internal, on real clients. State-changing setup uses only the QA test client.
+- Grading is automatic checks plus a pass/fail verdict from the user.
+- No capture bindings, spend-journal events or per-case releases.
+- The runner is `evals/meri/simple/run-cases.mjs`.
+
+Batch 1 (memory and scope: 01, 05, 08–11) ran in about 25 minutes for roughly $6. All six answers completed and five passed the automatic checks; Case 10's second answer has no citations, so it is flagged. All six await the user's verdict, so accepted cases remain **0/75** and **0/7**. The finding below about governed captures is retained as history.
+
+**October 5, 2026, 9:25 AM America/New_York checkpoint.** It answers five questions: what works, which commits prove it, what is deployed, what passed, and what blocks next.
+
+- **What works now.**
+  - A governed Case46 export can now reproduce the source document byte for byte. The served `MeriV3CleanAssistantService.prepareArtifactInput` no longer runs citation normalization on a governed capture export. That normalization ends in `trim()`, and it removed the source's final newline before the dispatch guard (generation-5 root cause).
+  - A failed Case46 run can now be retired and retried without an API release. From generation five, the setup owner derives eligibility from retained state:
+    - the deadline has passed;
+    - every provider attempt is settled or rejected;
+    - the run has one original prompt, at most one assistant message, and no proposal or artifact;
+    - the four fixed retirements are unchanged.
+
+    It then records the exact server-settled cost.
+  - Earlier on October 5, generations 3–5 each failed for a different, now-fixed reason:
+    - generation 3: the capture had no document read, and a blocked export aborted the turn;
+    - generation 4: the executor refused the read, and a mismatch on the final newline was not explained;
+    - generation 5: the trimming described above.
+
+    Each failure is preserved with its settled cost: `c2-case46-gen3-outcome`, `-gen4-outcome`, `-gen5-outcome`.
+- **Proof.**
+  - [PR #1977](https://github.com/neo-capiro/capirov2/pull/1977) (orchestrator, main `e5ed6825f`): orchestrator source 1,579 passed, 2 known live skips; typecheck clean.
+  - [PR #1978](https://github.com/neo-capiro/capirov2/pull/1978) (API, main `6663a4ce1`): 111 API Case46 tests passed (11 suites); typecheck clean.
+  - [Release qualification](../releases/2026-10-05/c2-case46-generic-recovery-release/release-qualification.json): immutable images; API 34/34 and orchestrator 19/19 distinct packaged checks.
+- **Deployed.** API549 (`6663a4ce1`, image `sha256:991d8dcd…`; rollback548 preserves API547) and orchestrator133 (`e5ed6825f`, image `sha256:4cf9ba19…`; rollback132 preserves orchestrator131) are promoted and verified; old tasks stopped, ALB targets healthy, `GIT_SHA`/`RELEASE_SHA` match source. Web390, nightly136 and the disabled broad projection worker are unchanged. The ordinary synthetic Pat identity and approved-memory reads passed, with the temporary session revoked. Earlier on October 5:
+  - API545 and orchestrator129 (export-read);
+  - API547 and orchestrator131 (write-only export).
+
+  [Served readbacks](../releases/2026-10-05/c2-case46-generic-recovery-release/served/).
+- **Acceptance is unchanged:** original **0/75**, CD **0/7**. No human rubric grades were inferred. File01 remains `01_BLOCKED`.
+- **Spend.** The native journal is at event 49, with no active run. $44.71 is committed of $500, leaving $455.29.
+  - Case46: $13.71 committed, **$1.29 left** of its $15.
+  - Case12: $13.80 committed, **$1.20 left**.
+- **Next blockers.**
+  1. **Case46 is blocked on budget, not code.** The native per-case cap is hard-coded at $15. One gpt-6-astra Case46 call settles at about $0.95, and a successful export needs at least one call plus the approval. Generation 6 needs an explicit user amendment raising the Case46 per-case limit. With that, it can run on the deployed images with no further release, followed by the already-authorized Playwright approval/download/reload and human review.
+  2. **Case12** has the same per-case exhaustion.
+  3. **Case01 and Case20** have budget ($11.22 and $13.50 left), but their one-shot recovery authorities are consumed. Each needs a new operator chain: Case01 needs a re-bind of its existing fixture; Case20 needs a fresh controlled-read setup. They must run sequentially, because they share the tenant's single binding. The later Case14 receipt was still BLOCKED on clock and source-authority gates (`semantic_clock_api_tool_join_pending`, `source_client_authority_unproved`). So an offline receipt preflight must show those gates can close before any paid Case01 or Case20 capture.
+  4. **Case14's approval must not repeat.**
+
 **October 5, 2026, 1:41 AM America/New_York update:** API543 (`42811d70783636ad2c999ba6ddb8b3f58ee26e4f`, image `sha256:15e6ff6a2f04…`) is deployed and verified; rollback542 preserves API541. Orchestrator127, Web390, nightly136 and the disabled broad projection worker are unchanged; old API tasks stopped; ordinary synthetic Pat identity and 512-record memory reads passed with the temporary session revoked. [Release qualification](../releases/2026-10-05/c2-capture-budget-ledger-only-release/release-qualification.json), [served readback](../releases/2026-10-05/c2-capture-budget-ledger-only-release/served-readback.json).
 
 **What changed (user-directed, 2026-10-05):** the per-capture provider cost ceiling is removed. Authenticated capture budgets (Case46 governed artifact, server read-only captures, synthetic reads) are now admitted `ledger_only` (PR #1964): every priced reservation and settlement is still recorded against the declared qualification figures, but dispatch is never refused on attempts, tokens or cost; the hard-coded $3/$15 caps and the receipt validator's cap are gone. Production research budgets remain `enforced`. The native spend journal ($500 aggregate, $15 per case) remains the approved-budget authority and is unchanged (journal40, $37.02 committed, $462.98 available, no active run). PR #1965 adds the exact generation-2 retained-history recovery for the second failed Case46 run (3a5b5609): it requires the generation-1 retirement record to remain present and fails closed on any changed history. Both failed Case46 runs keep their full $3 journal ceilings. This is a shared Meri change across tenants, not a tenant feature flag.

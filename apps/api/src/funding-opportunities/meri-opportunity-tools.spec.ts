@@ -682,6 +682,13 @@ describe('P37 — missing data is stated, never inferred into an absence', () =>
     expect(keys.filter((k) => /^total/i.test(k))).toEqual([]);
   });
 
+  it('a SAM set-aside code reaches Meri with its published meaning', () => {
+    expect(toFacts(opportunity({ setAside: 'SBA', setAsideCode: null })).setAsideDescription).toBe(
+      'Total Small Business Set-Aside (FAR 19.5)',
+    );
+    expect(toFacts(opportunity()).setAsideDescription).toBeNull();
+  });
+
   it('null money stays null and is never rendered as zero', () => {
     const facts = toFacts(opportunity({ grantFunding: null, contractValue: null }));
     expect(facts.grantFunding).toBeNull();

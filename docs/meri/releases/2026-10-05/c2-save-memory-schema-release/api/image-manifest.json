@@ -1,0 +1,13 @@
+{
+  "registryId": "967807252336",
+  "repositoryName": "capiro/dev/api",
+  "imageDigest": "sha256:210010b53817b87f7a685b0493759c36f50f7977cee466b9c8fb903d1ed5c08a",
+  "imageTags": [
+    "e06432d88393d579c7457eeef89394d1a77ea977"
+  ],
+  "imageSizeInBytes": 1114489816,
+  "imagePushedAt": "2026-10-05T12:43:22.749000-04:00",
+  "imageManifestMediaType": "application/vnd.docker.distribution.manifest.v2+json",
+  "artifactMediaType": "application/vnd.docker.container.image.v1+json",
+  "imageStatus": "ACTIVE"
+}

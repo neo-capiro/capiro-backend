@@ -132,18 +132,31 @@ export const CASE46_REMEDIATION_PROOFS = GENERATIONS.map((g) => g.proof);
 const fail = (): never => {
   throw new Error('meri_case46_setup_remediation_not_eligible');
 };
+const HASH = /^[a-f0-9]{64}$/;
+const PROMPT = 'Export that briefing and give me the file.';
 function generation(proof: unknown): Case46RemediationGeneration {
   return GENERATIONS.find((g) => g.proof === proof) ?? fail();
 }
+const record = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : fail();
+/** Retirement keys in order; generation n >= 2 is suffixed with n. */
+export const case46RetiredKey = (n: number) =>
+  n === 1 ? CASE46_RETIRED_SETUP_KEY : `${CASE46_RETIRED_SETUP_KEY}${n}`;
+const RETIRED_KEY = /^case46RetiredExecutionSetup([0-9]*)$/;
 
 /** Read-only eligibility is repeated under the tenant claim lock at execution.
- * The old conversation, source, messages, binding and budget are never changed. */
+ * The old conversation, source, messages, binding and budget are never changed.
+ * Returns the retirement entry to write beside the new claim. */
 export async function assertCase46RemediationInTx(
   tx: Prisma.TransactionClient,
   ctx: TenantContext,
   fixture: Record<string, unknown>,
   input: { captureRunId: string; remediationProofSha256?: string },
-): Promise<void> {
+): Promise<Record<string, unknown>> {
+  if (!GENERATIONS.some((g) => g.proof === input.remediationProofSha256))
+    return assertCase46GenericRemediationInTx(tx, ctx, fixture, input);
   const g = generation(input.remediationProofSha256);
   if (
     GENERATIONS.some((other) => other.failedRun === input.captureRunId) ||
@@ -186,10 +199,139 @@ export async function assertCase46RemediationInTx(
     counts[0]!.artifacts !== 0n
   )
     fail();
+  return { [g.retiredKey]: case46RetiredSetup(fixture, g.proof) };
 }
 
-/** The retirement record written beside the new claim; earlier generations'
- * records are preserved by the caller's fixture spread. */
+/** Generation five onward needs no per-attempt release. The failed run is the
+ * current claim's, and it must be over: deadline passed, every provider attempt
+ * settled or rejected, no proposal or artifact. Its server-settled cost is
+ * recorded exactly. Every earlier retirement must remain: the fixed four
+ * byte-for-byte, later ones in contiguous order. The proof is the operator's
+ * native close proof for the failed run; it is recorded, must be unique, and
+ * never grants acceptance. */
+async function assertCase46GenericRemediationInTx(
+  tx: Prisma.TransactionClient,
+  ctx: TenantContext,
+  fixture: Record<string, unknown>,
+  input: { captureRunId: string; remediationProofSha256?: string },
+): Promise<Record<string, unknown>> {
+  const proof = input.remediationProofSha256;
+  if (
+    typeof proof !== 'string' ||
+    !HASH.test(proof) ||
+    ctx.tenantId !== MERI_CASE46.tenantId ||
+    ctx.userId !== MERI_CASE46.actorUserId ||
+    ctx.role !== 'standard_user' ||
+    fixture.fixtureNamespace !== MERI_CASE46.namespace
+  )
+    fail();
+  const last = GENERATIONS[GENERATIONS.length - 1]!;
+  const fixedLast = record(fixture[last.retiredKey]);
+  if (
+    last.priorRetired.some(
+      (prior) =>
+        fixture[prior.key] === undefined || case46BudgetHash(fixture[prior.key]) !== prior.sha256,
+    ) ||
+    fixedLast.terminalProofSha256 !== last.proof ||
+    fixedLast.failedConversationId !== last.failedConversation ||
+    fixedLast.acceptanceAuthority !== false
+  )
+    fail();
+  const numbers = Object.keys(fixture)
+    .map((key) => RETIRED_KEY.exec(key))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .map((match) => (match[1] === '' ? 1 : Number(match[1])))
+    .sort((a, b) => a - b);
+  if (numbers.length < GENERATIONS.length || numbers.some((n, index) => n !== index + 1)) fail();
+  const retired = numbers.map((n) => record(fixture[case46RetiredKey(n)]));
+  const retiredRuns = new Set<unknown>([
+    ...GENERATIONS.map((g) => g.failedRun),
+    ...retired.map((entry) => record(entry.priorClaim).captureRunId),
+  ]);
+  const claim = record(fixture.case46ExecutionSetup);
+  const failedRun = claim.captureRunId;
+  if (
+    retired.some((entry) => entry.terminalProofSha256 === proof) ||
+    retiredRuns.has(input.captureRunId) ||
+    claim.version !== 1 ||
+    claim.caseId !== '46' ||
+    claim.status !== 'COMPLETE' ||
+    typeof failedRun !== 'string' ||
+    failedRun === input.captureRunId ||
+    retiredRuns.has(failedRun)
+  )
+    fail();
+  const title = `${MERI_CASE46.namespace} case46 ${failedRun}`;
+  const rows = await tx.$queryRaw<Array<{ id: string; metadata: Record<string, unknown> }>>`
+    SELECT id::text AS id, metadata_jsonb AS metadata FROM clio_conversations
+    WHERE tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid
+      AND client_id=${MERI_CASE46.clientId}::uuid AND title=${title}
+      AND archived_at IS NULL AND status='active' FOR SHARE`;
+  if (rows.length !== 1) fail();
+  const conversationId = rows[0]!.id;
+  const budget = record(rows[0]!.metadata?.governedArtifactProviderBudget);
+  const ledger = record(budget.ledger);
+  const limits = record(ledger.limits);
+  const attempts = Array.isArray(ledger.attempts) ? ledger.attempts.map(record) : fail();
+  const deadline = typeof limits.deadlineAt === 'string' ? Date.parse(limits.deadlineAt) : NaN;
+  const charged = attempts.reduce(
+    (sum, a) => sum + (a.status === 'settled' ? Number(a.actualCostMicros) : 0),
+    0,
+  );
+  if (
+    record(budget.qualification).captureRunId !== failedRun ||
+    typeof budget.turnId !== 'string' ||
+    !Number.isFinite(deadline) ||
+    Date.now() <= deadline ||
+    attempts.some((a) => a.status !== 'settled' && a.status !== 'rejected') ||
+    !Number.isSafeInteger(charged) ||
+    charged < 0 ||
+    ledger.chargedCostMicros !== charged
+  )
+    fail();
+  const counts = await tx.$queryRaw<
+    Array<{
+      messages: bigint;
+      original: bigint;
+      assistants: bigint;
+      proposals: bigint;
+      artifacts: bigint;
+    }>
+  >`
+    SELECT
+      (SELECT count(*) FROM clio_messages WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${conversationId}::uuid) AS messages,
+      (SELECT count(*) FROM clio_messages WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${conversationId}::uuid
+        AND user_id=${ctx.userId}::uuid AND id=${budget.turnId}::uuid AND role='user'
+        AND body=${PROMPT}) AS original,
+      (SELECT count(*) FROM clio_messages WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${conversationId}::uuid
+        AND role='assistant') AS assistants,
+      (SELECT count(*) FROM meri_action_proposals WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${conversationId}::uuid) AS proposals,
+      (SELECT count(*) FROM clio_artifacts WHERE tenant_id=${ctx.tenantId}::uuid AND conversation_id=${conversationId}::uuid) AS artifacts`;
+  const c = counts[0];
+  if (
+    counts.length !== 1 ||
+    c!.original !== 1n ||
+    c!.assistants > 1n ||
+    c!.messages !== 1n + c!.assistants ||
+    c!.proposals !== 0n ||
+    c!.artifacts !== 0n
+  )
+    fail();
+  return {
+    [case46RetiredKey(numbers.length + 1)]: {
+      priorClaim: fixture.case46ExecutionSetup,
+      failedConversationId: conversationId,
+      terminalProofSha256: proof,
+      conservativeCostMicros: charged,
+      actualCostMicros: charged,
+      ledgerSha256: case46BudgetHash(ledger),
+      acceptanceAuthority: false,
+    },
+  };
+}
+
+/** The retirement record a fixed generation writes beside the new claim;
+ * earlier generations' records are preserved by the caller's fixture spread. */
 export function case46RetiredSetup(fixture: Record<string, unknown>, proof?: string) {
   const g = generation(proof ?? CASE46_REMEDIATION_PROOF);
   return {
@@ -200,7 +342,4 @@ export function case46RetiredSetup(fixture: Record<string, unknown>, proof?: str
     actualCostMicros: g.knownCostMicros,
     acceptanceAuthority: false,
   };
-}
-export function case46RetiredSetupEntry(fixture: Record<string, unknown>, proof: string) {
-  return { [generation(proof).retiredKey]: case46RetiredSetup(fixture, proof) };
 }

@@ -1,6 +1,8 @@
 import { extractCitationsFromToolResult } from '@capiro/shared';
 import { numberMeriEvidenceCitations } from './meriv3-context-evidence.js';
-import type { LedgerEntry } from '@capiro/meriv2-core';
+import { MERI_CASE46, assertMeriCase46ToolInput, type LedgerEntry } from '@capiro/meriv2-core';
+import { withTrustedCurrentTurnScope } from '../../request/trusted-current-turn-scope.js';
+import { governedArtifactTestPolicy } from './meriv3-governed-artifact.spec-helper.js';
 import {
   MeriV3CleanAssistantService,
   buildMeriV3ReleaseCitations,
@@ -8,6 +10,38 @@ import {
 } from './meriv3-clean-assistant.service.js';
 
 describe('MeriV3 clean evidence release', () => {
+  test('a governed capture export keeps its exact text, including the final newline', () => {
+    const p = governedArtifactTestPolicy();
+    const prepare = MeriV3CleanAssistantService.prototype as unknown as {
+      prepareArtifactInput: (
+        name: string,
+        input: Record<string, unknown>,
+        citations: never[],
+        ledger: LedgerEntry[],
+      ) => Record<string, unknown>;
+    };
+    const input = { title: 'aster-synthetic-briefing', format: 'txt', text: MERI_CASE46.text };
+    expect(MERI_CASE46.text.endsWith(String.fromCharCode(10))).toBe(true);
+    // Outside a governed capture the ordinary normalization still applies.
+    expect(prepare.prepareArtifactInput('create_word', input, [], []).text).toBe(
+      MERI_CASE46.text.trim(),
+    );
+    const prepared = withTrustedCurrentTurnScope(
+      {
+        tenantId: p.tenantId,
+        userId: p.actorUserId,
+        conversationId: p.conversationId,
+        selectedClientId: p.clientId,
+        governedArtifactPolicy: p,
+      },
+      () => prepare.prepareArtifactInput('create_word', input, [], []),
+    );
+    expect(prepared).toBe(input);
+    // The dispatch guard sees the input after scope augmentation.
+    const augmented = { ...prepared, clientId: p.clientId, conversationId: p.conversationId };
+    expect(() => assertMeriCase46ToolInput(p, 'create_word', augmented)).not.toThrow();
+  });
+
   test('normalizes real Word input before generation so persisted spec, export and Evidence use [56]', () => {
     const source = {
       n: 56,

@@ -134,6 +134,9 @@ enum BillingStatus {
 }
 
 model Tenant {
+  krispPreferences KrispNotetakerPreference[]
+  krispImports KrispMeetingImport[]
+
   savedDefenseComparisons DefenseSavedComparison[]
   savedDefenseComparisonVersions DefenseSavedComparisonVersion[]
   savedDefenseComparisonEvents DefenseSavedComparisonEvent[]
@@ -552,6 +555,9 @@ model CanonicalEntityBackfillCheckpoint {
 }
 
 model User {
+  krispPreferences KrispNotetakerPreference[]
+  krispImports KrispMeetingImport[]
+
   ownedDefenseComparisons DefenseSavedComparison[] @relation("DefenseSavedComparisonOwner")
   createdDefenseComparisonVersions DefenseSavedComparisonVersion[] @relation("DefenseSavedComparisonVersionCreator")
   savedDefenseComparisonEvents DefenseSavedComparisonEvent[] @relation("DefenseSavedComparisonEventActor")
@@ -1211,6 +1217,8 @@ model EngagementContact {
 }
 
 model Meeting {
+  krispImports KrispMeetingImport[]
+
   prepJobs           MeetingPrepJob[]
   id                 String            @id @default(uuid()) @db.Uuid
   tenantId           String            @map("tenant_id") @db.Uuid
@@ -2489,6 +2497,8 @@ model ClioScheduledTask {
 /// and every bridged tool is treated as side-effecting unless listed in
 /// readOnlyTools.
 model ClioMcpServer {
+  krispPreferences KrispNotetakerPreference[]
+
   id                  String    @id @default(uuid()) @db.Uuid
   tenantId            String    @map("tenant_id") @db.Uuid
   name                String    @db.VarChar(64)
@@ -16458,4 +16468,50 @@ model TangoSubawardSyncCheckpoint {
   updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
 
   @@map("tango_subaward_sync_checkpoint")
+}
+
+/// Personal opt-in bound to the authorized OAuth connection.
+model KrispNotetakerPreference {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  serverId String @map("server_id") @db.Uuid
+  enabled Boolean @default(false)
+  folderId String? @map("folder_id")
+  enabledAt DateTime @map("enabled_at") @db.Timestamptz(6)
+  revision Int @default(1)
+  lastCheckedAt DateTime? @map("last_checked_at") @db.Timestamptz(6)
+  lastError String? @map("last_error")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server ClioMcpServer @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  @@unique([tenantId, userId])
+  @@map("krisp_notetaker_preferences")
+}
+/// No transcript or generated prose here; artifacts use encrypted meeting storage.
+model KrispMeetingImport {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  documentId String @map("document_id") @db.VarChar(32)
+  title String
+  startsAt DateTime @map("starts_at") @db.Timestamptz(6)
+  meetingId String? @map("meeting_id") @db.Uuid
+  status String @default("pending") @db.VarChar(24)
+  leaseToken String? @map("lease_token") @db.Uuid
+  leaseUntil DateTime? @map("lease_until") @db.Timestamptz(6)
+  attempts Int @default(0)
+  error String?
+  noteId String? @map("note_id") @db.Uuid
+  debriefId String? @map("debrief_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meeting Meeting? @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  @@unique([tenantId, userId, documentId])
+  @@index([tenantId, userId, status])
+  @@map("krisp_meeting_imports")
 }

@@ -1,3 +1,6 @@
+import { ManagedMcpModule } from '../meri/managed-mcp.module.js';
+import { KrispNotetakerService } from './krisp/krisp-notetaker.service.js';
+import { KrispNotetakerController } from './krisp/krisp-notetaker.controller.js';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from '../config/config.schema.js';
@@ -89,6 +92,7 @@ import {
 @Module({
   imports: [
     PrismaModule,
+    ManagedMcpModule,
     DirectoryModule,
     LobbyIntelModule,
     FederalSpendingModule,
@@ -100,8 +104,9 @@ import {
     QualityTelemetryModule,
     EvaluationModule,
   ],
-  controllers: [EngagementController, OutcomeController],
+  controllers: [EngagementController, OutcomeController, KrispNotetakerController],
   providers: [
+    KrispNotetakerService,
     {
       provide: MEETING_BOT_PROVIDER,
       useFactory: (raw: MeetingBotProvider, runtime: EngagementRuntimePolicyService) =>
@@ -245,6 +250,7 @@ import {
     OutreachV3LivePreviewService,
   ],
   exports: [
+    KrispNotetakerService,
     MeetingPrepJobService,
     EngagementRuntimeModule,
     AiCredentialsModule,

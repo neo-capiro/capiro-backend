@@ -3590,6 +3590,14 @@ export class MeriV3AssistantService {
     if (dto.conversationId && output.conversationId === undefined && properties?.conversationId) {
       output.conversationId = dto.conversationId;
     }
+    // save_memory binds client scope to the conversation's client server-side;
+    // its schema deliberately has no clientId so the model cannot choose one.
+    // Without this, a client-scoped save fell back to personal memory, which
+    // is stored immediately with no review.
+    if (schema?.name === 'save_memory') {
+      if (dto.clientId) output.clientId = dto.clientId;
+      else delete output.clientId;
+    }
     return { input: output };
   }
 
