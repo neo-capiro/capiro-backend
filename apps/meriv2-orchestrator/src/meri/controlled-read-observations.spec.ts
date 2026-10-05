@@ -531,6 +531,9 @@ describe('controlled read actual HTTP observations', () => {
               coverage: partial ? 'partial' : empty ? 'empty' : 'complete',
             });
           else expect((actual[0] as any).proposalRead).toBeUndefined();
+          // Prompt rendering precedes completion. Reading the clock in reverse
+          // field order can fabricate a future-rendered prompt at a millisecond boundary.
+          const promptRenderedAt = Date.now();
           const signed = buildSignedOrchestratorCaptureEvidence({
             policy: p,
             startedAt: p.issuedAt,
@@ -554,7 +557,7 @@ describe('controlled read actual HTTP observations', () => {
                 instant: p.semanticClock!.instant,
                 timeZone: p.semanticClock!.timeZone,
                 date: '2026-09-26',
-                renderedAt: Date.now(),
+                renderedAt: promptRenderedAt,
                 groundingSha256: 'c'.repeat(64),
               },
               estimatedCostUsd: { status: 'UNKNOWN', value: null, reason: 'not_run' },
