@@ -1,0 +1,37 @@
+{
+  "reviewedAt": "2026-10-05T19:36:30.5860943Z",
+  "status": "qualified",
+  "service": "web-vnext",
+  "schemaChange": false,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:ae9f7cff343c17d9977a8e57fe716f2733d1d9e8811e689eac9fab335ef053af",
+  "sourceSha": "ac45312b829615a276dbe654065e7326bcfdaf06",
+  "checks": [
+    {
+      "status": "passed",
+      "sourceSha": "ac45312b829615a276dbe654065e7326bcfdaf06",
+      "url": "https://github.com/neo-capiro/capirov2/blob/4e038fa5d17e0b0638f7049922602e0ecb5d1053/docs/meri/releases/2026-10-05/krisp-signin-fix/qualification.md",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:ae9f7cff343c17d9977a8e57fe716f2733d1d9e8811e689eac9fab335ef053af",
+      "name": "build"
+    },
+    {
+      "status": "passed",
+      "sourceSha": "ac45312b829615a276dbe654065e7326bcfdaf06",
+      "url": "https://github.com/neo-capiro/capirov2/blob/4e038fa5d17e0b0638f7049922602e0ecb5d1053/docs/meri/releases/2026-10-05/krisp-signin-fix/qualification.md",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:ae9f7cff343c17d9977a8e57fe716f2733d1d9e8811e689eac9fab335ef053af",
+      "name": "automated-tests"
+    },
+    {
+      "status": "passed",
+      "sourceSha": "ac45312b829615a276dbe654065e7326bcfdaf06",
+      "url": "https://github.com/neo-capiro/capirov2/blob/4e038fa5d17e0b0638f7049922602e0ecb5d1053/docs/meri/releases/2026-10-05/krisp-signin-fix/qualification.md",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:ae9f7cff343c17d9977a8e57fe716f2733d1d9e8811e689eac9fab335ef053af",
+      "name": "retirement-compatibility"
+    }
+  ],
+  "expiresAt": "2026-10-06T07:36:30.5920238Z",
+  "reviewer": "Codex release agent under continuing owner authorization to repair and deploy Krisp",
+  "schemaVersion": 1,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/4e038fa5d17e0b0638f7049922602e0ecb5d1053/docs/meri/releases/2026-10-05/krisp-signin-fix/qualification.md"
+  ]
+}

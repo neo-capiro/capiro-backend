@@ -1,0 +1,19 @@
+{
+  "rows": [
+    {
+      "slug": "capiro-internal",
+      "connection_status": "disconnected",
+      "enabled": true,
+      "created_at": "2026-10-05T19:22:46.79Z",
+      "updated_at": "2026-10-05T19:22:49.76Z",
+      "has_error": false,
+      "has_credential": false,
+      "has_nonce": false,
+      "has_verifier": false,
+      "has_access_token": false,
+      "has_client": false,
+      "has_client_secret": false,
+      "credential_updated_at": null
+    }
+  ]
+}

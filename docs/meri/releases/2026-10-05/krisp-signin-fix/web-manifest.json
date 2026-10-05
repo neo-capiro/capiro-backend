@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "web-vnext",
+  "preparedAt": "2026-10-05T19:36:39.518Z",
+  "qualification": {
+    "reviewedAt": "2026-10-05T19:36:30.5860943Z",
+    "status": "qualified",
+    "service": "web-vnext",
+    "schemaChange": false,
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:ae9f7cff343c17d9977a8e57fe716f2733d1d9e8811e689eac9fab335ef053af",
+    "sourceSha": "ac45312b829615a276dbe654065e7326bcfdaf06",
+    "checks": [
+      {
+        "status": "passed",
+        "sourceSha": "ac45312b829615a276dbe654065e7326bcfdaf06",
+        "url": "https://github.com/neo-capiro/capirov2/blob/4e038fa5d17e0b0638f7049922602e0ecb5d1053/docs/meri/releases/2026-10-05/krisp-signin-fix/qualification.md",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:ae9f7cff343c17d9977a8e57fe716f2733d1d9e8811e689eac9fab335ef053af",
+        "name": "build"
+      },
+      {
+        "status": "passed",
+        "sourceSha": "ac45312b829615a276dbe654065e7326bcfdaf06",
+        "url": "https://github.com/neo-capiro/capirov2/blob/4e038fa5d17e0b0638f7049922602e0ecb5d1053/docs/meri/releases/2026-10-05/krisp-signin-fix/qualification.md",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:ae9f7cff343c17d9977a8e57fe716f2733d1d9e8811e689eac9fab335ef053af",
+        "name": "automated-tests"
+      },
+      {
+        "status": "passed",
+        "sourceSha": "ac45312b829615a276dbe654065e7326bcfdaf06",
+        "url": "https://github.com/neo-capiro/capirov2/blob/4e038fa5d17e0b0638f7049922602e0ecb5d1053/docs/meri/releases/2026-10-05/krisp-signin-fix/qualification.md",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:ae9f7cff343c17d9977a8e57fe716f2733d1d9e8811e689eac9fab335ef053af",
+        "name": "retirement-compatibility"
+      }
+    ],
+    "expiresAt": "2026-10-06T07:36:30.5920238Z",
+    "reviewer": "Codex release agent under continuing owner authorization to repair and deploy Krisp",
+    "schemaVersion": 1,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/4e038fa5d17e0b0638f7049922602e0ecb5d1053/docs/meri/releases/2026-10-05/krisp-signin-fix/qualification.md"
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:392",
+    "serviceHash": "b2bb1e11995a52a428c427d2c998de98f67ec7e90a1230efb20fd71b1d4d12c1",
+    "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+    "taskHash": "3a5a59b821514f217ee6a929e03e95dfc862f2d991da3d71ad464754b8910a65",
+    "imageDigest": "sha256:f181b3c064a0253546343a61b75073d1348fcfb08b085a827ece9a82260991f5",
+    "desiredCount": 1
+  }
+}

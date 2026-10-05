@@ -1,0 +1,17 @@
+
+ RUN  v2.1.9 C:/dev/main/meri-krisp-notetaker/apps/web
+
+ ✓ src/vnext/app/presentation.test.ts (2 tests) 2ms
+ ✓ src/vnext/figma-strategy-legiwatch-contract.test.ts (6 tests) 28ms
+ ✓ src/vnext/meri/meri-install.test.ts (7 tests) 33ms
+ ✓ src/vnext/foundation-contract.test.ts (6 tests) 60ms
+ ✓ src/vnext/meri/meri-route-state.test.ts (15 tests) 10ms
+ ✓ src/components/chat/managed-mcp-apps.test.tsx (10 tests) 176ms
+ ✓ src/vnext/meri/meri-pwa.contract.test.ts (5 tests) 45ms
+ ✓ src/vnext/meri/KrispNotetakerSettings.test.tsx (3 tests) 272ms
+
+ Test Files  8 passed (8)
+      Tests  54 passed (54)
+   Start at  15:31:03
+   Duration  3.05s (transform 725ms, setup 3.85s, collect 1.44s, tests 625ms, environment 13.13s, prepare 1.42s)
+
