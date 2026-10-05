@@ -5701,6 +5701,7 @@ export { US_STATE_BY_ABBR, resolveUsStateCode } from './us-states.js';
 export {
   resolveMeriDocumentRequest,
   isMeriDocumentLocationClarification,
+  stripAppendedAttachmentText,
   type MeriDocumentRequest,
 } from './meri-document-request.js';
 export * from './schedule/time-zone';

@@ -272,6 +272,22 @@ describe('budget deltas require financial context', () => {
     expect(plan(request).requiredRequirementIds).toContain('budget-amount.official');
   });
 
+  it.each([
+    'Summarize slide 6 of the strategy deck I uploaded.',
+    'What does the strategy document say about autonomy?',
+    'Review the strategy memo.',
+  ])('a strategy file is not a request for advice: %s', (request) => {
+    expect(inferClaimCategories(request)).not.toContain('client_recommendation');
+  });
+
+  it.each([
+    'What strategy should we use with HASC?',
+    'Recommend an engagement strategy for the FY27 markup.',
+    'What is our strategy for the Senate?',
+  ])('an advice request still requires approved objectives: %s', (request) => {
+    expect(inferClaimCategories(request)).toContain('client_recommendation');
+  });
+
   it('does not add a generic budget delta to a routed chamber-position comparison', () => {
     const result = plan('Compare House vs Senate positions on PE 0603851F.');
     expect(result.requestCategories).not.toContain('budget_delta');

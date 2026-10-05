@@ -545,7 +545,9 @@ export function inferClaimCategories(request: string): ClaimCategory[] {
   );
   addIf(
     categories,
-    /\b(?:recommend|strategy|who\s+should\s+we|what\s+should\s+we\s+ask|engage|advocacy|next\s+step)\b/i.test(
+    // "Summarize slide 6 of the strategy deck" names a file, not a request for
+    // advice; it appended an unrelated limitation (Stage 1 case 41).
+    /\b(?:recommend|strategy(?!\s+(?:deck|document|doc|memo|file|slides?|presentation|pdf|spreadsheet|workbook)s?\b)|who\s+should\s+we|what\s+should\s+we\s+ask|engage|advocacy|next\s+step)\b/i.test(
       text,
     ),
     'client_recommendation',
