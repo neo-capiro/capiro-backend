@@ -244,7 +244,7 @@ export class KrispNotetakerService {
     if (!managedAppAvailable('krisp', {})) return;
     const preferences = await this.prisma.withSystem((tx) =>
       tx.krispNotetakerPreference.findMany({
-        where: { enabled: true, tenant: { slug: { in: ['capiro-internal', 'c2-strategies'] } } },
+        where: { enabled: true },
         orderBy: [{ lastCheckedAt: { sort: 'asc', nulls: 'first' } }, { id: 'asc' }],
         take: 100,
       }),
@@ -543,7 +543,7 @@ export class KrispNotetakerService {
     if (
       !tenant ||
       tenant.status !== 'active' ||
-      !krispNotetakerEnabled(tenant.settings, tenant.slug) ||
+      !krispNotetakerEnabled(tenant.settings) ||
       !membership ||
       !current ||
       !server

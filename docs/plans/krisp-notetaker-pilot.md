@@ -1,10 +1,10 @@
-# Krisp Notetaker pilot
+# Krisp Notetaker
 
 Krisp is a personal OAuth connection in Meri integrations. A user explicitly enables
 automatic imports and may select a Krisp folder. The Engagement background owner polls
 every three minutes, reads transcripts, and uses the existing governed Meri debrief
 generator and shared formatter. Notes and debriefs are encrypted, approved, private,
-and committed together with import completion. This pilot does not store an additional
+and committed together with import completion. This integration does not store an additional
 raw transcript or change/delete the user's originals in Krisp.
 
 ## Rollout
@@ -13,9 +13,10 @@ raw transcript or change/delete the user's originals in Krisp.
   It creates user- and tenant-isolated preference/import tables and enables
   `settings_jsonb.clioFeatureFlags["notetaker.krisp.enabled"]` only for
   `capiro-internal` and `c2-strategies`, preserving their other settings.
-- The application also checks an immutable allowlist of those two slugs. Setting the
-  flag for another organization cannot enable the connector, OAuth callback, tools,
-  settings routes, or worker.
+- The initial two-tenant pilot restriction has been removed. Any tenant with
+  `notetaker.krisp.enabled=true` can use the connector, OAuth callback, tools,
+  settings routes, and worker. The October 5 expansion enables this flag for all
+  existing tenants; missing/false flags still disable access.
 - The existing MCP OAuth callback, token encryption, notes encryption, and Meri
   generation configuration must already work. `CLIO_MCP_ENABLED=false` disables
   MCP access. `MERI_MCP_KRISP_ENABLED=false` additionally disables Krisp provider access.
@@ -25,7 +26,7 @@ raw transcript or change/delete the user's originals in Krisp.
   the enable time; polling considers the most recent seven days. Existing discovered
   imports retain their own retry state. Changing folder/reconnecting requires renewed
   opt-in and discards unfinished jobs from the previous scope.
-- Roll back by setting `notetaker.krisp.enabled=false` for either pilot tenant.
+- Disable access by setting `notetaker.krisp.enabled=false` for a tenant.
   Gate and connection checks are fresh, including before artifact commit.
   Existing notes/debriefs remain available. Disconnecting also stops access.
 

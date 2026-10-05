@@ -8,17 +8,14 @@ import {
 } from './krisp.helpers.js';
 
 const id = '0123456789abcdef0123456789abcdef';
-describe('Krisp pilot boundary and provider contract', () => {
-  test('only the two named tenants can enable the flag; missing, false, and non-boolean values deny', () => {
+describe('Krisp tenant flag and provider contract', () => {
+  test('the tenant flag enables Krisp; missing, false, and non-boolean values deny', () => {
     const yes = { clioFeatureFlags: { 'notetaker.krisp.enabled': true } };
-    expect(krispNotetakerEnabled(yes, 'capiro-internal')).toBe(true);
-    expect(krispNotetakerEnabled(yes, 'c2-strategies')).toBe(true);
-    expect(krispNotetakerEnabled(yes, 'other-firm')).toBe(false);
+    expect(krispNotetakerEnabled(yes)).toBe(true);
     for (const value of [undefined, false, 'true', 1]) {
       expect(
         krispNotetakerEnabled(
           { clioFeatureFlags: { 'notetaker.krisp.enabled': value } },
-          'capiro-internal',
         ),
       ).toBe(false);
     }

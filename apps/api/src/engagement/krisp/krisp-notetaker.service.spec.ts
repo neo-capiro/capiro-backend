@@ -9,7 +9,7 @@ jest.mock('../../meeting-capture/meeting-capture-persistence.service.js', () => 
 const ctx = {
   tenantId: 'tenant',
   userId: 'user',
-  tenantSlug: 'capiro-internal',
+  tenantSlug: 'other-firm',
   clerkUserId: 'clerk',
   role: 'standard_user',
 } as TenantContext;
@@ -171,6 +171,23 @@ function fixture() {
 }
 
 describe('automatic Krisp notes and debriefs', () => {
+  test('the sweep selects opted-in users across tenants and still enforces each tenant flag', async () => {
+    const f = fixture();
+    const findMany = jest.fn(async (_args: any) => [preference]);
+    (f.prisma as any).withSystem = async (fn: any) => fn({ krispNotetakerPreference: { findMany } });
+    jest.spyOn(f.service as any, 'context').mockResolvedValue(ctx);
+    jest.spyOn(f.service as any, 'assertActive').mockResolvedValue(undefined);
+    const discover = jest.spyOn(f.service as any, 'discover').mockResolvedValue(undefined);
+    f.tx.krispMeetingImport.findMany = jest.fn(async () => []);
+    f.tx.krispNotetakerPreference.updateMany = jest.fn(async () => ({ count: 1 }));
+    await f.service.sweep();
+    expect(findMany.mock.calls[0]?.[0]).toMatchObject({ where: { enabled: true } });
+    expect((findMany.mock.calls[0]?.[0] as any).where.tenant).toBeUndefined();
+    expect(discover).toHaveBeenCalledTimes(1);
+    f.tenant.settings.clioFeatureFlags['notetaker.krisp.enabled'] = false;
+    await f.service.sweep();
+    expect(discover).toHaveBeenCalledTimes(1);
+  });
   test('a completed import saves encrypted approved artifacts together and never repeats', async () => {
     const f = fixture();
     await f.run();
@@ -251,9 +268,9 @@ describe('automatic Krisp notes and debriefs', () => {
     expect(f.managed.executeRead).not.toHaveBeenCalled();
     expect(f.notes).toHaveLength(0);
   });
-  test('out-of-cohort tenant gets no status or provider access even with the flag set', async () => {
+  test('a tenant with its flag disabled gets no status or provider access', async () => {
     const f = fixture();
-    f.tenant.slug = 'another-firm';
+    f.tenant.settings.clioFeatureFlags['notetaker.krisp.enabled'] = false;
     await expect(f.service.status(ctx)).rejects.toThrow('not enabled');
     await f.run();
     expect(f.managed.executeRead).not.toHaveBeenCalled();
