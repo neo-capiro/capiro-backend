@@ -14,7 +14,13 @@
 
 ## Required live verification and data repair
 
-These steps have **not** been run against the serving database. Its hostname did not resolve from this workstation, and ECS Exec rejected access to the running API task. The seven named organizations cannot yet be classified as archived, missing, or foreign-tenant clients. Existing duplicate records and old false matches are not claimed repaired.
+A read-only ECS audit reached the serving database on October 5 using the application’s system RLS scope. It confirmed 15 active and 44 archived Portfolio clients in the reported tenant. The seven unexpected organizations are archived, not foreign-tenant clients. Of the audited alerts, 182 belong to archived clients, 24 to the active L3 Harris client, and one to a missing client. Uppercase UUIDs explain the historical L3 label. Six L3 legal-defense keyword matches are independently qualified false positives.
+
+The apparent duplicate USPTO hearing is two distinct official events: a committee/day fallback attached event 338783 observations to event 338784 and overwrote its title/time. Thirteen misbound observations were found across seven event pairs. Exact numeric official IDs now prohibit that fallback; the dry-run/hash-bound repair script retains observations and before-images. Ukraine event 338796 is a true Joint/Senate alias and is qualified separately by its exact event identity and joint committee code.
+
+Commerce’s February 10 meeting already retains 13 agenda items and 12 linked bills. Its first-party notice omitted CommitteeId; a unique exact directory name in the same official session/chamber now supplies the association, including notices previously attached to a Florida Channel archive record. Ambiguous or retired directory matches remain unresolved.
+
+A bounded document hydration request for HB 1211, SB 474 and SB 7002 was held by the existing provider quota guard; it consumed no document requests. Release and live repair results are recorded separately when executed. The steps below remain the acceptance checklist.
 
 1. Run `node scripts/legiwatch-qa-audit.cjs` from an environment with database connectivity and standard `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, and `PGDATABASE`. The script opens a read-only transaction, requires TLS verification, and reports attribution counts, the named clients, HB 1211/SB 474, Commerce joins, and the reported federal hearings. Keep its output private: it contains tenant/client identifiers.
 2. Deploy the API, intel-api, web, and shared package changes together. No schema migration is introduced by this branch.
