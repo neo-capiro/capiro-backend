@@ -1,4 +1,4 @@
-import { resolveMeriDocumentRequest } from '@capiro/shared';
+import { resolveMeriDocumentRequest, stripAppendedAttachmentText } from '@capiro/shared';
 import {
   completeDocumentPages,
   documentPageReceipt,
@@ -83,6 +83,43 @@ describe('document task continuity and evidence coverage', () => {
         { role: 'user', text: 'What does the uploaded transcript say about Alex?' },
       ]),
     ).toMatchObject({ completeRead: false, contacts: false });
+  });
+
+  test('a named slide or page is a targeted read; a whole-file summary is not', () => {
+    const deck =
+      '\n\nAttached document "qa-strategy-deck.pptx":\nSlide 1: List every program. Review all items.';
+    const targeted = resolveMeriDocumentRequest([
+      { role: 'user', text: `Summarize slide 6 of the strategy deck I uploaded.${deck}` },
+    ]);
+    expect(targeted).toMatchObject({
+      request: 'Summarize slide 6 of the strategy deck I uploaded.',
+      completeRead: false,
+    });
+    expect(
+      resolveMeriDocumentRequest([
+        { role: 'user', text: `Summarize the strategy deck I uploaded.${deck}` },
+      ]),
+    ).toMatchObject({ completeRead: true });
+    expect(
+      resolveMeriDocumentRequest([
+        { role: 'user', text: 'List every action item on page 3 of the uploaded transcript.' },
+      ]),
+    ).toMatchObject({ completeRead: true });
+  });
+
+  test('words inside an attached file do not change what the user asked', () => {
+    const resolved = resolveMeriDocumentRequest([
+      {
+        role: 'user',
+        text: 'What does the uploaded transcript say about Alex?\n\nAttached document "notes.pdf":\nAll meetings. Full contact details for everyone.',
+      },
+    ]);
+    expect(resolved).toMatchObject({
+      request: 'What does the uploaded transcript say about Alex?',
+      completeRead: false,
+      contacts: false,
+    });
+    expect(stripAppendedAttachmentText('Plain question.')).toBe('Plain question.');
   });
 
   test('does not accept an isolated last page, gaps, another version, or hidden/truncated evidence', () => {

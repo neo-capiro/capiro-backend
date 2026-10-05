@@ -3,6 +3,7 @@ import {
   selectMeriCapabilitySchemas,
   isMeriMailReadTool,
   resolveMeriDocumentRequest,
+  stripAppendedAttachmentText,
 } from '@capiro/shared';
 import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { createHash } from 'node:crypto';
@@ -688,10 +689,7 @@ export function resetMeriV3RolloutDiagnosticsForTest(): void {
  * still receives the full turn, attachments included.
  */
 export function userRequestText(text: string): string {
-  const marker =
-    /\n\n(?:Attached (?:document|image) |Attachment "|Documents uploaded earlier in this chat \(retained after chat summary\):)/;
-  const match = marker.exec(text);
-  return match ? text.slice(0, match.index) : text;
+  return stripAppendedAttachmentText(text);
 }
 
 @Injectable()
