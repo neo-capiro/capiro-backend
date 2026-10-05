@@ -1,0 +1,95 @@
+{
+  "kind": "meri-remember-directive-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-05T16:15:49.002859+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "a442cafb3670d05fe7247867286c5b9cc09b6eee",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:93e690b91f441c89bac5093d9c39c06a7450fbe5ef5aea05bfcaa55d53b65bd8",
+      "buildId": "capiro-build-web-dev:6fe317a0-850c-4504-82b9-337d39924597",
+      "packagedMarkersPassed": 20
+    }
+  ],
+  "schemaChange": false,
+  "providerCalls": 0,
+  "c2Complete": false,
+  "change": "Orchestrator: save_memory always receives the conversation client, so a client-scoped save becomes a pending candidate instead of falling back to user-wide personal memory (simplified acceptance cases 13 and 02). API unchanged.",
+  "authorizationBasis": "User directed continuing until the goal is met (2026-10-05); established native release operator, CodeBuild backup shipping and PR merges already authorized.",
+  "reviewer": "Lead agent: focused and full source tests, typechecks, packaged image probes and served baseline review",
+  "sourceEvidence": [
+    "https://github.com/neo-capiro/capirov2/pull/1990"
+  ],
+  "validation": {
+    "orchestratorSourceTests": "1582 passed, 2 known live skips (source-tests/memclient-orch-tests-v1.log)",
+    "typechecks": [
+      "ORCHESTRATOR"
+    ],
+    "packagedProbesPassed": {
+      "meriv2-orchestrator": 20
+    }
+  },
+  "artifactPins": [
+    {
+      "path": "meriv2-orchestrator/build-readback.json",
+      "bytes": 6692,
+      "sha256": "10abaa9f27e5dd68ce0bfdcb7cfc11f3694c6cf8fbd20faf813fae97e687e540"
+    },
+    {
+      "path": "meriv2-orchestrator/build.log",
+      "bytes": 773288,
+      "sha256": "211b6bd44742424b419839f17f5dba396024f128bf55ec4b4e15fc84084222e3"
+    },
+    {
+      "path": "meriv2-orchestrator/buildspec.json",
+      "bytes": 14623,
+      "sha256": "98aaac32e553f135cd79d9296ab3a854fd6f592ff0151e6dd06f3c34f8c62c9f"
+    },
+    {
+      "path": "meriv2-orchestrator/image-manifest.json",
+      "bytes": 522,
+      "sha256": "4f9742dd48db0ccd6e31d218e7215063aa2926dc382487321a927274eb3a3d67"
+    },
+    {
+      "path": "meriv2-orchestrator/launch-intent.json",
+      "bytes": 915,
+      "sha256": "ddd9a94106bc50e8405febd73ae2807a8c4326815f36a549cd393991ca99956c"
+    },
+    {
+      "path": "meriv2-orchestrator/build-start.json",
+      "bytes": 1806,
+      "sha256": "166c6cdc22909b3c5150d53615ec2da02e1c0c76f75aa80cd06fab9d56230110"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-pre_build.sh",
+      "bytes": 1493,
+      "sha256": "7214275629cfe2732e11020877ba4e0717d67711fe649f5eddb6f7b1b8d7c317"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-build.sh",
+      "bytes": 28785,
+      "sha256": "cd2c9ef2a186218079752ab9034ce36c0cf3d959785893068682993cb5a70fc9"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-post_build.sh",
+      "bytes": 971,
+      "sha256": "20b5e9bb3ba9f445f70dbaa058e126ef736992331e71b3cae5ee5dd6bfbc4d9d"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 3156,
+      "sha256": "1a2a9804fbf91543cb4f3f9da1d233fbb26f6bc70dee49e179aac18fd7e0756a"
+    },
+    {
+      "path": "source-tests/memclient-orch-tests-v1.log",
+      "bytes": 24186,
+      "sha256": "74787df8bd6413487e7508f29d3ec4d7633a94d49d5a64cafbf75959a8be77ae"
+    },
+    {
+      "path": "source-tests/memclient-orch-typecheck-v1.log",
+      "bytes": 11,
+      "sha256": "cbf7de6a7ab22aa8f3b63eed31368677222a5389d4a0bcaa112a952910051cec"
+    }
+  ]
+}
