@@ -39,7 +39,7 @@ recheck Actions before activating the prerequisite.
 | `deploy-all.yml` | Manual mutable deployment bypass for protected services | Only marketing and sandbox allowed; direct dispatch of any other service fails before AWS credentials |
 | `execute-meriv2-ecs-release.mjs` | Bundles migration and five service deployments; resets/preserves selected controls | Retired, immediate failure; history remains in Git |
 | `deploy-dev.sh`, `deploy-onboard.sh` | Manual mutable-tag deployment/migration bypass | Retired, immediate failure |
-| `prepare-meriv2-ecs-release.mjs` | Legacy read-only preparation | Historical utility only; its manifest is not accepted by the new operator |
+| `prepare-meriv2-ecs-release.mjs` | Legacy read-only preparation | Removed 2026-10-05 (program plan Stage 1 §4.3) with `deploy-meriv2-operations-dark.mjs`, `verify-meriv2-release*.mjs`, `run-meriv2-phase19-local.mjs`, `collect-meriv2-aws-context.mjs` and their package scripts; they forced controlled flags dark. History remains in Git. `execute-meriv2-ecs-release.mjs` stays as the retired stub the build-isolation guard checks. |
 | `marketing-image.yml`, `sandbox-image.yml` | Separate product workflows | Unchanged; no Meri/shared/lockfile trigger found |
 | `legiwatch-deploy-verify.yml` | Build-completion diagnostic hook | Unchanged; runs read-only DB/image probes, not service promotion; not a qualification signal for the new candidate |
 | `oidc-verify.yml` | Manual IAM diagnostics | Unchanged, not dispatched here |
