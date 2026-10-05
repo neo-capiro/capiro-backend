@@ -15,7 +15,9 @@ const user = (id, why) => ({ id, mode: 'USER', why });
 
 export const internalCases = [
   live('01', PRIMARY, 'What do we know about L3 Harris’s briefing preferences?', { citations: true }),
-  { id: '02', mode: 'LIVE', client: QA_CLIENT, op: 'read',
+  // A client-scoped save is recorded as one save_memory proposal (it executes
+  // at once and leaves a pending candidate for a second reviewer).
+  { id: '02', mode: 'LIVE', client: QA_CLIENT, op: 'memory_save',
     reference: 'The SMS preference exists only as a pending candidate proposed in part 1. The answer must not state it as an approved preference; it may say it is pending review.',
     turns: [
       { prompt: 'Remember for this client that they prefer SMS text alerts.', graded: false },
@@ -39,7 +41,7 @@ export const internalCases = [
   test('12', 'retrieval past a 500-candidate cap needs 500 seeded candidates'),
 
   // In-Meri memory review on the QA test client. Run in order: 13, 17, 14, 15.
-  { id: '13', mode: 'LIVE', client: QA_CLIENT, op: 'read', expectCandidate: 'program office',
+  { id: '13', mode: 'LIVE', client: QA_CLIENT, op: 'memory_save', expectCandidate: 'program office',
     reference: 'A pending candidate with the proposed fact, this client as scope, and the user as proposer. Nothing is approved before review.',
     turns: [{ prompt: 'Remember for this client that briefs should include the program office.' }] },
   user('14', 'needs a second reviewer: an administrator cannot approve or decide their own memory candidate'),

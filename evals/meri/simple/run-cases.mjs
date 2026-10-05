@@ -56,6 +56,21 @@ async function findCandidate(session, clientId, match) {
   return hits[0];
 }
 
+/**
+ * The proposer's own pending candidate. A proposer cannot review their own
+ * candidate, so it never appears in the reviewer queue; the product lists it at
+ * /api/memory/proposals. Only a candidate created during this run counts.
+ */
+async function findOwnPendingCandidate(session, clientId, match, since) {
+  const listed = await session.json('/api/memory/proposals');
+  const rows = Array.isArray(listed) ? listed : listed?.candidates ?? listed?.items ?? listed?.data ?? [];
+  const hits = rows.filter((r) => r.clientId === clientId && r.scope === 'client' && r.status === 'pending' &&
+    Date.parse(r.createdAt) >= since &&
+    String(r.proposal?.value ?? '').toLowerCase().includes(match.toLowerCase()));
+  if (hits.length !== 1) throw new Error(`OWN_CANDIDATE_MATCH_${hits.length}_${match}`);
+  return hits[0];
+}
+
 async function findItem(session, clientId, match) {
   const listed = await session.json(`/api/memory/governance/items?clientId=${clientId}`);
   const rows = Array.isArray(listed) ? listed : listed?.items ?? listed?.data ?? [];
@@ -91,6 +106,8 @@ async function runAction(session, step, clientId, clientName) {
 }
 
 async function runCase(c, session, clients) {
+  // Server timestamps can lead the local clock slightly; allow a minute.
+  const caseStartedAt = Date.now() - 60_000;
   const original = originals.find((o) => o.id === c.id);
   const dir = `${out}/case-${c.id}`;
   mkdirSync(dir, { recursive: true });
@@ -167,7 +184,7 @@ async function runCase(c, session, clients) {
   let candidate = null;
   if (c.expectCandidate) {
     try {
-      const found = await findCandidate(session, clientId, c.expectCandidate);
+      const found = await findOwnPendingCandidate(session, clientId, c.expectCandidate, caseStartedAt);
       candidate = { match: c.expectCandidate, found: true, id: found.id, status: found.status ?? found.state ?? null };
     } catch (error) {
       candidate = { match: c.expectCandidate, found: false, error: String(error.message ?? error) };

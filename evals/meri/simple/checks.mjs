@@ -14,10 +14,13 @@ export function runChecks(c, run, original, clientNames) {
   const add = (id, status, detail) => checks.push({ id, status, detail });
   const last = run.turns.at(-1);
 
-  // Operation: reads make no proposals; writes make exactly one.
+  // Operation: reads make no proposals; writes make exactly one. A memory
+  // save makes exactly one save_memory proposal.
   const expected = c.op === 'read' ? 0 : 1;
-  add('operation', run.proposals.length === expected ? 'pass' : 'fail',
-    `${run.proposals.length} proposals; expected ${expected} (${c.op})`);
+  const tools = run.proposals.map((p) => p.tool);
+  const ok = run.proposals.length === expected && (c.op !== 'memory_save' || tools[0] === 'save_memory');
+  add('operation', ok ? 'pass' : 'fail',
+    `${run.proposals.length} proposals${tools.length ? ` (${tools.join(', ')})` : ''}; expected ${expected} (${c.op})`);
 
   // Terminal state of every turn.
   for (const [i, t] of run.turns.entries()) {
