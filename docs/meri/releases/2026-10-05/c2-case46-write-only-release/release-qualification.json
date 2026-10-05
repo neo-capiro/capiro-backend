@@ -1,0 +1,160 @@
+{
+  "kind": "meri-case46-write-only-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGES_TESTS_AND_RETIREMENT_COMPATIBILITY_PASS",
+  "at": "2026-10-05T12:01:50.893728+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "7a504f878000aa73eecace35652e3d5878912699",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:5425a4c666029d8d2f1cef4a106cffd1f1a249b465ea85c5eb50ee26ef584941",
+      "buildId": "capiro-build-web-dev:f57160d8-24d8-4d38-a27e-1d5edc8ada3f",
+      "packagedMarkersPassed": 33
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "1a00b821bea488a59393bf168d7a19aa37efab10",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:c4663b253b70a1e639a2c44a283bd98cc7bb4be29116b0ce2771d8c1796943db",
+      "buildId": "capiro-build-web-dev:91d9e99f-2f41-4bca-9d26-8aa41030ba3e",
+      "packagedMarkersPassed": 18
+    }
+  ],
+  "schemaChange": false,
+  "providerCalls": 0,
+  "c2Complete": false,
+  "change": "Orchestrator (PR #1974): the governed export capture is write-only again (create_word only) and a blocked inexact export names the exact trailing-whitespace difference. API: generation-4 retained-history Case46 recovery binding with known settled cost. Deploy order: API, then orchestrator.",
+  "authorizationBasis": "User directed continuing until the goal is met (2026-10-05); established native release operator, CodeBuild backup shipping and PR merges already authorized.",
+  "reviewer": "Lead agent: focused and full source tests, typechecks, packaged image probes and served baseline review",
+  "sourceEvidence": [
+    "https://github.com/neo-capiro/capirov2/pull/1974",
+    "https://github.com/neo-capiro/capirov2/pull/1975"
+  ],
+  "validation": {
+    "orchestratorSourceTests": "1578 passed, 2 known live skips",
+    "typechecks": [
+      "API",
+      "ORCHESTRATOR"
+    ],
+    "packagedProbesPassed": {
+      "api": 33,
+      "meriv2-orchestrator": 18
+    }
+  },
+  "artifactPins": [
+    {
+      "path": "api/build-readback.json",
+      "bytes": 7448,
+      "sha256": "a05268ba83efdb5b11290bd3d82d7bb2ea5b37adc33d49ea55ba4725a495465d"
+    },
+    {
+      "path": "api/build.log",
+      "bytes": 75203,
+      "sha256": "335369bf5c74282d9c18379ed4fb1d2ceeee0d1bcb64501b7e96adcdfedc0512"
+    },
+    {
+      "path": "api/buildspec.json",
+      "bytes": 25275,
+      "sha256": "20f412dc769332cb9656b5d0b72d8a3c7e8d142a6c5ad995d168b44e8122910d"
+    },
+    {
+      "path": "api/image-manifest.json",
+      "bytes": 507,
+      "sha256": "887d8bda1a85ac5090b1594dc2d25fb94cd128cce51c3b4fa9ae9f7c9e8e4927"
+    },
+    {
+      "path": "api/launch-intent.json",
+      "bytes": 899,
+      "sha256": "f738fa35d65886891b48f02666c83d3e3075b77f3e0c0abd5fbb269181124cce"
+    },
+    {
+      "path": "api/build-start.json",
+      "bytes": 2184,
+      "sha256": "f2bcd42ef6f2a1cd996222b2daab95391afd4622af7d4e35e7c6b9e8c1286e28"
+    },
+    {
+      "path": "api/phase-pre_build.sh",
+      "bytes": 880,
+      "sha256": "b2482d882549708861cd5a761b20e05740be23b71be442887a04af778eabf427"
+    },
+    {
+      "path": "api/phase-build.sh",
+      "bytes": 62224,
+      "sha256": "5f29e251b69531cb1ab35b449fb0063cf11a78c21146456baf5666ecc15ae34c"
+    },
+    {
+      "path": "api/phase-post_build.sh",
+      "bytes": 863,
+      "sha256": "fc6034cdd9ec8f0dfaa5e9ce39617f2518a35e227e335bfea4c9b48daa9d372d"
+    },
+    {
+      "path": "meriv2-orchestrator/build-readback.json",
+      "bytes": 5922,
+      "sha256": "ca43b54d72e30ab0302df15d22d023522141788d6ed876391da3163e6ce09500"
+    },
+    {
+      "path": "meriv2-orchestrator/build.log",
+      "bytes": 774934,
+      "sha256": "21d05d69c85032eae785eb51292e2819e8150b90247ac9c69cbc0fa69e626e86"
+    },
+    {
+      "path": "meriv2-orchestrator/buildspec.json",
+      "bytes": 14495,
+      "sha256": "13c61dbe36f43c6cdc6aed247bcf6d071f79d1074ef3df964ecbd99893ccac27"
+    },
+    {
+      "path": "meriv2-orchestrator/image-manifest.json",
+      "bytes": 522,
+      "sha256": "6db2258b1583bfed0f9757b579fb10da3ae3cce0bce343adf794256518c7e878"
+    },
+    {
+      "path": "meriv2-orchestrator/launch-intent.json",
+      "bytes": 915,
+      "sha256": "ec0ce5102c7fc9e2800e330ad9f57a4623e9315d1d5d319d7fe613d8ae0feb4a"
+    },
+    {
+      "path": "meriv2-orchestrator/build-start.json",
+      "bytes": 1421,
+      "sha256": "a1bf75d5b1b39e4ec736df80fdc7a2dabd40c40faa52e9e690c0c9b52f9294a4"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-pre_build.sh",
+      "bytes": 1493,
+      "sha256": "7214275629cfe2732e11020877ba4e0717d67711fe649f5eddb6f7b1b8d7c317"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-build.sh",
+      "bytes": 28446,
+      "sha256": "1cf060e727d86961289f8af920f2b26b74fd44dfba7385b973bc3b4cc2c1e57d"
+    },
+    {
+      "path": "meriv2-orchestrator/phase-post_build.sh",
+      "bytes": 971,
+      "sha256": "20b5e9bb3ba9f445f70dbaa058e126ef736992331e71b3cae5ee5dd6bfbc4d9d"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 3148,
+      "sha256": "99393586a4dcfd00d0f1002fb0d7d6de2dafb3e1f2492598fad931e8fe417ded"
+    },
+    {
+      "path": "source-tests/case46-write-only-orch-tests-v1.log",
+      "bytes": 695612,
+      "sha256": "80325d4451c909db1b14bae90e319430ffb320debd1b7a6aebacbc05c55c1b19"
+    },
+    {
+      "path": "source-tests/case46-write-only-orch-typecheck-v1.log",
+      "bytes": 11,
+      "sha256": "a6ce7f41eaf235b981cdbfe9a3d6a5d9a3502b6bd605ffc2acf78679a4ee9a2f"
+    },
+    {
+      "path": "source-tests/case46-gen4-api-tests-v1.log",
+      "bytes": 1797,
+      "sha256": "a216620ca46afc06d5a550a82ba6a7dcf2c5b0bc540665e4a66138609f3ab6a2"
+    },
+    {
+      "path": "source-tests/case46-gen4-api-typecheck-v1.log",
+      "bytes": 11,
+      "sha256": "a6ce7f41eaf235b981cdbfe9a3d6a5d9a3502b6bd605ffc2acf78679a4ee9a2f"
+    }
+  ]
+}
