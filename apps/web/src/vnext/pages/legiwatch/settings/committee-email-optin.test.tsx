@@ -146,13 +146,14 @@ describe('committee email opt-in (real GET/PUT contract)', () => {
     expect(within(row).getByRole('button', { name: 'Retry' })).toBeTruthy();
   });
 
-  it('the per-client placeholder rows stay honest and checkbox-free', async () => {
+  it('links lifecycle preferences to their per-hearing controls', async () => {
     renderSettings();
     // The Notifications card: aria-label is on the section, but anchor on the
     // heading to be resilient to label/query differences.
     const heading = await screen.findByRole('heading', { name: 'Notifications' });
     const notifications = heading.closest('section')!;
-    expect(notifications.textContent).toMatch(/Not available yet/);
+    expect(notifications.textContent).toMatch(/In-app · set per followed hearing/);
+    expect(within(notifications as HTMLElement).getByRole('button', { name: 'Manage followed hearings' })).toBeTruthy();
     // The opt-in is a button, not a checkbox — zero checkboxes remain.
     expect(within(notifications as HTMLElement).queryAllByRole('checkbox').length).toBe(0);
   });

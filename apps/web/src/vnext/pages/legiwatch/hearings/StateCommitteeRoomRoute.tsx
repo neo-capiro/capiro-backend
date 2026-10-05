@@ -904,7 +904,7 @@ function PublishedRecords({
         {referred ? (
           <>
             <h3 className="lwcr-rosterhead__title" style={{ marginTop: 20 }}>
-              Bills currently referred
+              Current and recorded bill referrals
             </h3>
             {referred.rows.length ? (
               <div>

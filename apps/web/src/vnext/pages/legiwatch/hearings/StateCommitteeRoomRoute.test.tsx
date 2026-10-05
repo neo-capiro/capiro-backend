@@ -256,7 +256,7 @@ describe('StateCommitteeRoomRoute', () => {
     expect(screen.getByText('Health Services')).toBeTruthy();
     expect(screen.getByText(/LegiScan bill calendar/)).toHaveTextContent('Oct 3, 2026');
     expect(screen.getByText('Showing 1 of 2 proceedings in this one-year window.')).toBeTruthy();
-    expect(screen.getByText('Showing 1 of 2 currently referred bills.')).toBeTruthy();
+    expect(screen.getByText('Showing 1 of 2 bills with current or recorded referrals.')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith(
       '/api/legiwatch/live-hearings/state-committees/fl-lower-health',
     );
