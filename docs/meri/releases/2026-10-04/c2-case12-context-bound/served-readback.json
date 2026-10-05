@@ -1,0 +1,89 @@
+{
+  "status": "CASE12_REMEDIATION_RELEASE_SERVICES_ORDINARY_READ_AND_CLEANUP_PASS",
+  "at": "2026-10-05T00:24:54.534Z",
+  "services": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:535",
+        "serviceHash": "cb287b074817ffd6d64703353deb39f1ec91bab4db35661debcf4a37ea32e140",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "138c30b6eebf088a4b1da1e3c18144afae81704c8ea311b2e181a49060ec9322",
+        "imageDigest": "sha256:8a724eb24c1b0e6a57e09ee9c728583d87e42db2434972942fb5022cb2c601d6",
+        "desiredCount": 2
+      },
+      "sourceSha": "89402fd7cb60ef1e1a5c7cbb9e6a112a6defd544",
+      "health": "ALL_TASKS_AND_ACTUAL_ALB_TARGETS_HEALTHY"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:125",
+        "serviceHash": "56ff8970b4d055334531a270b526168e953a2a7fe33119f3024d111a96a28120",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "a2c36cd99ec2f9a0d65605098421b3e1573dbc97aa1c4060bf4a6db18d9b60e8",
+        "imageDigest": "sha256:4e587ff51239710565cda8aedf1cba5cd41ae07f51782da123b8a5dd5349eb65",
+        "desiredCount": 1
+      },
+      "sourceSha": "4b228386df0ddd2f34aea8f4bc1fcc1d1a8f985e",
+      "health": "ALL_TASKS_AND_ACTUAL_ALB_TARGETS_HEALTHY"
+    },
+    {
+      "service": "web-vnext",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:390",
+        "serviceHash": "3493c2e6107a77aab2653bc923119b3300e4899310e11b81e1c3be351240254c",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "2ffa123e80c546c0bb03083e2aadb39b8118377efbf6de0b685f758c3abfb3c4",
+        "imageDigest": "sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+        "desiredCount": 1
+      },
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "health": "ALL_TASKS_AND_ACTUAL_ALB_TARGETS_HEALTHY"
+    }
+  ],
+  "retiredTasks": [
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/b0fb3b65131c448ebd7f92da626e741c",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:533",
+      "lastStatus": "STOPPED",
+      "stoppedAt": "2026-10-04T20:14:03.822000-04:00"
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/efaeef6dc7824bbfbd3700dfca6e86c1",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:533",
+      "lastStatus": "STOPPED",
+      "stoppedAt": "2026-10-04T20:14:06.854000-04:00"
+    }
+  ],
+  "retainedNightly": {
+    "rule": "capiro-dev-refresh-memory-graph",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+    "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+    "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+    "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5"
+  },
+  "broadProjectionWorker": "DISABLED",
+  "ordinaryIdentity": {
+    "status": "ORDINARY_IDENTITY_ROUTE_PASS",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "role": "standard_user",
+    "apiSourceSha": "89402fd7cb60ef1e1a5c7cbb9e6a112a6defd544"
+  },
+  "ordinaryMemoryRead": {
+    "status": "ORDINARY_APPROVED_MEMORY_LIST_AND_MARKDOWN_PASS",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "itemId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+    "returnedListCount": 512,
+    "markdownSha256": "4f878a7ef504ca03d6c399130bba6e6bbd40a59ec51195f84ccbc7033e8c003a",
+    "apiSourceSha": "89402fd7cb60ef1e1a5c7cbb9e6a112a6defd544",
+    "providerCalls": 0
+  },
+  "temporarySessionRevoked": true,
+  "providerCalls": 0,
+  "journalMutations": 0,
+  "acceptanceAuthority": false
+}

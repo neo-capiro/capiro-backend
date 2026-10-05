@@ -1,0 +1,12 @@
+{
+    "events": [
+        {
+            "logStreamName": "meriv2-orchestrator/meriv2-orchestrator/12931a84f652475aad6cd1a99890fa3f",
+            "timestamp": 1791160215672,
+            "message": "\u001b[31m[Nest] 7  - \u001b[39m10/05/2026, 12:30:15 AM \u001b[31m  ERROR\u001b[39m \u001b[38;5;3m[MeriV3AssistantService] \u001b[39m\u001b[31mMeriV3 model loop failed: meri_capture_provider_budget_reservations_rejected_http_500\u001b[39m",
+            "ingestionTime": 1791160216727,
+            "eventId": "39944207579446429405855051155596583608281867579098988547"
+        }
+    ],
+    "searchedLogStreams": []
+}

@@ -4,6 +4,47 @@ jest.mock('../context/context-plane-gateway.service.js', () => ({
 jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class PrismaService {} }));
 
 import { MeriContextPlaneService, planMeriTurn } from './meri-context-plane.service.js';
+import { ContextPacketRolloutCompiler } from '@capiro/meriv2-core';
+
+test('ordinary chat bounds steering with hundreds of memories in off and shadow rollout', async () => {
+  const rows = Array.from({ length: 512 }, (_, index) => ({
+    id: `memory-${index}`, type: 'client-compass', slug: `memory-${index}`,
+    title: `Approved memory ${index}`, clientId: 'client-1', status: 'active',
+    sections: [{ owner: 'human', heading: 'Approved context', body: 'Relevant context. '.repeat(100) }],
+  }));
+  for (const mode of ['off', 'shadow'] as const) {
+    const compiler = new ContextPacketRolloutCompiler({
+      loadSteeringRows: async () => rows,
+      loadGovernedSteeringRows: async () => rows,
+      persistPacket: async () => 'packet-id',
+    } as never);
+    const boundary = new Error('STOP_AFTER_REAL_COMPILATION');
+    let packet: any;
+    const requestContext = jest.fn(async (request: any) => {
+      packet = await compiler.compile({ ...request.contextRequest, ethicalWallAllowed: true }, mode);
+      const { charBudget: _bound, ...previousRequest } = request.contextRequest;
+      const unbounded = await compiler.compile({ ...previousRequest, ethicalWallAllowed: true }, mode);
+      expect(unbounded.rendered.reduce((n, item) => n + item.body.length, 0)).toBeGreaterThan(500_000);
+      throw boundary;
+    });
+    const tx = {
+      clioConversation: { findFirst: async () => ({ clientId: 'client-1' }) },
+      client: { findFirst: async () => ({ name: 'Acme' }), findMany: async () => [{ id: 'client-1', name: 'Acme' }] },
+      integrationConnection: { findMany: async () => [] },
+    };
+    const prisma = {
+      withTenant: async (_t: string, fn: (tx: unknown) => unknown) => fn(tx),
+      withTenantUser: async (_t: string, _u: string, fn: (tx: unknown) => unknown) => fn(tx),
+    };
+    const service = new MeriContextPlaneService(prisma as never, { requestContext } as never);
+    await expect(service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never,
+      { conversationId: 'thread', task: 'What did we approve about Acme?' })).rejects.toBe(boundary);
+    expect(packet.rendered.length).toBeGreaterThan(0);
+    expect(packet.rendered.reduce((n: number, item: any) => n + item.body.length, 0)).toBeLessThanOrEqual(48_000);
+    expect(packet.items.length).toBeLessThan(512);
+    expect(packet.exclusions.some((item: any) => item.reason === 'over-budget')).toBe(true);
+  }
+});
 
 test('qualified clock reaches planning/compiler explicitly without requesting a historical ingestion snapshot', async () => {
   jest.useFakeTimers().setSystemTime(new Date('2026-10-03T12:00:00.000Z'));

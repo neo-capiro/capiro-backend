@@ -157,6 +157,9 @@ export class MeriContextPlaneService {
         ],
         render: 'all',
         tokenBudget: 12_000,
+        // Off/shadow compilation deliberately strips v2 token budgets.
+        // Keep its legacy character bound explicit as well.
+        charBudget: 48_000,
         ref: { operationId: 'meri.chat', subjectScope },
         ...(semanticClock ? {
           now: new Date(semanticClock.instant), semanticClock,
@@ -362,6 +365,8 @@ export class MeriContextPlaneService {
       ],
       render: 'all',
       tokenBudget: 12_000,
+      // Off/shadow compilation uses the legacy character budget.
+      charBudget: 48_000,
       ref: {
         ...input.ref,
         operationId: input.operationId,
