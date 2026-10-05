@@ -250,6 +250,28 @@ describe('budget deltas require financial context', () => {
     expect(plan(request).requiredRequirementIds).toContain('current-role.roster');
   });
 
+  it.each([
+    "Who should receive this client's budget briefs first?",
+    'Send the budget brief to the office.',
+    'Can you request a meeting with the staffer?',
+    'Mark this task as done.',
+  ])('a non-budget use of budget words is not a budget amount: %s', (request) => {
+    expect(inferClaimCategories(request)).not.toContain('budget_amount');
+    expect(plan(request).requiredRequirementIds).not.toContain('budget-amount.official');
+  });
+
+  it.each([
+    'What is the FY27 request for program element 0605231A?',
+    'What did the House mark for PE 0603203F?',
+    'How much is in the budget for hypersonics?',
+    'What is the funding for the Space Data Network?',
+    "What's the FY26 budget for this line?",
+    'What is the enacted amount?',
+  ])('a budget figure question still requires official budget evidence: %s', (request) => {
+    expect(inferClaimCategories(request)).toContain('budget_amount');
+    expect(plan(request).requiredRequirementIds).toContain('budget-amount.official');
+  });
+
   it('does not add a generic budget delta to a routed chamber-position comparison', () => {
     const result = plan('Compare House vs Senate positions on PE 0603851F.');
     expect(result.requestCategories).not.toContain('budget_delta');
