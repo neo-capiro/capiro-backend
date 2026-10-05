@@ -82,6 +82,7 @@ import { MeriV3SettingsController } from './meriv3-settings.controller.js';
 import { MeriV3VisualAnalysisService } from './meri-v3-visual-analysis.service.js';
 import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
 import { MeriVNextLibraryService } from './meri-vnext-library.service.js';
+import { MeriJobLeaseSweeper } from './meri-job-lease-sweeper.js';
 import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.proxy.js';
 import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
 
@@ -180,6 +181,8 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
     MeriV3InternalServiceGuard,
     MeriV3VisualAnalysisService,
     MeriVNextLibraryService,
+    // Stage 2 §5.2: reclaims expired job leases; dark unless MERI_JOB_SWEEPER_ENABLED=true.
+    MeriJobLeaseSweeper,
     MeriFirmSkillsService,
     MeriProcedureRuntimeValidationService,
     MeriFeatureFlagsService,

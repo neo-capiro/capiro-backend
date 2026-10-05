@@ -100,6 +100,7 @@ function fixture(
   options: {
     privateInheritedInputs?: boolean;
     legacyConfig?: Record<string, unknown>;
+    tenantSettings?: Record<string, unknown>;
   } = {},
 ) {
   const privateInheritedInputs = options.privateInheritedInputs === true;
@@ -192,7 +193,7 @@ function fixture(
       }
       return [{ allowed }];
     }),
-    tenant: { findFirst: jest.fn(async () => ({ settings: {} })) },
+    tenant: { findFirst: jest.fn(async () => ({ settings: options.tenantSettings ?? {} })) },
     client: {
       findFirst: jest.fn(async () => ({
         id: 'client-a',
@@ -1785,5 +1786,34 @@ describe('Durable research lease and recovery', () => {
     await f.service.streamPlan(ctx, 'research-a', f.sse, { ...f.auth, resumeRunId: savedId });
     expect(f.runner.plan).toHaveBeenCalledTimes(1);
     expect(f.getSession().metadata.run.status).toBe('awaiting_clarification');
+  });
+});
+
+describe('Stage 2 job kinds stay dark behind meri.jobs', () => {
+  it('research is the default kind and needs no flag', async () => {
+    const f = fixture();
+    const created = await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+    expect(created).toMatchObject({ kind: 'research' });
+    expect(f.getSession().kind).toBe('research');
+  });
+
+  it('refuses a non-research kind while the tenant flag is off, and creates nothing', async () => {
+    const f = fixture();
+    await expect(
+      f.service.createSession(ctx, { topic: 'Office brief', conversationId: 'thread-a', kind: 'deliverable' }),
+    ).rejects.toThrow('meri_jobs_disabled');
+    expect(f.getSession()).toBeUndefined();
+  });
+
+  it('creates a deliverable job when the tenant flag is on and reports it as queued', async () => {
+    const f = fixture({ tenantSettings: { clioFeatureFlags: { 'meri.jobs': true } } });
+    await f.service.createSession(ctx, {
+      topic: 'Office brief',
+      conversationId: 'thread-a',
+      kind: 'deliverable',
+    });
+    expect(f.getSession().kind).toBe('deliverable');
+    const view = await f.service.getSession(ctx, 'research-a');
+    expect(view.job).toMatchObject({ kind: 'deliverable', status: 'queued', awaitingStart: true });
   });
 });

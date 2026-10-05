@@ -566,3 +566,19 @@ export function entitlementsForTenant(
   }
   return out;
 }
+
+/**
+ * Meri jobs (program plan §5.1). `meri.jobs` lets a tenant create the Stage 2
+ * job kinds (deliverable, audit, scheduled). Default OFF; research sessions
+ * are unaffected. Set through the capiro-admin flag endpoint.
+ */
+export const MERI_JOB_FLAGS = {
+  jobs: 'meri.jobs',
+} as const;
+
+export type MeriJobFlagKey = (typeof MERI_JOB_FLAGS)[keyof typeof MERI_JOB_FLAGS];
+
+/** Flags the capiro-admin flag endpoint may set. */
+export function adminSettableMeriFlags(): string[] {
+  return [...Object.values(MERIV2_FLAGS), ...Object.values(MERI_JOB_FLAGS)];
+}

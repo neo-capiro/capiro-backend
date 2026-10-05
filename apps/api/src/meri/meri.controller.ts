@@ -45,6 +45,7 @@ import { MeriV3InternalServiceGuard } from './meri-v3-internal-service.guard.js'
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { MeriResearchService } from './meri-research.service.js';
+import { MERI_JOB_KINDS, type MeriJobKind } from './meri-job.js';
 import { ClientKbService } from '../embeddings/client-kb.service.js';
 import { MeriMcpService, type CatalogAddInput, type McpServerInput } from './meri-mcp.service.js';
 import { MeriMcpOAuthService } from './meri-mcp-oauth.service.js';
@@ -158,6 +159,11 @@ class CreateResearchSessionDto {
   @IsString()
   @Length(1, 160)
   title?: string;
+
+  /** Stage 2 job kind; anything but research needs the tenant flag meri.jobs. */
+  @IsOptional()
+  @IsIn(MERI_JOB_KINDS)
+  kind?: MeriJobKind;
 }
 
 class AnswerClarificationsDto {

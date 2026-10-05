@@ -8,6 +8,7 @@ import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
@@ -177,6 +178,9 @@ import {
   type ResearchChildTaskV1,
 } from './meri-research-child-task.js';
 
+import { meriJobView, type MeriJobKind } from './meri-job.js';
+import { MERI_JOB_FLAGS, tenantFeatureEnabled } from '../common/tenant-flags.js';
+
 const PRODUCT_NAME = 'Meri';
 
 /**
@@ -313,6 +317,9 @@ export class MeriResearchService {
           title: true,
           topic: true,
           status: true,
+          kind: true,
+          goalRevision: true,
+          deliverables: true,
           clientId: true,
           reportArtifactId: true,
           metadata: true,
@@ -336,6 +343,7 @@ export class MeriResearchService {
               reportMessageId: metadata.reportMessageId,
             },
             run: readResearchRun(session.metadata),
+            job: meriJobView(session),
           };
         } catch {
           return null;
@@ -508,14 +516,22 @@ export class MeriResearchService {
       sources: publicResearchSources(session.sources),
       metadata: publicResearchSessionMetadata(session.metadata),
       run: readResearchRun(session.metadata),
+      job: meriJobView(session),
       report,
       reportMetadata,
     };
   }
 
-  async createSession(ctx: TenantContext, input: ResearchHandoffInput) {
+  async createSession(
+    ctx: TenantContext,
+    request: ResearchHandoffInput & { kind?: MeriJobKind },
+  ) {
+    const { kind = 'research', ...input } = request;
     const topic = (input.topic ?? '').trim();
     if (!topic) throw new BadRequestException('A research topic is required');
+    // Stage 2 jobs are dark until the tenant flag is on; research is unchanged.
+    if (kind !== 'research' && !(await this.jobsEnabled(ctx.tenantId)))
+      throw new ForbiddenException('meri_jobs_disabled');
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const handoff = await captureResearchHandoff(tx, ctx, { ...input, topic });
       const session = await tx.clioResearchSession.create({
@@ -526,6 +542,7 @@ export class MeriResearchService {
           title: clampTitle(input.title?.trim() || topic),
           topic,
           status: 'plan',
+          kind,
           metadata: {
             handoff,
             run: {
@@ -546,6 +563,7 @@ export class MeriResearchService {
           title: true,
           topic: true,
           status: true,
+          kind: true,
           clientId: true,
           createdAt: true,
         },
@@ -599,6 +617,18 @@ export class MeriResearchService {
         reasoningMode: handoff.reasoningMode,
       };
     });
+  }
+
+  /** Fails closed: an unreadable tenant row means jobs stay off. */
+  private async jobsEnabled(tenantId: string): Promise<boolean> {
+    try {
+      const tenant = (await this.prisma.withTenant(tenantId, (tx) =>
+        tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
+      )) as { settings: unknown } | null;
+      return tenantFeatureEnabled(tenant?.settings, MERI_JOB_FLAGS.jobs, false);
+    } catch {
+      return false;
+    }
   }
 
   async deleteSession(ctx: TenantContext, id: string) {
@@ -1309,6 +1339,7 @@ export class MeriResearchService {
           },
           data: {
             status: 'researching',
+            goalRevision: currentResearchGoalRevision(metadata),
             metadata: metadata as unknown as Prisma.InputJsonObject,
             updatedAt: new Date(),
           },
