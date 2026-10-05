@@ -1,9 +1,13 @@
-import { currentServerReadonlyCapturePolicy } from '../request/trusted-current-turn-scope.js';
+import {
+  currentServerReadonlyCapturePolicy,
+  currentGovernedArtifactCapturePolicy,
+} from '../request/trusted-current-turn-scope.js';
 
 /** The authenticated capture scope, never an ordinary model/config override. */
 export function captureProviderWireActive(): boolean {
   return (
-    currentServerReadonlyCapturePolicy()?.expectedCaptureWrites[3] === 'provider_budget_ledger'
+    currentServerReadonlyCapturePolicy()?.expectedCaptureWrites[3] === 'provider_budget_ledger' ||
+    currentGovernedArtifactCapturePolicy()?.expectedWrites[3] === 'provider_budget_ledger'
   );
 }
 const fail = (): never => {

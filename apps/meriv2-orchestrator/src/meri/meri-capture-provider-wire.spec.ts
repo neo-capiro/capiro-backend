@@ -4,6 +4,22 @@ import { OpenAiResponsesClient } from './meriv3/openai-responses.client.js';
 import { resolveMeriV3ReasoningProfile } from './meriv3/meriv3-reasoning.js';
 import { MeriRunBudget, stableProviderOperationId } from './meriv3/meriv3-run-budget.js';
 import { RequestScopedLlmClient } from './request-scoped-llm.client.js';
+import { governedArtifactTestPolicy } from './meriv3/meriv3-governed-artifact.spec-helper.js';
+import { prepareCaptureOpenAiBody } from './meri-capture-provider-wire.js';
+
+const artifactCapture = <T>(fn: () => T) => {
+  const policy = governedArtifactTestPolicy();
+  return withTrustedCurrentTurnScope(
+    {
+      tenantId: policy.tenantId,
+      userId: policy.actorUserId,
+      conversationId: policy.conversationId,
+      selectedClientId: policy.clientId,
+      governedArtifactPolicy: policy,
+    },
+    fn,
+  );
+};
 
 const capture = <T>(fn: () => T) =>
   withTrustedCurrentTurnScope(
@@ -72,7 +88,7 @@ afterEach(() => {
   else process.env.OPENAI_API_KEY = originalKey;
 });
 
-test.each([true, false])(
+test.each(['readonly', 'artifact', 'none'])(
   'native Responses capture=%s sets default tier only for capture before byte reservation',
   async (scoped) => {
     process.env.OPENAI_API_KEY = 'unit-only-key';
@@ -87,9 +103,15 @@ test.each([true, false])(
         tools: [],
         budget: a.budget,
       });
-    await (scoped ? capture(run) : run());
+    await (scoped === 'readonly'
+      ? capture(run)
+      : scoped === 'artifact'
+        ? artifactCapture(run)
+        : run());
     const init = fetcher.mock.calls[0]![1]!;
-    expect(JSON.parse(String(init.body)).service_tier).toBe(scoped ? 'default' : undefined);
+    expect(JSON.parse(String(init.body)).service_tier).toBe(
+      scoped === 'none' ? undefined : 'default',
+    );
     expect(a.reserve).toHaveBeenCalledTimes(1);
     expect(a.reserve).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -99,6 +121,21 @@ test.each([true, false])(
     );
   },
 );
+
+test.each([
+  { service_tier: 'priority' },
+  { service_tier: 'auto' },
+  { tools: [{ type: 'web_search' }] },
+  {
+    input: [
+      { role: 'user', content: [{ type: 'input_image', image_url: 'https://unit.invalid/x' }] },
+    ],
+  },
+])('governed artifact capture rejects unqualified priced units: %j', (override) => {
+  expect(() => artifactCapture(() => prepareCaptureOpenAiBody({ ...wire, ...override }))).toThrow(
+    'meri_capture_provider_wire_unqualified',
+  );
+});
 
 test.each([
   { service_tier: 'priority' },

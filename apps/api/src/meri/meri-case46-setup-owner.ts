@@ -15,6 +15,12 @@ import {
   type Case46ProviderBudgetQualification,
 } from './meri-case46-provider-budget.js';
 import type { createCase46SetupDependencies } from './meri-case46-setup-dependencies.js';
+import {
+  assertCase46RemediationInTx,
+  case46RetiredSetup,
+  CASE46_REMEDIATION_PROOF,
+  CASE46_RETIRED_SETUP_KEY,
+} from './meri-case46-remediation.js';
 
 const KEY = 'case46ExecutionSetup';
 const HASH = /^[a-f0-9]{64}$/;
@@ -24,6 +30,7 @@ const inputSchema = z
     caseId: z.literal('46'),
     fixtureNamespace: z.literal(f.namespace),
     captureRunId: z.string().uuid(),
+    remediationProofSha256: z.literal(CASE46_REMEDIATION_PROOF).optional(),
     ctx: z
       .object({
         tenantId: z.literal(f.tenantId),
@@ -127,7 +134,9 @@ async function planInTx(
   fixture: Record<string, unknown>,
 ) {
   await assertCase46CurrentActorInTx(tx, input.ctx);
-  if (fixture[KEY] !== undefined) fail('existing_claim_requires_reconciliation');
+  if (input.remediationProofSha256)
+    await assertCase46RemediationInTx(tx, input.ctx, fixture, input);
+  else if (fixture[KEY] !== undefined) fail('existing_claim_requires_reconciliation');
   const identity = case46SourceIdentity(input.captureRunId);
   const title = `${f.namespace} case46 ${input.captureRunId}`;
   const rows = await tx.$queryRaw<Array<{ sources: bigint; conversations: bigint }>>`
@@ -171,7 +180,8 @@ export async function planCase46Setup(runtime: Runtime, value: unknown) {
 
 /** Trusted fixed operator only. A durable claim precedes S3/index/conversation
  * effects. Any post-claim error preserves it and must be reconciled; this owner
- * contains no retry, reset, cleanup, approval, or model-generation path. */
+ * permits only the explicitly reconciled prior failure, retaining its claim.
+ * It contains no automatic retry, reset, cleanup, approval, or generation path. */
 export async function executeCase46Setup(
   runtime: Runtime,
   value: unknown,
@@ -210,7 +220,13 @@ export async function executeCase46Setup(
       };
       const next = {
         ...current.settings,
-        meriFoundationFixture: { ...current.fixture, [KEY]: claim },
+        meriFoundationFixture: {
+          ...current.fixture,
+          ...(input.remediationProofSha256
+            ? { [CASE46_RETIRED_SETUP_KEY]: case46RetiredSetup(current.fixture) }
+            : {}),
+          [KEY]: claim,
+        },
       };
       const changed =
         await tx.$executeRaw`UPDATE tenants SET settings_jsonb=${JSON.stringify(next)}::jsonb

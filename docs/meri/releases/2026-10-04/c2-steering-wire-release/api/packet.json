@@ -1,0 +1,61 @@
+{
+  "preparedAt": "2026-10-05T02:17:02.814Z",
+  "evidenceCommit": "e9be0d091baca021899387d8b9aee7257ae6d258",
+  "manifestSha256": "2787a3eac2b05bb8c20c9b5143ffaffd7cad5287a9355efcd07516460423ee6a",
+  "candidate": {
+    "service": "api",
+    "sourceSha": "a2c5e7b915e8af2ab712303b2b7e5880a0de02c3",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:667c5e3c146c1a55cd3885ff57ea46cd4dd7ccf6a64127d09a9b0e07078059f6",
+    "buildId": "capiro-build-web-dev:5f26d89d-3505-42a4-96ed-4226cbc1068c",
+    "packagedMarkersPassed": 31
+  },
+  "candidateTaskSha256": "24346bb45a9e21d61552bc71d7a81deceb26e88012e33b03f4b58e771713e162",
+  "rollbackTaskSha256": "d3e051663dcdbc4dcc09484e85ec817deb6fde80fe01d8ec5434829f04fab8ea",
+  "services": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:537",
+        "serviceHash": "92935be2690a2dcacd4b89baeb4e2a81e9378a535176e2b90d53eba403235cb2",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "d3e051663dcdbc4dcc09484e85ec817deb6fde80fe01d8ec5434829f04fab8ea",
+        "imageDigest": "sha256:b4e3987b0bcec70e1be2326a23bc046bee283ee21912e117841ae8e504a7eda9",
+        "desiredCount": 2
+      },
+      "oldTaskArns": [
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3e97ebd099254e438bf4dce823b06b75",
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e2006531fa124b4995a911c06b37deb4"
+      ]
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:125",
+        "serviceHash": "56ff8970b4d055334531a270b526168e953a2a7fe33119f3024d111a96a28120",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "a2c36cd99ec2f9a0d65605098421b3e1573dbc97aa1c4060bf4a6db18d9b60e8",
+        "imageDigest": "sha256:4e587ff51239710565cda8aedf1cba5cd41ae07f51782da123b8a5dd5349eb65",
+        "desiredCount": 1
+      },
+      "oldTaskArns": [
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/12931a84f652475aad6cd1a99890fa3f"
+      ]
+    },
+    {
+      "service": "web-vnext",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:390",
+        "serviceHash": "3493c2e6107a77aab2653bc923119b3300e4899310e11b81e1c3be351240254c",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "2ffa123e80c546c0bb03083e2aadb39b8118377efbf6de0b685f758c3abfb3c4",
+        "imageDigest": "sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+        "desiredCount": 1
+      },
+      "oldTaskArns": [
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/a718a84751d946bcb4b3744552887e96"
+      ]
+    }
+  ],
+  "journalSha256": "827a2713d0d5512e349e3846f1b2d077adc23a5cb85f0d2688fcddc978cba2b5",
+  "authorizationBasis": "User authorized continuing C2, established CodeBuild backup shipping and doing necessary work to advance real cases. Hermes stopped at user request."
+}

@@ -1,0 +1,18 @@
+[Nest] 65048  - 10/04/2026, 10:25:06 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 65048  - 10/04/2026, 10:25:06 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 65048  - 10/04/2026, 10:25:06 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+PASS src/meri/meri-capture-provider-wire.spec.ts (20.347 s)
+[Nest] 65048  - 10/04/2026, 10:25:06 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+[Nest] 65048  - 10/04/2026, 10:25:06 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=anthropic, model=claude-sonnet-5, usedTenantKey=false)
+[Nest] 65048  - 10/04/2026, 10:25:06 PM    WARN [RequestScopedLlmClient] LLM anthropic LLM schema completion failed (Anthropic request failed (402): insufficient credit); failing over to global openai
+[Nest] 65048  - 10/04/2026, 10:25:06 PM   DEBUG [RequestScopedLlmClient] LLM schema completion (provider=openai, model=gpt-6-astra, usedTenantKey=false)
+[Nest] 65048  - 10/04/2026, 10:25:06 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=anthropic, model=claude-sonnet-5, usedTenantKey=false)
+[Nest] 65048  - 10/04/2026, 10:25:06 PM   DEBUG [RequestScopedLlmClient] LLM completion (provider=openai, model=gpt-6-astra, usedTenantKey=true)
+PASS src/meri/meriv3/meriv3-governed-artifact-budget.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       40 passed, 40 total
+Snapshots:   0 total
+Time:        21.519 s
+Ran all test suites matching /src\\meri\\meri-capture-provider-wire.spec.ts|src\\meri\\meriv3\\meriv3-governed-artifact-budget.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
