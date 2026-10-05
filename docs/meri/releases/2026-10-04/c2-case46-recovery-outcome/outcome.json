@@ -1,0 +1,106 @@
+{
+  "status": "DEPLOYED_VERIFIED_CAPTURE_FAILED_BEFORE_MODEL_DISPATCH",
+  "at": "2026-10-05T03:49:58.966349+00:00",
+  "caseId": "46",
+  "captureRunId": "3a5b5609-c689-4cfd-bfd9-234b9607848c",
+  "conversationId": "1f4bc759-1186-4584-8886-1d47a3c183fb",
+  "runtimeFailure": "research_provider_budget_cost_exhausted",
+  "providerCalls": 0,
+  "savedUserMessages": 1,
+  "savedAssistantMessages": 0,
+  "proposals": 0,
+  "artifacts": 0,
+  "uiApprovalDownloadReload": "NOT_RUN_NO_PROPOSAL",
+  "acceptedOriginalCases": 0,
+  "acceptedOriginalTotal": 75,
+  "acceptedCdCases": 0,
+  "acceptedCdTotal": 7,
+  "humanAcceptance": "NOT_RUN",
+  "committedCostMicros": 37020000,
+  "remainingReservationMicros": 462980000,
+  "activeRun": null,
+  "harnessCorrection": "The first request was HTTP400 because reasoningMode is not part of SendMeriMessageDto. Authenticated readback proved zero messages and READY. Corrected body-only request reused reservation39 and was the only accepted turn.",
+  "offlineSizing": {
+    "fixture": "512 synthetic short steering rows, actual served create_word schema, full assistant pipeline",
+    "standardReservedCostMicros": 2863150,
+    "fastReservedCostMicros": 2248550,
+    "providerNetworkAllowed": false,
+    "reproducesExactFailedLivePayload": false,
+    "nextCaptureQualified": false
+  },
+  "nextRequiredWork": "Reconstruct and measure the exact live API-to-orchestrator request, including every prompt addition, before qualifying another run. Preserve both failed conversations and retired setup history. Do not shrink shared customer context again to satisfy a synthetic case budget.",
+  "artifactPins": [
+    {
+      "path": "deployment/api-manifest.json",
+      "sha256": "35cb2ffc38ca28cf74393768c785d7d942e412ea1af1b6b9bb00889488d392a1"
+    },
+    {
+      "path": "deployment/api-packet.json",
+      "sha256": "510af1932cb8e9e3c5cc820b302f768cc1395b6efb9bc60aa467780f4703f431"
+    },
+    {
+      "path": "deployment/api-receipt.json",
+      "sha256": "efffabdd546da28246ce312290df13abbd136ccd51465cce25675fc8fb6380c2"
+    },
+    {
+      "path": "deployment/meriv2-orchestrator-manifest.json",
+      "sha256": "17b3c5ae05718d47b0cee8799a91956b44a83016130857a7d8567e8d010bff6d"
+    },
+    {
+      "path": "deployment/meriv2-orchestrator-packet.json",
+      "sha256": "6f30bab4e7befbc806eeb4d753bc8a6b250eec4bd4fd35b868f16b2e103cc8f5"
+    },
+    {
+      "path": "deployment/meriv2-orchestrator-receipt.json",
+      "sha256": "1b8a718850338dbcf7eb734b55605cb0321ad9fb96140d59c9ebc8a4a6b71bee"
+    },
+    {
+      "path": "deployment/served-readback.json",
+      "sha256": "fd7b59167fcc3b7ad56ae9274c4200af1d8f12b863db3e1d87b60f0b2e6bbf35"
+    },
+    {
+      "path": "failed-stream.txt",
+      "sha256": "a42049df715511837af492d95826dab51fb9d3936d125dafc8b7ba2cd7fe5692"
+    },
+    {
+      "path": "failed-turn.json",
+      "sha256": "03019347a4cfbbd632026ef860c7a8b953738edd01e3b69949d116fd93c056c4"
+    },
+    {
+      "path": "native-plan.json",
+      "sha256": "c4f9ee82d434f1004baca3a9c622bd948324ea98728515de91d502d315db0b8f"
+    },
+    {
+      "path": "native-post-deadline.json",
+      "sha256": "6ba71e4df86020fc34f89f9577f044daae486c58e0f4d5fb6b530c214e22361b"
+    },
+    {
+      "path": "native-read-cleanup.json",
+      "sha256": "12f27257304e278cfd20c2a212d605826b44ed1509035a53e4d10ea7da26d8d4"
+    },
+    {
+      "path": "native-setup.json",
+      "sha256": "a1f4887f979b59c28e4468948147c2863861198695e8f9b04115de7755170c81"
+    },
+    {
+      "path": "spend/close-ack.json",
+      "sha256": "75937ce5fdae9b2308be1859707f6a6d25ab1a7b4542387069c93a3d758895b9"
+    },
+    {
+      "path": "spend/close-result.json",
+      "sha256": "0dda132cb2b491d4e2d0888c6a130b0a94f453d4074ab1619f8b43a5e22e2d98"
+    },
+    {
+      "path": "spend/proof.json",
+      "sha256": "0d7ecf1e7768161398d995d3de1549a6d022e18bbaaa1306cd67d5aef9bf0795"
+    },
+    {
+      "path": "spend/remediation-binding.json",
+      "sha256": "55c00bb2acdfc8ea078ed728887ea5fc18e08fb71c883ec0b26bbd5167367d83"
+    },
+    {
+      "path": "ui/preflight-only.json",
+      "sha256": "ac37c261932e27fc68efbd24de12bc16078a04ee24c63cb3c4688c1e687bed8d"
+    }
+  ]
+}

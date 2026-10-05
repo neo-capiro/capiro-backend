@@ -1,0 +1,61 @@
+{
+  "preparedAt": "2026-10-05T03:10:22.875Z",
+  "evidenceCommit": "08dc70d60a863d42d5ca170f9ed682626255a58e",
+  "manifestSha256": "39af52314e3a758ff469f70dcd79d93c64f494b4b5f4d9460b33a8a24758e826",
+  "candidate": {
+    "service": "api",
+    "sourceSha": "bf896b666dcdb33a3d603d10319235046039cadb",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2a9d5aef7c299bfd533bac44cd0d69919b146658eab1b59743835365c36cef8e",
+    "buildId": "capiro-build-web-dev:dfcb8f5b-972c-42b5-b49f-da7e1141b358",
+    "packagedMarkersPassed": 32
+  },
+  "candidateTaskSha256": "4845109590bc7d449022dc594f641f4d8dbd149ad9edd87cc5b837f5eaa5e0c0",
+  "rollbackTaskSha256": "24346bb45a9e21d61552bc71d7a81deceb26e88012e33b03f4b58e771713e162",
+  "services": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:539",
+        "serviceHash": "5588327f9ec325b030c5779e72b7f647c3216224b437a376edc913ed2da543f8",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "24346bb45a9e21d61552bc71d7a81deceb26e88012e33b03f4b58e771713e162",
+        "imageDigest": "sha256:667c5e3c146c1a55cd3885ff57ea46cd4dd7ccf6a64127d09a9b0e07078059f6",
+        "desiredCount": 2
+      },
+      "oldTaskArns": [
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/246a7496204744679288eff2f94ec43c",
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/fb1ffcc4547541b8bf0485a2b6378b89"
+      ]
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:127",
+        "serviceHash": "19272aab3924d8aff675cf85aa4dcd4dcf421cf01ab07cedd3d0d1bfc9f51d90",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "8d85592e57239511629a15c5c9777b21e5cb4a0fd0842742e6eb98b60b102e63",
+        "imageDigest": "sha256:3c5aea253b74732952694b4ebbd99260e9e146b6140da184c22c4244def26cb9",
+        "desiredCount": 1
+      },
+      "oldTaskArns": [
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/f41cad8c51b54a7faf9f03580d0bd49a"
+      ]
+    },
+    {
+      "service": "web-vnext",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:390",
+        "serviceHash": "3493c2e6107a77aab2653bc923119b3300e4899310e11b81e1c3be351240254c",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "2ffa123e80c546c0bb03083e2aadb39b8118377efbf6de0b685f758c3abfb3c4",
+        "imageDigest": "sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+        "desiredCount": 1
+      },
+      "oldTaskArns": [
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/a718a84751d946bcb4b3744552887e96"
+      ]
+    }
+  ],
+  "journalSha256": "827a2713d0d5512e349e3846f1b2d077adc23a5cb85f0d2688fcddc978cba2b5",
+  "authorizationBasis": "User authorized continuing C2 and established CodeBuild backup shipping, retained-history recovery and the Case46 Playwright approval/download test."
+}

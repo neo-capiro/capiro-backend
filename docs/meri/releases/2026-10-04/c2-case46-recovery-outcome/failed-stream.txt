@@ -1,0 +1,36 @@
+data: {"type":"progress","runId":"4a45f549-2e0a-484b-92c3-d5cee264532e","phase":"compile","note":"Preparing the retrieved information for Meri.","elapsedMs":1000,"accepted":false}
+
+data: {"type":"progress","runId":"4a45f549-2e0a-484b-92c3-d5cee264532e","phase":"persistence","note":"Saving the source record for this response.","elapsedMs":1260,"accepted":false}
+
+data: {"type":"progress","runId":"4a45f549-2e0a-484b-92c3-d5cee264532e","phase":"compile","note":"Preparing the retrieved information for Meri.","elapsedMs":1371,"accepted":false}
+
+data: {"type":"progress","runId":"4a45f549-2e0a-484b-92c3-d5cee264532e","phase":"preparing","note":"Preparing Meri’s response.","elapsedMs":1371,"accepted":false}
+
+data: {"type":"turn_accepted","messageId":"d8262711-8275-4f8e-aed7-825957484c2f"}
+
+data: {"type":"progress","runId":"4a45f549-2e0a-484b-92c3-d5cee264532e","phase":"preparing","note":"Your message is saved. Preparing Meri’s response.","elapsedMs":1818}
+
+data: {"type":"start","intent":"general","tier":"deep","runtime":"meriv3","reasoningMode":"standard"}
+
+data: {"type":"progress","runId":"4a45f549-2e0a-484b-92c3-d5cee264532e","phase":"runtime","note":"Waiting for Meri’s reasoning runtime.","elapsedMs":1870}
+
+data: {"type":"runtime","runtime":"meriv3","model":"gpt-6-astra","reasoningMode":"standard","reasoningEffort":null,"telemetry":{"requestedModel":"gpt-6-astra","effectiveModel":null,"requestedReasoningEffort":"medium","effectiveReasoningEffort":null,"reasoningFallbackReasons":[],"finishReason":"not_started","partial":false}}
+
+data: {"type":"progress","runId":"4a45f549-2e0a-484b-92c3-d5cee264532e","phase":"provider","note":"Waiting for the LLM provider’s response.","elapsedMs":3537}
+
+data: {"type":"text","text":"I could not complete this turn because the MeriV3 reasoning runtime was unavailable. No unapproved action was executed."}
+
+data: {"type":"progress","runId":"4a45f549-2e0a-484b-92c3-d5cee264532e","phase":"answer","note":"Receiving the response.","elapsedMs":3869}
+
+data: {"type":"runtime","runtime":"meriv3","model":"gpt-6-astra","reasoningMode":"standard","reasoningEffort":null,"telemetry":{"requestedModel":"gpt-6-astra","effectiveModel":null,"requestedReasoningEffort":"medium","effectiveReasoningEffort":null,"reasoningFallbackReasons":[],"finishReason":"runtime_error","partial":true},"providerCalls":[]}
+
+data: {"type":"progress","runId":"4a45f549-2e0a-484b-92c3-d5cee264532e","phase":"answer","note":"Finishing the response.","elapsedMs":3899}
+
+data: {"type":"usage","usage":{"inputTokens":0,"outputTokens":0,"cacheReadTokens":0,"cacheCreationTokens":0}}
+
+data: {"type":"grounding_statement","statement":"No retrieved sources were attached to this answer."}
+
+data: {"type":"error","code":"MERI_STREAM_SETUP_ERROR","message":"meri_case46_provider_budget_settled_usage_required"}
+
+data: {"type":"done"}
+
