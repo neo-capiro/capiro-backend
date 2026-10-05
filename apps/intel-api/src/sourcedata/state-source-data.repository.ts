@@ -279,10 +279,24 @@ export class StateSourceDataRepository {
         order: 'date DESC NULLS LAST, order_key DESC, id',
       },
       documents: {
-        table: 'state_bill_version',
+        // Text versions and supporting documents have separate owners. Follow
+        // the observation pointer so a restored older revision is still current.
+        table: `(SELECT id::text,bill_key,legiscan_doc_id,version_type,
+          to_char(date,'YYYY-MM-DD') AS date,state_url,mime,last_synced_at
+          FROM state_bill_version WHERE bill_key=$1
+          UNION ALL
+          SELECT r.id::text,r.bill_key,NULL::integer,
+            coalesce(nullif(r.evidence->>'title',''),nullif(r.evidence->>'versionType',''),'Supporting document'),
+            r.event_date,r.evidence->>'url',r.evidence->>'mime',r.first_observed_at
+          FROM state_bill_published_record r
+          JOIN LATERAL (SELECT state_record_id FROM published_record_source_observation
+            WHERE source_key='state:'||r.bill_key||':document:'||r.source_identity
+            ORDER BY id DESC LIMIT 1) current_record ON current_record.state_record_id=r.id
+          WHERE r.bill_key=$1 AND r.kind='document'
+            AND r.evidence->>'documentKind' IN ('supplement','analysis','fiscal_note','amendment')) documents`,
         select:
           'id, legiscan_doc_id AS "providerDocumentId", version_type AS label, date, state_url AS url, mime, last_synced_at AS "lastSyncedAt"',
-        order: 'date DESC, id',
+        order: 'date DESC NULLS LAST, id',
       },
       votes: {
         table: 'state_roll_call_vote',

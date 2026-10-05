@@ -150,6 +150,9 @@ jobs:
           pnpm --filter @capiro/intel-api typecheck
           pnpm --filter @capiro/web typecheck
 
+      - name: Tests — state bill supporting document records
+        run: pnpm --filter @capiro/api exec tsx scripts/verify-state-document-records.ts
+
       - name: Tests — saved hearing association SQL
         env:
           DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5432/legiwatch_test

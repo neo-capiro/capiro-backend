@@ -22,6 +22,12 @@ Eleven scheduled rules were pinned to the qualified API/intelligence images, acr
 
 The notification-drain acceptance task `f75bed4077cb49a3ba3afc7bcc7da834` ran qualified Phase 9 revision 61 and completed its job with `lifecycleInserted: 0`, zero terminal failures and zero retries. This proves the new lifecycle query executed; it does not claim that a real hearing-start or transcript event occurred during the test window. The four event categories had separate real-PostgreSQL isolation, preference and durable-deduplication checks before release.
 
+Florida calendar acceptance task `7a8ab16650414d1aabfc94fddd0e85ac` also exited zero. It checked 49 Senate and 22 House pages for 2026, completed with zero errors, and explicitly classified requested 2027 as unavailable because the publisher served 2026F. The runtime owner recorded success at 19:59:55 UTC with both enablement controls true and no consecutive failures. This run does not assert a complete 2027 calendar. Both jobs used the ordinary scheduled-owner path (`manual: false`).
+
+Final feed review found one additional retained legal-defense false positive, CA AB 859 (civil procedure / recovery of defense costs). Its exact tenant, client, new-match trigger and sole Defense tag were rechecked under a row lock before suppression, with before-image and correction metadata retained. Together with the original six, seven reviewed historical false positives were corrected; future matching already excludes all of these legal-defense phrases.
+
 Authenticated live checks already confirm HB 1211 is laid on the table with companion substitution, SB 474 is enacted with Chapter 2026-92, Commerce has seven proceedings and 198 referred bills, its February 10 hearing has 13 agenda items and 12 bill links, and Golden Dome identifies Strategic Forces. The original data-repair report describes retained provenance and ambiguous observations left unresolved.
+
+The September 28 week shows a single Ukraine briefing under the Commission on Security and Cooperation in Europe. Jack Smith and USPTO remain distinct September 29 hearings at 09:00 and 14:30 ET respectively. The committee picker contains one entry per canonical committee identity for that week.
 
 At this evidence commit the combined web image is qualified but not yet promoted. Its subsequent guarded receipt and final release report must establish healthy deployment and authenticated UI acceptance. Private logs, before-images and receipts remain outside the repository.
