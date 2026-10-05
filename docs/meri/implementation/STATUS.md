@@ -1,5 +1,12 @@
 # Meri File01 checkpoint — C0/C1 complete, C2 active
 
+**Session handover, October 5, 2026 (~16:30Z):** read [HANDOVER-2026-10-05.md](HANDOVER-2026-10-05.md) first.
+
+- **Served:** API551 (`d7303eadf`), orchestrator139 (`a442cafb3`), Web390.
+- **Acceptance:** 0/75 and 0/7; no user verdicts yet. 36 cases have run, with saved answers on the review page.
+- **P0 open:** client memory saves return `400 input.clientId: is not an allowed property`, a regression from PR #1990 (fix: add `clientId` to the API `save_memory` schema).
+- **Gate:** File01 returns to the original plan's gate, `01_READY_FOR_02` when the §7 boundaries hold (original plan §7, annex §12.4). It no longer waits on all 82 cases.
+
 **October 5, 2026 — acceptance contract simplified (user-directed).** File01 acceptance now follows [01-Meri-Acceptance-Simplified-2026-10-05.md](01-Meri-Acceptance-Simplified-2026-10-05.md):
 
 - Each case runs once through the ordinary product path as neo@capiro.ai in capiro-internal, on real clients. State-changing setup uses only the QA test client.
