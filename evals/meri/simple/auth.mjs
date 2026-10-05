@@ -1,4 +1,5 @@
-// Signs in as the designated test account (neo@capiro.ai) in capiro-internal
+// Signs in as the designated test account (neo@capiro.ai) in capiro-internal,
+// or as the configured synthetic second reviewer (withSecondReviewer),
 // through a short-lived Clerk sign-in token: the same ordinary session a
 // browser gets. Refuses any other account or organization and always revokes
 // the session. The runner only reads and opens conversations; it never approves.
@@ -10,6 +11,22 @@ export const TENANT = {
   clerkOrgId: 'org_3DB7EKoeKfF8ZLu6cW4d9Vn6CT0',
 };
 export const TEST_ACCOUNT = 'neo@capiro.ai';
+
+/**
+ * The second reviewer for approval tasks (program plan D9, §8: T3, T8, T18).
+ * Self-approval is blocked by design, so an approval needs a different person.
+ * It is configured only through MERI_RUNNER_SECOND_IDENTITY and must be a
+ * synthetic Capiro test account; a customer identity is refused.
+ */
+export const SECOND_REVIEWER_PATTERN = /^qa\+clerk_test-[a-z0-9-]+@capiro\.ai$/;
+
+export function allowedRunnerAccount(email, env = process.env) {
+  const value = String(email ?? '').trim().toLowerCase();
+  if (value === TEST_ACCOUNT) return value;
+  const configured = String(env.MERI_RUNNER_SECOND_IDENTITY ?? '').trim().toLowerCase();
+  if (configured && value === configured && SECOND_REVIEWER_PATTERN.test(value)) return value;
+  throw new Error('RUNNER_ACCOUNT_NOT_ALLOWED');
+}
 export const API = 'https://os.capiro.ai';
 const need = (ok, code) => {
   if (!ok) throw new Error(code);
@@ -24,6 +41,16 @@ function aws(args) {
 }
 
 export async function withTestAccount(work) {
+  return withRunnerAccount(TEST_ACCOUNT, work);
+}
+
+/** Sign in as the second reviewer configured by MERI_RUNNER_SECOND_IDENTITY. */
+export async function withSecondReviewer(work) {
+  return withRunnerAccount(process.env.MERI_RUNNER_SECOND_IDENTITY, work);
+}
+
+async function withRunnerAccount(requested, work) {
+  const account = allowedRunnerAccount(requested);
   const secret = aws(['secretsmanager', 'get-secret-value', '--secret-id',
     'arn:aws:secretsmanager:us-east-1:967807252336:secret:/capiro/dev/clerk/secret-key-FT67tM']).SecretString;
   need(typeof secret === 'string' && /^sk_/.test(secret), 'CLERK_SECRET_SHAPE');
@@ -37,10 +64,10 @@ export async function withTestAccount(work) {
     if (!r.ok) throw new Error(`CLERK_${method}_${r.status}_${j.errors?.[0]?.code ?? 'FAILED'}`);
     return j;
   };
-  const users = await clerk('GET', `/users?email_address=${encodeURIComponent(TEST_ACCOUNT)}`);
+  const users = await clerk('GET', `/users?email_address=${encodeURIComponent(account)}`);
   need(Array.isArray(users) && users.length === 1, 'TEST_ACCOUNT_NOT_UNIQUE');
   const user = users[0];
-  need(user.email_addresses.some((e) => e.email_address.toLowerCase() === TEST_ACCOUNT), 'TEST_ACCOUNT_MISMATCH');
+  need(user.email_addresses.some((e) => e.email_address.toLowerCase() === account), 'TEST_ACCOUNT_MISMATCH');
   const memberships = await clerk('GET', `/users/${user.id}/organization_memberships?limit=100`);
   need(memberships.data.some((m) => m.organization.id === TENANT.clerkOrgId && m.organization.slug === TENANT.slug),
     'TEST_ACCOUNT_NOT_IN_CAPIRO_INTERNAL');
