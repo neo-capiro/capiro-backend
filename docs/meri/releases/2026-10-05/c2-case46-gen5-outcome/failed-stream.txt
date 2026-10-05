@@ -1,0 +1,60 @@
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"compile","note":"Preparing the retrieved information for Meri.","elapsedMs":1001,"accepted":false}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"persistence","note":"Saving the source record for this response.","elapsedMs":1119,"accepted":false}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"compile","note":"Preparing the retrieved information for Meri.","elapsedMs":1193,"accepted":false}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"preparing","note":"Preparing Meri’s response.","elapsedMs":1193,"accepted":false}
+
+data: {"type":"turn_accepted","messageId":"070f7066-98ec-499b-8fea-f0bbf219569d"}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"preparing","note":"Your message is saved. Preparing Meri’s response.","elapsedMs":1579}
+
+data: {"type":"start","intent":"general","tier":"deep","runtime":"meriv3","reasoningMode":"standard"}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"runtime","note":"Waiting for Meri’s reasoning runtime.","elapsedMs":1616}
+
+data: {"type":"runtime","runtime":"meriv3","model":"gpt-6-astra","reasoningMode":"standard","reasoningEffort":null,"telemetry":{"requestedModel":"gpt-6-astra","effectiveModel":null,"requestedReasoningEffort":"medium","effectiveReasoningEffort":null,"reasoningFallbackReasons":[],"finishReason":"not_started","partial":false}}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"provider","note":"Waiting for the LLM provider’s response.","elapsedMs":3043}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"provider","note":"Waiting for the LLM provider’s response.","elapsedMs":5000}
+
+data: {"type":"runtime","runtime":"meriv3","model":"gpt-6-astra","reasoningMode":"standard","reasoningEffort":"medium","telemetry":{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false},"providerCalls":[{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false}]}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"provider","note":"Waiting for the LLM provider’s response.","elapsedMs":8268}
+
+data: {"type":"sources","sources":[{"tool":"create_word","label":"Generated a document","count":null,"summary":"This export was not proposed: exporting an existing document must reproduce it exactly. Fix each listed difference and call create_word again with the corrected input.","confidence":"low"}]}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"provider","note":"Waiting for Meri to continue from the tool results.","elapsedMs":8268}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"provider","note":"Waiting for Meri to continue from the tool results.","elapsedMs":10000}
+
+data: {"type":"runtime","runtime":"meriv3","model":"gpt-6-astra","reasoningMode":"standard","reasoningEffort":"medium","telemetry":{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false},"providerCalls":[{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false},{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false}]}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"provider","note":"Waiting for the LLM provider’s response.","elapsedMs":13427}
+
+data: {"type":"sources","sources":[{"tool":"create_word","label":"Generated a document","count":null,"summary":"This export was not proposed: exporting an existing document must reproduce it exactly. Fix each listed difference and call create_word again with the corrected input.","confidence":"low"}]}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"provider","note":"Waiting for Meri to continue from the tool results.","elapsedMs":13427}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"provider","note":"Waiting for Meri to continue from the tool results.","elapsedMs":15001}
+
+data: {"type":"runtime","runtime":"meriv3","model":"gpt-6-astra","reasoningMode":"standard","reasoningEffort":"medium","telemetry":{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false},"providerCalls":[{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false},{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false},{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false}]}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"provider","note":"Waiting for the LLM provider’s response.","elapsedMs":18425}
+
+data: {"type":"text","text":"The export was blocked because the file generator did not preserve the briefing’s final newline. No downloadable file or approval proposal was created. Please try again; I won’t substitute an altered copy."}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"answer","note":"Receiving the response.","elapsedMs":18588}
+
+data: {"type":"runtime","runtime":"meriv3","model":"gpt-6-astra","reasoningMode":"standard","reasoningEffort":"medium","telemetry":{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false},"providerCalls":[{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false},{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false},{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false}]}
+
+data: {"type":"progress","runId":"de467b6b-b914-404d-af14-ff8ba83e5b36","phase":"answer","note":"Finishing the response.","elapsedMs":18589}
+
+data: {"type":"usage","usage":{"inputTokens":142419,"outputTokens":250,"cacheReadTokens":94748,"cacheCreationTokens":0}}
+
+data: {"type":"grounding_statement","statement":"No retrieved sources were attached to this answer."}
+
+data: {"type":"done","model":"gpt-6-astra","reasoningMode":"standard","reasoningEffort":"medium","finishReason":"completed","partial":false,"telemetry":{"requestedModel":"gpt-6-astra","effectiveModel":"gpt-6-astra","requestedReasoningEffort":"medium","effectiveReasoningEffort":"medium","reasoningFallbackReasons":[],"finishReason":"completed","partial":false},"evidenceManifest":{"version":1,"packetId":"053cdf09-7510-4ce4-a993-20f8b4184cdf","sourceRecordCount":563,"projectedRecordCount":42,"truncated":true,"sources":[]},"messageId":"242d4b91-f621-445f-95d1-b73bb88e1683","contextPacketId":"053cdf09-7510-4ce4-a993-20f8b4184cdf","retrieval":{"plan":{"version":1,"queryClass":"lookup","subjectScope":"client","targetHint":null,"recipeTool":null,"requireCompleteCoverage":false,"requiredDomains":[],"timeWindow":null},"coverage":{"version":1,"complete":false,"requestedDomains":["clients","contacts","strategies_work","institutional_knowledge"],"searchedDomains":["clients","contacts","strategies_work","institutional_knowledge"],"missingDomains":[],"partialDomains":["institutional_knowledge"],"requestedEntityCount":4,"searchedEntityCount":4,"recordsEvaluated":502,"recordsReturned":51,"recordsDisplayed":35,"recordsOmitted":16,"sourceCounts":[{"source":"clients","recordsReturned":1,"recordsEvaluated":1,"recordsMatched":1,"recordsDisplayed":1,"recordsOmitted":0},{"source":"contacts","recordsReturned":0,"recordsEvaluated":0,"recordsMatched":0,"recordsDisplayed":0,"recordsOmitted":0},{"source":"strategies_work","recordsReturned":0,"recordsEvaluated":0,"recordsMatched":null,"recordsDisplayed":0,"recordsOmitted":0},{"source":"institutional_knowledge","recordsReturned":50,"recordsEvaluated":501,"recordsMatched":null,"recordsDisplayed":34,"recordsOmitted":16}],"paginationComplete":false,"truncated":true,"sourceHealth":[{"source":"clients","status":"complete","lastSyncAt":"2026-09-28T01:24:38.611Z","detail":"authoritative_page_complete"},{"source":"contacts","status":"complete","detail":"authoritative_page_complete"},{"source":"strategies_work","status":"complete","detail":"complete"},{"source":"institutional_knowledge","status":"partial","lastSyncAt":"2026-10-05T04:53:16.106Z","detail":"governed_memory_safety_cap_reached"}],"unavailableSources":[],"toolsInvoked":["retrieval-v2:clients","retrieval-v2:contacts","retrieval-v2:strategies_work","retrieval-v2:institutional_knowledge"],"stopReason":"model_context_projection_truncated"}},"turnScope":{"kind":"client","clientId":"41f9ec63-3963-479f-b747-59a3767ef44b","clientName":"Aster Defense","targetHint":null}}
+
