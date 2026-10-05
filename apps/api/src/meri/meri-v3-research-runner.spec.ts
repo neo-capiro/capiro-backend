@@ -403,7 +403,7 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     const { runner, client, flags, credentials } = fixture();
     expect(await runner.enabled(ctx)).toBe(true);
     const result = await runner.run(ctx, input, auth, () => {});
-    expect(flags.isMeriV3ChatEnabled).toHaveBeenCalledWith('tenant-a', 'internal');
+    expect(flags.isMeriV3ChatEnabled).toHaveBeenCalledWith('tenant-a');
     expect(credentials.resolveProvider).toHaveBeenCalledWith(ctx, 'openai');
     expect(client.streamChat).toHaveBeenCalledWith(
       expect.objectContaining({

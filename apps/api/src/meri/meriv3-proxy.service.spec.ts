@@ -1,6 +1,6 @@
 import { meriTelemetryIdentifier } from '@capiro/meriv2-core';
 import { describe, expect, it, jest } from '@jest/globals';
-import { MeriV3ProxyService } from './meriv3-proxy.service.js';
+import { MeriV3ProxyService, classifyOrchestratorFailure } from './meriv3-proxy.service.js';
 import { MeriContextPlaneRuntimeService } from './meri-context-plane-runtime.js';
 import { scheduleMeriTurnMaintenance } from './meri-turn-maintenance.js';
 import { commitmentsAuditProcedureSkill } from './skills/commitments-audit.procedure.js';
@@ -2309,5 +2309,96 @@ describe('MeriV3 attachment source continuity', () => {
         }),
       );
     }
+  });
+});
+
+describe('MeriV3 kill switch refusal (program plan §4.1)', () => {
+  it('persists the user turn and an unavailable assistant row and emits a classified error', async () => {
+    const h = buildHarness();
+    const saved = process.env.MERIV3_ENABLED;
+    delete process.env.MERIV3_ENABLED;
+    try {
+      await h.service.streamUnavailable(CTX, CONVERSATION, 'What changed this week?', h.sse);
+    } finally {
+      if (saved === undefined) delete process.env.MERIV3_ENABLED;
+      else process.env.MERIV3_ENABLED = saved;
+    }
+
+    const created = (h.tx.clioMessage.create as jest.Mock).mock.calls.map(
+      (call: any) => call[0].data,
+    );
+    expect(created.map((row: any) => row.role)).toEqual(['user', 'assistant']);
+    expect(created[0].body).toBe('What changed this week?');
+    expect(created[1].body).toBe('Meri is unavailable right now.');
+    expect(created[1].metadata).toEqual(
+      expect.objectContaining({
+        servedBy: 'unavailable',
+        runtime: 'none',
+        finishReason: 'unavailable',
+        unavailable: { code: 'meri_unavailable', reason: 'tenant_disabled' },
+      }),
+    );
+    const frames = h.frames();
+    expect(frames.map((frame) => frame.type)).toEqual(['turn_accepted', 'error', 'done']);
+    expect(frames[1]).toEqual(
+      expect.objectContaining({
+        code: 'meri_unavailable',
+        accepted: true,
+        message: 'Meri is unavailable right now.',
+      }),
+    );
+    expect(frames[2]!.messageId).toEqual(expect.stringMatching(/^msg-assistant-/));
+    expect(h.client.streamChat).not.toHaveBeenCalled();
+    expect(h.conversationEvidence.load).not.toHaveBeenCalled();
+  });
+
+  it('records the global kill switch as the reason and keeps history unchanged on regenerate', async () => {
+    const h = buildHarness();
+    const saved = process.env.MERIV3_ENABLED;
+    process.env.MERIV3_ENABLED = 'false';
+    try {
+      await h.service.streamUnavailable(CTX, CONVERSATION, '', h.sse, undefined, 'regenerate');
+    } finally {
+      if (saved === undefined) delete process.env.MERIV3_ENABLED;
+      else process.env.MERIV3_ENABLED = saved;
+    }
+    const created = (h.tx.clioMessage.create as jest.Mock).mock.calls.map(
+      (call: any) => call[0].data,
+    );
+    expect(created.map((row: any) => row.role)).toEqual(['assistant']);
+    expect(created[0].metadata.unavailable).toEqual({
+      code: 'meri_unavailable',
+      reason: 'global_kill_switch',
+    });
+    expect(h.tx.clioMessage.deleteMany).not.toHaveBeenCalled();
+    expect(h.tx.clioMessage.update).not.toHaveBeenCalled();
+    expect(h.client.streamChat).not.toHaveBeenCalled();
+  });
+
+  it('rejects an empty new message before writing anything', async () => {
+    const h = buildHarness();
+    await expect(h.service.streamUnavailable(CTX, CONVERSATION, '   ', h.sse)).rejects.toThrow(
+      'Message body is empty',
+    );
+    expect(h.tx.clioMessage.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('classifyOrchestratorFailure', () => {
+  it('counts orchestrator 5xx answers and unreachable connections only', () => {
+    expect(classifyOrchestratorFailure('MeriV3 chat stream failed: 502 Bad Gateway')).toEqual({
+      kind: 'http_5xx',
+      status: 502,
+    });
+    expect(classifyOrchestratorFailure('MeriV3 chat stream failed: 404 not found')).toBeNull();
+    expect(classifyOrchestratorFailure('fetch failed')).toEqual({
+      kind: 'unreachable',
+      status: null,
+    });
+    expect(classifyOrchestratorFailure('connect ECONNREFUSED 10.0.0.1:4300')).toEqual({
+      kind: 'unreachable',
+      status: null,
+    });
+    expect(classifyOrchestratorFailure('The model returned an empty answer.')).toBeNull();
   });
 });

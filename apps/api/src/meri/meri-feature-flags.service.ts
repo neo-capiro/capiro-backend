@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { tenantFeatureEnabled, meriV2Enabled, type MeriV2FlagKey } from '../common/tenant-flags.js';
-import {
-  MERIV3_CHAT_FLAG,
-  meriV3CanaryTenantSlugs,
-  meriV3EnvironmentEnabled,
-} from '../common/meriv3-flags.js';
+import { MERIV3_CHAT_FLAG, meriV3EnvironmentEnabled } from '../common/meriv3-flags.js';
 
 import {
   MERI_MOBILE_API_FLAG,
@@ -87,13 +83,14 @@ export class MeriFeatureFlagsService {
   }
 
   /**
-   * MeriV3 full chat is a strict canary: global switch, server-resolved slug
-   * allowlist, and explicit tenant true. The browser cannot widen this gate.
+   * MeriV3 is the only chat runtime. Two keys, both default on: the global
+   * MERIV3_ENABLED kill switch and the tenant's meriv3.fullChat off switch.
+   * When this returns false the turn is refused as "Meri is unavailable"; it
+   * never falls back to another runtime. The browser cannot open this gate.
    */
-  async isMeriV3ChatEnabled(tenantId: string, tenantSlug: string): Promise<boolean> {
+  async isMeriV3ChatEnabled(tenantId: string): Promise<boolean> {
     if (!meriV3EnvironmentEnabled()) return false;
-    if (!meriV3CanaryTenantSlugs().has(tenantSlug.trim().toLowerCase())) return false;
-    return this.isEnabled(tenantId, MERIV3_CHAT_FLAG, false);
+    return this.isEnabled(tenantId, MERIV3_CHAT_FLAG, true);
   }
 
 

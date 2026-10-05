@@ -1,65 +1,47 @@
 // ---------------------------------------------------------------------------
-// LIVE RUNTIME STATE — verified 2026-09-18, read-only (aws ecs describe-services
-// + describe-task-definition on cluster capiro-dev). The Part-3 plan text said
-// "V3 dark in prod" — that was WRONG; the MeriV3 canary is LIVE.
+// MeriV3 is the only chat runtime (program plan 2026-10-05, §2.2 and §4.1).
 //
-//   MERIV3_ENABLED             = 'true' on the live api task definition
-//                                (capiro-dev-api:384; present since at least :382)
-//                                and on capiro-dev-meriv2-orchestrator:65.
-//   MERIV3_CANARY_TENANT_SLUGS = all 9 tenants: c2-strategies, capiro-internal,
-//                                dualsight, maven, prospering-solutions, revere,
-//                                victory-six-advisors, rubin-turnbull, abramoff
-//                                (abramoff appended 2026-09-18 on api:383/orch:65).
-//   meriv3.fullChat (DB flag)  = true for all 9 tenants (flag parity 2026-09-18).
-//   => meriV3ChatActive / isMeriV3ChatEnabled resolve TRUE for every live tenant.
-//      The code defaults below (env off, cohort = capiro-internal, flag false)
-//      describe a FRESH environment, not production.
+// Two keys decide whether a tenant's chat turn is served:
+//   1. env MERIV3_ENABLED — the global kill switch. Default ON: only an explicit
+//      off value ('false', '0', 'off', 'no') turns Meri off everywhere.
+//   2. tenant settings_jsonb.clioFeatureFlags['meriv3.fullChat'] — the per-tenant
+//      off switch. Default ON: only an explicit boolean false turns it off.
 //
-// CDK DRIFT WARNING: MERIV3_ENABLED (and MERIV3_CANARY_TENANT_SLUGS) are ABSENT
-// from infra/cdk/lib/compute-stack.ts — both were applied OUT-OF-BAND on the task
-// definitions. The live TD env is the source of truth; a `cdk deploy` would
-// silently DROP them and turn the V3 canary OFF fleet-wide. The Capiro-dev-Compute
-// stack has been wedged since 2026-05-27 — described as UPDATE_ROLLBACK_FAILED in
-// compute-stack.ts and infra/cdk/DRIFT-FINDINGS.md; CloudFormation reported
-// UPDATE_ROLLBACK_COMPLETE (last updated 2026-07-25) when re-read on 2026-09-18.
-// Either way: do not `cdk deploy` this stack until these keys are codified there.
+// When either key is closed the turn is REFUSED with "Meri is unavailable"
+// (meriv3-runtime.proxy.ts); it never falls back to the MeriV2 proxy or the
+// legacy in-process loop. There is no tenant slug allow-list any more: a new
+// tenant is on V3 from its first turn.
 //
-// Three-key truth table pinned in apps/api/src/meri/meri-feature-flags.matrix.spec.ts.
+// The live task definitions carry MERIV3_ENABLED=true and it is codified in
+// infra/cdk/lib/compute-stack.ts, so a future deploy cannot drop it. Truth table
+// pinned in apps/api/src/meri/meri-feature-flags.matrix.spec.ts.
 // ---------------------------------------------------------------------------
 export const MERIV3_CHAT_FLAG = 'meriv3.fullChat' as const;
 
+const OFF_VALUES = new Set(['false', '0', 'off', 'no']);
+
+/** Global kill switch. Unset means on; only an explicit off value disables V3. */
 export function meriV3EnvironmentEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.MERIV3_ENABLED === 'true';
+  const raw = env.MERIV3_ENABLED?.trim().toLowerCase();
+  return !raw || !OFF_VALUES.has(raw);
 }
 
-export function meriV3CanaryTenantSlugs(env: NodeJS.ProcessEnv = process.env): Set<string> {
-  const raw = env.MERIV3_CANARY_TENANT_SLUGS?.trim() || 'capiro-internal';
-  return new Set(
-    raw
-      .split(',')
-      .map((slug) => slug.trim().toLowerCase())
-      .filter(Boolean),
-  );
-}
-
+/** Per-tenant off switch. Missing or malformed settings mean on. */
 export function meriV3TenantFlagEnabled(settings: unknown): boolean {
-  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return false;
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return true;
   const flags = (settings as Record<string, unknown>).clioFeatureFlags;
-  if (!flags || typeof flags !== 'object' || Array.isArray(flags)) return false;
-  return (flags as Record<string, unknown>)[MERIV3_CHAT_FLAG] === true;
+  if (!flags || typeof flags !== 'object' || Array.isArray(flags)) return true;
+  return (flags as Record<string, unknown>)[MERIV3_CHAT_FLAG] !== false;
 }
 
-/**
- * MeriV3 is a three-key canary: global switch, server-resolved tenant slug
- * allowlist, and an explicit per-tenant flag. Every key defaults closed.
- */
+/** Two keys: the global kill switch and the tenant off switch. */
 export function meriV3ChatActive(
   settings: unknown,
-  tenantSlug: string | null | undefined,
   env: NodeJS.ProcessEnv = process.env,
 ): boolean {
-  if (!meriV3EnvironmentEnabled(env)) return false;
-  const slug = tenantSlug?.trim().toLowerCase();
-  if (!slug || !meriV3CanaryTenantSlugs(env).has(slug)) return false;
-  return meriV3TenantFlagEnabled(settings);
+  return meriV3EnvironmentEnabled(env) && meriV3TenantFlagEnabled(settings);
 }
+
+/** Classified refusal when either key is closed. */
+export const MERI_UNAVAILABLE_CODE = 'meri_unavailable' as const;
+export const MERI_UNAVAILABLE_MESSAGE = 'Meri is unavailable right now.';

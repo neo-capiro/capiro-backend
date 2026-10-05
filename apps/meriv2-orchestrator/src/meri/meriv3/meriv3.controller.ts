@@ -322,8 +322,8 @@ export class MeriV3Controller {
 
   private async assertAllowed(tenantId: string): Promise<void> {
     if (!(await this.access.isAllowed(tenantId))) {
-      // 404 rather than 403: tenants outside the canary do not need to learn
-      // that a hidden runtime exists. Their supported surface remains MeriV2.
+      // 404 rather than 403. The API refuses a closed tenant before it calls
+      // here ("Meri is unavailable"); this is defense in depth.
       throw new NotFoundException('Chat runtime not found');
     }
   }

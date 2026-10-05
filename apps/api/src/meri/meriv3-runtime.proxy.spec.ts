@@ -30,6 +30,7 @@ function make() {
   const meriv3 = {
     shouldHandle: jest.fn(async () => false),
     streamMessage: jest.fn(async () => undefined),
+    streamUnavailable: jest.fn(async () => undefined),
     client: { streamChat: jest.fn(async () => undefined) },
     clientKb: { buildSnapshot: jest.fn(async () => 'v3-kb') },
   } as unknown as MeriV3ProxyService;
@@ -54,18 +55,18 @@ function make() {
 }
 
 describe('Meri runtime proxy Phase 19', () => {
-  test('resolves governed context before delegating a non-canary turn to the existing MeriService', async () => {
+  test('a closed gate refuses the turn: no governed context, no V3 turn, no legacy fallback', async () => {
     const { raw, meriv3, governedRuntime, service } = make();
-    await service.streamMessage(ctx as never, 'conversation', 'hello', { write: jest.fn() });
+    const writer = { write: jest.fn() };
+    await service.streamMessage(ctx as never, 'conversation', 'hello', writer);
 
-    expect(governedRuntime.runChatTurn).toHaveBeenCalledWith(
-      ctx,
-      { conversationId: 'conversation', body: 'hello', mode: 'new', signal: undefined },
-      expect.any(Function),
-    );
     expect(meriv3.shouldHandle).toHaveBeenCalledWith(ctx);
+    expect(meriv3.streamUnavailable).toHaveBeenCalledWith(ctx, 'conversation', 'hello', {
+      write: expect.any(Function),
+    });
+    expect(governedRuntime.runChatTurn).not.toHaveBeenCalled();
     expect(meriv3.streamMessage).not.toHaveBeenCalled();
-    expect(raw.streamMessage).toHaveBeenCalledTimes(1);
+    expect(raw.streamMessage).not.toHaveBeenCalled();
   });
 
   test('resolves governed context once before routing an allowed turn to MeriV3', async () => {
@@ -86,7 +87,8 @@ describe('Meri runtime proxy Phase 19', () => {
   });
 
   test('preserves regenerate mode when preparing the governed turn', async () => {
-    const { governedRuntime, service } = make();
+    const { meriv3, governedRuntime, service } = make();
+    (meriv3.shouldHandle as jest.Mock).mockResolvedValue(true);
 
     await service.streamMessage(
       ctx as never,
