@@ -17,9 +17,8 @@ import {
 import type { createCase46SetupDependencies } from './meri-case46-setup-dependencies.js';
 import {
   assertCase46RemediationInTx,
-  case46RetiredSetup,
-  CASE46_REMEDIATION_PROOF,
-  CASE46_RETIRED_SETUP_KEY,
+  case46RetiredSetupEntry,
+  CASE46_REMEDIATION_PROOFS,
 } from './meri-case46-remediation.js';
 
 const KEY = 'case46ExecutionSetup';
@@ -30,7 +29,9 @@ const inputSchema = z
     caseId: z.literal('46'),
     fixtureNamespace: z.literal(f.namespace),
     captureRunId: z.string().uuid(),
-    remediationProofSha256: z.literal(CASE46_REMEDIATION_PROOF).optional(),
+    remediationProofSha256: z
+      .enum([CASE46_REMEDIATION_PROOFS[0]!, ...CASE46_REMEDIATION_PROOFS.slice(1)])
+      .optional(),
     ctx: z
       .object({
         tenantId: z.literal(f.tenantId),
@@ -224,7 +225,7 @@ export async function executeCase46Setup(
         meriFoundationFixture: {
           ...current.fixture,
           ...(input.remediationProofSha256
-            ? { [CASE46_RETIRED_SETUP_KEY]: case46RetiredSetup(current.fixture) }
+            ? case46RetiredSetupEntry(current.fixture, input.remediationProofSha256)
             : {}),
           [KEY]: claim,
         },
