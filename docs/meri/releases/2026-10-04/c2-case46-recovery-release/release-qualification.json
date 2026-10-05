@@ -1,0 +1,104 @@
+{
+  "kind": "meri-case46-recovery-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGES_TESTS_AND_RETIREMENT_COMPATIBILITY_PASS",
+  "at": "2026-10-05T03:02:58.782077+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "bf896b666dcdb33a3d603d10319235046039cadb",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2a9d5aef7c299bfd533bac44cd0d69919b146658eab1b59743835365c36cef8e",
+      "buildId": "capiro-build-web-dev:dfcb8f5b-972c-42b5-b49f-da7e1141b358",
+      "packagedMarkersPassed": 32
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "11b669eb957f040fa6afd37bb8d61780ea5fdeb9",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:3c5aea253b74732952694b4ebbd99260e9e146b6140da184c22c4244def26cb9",
+      "buildId": "capiro-build-web-dev:160db20e-9c6a-43d2-a05f-10d1876c4014",
+      "packagedMarkersPassed": 17
+    }
+  ],
+  "schemaChange": false,
+  "providerCalls": 0,
+  "c2Complete": false,
+  "authorizationBasis": "User authorized continuing C2 and established CodeBuild backup shipping, retained-history recovery and the Case46 Playwright approval/download test.",
+  "reviewer": "Root source integration, negative eligibility/replay tests and packaged build verification",
+  "sourceEvidence": "https://github.com/neo-capiro/capirov2/blob/bf896b666dcdb33a3d603d10319235046039cadb/docs/meri/releases/2026-10-04/c2-case46-recovery/qualification.json",
+  "validation": {
+    "focusedSourceTestsPassed": 66,
+    "typechecks": [
+      "API",
+      "ORCHESTRATOR"
+    ],
+    "packagedProbesPassed": 49,
+    "retirementCompatibility": "Verified API539, orchestrator125 and Web390 baseline. Schema, lockfile and service runtime setup unchanged; nightly136 and disabled broad projection retained."
+  },
+  "artifactPins": [
+    {
+      "path": "api/build-readback.json",
+      "bytes": 6077,
+      "sha256": "8bdbaa2ec8c9648e126154b8a0a9245af3ef8341772c946ee18ac37d52180506"
+    },
+    {
+      "path": "api/build.log",
+      "bytes": 74454,
+      "sha256": "9b78c781ec993fb081f560376c98a9892fecaa41d0d71f3d9dfc1fa696a2e2dc"
+    },
+    {
+      "path": "api/buildspec.json",
+      "bytes": 24282,
+      "sha256": "2faeed59fd17addc18ac487ef708b6128adc1e5b108b220825f815eb72a15e0f"
+    },
+    {
+      "path": "api/image-manifest.json",
+      "bytes": 8461,
+      "sha256": "2a9d5aef7c299bfd533bac44cd0d69919b146658eab1b59743835365c36cef8e"
+    },
+    {
+      "path": "api/launch-intent.json",
+      "bytes": 808,
+      "sha256": "37ec8888b240f94c16134974580879f3f30560536f19b31fd3f6f99592f59807"
+    },
+    {
+      "path": "api/build-start.json",
+      "bytes": 2013,
+      "sha256": "03efa95742b8790121d540f8033e2d0f972e63fac2a9ebb847869f1f5a833af1"
+    },
+    {
+      "path": "meriv2-orchestrator/build-readback.json",
+      "bytes": 5119,
+      "sha256": "aae7f049ff0b9929dd1738b82cc02f4343540af44680d8c50a865219a820700c"
+    },
+    {
+      "path": "meriv2-orchestrator/build.log",
+      "bytes": 768666,
+      "sha256": "4c618dd1f7bbd7755655169c128b8013795f5eb8a5925083b5a26af9d52ce65b"
+    },
+    {
+      "path": "meriv2-orchestrator/buildspec.json",
+      "bytes": 14198,
+      "sha256": "45f9acb515d872a71a34fbae52c7131ec6c934e9cbe61e07a6271ef0550b0e2e"
+    },
+    {
+      "path": "meriv2-orchestrator/image-manifest.json",
+      "bytes": 5740,
+      "sha256": "3c5aea253b74732952694b4ebbd99260e9e146b6140da184c22c4244def26cb9"
+    },
+    {
+      "path": "meriv2-orchestrator/launch-intent.json",
+      "bytes": 824,
+      "sha256": "abeba95ad0789d7de487b72d931fc785a36a7d3157f68727737312de1487a281"
+    },
+    {
+      "path": "meriv2-orchestrator/build-start.json",
+      "bytes": 1249,
+      "sha256": "253325f5c608bc423b2b8090547f895dabf9ff26b9ecc923c7d121591c5f0547"
+    },
+    {
+      "path": "served-baseline.json",
+      "bytes": 4494,
+      "sha256": "aa6647ca944aa28853101ce3951595bc8ace8dd7d23ff18a2fa509f2b22c78f4"
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+{
+  "at": "2026-10-05T03:02:42.745Z",
+  "service": "meriv2-orchestrator",
+  "status": "SUCCEEDED",
+  "qualification": "IMMUTABLE_BUILD_AND_OFFLINE_PROBES_PASS",
+  "sourceSha": "11b669eb957f040fa6afd37bb8d61780ea5fdeb9",
+  "resolvedSourceSha": "11b669eb957f040fa6afd37bb8d61780ea5fdeb9",
+  "buildId": "capiro-build-web-dev:160db20e-9c6a-43d2-a05f-10d1876c4014",
+  "startedAt": "2026-10-04T22:54:11.722000-04:00",
+  "finishedAt": "2026-10-04T23:01:54.272000-04:00",
+  "buildspecSha256": "45f9acb515d872a71a34fbae52c7131ec6c934e9cbe61e07a6271ef0550b0e2e",
+  "buildLogSha256": "4c618dd1f7bbd7755655169c128b8013795f5eb8a5925083b5a26af9d52ce65b",
+  "phases": [
+    {
+      "phase": "SUBMITTED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "QUEUED",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0
+    },
+    {
+      "phase": "PROVISIONING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 7,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "DOWNLOAD_SOURCE",
+      "status": "SUCCEEDED",
+      "durationSeconds": 11,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "INSTALL",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "PRE_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 25,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 342,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "POST_BUILD",
+      "status": "SUCCEEDED",
+      "durationSeconds": 73,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "UPLOAD_ARTIFACTS",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "FINALIZING",
+      "status": "SUCCEEDED",
+      "durationSeconds": 0,
+      "contexts": [
+        {
+          "statusCode": "",
+          "message": ""
+        }
+      ]
+    },
+    {
+      "phase": "COMPLETED"
+    }
+  ],
+  "requiredMarkers": [
+    "CORE_CANONICAL_MEMORY_SOURCE_NATIVE_TESTS_PASS",
+    "CORE_CASE12_FIVE_SUITE_191_TESTS_PASS",
+    "CORE_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+    "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+    "OFFLINE_PACKAGED_CASE46_QUALIFIED_PROVIDER_WIRE_PASS",
+    "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+    "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+    "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+    "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+    "OFFLINE_PACKAGED_SOL_POLICY_AND_PRICE_PASS",
+    "ORCHESTRATOR_CANONICAL_MEMORY_SOURCE_LOOPBACK_PASS",
+    "ORCHESTRATOR_CAPTURE_CONTRACT_LOOPBACK_TESTS_PASS",
+    "ORCHESTRATOR_CASE12_CONTROLLED_HTTP_MEMORY_LOOPBACK_PASS",
+    "ORCHESTRATOR_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+    "ORCHESTRATOR_EXACT_EXISTING_LIVE_SKIPS_PASS"
+  ],
+  "passedMarkers": [
+    "CORE_CANONICAL_MEMORY_SOURCE_NATIVE_TESTS_PASS",
+    "CORE_CASE12_FIVE_SUITE_191_TESTS_PASS",
+    "CORE_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS",
+    "OFFLINE_C1_CLASSIFICATION_REPAIRS_PASS",
+    "OFFLINE_PACKAGED_CAPTURE_PROVIDER_ORCHESTRATOR_GUARDS_PASS",
+    "OFFLINE_PACKAGED_CASE46_QUALIFIED_PROVIDER_WIRE_PASS",
+    "OFFLINE_PACKAGED_ENTRYPOINT_HEALTH_AUTH_PASS",
+    "OFFLINE_PACKAGED_MAIL_DEFAULTS_PASS",
+    "OFFLINE_PACKAGED_NO_TOOLS_DIRECTIVE_PASS",
+    "OFFLINE_PACKAGED_SEMANTIC_CLOCK_ORCHESTRATOR_PASS",
+    "OFFLINE_PACKAGED_SOL_POLICY_AND_PRICE_PASS",
+    "ORCHESTRATOR_CANONICAL_MEMORY_SOURCE_LOOPBACK_PASS",
+    "ORCHESTRATOR_CAPTURE_CONTRACT_LOOPBACK_TESTS_PASS",
+    "ORCHESTRATOR_CASE12_CONTROLLED_HTTP_MEMORY_LOOPBACK_PASS",
+    "ORCHESTRATOR_CASE20_SOURCE_PROOF_NATIVE_TESTS_PASS",
+    "ORCHESTRATOR_EXACT_EXISTING_LIVE_SKIPS_PASS"
+  ],
+  "serviceMutations": 0,
+  "providerCalls": 0,
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:3c5aea253b74732952694b4ebbd99260e9e146b6140da184c22c4244def26cb9",
+  "tests": {
+    "numTotalTests": 1579,
+    "numPassedTests": 1577,
+    "numFailedTests": 0,
+    "numPendingTests": 2,
+    "numTotalTestSuites": 130,
+    "numPassedTestSuites": 130,
+    "numFailedTestSuites": 0,
+    "numPendingTestSuites": 0
+  },
+  "pendingTests": [
+    "MeriV2 scoping parity (SC0.7) cross-tenant + row-set parity (live, gated) cross-tenant token (tenant-A JWT, tenant-B clientId) → 403",
+    "MeriV2 scoping parity (SC0.7) cross-tenant + row-set parity (live, gated) returns exactly the rows current Meri returns for each fixed (user, tenant)"
+  ]
+}
