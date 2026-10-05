@@ -1,0 +1,24 @@
+{
+  "kind": "meri-s1-roll-2-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-05T20:58:41.704320+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "94c84fc03d8aee8be4d7e62a5a552c48471cda67",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:90bd98fa61030d6481f1e17df52467bfa40643ca2c785d42eb6ebeaf0103ca70",
+      "buildId": "capiro-build-web-dev:76fd8678-171a-49b5-9856-d5d0c47ed27f"
+    },
+    {
+      "service": "api",
+      "sourceSha": "94c84fc03d8aee8be4d7e62a5a552c48471cda67",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:269e68fa51c50c3aaeaf44906f4451afcea068df2af67f87af7f6cdd6af75ea2",
+      "buildId": "capiro-build-web-dev:0dff6ed4-a2b4-49ce-872f-6f231507f425"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Stage 1 roll 2: capture harness out of production code (#2022), 'current' is not a role claim (#2015), budget words need a budget context (#2020). Orchestrator first, then API. Code only; no migrations.",
+  "reviewer": "Lead agent (Stage 1): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo: \"implement stage 1\" (2026-10-05); program plan \u00a710 release path."
+}
