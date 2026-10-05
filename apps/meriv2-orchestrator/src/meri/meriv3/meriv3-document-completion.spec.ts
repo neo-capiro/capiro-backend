@@ -258,3 +258,66 @@ describe('document task continuity and evidence coverage', () => {
     ).toBe(false);
   });
 });
+
+describe('chat attachment reads count toward document coverage', () => {
+  const attachmentRead = (section: number, sectionCount: number, text: string) => ({
+    tool: 'read_chat_attachments',
+    clientId: 'client-1',
+    source: {
+      attachmentId: 'att-1',
+      filename: 'annual-report.pdf',
+      originalBytesHash: 'h'.repeat(64),
+    },
+    coverage: {
+      mode: 'section',
+      locator: { section, offset: 0 },
+      sectionCount,
+      characterStart: 0,
+      characterEnd: text.length,
+      sectionCharacters: text.length,
+      extractionStatus: 'complete',
+      query: null,
+      nextCursor: section < sectionCount ? 'next' : null,
+    },
+    records: [{ payload: { characterStart: 0, characterEnd: text.length, text } }],
+  });
+  const listing = { documents: [{ id: 'doc-1' }], coverage: {} };
+
+  test('a fully read attachment leaves no gap and is never reported as unread', () => {
+    const gate = new MeriDocumentCompletion(
+      { request: 'List every recommendation in the report.', completeRead: true, contacts: false },
+      'client-1',
+    );
+    gate.observe('read_client_documents', { clientId: 'client-1' }, listing);
+    gate.observe(
+      'read_chat_attachments',
+      { attachmentId: 'att-1', section: 1 },
+      attachmentRead(1, 2, 'Recommendation 1.'),
+    );
+    gate.observe(
+      'read_chat_attachments',
+      { attachmentId: 'att-1', section: 2 },
+      attachmentRead(2, 2, 'Recommendation 2.'),
+    );
+    expect(gate.gaps()).toEqual([]);
+  });
+
+  test('a partly read attachment is reported as not fully reviewed, with its real text kept', () => {
+    const gate = new MeriDocumentCompletion(
+      { request: 'List every recommendation in the report.', completeRead: true, contacts: false },
+      'client-1',
+    );
+    gate.observe('read_client_documents', { clientId: 'client-1' }, listing);
+    gate.observe(
+      'read_chat_attachments',
+      { attachmentId: 'att-1', section: 1 },
+      attachmentRead(1, 80, 'Recommendation 1.'),
+    );
+    const gaps = gate.gaps().join(' ');
+    expect(gaps).toContain('annual-report.pdf has not been fully reviewed');
+    expect(gaps).not.toContain('have not been read');
+    expect(gate.partialReply('Found recommendation 1 on page 1.')).toContain(
+      'Found recommendation 1 on page 1.',
+    );
+  });
+});
