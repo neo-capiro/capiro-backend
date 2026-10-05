@@ -833,3 +833,40 @@ describe('PE budget timeline projection', () => {
     ).toEqual(small);
   });
 });
+
+describe('generated document projection (Stage 1 T4)', () => {
+  const bodyText = JSON.stringify({ title: 'Brief', sections: [{ heading: 'H', paragraphs: ['x'.repeat(20_000)] }] });
+  const result = {
+    tool: 'create_word',
+    format: 'docx',
+    title: 'Largest Cost Line',
+    filename: 'largest-cost-line.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    artifact: { id: 'art-1', title: 'Largest Cost Line', kind: 'word_document', bodyText, specJson: bodyText },
+    downloadUrl: '/api/clio/artifacts/art-1/download',
+    downloads: [{ format: 'pdf', downloadUrl: '/api/clio/artifacts/art-1/download?format=pdf' }],
+    note: 'Document generated and available for download.',
+  };
+
+  it('keeps the outcome and download link of an over-budget document result', () => {
+    const projected = projectMeriToolEvidence({ result, maxCharacters: 12_000, readOnly: false }) as Record<string, any>;
+    expect(projected.downloadUrl).toBe('/api/clio/artifacts/art-1/download');
+    expect(projected.note).toBe('Document generated and available for download.');
+    expect(projected.artifact).toEqual({ id: 'art-1', title: 'Largest Cost Line', kind: 'word_document' });
+    expect(projected.downloads).toEqual(result.downloads);
+    expect(projected.projection.note).toContain('generated and saved');
+    expect(JSON.stringify(projected).length).toBeLessThanOrEqual(12_000);
+  });
+
+  it('leaves a document result that fits unchanged', () => {
+    const small = { ...result, artifact: { id: 'art-1', title: 'T', kind: 'word_document', bodyText: '{}' } };
+    expect(projectMeriToolEvidence({ result: small, maxCharacters: 12_000, readOnly: false })).toEqual(small);
+  });
+
+  it('does not change the generic projection of other over-budget actions', () => {
+    const other = { tool: 'create_task', status: 'created', payload: 'y'.repeat(20_000) };
+    const projected = projectMeriToolEvidence({ result: other, maxCharacters: 12_000, readOnly: false }) as Record<string, any>;
+    expect(projected.downloadUrl).toBeUndefined();
+    expect(projected.projection.continuation.instruction).toContain('Do not repeat the action');
+  });
+});
