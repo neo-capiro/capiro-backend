@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "service": "api",
+  "sourceSha": "42811d70783636ad2c999ba6ddb8b3f58ee26e4f",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:15e6ff6a2f040b31c3d1bcc13c38c00049492ba179df5e4efbc27073e2f1d3fd",
+  "status": "qualified",
+  "reviewer": "Lead agent: focused source tests, typecheck, packaged image probes and served baseline review",
+  "reviewedAt": "2026-10-05T05:30:53.354865Z",
+  "expiresAt": "2026-10-05T06:30:53.354865Z",
+  "schemaChange": false,
+  "evidence": [
+    "https://github.com/neo-capiro/capirov2/blob/9bf7b4599e881bfcd1a9e6a87540c007913e6e65/docs/meri/releases/2026-10-05/c2-capture-budget-ledger-only-release/release-qualification.json",
+    "https://github.com/neo-capiro/capirov2/blob/9bf7b4599e881bfcd1a9e6a87540c007913e6e65/docs/meri/releases/2026-10-05/c2-capture-budget-ledger-only-release/served-baseline.json",
+    "https://github.com/neo-capiro/capirov2/commit/42811d70783636ad2c999ba6ddb8b3f58ee26e4f"
+  ],
+  "checks": [
+    {
+      "name": "build",
+      "status": "passed",
+      "sourceSha": "42811d70783636ad2c999ba6ddb8b3f58ee26e4f",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:15e6ff6a2f040b31c3d1bcc13c38c00049492ba179df5e4efbc27073e2f1d3fd",
+      "url": "https://github.com/neo-capiro/capirov2/blob/9bf7b4599e881bfcd1a9e6a87540c007913e6e65/docs/meri/releases/2026-10-05/c2-capture-budget-ledger-only-release/api/build-readback.json"
+    },
+    {
+      "name": "automated-tests",
+      "status": "passed",
+      "sourceSha": "42811d70783636ad2c999ba6ddb8b3f58ee26e4f",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:15e6ff6a2f040b31c3d1bcc13c38c00049492ba179df5e4efbc27073e2f1d3fd",
+      "url": "https://github.com/neo-capiro/capirov2/blob/9bf7b4599e881bfcd1a9e6a87540c007913e6e65/docs/meri/releases/2026-10-05/c2-capture-budget-ledger-only-release/release-qualification.json"
+    },
+    {
+      "name": "retirement-compatibility",
+      "status": "passed",
+      "sourceSha": "42811d70783636ad2c999ba6ddb8b3f58ee26e4f",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:15e6ff6a2f040b31c3d1bcc13c38c00049492ba179df5e4efbc27073e2f1d3fd",
+      "url": "https://github.com/neo-capiro/capirov2/blob/9bf7b4599e881bfcd1a9e6a87540c007913e6e65/docs/meri/releases/2026-10-05/c2-capture-budget-ledger-only-release/served-baseline.json"
+    }
+  ]
+}

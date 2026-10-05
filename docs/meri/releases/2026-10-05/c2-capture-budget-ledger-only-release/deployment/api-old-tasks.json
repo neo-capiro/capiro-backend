@@ -1,0 +1,7 @@
+{
+    "taskArns": [
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/16514f87c2a545ec9288b41fc7272ed2",
+        "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/33b5bb63f6c04427be4769f25a66a951"
+    ],
+    "observedAt": "now"
+}
