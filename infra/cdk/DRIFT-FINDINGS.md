@@ -235,3 +235,27 @@ captured 2026-07-26, so a future codification does not drop it:
 `ONBOARD_API_PUBLIC_BASE_URL` is what builds the Google IT-admin redirect
 `${base}/onboard-api/it/google/callback` (`it-admin.service.ts:195,435`) — that
 exact URI must stay registered in the Google Cloud Console OAuth client.
+
+## Codified 2026-10-05 — MeriV3 runtime env (program plan Stage 1 §4.2)
+
+MeriV3 is the only chat runtime from PR #2003 onward. Its gate is two keys, both
+default ON in code: env `MERIV3_ENABLED` (global kill switch) and the tenant flag
+`meriv3.fullChat`. Before this change both services carried `MERIV3_ENABLED=true`
+only on their out-of-band task definitions. With the new gate an omitted key still
+means ON, but the value is now codified so the intent is explicit and an operator
+`false` cannot be lost by a redeploy.
+
+| Service | Keys codified (live values, verified 2026-10-05) |
+| --- | --- |
+| api (`capiro-dev-api:553`) | `MERIV3_ENABLED=true`, `MERIV2_ACTION_PROPOSALS_ENABLED=true`, `MERIV2_CONTROL_METRICS=on`, `MERIV2_CONTEXT_PACKET_V2=enforce` |
+| meriv2-orchestrator (`:139`) | `MERIV3_ENABLED=true`, `MERIV3_MODEL`/`MERIV3_FAST_MODEL`/`MERIV3_DEEP_MODEL`/`MERIV3_MAX_MODEL=gpt-6-astra`, `MERIV3_{FAST,STANDARD,DEEP,MAX}_REASONING_EFFORT=low/medium/high/max`, `OPENAI_MODEL=gpt-6-astra`, `MERIV2_WORKSPACE_BASE_URL`, `MERIV2_TIMEOUT_MS=170000`, `MERIV2_CONTEXT_PACKET_V2=enforce` |
+
+Deliberately NOT codified: `MERIV3_CANARY_TENANT_SLUGS` (no longer read; it can be
+removed from both task definitions in the next configuration revision).
+
+Must stay when the MeriV2 chat path is deleted (§4.3): `MERIV2_ORCHESTRATOR_URL`
+(the V3 chat client's orchestrator base URL), `MERIV2_ENABLED` (the narrow
+in-editor and workspace-gen assistants), `MERIV2_PORT`, `MERIV2_API_BASE_URL`,
+`MERIV2_LOG_LEVEL`, `MERIV2_TIMEOUT_MS`, `MERIV2_WORKSPACE_BASE_URL`.
+
+No `cdk deploy` was run; the Compute stack remains frozen.
