@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-04T23:53:09.133Z",
+  "sourceSha": "89402fd7cb60ef1e1a5c7cbb9e6a112a6defd544",
+  "service": "api",
+  "requestSha256": "10645368e0583058bfa921ff837d8b9502cd1593262100124cb823ffc4d2d610",
+  "sourceQualificationSha256": "1de1be1bf0c42d3f73b1955c46917d98e78e3f4514fbf0a18b5d45132e35569f",
+  "sourceQualificationUrl": "https://github.com/neo-capiro/capirov2/blob/89402fd7cb60ef1e1a5c7cbb9e6a112a6defd544/docs/meri/releases/2026-10-04/c2-case12-remediation/qualification.json",
+  "buildspecSha256": "78d86db07837a4cf016e36620ecce740581978d751c9dd4ea08043ef74a9f6c2",
+  "idempotencyToken": "fcaed5da-225c-4ca5-ad19-13234b2f8166",
+  "authorization": "USER_AUTHORIZED_ESTABLISHED_CODEBUILD_BACKUP_SHIPPING",
+  "scope": "Immutable image build and ECR push; no service/config/schema/provider mutation"
+}
