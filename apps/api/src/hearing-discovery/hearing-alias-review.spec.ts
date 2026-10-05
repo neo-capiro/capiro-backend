@@ -39,6 +39,28 @@ describe('reviewed official hearing merge', () => {
   it('accepts exact publisher ID with legacy scope fields and independently qualified canonical row', () => {
     expect(() => validateOfficialAliasReview(review, alias, canonical)).not.toThrow();
   });
+  it('accepts a miskeyed row only when both retained publisher URLs identify the canonical event', () => {
+    const url = review.evidenceUrls[0]!;
+    const miskeyed = { ...alias, id: 'sen-119-338741', url };
+    const exact = { ...review, aliasId: miskeyed.id };
+    expect(() => validateOfficialAliasReview(exact, miskeyed, { ...canonical, url })).not.toThrow();
+    for (const invalid of [
+      null,
+      url.replace('338740', '338741'),
+      url.replace('congress.gov', 'congress.gov.example.org'),
+    ]) {
+      expect(() =>
+        validateOfficialAliasReview(exact, { ...miskeyed, url: invalid }, { ...canonical, url }),
+      ).toThrow();
+    }
+    expect(() =>
+      validateOfficialAliasReview(
+        exact,
+        { ...miskeyed, startsAt: new Date('2026-09-15T14:00:00Z') },
+        { ...canonical, url },
+      ),
+    ).toThrow();
+  });
   it.each([
     ['different source ID', { id: 'cm-119-338741' }],
     ['different Congress', { congress: 118 }],

@@ -73,7 +73,7 @@ const companions: SourceMovedCompanion[] = [
     billKey: KEY,
     relatedBillKey: 'tx-2025-sb567',
     relatedDisplay: 'SB 567',
-    relatedStatus: 'passed_lower',
+    relatedStatus: 'passed_chamber',
     relatedStatusAt: new Date('2026-04-15T00:00:00Z'),
     linkType: 'companion',
   },
@@ -137,7 +137,10 @@ describe('BillDossierService — state rail', () => {
     const d = await svc.getGlobalDossier(KEY);
     expect(d.votes[0]?.result).toBe('Passed');
     expect(d.noVote).toBeNull();
-    expect(d.relatedVehicles[0]).toMatchObject({ billId: 'tx-2025-sb567', role: 'companion' });
+    expect(d.relatedVehicles[0]).toMatchObject({
+      billId: 'tx-2025-sb567',
+      role: 'companion · Passed a chamber',
+    });
   });
 
   it('404s an unknown state bill', async () => {

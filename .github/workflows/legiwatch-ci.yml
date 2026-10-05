@@ -287,6 +287,8 @@ jobs:
           scripts/verify-migrations.spec.ts
           scripts/verify-image-parity.spec.ts
           scripts/sync-legiscan-bills.spec.ts
+          scripts/sync-openstates-events.spec.ts
+          src/ingestion/florida-substitution-qa.spec.ts
 
       - name: Assert apps/api scope is clean
         if: always()
@@ -382,6 +384,10 @@ jobs:
           test/bill-search-jurisdictions.spec.ts
           test/bill-dossier.spec.ts
           test/bill-dossier-state.spec.ts
+          test/bill-dossier.truth.spec.ts
+          test/bill-fit.spec.ts
+          src/tracker/alert-noise-qa.spec.ts
+          src/tracker/tracker-board-state-stage.spec.ts
 
       - name: Assert apps/intel-api scope is clean
         if: always()
