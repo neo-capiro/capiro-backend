@@ -1,0 +1,7 @@
+{
+  "proofSha256": "df90662b3136f3a6aab7fe6d94e8b57fc93727004106cd9129735a8cb19255e5",
+  "helperSha256": "c1ae220d3976c5eb3bc175dd879bbf9e5f3971b87cf0bc60d2b2f0bfc1168295",
+  "journal36Sha256": "78ada3b15711f82adef043e245336de56fa740ed6cb01efc3b99b7a00adfd5dd",
+  "testsPassed": 8,
+  "automaticRetry": false
+}

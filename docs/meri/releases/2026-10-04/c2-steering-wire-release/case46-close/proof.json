@@ -1,0 +1,15 @@
+{
+  "kind": "meri-case46-failed-turn-ceiling-retained",
+  "captureRunId": "e9ac5e1a-6562-49b6-b59b-139bd7ba8325",
+  "reservationId": "59feafaa-ce02-4bdb-bde8-e81408537f6b",
+  "conversationId": "3da337f0-975d-4787-822b-961f7bee37a1",
+  "readbackSha256": "9aa912cdccef798320a5d531f9b773e13383d96686a861b0db8ca2752576eaca",
+  "ledgerSha256": "04b848397c4f02ff1d1e959b059b2703812e517c9bd4bc357a0701a478909bf4",
+  "providerDeadlineAtMs": 1791163509429,
+  "observedAtMs": 1791165774463,
+  "conservativeCostMicros": 3000000,
+  "actualCostMicros": null,
+  "providerAttempts": 0,
+  "captureAuthority": false,
+  "answerGrade": "FAILED"
+}

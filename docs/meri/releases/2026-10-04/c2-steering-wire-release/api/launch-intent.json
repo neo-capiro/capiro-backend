@@ -1,0 +1,12 @@
+{
+  "at": "2026-10-05T02:07:50.893Z",
+  "sourceSha": "a2c5e7b915e8af2ab712303b2b7e5880a0de02c3",
+  "service": "api",
+  "requestSha256": "67a3cb76b90384512a0175e377cca8ff75fe33409e22e6df08022f5eb1d500d9",
+  "sourceQualificationSha256": "791316886c5ed194493583b50c40a2c44e68e67579f89978a55cf8c36fd0827a",
+  "sourceQualificationUrl": "https://github.com/neo-capiro/capirov2/blob/a2c5e7b915e8af2ab712303b2b7e5880a0de02c3/docs/meri/releases/2026-10-04/c2-steering-wire-bound/qualification.json",
+  "buildspecSha256": "b456441b0b0505f1822978a4f78c9d58275a4e771492fb7d713c4b3b2c19a70e",
+  "idempotencyToken": "48add13f-01dc-4b97-8d0d-622f582917c5",
+  "authorization": "USER_AUTHORIZED_ESTABLISHED_CODEBUILD_BACKUP_SHIPPING",
+  "scope": "Immutable image build and ECR push; no service/config/schema/provider mutation"
+}
