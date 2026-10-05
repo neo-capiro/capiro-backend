@@ -1,0 +1,16 @@
+{
+  "kind": "meri-case46-failed-turn-known-cost",
+  "captureRunId": "53ce0db1-c4f2-448f-a71a-47b45ee96bb4",
+  "reservationId": "79806d4c-5c33-43aa-a0ed-7669df9ce950",
+  "conversationId": "f95c54d4-31a7-489f-87cf-22d0898358c0",
+  "readbackSha256": "a811942ef5a63b021822081d858101be0f58e4ded5ff4aa10ad63d72c002380a",
+  "ledgerSha256": "2e4970c6081aea9b6664e0427421fcf6142c1be2ea093b7953cb6211c10bff1f",
+  "chargedCostMicros": 1187250,
+  "providerAttempts": 1,
+  "pendingProviderAttempts": 0,
+  "providerDeadlineAtMs": 1791197555312,
+  "observedAtMs": 1791197799614,
+  "captureAuthority": false,
+  "answerGrade": "FAILED",
+  "failure": "meri_governed_artifact_capability_invalid"
+}

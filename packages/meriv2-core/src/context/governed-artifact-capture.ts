@@ -160,6 +160,38 @@ export function decodeMeriGovernedArtifactTransport(
   return policy;
 }
 
+/** Field-level reasons an export differs from its bound source, for a blocked
+ * tool result. It compares against the source the export must reproduce; it
+ * never authorizes anything (assertMeriCase46ToolInput stays the gate). */
+export function describeMeriCase46ExportMismatch(
+  policy: MeriGovernedArtifactCapturePolicy,
+  value: unknown,
+): string[] {
+  const p = validateMeriGovernedArtifactPolicy(policy, policy);
+  const input = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  const allowed = new Set(['title', 'format', 'sections', 'text', 'conversationId', 'clientId']);
+  const reasons: string[] = [];
+  const extra = Object.keys(input).filter((key) => !allowed.has(key));
+  if (extra.length) reasons.push(`remove fields the source does not have: ${extra.sort().join(', ')}`);
+  if (input.title !== MERI_CASE46.title)
+    reasons.push('title must be the source file name without its extension');
+  if (input.format !== 'txt') reasons.push('format must be txt, the source file type');
+  if (input.sections !== undefined && !(Array.isArray(input.sections) && input.sections.length === 0))
+    reasons.push('sections must be an empty array for a txt export');
+  if (input.conversationId !== p.conversationId || input.clientId !== MERI_CASE46.clientId)
+    reasons.push('the export must stay in this conversation and client');
+  if (typeof input.text !== 'string') reasons.push('text must carry the source document text');
+  else if (input.text !== MERI_CASE46.text)
+    reasons.push(
+      input.text.trimEnd() === MERI_CASE46.text.trimEnd()
+        ? `text differs from the source only in trailing whitespace: the source text ends with ${JSON.stringify(
+            MERI_CASE46.text.slice(MERI_CASE46.text.trimEnd().length),
+          )} and yours ends with ${JSON.stringify(input.text.slice(input.text.trimEnd().length))}; keep every other character unchanged`
+        : 'text differs from the source document: copy the source document text exactly, without editing it',
+    );
+  return reasons;
+}
+
 /** No normalized/truncated approximation is acceptable for the frozen export. */
 export function assertMeriCase46ToolInput(
   policy: MeriGovernedArtifactCapturePolicy,

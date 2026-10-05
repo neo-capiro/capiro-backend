@@ -2256,6 +2256,136 @@ describe('MeriV3AssistantService', () => {
     ]);
   });
 
+  test('case46 export capture is write-only; an inexact export is blocked with exact reasons and corrected once', async () => {
+    const p = governedArtifactTestPolicy();
+    const exact = { title: MERI_CASE46.title, format: 'txt', text: MERI_CASE46.text, sections: [] };
+    const guessed = {
+      type: 'function_call',
+      call_id: 'case46-guess',
+      name: 'create_word',
+      arguments: JSON.stringify({ ...exact, text: MERI_CASE46.text.trimEnd() }),
+    };
+    const exported = {
+      type: 'function_call',
+      call_id: 'case46-export',
+      name: 'create_word',
+      arguments: JSON.stringify(exact),
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [guessed], outputText: '', functionCalls: [guessed] }))
+      .mockResolvedValueOnce(
+        response({ output: [exported], outputText: '', functionCalls: [exported] }),
+      )
+      .mockResolvedValueOnce(response({ outputText: 'The export is awaiting your approval.' }));
+    const invoke = jest.fn(async (..._args: unknown[]) => ({
+      tool: 'read_client_documents',
+      document: { id: 'brief-1', fileName: MERI_CASE46.filename },
+      text: MERI_CASE46.text,
+    }));
+    const createProposal = jest.fn(async (_request: unknown) => ({
+      disposition: 'pending_approval',
+      proposal: {
+        proposalId: 'case46-proposal',
+        status: 'proposed',
+        reason: 'Current user approval required',
+        expiresAt: new Date(p.expiresAt).toISOString(),
+        riskTier: 'low',
+        policy: { decision: 'PASS' },
+        preview: { label: 'Export briefing', fields: {}, counts: {} },
+      },
+    }));
+    const assistant = build(
+      registry(
+        [
+          { name: 'create_word', readOnly: false },
+          { name: 'read_client_documents', readOnly: true },
+          { name: 'send_email', readOnly: false },
+        ],
+        invoke,
+      ),
+      complete,
+      createProposal,
+      {},
+      { INTERNAL_SERVICE_SECRET: 'case46-unit-only' },
+    );
+    const objectSchema = (properties: Record<string, unknown>) => ({ type: 'object', properties });
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'create_word',
+                description: 'Create document',
+                input_schema: {
+                  ...objectSchema({
+                    title: { type: 'string' },
+                    format: { type: 'string' },
+                    text: { type: 'string' },
+                    sections: { type: 'array', items: { type: 'object' } },
+                    clientId: { type: 'string' },
+                    conversationId: { type: 'string' },
+                  }),
+                  required: ['title', 'sections'],
+                },
+              },
+              {
+                name: 'read_client_documents',
+                description: 'Read client documents',
+                input_schema: objectSchema({
+                  clientId: { type: 'string' },
+                  documentId: { type: 'string' },
+                }),
+              },
+              { name: 'send_email', description: 'Send email', input_schema: objectSchema({}) },
+            ],
+          }),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
+    const result = await RequestCredentialsStore.run({ bearerToken: 'unit-only' }, () =>
+      withTrustedCurrentTurnScope(
+        {
+          tenantId: p.tenantId,
+          userId: p.actorUserId,
+          conversationId: p.conversationId,
+          selectedClientId: p.clientId,
+          governedArtifactPolicy: p,
+        },
+        () =>
+          assistant.run(
+            { ...context, tenantId: p.tenantId, userId: p.actorUserId },
+            {
+              conversationId: p.conversationId,
+              clientId: p.clientId,
+              messages: [{ role: 'user', text: MERI_CASE46.prompt }],
+            },
+          ),
+      ),
+    );
+    const exposed = (complete.mock.calls[0]?.[0] as { tools: Array<{ name: string }> }).tools.map(
+      (tool) => tool.name,
+    );
+    expect(exposed).toEqual(['create_word']);
+    expect(invoke).not.toHaveBeenCalled();
+    // The blocked result names the exact difference from the source.
+    expect(JSON.stringify(complete.mock.calls[1]?.[0])).toContain(
+      'differs from the source only in trailing whitespace',
+    );
+    expect(createProposal).toHaveBeenCalledTimes(1);
+    expect(createProposal.mock.calls[0]?.[0]).toEqual({
+      tool: 'create_word',
+      surface: 'chat',
+      conversationId: p.conversationId,
+      input: { ...exact, clientId: p.clientId, conversationId: p.conversationId },
+    });
+    expect(result.artifacts ?? []).toEqual([]);
+    expect(result.pendingApprovals).toEqual([
+      expect.objectContaining({ proposalId: 'case46-proposal', tool: 'create_word' }),
+    ]);
+  });
+
   test('deduplicates scoped write intent within one batch while preserving call outputs', async () => {
     const first = {
       type: 'function_call',

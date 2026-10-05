@@ -5,6 +5,7 @@ import {
   decodeMeriGovernedArtifactTransport,
   validateMeriGovernedArtifactPolicy,
   assertMeriCase46ToolInput,
+  describeMeriCase46ExportMismatch,
   type MeriGovernedArtifactCapturePolicy,
 } from './governed-artifact-capture';
 import { decodeAndVerifyMeriCapturePolicyTransport } from './server-readonly-capture';
@@ -141,5 +142,33 @@ describe('separate case46 governed capability', () => {
       expect(() => assertMeriCase46ToolInput(p, 'create_word', changed)).toThrow();
     expect(() => assertMeriCase46ToolInput({ ...p, turnId: null }, 'create_word', input)).toThrow();
     expect(() => assertMeriCase46ToolInput(p, 'send_email', input)).toThrow();
+  });
+  test('mismatch reasons name each differing field without authorizing anything', () => {
+    const p = policy();
+    const input = {
+      title: MERI_CASE46.title,
+      format: 'txt',
+      text: MERI_CASE46.text,
+      sections: [],
+      conversationId: p.conversationId,
+      clientId: p.clientId,
+    };
+    expect(describeMeriCase46ExportMismatch(p, input)).toEqual([]);
+    expect(describeMeriCase46ExportMismatch(p, { ...input, text: MERI_CASE46.text.trimEnd() })).toEqual([
+      'text differs from the source only in trailing whitespace: the source text ends with "\\n" and yours ends with ""; keep every other character unchanged',
+    ]);
+    expect(describeMeriCase46ExportMismatch(p, { ...input, text: 'Aster briefing' })).toEqual([
+      expect.stringContaining('copy the source document text exactly'),
+    ]);
+    const many = describeMeriCase46ExportMismatch(p, {
+      ...input,
+      title: 'Aster Synthetic Briefing',
+      format: 'docx',
+      subtitle: 'x',
+      sections: [{ heading: 'h' }],
+    });
+    expect(many).toHaveLength(4);
+    expect(many.join(' ')).toContain('subtitle');
+    for (const reason of many) expect(reason).not.toContain(MERI_CASE46.text.trim());
   });
 });

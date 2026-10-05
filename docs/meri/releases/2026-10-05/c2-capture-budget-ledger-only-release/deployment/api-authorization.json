@@ -1,0 +1,7 @@
+{
+  "at": "2026-10-05T05:31:39.206647+00:00",
+  "manifestSha256": "3243d2a5fbce9209727fb957146d531a9e45310052b75921fe15d3f19c8802e7",
+  "authorizationBasis": "User directed removal of the per-capture provider budget (2026-10-05); established native release operator, CodeBuild backup shipping and PR merges already authorized.",
+  "awsMaxAttempts": 1,
+  "noAutomaticRetry": true
+}

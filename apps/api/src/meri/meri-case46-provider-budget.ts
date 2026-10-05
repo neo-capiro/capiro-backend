@@ -20,7 +20,13 @@ export interface Case46ProviderRate {
   inputMicrosPerMillion: number;
   outputMicrosPerMillion: number;
 }
-/** Trusted operator qualification, never accepted from the HTTP reservation body. */
+/**
+ * Trusted operator qualification, never accepted from the HTTP reservation body.
+ * `maxAttempts`/`maxTokens`/`maxCostMicros` are the operator's declared
+ * expectation, recorded with every reservation for accounting; the ledger is
+ * admitted ledger-only and never refuses dispatch over them. The approved
+ * aggregate/per-case spend lives in the operator journal, not in this capture.
+ */
 export interface Case46ProviderBudgetQualification {
   version: 1;
   caseId: string;
@@ -93,7 +99,6 @@ export function validateCase46BudgetQualification(
     !integer(q.maxTokens, true) ||
     q.maxTokens > 1_000_000 ||
     !integer(q.maxCostMicros, true) ||
-    q.maxCostMicros > 3_000_000 ||
     !Array.isArray(q.rates) ||
     !q.rates.length ||
     q.rates.length > 32
@@ -235,6 +240,7 @@ export function admitCase46ProviderBudget(
       maxCostMicros: q.maxCostMicros,
       deadlineAt: new Date(policy.expiresAt).toISOString(),
     },
+    'ledger_only',
   );
   const state: Case46ProviderBudgetState = {
     version: 1,

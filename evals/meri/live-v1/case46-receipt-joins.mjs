@@ -27,7 +27,7 @@ export function inspectCase46Scope(scope) {
   const q = scope.qualification;
   need(q?.version === 1 && q.caseId === '46' && q.captureRunId === scope.captureRunId &&
     q.currentVerifySha256 === scope.currentVerifySha256 && sha256Stable(q) === scope.qualificationSha256 &&
-    integer(q.maxCostMicros, 1, 3_000_000) && integer(q.maxAttempts, 1, 64) && integer(q.maxTokens, 1, 1_000_000) &&
+    integer(q.maxCostMicros, 1, 15_000_000) && integer(q.maxAttempts, 1, 64) && integer(q.maxTokens, 1, 1_000_000) &&
     q.priceKind === 'qualified_text_token_upper_bound' && HASH.test(q.rateEvidenceSha256 ?? '') &&
     Number.isFinite(Date.parse(q.rateEvidenceExpiresAt)) && Array.isArray(q.rates) && q.rates.length > 0,
     'SCOPE_QUALIFICATION');

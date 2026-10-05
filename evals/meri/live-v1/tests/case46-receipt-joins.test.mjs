@@ -51,6 +51,10 @@ test('one original pending create_word stream is distinct from readonly or repea
   assert.throws(() => inspectCase46Stream(wire([...events, events[1]]), x.scope), /CASE46_/u);
   const readonly = structuredClone(events); readonly.at(-1).serverReadonlyCaptureReceipt = {};
   assert.throws(() => inspectCase46Stream(wire(readonly), x.scope), /CASE46_/u);
+  const read = { type: 'tool_call', tool: 'read_client_documents' };
+  assert.equal(inspectCase46Stream(wire([events[0], read, read, ...events.slice(1)]), x.scope).proposalId, x.proposed.proposalId);
+  assert.throws(() => inspectCase46Stream(wire([events[0], events[1], read, ...events.slice(2)]), x.scope), /STREAM_TOOL_SCOPE/u);
+  assert.throws(() => inspectCase46Stream(wire([events[0], { type: 'tool_call', tool: 'send_email' }, ...events.slice(1)]), x.scope), /STREAM_TOOL_SCOPE/u);
 });
 
 test('JSON lookalikes cannot submit, settle capture authority, or grade LIVE', async () => {
