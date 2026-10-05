@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-05T19:05:59.996Z",
+  "origin": "https://os.capiro.ai",
+  "configStatus": 200,
+  "releaseSha": "be4d886ffa774f72e0ed5c5268995109cbd11220",
+  "pageStatus": 200,
+  "healthStatus": 200,
+  "unauthenticatedKrispRouteStatus": 401,
+  "authenticatedImportVerified": false
+}

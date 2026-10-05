@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "manifestHash": "f7a85905e2832fbe21595ba6c56537823ddff84dc3f1db482ee47d8494f8fd76",
+  "service": "engagement-api",
+  "configHash": "e9334676af8901afefb274207fbe152d2cc296ec0b6d6dc807639640e656fdc2",
+  "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:6beba60479aeb70d572de9cbfdbc989cc094790c611f5637a6d6e7a51f49b7cd",
+  "candidateTaskHash": "9edcf32b460e7b08adeed01906f0aff21d1f801d3731a5345c2204124525df7d",
+  "rollbackTaskHash": "05624046b4a204c56b72f99ea3d3a3fb7c6a6a2b3144f5e72a423e427b8f793b",
+  "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:a927d999119f6cdc1fa17104e2dd3b09ce366bf59664a5786afa196b09c3364a",
+  "status": "ecs-healthy-manual-acceptance-required",
+  "awsMutation": true,
+  "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:130",
+  "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:131",
+  "deploymentId": "ecs-svc/7884587672596005918"
+}

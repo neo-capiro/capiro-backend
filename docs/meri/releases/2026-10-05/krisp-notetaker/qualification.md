@@ -1,5 +1,18 @@
 # Krisp Notetaker pilot release qualification
 
+## Deployment result
+
+Deployment completed on October 5, 2026. The release operator verified the exact
+running images and actual task load-balancer health for API revision **555**,
+Engagement API revision **131**, and Web vNext revision **392**. Each service's
+manifest, qualification and promotion receipt is retained here. The production
+database receipts confirm both pilot flags, unchanged other-tenant settings,
+preserved prior migration history and successful application of the two pending
+migrations. The live `os.capiro.ai` runtime config serves the exact source SHA;
+the page and web health endpoint return 200, and the unauthenticated Krisp route
+returns 401. Worker startup registers the Krisp controller and reports no sweep
+warnings at the recorded check. These checks do not authenticate a Krisp account.
+
 The owner requested implementation, merge and AWS deployment with access limited
 to `capiro-internal` and `c2-strategies`. PR #2000 merged as
 `be4d886ffa774f72e0ed5c5268995109cbd11220`. This record separates image/database
@@ -76,6 +89,8 @@ receipts are retained with this record when each operation completes.
 
 Live Krisp OAuth/tools/transcript acceptance is **not yet verified**. A pilot user
 must connect their own Krisp account, enable imports and capture a new meeting.
+Krisp's [integration guide](https://help.krisp.ai/hc/en-us/articles/25416400191004-Krisp-MCP-Integrating-your-own-MCP-client)
+currently lists Core Plan users as eligible for MCP access.
 The adapter fixtures are representative, not captured authenticated provider
 responses. Unsupported live schemas fail closed. Meeting/client routing reuses
 the matched owned Capiro meeting and its current client assignment; ambiguous
