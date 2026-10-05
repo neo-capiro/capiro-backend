@@ -1,0 +1,16 @@
+const http=require('node:http'),assert=require('node:assert/strict'),fs=require('node:fs');
+const {chromium}=require('C:/dev/node_modules/playwright');
+const serve=body=>new Promise(resolve=>{const s=http.createServer(body);s.listen(0,'127.0.0.1',()=>resolve(s));});
+(async()=>{
+ const provider=await serve((req,res)=>{res.setHeader('Cross-Origin-Opener-Policy','same-origin');res.setHeader('Content-Type','text/html');res.end('<h1>Provider consent still open</h1>');});
+ const origin=await serve((req,res)=>{res.setHeader('Content-Type','text/html');res.end(`<button onclick="window.authPopup=window.open('http://127.0.0.1:${provider.address().port}/','auth')">Connect</button>`);});
+ const browser=await chromium.launch();
+ try{
+  const context=await browser.newContext(),page=await context.newPage();await page.goto('http://127.0.0.1:'+origin.address().port);
+  const newPage=context.waitForEvent('page');await page.getByRole('button',{name:'Connect'}).click();const popup=await newPage;await popup.waitForLoadState();
+  await page.waitForFunction(()=>window.authPopup.closed===true);
+  const result={browser:'Chromium',openerReportsClosed:await page.evaluate(()=>window.authPopup.closed),actualPopupClosed:popup.isClosed(),providerContent:await popup.locator('h1').innerText()};
+  assert.equal(result.openerReportsClosed,true);assert.equal(result.actualPopupClosed,false);
+  fs.writeFileSync(__dirname+'/coop-repro.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));
+ }finally{await browser.close();origin.close();provider.close();}
+})().catch(e=>{console.error(e);process.exitCode=1});

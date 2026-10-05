@@ -1,0 +1,52 @@
+
+ RUN  v2.1.9 C:/dev/main/meri-krisp-notetaker/apps/web
+
+ ❯ src/components/chat/managed-mcp-apps.test.tsx (10 tests | 2 failed) 150ms
+   × ManagedMcpAppsProvider > preserves authorization when browser isolation makes the popup handle closed 21ms
+     → expect(element).toBeEmptyDOMElement()
+
+Received:
+  "Sign-in was closed before it finished. You can try again."
+   × ManagedMcpAppsProvider > preserves authorization when browser isolation makes the popup handle blocked 10ms
+     → expect(element).toBeEmptyDOMElement()
+
+Received:
+  "Could not complete sign-in. Please try again."
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/chat/managed-mcp-apps.test.tsx > ManagedMcpAppsProvider > preserves authorization when browser isolation makes the popup handle closed
+Error: expect(element).toBeEmptyDOMElement()
+
+Received:
+  "Sign-in was closed before it finished. You can try again."
+ ❯ src/components/chat/managed-mcp-apps.test.tsx:173:41
+    171|     await tick();
+    172|     await tick();
+    173|     expect(screen.getByTestId('error')).toBeEmptyDOMElement();
+       |                                         ^
+    174|     expect(screen.getByTestId('busy')).toHaveTextContent('hubspot');
+    175|     expect(mocks.post).not.toHaveBeenCalledWith('/api/clio/v3/apps/hub…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/components/chat/managed-mcp-apps.test.tsx > ManagedMcpAppsProvider > preserves authorization when browser isolation makes the popup handle blocked
+Error: expect(element).toBeEmptyDOMElement()
+
+Received:
+  "Could not complete sign-in. Please try again."
+ ❯ src/components/chat/managed-mcp-apps.test.tsx:173:41
+    171|     await tick();
+    172|     await tick();
+    173|     expect(screen.getByTestId('error')).toBeEmptyDOMElement();
+       |                                         ^
+    174|     expect(screen.getByTestId('busy')).toHaveTextContent('hubspot');
+    175|     expect(mocks.post).not.toHaveBeenCalledWith('/api/clio/v3/apps/hub…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 8 passed (10)
+   Start at  15:27:30
+   Duration  18.89s (transform 84ms, setup 4.65s, collect 85ms, tests 150ms, environment 13.29s, prepare 363ms)
+

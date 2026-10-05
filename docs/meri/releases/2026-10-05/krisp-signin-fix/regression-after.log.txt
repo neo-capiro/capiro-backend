@@ -1,0 +1,11 @@
+
+ RUN  v2.1.9 C:/dev/main/meri-krisp-notetaker/apps/web
+
+ ✓ src/components/chat/managed-mcp-apps.test.tsx (10 tests) 180ms
+ ✓ src/vnext/meri/KrispNotetakerSettings.test.tsx (3 tests) 183ms
+
+ Test Files  2 passed (2)
+      Tests  13 passed (13)
+   Start at  15:28:22
+   Duration  1.89s (transform 121ms, setup 520ms, collect 145ms, tests 363ms, environment 1.70s, prepare 353ms)
+
