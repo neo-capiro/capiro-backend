@@ -1,0 +1,3 @@
+# Qualified ledger-only capture budget and second Case46 recovery API image
+
+apps/api source `42811d70783636ad2c999ba6ddb8b3f58ee26e4f` (PRs #1964 and #1965) records authenticated-capture provider spend ledger-only, removes the per-capture $3/$15 cost ceilings that refused dispatch before any model call, and adds the exact generation-2 retained-history recovery for the second failed Case46 run. Production research budgets remain enforced. The immutable image passes all 33 packaged checks, including a new ledger-only probe; focused source tests and the API typecheck pass. Original and CD acceptance remain open; this release changes no acceptance count.
