@@ -86,7 +86,7 @@ async function runCase(c, session, clients) {
   });
   const run = {
     caseId: c.id, attempt, tenant: TENANT.slug, client: c.client, conversationId: conversation.id,
-    originalPrompt: original?.prompt, passCondition: original?.hardGates?.[1]?.assertion, turns,
+    originalPrompt: original?.prompt, passCondition: original?.hardGates?.[1]?.assertion, reference: c.reference ?? null, turns,
     estimatedCostMicros: turns.reduce((n, t) => n + turnCostMicros(t.done?.model, t.usage), 0),
     proposals: (Array.isArray(proposals) ? proposals : proposals.items ?? []).map((p) => ({
       id: p.proposalId ?? p.id, tool: p.tool ?? p.kind, status: p.status })),
