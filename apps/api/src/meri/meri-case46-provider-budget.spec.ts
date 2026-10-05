@@ -23,12 +23,21 @@ describe('separate governed-artifact provider accounting', () => {
     for (const bad of [
       null,
       { ...q, caseId: '01' },
-      { ...q, maxCostMicros: 3_000_001 },
       { ...q, currentVerifySha256: 'd'.repeat(64) },
       { ...q, rateEvidenceExpiresAt: new Date(p.expiresAt - 1).toISOString() },
       { ...q, rates: [q.rates[0], q.rates[0]] },
     ])
       expect(() => admitCase46ProviderBudget({}, p, bad)).toThrow();
+    // The former three-dollar ceiling is gone: the declared figure is recorded
+    // for accounting and the ledger is admitted ledger-only.
+    const declared = { ...q, maxCostMicros: 15_000_000 };
+    expect(
+      admitCase46ProviderBudget(
+        {},
+        { ...p, qualificationSha256: case46BudgetHash(declared) },
+        declared,
+      ).state.ledger,
+    ).toMatchObject({ activation: 'ledger_only', limits: { maxCostMicros: 15_000_000 } });
     expect(() =>
       admitCase46ProviderBudget(
         {},
@@ -151,7 +160,7 @@ describe('separate governed-artifact provider accounting', () => {
     });
     expect(() => settledCase46ProviderReceipt(s.metadata, p, q)).toThrow('settled_usage_required');
   });
-  test('individual and aggregate actual charge tampering, over-budget attempts and oversettlement fail closed', () => {
+  test('declared ceilings are accounting context, not dispatch gates; tampering and oversettlement still fail closed', () => {
     const { p, q, b } = case46BudgetTestFixture();
     const q2 = { ...q, maxAttempts: 1 };
     const p2 = { ...p, qualificationSha256: case46BudgetHash(q2) };
@@ -161,13 +170,22 @@ describe('separate governed-artifact provider accounting', () => {
       q2,
       b,
     );
-    expect(() =>
-      reserveCase46ProviderAttempt(r.metadata, p2, q2, {
-        ...b,
-        logicalOperationId: 'op2',
-        attemptId: 'attempt2',
-      }),
-    ).toThrow('attempts_exhausted');
+    // A second operation past the declared single attempt and the 1000-micro
+    // ceiling is recorded with its full priced reservation, never refused.
+    const r2 = reserveCase46ProviderAttempt(r.metadata, p2, q2, {
+      ...b,
+      logicalOperationId: 'op2',
+      attemptId: 'attempt2',
+      maxInputTokens: 1_000,
+      maxOutputTokens: 1_000,
+    });
+    expect(r2.dispatchAllowed).toBe(true);
+    expect(r2.state.ledger).toMatchObject({
+      activation: 'ledger_only',
+      chargedAttempts: 2,
+      chargedCostMicros: 3_300,
+    });
+    expect(readCase46ProviderBudget(r2.metadata, p2, q2)!.ledger.chargedCostMicros).toBe(3_300);
     expect(() =>
       settleCase46ProviderAttempt(r.metadata, p2, q2, {
         reservationId: r.reservationId,
