@@ -1,0 +1,11 @@
+{
+  "status": "CASE46_REMEDIATION_FAILED_CEILING_RETAINED",
+  "eventCount": 40,
+  "committedCostMicros": 37020000,
+  "remainingReservationMicros": 462980000,
+  "activeRun": null,
+  "actualCostMicros": null,
+  "testsPassed": 8,
+  "journalSha256": "fd5048e6b7ba9d414359987013d24fa421f0b50a3490ba9b65dc8a1699d1119b",
+  "prefixAndNtfsIdentitiesPreserved": true
+}

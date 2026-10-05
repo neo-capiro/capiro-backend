@@ -1,0 +1,10 @@
+{
+  "status": "PLAYWRIGHT_PUBLIC_SIGNIN_PREFLIGHT_PASS",
+  "releaseSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+  "surface": "vnext",
+  "clerkLoaded": true,
+  "at": "2026-10-05T03:16:43.272Z",
+  "signedIn": false,
+  "approvals": 0,
+  "prompts": 0
+}

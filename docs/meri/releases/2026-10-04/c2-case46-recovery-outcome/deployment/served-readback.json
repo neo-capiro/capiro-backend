@@ -1,0 +1,95 @@
+{
+  "status": "CASE46_RECOVERY_RELEASE_SERVICES_ORDINARY_READ_AND_CLEANUP_PASS",
+  "at": "2026-10-05T03:20:46.278Z",
+  "services": [
+    {
+      "service": "api",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:541",
+        "serviceHash": "6e2b1fd362e0f0902c8aa58bb5a6a0a9bcdb39dc0513f8080032e3454eb74f60",
+        "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+        "taskHash": "4845109590bc7d449022dc594f641f4d8dbd149ad9edd87cc5b837f5eaa5e0c0",
+        "imageDigest": "sha256:2a9d5aef7c299bfd533bac44cd0d69919b146658eab1b59743835365c36cef8e",
+        "desiredCount": 2
+      },
+      "sourceSha": "bf896b666dcdb33a3d603d10319235046039cadb",
+      "health": "ALL_TASKS_AND_ACTUAL_ALB_TARGETS_HEALTHY"
+    },
+    {
+      "service": "meriv2-orchestrator",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:127",
+        "serviceHash": "19272aab3924d8aff675cf85aa4dcd4dcf421cf01ab07cedd3d0d1bfc9f51d90",
+        "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+        "taskHash": "8d85592e57239511629a15c5c9777b21e5cb4a0fd0842742e6eb98b60b102e63",
+        "imageDigest": "sha256:3c5aea253b74732952694b4ebbd99260e9e146b6140da184c22c4244def26cb9",
+        "desiredCount": 1
+      },
+      "sourceSha": "11b669eb957f040fa6afd37bb8d61780ea5fdeb9",
+      "health": "ALL_TASKS_AND_ACTUAL_ALB_TARGETS_HEALTHY"
+    },
+    {
+      "service": "web-vnext",
+      "baseline": {
+        "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:390",
+        "serviceHash": "3493c2e6107a77aab2653bc923119b3300e4899310e11b81e1c3be351240254c",
+        "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+        "taskHash": "2ffa123e80c546c0bb03083e2aadb39b8118377efbf6de0b685f758c3abfb3c4",
+        "imageDigest": "sha256:fb594dabc437723fa6a28a7a6adcd54b13f813fcc52130f8458692aac2e9c8c6",
+        "desiredCount": 1
+      },
+      "sourceSha": "c0f393f863bf73bd4e65e7a94e17c073e7be021e",
+      "health": "ALL_TASKS_AND_ACTUAL_ALB_TARGETS_HEALTHY"
+    }
+  ],
+  "retiredTasks": [
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/246a7496204744679288eff2f94ec43c",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:539",
+      "lastStatus": "STOPPED",
+      "stoppedAt": "2026-10-04T23:20:09.735000-04:00"
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/fb1ffcc4547541b8bf0485a2b6378b89",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:539",
+      "lastStatus": "STOPPED",
+      "stoppedAt": "2026-10-04T23:20:10.171000-04:00"
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/12931a84f652475aad6cd1a99890fa3f",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:125",
+      "lastStatus": "STOPPED",
+      "stoppedAt": "2026-10-04T23:09:20.330000-04:00"
+    }
+  ],
+  "retainedNightly": {
+    "rule": "capiro-dev-refresh-memory-graph",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+    "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+    "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+    "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5"
+  },
+  "broadProjectionWorker": "DISABLED",
+  "ordinaryIdentity": {
+    "status": "ORDINARY_IDENTITY_ROUTE_PASS",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "role": "standard_user",
+    "apiSourceSha": "bf896b666dcdb33a3d603d10319235046039cadb"
+  },
+  "ordinaryMemoryRead": {
+    "status": "ORDINARY_APPROVED_MEMORY_LIST_AND_MARKDOWN_PASS",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "itemId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+    "returnedListCount": 512,
+    "markdownSha256": "4f878a7ef504ca03d6c399130bba6e6bbd40a59ec51195f84ccbc7033e8c003a",
+    "apiSourceSha": "bf896b666dcdb33a3d603d10319235046039cadb",
+    "providerCalls": 0
+  },
+  "temporarySessionRevoked": true,
+  "providerCalls": 0,
+  "journalMutations": 0,
+  "acceptanceAuthority": false
+}
