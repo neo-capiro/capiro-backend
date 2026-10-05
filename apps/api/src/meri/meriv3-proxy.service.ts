@@ -112,6 +112,11 @@ import {
 } from './meri-compaction.helpers.js';
 import { meriTelemetryUsage } from '@capiro/meriv2-core';
 import { emitMeriApiTelemetry } from './meri-telemetry.runtime.js';
+import {
+  MERI_UNAVAILABLE_CODE,
+  MERI_UNAVAILABLE_MESSAGE,
+  meriV3EnvironmentEnabled,
+} from '../common/meriv3-flags.js';
 
 interface SseWriter {
   write(data: string): void;
@@ -174,7 +179,83 @@ export class MeriV3ProxyService {
   ) {}
 
   async shouldHandle(ctx: TenantContext): Promise<boolean> {
-    return this.flags.isMeriV3ChatEnabled(ctx.tenantId, ctx.tenantSlug);
+    return this.flags.isMeriV3ChatEnabled(ctx.tenantId);
+  }
+
+  /**
+   * The two-key gate is closed for this tenant or globally (program plan §4.1).
+   * Refuse the turn honestly: keep the user's message, persist an assistant row
+   * stamped servedBy 'unavailable', emit a classified `meri_unavailable` error
+   * frame, and log a `meri_unavailable` warning for the CloudWatch alarm. No
+   * model, retrieval or tool call is made and no other runtime is tried.
+   */
+  async streamUnavailable(
+    ctx: TenantContext,
+    conversationId: string,
+    body: string,
+    sse: SseWriter,
+    _clientSignal?: AbortSignal,
+    mode: RerunMode = 'new',
+    attachmentIds: string[] = [],
+    _bearerToken?: string,
+    _impersonateTenantId?: string,
+  ): Promise<void> {
+    const startedAt = Date.now();
+    const emit = (event: Record<string, unknown>) =>
+      sse.write(`data: ${JSON.stringify(event)}
+
+`);
+    const conversation = await this.ensureConversation(ctx, conversationId);
+    let sourceMessageId: string | null = null;
+    if (mode === 'new') {
+      let content = extractStreamControl(body).cleanContent.trim();
+      if (!content && !attachmentIds.length) throw new BadRequestException('Message body is empty');
+      if (!content) content = '(See the attached file(s).)';
+      if (attachmentIds.length > MAX_ATTACHMENTS_PER_MESSAGE) {
+        throw new BadRequestException(
+          `At most ${MAX_ATTACHMENTS_PER_MESSAGE} attachments per message`,
+        );
+      }
+      sourceMessageId = await this.persistUserMessage(ctx, conversation, content, attachmentIds);
+    }
+    emit({ type: 'turn_accepted', ...(sourceMessageId ? { messageId: sourceMessageId } : {}) });
+    const reason = meriV3EnvironmentEnabled() ? 'tenant_disabled' : 'global_kill_switch';
+    this.logger.warn(
+      `${MERI_UNAVAILABLE_CODE} ${JSON.stringify({
+        event: MERI_UNAVAILABLE_CODE,
+        reason,
+        tenantId: ctx.tenantId,
+        conversationId,
+        mode,
+      })}`,
+    );
+    const message = await this.persistAssistantMessage(
+      ctx,
+      conversation,
+      conversationId,
+      MERI_UNAVAILABLE_MESSAGE,
+      {
+        servedBy: 'unavailable',
+        runtime: 'none',
+        finishReason: 'unavailable',
+        unavailable: { code: MERI_UNAVAILABLE_CODE, reason },
+      },
+    );
+    emit({
+      type: 'error',
+      code: MERI_UNAVAILABLE_CODE,
+      accepted: true,
+      message: MERI_UNAVAILABLE_MESSAGE,
+    });
+    emit({ type: 'done', messageId: message.id, finishReason: 'unavailable' });
+    emitMeriApiTelemetry({
+      name: 'meri.api.turn.finalized',
+      boundary: 'turn',
+      runtime: 'meriv3',
+      outcome: 'unavailable',
+      durationMs: Date.now() - startedAt,
+      usage: meriTelemetryUsage(),
+    });
   }
 
   async streamMessage(
@@ -685,6 +766,17 @@ export class MeriV3ProxyService {
             ? error.message
             : 'The MeriV3 runtime could not complete this turn.');
         this.logger.error(`MeriV3 proxy failed: ${errorMessage}`);
+        const upstream = classifyOrchestratorFailure(errorMessage);
+        if (upstream)
+          this.logger.error(
+            `meri_orchestrator_failure ${JSON.stringify({
+              event: 'meri_orchestrator_failure',
+              kind: upstream.kind,
+              status: upstream.status,
+              tenantId: ctx.tenantId,
+              conversationId,
+            })}`,
+          );
       }
     } finally {
       stopKeepAlive();
@@ -1341,4 +1433,26 @@ function extractStreamControl(body: string): StreamControl {
 function procedureLogIdentity(receipt: ServedProcedureReceipt | undefined): string {
   if (!receipt) return 'none';
   return `${receipt.id}@${receipt.version}:${receipt.scope}:${receipt.effectMode}`;
+}
+
+/**
+ * Orchestrator-side failures worth an alarm: an HTTP 5xx from /v3/chat/stream,
+ * or no response at all (connection refused, reset, DNS, timeout before the
+ * first byte). 4xx answers and model/tool errors inside a turn are not counted.
+ */
+export function classifyOrchestratorFailure(
+  message: string,
+): { kind: 'http_5xx' | 'unreachable'; status: number | null } | null {
+  const http = /MeriV3 chat stream failed: (\d{3})(?!\d)/.exec(message);
+  if (http) {
+    const status = Number(http[1]);
+    return status >= 500 ? { kind: 'http_5xx', status } : null;
+  }
+  if (
+    /fetch failed|ECONNREFUSED|ECONNRESET|ENOTFOUND|EAI_AGAIN|UND_ERR_CONNECT|socket hang up/i.test(
+      message,
+    )
+  )
+    return { kind: 'unreachable', status: null };
+  return null;
 }

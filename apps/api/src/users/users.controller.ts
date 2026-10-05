@@ -124,7 +124,7 @@ export class UsersController {
       ] as const);
       return { user, tenant, membership };
     });
-    const meriv3Chat = meriV3ChatActive(profile.tenant?.settings, ctx.tenantSlug);
+    const meriv3Chat = meriV3ChatActive(profile.tenant?.settings);
 
     return {
       user: {
@@ -258,7 +258,7 @@ export class UsersController {
       });
       return { user, tenant, membership };
     });
-    const meriv3Chat = meriV3ChatActive(profile.tenant?.settings, ctx.tenantSlug);
+    const meriv3Chat = meriV3ChatActive(profile.tenant?.settings);
     return {
       user: {
         id: ctx.userId,

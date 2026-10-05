@@ -201,7 +201,7 @@ export class MeriV3SettingsController {
   }
 
   private async assertEnabled(ctx: TenantContext): Promise<void> {
-    if (!(await this.flags.isMeriV3ChatEnabled(ctx.tenantId, ctx.tenantSlug))) {
+    if (!(await this.flags.isMeriV3ChatEnabled(ctx.tenantId))) {
       throw new NotFoundException('Chat runtime not found');
     }
   }

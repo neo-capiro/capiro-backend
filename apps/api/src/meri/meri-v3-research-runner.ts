@@ -103,7 +103,7 @@ export class MeriV3ResearchRunner {
   enabled(ctx: TenantContext): Promise<boolean> {
     // An unavailable configured runtime is an error, never an implicit switch
     // to a different provider after the user selected V3 for their chat.
-    return this.flags.isMeriV3ChatEnabled(ctx.tenantId, ctx.tenantSlug);
+    return this.flags.isMeriV3ChatEnabled(ctx.tenantId);
   }
 
   async plan(

@@ -4,25 +4,25 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 export const MERIV3_TENANT_FLAG = 'meriv3.fullChat' as const;
 const CACHE_TTL_MS = 30_000;
 
-export function meriV3EnvironmentEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.MERIV3_ENABLED === 'true';
-}
+const OFF_VALUES = new Set(['false', '0', 'off', 'no']);
 
-export function meriV3CanarySlugs(env: NodeJS.ProcessEnv = process.env): Set<string> {
-  const raw = env.MERIV3_CANARY_TENANT_SLUGS?.trim() || 'capiro-internal';
-  return new Set(
-    raw
-      .split(',')
-      .map((slug) => slug.trim().toLowerCase())
-      .filter(Boolean),
-  );
+/**
+ * Same two keys as the API gate (apps/api/src/common/meriv3-flags.ts), program
+ * plan 2026-10-05 §4.1: the global MERIV3_ENABLED kill switch (unset means on)
+ * and the tenant's meriv3.fullChat off switch (only an explicit false closes
+ * it). There is no slug allow-list; the API decides routing and refuses a
+ * closed tenant itself, this check is defense in depth.
+ */
+export function meriV3EnvironmentEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = env.MERIV3_ENABLED?.trim().toLowerCase();
+  return !raw || !OFF_VALUES.has(raw);
 }
 
 export function tenantFlagEnabled(settings: unknown): boolean {
-  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return false;
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return true;
   const flags = (settings as Record<string, unknown>).clioFeatureFlags;
-  if (!flags || typeof flags !== 'object' || Array.isArray(flags)) return false;
-  return (flags as Record<string, unknown>)[MERIV3_TENANT_FLAG] === true;
+  if (!flags || typeof flags !== 'object' || Array.isArray(flags)) return true;
+  return (flags as Record<string, unknown>)[MERIV3_TENANT_FLAG] !== false;
 }
 
 @Injectable()
@@ -47,9 +47,8 @@ export class MeriV3AccessService {
         }),
       );
       const slug = tenant?.slug?.toLowerCase() ?? null;
-      const allowed = Boolean(
-        slug && meriV3CanarySlugs().has(slug) && tenantFlagEnabled(tenant?.settings),
-      );
+      // A tenant row must exist; its flag only closes on an explicit false.
+      const allowed = Boolean(tenant) && tenantFlagEnabled(tenant?.settings);
       this.cache.set(tenantId, { allowed, slug, fetchedAt: Date.now() });
       return allowed;
     } catch (error) {
