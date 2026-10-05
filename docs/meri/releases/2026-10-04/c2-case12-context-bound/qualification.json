@@ -1,0 +1,21 @@
+{
+  "status": "SOURCE_TESTS_AND_REVIEW_PASS",
+  "totalTestsPassed": 94,
+  "typecheck": "API_PASS",
+  "schemaChange": false,
+  "c2Complete": false,
+  "sourcePins": [
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.ts",
+      "sha256Lf": "17221ba7a5adf0dee550a40ba319e0ccfbc04a48593920cab820d4cc96aeb0ac"
+    },
+    {
+      "path": "apps/api/src/meri/meri-context-plane.service.spec.ts",
+      "sha256Lf": "19f5d2036a70c83c4ed645bdd69a8d26825d9df693811e0a0753ab32edd164d8"
+    }
+  ],
+  "cause": "The off/shadow compiler strips tokenBudget. Meri supplied no charBudget, allowing unbounded legacy steering.",
+  "change": "Set 48000-character steering bound for initial chat context and explicit governed reads. Full-section exclusions remain explicit.",
+  "validation": "The regression uses 512 memory rows through the real off/shadow rollout compiler. Prior request renders over 500000 characters; new request stays under48000.",
+  "liveAcceptance": "NOT_RUN_AFTER_FIX"
+}

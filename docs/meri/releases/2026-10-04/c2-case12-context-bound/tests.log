@@ -1,0 +1,107 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/meri/meri-context-plane.service.spec.ts (23.667 s)
+  √ ordinary chat bounds steering with hundreds of memories in off and shadow rollout (53 ms)
+  √ qualified clock reaches planning/compiler explicitly without requesting a historical ingestion snapshot (25 ms)
+  client document clarification context
+    √ replans the original meeting/contact request using only this authorized conversation (4 ms)
+  MeriContextPlaneService Phase 19 planning
+    √ preserves an explicitly requested external organization: Research RTX (1 ms)
+    √ preserves an explicitly requested external organization: Research "RTX" (2 ms)
+    √ preserves an explicitly requested external organization: RESEARCH RTX
+    √ preserves an explicitly requested external organization: Research RTX instead of this client
+    √ preserves an explicitly requested external organization: Do not use this client; Research RTX
+    √ preserves an explicitly requested external organization: Compare RTX and LMT
+    √ preserves an explicitly requested external organization: Tell me about SAC Capital
+    √ preserves an explicitly requested external organization: Tell me about PE Systems
+    √ keeps the selected client and strategy inputs for professional work: Analyze FY27 appropriations for this client (1 ms)
+    √ keeps the selected client and strategy inputs for professional work: Find eligible grant funding for this client (1 ms)
+    √ keeps the selected client and strategy inputs for professional work: Check NIH grants for this client
+    √ keeps the selected client and strategy inputs for professional work: Compare FY 2027 and FY 2026 for this client (1 ms)
+    √ keeps the selected client and strategy inputs for professional work: Compare RTX and LMT for this client
+    √ keeps the selected client and strategy inputs for professional work: Prepare a meeting briefing for HASC staff
+    √ keeps the selected client and strategy inputs for professional work: Prepare hearing intelligence on FY27 appropriations
+    √ keeps the selected client and strategy inputs for professional work: Analyze NDAA implementation implications for this client
+    √ keeps the selected client and strategy inputs for professional work: Prepare an executive briefing with the constraint "Enacted only" (10 ms)
+    √ meeting preparation keeps the meeting rail as well as client strategy
+    √ selected-client strategies are retrieved without requiring the client name in their bodies (1 ms)
+    √ client briefings and recent changes include strategy work
+    √ commitments audit requests every governed evidence rail: What has changed with the commitments and deliverables we owe this client?
+    √ commitments audit requests every governed evidence rail: Audit every commitment we promised and what needs follow-up. (1 ms)
+    √ forwards a supplied monday board link without widening client scope
+    √ named external entity wins over an unrelated selected client
+    √ explicitly naming the selected client keeps the client as subject
+    √ portfolio language preserves the authorized portfolio subject
+    √ a client memory question preserves the selected client subject
+    √ possessive memory attributes retain an unambiguous selected client: What do we know about Aster’s briefing preferences? (2 ms)
+    √ possessive memory attributes retain an unambiguous selected client: Tell me about Acme's writing preferences
+    √ possessive memory attributes retain an unambiguous selected client: What do you remember about Meridian’s communication preferences? (1 ms)
+    √ possessive memory attributes retain an unambiguous selected client: Tell me about Acme Systems's tone
+    √ ambiguous, foreign or mixed possessives cannot acquire selected-client scope: What do we know about Aster's preferences?
+    √ ambiguous, foreign or mixed possessives cannot acquire selected-client scope: What do we know about Aster's preferences?
+    √ ambiguous, foreign or mixed possessives cannot acquire selected-client scope: What do we know about Aster's preferences?
+    √ ambiguous, foreign or mixed possessives cannot acquire selected-client scope: What do we know about Ast's preferences?
+    √ ambiguous, foreign or mixed possessives cannot acquire selected-client scope: What do we know about Bluehaven's preferences?
+    √ ambiguous, foreign or mixed possessives cannot acquire selected-client scope: What do we know about Aster's preferences and Bluehaven's preferences?
+    √ ambiguous, foreign or mixed possessives cannot acquire selected-client scope: Tell me about Aster's competitor's preferences
+    √ ambiguous, foreign or mixed possessives cannot acquire selected-client scope: Tell me about Aster's preferences. Research RTX instead. (1 ms)
+    √ ambiguous, foreign or mixed possessives cannot acquire selected-client scope: What do we know about Aster's preferences? Research RTX.
+    √ ambiguous, foreign or mixed possessives cannot acquire selected-client scope: Tell me about Aster's preferences, research RTX
+    √ ambiguous, foreign or mixed possessives cannot acquire selected-client scope: Tell me about Aster's preferences
+Research RTX
+    √ possessive matching cannot create selected-client scope without a selected client
+    √ real chat planner uses only current server-scoped names and keeps the original request (1 ms)
+    √ explicit external memory questions are not silently attributed to the selected client
+    √ personal recall is routed through governed institutional knowledge
+    √ trivial conversation does not manufacture retrieval coverage
+    √ relationship history asks only domains that support relationship_history
+  MW-07 explicit subject contract
+    √ keeps a general instruction general: QA Sep 9: In one sentence, explain the difference between authorization and appropriations.
+    √ keeps a general instruction general: Extract fields from the attached synthetic QA brief. (1 ms)
+    √ keeps a general instruction general: Create a Word document and PDF using the synthetic brief.
+    √ keeps a general instruction general: Reply with exactly READY. Do not use tools or save memory.
+    √ keeps a general instruction general: Make a brief for QA in PDF format.
+    √ keeps a general instruction general: Draft for our meeting on READY status.
+    √ keeps a general instruction general: Assess PDF extraction results.
+    √ keeps a general instruction general: Reply with exactly "Search across clients".
+    √ keeps a general instruction general: Rewrite this sentence: Search across clients.
+    √ keeps a general instruction general: Reply with exactly "Research READY". Do not use tools or save memory.
+    √ keeps a general instruction general: Summarize the attached brief titled "Research QA". (1 ms)
+    √ keeps a general instruction general: Rewrite this sentence: Research PDF extraction results.
+    √ keeps a general instruction general: Reply with exactly "Research READY. Tell me about PDF".
+    √ keeps a general instruction general: Rewrite this paragraph: Research QA. Tell me about READY.
+    √ keeps a general instruction general: Summarize the attachment: QA, FY2027, BLUE-ORBIT-47.
+    √ preserves explicit client focus: QA Sep 9: In one sentence, explain the difference between authorization and appropriations. (1 ms)
+    √ preserves explicit client focus: Extract fields from the attached synthetic QA brief.
+    √ preserves explicit client focus: Create a Word document and PDF using the synthetic brief.
+    √ preserves explicit client focus: Reply with exactly READY. Do not use tools or save memory. (1 ms)
+    √ preserves explicit client focus: Make a brief for QA in PDF format.
+    √ preserves explicit client focus: Draft for our meeting on READY status.
+    √ preserves explicit client focus: Assess PDF extraction results.
+    √ preserves explicit client focus: Reply with exactly "Search across clients".
+    √ preserves explicit client focus: Rewrite this sentence: Search across clients.
+    √ preserves explicit client focus: Reply with exactly "Research READY". Do not use tools or save memory.
+    √ preserves explicit client focus: Summarize the attached brief titled "Research QA".
+    √ preserves explicit client focus: Rewrite this sentence: Research PDF extraction results.
+    √ preserves explicit client focus: Reply with exactly "Research READY. Tell me about PDF".
+    √ preserves explicit client focus: Rewrite this paragraph: Research QA. Tell me about READY.
+    √ preserves explicit client focus: Summarize the attachment: QA, FY2027, BLUE-ORBIT-47.
+    √ still resolves an explicit external inquiry: Research https://www.saronic.com/ and provide a PDF.
+    √ still resolves an explicit external inquiry: Could you please research "RTX"?
+    √ still resolves an explicit external inquiry: Research "Johnson and Johnson"
+    √ still resolves an explicit external inquiry: what does overland ai do
+    √ still resolves an explicit external inquiry: Give me a summary of my emails from Powers Interactive
+    √ still resolves an explicit external inquiry: Compare my client with Shield AI
+    √ still resolves an explicit external inquiry: What is our relationship with Anduril?
+    √ still resolves an explicit external inquiry: What is our engagement history with Anduril?
+    √ still resolves an explicit external inquiry: Check my inbox and tell me about Anduril
+    √ still resolves an explicit external inquiry: Compare RTX and LMT
+    √ portfolio comparison remains portfolio-wide: Compare all our clients for a PDF briefing
+    √ portfolio comparison remains portfolio-wide: Compare all clients
+    √ portfolio comparison remains portfolio-wide: Search across clients
+
+Test Suites: 1 passed, 1 total
+Tests:       94 passed, 94 total
+Snapshots:   0 total
+Time:        23.93 s, estimated 27 s
+Ran all test suites matching /src\\meri\\meri-context-plane.service.spec.ts|src\\meri\\meri-context-plane-boundary.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
