@@ -1,5 +1,7 @@
 # Meri Foundation and Reliability Closeout Plan
 
+> **Superseded for acceptance (October 5, 2026):** the C2/C4 acceptance procedure is replaced by [01-Meri-Acceptance-Simplified-2026-10-05.md](01-Meri-Acceptance-Simplified-2026-10-05.md). The case list and the obligations deferred there are unchanged.
+
 Prepared for Neo Martinez and the lead implementation agent. October 2, 2026, America/New_York.
 
 **Objective:** finish file 01 in the existing Capiro codebase, preserve the substantial work already merged, and demonstrate reliable user outcomes. The remaining work is focused integration, repairs, and acceptance. It is not another architecture build.
