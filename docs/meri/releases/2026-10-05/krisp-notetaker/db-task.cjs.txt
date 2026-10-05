@@ -1,0 +1,27 @@
+const fs=require('node:fs'),cp=require('node:child_process'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+const root=__dirname,awsExe='C:/Program Files/Amazon/AWSCLIV2/aws.exe';
+const aws=(...args)=>JSON.parse(cp.execFileSync(awsExe,[...args,'--region','us-east-1','--output','json'],{encoding:'utf8',windowsHide:true,maxBuffer:4*1024*1024,timeout:120000}));
+const mode=process.argv[2];assert.ok(['inspect','apply'].includes(mode));
+const out=root+'/db-'+mode+'-task.json';assert.equal(fs.existsSync(out),false,'Reconcile existing task before retry.');
+assert.equal(aws('sts','get-caller-identity').Account,'967807252336');
+const service=aws('ecs','describe-services','--cluster','capiro-dev','--services','capiro-dev-api').services[0];assert.ok(service);assert.equal(service.deployments.length,1);
+const live=aws('ecs','describe-task-definition','--task-definition',service.taskDefinition).taskDefinition;
+const template=aws('ecs','describe-task-definition','--task-definition','capiro-dev-api-migrate:135').taskDefinition;
+const base=template.containerDefinitions.find(c=>c.name==='api');assert.ok(base);
+const image=mode==='inspect'?live.containerDefinitions.find(c=>c.name==='api').image:process.argv[3];
+assert.match(image,/^967807252336\.dkr\.ecr\.us-east-1\.amazonaws\.com\/capiro\/dev\/api@sha256:[a-f0-9]{64}$/);
+const env=base.environment.filter(x=>x.name==='DB_NAME');assert.equal(env.length,1);assert.equal(env[0].value,'capiro');
+env.push({name:'KRISP_DB_MODE',value:mode},{name:'GIT_SHA',value:'be4d886ffa774f72e0ed5c5268995109cbd11220'});
+if(mode==='apply'){assert.equal(JSON.parse(fs.readFileSync(root+'/rehearsal.json')).status,'passed');assert.match(process.argv[4],/^[a-f0-9]{64}$/);env.push({name:'KRISP_EXPECTED_LEDGER',value:process.argv[4]});}
+const secrets=base.secrets.filter(x=>['DB_HOST','DB_PORT','DB_USER','DB_PASSWORD'].includes(x.name));assert.equal(secrets.length,4);
+const def=Object.fromEntries(['executionRoleArn','networkMode','requiresCompatibilities','cpu','memory','runtimePlatform'].map(k=>[k,template[k]]));
+def.family='capiro-dev-krisp-db-'+mode;
+def.containerDefinitions=[{name:'krisp-db',image,essential:true,entryPoint:['node','--input-type=module','-e'],command:[fs.readFileSync(root+'/db-runner.mjs','utf8')],environment:env,secrets,logConfiguration:{...base.logConfiguration,options:{...base.logConfiguration.options,'awslogs-stream-prefix':'krisp-db-'+mode}}}];
+fs.mkdirSync(root+'/private',{recursive:true});const file=root+'/private/db-'+mode+'-definition.json';fs.writeFileSync(file,JSON.stringify(def));
+const receipt={mode,image,startedAt:new Date().toISOString(),status:'register-intent'};fs.writeFileSync(out,JSON.stringify(receipt,null,2));
+const registered=aws('ecs','register-task-definition','--cli-input-json','file://'+file).taskDefinition;receipt.taskDefinition=registered.taskDefinitionArn;
+receipt.status='run-intent';receipt.logGroup=base.logConfiguration.options['awslogs-group'];fs.writeFileSync(out,JSON.stringify(receipt,null,2));
+const input={cluster:'capiro-dev',taskDefinition:receipt.taskDefinition,launchType:'FARGATE',count:1,networkConfiguration:service.networkConfiguration,startedBy:'krisp-release-20261005',clientToken:crypto.randomUUID()};
+const runFile=root+'/private/db-'+mode+'-run.json';fs.writeFileSync(runFile,JSON.stringify(input));
+const run=aws('ecs','run-task','--cli-input-json','file://'+runFile);assert.equal(run.failures.length,0);assert.equal(run.tasks.length,1);
+receipt.taskArn=run.tasks[0].taskArn;receipt.logStream='krisp-db-'+mode+'/krisp-db/'+receipt.taskArn.split('/').at(-1);receipt.status='started';fs.writeFileSync(out,JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt));
