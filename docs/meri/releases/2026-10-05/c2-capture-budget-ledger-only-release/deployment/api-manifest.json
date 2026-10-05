@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "api",
+  "preparedAt": "2026-10-05T05:31:06.764Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "api",
+    "sourceSha": "42811d70783636ad2c999ba6ddb8b3f58ee26e4f",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:15e6ff6a2f040b31c3d1bcc13c38c00049492ba179df5e4efbc27073e2f1d3fd",
+    "status": "qualified",
+    "reviewer": "Lead agent: focused source tests, typecheck, packaged image probes and served baseline review",
+    "reviewedAt": "2026-10-05T05:30:53.354865Z",
+    "expiresAt": "2026-10-05T06:30:53.354865Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/9bf7b4599e881bfcd1a9e6a87540c007913e6e65/docs/meri/releases/2026-10-05/c2-capture-budget-ledger-only-release/release-qualification.json",
+      "https://github.com/neo-capiro/capirov2/blob/9bf7b4599e881bfcd1a9e6a87540c007913e6e65/docs/meri/releases/2026-10-05/c2-capture-budget-ledger-only-release/served-baseline.json",
+      "https://github.com/neo-capiro/capirov2/commit/42811d70783636ad2c999ba6ddb8b3f58ee26e4f"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "42811d70783636ad2c999ba6ddb8b3f58ee26e4f",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:15e6ff6a2f040b31c3d1bcc13c38c00049492ba179df5e4efbc27073e2f1d3fd",
+        "url": "https://github.com/neo-capiro/capirov2/blob/9bf7b4599e881bfcd1a9e6a87540c007913e6e65/docs/meri/releases/2026-10-05/c2-capture-budget-ledger-only-release/api/build-readback.json"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "42811d70783636ad2c999ba6ddb8b3f58ee26e4f",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:15e6ff6a2f040b31c3d1bcc13c38c00049492ba179df5e4efbc27073e2f1d3fd",
+        "url": "https://github.com/neo-capiro/capirov2/blob/9bf7b4599e881bfcd1a9e6a87540c007913e6e65/docs/meri/releases/2026-10-05/c2-capture-budget-ledger-only-release/release-qualification.json"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "42811d70783636ad2c999ba6ddb8b3f58ee26e4f",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:15e6ff6a2f040b31c3d1bcc13c38c00049492ba179df5e4efbc27073e2f1d3fd",
+        "url": "https://github.com/neo-capiro/capirov2/blob/9bf7b4599e881bfcd1a9e6a87540c007913e6e65/docs/meri/releases/2026-10-05/c2-capture-budget-ledger-only-release/served-baseline.json"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:541",
+    "serviceHash": "6e2b1fd362e0f0902c8aa58bb5a6a0a9bcdb39dc0513f8080032e3454eb74f60",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "taskHash": "4845109590bc7d449022dc594f641f4d8dbd149ad9edd87cc5b837f5eaa5e0c0",
+    "imageDigest": "sha256:2a9d5aef7c299bfd533bac44cd0d69919b146658eab1b59743835365c36cef8e",
+    "desiredCount": 2
+  }
+}

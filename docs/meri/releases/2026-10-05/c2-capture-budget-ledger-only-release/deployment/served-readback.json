@@ -1,0 +1,85 @@
+{
+  "status": "CAPTURE_BUDGET_LEDGER_ONLY_RELEASE_SERVED_ORDINARY_READ_PASS",
+  "at": "2026-10-05T05:41:12.214Z",
+  "api": {
+    "baseline": {
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:543",
+      "serviceHash": "2b2fc9332871adf1b220d68303c91c97df2e54d0dc3d40a6ef94f978af91bc88",
+      "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+      "taskHash": "6286adebe1075e11591ee9e59faa4509a93c98639ba6a0aebe99f77f5fb2abcb",
+      "imageDigest": "sha256:15e6ff6a2f040b31c3d1bcc13c38c00049492ba179df5e4efbc27073e2f1d3fd",
+      "desiredCount": 2
+    },
+    "sourceSha": "42811d70783636ad2c999ba6ddb8b3f58ee26e4f",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:15e6ff6a2f040b31c3d1bcc13c38c00049492ba179df5e4efbc27073e2f1d3fd",
+    "health": "ALL_TASKS_HEALTHY",
+    "targetHealth": {
+      "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:967807252336:targetgroup/capiro-prod-api-tg/3343fe60b1395f62",
+      "states": [
+        "healthy",
+        "healthy"
+      ]
+    }
+  },
+  "orchestrator": {
+    "baseline": {
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:127",
+      "serviceHash": "19272aab3924d8aff675cf85aa4dcd4dcf421cf01ab07cedd3d0d1bfc9f51d90",
+      "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+      "taskHash": "8d85592e57239511629a15c5c9777b21e5cb4a0fd0842742e6eb98b60b102e63",
+      "imageDigest": "sha256:3c5aea253b74732952694b4ebbd99260e9e146b6140da184c22c4244def26cb9",
+      "desiredCount": 1
+    },
+    "unchanged": true,
+    "priorBaseline": {
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:125",
+      "serviceHash": "56ff8970b4d055334531a270b526168e953a2a7fe33119f3024d111a96a28120",
+      "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+      "taskHash": "a2c36cd99ec2f9a0d65605098421b3e1573dbc97aa1c4060bf4a6db18d9b60e8",
+      "imageDigest": "sha256:4e587ff51239710565cda8aedf1cba5cd41ae07f51782da123b8a5dd5349eb65",
+      "desiredCount": 1
+    }
+  },
+  "retiredTasks": [
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/16514f87c2a545ec9288b41fc7272ed2",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:541",
+      "stoppedAt": "2026-10-05T01:40:25.493000-04:00"
+    },
+    {
+      "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/33b5bb63f6c04427be4769f25a66a951",
+      "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:541",
+      "stoppedAt": "2026-10-05T01:40:26.765000-04:00"
+    }
+  ],
+  "retainedNightly": {
+    "rule": "capiro-dev-refresh-memory-graph",
+    "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-migrate:136",
+    "ruleSha256": "4a9376120b272c60388f6986a7a20aa00bfa78a8feb3b44a3a804fd93c617947",
+    "targetSha256": "e5b98fe865035a7dfa2add1472df1617101714e08f65232fd232c606c4f2475a",
+    "taskInputSha256": "0b362cc5b50895bcc69d70536e2496b848c0ee7bc805d9d17c1c6f85261263a5"
+  },
+  "broadProjectionWorker": "DISABLED",
+  "ordinaryIdentity": {
+    "status": "ORDINARY_IDENTITY_ROUTE_PASS",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "role": "standard_user"
+  },
+  "ordinaryMemoryRead": {
+    "status": "ORDINARY_APPROVED_MEMORY_LIST_AND_MARKDOWN_PASS",
+    "tenantId": "f2d6cf8f-057c-479a-8110-62fe5086d43f",
+    "actorUserId": "b1f758fc-17bd-40f8-bef2-fa2d2380300f",
+    "clientId": "41f9ec63-3963-479f-b747-59a3767ef44b",
+    "itemId": "a740d74f-2c61-4888-bb59-5c9eea502e3f",
+    "returnedListCount": 512,
+    "markdownSha256": "84fac55d22dd5649a530f0ff59cdd4ce5861a09f0785fc7bae0220cb869849a4",
+    "apiSourceSha": "42811d70783636ad2c999ba6ddb8b3f58ee26e4f"
+  },
+  "temporarySessionRevoked": true,
+  "providerCalls": 0,
+  "serviceMutations": 0,
+  "journalSha256": "fd5048e6b7ba9d414359987013d24fa421f0b50a3490ba9b65dc8a1699d1119b",
+  "acceptedOriginalCases": 0,
+  "acceptedCdCases": 0
+}
