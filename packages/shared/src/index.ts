@@ -2937,6 +2937,9 @@ const TOOL_CITATION_TYPE: Readonly<Record<string, string>> = {
   list_emails: 'email',
   search_emails: 'email',
   get_email_thread: 'email',
+  get_pe_budget_timeline: 'program_element',
+  get_program_element: 'program_element',
+  get_bill_status: 'bill',
 };
 
 const CITATION_TITLE_FIELDS = [
@@ -3094,6 +3097,125 @@ function federalMarketCitationRows(
   ];
 }
 
+/** congress.gov path segment for each bill type in a Capiro bill id ("119-hr-8800"). */
+const CONGRESS_GOV_BILL_TYPES: Readonly<Record<string, string>> = {
+  hr: 'house-bill',
+  s: 'senate-bill',
+  hres: 'house-resolution',
+  sres: 'senate-resolution',
+  hjres: 'house-joint-resolution',
+  sjres: 'senate-joint-resolution',
+  hconres: 'house-concurrent-resolution',
+  sconres: 'senate-concurrent-resolution',
+};
+
+function congressOrdinal(congress: number): string {
+  const mod100 = congress % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${congress}th`;
+  const suffix = { 1: 'st', 2: 'nd', 3: 'rd' }[congress % 10] ?? 'th';
+  return `${congress}${suffix}`;
+}
+
+/** The public congress.gov page for a Capiro bill id, or null when the id is not canonical. */
+export function congressGovBillUrl(billId: string): string | null {
+  const match = /^(\d{2,3})-([a-z]+)-(\d{1,5})$/i.exec(billId.trim());
+  if (!match) return null;
+  const segment = CONGRESS_GOV_BILL_TYPES[match[2]!.toLowerCase()];
+  if (!segment) return null;
+  return `https://www.congress.gov/bill/${congressOrdinal(Number(match[1]))}-congress/${segment}/${Number(match[3])}`;
+}
+
+function fundingClaimSnippet(claim: Record<string, unknown>): string | undefined {
+  if (typeof claim.semantics === 'string' && claim.semantics.trim()) return claim.semantics;
+  const fy = typeof claim.fiscalYear === 'number' ? `FY${claim.fiscalYear} ` : '';
+  const label = typeof claim.stageLabel === 'string' ? claim.stageLabel : null;
+  if (!label) return undefined;
+  const amount = typeof claim.value === 'number' ? `$${claim.value}M` : 'amount unavailable';
+  return `${fy}${label}: ${amount}`;
+}
+
+/**
+ * Budget-line and bill-status tools return ONE structured record, not a row
+ * array, so they produced no citable source even when the answer was built on
+ * them (simplified acceptance cases 20 to 24, 28, 31, 32). Each record becomes
+ * a citation to the Capiro record it came from; a real source URL is attached
+ * only when the record carries one (budget exhibit, roll-call page) or is the
+ * canonical congress.gov page for a canonical bill id.
+ */
+function structuredRecordCitationRows(
+  tool: string,
+  payload: Record<string, unknown>,
+): Record<string, unknown>[] | null {
+  if (tool === 'get_pe_budget_timeline' || tool === 'get_program_element') {
+    const pe = citationObject(payload.programElement) ? payload.programElement : payload;
+    const peCode = firstCitationString(pe, ['peCode']) ?? firstCitationString(payload, ['peCode']);
+    if (!peCode) return null;
+    const name = firstCitationString(pe, ['title']);
+    const years = Array.isArray(pe.years) ? pe.years.filter(citationObject) : [];
+    const currentFy = Number(payload.currentCycleFy ?? pe.currentCycleFy);
+    const currentYear = years.find((year) => Number(year.fy) === currentFy);
+    const claim = citationObject(payload.currentFundingClaim)
+      ? payload.currentFundingClaim
+      : currentYear && citationObject(currentYear.fundingClaim)
+        ? currentYear.fundingClaim
+        : null;
+    const claimSource = claim && citationObject(claim.source) ? claim.source : null;
+    const summary = firstCitationString(payload, ['fundingSummary']);
+    return [
+      {
+        id: `pe:${peCode}`,
+        title: `PE ${peCode}${name ? ` — ${name}` : ''} (Capiro budget record)`,
+        url: claimSource ? firstCitationString(claimSource, ['sourceUrl']) : undefined,
+        snippet: (claim ? fundingClaimSnippet(claim) : undefined) ?? summary,
+      },
+    ];
+  }
+  if (tool === 'get_bill_status' && payload.found === true) {
+    const billId = firstCitationString(payload, ['billId']);
+    if (!billId) return null;
+    const latest = citationObject(payload.latestAction) ? payload.latestAction : null;
+    const latestText = latest ? firstCitationString(latest, ['text']) : undefined;
+    const latestDate = latest ? firstCitationString(latest, ['date']) : undefined;
+    const status = firstCitationString(payload, ['statusLabel', 'status']);
+    const rows: Record<string, unknown>[] = [
+      {
+        id: billId,
+        title: `${billId}${typeof payload.title === 'string' ? ` — ${payload.title}` : ''} (Capiro bill status record)`,
+        url: congressGovBillUrl(billId) ?? undefined,
+        snippet:
+          [
+            status ? `Status: ${status}` : null,
+            latestText
+              ? `Latest action${latestDate ? ` (${latestDate.slice(0, 10)})` : ''}: ${latestText}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join('. ') || undefined,
+      },
+    ];
+    const votes = Array.isArray(payload.floorVotes)
+      ? payload.floorVotes.filter(citationObject)
+      : [];
+    for (const vote of votes) {
+      const url = firstCitationString(vote, ['sourceUrl']);
+      if (!url) continue;
+      const roll = vote.rollNumber == null ? '' : ` ${String(vote.rollNumber)}`;
+      const chamber = typeof vote.chamber === 'string' ? `${vote.chamber} ` : '';
+      const date = typeof vote.voteDate === 'string' ? ` (${vote.voteDate.slice(0, 10)})` : '';
+      rows.push({
+        id: `vote:${billId}:${chamber.trim()}:${String(vote.rollNumber ?? url)}`,
+        title: `${chamber}roll call${roll}${date} on ${billId}`,
+        url,
+        snippet:
+          [vote.question, vote.result].filter((v) => typeof v === 'string').join(' — ') ||
+          undefined,
+      });
+    }
+    return rows;
+  }
+  return null;
+}
+
 function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown[] | null {
   if (
     citationObject(payload.controlledRead) &&
@@ -3121,6 +3243,8 @@ function citationRowsOf(tool: string, payload: Record<string, unknown>): unknown
     if (profileRows.length) return profileRows;
   }
   if (tool === 'query_tasks' && Array.isArray(payload.tasks)) return payload.tasks;
+  const structured = structuredRecordCitationRows(tool, payload);
+  if (structured) return structured;
   const market = federalMarketCitationRows(tool, payload);
   if (market) return market;
   if (Array.isArray(payload.data)) return payload.data as unknown[];
