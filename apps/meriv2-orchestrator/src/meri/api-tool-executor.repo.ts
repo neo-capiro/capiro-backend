@@ -1,10 +1,6 @@
-import { observeControlledReadHttpResponse, observeCaptureClockHttpAttempt, memoryCaptureRequestHeaders,
-  observeCaptureClockHttpResponse } from './controlled-read-observations.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-  encodeMeriCapturePolicyTransport,
-  MERI_CAPTURE_POLICY_HEADER,
   type MeriContext,
   type ToolExecutor,
   type ToolExecutionControl,
@@ -12,11 +8,7 @@ import {
 import { createMeriExecutionControl } from './meri-execution-control.js';
 import { classifyApiToolReadOutcome } from './api-tool-read-outcome.js';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
-import {
-  assertServerReadonlyCaptureToolAllowed,
-  currentGovernedArtifactCapturePolicy,
-  currentTrustedCurrentTurnScope,
-} from '../request/trusted-current-turn-scope.js';
+import { currentTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope.js';
 import {
   bindCurrentConversationToolInput,
   isCurrentConversationResearchPortfolioTool,
@@ -130,9 +122,6 @@ export class ApiToolExecutorRepo implements ToolExecutor {
       throw new Error(`No forwarded credential available for delegated tool "${toolName}"`);
     }
     const currentTurn = currentTrustedCurrentTurnScope();
-    if (currentGovernedArtifactCapturePolicy())
-      throw new Error('meri_case46_canonical_proposal_required');
-    assertServerReadonlyCaptureToolAllowed(toolName);
     const boundedInput = bindCurrentConversationToolInput(toolName, input, currentTurn);
     const researchPortfolioTool = isCurrentConversationResearchPortfolioTool(toolName);
     if (researchPortfolioTool && !this.serviceSecret) {
@@ -169,16 +158,6 @@ export class ApiToolExecutorRepo implements ToolExecutor {
           // its compliance gate), so apps/api can reject a rogue user hitting the
           // raw tool endpoint directly. See ToolServiceSecretGuard.
           ...(this.serviceSecret ? { 'x-internal-service-secret': this.serviceSecret } : {}),
-          ...(currentTurn?.capturePolicy
-            ? {
-                [MERI_CAPTURE_POLICY_HEADER]: encodeMeriCapturePolicyTransport(
-                  currentTurn.capturePolicy,
-                  'tool',
-                  toolName,
-                  this.serviceSecret,
-                ),
-              }
-            : {}),
           // Impersonation passthrough (2.5): re-send the effective-tenant header
           // so apps/api scopes THIS delegated tool call to the impersonated
           // tenant (it re-validates the caller's impersonation rights).
@@ -223,10 +202,9 @@ export class ApiToolExecutorRepo implements ToolExecutor {
           async () => {
             let res: Response;
             try {
-              observeCaptureClockHttpAttempt(toolName);
               res = await fetch(url, {
                 ...request,
-                headers: { ...request.headers, ...meriOrchestratorTelemetryHeaders(), ...memoryCaptureRequestHeaders(toolName, request.body, this.serviceSecret) },
+                headers: { ...request.headers, ...meriOrchestratorTelemetryHeaders() },
               });
             } catch (error) {
               emitMeriOrchestratorTelemetry({
@@ -242,8 +220,6 @@ export class ApiToolExecutorRepo implements ToolExecutor {
             }
             if (res.ok) {
               const payload = (await res.json()) as unknown;
-              observeControlledReadHttpResponse(toolName, res.status, payload);
-              observeCaptureClockHttpResponse(toolName, res.status, payload);
               const outcome = classifyApiToolReadOutcome(toolName, payload);
               if (outcome?.kind === 'failed' || outcome?.kind === 'unavailable') {
                 emitMeriOrchestratorTelemetry({

@@ -1,12 +1,8 @@
-import type { MeriControlledReadAttempt } from '@capiro/meriv2-core';
 import type { ProviderUsage } from '@capiro/shared';
 import type {
   LedgerEntry,
   MeriTelemetryContext,
   MeriTelemetryUsage,
-  MeriCaptureObservedValue,
-  MeriCaptureSourceObservation,
-  MeriCaptureToolCallObservation,
   MeriEvidenceManifest,
   MeriResearchPlanExecutionEnvelopeV1,
 } from '@capiro/meriv2-core';
@@ -97,26 +93,6 @@ export interface MeriV3ChatResult extends ChatResult {
   telemetry?: MeriV3ProviderTelemetry;
   retrieval?: MeriV3RetrievalSummary;
   evidenceAccuracy?: 'enforce';
-  /** Internal server capture observation; the controller signs it and the API verifies it. */
-  captureEvidence?: {
-    promptClockUse?: import('@capiro/meriv2-core').MeriPromptClockUse;
-    clockInvocations?: import('@capiro/meriv2-core').MeriCaptureClockInvocation[];
-    controlledReadAttempts?: MeriControlledReadAttempt[];
-    boundedRuntime?: {
-      acquisitionStopped: boolean;
-      stopReason: string | null;
-      toolCalls: number;
-      modelCalls: number;
-      retryCalls: number;
-    };
-    toolCalls: MeriCaptureToolCallObservation[];
-    sources: MeriCaptureSourceObservation[];
-    estimatedCostUsd: MeriCaptureObservedValue<number>;
-    usage: MeriTelemetryUsage;
-    providerCallObserved: boolean;
-    startedAt: number;
-    completedAt: number;
-  };
 }
 
 export type MeriV3ChatStreamEvent =

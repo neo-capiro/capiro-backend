@@ -3,7 +3,6 @@ import {
   FEEDBACK_ANONYMIZATION_VERSION,
   anonymizeFeedbackExcerpt,
 } from './meri-feedback-anonymize.js';
-import { normalizeReasons } from './meri-feedback-fixture.service.js';
 
 describe('anonymizeFeedbackExcerpt', () => {
   it('redacts the client name by name, not merely by pattern', () => {
@@ -66,28 +65,5 @@ describe('anonymizeFeedbackExcerpt', () => {
   it('never emits the raw 1200-char body the old export shipped', () => {
     const body = `Confidential: ${'y'.repeat(5000)}`;
     expect(anonymizeFeedbackExcerpt(body).text.length).toBeLessThanOrEqual(1001);
-  });
-});
-
-describe('normalizeReasons', () => {
-  it('accepts the LIVE apps/api spellings that used to be silently dropped', () => {
-    expect(normalizeReasons(['wrong_tone_or_format', 'tool_or_action_failed'])).toEqual([
-      'wrong_tone_or_format',
-      'tool_or_action_failed',
-    ]);
-  });
-
-  it('normalizes the legacy meriv2-core spellings to canonical', () => {
-    expect(normalizeReasons(['wrong_tone_format', 'tool_action_failed'])).toEqual([
-      'wrong_tone_or_format',
-      'tool_or_action_failed',
-    ]);
-  });
-
-  it('collapses duplicates across spellings and drops unknown codes', () => {
-    expect(normalizeReasons(['wrong_tone_format', 'wrong_tone_or_format', 'nonsense'])).toEqual([
-      'wrong_tone_or_format',
-    ]);
-    expect(normalizeReasons(['nonsense'])).toEqual([]);
   });
 });

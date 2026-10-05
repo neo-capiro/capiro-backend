@@ -26,7 +26,6 @@ describe('MemoryProposalController', () => {
     const controller = new MemoryProposalController(
       {
         listOwnProposals,
-        readOwnPendingFixtureEvidence: jest.fn(async () => null),
         withdraw,
       } as unknown as GovernedMemoryCandidateService,
       // Reply-backed learning is a separate governed path; this test only
@@ -49,30 +48,5 @@ describe('MemoryProposalController', () => {
     expect(listOwnProposals).toHaveBeenCalledWith(ctx);
     expect(listOwnProposals).toHaveBeenCalledWith(ctx, { cursor: undefined, limit: '50' });
     expect(withdraw).toHaveBeenCalledWith(ctx, 'candidate-1');
-  });
-
-  it('adds only the current server owner evidence and propagates its refusal', async () => {
-    const evidence = { kind: 'meri-pending-memory-current-readback', caseId: '17' };
-    const readOwnPendingFixtureEvidence = jest.fn(async () => evidence);
-    const controller = new MemoryProposalController(
-      {
-        listOwnProposals: jest.fn(async () => ({
-          enabled: true,
-          candidates: [],
-          nextCursor: null,
-        })),
-        readOwnPendingFixtureEvidence,
-      } as unknown as GovernedMemoryCandidateService,
-      {} as OutreachReplyLearningService,
-    );
-    await expect(controller.listOwnProposals(ctx)).resolves.toEqual({
-      enabled: true,
-      candidates: [],
-      nextCursor: null,
-      fixtureEvidence: evidence,
-    });
-    expect(readOwnPendingFixtureEvidence).toHaveBeenCalledWith(ctx);
-    readOwnPendingFixtureEvidence.mockRejectedValueOnce(new Error('canonical state changed'));
-    await expect(controller.listOwnProposals(ctx)).rejects.toThrow('canonical state changed');
   });
 });

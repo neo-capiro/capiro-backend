@@ -1,4 +1,3 @@
-import { readMeriControlledSource } from './meri-controlled-read-fixture.js';
 import { createHash } from 'node:crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
@@ -14,7 +13,7 @@ import { ClientFacilitiesService } from '../clients/client-facilities.service.js
 import { ClientAdvocacyMatterService } from '../clients/client-advocacy-matter.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 
-export type MeriSourceKind = 'email' | 'client' | 'memory' | 'document' | 'controlled_read';
+export type MeriSourceKind = 'email' | 'client' | 'memory' | 'document';
 export interface MeriSourceRequest {
   kind: MeriSourceKind;
   recordId: string;
@@ -47,7 +46,7 @@ export class MeriSourceService {
 
   async read(ctx: TenantContext, input: MeriSourceRequest): Promise<Record<string, any>> {
     if (
-      !['email', 'client', 'memory', 'document', 'controlled_read'].includes(input.kind) ||
+      !['email', 'client', 'memory', 'document'].includes(input.kind) ||
       !UUID.test(input.recordId) ||
       (input.clientId && !UUID.test(input.clientId)) ||
       (input.threadId && !UUID.test(input.threadId)) ||
@@ -56,7 +55,6 @@ export class MeriSourceService {
     ) {
       throw new BadRequestException('Use an exact supported source identifier.');
     }
-    if (input.kind === 'controlled_read') return readMeriControlledSource(this.prisma, ctx, input);
     if (input.clientId && input.kind !== 'client') await this.assertClientAccess(ctx, input.clientId);
     switch (input.kind) {
       case 'email': return this.email(ctx, input);

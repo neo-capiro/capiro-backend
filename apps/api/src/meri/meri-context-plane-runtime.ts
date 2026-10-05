@@ -1,51 +1,14 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { Injectable, Inject, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
-import type { MeriGovernedArtifactCapturePolicy } from '@capiro/meriv2-core';
-import { CASE46_AUTHORITY_DEPENDENCIES } from './meri-case46-action-authority.js';
-import {
-  readSealedCase46Binding,
-  type Case46AuthorityDependencies,
-} from './meri-case46-authority.js';
-import {
-  issueCurrentCase46Policy,
-  case46ProviderBudgetOwner,
-} from './meri-case46-provider-budget-owner.js';
-import { case46BudgetHash } from './meri-case46-provider-budget.js';
-import { withCase46ApiProviderScope } from './meri-case46-api-provider-scope.js';
-import {
-  assertCase46OriginalInput,
-  assertCase46NewTurnInTx,
-  case46VerifiedSourcePrompt,
-  requireCase46Owner,
-} from './meri-case46-turn-owner.js';
-import type {
-  MeriServerReadonlyCapturePolicy,
-  MeriServerReadonlyCaptureReceipt,
-  SignedMeriCaptureEvidenceReceipt,
-} from '@capiro/meriv2-core';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { planTurnRerun } from './meri-turn.helpers.js';
 import { MeriContextPlaneService } from './meri-context-plane.service.js';
-import { captureBudgetRequired } from './meri-capture-provider-budget.js';
-import { captureProviderBudgetOwner } from './meri-capture-provider-budget-owner.js';
-import { syntheticReadBudgetOwner } from './meri-synthetic-read-budget-owner.js';
-import { withCaptureApiProviderScope } from './meri-capture-api-provider-scope.js';
-import { qualifyMeriCaptureSemanticClock } from './meri-capture-semantic-clock.js';
-import {
-  assertMeriServerReadonlyCaptureCurrentAuthority,
-  assertMeriServerReadonlyCaptureTurnInput,
-  issueMeriServerReadonlyCapturePolicy,
-  meriServerReadonlyCaptureReceipt,
-} from './meri-server-readonly-capture.js';
 
 export interface MeriGovernedRuntimeState {
   context: MeriGovernedTurnContext;
   activeClient: { id: string; name: string } | null;
-  capturePolicy?: MeriServerReadonlyCapturePolicy | null;
-  captureEvidenceReceipt?: SignedMeriCaptureEvidenceReceipt | null;
-  governedArtifactPolicy?: MeriGovernedArtifactCapturePolicy | null;
 }
 
 const runtime = new AsyncLocalStorage<MeriGovernedRuntimeState>();
@@ -54,57 +17,11 @@ export function currentMeriGovernedRuntime(): MeriGovernedRuntimeState | null {
   return runtime.getStore() ?? null;
 }
 
-export function currentMeriServerReadonlyCapturePolicy(): MeriServerReadonlyCapturePolicy | null {
-  return currentMeriGovernedRuntime()?.capturePolicy ?? null;
-}
-export function currentMeriGovernedArtifactCapturePolicy(): MeriGovernedArtifactCapturePolicy | null {
-  return runtime.getStore()?.governedArtifactPolicy ?? null;
-}
-export function bindCurrentCase46Turn(turnId: string) {
-  const state = runtime.getStore();
-  if (!state?.governedArtifactPolicy) return null;
-  if (state.governedArtifactPolicy.turnId !== null)
-    throw new Error('meri_case46_turn_already_bound');
-  const policy = Object.freeze({ ...state.governedArtifactPolicy, turnId });
-  state.governedArtifactPolicy = policy;
-  state.context = { ...state.context, governedArtifactCapturePolicy: policy };
-  return policy;
-}
-
-export function currentMeriServerReadonlyCaptureReceipt(): MeriServerReadonlyCaptureReceipt | null {
-  return meriServerReadonlyCaptureReceipt(currentMeriServerReadonlyCapturePolicy());
-}
-
-export function bindCurrentMeriCaptureTurn(turnId: string): MeriServerReadonlyCapturePolicy | null {
-  const state = runtime.getStore();
-  if (!state?.capturePolicy) return null;
-  if (!turnId.trim()) throw new Error('meri_capture_turn_id_missing');
-  const policy = Object.freeze({ ...state.capturePolicy, turnId: turnId.trim() });
-  state.capturePolicy = policy;
-  state.context = { ...state.context, serverReadonlyCapturePolicy: policy };
-  return policy;
-}
-
-export function setCurrentMeriCaptureEvidenceReceipt(
-  receipt: SignedMeriCaptureEvidenceReceipt,
-): void {
-  const state = runtime.getStore();
-  if (!state?.capturePolicy) throw new Error('meri_capture_runtime_missing');
-  state.captureEvidenceReceipt = receipt;
-}
-
-export function currentMeriCaptureEvidenceReceipt(): SignedMeriCaptureEvidenceReceipt | null {
-  return runtime.getStore()?.captureEvidenceReceipt ?? null;
-}
-
 @Injectable()
 export class MeriContextPlaneRuntimeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly contextPlane: MeriContextPlaneService,
-    @Optional()
-    @Inject(CASE46_AUTHORITY_DEPENDENCIES)
-    private readonly case46?: Case46AuthorityDependencies,
   ) {}
 
   async runChatTurn<T>(
@@ -119,103 +36,16 @@ export class MeriContextPlaneRuntimeService {
   ): Promise<T> {
     input.signal?.throwIfAborted();
     const prepared = await this.prepareTurn(ctx, input);
-    const semanticClock = await qualifyMeriCaptureSemanticClock({
-      prisma: this.prisma, ctx, policy: prepared.capturePolicy,
-      artifactPolicy: prepared.artifactPolicy, case46: this.case46,
-    });
-    if (prepared.capturePolicy && semanticClock)
-      prepared.capturePolicy = Object.freeze({ ...prepared.capturePolicy, semanticClock });
     input.signal?.throwIfAborted();
-    if (prepared.capturePolicy && captureBudgetRequired(prepared.capturePolicy)) {
-      assertMeriServerReadonlyCaptureTurnInput({
-        policy: prepared.capturePolicy,
-        mode: input.mode,
-        attachmentIds: [],
-      });
-      if (prepared.capturePolicy.syntheticReadBudget)
-        await syntheticReadBudgetOwner({
-          prisma: this.prisma,
-          ctx,
-          policy: prepared.capturePolicy,
-          operation: { kind: 'admit', prompt: prepared.task },
-        });
-      else
-        await captureProviderBudgetOwner({
-          prisma: this.prisma,
-          ctx,
-          policy: prepared.capturePolicy,
-          operation: { kind: 'admit' },
-        });
-    }
-    if (prepared.artifactPolicy)
-      await case46ProviderBudgetOwner(requireCase46Owner(this.case46), {
-        ctx,
-        policy: prepared.artifactPolicy,
-        operation: { kind: 'admit' },
-      });
-    const run = () =>
-      withCaptureApiProviderScope(this.prisma, ctx, prepared.capturePolicy, async () => {
-        const resolved = await this.contextPlane.resolveChat(ctx, {
-          conversationId: input.conversationId,
-          task: prepared.task,
-          ...(semanticClock ? { now: new Date(semanticClock.instant), semanticClock } : {}),
-        });
-        // Retrieval owns its database work. Stop must prevent the next stage from
-        // starting, even when that work finishes after the browser disconnected.
-        input.signal?.throwIfAborted();
-        assertMeriServerReadonlyCaptureTurnInput({
-          policy: prepared.capturePolicy,
-          mode: input.mode,
-          attachmentIds: [],
-        });
-        const currentAuthority = await assertMeriServerReadonlyCaptureCurrentAuthority({
-          prisma: this.prisma,
-          ctx,
-          policy: prepared.capturePolicy,
-        });
-        input.signal?.throwIfAborted();
-        const activeClient =
-          resolved.retrieval.plan.subjectScope === 'client'
-            ? (currentAuthority?.client ?? prepared.client)
-            : null;
-        let context = prepared.capturePolicy
-          ? { ...resolved, serverReadonlyCapturePolicy: prepared.capturePolicy }
-          : resolved;
-        if (prepared.artifactPolicy) {
-          const current = await issueCurrentCase46Policy(requireCase46Owner(this.case46), {
-            ctx,
-            conversationId: input.conversationId,
-          });
-          if (
-            !current ||
-            case46BudgetHash(current) !== case46BudgetHash(prepared.artifactPolicy) ||
-            activeClient?.id !== current.clientId
-          )
-            throw new Error('meri_case46_current_context_changed');
-          context = {
-            ...context,
-            prompt: context.prompt + case46VerifiedSourcePrompt(current),
-            governedArtifactCapturePolicy: current,
-          };
-        }
-        return runtime.run(
-          {
-            context,
-            activeClient,
-            capturePolicy: prepared.capturePolicy,
-            governedArtifactPolicy: prepared.artifactPolicy,
-          },
-          fn,
-        );
-      });
-    return prepared.artifactPolicy
-      ? withCase46ApiProviderScope(
-          requireCase46Owner(this.case46),
-          ctx,
-          prepared.artifactPolicy,
-          run,
-        )
-      : run();
+    const context = await this.contextPlane.resolveChat(ctx, {
+      conversationId: input.conversationId,
+      task: prepared.task,
+    });
+    // Retrieval owns its database work. Stop must prevent the next stage from
+    // starting, even when that work finishes after the browser disconnected.
+    input.signal?.throwIfAborted();
+    const activeClient = context.retrieval.plan.subjectScope === 'client' ? prepared.client : null;
+    return runtime.run({ context, activeClient }, fn);
   }
 
   private async prepareTurn(
@@ -228,8 +58,6 @@ export class MeriContextPlaneRuntimeService {
   ): Promise<{
     task: string;
     client: { id: string; name: string } | null;
-    capturePolicy: MeriServerReadonlyCapturePolicy | null;
-    artifactPolicy: MeriGovernedArtifactCapturePolicy | null;
   }> {
     const conversation = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioConversation.findFirst({
@@ -243,42 +71,18 @@ export class MeriContextPlaneRuntimeService {
       }),
     );
     if (!conversation) throw new Error('meri_context_plane_conversation_not_found');
-    const binding = readSealedCase46Binding(conversation.metadata, ctx, input.conversationId);
-    const artifactPolicy = binding
-      ? await issueCurrentCase46Policy(requireCase46Owner(this.case46), {
-          ctx,
-          conversationId: input.conversationId,
-        })
-      : null;
-    if (artifactPolicy) {
-      assertCase46OriginalInput(artifactPolicy, { ...input, attachmentIds: [] });
-      await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
-        assertCase46NewTurnInTx(tx, requireCase46Owner(this.case46), ctx, artifactPolicy),
-      );
-    }
-    const capturePolicy = artifactPolicy
-      ? null
-      : await issueMeriServerReadonlyCapturePolicy({
-          prisma: this.prisma,
-          ctx,
-          conversationId: input.conversationId,
-        });
 
     const cleanBody = cleanStreamControl(input.body);
     if (input.mode === 'new') {
       return {
         task: cleanBody.trim() || '(See the attached file(s).)',
         client: conversation.client ?? null,
-        capturePolicy,
-        artifactPolicy,
       };
     }
     if (input.mode === 'resend') {
       return {
         task: cleanBody.trim(),
         client: conversation.client ?? null,
-        capturePolicy,
-        artifactPolicy,
       };
     }
 
@@ -298,8 +102,6 @@ export class MeriContextPlaneRuntimeService {
     return {
       task: plan?.contentToUse?.trim() || cleanBody.trim() || '(Regenerate previous turn.)',
       client: conversation.client ?? null,
-      capturePolicy,
-      artifactPolicy,
     };
   }
 }

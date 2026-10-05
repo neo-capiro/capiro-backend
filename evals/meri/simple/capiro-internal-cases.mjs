@@ -1,4 +1,4 @@
-// Capiro-internal adaptations of the original cases (evals/meri/live-v1/cases.mjs).
+// Capiro-internal adaptations of the original cases (evals/meri/simple/original-cases.mjs).
 // The behavior and pass condition are the original's; the client and records are
 // real capiro-internal ones (L3 Harris has the most approved memory; Anduril is
 // the second client used for scope checks). State-changing setup only ever uses

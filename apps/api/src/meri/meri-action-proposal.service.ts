@@ -2,8 +2,6 @@ import { timingSafeEqual } from 'node:crypto';
 import {
   BadRequestException,
   Injectable,
-  Inject,
-  Optional,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -11,12 +9,6 @@ import { ConfigService } from '@nestjs/config';
 import type { MeriActionProposal, Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { computeActionFingerprintV2 } from '@capiro/meriv2-core';
-import type { MeriGovernedArtifactCapturePolicy } from '@capiro/meriv2-core';
-import type { Case46AuthorityDependencies } from './meri-case46-authority.js';
-import {
-  CASE46_AUTHORITY_DEPENDENCIES, CASE46_PROPOSAL_MARKER, assertCase46ProposalAuthorityInTx,
-  case46ProposalMarker, publicCase46ProposalPreview,
-} from './meri-case46-action-authority.js';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { buildMeriActionPreview, type MeriActionPreview } from './meri-action-preview.js';
@@ -453,8 +445,6 @@ export class MeriActionProposalService {
     private readonly config: ConfigService<AppConfig, true>,
     private readonly policyPacks: MeriPolicyPackService,
     private readonly researchPortfolioScopes: ResearchPortfolioMeriScopeService,
-    @Optional() @Inject(CASE46_AUTHORITY_DEPENDENCIES)
-    private readonly case46?: Case46AuthorityDependencies,
   ) {}
 
   private assertEnabled(): void {
@@ -465,7 +455,7 @@ export class MeriActionProposalService {
 
   private toPublic(row: MeriActionProposal): PublicMeriActionProposal {
     const preview = publicResearchPortfolioProposalPreview(
-      publicCase46ProposalPreview(row.preview),
+      row.preview,
     ) as unknown as MeriActionPreview;
     return {
       proposalId: row.id,
@@ -604,7 +594,6 @@ export class MeriActionProposalService {
     ctx: TenantContext,
     request: CreateMeriActionProposalInput,
     trustedTurn?: ResearchPortfolioProposalTurnScope,
-    capturePolicy: MeriGovernedArtifactCapturePolicy | null = null,
   ): Promise<MeriActionAuthorityResult> {
     assertMeriToolRequestActive();
     this.assertEnabled();
@@ -634,13 +623,12 @@ export class MeriActionProposalService {
     const status: MeriActionProposalStatus =
       decision.outcome === 'BLOCK'
         ? 'blocked'
-        : decision.outcome === 'WARN' || capturePolicy
+        : decision.outcome === 'WARN'
           ? 'proposed'
           : 'executing';
     const now = new Date();
     const expiresAt = new Date(
-      Math.min(now.getTime() + this.config.get('MERIV2_ACTION_PROPOSAL_TTL_MINUTES') * 60_000,
-        capturePolicy?.expiresAt ?? Number.POSITIVE_INFINITY),
+      now.getTime() + this.config.get('MERIV2_ACTION_PROPOSAL_TTL_MINUTES') * 60_000,
     );
     const fingerprint = computeActionFingerprintV2({
       effectiveTenantId: ctx.tenantId,
@@ -679,8 +667,6 @@ export class MeriActionProposalService {
 
     const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       assertMeriToolRequestActive();
-      const currentCapture = await assertCase46ProposalAuthorityInTx(tx, this.case46, ctx,
-        { ...request, tool, input }, { phase: 'create', policy: capturePolicy });
       if (
         rpCheckpoint &&
         !(await this.lockResearchPortfolioProposalConversation(
@@ -724,12 +710,10 @@ export class MeriActionProposalService {
           policyDecision: decision.outcome,
           policyCode: decision.code ?? null,
           riskTier: decision.tier ?? null,
-          preview: { ...storedPreview, ...(currentCapture ? {
-            [CASE46_PROPOSAL_MARKER]: case46ProposalMarker(currentCapture),
-          } : {}) } as unknown as Prisma.InputJsonValue,
+          preview: storedPreview as unknown as Prisma.InputJsonValue,
           status,
           expiresAt,
-          ...(decision.outcome === 'PASS' && !currentCapture
+          ...(decision.outcome === 'PASS'
             ? { executionStartedAt: now, attemptCount: 1 }
             : decision.outcome === 'BLOCK'
               ? {
@@ -744,7 +728,7 @@ export class MeriActionProposalService {
       return created;
     });
 
-    if (decision.outcome === 'WARN' || (capturePolicy && decision.outcome !== 'BLOCK'))
+    if (decision.outcome === 'WARN')
       return { disposition: 'pending_approval', proposal: this.toPublic(row) };
     if (decision.outcome === 'BLOCK')
       return { disposition: 'blocked', proposal: this.toPublic(row) };
@@ -1095,16 +1079,11 @@ export class MeriActionProposalService {
     }
 
     const current = await this.policyPacks.decideForAction(ctx, row.tool, canonical);
-    const captureRequest = { tool: row.tool, input: canonical, conversationId: row.conversationId, surface: row.surface };
-    const currentCapture = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      assertCase46ProposalAuthorityInTx(tx, this.case46, ctx, captureRequest,
-        { phase: 'approve', proposalId: row.id, preview: row.preview }));
     // PASS actions can already have executed and failed safely in create(). A
     // retry keeps that original authority; it does not turn a new PASS action
     // into an approval or accept a changed policy outcome.
     const sameOutcome =
       (row.policyDecision === 'WARN' && current.outcome === 'WARN') ||
-      (currentCapture !== null && row.policyDecision === 'PASS' && current.outcome === 'PASS') ||
       (status === 'failed_retryable' &&
         row.attemptCount > 0 &&
         row.policyDecision === 'PASS' &&
@@ -1130,10 +1109,6 @@ export class MeriActionProposalService {
       : undefined;
 
     const claimed = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      // The earlier read decides policy compatibility; this same-transaction
-      // reread holds source/actor/turn/budget locks through the canonical claim.
-      await assertCase46ProposalAuthorityInTx(tx, this.case46, ctx, captureRequest,
-        { phase: 'approve', proposalId: row.id, preview: row.preview });
       if (
         rpCheckpoint &&
         !(await this.lockResearchPortfolioProposalConversation(

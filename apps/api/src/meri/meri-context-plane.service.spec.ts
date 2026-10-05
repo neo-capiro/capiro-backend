@@ -5,81 +5,6 @@ jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class PrismaSer
 
 import { MeriContextPlaneService, planMeriTurn } from './meri-context-plane.service.js';
 import { ContextPacketRolloutCompiler } from '@capiro/meriv2-core';
-import { extractCitationsFromToolResult, formatCitationsForPrompt } from '@capiro/shared';
-
-test('short steering records cannot expand the model prompt beyond the serialized evidence budget', async () => {
-  const rows = Array.from({ length: 512 }, (_, index) => ({
-    id: `845d5ac7-4fa1-4ad6-b862-${String(index).padStart(12, '0')}`,
-    type: 'client-compass', slug: `clio:845d5ac7-4fa1-4ad6-b862-${String(index).padStart(12, '0')}`,
-    title: `Approved memory ${index}`, clientId: 'client-1', status: 'active',
-    sections: [{ owner: 'human', heading: 'Approved context', body: 'x'.repeat(70) }],
-  }));
-  const compiler = new ContextPacketRolloutCompiler({
-    loadSteeringRows: async () => rows, loadGovernedSteeringRows: async () => rows,
-    persistPacket: async () => 'packet-id',
-  } as never);
-  const requestContext = async (request: any) => ({
-    kind: 'governed_packet',
-    packet: await compiler.compile({ ...request.contextRequest, ethicalWallAllowed: true }, 'off'),
-    context: { resolution: { status: 'resolved', stopReason: 'resolved',
-      subjectScope: { kind: 'client', clientIds: ['client-1'] } },
-      retrieval: { records: [], coverage: { requestedDomains: [], searchedDomains: [], sources: [],
-        recordsEvaluated: 0, recordsReturned: 0, paginationComplete: true, complete: true } } },
-  });
-  const tx = {
-    clioConversation: { findFirst: async () => ({ clientId: 'client-1' }) },
-    client: { findFirst: async () => ({ name: 'Acme' }), findMany: async () => [{ id: 'client-1', name: 'Acme' }] },
-    integrationConnection: { findMany: async () => [] },
-  };
-  const prisma = { withTenant: async (_t: string, fn: (tx: unknown) => unknown) => fn(tx),
-    withTenantUser: async (_t: string, _u: string, fn: (tx: unknown) => unknown) => fn(tx) };
-  const service = new MeriContextPlaneService(prisma as never, { requestContext } as never);
-  const context = await service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never,
-    { conversationId: 'thread', task: 'Export that briefing and give me the file.' });
-  const citations = formatCitationsForPrompt(extractCitationsFromToolResult('context_plane', context.evidence, 1, 999));
-  const wire = JSON.stringify({ instructions: `${context.prompt}\n${citations}` });
-  console.log('SHORT_STEERING_WIRE_BYTES', Buffer.byteLength(wire), 'RECORDS', context.evidence!.records.length);
-  expect(Buffer.byteLength(wire)).toBeLessThan(80_000);
-  expect(context.evidence!.truncated).toBe(true);
-  expect(context.evidence!.sourceRecordCount).toBe(512);
-  expect(context.evidence!.projectedRecordCount).toBeLessThan(512);
-  expect(context.prompt).toContain('omitted=');
-  // Exercise the receiving service's actual wire reservation without adding
-  // orchestrator source files to the API production TypeScript build.
-  const { composeChatSystemPrompt } = require('../../../meriv2-orchestrator/src/meri/chat/chat-prompt.js');
-  const { flattenSystemParts } = require('../../../meriv2-orchestrator/src/meri/prompt-cache.helpers.js');
-  const { OpenAiResponsesClient } = require('../../../meriv2-orchestrator/src/meri/meriv3/openai-responses.client.js');
-  const { resolveMeriV3ReasoningProfile } = require('../../../meriv2-orchestrator/src/meri/meriv3/meriv3-reasoning.js');
-  const instructions = flattenSystemParts(composeChatSystemPrompt({
-    messages: [{ role: 'user', text: 'Export that briefing and give me the file.' }],
-    clientId: 'client-1', skillAddendum: context.prompt,
-  }, { tenantId: 'tenant', userId: 'actor', contextPacket: context.contextPacket } as never)) + '\n' + citations;
-  const stop = new Error('STOP_BEFORE_PROVIDER_DISPATCH');
-  const reserveProviderAttempt = jest.fn(async (binding: any) => {
-    console.log('FINAL_REQUEST_RESERVATION', JSON.stringify(binding));
-    expect(binding.maxInputTokens + binding.maxOutputTokens).toBeLessThan(500_000);
-    // Reviewed Astra ceiling: $25/M input, $75/M output. Leave room for tools/runtime.
-    expect(binding.maxInputTokens * 25 + binding.maxOutputTokens * 75).toBeLessThan(2_700_000);
-    throw stop;
-  });
-  const key = process.env.OPENAI_API_KEY;
-  const originalFetch = global.fetch;
-  const fetch = jest.fn(async () => { throw new Error('NO_NETWORK_ALLOWED'); });
-  try {
-    process.env.OPENAI_API_KEY = 'offline-placeholder';
-    global.fetch = fetch as never;
-    await expect(new OpenAiResponsesClient().complete({
-      profile: resolveMeriV3ReasoningProfile('standard', {}), instructions,
-      input: [{ role: 'user', content: 'Export that briefing and give me the file.' }],
-      tools: [], budget: { reserveProviderAttempt } as never,
-    })).rejects.toBe(stop);
-    expect(reserveProviderAttempt).toHaveBeenCalledTimes(1);
-    expect(fetch).not.toHaveBeenCalled();
-  } finally {
-    global.fetch = originalFetch;
-    if (key === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = key;
-  }
-});
 
 test('ordinary chat bounds steering with hundreds of memories in off and shadow rollout', async () => {
   const rows = Array.from({ length: 512 }, (_, index) => ({
@@ -119,48 +44,6 @@ test('ordinary chat bounds steering with hundreds of memories in off and shadow 
     expect(packet.items.length).toBeLessThan(512);
     expect(packet.exclusions.some((item: any) => item.reason === 'over-budget')).toBe(true);
   }
-});
-
-test('qualified clock reaches planning/compiler explicitly without requesting a historical ingestion snapshot', async () => {
-  jest.useFakeTimers().setSystemTime(new Date('2026-10-03T12:00:00.000Z'));
-  try {
-    const semanticClock = { version: 1, kind: 'qualified_original_fixture_semantic_clock',
-      instant: '2026-09-26T16:00:00.000Z', timeZone: 'America/New_York', caseId: '01',
-      captureRunId: '11111111-1111-4111-8111-111111111111', currentVerifySha256: 'a'.repeat(64),
-      observedAt: Date.now() } as const;
-    const tx = { clioConversation: { findFirst: async () => ({ clientId: 'client-acme' }) },
-      client: { findFirst: async () => ({ name: 'Acme' }), findMany: async () => [{ id: 'client-acme', name: 'Acme' }] },
-      integrationConnection: { findMany: async () => [] } };
-    const prisma = { withTenant: async (_t: string, fn: (tx: unknown) => unknown) => fn(tx),
-      withTenantUser: async (_t: string, _u: string, fn: (tx: unknown) => unknown) => fn(tx) };
-    const requestContext = jest.fn(async (_request: unknown) => ({ kind: 'governed_packet', packet: {} }));
-    const service = new MeriContextPlaneService(prisma as never, { requestContext } as never);
-    const input = { conversationId: 'thread', task: 'Prepare a briefing on changes in the last 7 days',
-      now: new Date(semanticClock.instant), semanticClock };
-    await expect(service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never, input))
-      .rejects.toThrow('compiler_evidence_missing');
-    const call = requestContext.mock.calls[0]![0] as any;
-    expect(call.contextRequest.now).toEqual(input.now);
-    expect(call.contextRequest.semanticClock).toEqual(semanticClock);
-    expect(call.resolverRequest.retrieval.windowEnd.toISOString()).toBe(semanticClock.instant);
-    expect(call.resolverRequest.retrieval.windowStart.toISOString()).toBe('2026-09-19T16:00:00.000Z');
-    expect(call.resolverRequest.retrieval.observedThrough).toBeUndefined();
-    await expect(service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never,
-      { ...input, now: new Date() })).rejects.toThrow('clock_request_mismatch');
-    expect(requestContext).toHaveBeenCalledTimes(1);
-    const clockUse = { instant: semanticClock.instant, timeZone: semanticClock.timeZone,
-      eligibilityAt: new Date().toISOString(), scoring: 'used' as const };
-    requestContext.mockResolvedValueOnce({ kind: 'governed_packet',
-      packet: { persisted: false, items: [], exclusions: [], rendered: [], clockUse },
-      context: { resolution: { status: 'resolved', stopReason: 'resolved',
-        subjectScope: { kind: 'client', clientIds: ['client-acme'] } },
-        retrieval: { records: [], coverage: { requestedDomains: [], searchedDomains: [], sources: [],
-          recordsEvaluated: 0, recordsReturned: 0, paginationComplete: true, complete: true } } },
-    } as never);
-    const resolved = await service.resolveChat({ tenantId: 'tenant', userId: 'actor' } as never, input);
-    expect(resolved.contextPacket.clockUse).toEqual(clockUse);
-    expect(resolved.contextPacket.clockUse!.eligibilityAt).not.toBe(semanticClock.instant);
-  } finally { jest.useRealTimers(); }
 });
 
 describe('client document clarification context', () => {

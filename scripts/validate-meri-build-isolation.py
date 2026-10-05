@@ -25,7 +25,7 @@ ALLOWED_ACTIONS = ('actions/checkout@', 'pnpm/action-setup@', 'actions/setup-nod
                    'docker/setup-buildx-action@', 'docker/setup-qemu-action@', 'docker/build-push-action@')
 BUILD_DIGEST = '${{ steps.build.outputs.digest }}'
 # api-image.yml also uploads the narrow source-to-digest receipt defined in
-# docs/contracts/api-image-build-record.md (consumed by scripts/meri-synthetic-fullchat.py).
+# docs/contracts/api-image-build-record.md.
 # Evidence only: the exact producer command and artifact action are permitted for
 # that one workflow; nothing else may add actions or helpers.
 EVIDENCE_ACTIONS = {'api-image.yml': ('actions/upload-artifact@',)}

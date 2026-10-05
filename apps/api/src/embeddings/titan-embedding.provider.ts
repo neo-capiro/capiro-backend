@@ -1,15 +1,5 @@
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import {
-  case12SetupProviderScopeActive,
-  reserveCase12SetupProviderAttempt,
-  settleCase12SetupProviderAttempt,
-} from '../meri/meri-case12-setup-provider-scope.js';
-import {
-  captureApiProviderScopeActive,
-  reserveCaptureApiProviderAttempt,
-  settleCaptureApiProviderAttempt,
-} from '../meri/meri-capture-api-provider-scope.js';
-import {
   EmbeddingProviderError,
   type EmbeddingProvider,
   type EmbeddingProviderMetadata,
@@ -49,7 +39,6 @@ export class TitanEmbeddingProvider implements EmbeddingProvider {
   private readonly region: string;
   private readonly customInvoker?: EmbeddingModelInvoker;
   private bedrock: BedrockRuntimeClient | null = null;
-  private captureBedrock: BedrockRuntimeClient | null = null;
 
   constructor(options: TitanEmbeddingProviderOptions = {}) {
     this.region = options.region ?? DEFAULT_REGION;
@@ -63,11 +52,6 @@ export class TitanEmbeddingProvider implements EmbeddingProvider {
   }
 
   async embed(input: string): Promise<number[]> {
-    const setup = case12SetupProviderScopeActive();
-    if (setup && captureApiProviderScopeActive())
-      throw new Error('meri_case12_setup_provider_capture_overlap');
-    if ((setup || captureApiProviderScopeActive()) && this.region !== 'us-east-1')
-      throw new Error('meri_capture_provider_wire_unqualified_bedrock_region');
     const command = new InvokeModelCommand({
       modelId: this.metadata.model,
       contentType: 'application/json',
@@ -78,30 +62,11 @@ export class TitanEmbeddingProvider implements EmbeddingProvider {
         normalize: true,
       }),
     });
-    const setupReservation = setup
-      ? await reserveCase12SetupProviderAttempt({
-          kind: 'bedrock_embeddings',
-          provider: this.metadata.provider,
-          model: this.metadata.model,
-          endpoint: 'https://bedrock-runtime.us-east-1.amazonaws.com',
-          body: String(command.input.body),
-        })
-      : null;
-    const reservation = setup
-      ? null
-      : await reserveCaptureApiProviderAttempt({
-          kind: 'bedrock_embeddings',
-          provider: this.metadata.provider,
-          model: this.metadata.model,
-          inputBytes: Buffer.byteLength(String(command.input.body), 'utf8'),
-        });
 
     let response: EmbeddingModelResponse;
     try {
       response = await this.invoke(command);
     } catch (cause) {
-      if (setup) await settleCase12SetupProviderAttempt(setupReservation, { kind: 'uncertain' });
-      await settleCaptureApiProviderAttempt(reservation, { kind: 'uncertain' });
       throw new EmbeddingProviderError(
         'provider_request_failed',
         `Embedding provider request failed (${this.metadata.provider}/${this.metadata.model})`,
@@ -111,11 +76,6 @@ export class TitanEmbeddingProvider implements EmbeddingProvider {
       );
     }
 
-    let setupOutcome:
-      { kind: 'known'; inputTokens: number; outputTokens: 0 } | { kind: 'uncertain' } = {
-      kind: 'uncertain',
-    };
-    let embedding: number[];
     try {
       if (!response.body) {
         throw new EmbeddingProviderError(
@@ -127,12 +87,10 @@ export class TitanEmbeddingProvider implements EmbeddingProvider {
       }
       const parsed = JSON.parse(new TextDecoder().decode(response.body)) as {
         embedding?: number[];
-        inputTextTokenCount?: number;
       };
       if (
         !Array.isArray(parsed.embedding) ||
-        parsed.embedding.length !== this.metadata.dimensions ||
-        (setup && parsed.embedding.some((value) => !Number.isFinite(value)))
+        parsed.embedding.length !== this.metadata.dimensions
       ) {
         throw new EmbeddingProviderError(
           'invalid_provider_response',
@@ -141,21 +99,8 @@ export class TitanEmbeddingProvider implements EmbeddingProvider {
           false,
         );
       }
-      embedding = parsed.embedding;
-      setupOutcome =
-        Number.isSafeInteger(parsed.inputTextTokenCount) && parsed.inputTextTokenCount! >= 0
-          ? { kind: 'known', inputTokens: parsed.inputTextTokenCount!, outputTokens: 0 }
-          : { kind: 'uncertain' };
-      if (!setup)
-        await settleCaptureApiProviderAttempt(
-          reservation,
-          Number.isSafeInteger(parsed.inputTextTokenCount) && parsed.inputTextTokenCount! >= 0
-            ? { kind: 'known', inputTokens: parsed.inputTextTokenCount!, outputTokens: 0 }
-            : { kind: 'uncertain' },
-        );
+      return parsed.embedding;
     } catch (cause) {
-      if (setup) await settleCase12SetupProviderAttempt(setupReservation, { kind: 'uncertain' });
-      await settleCaptureApiProviderAttempt(reservation, { kind: 'uncertain' });
       if (cause instanceof EmbeddingProviderError) throw cause;
       throw new EmbeddingProviderError(
         'invalid_provider_response',
@@ -165,10 +110,6 @@ export class TitanEmbeddingProvider implements EmbeddingProvider {
         cause,
       );
     }
-    // Outside the parse catch: a failed durable settlement must not be rewritten
-    // as another outcome or release a reservation with an unknown commit status.
-    if (setup) await settleCase12SetupProviderAttempt(setupReservation, setupOutcome);
-    return embedding;
   }
 
   async embedBatch(inputs: readonly string[]): Promise<number[][]> {
@@ -177,16 +118,6 @@ export class TitanEmbeddingProvider implements EmbeddingProvider {
 
   private async invoke(command: InvokeModelCommand): Promise<EmbeddingModelResponse> {
     if (this.customInvoker) return this.customInvoker(command);
-    if (captureApiProviderScopeActive() || case12SetupProviderScopeActive()) {
-      // Hidden SDK retries cannot reuse one durable wire-attempt reservation.
-      this.captureBedrock ??= new BedrockRuntimeClient({
-        region: this.region,
-        maxAttempts: 1,
-        endpoint: 'https://bedrock-runtime.us-east-1.amazonaws.com',
-      });
-      const response = await this.captureBedrock.send(command);
-      return { body: response.body };
-    }
     if (!this.bedrock) {
       this.bedrock = new BedrockRuntimeClient({ region: this.region });
     }

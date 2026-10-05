@@ -1,4 +1,7 @@
-import { FIXTURE_VERSION } from './fixture.mjs';
+// The original 75-case list, moved here from evals/meri/live-v1/cases.mjs when the
+// live-v1 capture harness was deleted (program plan section 4.4). The fixture version
+// string is the value live-v1/fixture.mjs exported; it is kept so recorded runs stay comparable.
+const FIXTURE_VERSION = 'meri-live-v1-2026-09-26.1';
 
 /** @typedef {import('./contract.types.d.ts').LiveCase} LiveCase */
 

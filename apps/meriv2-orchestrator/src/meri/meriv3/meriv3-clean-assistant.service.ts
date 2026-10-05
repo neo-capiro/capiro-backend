@@ -8,7 +8,6 @@ import {
 } from '@capiro/shared';
 import type { LedgerEntry } from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { currentGovernedArtifactCapturePolicy } from '../../request/trusted-current-turn-scope.js';
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
 import { MeriRetrievalCoordinator } from '../retrieval/meri-retrieval-coordinator.js';
@@ -321,10 +320,6 @@ export class MeriV3CleanAssistantService extends MeriV3RetrievalAssistantService
     ledgerEntries: LedgerEntry[],
   ): Record<string, unknown> {
     if (name !== 'create_word' && name !== 'create_powerpoint') return input;
-    // A governed capture export must reproduce an existing document byte for
-    // byte; citation normalization (which trims) would make it inexact. The
-    // dispatch guard verifies the untouched input against the policy instead.
-    if (currentGovernedArtifactCapturePolicy()) return input;
     // Normalize before canonical doc generation and policy authorization so
     // preview, saved spec, export and Evidence cards share the same references.
     const release = buildMeriV3ReleaseCitations(citations, ledgerEntries);

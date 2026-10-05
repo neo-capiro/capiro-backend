@@ -45,11 +45,9 @@ export class MemoryProposalController {
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
   ) {
-    const result = await (cursor !== undefined || limit !== undefined
+    return cursor !== undefined || limit !== undefined
       ? this.candidates.listOwnProposals(ctx, { cursor, limit })
-      : this.candidates.listOwnProposals(ctx));
-    const fixtureEvidence = await this.candidates.readOwnPendingFixtureEvidence(ctx);
-    return fixtureEvidence ? { ...result, fixtureEvidence } : result;
+      : this.candidates.listOwnProposals(ctx);
   }
 
   @Post(':id/withdraw')

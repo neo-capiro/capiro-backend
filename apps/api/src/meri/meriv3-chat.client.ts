@@ -8,7 +8,6 @@ import type {
   MeriGovernedProcedureBinding,
   MeriGovernedTurnContext,
   MeriResearchPlanExecutionEnvelopeV1,
-  SignedMeriCaptureEvidenceReceipt,
 } from '@capiro/meriv2-core';
 import type { ResolvedAiForChatHeader } from './meriv2-chat.client.js';
 import type { MeriTelemetryContext } from '@capiro/meriv2-core';
@@ -228,7 +227,6 @@ export type MeriV3ChatStreamEvent =
       aborted?: boolean;
       ledgerEntries?: Array<LedgerEntry & { durableSafeRead?: MeriV3DurableSafeReadOutcome }>;
       held?: boolean;
-      serverCaptureEvidenceObservation?: SignedMeriCaptureEvidenceReceipt;
     }
   | { type: 'error'; message: string };
 
