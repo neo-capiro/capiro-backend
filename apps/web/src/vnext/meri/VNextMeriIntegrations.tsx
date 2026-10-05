@@ -1,3 +1,4 @@
+import { KrispNotetakerSettings } from './KrispNotetakerSettings.js';
 import {
   ManagedMcpAppsProvider,
   useManagedMcpApps,
@@ -61,6 +62,10 @@ function VNextMeriIntegrationsContent({ onBack }: { onBack: () => void }) {
             ))
           )}
         </div>
+
+        {managed.apps.some((app) => app.id === 'krisp') ? (
+          <KrispNotetakerSettings connected={Boolean(managed.apps.find((app) => app.id === 'krisp')?.connected)} />
+        ) : null}
 
         <div className="vnext-meri-integrations__notice">
           <MeriIcon name="InfoCircle" size={16} color="#98A2B3" />

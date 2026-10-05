@@ -333,3 +333,17 @@
 @media (prefers-reduced-motion: reduce) {
   .capiro-vnext-root .vnext-meri-integration-card.is-loading::after { animation: none; }
 }
+
+.krisp-notetaker-settings { margin-top: 24px; padding: 24px; border: 1px solid var(--vnext-border, #e4e7ec); border-radius: 12px; background: var(--vnext-surface, #fff); }
+.krisp-notetaker-settings h2 { margin: 0 0 12px; font-size: 18px; }
+.krisp-notetaker-settings p { font-size: 14px; line-height: 1.6; }
+.krisp-notetaker-settings__toggle { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0; font-size: 14px; }
+.krisp-notetaker-settings__folder { display: grid; gap: 8px; font-size: 14px; }
+.krisp-notetaker-settings select { max-width: 100%; padding: 9px 12px; border: 1px solid #d0d5dd; border-radius: 6px; background: white; color: #344054; }
+.krisp-notetaker-settings button { padding: 9px 14px; border: 1px solid #d0d5dd; border-radius: 6px; background: white; color: #344054; cursor: pointer; }
+.krisp-notetaker-settings button:disabled { opacity: .5; cursor: default; }
+.krisp-notetaker-settings__detail { color: #667085; }
+.krisp-notetaker-settings__import { border-top: 1px solid #e4e7ec; padding: 16px 0; font-size: 14px; }
+.krisp-notetaker-settings__import > span { display: block; margin-top: 4px; color: #667085; }
+.krisp-notetaker-settings__import select { margin-right: 8px; }
+.krisp-notetaker-settings [role=alert] { color: #b42318; }

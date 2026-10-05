@@ -1,3 +1,4 @@
+import { krispTenantEnabled } from '../common/krisp-notetaker-flags.js';
 import { managedAppDefinition, managedAppAvailable } from './meri-managed-mcp.helpers.js';
 /**
  * OAuth 2.1 connect flow for Meri MCP connectors (connector-library v1).
@@ -129,6 +130,8 @@ export class MeriMcpOAuthService {
       offlineAccess: managedAppDefinition(server.catalogId)?.offlineAccess,
       tokenExpiryFromJwt: server.catalogId === 'meriv3-monday',
       expectedIssuer,
+      // Krisp's live metadata advertises confidential clients (PKCE still applies).
+      registrationAuthMethod: server.catalogId === 'meriv3-krisp' ? 'client_secret_post' : undefined,
     });
   }
 
@@ -142,7 +145,7 @@ export class MeriMcpOAuthService {
   ): Promise<{ authUrl: string | null; alreadyConnected?: boolean }> {
     this.assertConfigured();
     const server = await this.loadOwnedServer(ctx, serverId);
-    this.assertManagedServer(server, ctx.tenantId);
+    await this.assertManagedServer(server, ctx.tenantId);
     if (server.authType !== 'oauth') {
       throw new BadRequestException('This connector does not use OAuth');
     }
@@ -258,7 +261,7 @@ export class MeriMcpOAuthService {
       }),
     );
     if (!server) throw new NotFoundException('Connector not found');
-    this.assertManagedServer(server, decoded.t);
+    await this.assertManagedServer(server, decoded.t);
     if (managedAppDefinition(server.catalogId) && server.ownerUserId !== decoded.u) {
       throw new ForbiddenException('This authorization is no longer active.');
     }
@@ -404,7 +407,10 @@ export class MeriMcpOAuthService {
     return server;
   }
 
-  private assertManagedServer(server: OAuthServerRow, tenantId: string): void {
+  private async assertManagedServer(server: OAuthServerRow, tenantId: string): Promise<void> {
+    if (server.catalogId === 'meriv3-krisp' && !(await krispTenantEnabled(this.prisma, tenantId))) {
+      throw new ServiceUnavailableException('Krisp Notetaker is not enabled for this organization.');
+    }
     const app = managedAppDefinition(server.catalogId);
     if (
       app &&

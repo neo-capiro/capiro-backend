@@ -49,6 +49,7 @@ export interface DbOAuthProviderOptions {
   offlineAccess?: boolean;
   tokenExpiryFromJwt?: boolean;
   expectedIssuer?: string;
+  registrationAuthMethod?: 'none' | 'client_secret_post';
 }
 
 export class DbOAuthClientProvider implements OAuthClientProvider {
@@ -97,7 +98,7 @@ export class DbOAuthClientProvider implements OAuthClientProvider {
       response_types: ['code'],
       // Prefer a public (PKCE) client; if the server forces a secret on
       // registration we persist it and the SDK negotiates the method.
-      token_endpoint_auth_method: 'none',
+      token_endpoint_auth_method: this.opts.registrationAuthMethod ?? 'none',
       ...(scope ? { scope } : {}),
     };
   }

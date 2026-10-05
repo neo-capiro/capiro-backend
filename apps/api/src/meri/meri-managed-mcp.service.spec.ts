@@ -20,6 +20,7 @@ const ctx = {
 
 function make() {
   const tx = {
+    tenant: { findUnique: jest.fn(async () => null) },
     clioMcpServer: {
       findMany: jest.fn(async (): Promise<Array<Record<string, unknown>>> => []),
       findFirst: jest.fn(async (): Promise<Record<string, unknown> | null> => null),

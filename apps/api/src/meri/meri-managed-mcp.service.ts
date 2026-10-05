@@ -1,3 +1,4 @@
+import { krispTenantEnabled } from '../common/krisp-notetaker-flags.js';
 import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -71,7 +72,8 @@ export class MeriManagedMcpService {
 
   async listApps(ctx: TenantContext): Promise<MeriV3ManagedAppStatus[]> {
     const rows = await this.personalRows(ctx);
-    return MERIV3_MANAGED_APP_IDS.map((id) => {
+    const krispEnabled = await krispTenantEnabled(this.prisma, ctx.tenantId);
+    return MERIV3_MANAGED_APP_IDS.filter((id) => id !== 'krisp' || krispEnabled).map((id) => {
       const app = MANAGED_MCP_APPS[id];
       const row = rows.find((candidate) => candidate.catalogId === app.catalogId);
       let status = this.publicStatus(row?.connectionStatus);
@@ -111,6 +113,9 @@ export class MeriManagedMcpService {
   }
 
   private async connectApp(ctx: TenantContext, appId: MeriV3ManagedAppId) {
+    if (appId === 'krisp' && !(await krispTenantEnabled(this.prisma, ctx.tenantId))) {
+      throw new ServiceUnavailableException('Krisp Notetaker is not enabled for this organization.');
+    }
     if (!globalMcpEnabled()) {
       throw new ServiceUnavailableException('Connected apps are temporarily disabled.');
     }
@@ -217,6 +222,7 @@ export class MeriManagedMcpService {
     const prefixes = new Map<string, MeriV3ManagedAppId>();
     for (const row of await this.personalRows(ctx)) {
       const id = managedAppIdFromCatalogId(row.catalogId);
+      if (id === 'krisp' && !(await krispTenantEnabled(this.prisma, ctx.tenantId))) continue;
       if (!id || !this.available(id, ctx) || !row.enabled || row.connectionStatus !== 'connected')
         continue;
       if (await this.hardenServer(ctx.tenantId, row.id)) prefixes.set(serverPrefix(row.name), id);
@@ -301,6 +307,7 @@ export class MeriManagedMcpService {
       !['pending', 'connected'].includes(row.connectionStatus)
     )
       return 0;
+    if (id === 'krisp' && !(await krispTenantEnabled(this.prisma, tenantId))) return 0;
     const safe = filterManagedReadOnlyTools(id, strings(row.toolAllowlist));
     if (
       JSON.stringify(strings(row.toolAllowlist)) !== JSON.stringify(safe) ||

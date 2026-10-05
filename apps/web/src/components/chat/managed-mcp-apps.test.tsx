@@ -60,7 +60,7 @@ async function start() {
       <Probe />
     </ManagedMcpAppsProvider>,
   );
-  await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('4'));
+  await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent(String(MANAGED_APP_IDS.length)));
   return view;
 }
 async function tick() {
