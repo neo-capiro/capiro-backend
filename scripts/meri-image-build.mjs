@@ -3,8 +3,13 @@
 // One CodeBuild run per service on the native ARM64 project capiro-build-web-dev,
 // building the exact merged-main SHA, running an offline import smoke test inside
 // the built image, then pushing it tagged by SHA. No capture-harness assertions.
+// web-vnext builds apps/web/Dockerfile with CAPIRO_WEB_BUILD_SURFACE=vnext on the
+// same native ARM64 project (never on this host: the web build segfaults under
+// QEMU); its smoke test checks the static bundle and, when BUILD_WEB_PROBE is set,
+// that the given release-specific string ships in the bundle.
 //
-//   BUILD_SERVICE=api|meriv2-orchestrator BUILD_SOURCE_SHA=<40-hex> BUILD_ROOT=<dir> \
+//   BUILD_SERVICE=api|meriv2-orchestrator|web-vnext BUILD_SOURCE_SHA=<40-hex> BUILD_ROOT=<dir> \
+//     [BUILD_WEB_PROBE='<text that must appear in the web bundle>'] \
 //     node meri-image-build.mjs launch   # starts exactly one build, refuses a replay
 //   ... node meri-image-build.mjs collect # read-only, rerun until complete
 import { execFileSync } from 'node:child_process';
@@ -15,7 +20,10 @@ import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 const SERVICE = process.env.BUILD_SERVICE;
 const SOURCE_SHA = process.env.BUILD_SOURCE_SHA;
 const ROOT = process.env.BUILD_ROOT;
-if (!['api', 'meriv2-orchestrator'].includes(SERVICE)) throw new Error('BUILD_SERVICE');
+const WEB_PROBE = process.env.BUILD_WEB_PROBE ?? '';
+if (!['api', 'meriv2-orchestrator', 'web-vnext'].includes(SERVICE)) throw new Error('BUILD_SERVICE');
+if (WEB_PROBE && (SERVICE !== 'web-vnext' || !/^[A-Za-z0-9 .,:_-]{3,80}$/.test(WEB_PROBE)))
+  throw new Error('BUILD_WEB_PROBE');
 if (!/^[0-9a-f]{40}$/.test(SOURCE_SHA ?? '')) throw new Error('BUILD_SOURCE_SHA');
 if (!ROOT) throw new Error('BUILD_ROOT');
 mkdirSync(ROOT, { recursive: true });
@@ -56,8 +64,15 @@ ${SERVICE === 'meriv2-orchestrator' ? 'python3 scripts/validate-meri-orchestrato
 aws ecr get-login-password --region ${REGION} | docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 `;
 
-const smoke =
-  SERVICE === 'api'
+const webSmoke = `docker run --rm --network none --entrypoint sh "$image" -ec '
+test -s /usr/share/nginx/html/index.html
+test -x /docker-entrypoint.d/00-runtime-config.sh
+grep -rl "__CAPIRO_CONFIG__" /usr/share/nginx/html/assets >/dev/null
+${WEB_PROBE ? `grep -rlF "${WEB_PROBE}" /usr/share/nginx/html/assets >/dev/null\n` : ''}echo IMAGE_SMOKE_PASS'`;
+
+const smoke = SERVICE === 'web-vnext'
+  ? webSmoke
+  : SERVICE === 'api'
     ? `docker run --rm --network none --entrypoint node "$image" -e "
 const assert=require('node:assert/strict');
 assert.equal(typeof require('@prisma/client').PrismaClient,'function');
@@ -93,9 +108,9 @@ console.log('IMAGE_SMOKE_PASS');
 const build = `set -euo pipefail
 image="${image}"
 docker build --platform linux/arm64 ${SERVICE === 'meriv2-orchestrator' ? '--no-cache ' : ''}\\
-  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\
+${SERVICE === 'web-vnext' ? '  --build-arg NODE_VERSION=22.23.3 --build-arg GIT_SHA="$EXPECTED_SHA" --build-arg CAPIRO_WEB_BUILD_SURFACE=vnext \\\n' : ''}  --label "org.opencontainers.image.revision=$EXPECTED_SHA" \\
   --label 'org.opencontainers.image.source=https://github.com/neo-capiro/capirov2' \\
-  -f apps/${SERVICE}/Dockerfile -t "$image" .
+  -f apps/${SERVICE === 'web-vnext' ? 'web' : SERVICE}/Dockerfile -t "$image" .
 test "$(docker image inspect "$image" --format '{{.Architecture}}')" = arm64
 test "$(docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$EXPECTED_SHA"
 ${smoke}
@@ -153,6 +168,7 @@ function launch() {
     sourceSha: SOURCE_SHA,
     buildId: started.build.id,
     status: started.build.buildStatus,
+    webProbe: WEB_PROBE || null,
     buildspecSha256: sha256(buildspecOverride),
     buildspecCharacters: buildspecOverride.length,
     requiredMarkers: REQUIRED,
