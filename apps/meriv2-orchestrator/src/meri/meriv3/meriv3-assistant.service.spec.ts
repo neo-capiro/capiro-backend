@@ -437,6 +437,15 @@ describe('MeriV3AssistantService', () => {
     expect(service.augmentToolInput({}, input, schema)).toEqual({ input });
     expect(input).toEqual({ cursor: 'same-page' });
   });
+
+  test('binds a memory save to the conversation client, never a model-chosen one', () => {
+    const service = Object.create(MeriV3AssistantService.prototype) as any;
+    const schema = { name: 'save_memory', input_schema: { properties: { content: { type: 'string' }, scope: { type: 'string' } } } };
+    const input = { content: 'Briefs include the program office.', scope: 'client' };
+    expect(service.augmentToolInput({ clientId: 'aster' }, input, schema)).toEqual({ input: { ...input, clientId: 'aster' } });
+    expect(service.augmentToolInput({ clientId: 'aster' }, { ...input, clientId: 'bluehaven' }, schema)).toEqual({ input: { ...input, clientId: 'aster' } });
+    expect(service.augmentToolInput({}, { ...input, clientId: 'bluehaven' }, schema)).toEqual({ input });
+  });
   const originalFetch = global.fetch;
   const originalOpenAiKey = process.env.OPENAI_API_KEY;
 
