@@ -8,6 +8,9 @@ import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as targets from 'aws-cdk-lib/aws-elasticloadbalancingv2-targets';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as sns from 'aws-cdk-lib/aws-sns';
 import * as kms from 'aws-cdk-lib/aws-kms';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
@@ -437,6 +440,69 @@ export class ComputeStack extends cdk.Stack {
       metricValue: '$.count',
       defaultValue: 0,
     });
+
+    // MeriV3 kill switch and orchestrator health (program plan Stage 1 §4.1).
+    // Applied live on 2026-10-05 with `aws logs put-metric-filter` and
+    // `aws cloudwatch put-metric-alarm` (same rule as above: never via
+    // `cdk deploy Capiro-dev-Compute`). The API logs one `meri_unavailable` line
+    // per refused chat turn and one `meri_orchestrator_failure` line per
+    // orchestrator HTTP 5xx or unreachable connection. Alarms notify the
+    // existing platform alarm topic.
+    const platformAlarms = sns.Topic.fromTopicArn(
+      this,
+      'PlatformAlarmsTopic',
+      `arn:aws:sns:${cfg.region}:${cfg.account}:capiro-${cfg.envName}-platform-alarms`,
+    );
+    const meriUnavailable = new logs.MetricFilter(this, 'MeriUnavailableMetricFilter', {
+      logGroup: apiLogGroup,
+      filterName: 'capiro-meri-unavailable',
+      metricNamespace: 'Capiro/Meri',
+      metricName: 'MeriUnavailable',
+      filterPattern: logs.FilterPattern.literal('"meri_unavailable"'),
+      metricValue: '1',
+      defaultValue: 0,
+    });
+    const meriOrchestratorFailure = new logs.MetricFilter(
+      this,
+      'MeriOrchestratorFailureMetricFilter',
+      {
+        logGroup: apiLogGroup,
+        filterName: 'capiro-meri-orchestrator-failure',
+        metricNamespace: 'Capiro/Meri',
+        metricName: 'MeriOrchestratorFailure',
+        filterPattern: logs.FilterPattern.literal('"meri_orchestrator_failure"'),
+        metricValue: '1',
+        defaultValue: 0,
+      },
+    );
+    for (const [id, name, description, metric, threshold] of [
+      [
+        'MeriUnavailableAlarm',
+        'Capiro-Meri-Unavailable',
+        "Meri refused a chat turn as unavailable (MERIV3_ENABLED off or a tenant's meriv3.fullChat=false). Program plan Stage 1 §4.1.",
+        meriUnavailable,
+        1,
+      ],
+      [
+        'MeriOrchestratorFailureAlarm',
+        'Capiro-Meri-Orchestrator-Failure',
+        'The API could not reach the Meri orchestrator or got HTTP 5xx from /v3/chat/stream, 3 or more times in 5 minutes. Program plan Stage 1 §4.1.',
+        meriOrchestratorFailure,
+        3,
+      ],
+    ] as const) {
+      const alarm = new cloudwatch.Alarm(this, id, {
+        alarmName: name,
+        alarmDescription: description,
+        metric: metric.metric({ statistic: 'Sum', period: cdk.Duration.minutes(5) }),
+        threshold,
+        evaluationPeriods: 1,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      });
+      alarm.addAlarmAction(new cloudwatchActions.SnsAction(platformAlarms));
+      alarm.addOkAction(new cloudwatchActions.SnsAction(platformAlarms));
+    }
 
     const webLogGroup = new logs.LogGroup(this, 'WebLogs', {
       logGroupName: `/capiro/${cfg.envName}/web`,

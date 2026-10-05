@@ -269,7 +269,7 @@ created out-of-band. The CDK `WebAcl` construct is CloudFormation-managed and di
 | --- | --- | --- |
 | `allow-msgraph-webhook-validation` (0) | yes | codified 2026-10-05 |
 | Common rule set exclusions | `SizeRestrictions_QUERYSTRING`, `_URIPATH`, `_BODY` | codified 2026-10-05 |
-| `CrossSiteScripting_BODY` scoped to everything except `POST /api/clio/attachments` | pending Neo's OK at the time (program plan D10, §4.5) | codified 2026-10-05 |
+| `CrossSiteScripting_BODY` scoped to everything except `POST /api/clio/attachments` | applied 2026-10-05 with Neo's OK (program plan D10, §4.5); PPTX and XLSX uploads verified 201/parsed | codified 2026-10-05 |
 | Known bad inputs (2) | yes | yes |
 | SQLi rule set (3) | yes | no |
 | IP reputation list | no | yes (3) |
@@ -277,3 +277,11 @@ created out-of-band. The CDK `WebAcl` construct is CloudFormation-managed and di
 
 A future reconciliation must decide the SQLi, IP-reputation and rate-limit rules
 deliberately; a `cdk deploy` would otherwise attach a differently configured ACL.
+
+## Meri alarms (created live 2026-10-05, codified the same day)
+
+Metric filters on `/capiro/dev/api`: `capiro-meri-unavailable` (`"meri_unavailable"`) and
+`capiro-meri-orchestrator-failure` (`"meri_orchestrator_failure"`), namespace `Capiro/Meri`.
+Alarms `Capiro-Meri-Unavailable` (Sum >= 1 in 5 minutes) and `Capiro-Meri-Orchestrator-Failure`
+(Sum >= 3 in 5 minutes) notify `capiro-dev-platform-alarms`. The T15 kill-switch drill on
+2026-10-05 moved `Capiro-Meri-Unavailable` from OK to ALARM on its single refused turn, as intended.
