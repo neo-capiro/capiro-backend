@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s1-roll-4-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-05T22:21:07.433689+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "24325c5ee61a01b939fcb51d8cb7012a58857466",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:0b34a44e62bf7c0816f60ee4e1aa6e5443fa91c4c5b88975f755864314a6cd44",
+      "buildId": "capiro-build-web-dev:c45265cd-2bfa-4922-bbe9-0eb4446f0a09"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Stage 1 roll 4, orchestrator only: a request that names a slide or page is a targeted read, attachment text never classifies the request, and a strategy deck is not a request for advice (#2033, case 41). API unchanged (561); it only uses the shared resolver for file-location clarifications and picks the change up at its next roll.",
+  "reviewer": "Lead agent (Stage 1): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo: \"implement stage 1\" (2026-10-05); program plan \u00a710 release path."
+}
