@@ -35,6 +35,25 @@ const MAX_RETRIES = 2;
 
 const retryDelay = (attempt: number) => 300 * 2 ** attempt + Math.floor(Math.random() * 100);
 
+/**
+ * The provider's own back-off instruction, in milliseconds, or null when it
+ * gave none. OpenAI sends `retry-after-ms`; standard HTTP sends `retry-after`
+ * as seconds or an HTTP date. Retrying sooner only spends another throttled
+ * attempt (program plan §4.5: a measured defect).
+ */
+export function parseRetryAfterMs(
+  headers: { get(name: string): string | null } | undefined,
+  now = Date.now(),
+): number | null {
+  const ms = headers?.get('retry-after-ms')?.trim();
+  if (ms && /^\d+(?:\.\d+)?$/.test(ms)) return Math.ceil(Number(ms));
+  const value = headers?.get('retry-after')?.trim();
+  if (!value) return null;
+  if (/^\d+(?:\.\d+)?$/.test(value)) return Math.ceil(Number(value) * 1000);
+  const at = Date.parse(value);
+  return Number.isFinite(at) ? Math.max(0, at - now) : null;
+}
+
 function waitForRetry(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const abort = () => {
@@ -452,6 +471,7 @@ export class OpenAiResponsesClient {
       const abortFromCaller = () => controller.abort();
       params.signal?.addEventListener('abort', abortFromCaller, { once: true });
       let status: number | undefined;
+      let retryAfterMs: number | null = null;
       let providerSettlementAttempted = false;
       try {
         wireStarted = true;
@@ -488,6 +508,7 @@ export class OpenAiResponsesClient {
                 throw new DOMException('Timed out', 'AbortError');
               }
               if (!response.ok) {
+                retryAfterMs = parseRetryAfterMs(response.headers);
                 providerSettlementAttempted = true;
                 await params.budget?.settleProviderAttempt(providerReservation, {
                   kind: 'uncertain',
@@ -818,14 +839,22 @@ export class OpenAiResponsesClient {
         if (attempt >= MAX_RETRIES || !shouldRetry(status, error)) {
           throw failedRequest(error, status ? `provider_http_${status}` : 'provider_error');
         }
+        const remainingMs = deadlineAt - Date.now();
+        if (retryAfterMs !== null && retryAfterMs >= remainingMs) {
+          // The provider asked for a longer pause than this turn has left; a
+          // retry inside the deadline would be throttled again.
+          throw failedRequest(error, status ? `provider_http_${status}` : 'provider_error');
+        }
         this.logger.warn(
-          `MeriV3 OpenAI retry ${attempt + 1}/${MAX_RETRIES} after ${
+          `MeriV3 OpenAI retry ${attempt + 1}/${MAX_RETRIES}${
+            retryAfterMs !== null ? ` in ${retryAfterMs}ms (provider Retry-After)` : ''
+          } after ${
             error instanceof Error ? error.message.slice(0, 180) : String(error).slice(0, 180)
           }`,
         );
         try {
           await waitForRetry(
-            Math.max(0, Math.min(retryDelay(attempt), deadlineAt - Date.now())),
+            Math.max(0, Math.min(retryAfterMs ?? retryDelay(attempt), remainingMs)),
             params.signal,
           );
         } catch (retryError) {
