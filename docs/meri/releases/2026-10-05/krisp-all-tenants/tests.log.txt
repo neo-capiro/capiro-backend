@@ -1,0 +1,19 @@
+ts-jest[config] (WARN) message TS151002: Using hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/engagement/krisp/krisp-notetaker.service.spec.ts (22.119 s)
+PASS src/meri/meri-mcp.managed-boundary.spec.ts
+[Nest] 42340  - 10/05/2026, 4:05:08 PM    WARN [MeriMcpService] MCP discovery failed for server server
+[Nest] 42340  - 10/05/2026, 4:05:08 PM    WARN [MeriMcpService] MCP discovery failed for server server
+[Nest] 42340  - 10/05/2026, 4:05:08 PM    WARN [MeriMcpService] MCP discovery failed for server server
+PASS src/engagement-workers/krisp-notetaker-worker.service.spec.ts
+PASS src/meri/meri-mcp-oauth.service.spec.ts
+[Nest] 42340  - 10/05/2026, 4:05:11 PM    WARN [MeriMcpOAuthService] MCP OAuth audit failed [clio.mcp_oauth.connect]: Cannot read properties of undefined (reading 'create')
+PASS src/meri/meri-managed-mcp.service.spec.ts
+PASS src/engagement/krisp/krisp.helpers.spec.ts
+PASS src/meri/meri-managed-mcp.helpers.spec.ts
+
+Test Suites: 7 passed, 7 total
+Tests:       76 passed, 76 total
+Snapshots:   0 total
+Time:        28.281 s, estimated 65 s
+Ran all test suites matching /src\\engagement\\krisp|src\\engagement-workers\\krisp-notetaker-worker.service.spec.ts|src\\meri\\meri-mcp-oauth.service.spec.ts|src\\meri\\meri-mcp.managed-boundary.spec.ts|src\\meri\\meri-managed-mcp.service.spec.ts|src\\meri\\meri-managed-mcp.helpers.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

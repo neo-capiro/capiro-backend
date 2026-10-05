@@ -1,0 +1,42 @@
+const require=createRequire('/app/apps/api/package.json');
+const {Client}=require('pg');
+let client;
+const flag='notetaker.krisp.enabled',mode=process.env.KRISP_DB_MODE;
+try {
+ assert.ok(['inspect','apply'].includes(mode));
+ const url=execFileSync(process.execPath,['/app/apps/api/scripts/lib/pe-compose-database-url.js'],{encoding:'utf8',stdio:['ignore','pipe','ignore']});
+ client=new Client({...rdsTlsOptions(url),connectionTimeoutMillis:10000,query_timeout:15000});await client.connect();
+ assert.equal(client.connection.stream.authorized,true);
+ await client.query(mode==='apply'?'BEGIN ISOLATION LEVEL SERIALIZABLE':'BEGIN READ ONLY');
+ await client.query("SET LOCAL app.bypass_rls='on'");
+ const rows=(await client.query('SELECT id,slug::text,settings_jsonb FROM tenants ORDER BY id'+(mode==='apply'?' FOR UPDATE':''))).rows;
+ assert.ok(rows.length>0);
+ const snapshot=rows.map(row=>({id:row.id,slug:row.slug,present:Object.hasOwn(row.settings_jsonb?.clioFeatureFlags??{},flag),enabled:row.settings_jsonb?.clioFeatureFlags?.[flag]??null}));
+ let changed=0;
+ if(mode==='apply') {
+  const {krispNotetakerEnabled}=require('/app/apps/api/dist/common/krisp-notetaker-flags.js');
+  assert.equal(krispNotetakerEnabled({clioFeatureFlags:{[flag]:true}},'outside-pilot'),true);
+  for(const row of rows) {
+   const settings=row.settings_jsonb??{};
+   assert.ok(typeof settings==='object'&&!Array.isArray(settings));
+   const flags=settings.clioFeatureFlags??{};
+   assert.ok(typeof flags==='object'&&!Array.isArray(flags));
+   assert.ok(!Object.hasOwn(flags,flag)||typeof flags[flag]==='boolean');
+   const expected={...settings,clioFeatureFlags:{...flags,[flag]:true}};
+   if(flags[flag]!==true){
+    const result=await client.query('UPDATE tenants SET settings_jsonb=$2::jsonb WHERE id=$1 RETURNING settings_jsonb',[row.id,JSON.stringify(expected)]);
+    assert.equal(result.rowCount,1);assert.deepEqual(result.rows[0].settings_jsonb,expected);changed++;
+   }
+  }
+  const counts=(await client.query("SELECT count(*)::int total,count(*) FILTER (WHERE settings_jsonb->'clioFeatureFlags'->'notetaker.krisp.enabled'='true'::jsonb)::int enabled FROM tenants")).rows[0];
+  assert.equal(counts.total,rows.length);assert.equal(counts.enabled,rows.length);
+  const after=(await client.query('SELECT settings_jsonb FROM tenants')).rows;
+  assert.ok(after.every(row=>krispNotetakerEnabled(row.settings_jsonb)));
+  await client.query('COMMIT');
+  console.log('KRISP_ALL_TENANTS_RECEIPT '+JSON.stringify({status:'committed',checkedAt:new Date().toISOString(),...counts,changed,otherSettingsPreserved:true,userPreferencesUnchanged:true,previousFlags:snapshot}));
+ } else {
+  await client.query('ROLLBACK');
+  console.log('KRISP_ALL_TENANTS_RECEIPT '+JSON.stringify({status:'read-only',total:rows.length,enabled:snapshot.filter(x=>x.enabled===true).length,flags:snapshot}));
+ }
+} catch(e){await client?.query('ROLLBACK').catch(()=>{});console.log('KRISP_ALL_TENANTS_RECEIPT '+JSON.stringify({status:'error',code:e.code??'ERROR'}));process.exitCode=1;}
+finally{await client?.end().catch(()=>{});}

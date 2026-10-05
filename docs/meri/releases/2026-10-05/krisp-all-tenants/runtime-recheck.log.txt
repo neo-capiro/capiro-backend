@@ -1,0 +1,45 @@
+[Nest] 2056  - 10/05/2026, 5:34:58 PM   ERROR [ExceptionsHandler] Origin is not allowed by CORS
+Error: Origin is not allowed by CORS
+    at origin (C:\dev\main\meri-krisp-notetaker\apps\api\src\bootstrap\configure-api-http-app.ts:119:16)
+    at C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\cors@2.8.5\node_modules\cors\lib\index.js:219:13
+    at optionsCallback (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\cors@2.8.5\node_modules\cors\lib\index.js:199:9)
+    at corsMiddleware (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\cors@2.8.5\node_modules\cors\lib\index.js:204:7)
+    at Layer.handle [as handle_request] (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:328:13)
+    at C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:280:10)
+    at C:\dev\main\meri-krisp-notetaker\apps\api\src\bootstrap\configure-api-http-app.ts:104:9
+    at Layer.handle [as handle_request] (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:328:13)
+    at C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:280:10)
+    at expressInit (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\middleware\init.js:40:5)
+    at Layer.handle [as handle_request] (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:328:13)
+    at C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:280:10)
+    at query (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\middleware\query.js:45:5)
+    at Layer.handle [as handle_request] (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:328:13)
+    at C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:280:10)
+    at router.handle (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\router\index.js:175:3)
+    at app.handle (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\application.js:181:10)
+    at Server.app (C:\dev\main\meri-krisp-notetaker\node_modules\.pnpm\express@4.22.1\node_modules\express\lib\express.js:39:9)
+    at Server.emit (node:events:509:28)
+    at parserOnIncoming (node:_http_server:1282:12)
+    at HTTPParser.parserOnHeadersComplete (node:_http_common:125:17)
+PASS src/engagement/runtime/engagement-service-header-order.spec.ts (36.71 s)
+PASS src/engagement/runtime/engagement-route-controller-coverage.spec.ts
+PASS src/engagement/runtime/engagement-runtime-route-coverage.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       10 passed, 10 total
+Snapshots:   0 total
+Time:        41.617 s
+Ran all test suites matching /src\\engagement\\runtime\\engagement-route-controller-coverage.spec.ts|src\\engagement\\runtime\\engagement-runtime-route-coverage.spec.ts|src\\engagement\\runtime\\engagement-service-header-order.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -1,0 +1,16 @@
+(node:62976) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/engagement/attachment-section-extract.spec.ts (28.793 s)
+  canonical attachment section extraction
+    √ keeps late plain text and DOCX paragraphs reachable beyond the summary cap (432 ms)
+    √ reads an exact PDF page without parsing/joining the other pages (1123 ms)
+    √ extracts a substantive final section after page 20 and character 12000 (54 ms)
+    √ reads rows past the old 5000-row summary cap and keeps Excel coordinates (5617 ms)
+    √ reads long slide text without the old per-slide clipping (6 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        29.025 s
+Ran all test suites matching /src\\engagement\\attachment-section-extract.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

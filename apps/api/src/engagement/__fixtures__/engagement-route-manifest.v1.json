@@ -3275,6 +3275,130 @@
         "svixSignature"
       ],
       "classification": "webhook"
+    },
+    {
+      "method": "GET",
+      "path": "/api/clio/krisp-notetaker",
+      "controller": "KrispNotetakerController",
+      "handler": "status",
+      "sourceFile": "apps/api/src/engagement/krisp/krisp-notetaker.controller.ts",
+      "sourceLine": 24,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "GET",
+      "path": "/api/clio/krisp-notetaker/folders",
+      "controller": "KrispNotetakerController",
+      "handler": "folders",
+      "sourceFile": "apps/api/src/engagement/krisp/krisp-notetaker.controller.ts",
+      "sourceLine": 29,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/clio/krisp-notetaker/preferences",
+      "controller": "KrispNotetakerController",
+      "handler": "configure",
+      "sourceFile": "apps/api/src/engagement/krisp/krisp-notetaker.controller.ts",
+      "sourceLine": 34,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "KrispPreferenceDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "body"
+      ],
+      "classification": "write"
+    },
+    {
+      "method": "GET",
+      "path": "/api/clio/krisp-notetaker/imports/:id/candidates",
+      "controller": "KrispNotetakerController",
+      "handler": "candidates",
+      "sourceFile": "apps/api/src/engagement/krisp/krisp-notetaker.controller.ts",
+      "sourceLine": 39,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": null,
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id"
+      ],
+      "classification": "read"
+    },
+    {
+      "method": "POST",
+      "path": "/api/clio/krisp-notetaker/imports/:id/match",
+      "controller": "KrispNotetakerController",
+      "handler": "assign",
+      "sourceFile": "apps/api/src/engagement/krisp/krisp-notetaker.controller.ts",
+      "sourceLine": 44,
+      "controllerGuards": [
+        "RolesGuard"
+      ],
+      "handlerGuards": [],
+      "controllerRoles": [
+        "standard_user"
+      ],
+      "handlerRoles": [],
+      "throttle": null,
+      "httpCode": null,
+      "bodyDto": "KrispMatchDto",
+      "queryDto": null,
+      "parameterNames": [
+        "ctx",
+        "id",
+        "body"
+      ],
+      "classification": "write"
     }
   ]
 }

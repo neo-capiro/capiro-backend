@@ -26,6 +26,7 @@ interface ControllerDef {
 
 function getDefs(): ControllerDef[] {
   return [
+    { absolutePath: path.join(API_ROOT, 'src/engagement/krisp/krisp-notetaker.controller.ts'), repoPath: 'apps/api/src/engagement/krisp/krisp-notetaker.controller.ts', controllerName: 'KrispNotetakerController', controllerPrefix: 'clio/krisp-notetaker', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/engagement.controller.ts'), repoPath: 'apps/api/src/engagement/engagement.controller.ts', controllerName: 'EngagementController', controllerPrefix: 'engagement', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/microsoft/microsoft-oauth.controller.ts'), repoPath: 'apps/api/src/engagement/microsoft/microsoft-oauth.controller.ts', controllerName: 'MicrosoftOAuthController', controllerPrefix: 'engagement/integrations/microsoft', barePrefix: false },
     { absolutePath: path.join(API_ROOT, 'src/engagement/google/google-oauth.controller.ts'), repoPath: 'apps/api/src/engagement/google/google-oauth.controller.ts', controllerName: 'GoogleOAuthController', controllerPrefix: 'engagement/integrations/google', barePrefix: false },
@@ -74,6 +75,10 @@ function getParamNames(m: ts.MethodDeclaration, sf: ts.SourceFile): string[] {
 const HTTP_METHODS = new Set(['Get','Post','Put','Patch','Delete']);
 
 function classify(method: string, fullPath: string, ctrl: string, handler: string): RouteEntry['classification'] {
+  // Krisp routes read status/provider metadata or update local import preferences.
+  // Capture/generation runs in the background worker; provider reads also enforce
+  // the runtime policy inside KrispNotetakerService.read.
+  if (ctrl === 'KrispNotetakerController') return method === 'GET' ? 'read' : 'write';
   if (ctrl === 'RecallWebhookController') return 'webhook';
   if (fullPath.startsWith('/api/internal/')) return 'internal_secret';
   if (ctrl.includes('OAuth')) return 'oauth';
