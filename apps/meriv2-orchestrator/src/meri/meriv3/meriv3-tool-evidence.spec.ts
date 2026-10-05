@@ -9,12 +9,29 @@ import {
 describe('model-visible tool evidence budgets', () => {
   it('preserves pending-state boundaries, identity and pagination without minting approved memory citations', () => {
     const pending = {
-      tool: 'list_memory_proposals', enabled: true, authority: 'own_pending_proposals', claimsAreApprovedFacts: false,
+      tool: 'list_memory_proposals',
+      enabled: true,
+      authority: 'own_pending_proposals',
+      claimsAreApprovedFacts: false,
       scope: { tenantId: 't1', userId: 'pat', clientId: 'aster' },
-      candidates: [{ id: 'pending-ma2', status: 'pending', approvedFact: false, proposedText: 'prefers SMS alerts', sourceKind: 'user_chat', restricted: false }],
-      nextCursor: 'next-page', coverage: { firstPage: true, complete: false, reason: 'unread_pages' },
+      candidates: [
+        {
+          id: 'pending-ma2',
+          status: 'pending',
+          approvedFact: false,
+          proposedText: 'prefers SMS alerts',
+          sourceKind: 'user_chat',
+          restricted: false,
+        },
+      ],
+      nextCursor: 'next-page',
+      coverage: { firstPage: true, complete: false, reason: 'unread_pages' },
     };
-    const result = projectMeriToolEvidence({ result: pending, maxCharacters: 3000, readOnly: true });
+    const result = projectMeriToolEvidence({
+      result: pending,
+      maxCharacters: 3000,
+      readOnly: true,
+    });
     expect(JSON.stringify(result)).toContain('pending-ma2');
     expect(JSON.stringify(result)).toContain('claimsAreApprovedFacts');
     expect(JSON.stringify(result)).toContain('next-page');
@@ -22,16 +39,43 @@ describe('model-visible tool evidence budgets', () => {
   });
   it('keeps a shortened own-proposal page partial and preserves the unapproved-state boundary', () => {
     const candidates = Array.from({ length: 5 }, (_, n) => ({
-      id: `proposal-${n}`, status: 'pending', approvedFact: false, scope: 'client', clientId: 'aster',
-      sourceKind: 'user_chat', createdAt: '2026-09-26T12:00:00.000Z', restricted: false,
-      title: 'Unapproved preference', proposedText: 'possible preference '.repeat(40), contentTruncated: false,
+      id: `proposal-${n}`,
+      status: 'pending',
+      approvedFact: false,
+      scope: 'client',
+      clientId: 'aster',
+      sourceKind: 'user_chat',
+      createdAt: '2026-09-26T12:00:00.000Z',
+      restricted: false,
+      title: 'Unapproved preference',
+      proposedText: 'possible preference '.repeat(40),
+      contentTruncated: false,
     }));
-    const pending = { tool: 'list_memory_proposals', enabled: true, authority: 'own_pending_proposals',
-      claimsAreApprovedFacts: false, scope: { tenantId: 't1', userId: 'pat', clientId: 'aster' },
-      candidates, nextCursor: null, coverage: { firstPage: true, complete: true, reason: 'own_pending_proposals_complete' } };
-    const result = projectMeriToolEvidence({ result: pending, maxCharacters: 2400, readOnly: true, inputProperties: { limit: {} } });
-    expect(result).toMatchObject({ tool: 'list_memory_proposals', claimsAreApprovedFacts: false, coverage: { complete: false }, truncated: true });
-    expect(classifyApiToolReadOutcome('list_memory_proposals', result)).toMatchObject({ kind: 'partial' });
+    const pending = {
+      tool: 'list_memory_proposals',
+      enabled: true,
+      authority: 'own_pending_proposals',
+      claimsAreApprovedFacts: false,
+      scope: { tenantId: 't1', userId: 'pat', clientId: 'aster' },
+      candidates,
+      nextCursor: null,
+      coverage: { firstPage: true, complete: true, reason: 'own_pending_proposals_complete' },
+    };
+    const result = projectMeriToolEvidence({
+      result: pending,
+      maxCharacters: 2400,
+      readOnly: true,
+      inputProperties: { limit: {} },
+    });
+    expect(result).toMatchObject({
+      tool: 'list_memory_proposals',
+      claimsAreApprovedFacts: false,
+      coverage: { complete: false },
+      truncated: true,
+    });
+    expect(classifyApiToolReadOutcome('list_memory_proposals', result)).toMatchObject({
+      kind: 'partial',
+    });
     expect(extractCitationsFromToolResult('list_memory_proposals', result, 1)).toEqual([]);
   });
   const profileSections = [
@@ -717,5 +761,75 @@ describe('business development evidence citations survive the model-visible budg
     );
     expect(citations.length).toBeGreaterThan(0);
     expect(citations.every((citation) => citation.url === null)).toBe(true);
+  });
+});
+
+describe('PE budget timeline projection', () => {
+  const year = (fy: number, request: string | null, extra: Record<string, unknown> = {}) => ({
+    id: `row-${fy}`,
+    peCode: '0603203F',
+    fy,
+    request,
+    hascMark: null,
+    sascMark: null,
+    enacted: null,
+    raw: { fieldSources: { request: 'af_rdte_vol1' }, note: 'x'.repeat(1_400) },
+    cycle: fy === 2027 ? 'current' : fy < 2027 ? 'historical' : 'outyear',
+    ...extra,
+  });
+  const summary = [
+    'AUTHORITATIVE BUDGET FUNDING (USD millions):',
+    '- FY26 [historical]: request $0.0M; HASC mark $69.7M; SASC mark $69.7M.',
+    '- FY27 [current budget cycle]: request $0.0M; HASC mark $72.2M; SASC mark $75.2M; HAC-D mark $85.2M.',
+    '- FY28 [OUTYEAR]: request $73.2M.',
+    'x'.repeat(1_900),
+  ].join('\n');
+  const timeline = {
+    peCode: '0603203F',
+    title: 'ADVANCED AEROSPACE SENSORS',
+    service: 'AF',
+    appropriationType: 'RDT&E',
+    budgetActivity: null,
+    lineNumber: null,
+    currentCycleFy: 2027,
+    fundingSummary: summary,
+    years: [
+      year(2024, null),
+      year(2025, '13.6'),
+      year(2026, '0.00'),
+      year(2027, '0.00', { hascMark: '72.15' }),
+      year(2028, '73.2'),
+      year(2029, '86.8'),
+      year(2030, '88.6'),
+      year(2031, '90.4'),
+    ],
+    milestones: [],
+  };
+
+  test('an oversized timeline keeps the whole funding summary and the current cycle first', () => {
+    expect(JSON.stringify(timeline).length).toBeGreaterThan(12_000);
+    const projected = projectMeriToolEvidence({
+      result: timeline,
+      maxCharacters: 12_000,
+      readOnly: true,
+    }) as any;
+    expect(JSON.stringify(projected).length).toBeLessThanOrEqual(12_000);
+    expect(projected.fundingSummary).toBe(summary);
+    expect(projected.peCode).toBe('0603203F');
+    expect(projected.years[0].fy).toBe(2027);
+    expect(projected.years.map((row: { fy: number }) => row.fy).slice(1, 3)).toEqual([2026, 2025]);
+    expect(projected.projection).toMatchObject({ truncated: true, sourceRecordCount: 8 });
+    expect(projected.projection.shownRecordCount).toBe(projected.years.length);
+  });
+
+  test('a timeline within budget is returned unchanged', () => {
+    const small = {
+      ...timeline,
+      years: [timeline.years[3]],
+      fundingSummary: summary.slice(0, 300),
+    };
+    expect(
+      projectMeriToolEvidence({ result: small, maxCharacters: 12_000, readOnly: true }),
+    ).toEqual(small);
   });
 });
