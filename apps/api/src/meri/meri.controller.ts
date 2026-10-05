@@ -36,7 +36,6 @@ import {
 } from 'class-validator';
 import type { Request, Response } from 'express';
 import type { TenantContext } from '@capiro/shared';
-import { meriControlledReadHttpStatus } from './meri-controlled-read-fixture.js';
 import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
@@ -66,7 +65,6 @@ import {
 import { MeriPdfRenderError } from './meri-docgen-pdf.js';
 import { sha256Bytes, validateDocumentArtifactBytes } from './meri-artifact-integrity.js';
 import type { AssuranceSurface } from '@capiro/meriv2-core';
-import { admitMeriServerReadonlyCaptureTransport } from './meri-server-readonly-capture.js';
 import {
   admitMeriInternalTelemetry,
   createMeriApiTelemetryContext,
@@ -508,12 +506,6 @@ export class MeriController {
     @Body() body: Record<string, unknown>,
     @Req() req: Request,
   ) {
-    const capturePolicy = admitMeriServerReadonlyCaptureTransport({
-      ctx,
-      req,
-      purpose: 'tool',
-      toolName: name,
-    });
     const admittedAttachment = admitMeriChatAttachmentTransport(name, body, ctx, req);
     const admittedRp = admitMeriResearchPortfolioToolTransport(
       name,
@@ -547,7 +539,6 @@ export class MeriController {
                 ? withMeriChatAttachmentReadScope(admittedAttachment.scope, executeRp)
                 : executeRp();
             },
-            capturePolicy,
           );
           emitMeriApiTelemetry({
             name: 'meri.api.tool.finalized',
@@ -556,8 +547,6 @@ export class MeriController {
             outcome: classifyApiToolReadOutcome(name, result)?.kind ?? 'returned',
             durationMs: Date.now() - startedAt,
           });
-          const controlledStatus = meriControlledReadHttpStatus(result);
-          if (controlledStatus !== undefined) req.res?.status(controlledStatus);
           return result;
         } catch (error) {
           emitMeriApiTelemetry({

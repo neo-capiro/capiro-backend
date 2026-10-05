@@ -22,8 +22,6 @@ import { MeriResearchService } from './meri-research.service.js';
 import { MeriService } from './meri.service.js';
 import { MeriToolsService } from './meri-tools.service.js';
 import { ToolServiceSecretGuard } from './tool-service-secret.guard.js';
-import { MERI_CASE46, MERI_GOVERNED_ARTIFACT_HEADER, encodeMeriGovernedArtifactTransport } from '@capiro/meriv2-core';
-import { case46BudgetTestFixture } from './meri-case46-provider-budget.spec-helper.js';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -178,22 +176,6 @@ describe('MeriV2 Phase 0 HTTP adversarial boundary', () => {
     });
     expect(response.status).toBe(new GoneException().getStatus());
     expect(executeTool).not.toHaveBeenCalled();
-  });
-
-  it('real DTO and internal guard preserve the exact distinct case46 admission through HTTP', async () => {
-    const prior = process.env.INTERNAL_SERVICE_SECRET;
-    process.env.INTERNAL_SERVICE_SECRET = SECRET;
-    try {
-      const { p } = case46BudgetTestFixture();
-      const body = { tool:'create_word', surface:'chat', conversationId:p.conversationId,
-        input:{title:MERI_CASE46.title,format:'txt',text:MERI_CASE46.text,conversationId:p.conversationId,clientId:p.clientId} };
-      await request(app.getHttpServer()).post('/api/clio/action-proposals')
-        .set('x-internal-service-secret',SECRET).set('x-test-tenant',p.tenantId).set('x-test-user',p.actorUserId)
-        .set(MERI_GOVERNED_ARTIFACT_HEADER,encodeMeriGovernedArtifactTransport(p,'action_proposal',SECRET))
-        .send(body).expect(201);
-      expect(createProposal).toHaveBeenCalledWith(expect.objectContaining({tenantId:p.tenantId,userId:p.actorUserId}),body,undefined,p);
-      expect(executeTool).not.toHaveBeenCalled();
-    } finally { if(prior === undefined) delete process.env.INTERNAL_SERVICE_SECRET; else process.env.INTERNAL_SERVICE_SECRET=prior; }
   });
 
   it('raw write tool rejects a valid user route without or with wrong service identity', async () => {

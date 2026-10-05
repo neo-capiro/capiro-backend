@@ -3,11 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
 import type { ToolExecutionControl } from '@capiro/meriv2-core';
 import { createMeriExecutionControl } from './meri-execution-control.js';
-import {
-  currentServerReadonlyCapturePolicy,
-  currentTrustedCurrentTurnScope,
-  currentGovernedArtifactCapturePolicy,
-} from '../request/trusted-current-turn-scope.js';
+import { currentTrustedCurrentTurnScope } from '../request/trusted-current-turn-scope.js';
 import { isCurrentConversationResearchPortfolioTool } from './current-turn-tool-scope.js';
 import { buildResearchPortfolioProposalTransport } from './rp-action-proposal-transport.js';
 import {
@@ -16,11 +12,6 @@ import {
   meriOrchestratorTelemetryHeaders,
 } from '../telemetry/meri-telemetry.runtime.js';
 import { meriTelemetryOperationId } from '@capiro/meriv2-core';
-import {
-  assertMeriCase46ToolInput,
-  encodeMeriGovernedArtifactTransport,
-  MERI_GOVERNED_ARTIFACT_HEADER,
-} from '@capiro/meriv2-core';
 
 export interface CreateActionProposalInput {
   tool: string;
@@ -95,9 +86,6 @@ export class ApiActionProposalRepo {
           const credentials = RequestCredentialsStore.get();
           if (!credentials?.bearerToken)
             throw new Error('No forwarded credential is available for action authority.');
-          if (currentServerReadonlyCapturePolicy()) {
-            throw new Error('Server-owned read-only capture denied action proposal creation.');
-          }
           const env = this.config.get<string>('NODE_ENV') ?? process.env.NODE_ENV ?? 'development';
           const secret =
             this.config.get<string>('INTERNAL_SERVICE_SECRET') ??
@@ -115,16 +103,6 @@ export class ApiActionProposalRepo {
             input,
             currentTrustedCurrentTurnScope(),
           );
-          const governedArtifactPolicy = currentGovernedArtifactCapturePolicy();
-          if (governedArtifactPolicy) {
-            if (
-              credentials.impersonateTenantId ||
-              input.conversationId !== governedArtifactPolicy.conversationId ||
-              input.surface !== 'chat'
-            )
-              throw new Error('meri_governed_artifact_proposal_scope_invalid');
-            assertMeriCase46ToolInput(governedArtifactPolicy, input.tool, input.input);
-          }
           const base = (
             this.config.get<string>('MERIV2_API_BASE_URL') ?? 'http://localhost:3000'
           ).replace(/\/+$/, '');
@@ -139,15 +117,6 @@ export class ApiActionProposalRepo {
                 ? { 'x-meri-deadline-at': String(execution.deadlineAt) }
                 : {}),
               ...(secret ? { 'x-internal-service-secret': secret } : {}),
-              ...(governedArtifactPolicy
-                ? {
-                    [MERI_GOVERNED_ARTIFACT_HEADER]: encodeMeriGovernedArtifactTransport(
-                      governedArtifactPolicy,
-                      'action_proposal',
-                      secret,
-                    ),
-                  }
-                : {}),
               ...(credentials.impersonateTenantId
                 ? { 'x-capiro-impersonate-tenant': credentials.impersonateTenantId }
                 : {}),

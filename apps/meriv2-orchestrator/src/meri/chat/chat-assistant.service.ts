@@ -52,10 +52,6 @@ import {
   type ChatStreamEvent,
 } from './chat-prompt.js';
 import { flattenSystemParts } from '../prompt-cache.helpers.js';
-import {
-  assertServerReadonlyCaptureToolAllowed,
-  currentServerReadonlyCapturePolicy,
-} from '../../request/trusted-current-turn-scope.js';
 
 /** Optional streaming hooks: progressive events + caller-driven cancellation. */
 export interface ChatRunOptions {
@@ -186,12 +182,7 @@ export class ChatAssistantService {
     };
     const system = flattenSystemParts(systemParts);
     const fetchedToolSchemas = await this.fetchToolSchemas();
-    const toolSchemas = currentServerReadonlyCapturePolicy()
-      ? fetchedToolSchemas.filter(
-          (schema) =>
-            this.registry.get(schema.name)?.readOnly === true && schema.name !== 'run_analysis',
-        )
-      : fetchedToolSchemas;
+    const toolSchemas = fetchedToolSchemas;
     const verificationAvailable = toolSchemas.length > 0;
     const steps: ChatStep[] = [];
     const pendingApprovals: NonNullable<ChatResult['pendingApprovals']> = [];
@@ -587,7 +578,6 @@ export class ChatAssistantService {
   }
 
   private async meterRound(ctx: MeriContext, resp: ToolLoopResponse): Promise<void> {
-    if (currentServerReadonlyCapturePolicy()) return;
     await recordAiUsageEvent(
       { prisma: this.prisma, logger: this.logger },
       { tenantId: ctx.tenantId, userId: ctx.userId },
@@ -629,7 +619,6 @@ export class ChatAssistantService {
     verdict: ReturnType<typeof runAuditor>,
     reply: string,
   ): Promise<void> {
-    if (currentServerReadonlyCapturePolicy()) return;
     try {
       this.logger.warn(
         `[meri-auditor:${mode}] GA chat — ${verdict.findings.length} finding(s), ` +
@@ -745,7 +734,6 @@ export class ChatAssistantService {
     scopeClientId?: string,
     userRequest = '',
   ): Promise<unknown> {
-    assertServerReadonlyCaptureToolAllowed(name);
     const label = toolLabel(name);
     const isWrite = this.registry.get(name)?.readOnly === false;
     emit({ type: 'tool_call', tool: name, label });

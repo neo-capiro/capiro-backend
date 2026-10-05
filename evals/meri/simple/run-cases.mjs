@@ -7,7 +7,7 @@
 //   node evals/meri/simple/run-cases.mjs --cases 01,05 --out C:/dev/main/outputs/meri-simple-20261005/capiro-internal
 import { mkdirSync, writeFileSync, appendFileSync, readdirSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { cases as originals } from '../live-v1/cases.mjs';
+import { cases as originals } from './original-cases.mjs';
 import { internalCases, QA_CLIENT } from './capiro-internal-cases.mjs';
 import { withTestAccount, withSecondReviewer, TENANT } from './auth.mjs';
 import { runChecks } from './checks.mjs';

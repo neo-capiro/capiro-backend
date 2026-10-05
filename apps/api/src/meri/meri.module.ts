@@ -3,8 +3,6 @@ import { Module } from '@nestjs/common';
 import { ManagedMcpModule } from './managed-mcp.module.js';
 import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
-import { EngagementService } from '../engagement/engagement.service.js';
-import { CASE46_AUTHORITY_DEPENDENCIES } from './meri-case46-action-authority.js';
 import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
@@ -39,7 +37,6 @@ import { ReviewsModule } from '../reviews/reviews.module.js';
 import { ReviewsService } from '../reviews/reviews.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriController } from './meri.controller.js';
-import { MeriCaptureProviderBudgetController } from './meri-capture-provider-budget.controller.js';
 import { MeriSourceController } from './meri-source.controller.js';
 import { MeriSourceService } from './meri-source.service.js';
 import { MeriSkillsController } from './meri-skills.controller.js';
@@ -50,7 +47,6 @@ import { MeriActionProposalService } from './meri-action-proposal.service.js';
 import { MeriPolicyPackService } from './meri-policy-pack.service.js';
 import { TenantCanariedMeriPolicyPackService } from './meri-policy-pack-rollout.service.js';
 import { MeriPolicyPackController } from './meri-policy-pack.controller.js';
-import { MeriFeedbackFixtureService } from './meri-feedback-fixture.service.js';
 import { MeriService } from './meri.service.js';
 import { MERI_TURN_MAINTENANCE } from './meri-turn-maintenance.js';
 import { MeriToolsService } from './meri-tools.service.js';
@@ -88,7 +84,6 @@ import { MeriVNextLibraryController } from './meri-vnext-library.controller.js';
 import { MeriVNextLibraryService } from './meri-vnext-library.service.js';
 import { createMeriRuntimeService, RAW_MERI_SERVICE } from './meriv3-runtime.proxy.js';
 import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
-import { MeriCase01FixtureBootstrapProvider } from './meri-case01-fixture-bootstrap.provider.js';
 
 @Module({
   imports: [
@@ -121,7 +116,6 @@ import { MeriCase01FixtureBootstrapProvider } from './meri-case01-fixture-bootst
     DistrictNexusModule,
   ],
   controllers: [
-    MeriCaptureProviderBudgetController,
     MeriController,
     MeriSourceController,
     MeriSkillsController,
@@ -134,11 +128,6 @@ import { MeriCase01FixtureBootstrapProvider } from './meri-case01-fixture-bootst
     MeriVNextLibraryController,
   ],
   providers: [
-    {
-      provide: CASE46_AUTHORITY_DEPENDENCIES,
-      useFactory: (prisma: PrismaService, engagement: EngagementService) => ({ prisma, engagement }),
-      inject: [PrismaService, EngagementService],
-    },
     MeriClientFilingService,
     MeriChatAttachmentReadService,
     MeriSourceService,
@@ -200,7 +189,6 @@ import { MeriCase01FixtureBootstrapProvider } from './meri-case01-fixture-bootst
       provide: MeriPolicyPackService,
       useClass: TenantCanariedMeriPolicyPackService,
     },
-    MeriFeedbackFixtureService,
     MeriComplianceAuditService,
     MeriClaimWriterService,
     MeriV2ChatClient,
@@ -270,7 +258,6 @@ import { MeriCase01FixtureBootstrapProvider } from './meri-case01-fixture-bootst
       ],
     },
     MeriOtelLifecycleProvider,
-    MeriCase01FixtureBootstrapProvider,
   ],
   exports: [MeriToolsService, MeriFeatureFlagsService],
 })

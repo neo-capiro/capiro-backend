@@ -1,7 +1,7 @@
 import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { RETRIEVAL_DOMAINS, type RetrievalDomain } from '../retrieval/retrieval-v2.types.js';
-import type { MeriContextPlaneService, MeriToolCompilerCapture } from './meri-context-plane.service.js';
+import type { MeriContextPlaneService } from './meri-context-plane.service.js';
 
 export const MERI_DATA_QUERY_CLASSES = [
   'lookup', 'semantic_recall', 'comparison', 'entity_history', 'change_detection', 'exhaustive_search', 'federal_market_analysis',
@@ -84,7 +84,6 @@ export async function searchCapiroData(
   ctx: TenantContext,
   rawInput: Record<string, unknown>,
   contextPlane?: Pick<MeriContextPlaneService, 'searchToolData'>,
-  compilerCapture?: MeriToolCompilerCapture,
 ) {
   const input = parseCapiroDataSearchInput(rawInput);
   if (!contextPlane) {
@@ -102,9 +101,7 @@ export async function searchCapiroData(
     requireComplete: input.queryClass === 'exhaustive_search',
     ...(input.clientId ? { clientId: input.clientId } : {}),
   };
-  const result = compilerCapture
-    ? await contextPlane.searchToolData(ctx, request, compilerCapture)
-    : await contextPlane.searchToolData(ctx, request);
+  const result = await contextPlane.searchToolData(ctx, request);
   // Preserve source provenance, cursors and coverage truth verbatim. Do not
   // manufacture completeness from the count or silently discard failed domains.
   const { coverage, ...data } = result;

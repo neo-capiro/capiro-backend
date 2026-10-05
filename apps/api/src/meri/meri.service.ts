@@ -1,17 +1,5 @@
-import {
-  readMeriControlledCaptureAdmission,
-  readMeriControlledCaptureReadback,
-} from './meri-controlled-read-capture-authority.js';
 import { bindResearchPortfolioToolConversation } from './meri-research-portfolio-tool-scope.js';
 import { isResearchPortfolioArtifact, authorizeResearchPortfolioArtifact, authorizeResearchPortfolioConversation } from '../research-portfolios/research-portfolio-artifact-authority.js';
-import { authorizeMeriCaptureMessageReadback } from './meri-capture-policy-readback.js';
-import { authorizeSyntheticReadBudgetConversationReadback } from './meri-synthetic-read-budget-owner.js';
-import { readMeriCase01CaptureAdmission, readMeriCase01CaptureReadback } from './meri-case01-capture-authority.js';
-import { readMeriCase14CaptureAdmission, readMeriCase14CaptureReadback } from './meri-case14-capture-authority.js';
-import { readMeriCase12CaptureAdmission, readMeriCase12CaptureReadback } from './meri-case12-capture-readback.js';
-import { CASE46_AUTHORITY_DEPENDENCIES } from './meri-case46-action-authority.js';
-import type { Case46AuthorityDependencies } from './meri-case46-authority.js';
-import { publicCase46ConversationMetadata, readCase46CaptureAdmission, readCase46CaptureMessage } from './meri-case46-capture-readback.js';
 import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/ai-model-policy';
 import {
   assertAttachmentConversation,
@@ -24,7 +12,6 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Inject,
   Logger,
   NotFoundException,
   Optional,
@@ -50,7 +37,6 @@ import {
 } from '@capiro/meriv2-core';
 import type { AppConfig } from '../config/config.schema.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { createMeriApiCaptureObservations } from './meri-api-capture-observations.js';
 import { LearningSignalCaptureService } from '../learning/learning-signal-capture.service.js';
 import { buildMeriFeedbackSignal } from '../learning/adapters/meri-feedback.adapter.js';
 import { QualityTelemetryCaptureService } from '../quality-telemetry/quality-telemetry-capture.service.js';
@@ -227,23 +213,6 @@ import {
 } from './meri-compaction.helpers.js';
 import { scheduleMeriTurnMaintenance, type MeriTurnMaintenance } from './meri-turn-maintenance.js';
 import {
-  bindCurrentMeriCaptureTurn,
-  currentMeriCaptureEvidenceReceipt,
-  currentMeriServerReadonlyCapturePolicy,
-  currentMeriServerReadonlyCaptureReceipt,
-  setCurrentMeriCaptureEvidenceReceipt,
-} from './meri-context-plane-runtime.js';
-import {
-  assertMeriServerReadonlyCaptureCurrentAuthority,
-  assertMeriServerReadonlyCaptureNoArtifactWrites,
-  assertMeriServerReadonlyCaptureTurnInput,
-  createMeriServerReadonlyCaptureOutputFence,
-} from './meri-server-readonly-capture.js';
-import {
-  buildApiOnlyMeriServerCaptureEvidence,
-  persistMeriServerCaptureEvidenceReceipt,
-} from './meri-server-capture-evidence.js';
-import {
   buildMessageEmbeddingText,
   groupHitsByConversation,
   type HistorySearchHit,
@@ -404,8 +373,6 @@ export class MeriService implements MeriTurnMaintenance {
     @Optional() private readonly bizdevScope?: BizDevMeriScopeService,
     @Optional() private readonly researchPortfolioScope?: ResearchPortfolioMeriScopeService,
     @Optional() private readonly contextPlane?: MeriContextPlaneService,
-    @Optional() @Inject(CASE46_AUTHORITY_DEPENDENCIES)
-    private readonly case46Dependencies?: Case46AuthorityDependencies,
   ) {}
 
   async status(ctx: TenantContext) {
@@ -462,7 +429,7 @@ export class MeriService implements MeriTurnMaintenance {
     return Promise.all(
       conversations.map(async (conversation) => ({
         ...conversation,
-        metadata: publicCase46ConversationMetadata(conversation.metadata),
+        metadata: publicConversationMetadata(conversation.metadata),
         summary: await this.authorizeOrdinaryConversationSummary(
           ctx,
           { conversationId: conversation.id, clientId: conversation.clientId },
@@ -572,19 +539,7 @@ export class MeriService implements MeriTurnMaintenance {
     // Exact links may discover an owned archived row so the user can explicitly
     // restore it. Transcript reads and new turns still require an active row.
     const conversation = await this.ensureConversationAnyStatus(ctx, conversationId);
-    if (await authorizeSyntheticReadBudgetConversationReadback({
-      prisma: this.prisma, ctx, conversationId, clientId: conversation.clientId,
-      metadata: conversation.metadata,
-    })) return { ...conversation, metadata: publicCase46ConversationMetadata(conversation.metadata) };
-    const captureAdmission =
-      (await readCase46CaptureAdmission({ prisma: this.prisma, deps: this.case46Dependencies, ctx,
-        conversationId, conversationMetadata: conversation.metadata })) ??
-      (await readMeriControlledCaptureAdmission({ prisma: this.prisma, ctx, conversationId })) ??
-      (await readMeriCase14CaptureAdmission({ prisma: this.prisma, ctx, conversationId })) ??
-      (await readMeriCase12CaptureAdmission({ prisma: this.prisma, ctx, conversationId })) ??
-      (await readMeriCase01CaptureAdmission({ prisma: this.prisma, ctx, conversationId }));
-    const visible = { ...conversation, metadata: publicCase46ConversationMetadata(conversation.metadata) };
-    return captureAdmission ? { ...visible, captureAdmission } : visible;
+    return { ...conversation, metadata: publicConversationMetadata(conversation.metadata) };
   }
 
   async updateConversation(
@@ -616,7 +571,7 @@ export class MeriService implements MeriTurnMaintenance {
     }
 
     if (!Object.keys(data).length) {
-      return { ...conversation, metadata: publicCase46ConversationMetadata(conversation.metadata) };
+      return { ...conversation, metadata: publicConversationMetadata(conversation.metadata) };
     }
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
@@ -671,7 +626,7 @@ export class MeriService implements MeriTurnMaintenance {
         ]);
       }
 
-      return { ...updated, metadata: publicCase46ConversationMetadata(updated.metadata) };
+      return { ...updated, metadata: publicConversationMetadata(updated.metadata) };
     });
   }
 
@@ -688,7 +643,7 @@ export class MeriService implements MeriTurnMaintenance {
 
   async restoreConversation(ctx: TenantContext, conversationId: string) {
     const conversation = await this.ensureConversationAnyStatus(ctx, conversationId);
-    if (!conversation.archivedAt) return { ...conversation, metadata: publicCase46ConversationMetadata(conversation.metadata) };
+    if (!conversation.archivedAt) return { ...conversation, metadata: publicConversationMetadata(conversation.metadata) };
     const restored = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.clioConversation.update({
         where: { id: conversationId },
@@ -696,7 +651,7 @@ export class MeriService implements MeriTurnMaintenance {
         include: { client: { select: { id: true, name: true } } },
       }),
     );
-    return { ...restored, metadata: publicCase46ConversationMetadata(restored.metadata) };
+    return { ...restored, metadata: publicConversationMetadata(restored.metadata) };
   }
 
   async listMessages(ctx: TenantContext, conversationId: string) {
@@ -713,48 +668,6 @@ export class MeriService implements MeriTurnMaintenance {
         },
       }),
     );
-    for (const message of messages) {
-      await authorizeMeriCaptureMessageReadback({
-        prisma: this.prisma,
-        ctx,
-        conversationId,
-        message,
-      });
-      const controlledAuthority = await readMeriControlledCaptureReadback({
-        prisma: this.prisma,
-        ctx,
-        conversationId,
-        message,
-      });
-      if (controlledAuthority)
-        message.metadata = {
-          ...(message.metadata as Prisma.JsonObject),
-          controlledReadCaptureAuthority: JSON.parse(
-            JSON.stringify(controlledAuthority),
-          ) as Prisma.JsonValue,
-        };
-      const captureAuthority = await readMeriCase01CaptureReadback({
-        prisma: this.prisma,
-        ctx,
-        conversationId,
-        message,
-      });
-      if (captureAuthority) {
-        message.metadata = {
-          ...(message.metadata as Prisma.JsonObject),
-          case01CaptureAuthority: JSON.parse(JSON.stringify(captureAuthority)) as Prisma.JsonValue,
-        };
-      }
-      const case14Authority=await readMeriCase14CaptureReadback({prisma:this.prisma,ctx,conversationId,message});
-      if(case14Authority) message.metadata={...(message.metadata as Prisma.JsonObject),case14CaptureAuthority:JSON.parse(JSON.stringify(case14Authority)) as Prisma.JsonValue};
-      const case12Authority = await readMeriCase12CaptureReadback({prisma:this.prisma,ctx,conversationId,message});
-      if (case12Authority) message.metadata = {...(message.metadata as Prisma.JsonObject),
-        case12CaptureAuthority: JSON.parse(JSON.stringify(case12Authority)) as Prisma.JsonValue};
-      const case46Authority = await readCase46CaptureMessage({ prisma: this.prisma, deps: this.case46Dependencies,
-        ctx, conversationId, conversationMetadata: conversation.metadata, message });
-      if (case46Authority) message.metadata = { ...(message.metadata as Prisma.JsonObject),
-        case46CaptureAuthority: JSON.parse(JSON.stringify(case46Authority)) as Prisma.JsonValue };
-    }
     return this.authorizeOrdinaryReportMessages(
       ctx,
       { conversationId, clientId: conversation.clientId },
@@ -1081,13 +994,6 @@ export class MeriService implements MeriTurnMaintenance {
     // they route legacy and this stays unused — threaded for the eventual flip.
     impersonateTenantId?: string,
   ) {
-    if (
-      (currentMeriServerReadonlyCapturePolicy()?.expectedCaptureWrites as
-        | readonly string[]
-        | undefined)?.[3] === 'provider_budget_ledger'
-    ) {
-      throw new ForbiddenException('meri_case01_provider_budget_legacy_path_not_qualified');
-    }
     const browserSse = sse;
     const conversation = await this.ensureConversation(ctx, conversationId);
     // Phase 4 prospect-scope authorization re-check: BEFORE any user-message
@@ -1105,22 +1011,6 @@ export class MeriService implements MeriTurnMaintenance {
       ctx,
       conversation.metadata,
     );
-    let capturePolicy = currentMeriServerReadonlyCapturePolicy();
-    assertMeriServerReadonlyCaptureTurnInput({ policy: capturePolicy, mode, attachmentIds });
-    await assertMeriServerReadonlyCaptureCurrentAuthority({
-      prisma: this.prisma,
-      ctx,
-      policy: capturePolicy,
-    });
-    const captureOutputFence = capturePolicy
-      ? createMeriServerReadonlyCaptureOutputFence({
-          prisma: this.prisma,
-          ctx,
-          policy: capturePolicy,
-          destination: browserSse,
-        })
-      : null;
-    if (captureOutputFence) sse = captureOutputFence.writer;
     const streamControl = this.extractStreamControl(body);
 
     // Compliance pre-screen (P1-7): audit-log clearly high-risk asks. Does not
@@ -1278,11 +1168,6 @@ export class MeriService implements MeriTurnMaintenance {
         sse.write(`data: ${JSON.stringify({ type: 'text', text: refusalBody })}\n\n`);
         // Persist a coherent assistant turn so history/replay stays intact.
         // Guarded so a DB hiccup can never leave the SSE stream unclosed.
-        await assertMeriServerReadonlyCaptureCurrentAuthority({
-          prisma: this.prisma,
-          ctx,
-          policy: capturePolicy,
-        });
         try {
           const refusalMessage = await this.prisma.withTenant(ctx.tenantId, (tx) =>
             tx.clioMessage.create({
@@ -1297,12 +1182,6 @@ export class MeriService implements MeriTurnMaintenance {
                   servedBy: 'compliance-block',
                   finishReason: 'stop',
                   compliance: { flagged: true, category: block.category, blocked: true },
-                  ...(currentMeriServerReadonlyCaptureReceipt()
-                    ? {
-                        serverReadonlyCaptureReceipt:
-                          currentMeriServerReadonlyCaptureReceipt() as unknown as Prisma.InputJsonValue,
-                      }
-                    : {}),
                 },
               },
               select: { id: true },
@@ -1319,13 +1198,9 @@ export class MeriService implements MeriTurnMaintenance {
         sse.write(
           `data: ${JSON.stringify({
             type: 'done',
-            ...(currentMeriServerReadonlyCaptureReceipt()
-              ? { serverReadonlyCaptureReceipt: currentMeriServerReadonlyCaptureReceipt() }
-              : {}),
             ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
           })}\n\n`,
         );
-        await captureOutputFence?.release();
         return;
       }
     }
@@ -1405,12 +1280,6 @@ export class MeriService implements MeriTurnMaintenance {
       if (refs.length) attachmentRefsByMessage.set(m.id, refs);
     }
     const lastUserMessage = [...history].reverse().find((m) => m.role === 'user') ?? null;
-    if (capturePolicy && lastUserMessage) {
-      capturePolicy = bindCurrentMeriCaptureTurn(lastUserMessage.id) ?? capturePolicy;
-    }
-    const captureObservations = capturePolicy
-      ? createMeriApiCaptureObservations(capturePolicy, currentMeriServerReadonlyCapturePolicy)
-      : undefined;
     const docTextById = new Map<
       string,
       { id: string; filename: string; text: string; status: string; reason: string | null }
@@ -1439,7 +1308,7 @@ export class MeriService implements MeriTurnMaintenance {
       );
       for (const row of docRows) {
         const initial = describeAttachmentContentState(row);
-        if (!capturePolicy && enforceContentState && !initial.readable && row.data) {
+        if (enforceContentState && !initial.readable && row.data) {
           await retryAttachmentExtraction(this.prisma, row.id, ctx.tenantId, ctx.userId, () =>
             this.aiCredentials.resolveProvider(ctx, 'openai'),
           );
@@ -1604,11 +1473,6 @@ export class MeriService implements MeriTurnMaintenance {
       );
       // Persist a coherent assistant turn so history/replay stays intact. Guarded
       // so a DB hiccup can never leave the SSE stream unclosed.
-      await assertMeriServerReadonlyCaptureCurrentAuthority({
-        prisma: this.prisma,
-        ctx,
-        policy: capturePolicy,
-      });
       try {
         const offerMessage = await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.clioMessage.create({
@@ -1623,12 +1487,6 @@ export class MeriService implements MeriTurnMaintenance {
                 servedBy: 'research-promote',
                 finishReason: 'stop',
                 researchOffer: { topic: reportRequest.topic },
-                ...(currentMeriServerReadonlyCaptureReceipt()
-                  ? {
-                      serverReadonlyCaptureReceipt:
-                        currentMeriServerReadonlyCaptureReceipt() as unknown as Prisma.InputJsonValue,
-                    }
-                  : {}),
               },
             },
             select: { id: true },
@@ -1645,13 +1503,9 @@ export class MeriService implements MeriTurnMaintenance {
       sse.write(
         `data: ${JSON.stringify({
           type: 'done',
-          ...(currentMeriServerReadonlyCaptureReceipt()
-            ? { serverReadonlyCaptureReceipt: currentMeriServerReadonlyCaptureReceipt() }
-            : {}),
           ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
         })}\n\n`,
       );
-      await captureOutputFence?.release();
       return;
     }
 
@@ -1712,7 +1566,6 @@ export class MeriService implements MeriTurnMaintenance {
         researchScope,
         ...(clientSignal ? { clientSignal } : {}),
       });
-      await captureOutputFence?.release();
       return;
     }
 
@@ -1998,11 +1851,6 @@ export class MeriService implements MeriTurnMaintenance {
         const roundStartMs = Date.now();
 
         try {
-          await assertMeriServerReadonlyCaptureCurrentAuthority({
-            prisma: this.prisma,
-            ctx,
-            policy: capturePolicy,
-          });
           const providerRequestBody = JSON.stringify(
             prepareAnthropicRequest({
               model,
@@ -2014,7 +1862,6 @@ export class MeriService implements MeriTurnMaintenance {
               messages,
             }),
           );
-          const observeProviderEvent = captureObservations?.startAnthropicRequest();
           const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -2049,7 +1896,6 @@ export class MeriService implements MeriTurnMaintenance {
               let providerError = false;
               try {
                 const evt = JSON.parse(payload);
-                observeProviderEvent?.(evt);
                 providerError = evt.type === 'error';
                 applyRoundUsageEvent(roundUsage, evt);
                 // Extended thinking (F3): relay reasoning deltas to the UI
@@ -2347,17 +2193,12 @@ export class MeriService implements MeriTurnMaintenance {
         for (const item of preparedTools) {
           const t = item.tool;
           const outcome = outcomes[item.index];
-          const captureSourceIds: string[] = [];
           let resultPayload: unknown;
           let isError = false;
           if (outcome && outcome.ok) {
             resultPayload = outcome.result;
             // Capture any artifacts the tool persisted so the artifact panel sees them.
             const extractedArtifacts = extractToolArtifacts(resultPayload);
-            assertMeriServerReadonlyCaptureNoArtifactWrites(
-              capturePolicy,
-              extractedArtifacts.map((artifact) => artifact.title),
-            );
             for (const art of extractedArtifacts) producedArtifacts.push(art);
             // If a draft/email tool ran in page-write mode, capture body for the page-write event.
             if (
@@ -2390,7 +2231,6 @@ export class MeriService implements MeriTurnMaintenance {
               citations.length + 1,
             );
             if (cites.length) {
-              captureSourceIds.push(...cites.map((citation) => citation.id));
               // Capture rich grounding for the SAME marker numbers before we push
               // the citations (startN must match the citation extractor's startN).
               const grounding = extractGroundingFromToolResult(resultPayload, citations.length + 1);
@@ -2399,13 +2239,6 @@ export class MeriService implements MeriTurnMaintenance {
               toolContent = `${formatCitationsForPrompt(cites)}\n\n${toolContent}`;
             }
           }
-          captureObservations?.recordTool({
-            callId: t.id,
-            name: t.name,
-            outcome,
-            sourceIds: captureSourceIds,
-            denied: Boolean(item.scopeViolation),
-          });
           // Emit a real source with a human detail (counts / sample titles) so
           // the trust panel can show actual citations, not just a tool name.
           const { count, detail } = summarizeToolResultForTrust(resultPayload);
@@ -2494,25 +2327,23 @@ export class MeriService implements MeriTurnMaintenance {
     // alongside outreach. Best-effort — recordAiUsageEvent swallows + logs any
     // failure so metering can never break a turn. cache tokens are billed at
     // the input rate by the pricing model, so fold them into inputTokens.
-    if (!currentMeriServerReadonlyCapturePolicy()) {
-      await recordAiUsageEvent(
-        { prisma: this.prisma, logger: this.logger },
-        { tenantId: ctx.tenantId, userId: ctx.userId },
-        'clio_chat',
-        {
-          provider: 'anthropic',
-          model,
-          usage: {
-            inputTokens:
-              usageTotals.inputTokens +
-              usageTotals.cacheReadInputTokens +
-              usageTotals.cacheCreationInputTokens,
-            outputTokens: usageTotals.outputTokens,
-          },
-          usedTenantKey,
+    await recordAiUsageEvent(
+      { prisma: this.prisma, logger: this.logger },
+      { tenantId: ctx.tenantId, userId: ctx.userId },
+      'clio_chat',
+      {
+        provider: 'anthropic',
+        model,
+        usage: {
+          inputTokens:
+            usageTotals.inputTokens +
+            usageTotals.cacheReadInputTokens +
+            usageTotals.cacheCreationInputTokens,
+          outputTokens: usageTotals.outputTokens,
         },
-      );
-    }
+        usedTenantKey,
+      },
+    );
 
     // Validate citation markers against the numbered sources collected this turn:
     // keep real [N], strip hallucinated ones, surface the used citations (P0-3).
@@ -2749,15 +2580,6 @@ export class MeriService implements MeriTurnMaintenance {
       bodyText: string;
     }> = [];
     let verifiedArtifactId: string | null = null;
-    await assertMeriServerReadonlyCaptureCurrentAuthority({
-      prisma: this.prisma,
-      ctx,
-      policy: capturePolicy,
-    });
-    assertMeriServerReadonlyCaptureNoArtifactWrites(
-      capturePolicy,
-      producedArtifacts.map((artifact) => artifact.title),
-    );
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const message = await tx.clioMessage.create({
         data: {
@@ -2785,12 +2607,6 @@ export class MeriService implements MeriTurnMaintenance {
             trace: turnTrace as unknown as Prisma.InputJsonValue,
             suggestions,
             actions: actionsTaken,
-            ...(currentMeriServerReadonlyCaptureReceipt()
-              ? {
-                  serverReadonlyCaptureReceipt:
-                    currentMeriServerReadonlyCaptureReceipt() as unknown as Prisma.InputJsonValue,
-                }
-              : {}),
             // Meri v6 thinking-persistence piece 1: the same plan/trust-step data
             // already streamed live this turn, additionally persisted so history
             // replay (SessionRail) can populate ChatMessage.planSteps/trustSteps
@@ -2847,31 +2663,6 @@ export class MeriService implements MeriTurnMaintenance {
       }
     });
 
-    if (capturePolicy && lastUserMessage && assistantMessageId) {
-      const evidenceReceipt = buildApiOnlyMeriServerCaptureEvidence({
-        policy: capturePolicy,
-        observations: captureObservations,
-        userMessageId: lastUserMessage.id,
-        assistantMessageId,
-        citations: finalCitations.map((citation) => ({
-          id: citation.id,
-          snippet: citation.snippet ?? null,
-        })),
-        usage: {
-          inputTokens: usageTotals.inputTokens,
-          outputTokens: usageTotals.outputTokens,
-        },
-      });
-      await persistMeriServerCaptureEvidenceReceipt({
-        prisma: this.prisma,
-        ctx,
-        policy: capturePolicy,
-        assistantMessageId,
-        receipt: evidenceReceipt,
-      });
-      setCurrentMeriCaptureEvidenceReceipt(evidenceReceipt);
-    }
-
     // Artifacts / Canvas (P1-4): stream produced deliverables so the client can
     // open them in the side canvas (copy / download / version).
     for (const deliverable of createdDeliverables) {
@@ -2881,7 +2672,7 @@ export class MeriService implements MeriTurnMaintenance {
     // Claim/Evidence store (Phase-0 tables, first writer): materialize the
     // verifier pass's claims against their numbered citations. Fire-and-forget +
     // fail-open — grounding audit must never block the stream.
-    if (!currentMeriServerReadonlyCapturePolicy() && verification?.claims?.length) {
+    if (verification?.claims?.length) {
       void this.claimWriter
         .persistClaimsSafe(
           ctx.tenantId,
@@ -2909,7 +2700,7 @@ export class MeriService implements MeriTurnMaintenance {
     // this turn — never learn a fact from a reply we already suspect is ungrounded
     // (closes the memory-laundering path where a fabricated claim is persisted and
     // later recalled as uncited firm knowledge).
-    if (!currentMeriServerReadonlyCapturePolicy() && assistantContent.length > 200) {
+    if (assistantContent.length > 200) {
       void this.maybeLearnFromConversation({
         ctx,
         conversationId,
@@ -2930,7 +2721,7 @@ export class MeriService implements MeriTurnMaintenance {
     // search and run compaction when the conversation outgrows its budget.
     // Scheduled off the response cycle and fail-open — it never blocks or
     // breaks the streaming reply.
-    if (assistantMessageId && !currentMeriServerReadonlyCapturePolicy()) {
+    if (assistantMessageId) {
       this.scheduleAfterTurnMaintenance(ctx, conversationId);
     }
 
@@ -2939,12 +2730,6 @@ export class MeriService implements MeriTurnMaintenance {
         type: 'done',
         finishReason,
         partial,
-        ...(currentMeriServerReadonlyCaptureReceipt()
-          ? { serverReadonlyCaptureReceipt: currentMeriServerReadonlyCaptureReceipt() }
-          : {}),
-        ...(currentMeriCaptureEvidenceReceipt()
-          ? { serverCaptureEvidenceReceipt: currentMeriCaptureEvidenceReceipt() }
-          : {}),
         ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
         ...(prospectScope ? { turnScope: prospectTurnScopeReceipt(prospectScope) } : {}),
         ...(!prospectScope && researchScope
@@ -2952,7 +2737,6 @@ export class MeriService implements MeriTurnMaintenance {
           : {}),
       })}\n\n`,
     );
-    await captureOutputFence?.release();
   }
 
   /**
@@ -2989,7 +2773,6 @@ export class MeriService implements MeriTurnMaintenance {
     researchScope: MeriResearchPortfolioScope | null;
   }): Promise<void> {
     const { ctx, sse } = args;
-    const capturePolicy = currentMeriServerReadonlyCapturePolicy();
     const emit = (event: Record<string, unknown>) =>
       sse.write(`data: ${JSON.stringify(event)}\n\n`);
 
@@ -3161,7 +2944,6 @@ export class MeriService implements MeriTurnMaintenance {
           });
           return;
         case 'artifact':
-          assertMeriServerReadonlyCaptureNoArtifactWrites(capturePolicy, [event.artifact.id]);
           // Same frame the legacy loop emits (line ~1358) so the ChatDrawer /
           // canvas renders the download card. The row already exists (the
           // delegated tool persisted it); we only link it to the message below.
@@ -3215,11 +2997,6 @@ export class MeriService implements MeriTurnMaintenance {
     };
 
     try {
-      await assertMeriServerReadonlyCaptureCurrentAuthority({
-        prisma: this.prisma,
-        ctx,
-        policy: capturePolicy,
-      });
       await this.meriV2Chat.streamChat({
         bearerToken: args.bearerToken,
         input: {
@@ -3259,10 +3036,7 @@ export class MeriService implements MeriTurnMaintenance {
     } catch (e) {
       if (!args.clientSignal?.aborted) {
         errorMessage =
-          errorMessage ??
-          (capturePolicy && e instanceof Error
-            ? e.message
-            : 'MeriV2 chat is unavailable right now — please try again.');
+          errorMessage ?? 'MeriV2 chat is unavailable right now — please try again.';
         this.logger.error(`MeriV2 full-chat proxy failed: ${(e as Error).message}`);
       }
     }
@@ -3377,12 +3151,6 @@ export class MeriService implements MeriTurnMaintenance {
     // `done` frame — see the matching declaration/comment in streamMessage.)
     let assistantMessageId: string | null = null;
     if (assistantContent || steps.length) {
-      await assertMeriServerReadonlyCaptureCurrentAuthority({
-        prisma: this.prisma,
-        ctx,
-        policy: capturePolicy,
-      });
-      assertMeriServerReadonlyCaptureNoArtifactWrites(capturePolicy, producedArtifactIds);
       await this.prisma.withTenant(ctx.tenantId, async (tx) => {
         const assistantMessage = await tx.clioMessage.create({
           data: {
@@ -3413,12 +3181,6 @@ export class MeriService implements MeriTurnMaintenance {
               // on this path — there's no plan concept in the MeriV2 orchestrator
               // loop, a pre-existing product gap, not something to invent here.
               trustSteps: steps as unknown as Prisma.InputJsonValue,
-              ...(currentMeriServerReadonlyCaptureReceipt()
-                ? {
-                    serverReadonlyCaptureReceipt:
-                      currentMeriServerReadonlyCaptureReceipt() as unknown as Prisma.InputJsonValue,
-                  }
-                : {}),
               // Phase 4: prospect-scoped turn receipt, captured from the
               // re-asserted server scope — never retrieval plans/model output.
               ...(args.prospectScope
@@ -3469,7 +3231,7 @@ export class MeriService implements MeriTurnMaintenance {
       });
     }
 
-    if (!currentMeriServerReadonlyCapturePolicy() && assistantContent.length > 200) {
+    if (assistantContent.length > 200) {
       void this.maybeLearnFromConversation({
         ctx,
         conversationId: args.conversationId,
@@ -3482,7 +3244,7 @@ export class MeriService implements MeriTurnMaintenance {
         groundingSeverity,
       }).catch(() => {});
     }
-    if (assistantMessageId && !currentMeriServerReadonlyCapturePolicy()) {
+    if (assistantMessageId) {
       this.scheduleAfterTurnMaintenance(ctx, args.conversationId);
     }
 
@@ -3492,9 +3254,6 @@ export class MeriService implements MeriTurnMaintenance {
     }
     emit({
       type: 'done',
-      ...(currentMeriServerReadonlyCaptureReceipt()
-        ? { serverReadonlyCaptureReceipt: currentMeriServerReadonlyCaptureReceipt() }
-        : {}),
       ...(assistantMessageId ? { messageId: assistantMessageId } : {}),
       ...(args.prospectScope ? { turnScope: prospectTurnScopeReceipt(args.prospectScope) } : {}),
       ...(!args.prospectScope && args.researchScope
@@ -7006,4 +6765,13 @@ function extractToolArtifacts(value: unknown): Array<{
     });
   }
   return out;
+}
+
+/** Historical Case46 rows keep a signed internal transport in conversation
+ * metadata. It is server-only and never part of a public conversation response. */
+function publicConversationMetadata<T>(value: T): T {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  if (!Object.hasOwn(value, 'governedArtifactCapture')) return value;
+  const { governedArtifactCapture: _internal, ...rest } = value as Record<string, unknown>;
+  return rest as T;
 }

@@ -54,31 +54,6 @@ compose_database_url() {
 select_writable_tmpdir
 
 case "${1:-serve}" in
-  meri-case46-setup)
-    shift
-    compose_database_url
-    exec node scripts/meri-case46-setup.mjs "$@"
-    ;;
-  meri-pending-memory-setup)
-    shift
-    compose_database_url
-    exec node scripts/meri-pending-memory-setup.mjs "$@"
-    ;;
-  meri-case01-setup)
-    shift
-    compose_database_url
-    exec node scripts/meri-case01-setup.mjs "$@"
-    ;;
-  meri-synthetic-read-budget)
-    shift
-    compose_database_url
-    exec node scripts/meri-synthetic-read-budget.mjs "$@"
-    ;;
-  meri-capture-provider-budget)
-    shift
-    compose_database_url
-    exec node scripts/meri-capture-provider-budget.mjs "$@"
-    ;;
   migration-status)
     compose_database_url
     echo "Running prisma migrate status (READ-ONLY; migration history is never edited)"
@@ -350,21 +325,6 @@ case "${1:-serve}" in
     shift
     echo "Running qualify-defense-budget-drain-image-v1 (isolated Postgres+MinIO only; never touches production)"
     exec ./node_modules/.bin/tsx scripts/qualify-defense-budget-drain-image-v1.ts "$@"
-    ;;
-  meri-case12-setup-plan)
-    shift
-    compose_database_url
-    exec node scripts/meri-case12-setup-plan.mjs "$@"
-    ;;
-  meri-case12-setup-native)
-    shift
-    compose_database_url
-    exec node scripts/meri-case12-setup-native.mjs "$@"
-    ;;
-  meri-case14-recall-setup)
-    shift
-    compose_database_url
-    exec node scripts/meri-case14-recall-setup.mjs "$@"
     ;;
   *)
     exec /bin/sh /usr/local/lib/capiro/entrypoint-legacy.sh "$@"

@@ -1,9 +1,4 @@
 import {
-  captureApiProviderScopeActive,
-  reserveCaptureApiProviderAttempt,
-  settleCaptureApiProviderAttempt,
-} from '../meri/meri-capture-api-provider-scope.js';
-import {
   RerankingProviderError,
   type RerankingProvider,
   type RerankingProviderMetadata,
@@ -79,9 +74,6 @@ export class NvidiaRerankingProvider implements RerankingProvider {
   }
 
   async rerank(request: RerankingProviderRequest): Promise<RerankingProviderResult> {
-    const capture = captureApiProviderScopeActive();
-    if (capture && this.endpointUrl !== nvidiaHostedRerankingUrl(this.metadata.model))
-      throw new Error('meri_capture_provider_wire_unqualified_nvidia_endpoint');
     if (!request.query.trim() || request.passages.length === 0) {
       throw new RerankingProviderError(
         'invalid_provider_response',
@@ -97,21 +89,11 @@ export class NvidiaRerankingProvider implements RerankingProvider {
       passages: request.passages.map((text) => ({ text })),
       truncate: 'END',
     });
-    const reservation = await reserveCaptureApiProviderAttempt({
-      kind: 'nvidia_rerank',
-      provider: this.metadata.provider,
-      model: this.metadata.model,
-      // A reranker may encode the query for every passage. Each scored pair
-      // fits within the serialized payload, so reserve that bound per pair.
-      inputBytes: Buffer.byteLength(body, 'utf8') * request.passages.length,
-    });
-    let settled = false;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
       const response = await this.fetchImpl(this.endpointUrl, {
         method: 'POST',
-        ...(capture ? { redirect: 'error' as const } : {}),
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
@@ -182,17 +164,6 @@ export class NvidiaRerankingProvider implements RerankingProvider {
       // NIM returns descending logits. Sort defensively and use input index as a
       // stable tie-breaker. This is relevance order only, never factual authority.
       rankings.sort((a, b) => b.score - a.score || a.index - b.index);
-      const promptTokens = payload.usage?.prompt_tokens;
-      await settleCaptureApiProviderAttempt(
-        reservation,
-        typeof promptTokens === 'number' &&
-          Number.isSafeInteger(promptTokens) &&
-          promptTokens >= 0 &&
-          payload.usage?.total_tokens === promptTokens
-          ? { kind: 'known', inputTokens: promptTokens, outputTokens: 0 }
-          : { kind: 'uncertain' },
-      );
-      settled = true;
 
       return {
         rankings,
@@ -206,7 +177,6 @@ export class NvidiaRerankingProvider implements RerankingProvider {
         },
       };
     } catch (cause) {
-      if (!settled) await settleCaptureApiProviderAttempt(reservation, { kind: 'uncertain' });
       if (cause instanceof RerankingProviderError) throw cause;
       const timedOut = controller.signal.aborted;
       throw new RerankingProviderError(

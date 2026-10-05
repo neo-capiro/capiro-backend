@@ -1,7 +1,7 @@
 // Re-runs the automatic checks on saved results (no provider calls) after a
 // check fix, rewriting each latest attempt's result.json and a fresh summary.
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
-import { cases as originals } from '../live-v1/cases.mjs';
+import { cases as originals } from './original-cases.mjs';
 import { internalCases } from './capiro-internal-cases.mjs';
 import { runChecks } from './checks.mjs';
 import { turnCostMicros } from './cost.mjs';

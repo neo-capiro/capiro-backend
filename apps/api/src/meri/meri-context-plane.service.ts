@@ -1,18 +1,14 @@
-import { assertMeriCase12BindingInTx } from './meri-case12-capture-authority.js';
 import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-import { assertCaptureApiRetrievalPlan } from './meri-capture-api-provider-scope.js';
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import { isMeriDocumentLocationClarification, resolveMeriDocumentRequest, extractCitationsFromToolResult, formatCitationsForPrompt } from '@capiro/shared';
-import { explicitMeriSubjectHint, hasExplicitMeriPortfolioScope, validateMeriFixtureSemanticClock } from '@capiro/meriv2-core';
+import { explicitMeriSubjectHint, hasExplicitMeriPortfolioScope } from '@capiro/meriv2-core';
 import type {
   ContextRequest,
   MeriContextPacketItem,
   MeriContextPacketSummary,
   MeriContextEvidenceRecord,
   MeriGovernedTurnContext,
-  MeriFixtureSemanticClock,
-  MeriServerReadonlyCapturePolicy,
 } from '@capiro/meriv2-core';
 import { ContextPlaneGatewayService } from '../context/context-plane-gateway.service.js';
 import type {
@@ -69,12 +65,6 @@ interface SecurityEnvelope {
 /** Explicit tool selectors only; authority always comes from the server. */
 export type MeriToolRetrievalInput = ContextRetrievalDirective & { clientId?: string };
 
-/** Internal dispatch argument, never parsed from the model's tool input. */
-export interface MeriToolCompilerCapture {
-  policy: MeriServerReadonlyCapturePolicy;
-  tool: 'search_memory';
-}
-
 /**
  * Phase 19 adoption seam for Meri.
  *
@@ -99,38 +89,15 @@ export class MeriContextPlaneService {
   async searchToolData(
     ctx: TenantContext,
     input: MeriToolRetrievalInput,
-    capture?: MeriToolCompilerCapture,
-  ): Promise<RetrievalResponse & {
-    contextPacket?: Pick<MeriContextPacketSummary, 'packetId' | 'persisted' | 'clockUse'>;
-  }> {
-    const policy = capture?.policy;
-    const qualified = policy && !policy.syntheticReadBudget &&
-      policy.fixtureVersion === 'meri-live-v1-2026-09-26.1' && ['01', '12', '14'].includes(policy.caseId ?? '');
-    const semanticClock = policy?.semanticClock;
-    if (qualified || semanticClock) {
-      if (!qualified || !semanticClock || capture?.tool !== 'search_memory' ||
-        policy.tenantId !== ctx.tenantId || policy.actorUserId !== ctx.userId || !policy.turnId ||
-        typeof policy.clientId !== 'string' || !policy.clientId.trim() || input.clientId !== policy.clientId ||
-        !Number.isSafeInteger(policy.expiresAt) || policy.expiresAt <= Date.now() ||
-        policy.issuedAt > Date.now() + 30_000 ||
-        input.requestedDomains.length !== 1 || input.requestedDomains[0] !== 'institutional_knowledge') {
-        throw new Error('meri_fixture_semantic_clock_tool_binding_mismatch');
-      }
-      validateMeriFixtureSemanticClock(semanticClock, policy);
-      if (policy.caseId === '12')
-        await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, tx =>
-          assertMeriCase12BindingInTx(this.prisma, tx, ctx, policy));
-    }
+  ): Promise<RetrievalResponse> {
     const security = await this.securityEnvelope(ctx);
     if (input.clientId && !security.authorizedClientIds.includes(input.clientId)) {
       throw new NotFoundException('Client not found');
     }
     const { clientId, ...retrieval } = input;
     const subjectScope = clientId ? ('client' as const) : ('general' as const);
-    assertCaptureApiRetrievalPlan({ subjectScope, requestedDomains: input.requestedDomains });
     const result = await this.contextPlane.requestContext({
       operationId: 'meri.chat',
-      ...(semanticClock ? { requestId: policy!.requestId } : {}),
       resolverRequest: {
         tenantId: ctx.tenantId,
         actorUserId: ctx.userId,
@@ -163,32 +130,10 @@ export class MeriContextPlaneService {
         // Keep its legacy character bound explicit as well.
         charBudget: 48_000,
         ref: { operationId: 'meri.chat', subjectScope },
-        ...(semanticClock ? {
-          now: new Date(semanticClock.instant), semanticClock,
-          traceId: policy!.traceId,
-          ref: { operationId: 'meri.chat', subjectScope, tool: capture!.tool,
-            conversationId: policy!.conversationId, capturePolicyId: policy!.policyId,
-            captureRequestId: policy!.requestId, captureTurnId: policy!.turnId },
-        } : {}),
       },
     });
     if (result.kind === 'migration_exception' || !result.context.retrieval) {
       throw new ServiceUnavailableException('Governed retrieval did not run; no data was searched');
-    }
-    if (semanticClock) {
-      const packet = result.packet;
-      if (!packet.persisted || !packet.packetId || packet.clockUse?.instant !== semanticClock.instant ||
-        packet.clockUse?.timeZone !== semanticClock.timeZone ||
-        !Number.isFinite(Date.parse(packet.clockUse.eligibilityAt)) ||
-        !['used', 'not_run'].includes(packet.clockUse.scoring) || policy!.expiresAt <= Date.now()) {
-        throw new Error('meri_fixture_semantic_clock_tool_compiler_unproved');
-      }
-      if (policy!.caseId === '12')
-        await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, tx =>
-          assertMeriCase12BindingInTx(this.prisma, tx, ctx, policy!));
-      return { ...result.context.retrieval, contextPacket: {
-        packetId: packet.packetId, persisted: packet.persisted, clockUse: { ...packet.clockUse },
-      } };
     }
     // The gateway has resolved, compiled, audited and enforced the operation.
     // Return full evidence and canonical coverage; packet projection is only
@@ -198,16 +143,8 @@ export class MeriContextPlaneService {
 
   async resolveChat(
     ctx: TenantContext,
-    input: { conversationId: string; task: string; now?: Date; semanticClock?: MeriFixtureSemanticClock },
+    input: { conversationId: string; task: string },
   ): Promise<MeriGovernedTurnContext> {
-    if (input.semanticClock) {
-      const clock = input.semanticClock;
-      validateMeriFixtureSemanticClock(clock, {
-        caseId: clock.caseId, captureRunId: clock.captureRunId, issuedAt: clock.observedAt,
-      });
-      if (input.now?.toISOString() !== clock.instant)
-        throw new Error('meri_fixture_semantic_clock_request_mismatch');
-    }
     const conversation = await this.chatConversationScope(ctx, input.conversationId);
     let task = input.task;
     if (conversation.clientId && isMeriDocumentLocationClarification(task)) {
@@ -235,8 +172,6 @@ export class MeriContextPlaneService {
       uiClientId: conversation.clientId,
       uiClientName: conversation.clientName,
       ref: { conversationId: input.conversationId },
-      ...(input.now ? { now: input.now } : {}),
-      ...(input.semanticClock ? { semanticClock: input.semanticClock } : {}),
     });
   }
 
@@ -280,8 +215,6 @@ export class MeriContextPlaneService {
       uiClientId: string | null;
       uiClientName: string | null;
       ref: Record<string, string | null | undefined>;
-      now?: Date;
-      semanticClock?: MeriFixtureSemanticClock;
     },
   ): Promise<MeriGovernedTurnContext> {
     const security = await this.securityEnvelope(ctx, true);
@@ -290,12 +223,7 @@ export class MeriContextPlaneService {
       uiClientId: input.uiClientId,
       uiClientName: input.uiClientName,
       authorizedClientNames: security.authorizedClientNames,
-      ...(input.now ? { now: input.now } : {}),
     });
-    // Event-time meaning may be frozen; current authorization and source
-    // availability must still include records ingested after the fixture date.
-    if (input.semanticClock && plan.observedThrough) plan.observedThrough = new Date();
-    assertCaptureApiRetrievalPlan(plan);
 
     const subjectClientId = plan.subjectScope === 'client' ? input.uiClientId : null;
     const resolverRequest: ContextResolutionRequest = {
@@ -374,8 +302,6 @@ export class MeriContextPlaneService {
         operationId: input.operationId,
         subjectScope: plan.subjectScope,
       },
-      ...(input.now ? { now: input.now } : {}),
-      ...(input.semanticClock ? { semanticClock: input.semanticClock } : {}),
     };
 
     const result = await this.contextPlane.requestContext({
@@ -388,10 +314,6 @@ export class MeriContextPlaneService {
     if (result.kind === 'migration_exception') {
       throw new Error(`context_plane_phase19_operation_not_adopted:${input.operationId}`);
     }
-    if (input.semanticClock && (
-      result.packet.clockUse?.instant !== input.semanticClock.instant ||
-      result.packet.clockUse?.timeZone !== input.semanticClock.timeZone
-    )) throw new Error('meri_fixture_semantic_clock_compiler_evidence_missing');
 
     const projection = buildModelContextProjection(result.context.retrieval?.records ?? []);
     const sourceSteeringEvidence = buildSteeringEvidenceProjection(result.packet);
@@ -420,7 +342,6 @@ export class MeriContextPlaneService {
 
     return {
       version: 1,
-      ...(input.semanticClock ? { semanticClock: input.semanticClock } : {}),
       operationId: input.operationId,
       prompt,
       evidence: {

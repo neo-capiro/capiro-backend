@@ -1,7 +1,7 @@
 // Writes one review document per case (latest attempt) for the review page's
 // `cases` collection: prompts, answers, checks and cost. Nothing is sent here.
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'node:fs';
-import { cases as originals } from '../live-v1/cases.mjs';
+import { cases as originals } from './original-cases.mjs';
 
 const FAMILY = [[12, 'Memory and scope'], [19, 'In-Meri memory review'], [27, 'Budget and Program Elements'],
   [34, 'Bills and congressional direction'], [39, 'Opportunities and eligibility'], [46, 'Files and artifacts'],

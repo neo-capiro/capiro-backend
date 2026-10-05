@@ -1,15 +1,6 @@
-import { assertMeriCase12BindingInTx } from './meri-case12-capture-authority.js';
-import { memoryCaptureSourcePolicyEnabled, signMeriMemoryCaptureSources } from '@capiro/meriv2-core';
 import { assertTextArtifactCurrentProposal, type TextArtifactCurrentAction } from './meri-text-artifact-current-proposal.js';
-import { assertCase46ArtifactEffectInTx } from './meri-case46-action-authority.js';
 import { researchPortfolioManagementSchema, parseResearchPortfolioManagementInput } from '../research-portfolios/research-portfolio-management.js';
 import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
-import {
-  controlledReadToolAllowed,
-  tryExecuteMeriControlledRead,
-} from './meri-controlled-read-fixture.js';
-import { captureBudgetRequired } from './meri-capture-provider-budget.js';
-import { withCaptureApiProviderScope } from './meri-capture-api-provider-scope.js';
 import {
   deadlineStatus as structuredDeadlineStatus,
   daysUntil as structuredDaysUntil,
@@ -19,15 +10,8 @@ import {
 } from '@capiro/shared';
 import {
   assertMeriToolRequestActive,
-  currentMeriToolCapturePolicy,
-  currentMeriMemoryCaptureRequest,
   meriToolRequestControl,
 } from './meri-tool-request-control.js';
-import { currentMeriServerReadonlyCapturePolicy } from './meri-context-plane-runtime.js';
-import {
-  assertMeriServerReadonlyCaptureCurrentAuthority,
-  assertMeriServerReadonlyCaptureToolAllowed,
-} from './meri-server-readonly-capture.js';
 import {
   BadGatewayException,
   BadRequestException,
@@ -2543,27 +2527,7 @@ export class MeriToolsService {
     input: Record<string, unknown>,
     execution?: { actionProposalId?: string },
   ) {
-    const policy = currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
-    if (
-      captureBudgetRequired(policy) &&
-      !(policy?.syntheticReadBudget && (name === 'search_memory' || name === 'list_memory_proposals')) &&
-      !(['01', '14'].includes(policy?.caseId ?? '') &&
-        (name === 'search_memory' || name === 'list_memory_proposals')) &&
-      !(policy?.caseId === '12' && name === 'search_memory') &&
-      !controlledReadToolAllowed(policy?.caseId ?? null, name)
-    ) {
-      throw new Error('meri_capture_provider_budget_unqualified_tool');
-    }
-    return withCaptureApiProviderScope(this.prisma, ctx, policy, async () => {
-      if (policy?.caseId === '12')
-        await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, tx =>
-          assertMeriCase12BindingInTx(this.prisma, tx, ctx, policy));
-      const result = await this.executeScoped(ctx, name, input, execution);
-      if (policy?.caseId === '12')
-        await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, tx =>
-          assertMeriCase12BindingInTx(this.prisma, tx, ctx, policy));
-      return result;
-    });
+    return this.executeScoped(ctx, name, input, execution);
   }
 
   private async executeScoped(
@@ -2573,17 +2537,6 @@ export class MeriToolsService {
     execution?: { actionProposalId?: string },
   ) {
     assertMeriToolRequestActive();
-    const capturePolicy =
-      currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
-    assertMeriServerReadonlyCaptureToolAllowed(String(name), capturePolicy);
-    await assertMeriServerReadonlyCaptureCurrentAuthority({
-      prisma: this.prisma,
-      ctx,
-      policy: capturePolicy,
-    });
-    assertMeriToolRequestActive();
-    const controlled = await tryExecuteMeriControlledRead(this.prisma, ctx, name, input);
-    if (controlled !== undefined) return controlled;
     switch (name) {
       case 'manage_research_portfolio':
       case 'get_research_portfolio':
@@ -2649,26 +2602,8 @@ export class MeriToolsService {
         return this.findPathTo(ctx, input);
       case 'search_memory':
         return this.searchMemory(ctx, input);
-      case 'list_memory_proposals': {
-        const result = await readOwnPendingMemoryProposals(
-          ctx,
-          input,
-          this.governedMemoryCandidates,
-          capturePolicy,
-        );
-        if (capturePolicy && !capturePolicy.syntheticReadBudget) {
-          // Re-read current membership, conversation and selected-client wall
-          // before returning the owned proposal content after an awaited read.
-          await assertMeriServerReadonlyCaptureCurrentAuthority({
-            prisma: this.prisma,
-            ctx,
-            policy: capturePolicy,
-          });
-          assertMeriServerReadonlyCaptureToolAllowed(String(name), capturePolicy);
-          assertMeriToolRequestActive();
-        }
-        return result;
-      }
+      case 'list_memory_proposals':
+        return readOwnPendingMemoryProposals(ctx, input, this.governedMemoryCandidates);
       case 'search_congress_bills':
         return this.searchCongressBills(input);
       case 'get_bill_status':
@@ -3477,7 +3412,6 @@ export class MeriToolsService {
   }
 
   private async searchMemory(ctx: TenantContext, input: Record<string, unknown>) {
-    const capturePolicy = currentMeriToolCapturePolicy() ?? currentMeriServerReadonlyCapturePolicy();
     const query = optionalString(input, 'query', 400);
     if (!query) return { error: 'Provide a search query.' };
     const clientId = optionalString(input, 'clientId', 80);
@@ -3500,9 +3434,8 @@ export class MeriToolsService {
     // One canonical recall path for automatic context and explicit search. The
     // shared adapter reads approved memory_items content and checks the current
     // tenant/user/client wall on every page, including when embeddings are down.
-    const contextPackets: NonNullable<Awaited<ReturnType<typeof searchCapiroData>>['contextPacket']>[] = [];
-    const readPage = async () => {
-      const result = await searchCapiroData(
+    const readPage = () =>
+      searchCapiroData(
         ctx,
         {
           query,
@@ -3514,16 +3447,11 @@ export class MeriToolsService {
           ...(cursor ? { cursors: { institutional_knowledge: cursor } } : {}),
         },
         this.contextPlane,
-        capturePolicy ? { policy: capturePolicy, tool: 'search_memory' } : undefined,
       );
-      if (capturePolicy?.semanticClock && result.contextPacket) contextPackets.push(result.contextPacket);
-      return result;
-    };
     let evidence = await readPage();
     const project = () =>
       evidence.records.map((record) =>
         projectMemoryContent(ctx, record, {
-          captureSourceOwner: memoryCaptureSourcePolicyEnabled(capturePolicy),
           clientId: clientId ?? undefined,
           memoryItemId: memoryItemId ?? undefined,
           contentCursor: contentCursor ?? undefined,
@@ -3556,10 +3484,6 @@ export class MeriToolsService {
     return {
       ...envelope,
       tool: 'search_memory',
-      ...(memoryCaptureSourcePolicyEnabled(capturePolicy)
-        ? { memoryCaptureSources: signMeriMemoryCaptureSources(capturePolicy, records, process.env.INTERNAL_SERVICE_SECRET, currentMeriMemoryCaptureRequest()!) }
-        : {}),
-      ...(capturePolicy?.semanticClock ? { contextPackets } : {}),
       summary: records.length
         ? `${records.length} governed memory item(s) returned. Follow content.nextRead for complete approved content; coverage describes the search.`
         : 'No eligible memory was returned. Coverage distinguishes an empty result from unavailable recall.',
@@ -9543,7 +9467,6 @@ export class MeriToolsService {
     }
     await this.ensureConversationForTool(ctx, input.conversationId, input.clientId ?? null);
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await assertCase46ArtifactEffectInTx(tx, { prisma: this.prisma, engagement: this.engagement }, ctx, input);
       return tx.clioArtifact.create({
         data: {
           tenantId: ctx.tenantId,

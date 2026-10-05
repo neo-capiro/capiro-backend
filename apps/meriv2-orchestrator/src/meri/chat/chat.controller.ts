@@ -22,10 +22,7 @@ import { RequestCredentialsStore } from '../../request/request-credentials.store
 import { parseAiProviderHeader } from '../meri.controller.js';
 import { ChatAssistantService } from './chat-assistant.service.js';
 import type { ChatInput, ChatResult } from './chat-prompt.js';
-import {
-  validateServerReadonlyCapturePolicy,
-  withTrustedCurrentTurnScope,
-} from '../../request/trusted-current-turn-scope.js';
+import { withTrustedCurrentTurnScope } from '../../request/trusted-current-turn-scope.js';
 
 type GovernedChatInput = ChatInput & { governedContext?: MeriGovernedTurnContext };
 
@@ -57,7 +54,7 @@ export class ChatController {
       };
       const run = async () => this.chat.run(meriCtx, effectiveDto);
       const result = await withTrustedCurrentTurnScope(
-        trustedCurrentTurnScope(meriCtx, dto, governed),
+        trustedCurrentTurnScope(meriCtx, dto),
         () => runWithGovernedMeriContext(governed, run),
       );
       return {
@@ -119,7 +116,7 @@ export class ChatController {
             signal: abort.signal,
           });
         const result = await withTrustedCurrentTurnScope(
-          trustedCurrentTurnScope(meriCtx, dto, governed),
+          trustedCurrentTurnScope(meriCtx, dto),
           () => runWithGovernedMeriContext(governed, run),
         );
         frame({
@@ -171,16 +168,6 @@ function authenticateGovernedContext(
 ): void {
   try {
     verifyMeriGovernedContext(governed, dto, identity, process.env.INTERNAL_SERVICE_SECRET);
-    if (governed.governedArtifactCapturePolicy)
-      throw new Error('meri_case46_qualified_v3_required');
-    if (governed.serverReadonlyCapturePolicy) {
-      validateServerReadonlyCapturePolicy(governed.serverReadonlyCapturePolicy, {
-        tenantId: identity.tenantId,
-        actorUserId: identity.userId,
-        conversationId: dto.conversationId ?? null,
-        clientId: dto.clientId ?? null,
-      });
-    }
   } catch {
     throw new ForbiddenException({
       statusCode: 403,
@@ -193,16 +180,12 @@ function authenticateGovernedContext(
 function trustedCurrentTurnScope(
   identity: { tenantId: string; userId: string },
   dto: ChatInput,
-  governed: MeriGovernedTurnContext,
 ) {
   return {
     tenantId: identity.tenantId,
     userId: identity.userId,
     conversationId: dto.conversationId ?? null,
     selectedClientId: dto.clientId ?? null,
-    ...(governed.serverReadonlyCapturePolicy
-      ? { capturePolicy: governed.serverReadonlyCapturePolicy }
-      : {}),
   };
 }
 

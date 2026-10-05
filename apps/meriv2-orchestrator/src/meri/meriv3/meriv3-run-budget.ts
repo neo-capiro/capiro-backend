@@ -1,6 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { JEV_TASK_REGISTRY } from '@capiro/meriv2-core';
-import { prepareCaptureProviderFetch } from '../meri-capture-provider-wire.js';
 
 export type MeriModelBudgetPhase =
   'acquisition' | 'selection' | 'repair' | 'synthesis' | 'finalization' | 'shadow';
@@ -223,7 +222,6 @@ export class MeriRunBudget {
   ): typeof fetch {
     const attempts = new Map<string, { count: number; previousAttemptId: string | null }>();
     return (async (...args: Parameters<typeof fetch>) => {
-      args = prepareCaptureProviderFetch(args);
       const fetchBudget = providerFetchBudgetInput(args, phase);
       const operationState = attempts.get(fetchBudget.logicalOperationId) ?? {
         count: 0,

@@ -3,7 +3,6 @@ import { Logger } from '@nestjs/common';
 import { AnthropicLlmClient, OpenAiLlmClient, type LlmClient } from '@capiro/meriv2-core';
 import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
 import { RequestCredentialsStore } from '../request/request-credentials.store.js';
-import { captureProviderWireActive } from './meri-capture-provider-wire.js';
 import {
   stableProviderOperationId,
   type MeriModelBudgetPhase,
@@ -221,7 +220,6 @@ export class RequestScopedLlmClient implements LlmClient {
     model: string,
     provider: 'anthropic' | 'openai',
     control?: { signal?: AbortSignal; timeoutMs: number },
-    wireFetch?: typeof fetch,
   ): LlmClient {
     const boundedFetch: typeof fetch | undefined = control
       ? async (request, init) => {
@@ -237,7 +235,7 @@ export class RequestScopedLlmClient implements LlmClient {
           if (init?.signal?.aborted) abortFromProvider();
           if (control.signal?.aborted) abortFromTurn();
           try {
-            return await (wireFetch ?? fetch)(request, { ...init, signal: controller.signal });
+            return await fetch(request, { ...init, signal: controller.signal });
           } finally {
             clearTimeout(timer);
             init?.signal?.removeEventListener('abort', abortFromProvider);
@@ -258,7 +256,7 @@ export class RequestScopedLlmClient implements LlmClient {
         : this.timeoutMs !== undefined
           ? { timeoutMs: this.timeoutMs }
           : {}),
-      ...(boundedFetch || wireFetch ? { fetchImpl: boundedFetch ?? wireFetch } : {}),
+      ...(boundedFetch ? { fetchImpl: boundedFetch } : {}),
     };
     return provider === 'openai' ? new OpenAiLlmClient(opts) : new AnthropicLlmClient(opts);
   }
@@ -279,14 +277,6 @@ export class RequestScopedLlmClient implements LlmClient {
     op: (client: LlmClient, timeoutMs?: number) => Promise<T>,
     providerBudget?: ProviderBudgetContext,
   ): Promise<T> {
-    // Core adapters may change endpoint, model and output ceiling. Capture
-    // accounting therefore observes their final wire request, exactly once.
-    const wireFetch =
-      captureProviderWireActive() && providerBudget
-        ? providerBudget.budget.budgetedFetch(providerBudget.phase)
-        : undefined;
-    if (captureProviderWireActive() && !providerBudget)
-      throw new Error('meri_capture_provider_wire_budget_missing');
     const primary = this.resolve();
     const attempts: ResolvedCred[] = [primary];
     if (
@@ -312,7 +302,7 @@ export class RequestScopedLlmClient implements LlmClient {
           ? `${providerBudget.logicalOperationId}:${providerAttempt}`
           : null;
         const reservation =
-          providerBudget && !wireFetch
+          providerBudget
             ? await providerBudget.budget.reserveProviderAttempt({
                 logicalOperationId: providerBudget.logicalOperationId,
                 attemptId: attemptId!,
@@ -347,11 +337,10 @@ export class RequestScopedLlmClient implements LlmClient {
               providerControl && remainingMs !== undefined
                 ? { ...providerControl, timeoutMs: remainingMs }
                 : undefined,
-              wireFetch,
             ),
             remainingMs,
           );
-          if (providerBudget && !wireFetch) {
+          if (providerBudget) {
             const usage = readKnownUsage(result);
             providerSettlementAttempted = true;
             await providerBudget.budget.settleProviderAttempt(
@@ -361,7 +350,7 @@ export class RequestScopedLlmClient implements LlmClient {
           }
           return result;
         } catch (err) {
-          if (providerBudget && !wireFetch && !providerSettlementAttempted) {
+          if (providerBudget && !providerSettlementAttempted) {
             providerSettlementAttempted = true;
             await providerBudget.budget.settleProviderAttempt(reservation, { kind: 'uncertain' });
           }
