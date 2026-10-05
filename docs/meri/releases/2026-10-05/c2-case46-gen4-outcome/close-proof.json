@@ -1,0 +1,16 @@
+{
+  "kind": "meri-case46-failed-turn-known-cost",
+  "captureRunId": "97c6fd26-641a-431f-8798-31f3323feb8a",
+  "reservationId": "55a3cc7d-e8e6-473c-ab06-d7e29a0ef3e4",
+  "conversationId": "f10c4bed-c807-4713-917e-527a9eba6b58",
+  "readbackSha256": "6db71e7e5e50d88507fcffee6f0060595a868e4ea49eabede61626324513047f",
+  "ledgerSha256": "31c25b9f34e04adaa878caae8aad6007bb9edaa3d8a98a6e537b213b54e0734c",
+  "chargedCostMicros": 3603300,
+  "providerAttempts": 3,
+  "pendingProviderAttempts": 0,
+  "providerDeadlineAtMs": 1791200944112,
+  "observedAtMs": 1791201052485,
+  "captureAuthority": false,
+  "answerGrade": "FAILED",
+  "failure": "export blocked (trailing-whitespace mismatch); follow-up document read refused by the executor (meri_case46_canonical_proposal_required); no proposal"
+}
