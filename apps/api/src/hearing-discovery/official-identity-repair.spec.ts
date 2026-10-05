@@ -38,6 +38,9 @@ describe('reviewed official identity restoration', () => {
       time: '9:00 AM',
       url: 'https://www.senate.gov/hearings/338784',
     });
+    expect(identityRepairPatch({ ...projected, committeeSystemCode: 'hssm21' })).toMatchObject({
+      committeeSystemCode: 'hssm00', subcommitteeSystemCode: 'hssm21',
+    });
   });
   it('refuses to invent a replacement title, date or publisher URL', () => {
     expect(() => identityRepairPatch(projectCanonical([]))).toThrow('independently retained');

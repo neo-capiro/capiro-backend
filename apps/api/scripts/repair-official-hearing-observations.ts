@@ -12,6 +12,7 @@ import {
   type ProjectedHearing,
 } from '../src/hearing-discovery/canonical-diff.js';
 import type { SourceEvent } from '../src/hearing-discovery/hearing-discovery.types.js';
+import { storedCommitteeIdentity } from '../src/hearing-discovery/hearing-committee-identity.js';
 
 /** A reviewed identity repair must clear values borrowed from a different
  * event, including a subcommittee that the real event never had. Routine
@@ -19,6 +20,7 @@ import type { SourceEvent } from '../src/hearing-discovery/hearing-discovery.typ
 export function identityRepairPatch(projected: ProjectedHearing) {
   if (!projected.title || !projected.calendarDate || !projected.officialPageUrl)
     throw new Error('Identity repair requires an independently retained title, date and URL');
+  const committee = storedCommitteeIdentity(projected);
   return {
     title: projected.title,
     date: projected.calendarDate,
@@ -28,9 +30,8 @@ export function identityRepairPatch(projected: ProjectedHearing) {
     location: projected.location,
     url: projected.officialPageUrl,
     committeeName: projected.committeeName ?? undefined,
-    committeeCode: projected.committeeSystemCode,
-    committeeSystemCode: projected.committeeSystemCode,
-    subcommitteeSystemCode: projected.subcommitteeSystemCode,
+    committeeCode: committee.committeeSystemCode,
+    ...committee,
   };
 }
 
@@ -121,13 +122,18 @@ export async function repairOfficialObservations(prisma: PrismaClient, expectedH
           } as ProjectableObservation;
         });
         const projected = projectCanonical(facts);
+        Object.assign(projected, storedCommitteeIdentity(projected));
+        const prior = await repository.loadExisting(id);
+        // Completion can be recorded by the lifecycle owner after the retained
+        // schedule notice. Moving a source identity is not a new announcement.
+        if (prior?.eventStatus === 'completed' && projected.eventStatus === 'scheduled')
+          projected.eventStatus = 'completed';
         const repairPatch = identityRepairPatch(projected);
         const opts = {
           now,
           sourceUrl: projected.officialPageUrl ?? selected[0]!.source.sourceUrl,
           parserVersion: 'official-id-repair-20261005',
         };
-        const prior = await repository.loadExisting(id);
         const plan = planCanonicalWrite(prior, projected, opts);
         projections.push({
           id,
