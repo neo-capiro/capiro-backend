@@ -113,9 +113,18 @@ export interface ResearchProviderAttemptV1 {
   settledAt: string | null;
 }
 
+/**
+ * `enforced` rejects a reservation that would exceed the admitted limits
+ * (production research runs). `ledger_only` records every reservation and
+ * settlement against the declared limits without ever blocking dispatch:
+ * authenticated acceptance captures account their spend here, while the
+ * operator spend journal, not a per-capture ceiling, bounds the approved budget.
+ */
+export type ResearchProviderBudgetActivation = 'enforced' | 'ledger_only';
+
 export interface ResearchProviderBudgetV1 {
   version: 1;
-  activation: 'enforced';
+  activation: ResearchProviderBudgetActivation;
   limits: ResearchProviderBudgetLimitsV1;
   chargedAttempts: number;
   chargedTokens: number;
@@ -191,7 +200,7 @@ export function readResearchProviderBudget(value: unknown): ResearchProviderBudg
   if (!isRecord(raw) || !exactKeys(raw, PROVIDER_BUDGET_KEYS)) providerMalformed();
   if (
     raw.version !== RESEARCH_PROVIDER_BUDGET_VERSION ||
-    raw.activation !== 'enforced' ||
+    (raw.activation !== 'enforced' && raw.activation !== 'ledger_only') ||
     !isRecord(raw.limits) ||
     !exactKeys(raw.limits, PROVIDER_LIMIT_KEYS) ||
     !positiveBoundedInteger(raw.limits.maxAttempts) ||
@@ -208,18 +217,22 @@ export function readResearchProviderBudget(value: unknown): ResearchProviderBudg
   )
     providerMalformed();
   const attempts = raw.attempts.map(parseProviderAttempt);
+  const activation: ResearchProviderBudgetActivation =
+    raw.activation === 'ledger_only' ? 'ledger_only' : 'enforced';
+  // A ledger-only budget legitimately carries charges above its declared limits.
   if (
     raw.chargedAttempts !== attempts.length ||
-    raw.chargedAttempts > raw.limits.maxAttempts ||
-    raw.chargedTokens > raw.limits.maxTokens ||
-    raw.chargedCostMicros > raw.limits.maxCostMicros ||
+    (activation === 'enforced' &&
+      (raw.chargedAttempts > raw.limits.maxAttempts ||
+        raw.chargedTokens > raw.limits.maxTokens ||
+        raw.chargedCostMicros > raw.limits.maxCostMicros)) ||
     new Set(attempts.map((attempt) => attempt.reservationId)).size !== attempts.length ||
     new Set(attempts.map((attempt) => attempt.attemptId)).size !== attempts.length
   )
     providerMalformed();
   return {
     version: 1,
-    activation: 'enforced',
+    activation,
     limits: { ...(raw.limits as unknown as ResearchProviderBudgetLimitsV1) },
     chargedAttempts: raw.chargedAttempts,
     chargedTokens: raw.chargedTokens,
@@ -228,15 +241,23 @@ export function readResearchProviderBudget(value: unknown): ResearchProviderBudg
   };
 }
 
-/** First server admission fixes the absolute deadline and ceilings; later calls may only narrow. */
+/**
+ * First server admission fixes the absolute deadline, ceilings and activation;
+ * later calls may only narrow the limits. An omitted activation keeps the
+ * admitted one (re-admission from a reservation) and defaults new budgets to
+ * `enforced`; naming a different activation for an existing budget is refused.
+ */
 export function admitResearchProviderBudget(
   value: unknown,
   requested: ResearchProviderBudgetLimitsV1,
+  activation?: ResearchProviderBudgetActivation,
 ): { metadata: Record<string, unknown>; budget: ResearchProviderBudgetV1 } {
   validateProviderLimits(requested);
   const metadata = researchMetadata(value);
   const current = readResearchProviderBudget(metadata);
   if (current) {
+    if (activation !== undefined && activation !== current.activation)
+      throw new ResearchProviderBudgetError('research_provider_budget_activation_changed');
     const limits = {
       maxAttempts: Math.min(current.limits.maxAttempts, requested.maxAttempts),
       maxTokens: Math.min(current.limits.maxTokens, requested.maxTokens),
@@ -247,9 +268,10 @@ export function admitResearchProviderBudget(
           : requested.deadlineAt,
     };
     if (
-      current.chargedAttempts > limits.maxAttempts ||
-      current.chargedTokens > limits.maxTokens ||
-      current.chargedCostMicros > limits.maxCostMicros
+      current.activation === 'enforced' &&
+      (current.chargedAttempts > limits.maxAttempts ||
+        current.chargedTokens > limits.maxTokens ||
+        current.chargedCostMicros > limits.maxCostMicros)
     )
       throw new ResearchProviderBudgetError('research_provider_budget_replan_below_spend');
     const budget = { ...current, limits };
@@ -257,7 +279,7 @@ export function admitResearchProviderBudget(
   }
   const budget: ResearchProviderBudgetV1 = {
     version: 1,
-    activation: 'enforced',
+    activation: activation ?? 'enforced',
     limits: { ...requested },
     chargedAttempts: 0,
     chargedTokens: 0,
@@ -312,19 +334,29 @@ export function reserveResearchProviderAttempt(input: {
         'research_provider_budget_retry_predecessor_not_retryable',
       );
   }
-  if (admitted.budget.chargedAttempts >= admitted.budget.limits.maxAttempts)
+  // Only an enforced budget turns its admitted ceilings into a dispatch gate.
+  // The attempt array itself stays bounded for every activation so the stored
+  // ledger remains parseable.
+  const enforced = admitted.budget.activation === 'enforced';
+  if (
+    (enforced && admitted.budget.chargedAttempts >= admitted.budget.limits.maxAttempts) ||
+    admitted.budget.attempts.length >= MAX_RESEARCH_PROVIDER_ATTEMPTS
+  )
     throw new ResearchProviderBudgetError('research_provider_budget_attempts_exhausted');
   const remainingTokens = admitted.budget.limits.maxTokens - admitted.budget.chargedTokens;
   const outputTokens =
     input.binding.maxOutputTokens ?? Math.max(0, remainingTokens - input.binding.maxInputTokens);
   const reservedTokens = input.binding.maxInputTokens + outputTokens;
-  if (reservedTokens <= 0 || reservedTokens > remainingTokens)
+  if (reservedTokens <= 0 || (enforced && reservedTokens > remainingTokens))
     throw new ResearchProviderBudgetError('research_provider_budget_tokens_exhausted');
   const remainingCost = admitted.budget.limits.maxCostMicros - admitted.budget.chargedCostMicros;
+  // Without a ceiling to fall back on, a ledger-only reservation must be priced.
+  if (!enforced && !input.price)
+    throw new ResearchProviderBudgetError('research_provider_budget_price_required');
   const reservedCostMicros = input.price
     ? providerCostMicros(input.price, input.binding.maxInputTokens, outputTokens)
     : remainingCost;
-  if (reservedCostMicros <= 0 || reservedCostMicros > remainingCost)
+  if (reservedCostMicros <= 0 || (enforced && reservedCostMicros > remainingCost))
     throw new ResearchProviderBudgetError('research_provider_budget_cost_exhausted');
   const reservation: ResearchProviderAttemptV1 = {
     version: 1,

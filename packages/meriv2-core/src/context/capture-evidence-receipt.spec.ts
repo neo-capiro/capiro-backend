@@ -698,7 +698,7 @@ describe('trusted server capture evidence receipt', () => {
     ).toThrow('meri_capture_evidence_authentication_failed');
   });
 
-  it('cannot complete missing, uncertain, over-budget or unaccounted provider evidence', () => {
+  it('cannot complete missing, uncertain, malformed or unaccounted provider evidence', () => {
     const base = receipt();
     expect(
       completeMeriCaptureEvidenceReceipt({ ...base, providerBudget: undefined }).blockers,
@@ -712,7 +712,7 @@ describe('trusted server capture evidence receipt', () => {
     expect(
       completeMeriCaptureEvidenceReceipt({
         ...base,
-        providerBudget: { ...base.providerBudget!, chargedCostMicros: 1_000_001 },
+        providerBudget: { ...base.providerBudget!, chargedCostMicros: -1 },
       }).blockers,
     ).toContain('provider_budget_malformed');
     expect(
@@ -725,7 +725,7 @@ describe('trusted server capture evidence receipt', () => {
       }).blockers,
     ).toContain('provider_budget_api_ingress_unaccounted');
   });
-  it('accepts the already qualified fifteen-dollar ceiling without accepting overspend or higher limits', () => {
+  it('carries the declared ceiling and charged spend as accounting context without a per-capture cap', () => {
     const base = receipt();
     const make = (maxCostMicros: number, chargedCostMicros = 2_292_602) =>
       completeMeriCaptureEvidenceReceipt({
@@ -733,9 +733,10 @@ describe('trusted server capture evidence receipt', () => {
         providerBudget: { ...base.providerBudget!, maxCostMicros, chargedCostMicros },
       });
     expect(make(15_000_000).blockers).not.toContain('provider_budget_malformed');
-    expect(make(15_000_001).blockers).toContain('provider_budget_malformed');
-    expect(make(15_000_000, 15_000_001).blockers).toContain('provider_budget_malformed');
-    expect(make(3_000_000, 3_000_001).blockers).toContain('provider_budget_malformed');
+    expect(make(15_000_001).blockers).not.toContain('provider_budget_malformed');
+    expect(make(15_000_000, 15_000_001).blockers).not.toContain('provider_budget_malformed');
+    expect(make(3_000_000, 3_000_001).blockers).not.toContain('provider_budget_malformed');
+    expect(make(0).blockers).toContain('provider_budget_malformed');
   });
 
   it('rejects a current-authority tuple mismatch', () => {

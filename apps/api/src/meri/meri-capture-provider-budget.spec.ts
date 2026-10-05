@@ -67,9 +67,10 @@ describe('ordinary capture durable provider budget', () => {
         ],
       }),
     ).toThrow('rate_invalid');
-    expect(() => admitCaptureProviderBudget({}, p, { ...q, maxCostMicros: 15_000_001 })).toThrow(
-      'qualification_missing',
-    );
+    // No per-capture ceiling: the declared figure is recorded, not capped.
+    expect(
+      admitCaptureProviderBudget({}, p, { ...q, maxCostMicros: 15_000_001 }).state.ledger,
+    ).toMatchObject({ activation: 'ledger_only', limits: { maxCostMicros: 15_000_001 } });
     expect(
       admitCaptureProviderBudget({}, p, { ...q, maxCostMicros: 3_000_000 }).state.ledger.limits
         .maxCostMicros,
@@ -165,14 +166,15 @@ describe('ordinary capture durable provider budget', () => {
       chargedTokens: 400,
       chargedCostMicros: 600,
     });
-    expect(() =>
-      reserveCaptureProviderAttempt(second.metadata, p, q, {
-        ...b,
-        logicalOperationId: 'other',
-        attemptId: 'third',
-        maxOutputTokens: 500,
-      }),
-    ).toThrow('cost_exhausted');
+    // A third operation past the declared 1000-micro ceiling is recorded, not refused.
+    const third = reserveCaptureProviderAttempt(second.metadata, p, q, {
+      ...b,
+      logicalOperationId: 'other',
+      attemptId: 'third',
+      maxOutputTokens: 500,
+    });
+    expect(third.dispatchAllowed).toBe(true);
+    expect(third.state.ledger).toMatchObject({ chargedAttempts: 3, chargedCostMicros: 1_700 });
   });
   test('tampered restored aggregate, per-attempt charge and rate evidence are rejected', () => {
     const a = reserveCaptureProviderAttempt(admitted().metadata, p, q, b);
@@ -203,13 +205,14 @@ describe('ordinary capture durable provider budget', () => {
       }).metadata;
     }
     expect(readCaptureProviderBudget(m, p, q)!.ledger.chargedAttempts).toBe(3);
-    expect(() =>
+    // The declared three attempts are a recorded expectation, not a gate.
+    expect(
       reserveCaptureProviderAttempt(m, p, q, {
         ...b,
         attemptId: 'fourth',
         logicalOperationId: 'fourth',
-      }),
-    ).toThrow('attempts_exhausted');
+      }).state.ledger.chargedAttempts,
+    ).toBe(4);
   });
   test('reviewed long-context ceiling permits two bounded rounds without repricing or resetting prior state', () => {
     const long = { ...q, maxTokens: 500_000, maxCostMicros: 15_000_000,
@@ -228,14 +231,19 @@ describe('ordinary capture durable provider budget', () => {
     expect(readCaptureProviderBudget(metadata, p, long)!.ledger).toMatchObject({
       chargedAttempts: 2, chargedTokens: 482_768, chargedCostMicros: 13_707_600,
     });
-    expect(() => reserveCaptureProviderAttempt(metadata, p, long, { ...b, attemptId: 'long-3',
-      logicalOperationId: 'long-3', maxInputTokens: 20_000, maxOutputTokens: 16_384 })).toThrow('tokens_exhausted');
+    // A third round past the declared 500k-token ceiling is recorded, not refused.
+    const third = reserveCaptureProviderAttempt(metadata, p, long, { ...b, attemptId: 'long-3',
+      logicalOperationId: 'long-3', maxInputTokens: 20_000, maxOutputTokens: 16_384 });
+    expect(third.state.ledger).toMatchObject({ chargedAttempts: 3, chargedTokens: 519_152 });
     expect(() => readCaptureProviderBudget(metadata, p, { ...long, maxCostMicros: 3_000_000 })).toThrow();
+    // The former three-dollar ceiling no longer blocks a priced request above it.
     const legacy = { ...q, maxTokens: 200_000, maxCostMicros: 3_000_000,
       rates: q.rates.map(rate => ({ ...rate, inputMicrosPerMillion: 12_500_000, outputMicrosPerMillion: 50_000_000 })) };
     const prior = admitCaptureProviderBudget({}, p, legacy);
-    expect(() => reserveCaptureProviderAttempt(prior.metadata, p, legacy, { ...b,
-      maxInputTokens: 174_465, maxOutputTokens: 16_384 })).toThrow('cost_exhausted');
+    const over = reserveCaptureProviderAttempt(prior.metadata, p, legacy, { ...b,
+      maxInputTokens: 174_465, maxOutputTokens: 16_384 });
+    expect(over.dispatchAllowed).toBe(true);
+    expect(over.state.ledger.chargedCostMicros).toBe(3_000_013);
     expect(prior.state.ledger.limits).toMatchObject({ maxTokens: 200_000, maxCostMicros: 3_000_000 });
   });
 });

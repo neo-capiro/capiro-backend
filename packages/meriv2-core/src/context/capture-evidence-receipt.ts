@@ -474,11 +474,10 @@ export function meriCaptureReceiptBlockers(
         budget.chargedCostMicros,
         budget.maxCostMicros,
       ].every((value) => Number.isSafeInteger(value) && value >= 0) ||
-      budget.maxCostMicros <= 0 ||
-      // Match the existing original-readonly admission maximum; the API owner
-      // supplies and rechecks the exact qualified ledger limit.
-      budget.maxCostMicros > 15_000_000 ||
-      budget.chargedCostMicros > budget.maxCostMicros
+      // The declared ceiling is accounting context: capture budgets are
+      // ledger-only, so charged spend may legitimately exceed it and the
+      // receipt carries both figures without gating on their order.
+      budget.maxCostMicros <= 0
     )
       blockers.add('provider_budget_malformed');
     if (budget.status !== 'SETTLED') blockers.add('provider_budget_usage_unsettled');

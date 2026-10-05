@@ -48,7 +48,8 @@ const inputSchema = z
         priceKind: z.literal('qualified_text_token_upper_bound'),
         maxAttempts: z.number().int().min(1).max(64),
         maxTokens: z.number().int().min(1).max(1_000_000),
-        maxCostMicros: z.number().int().min(1).max(3_000_000),
+        // Declared accounting expectation; the capture ledger no longer caps it.
+        maxCostMicros: z.number().int().min(1),
         rates: z
           .array(
             z

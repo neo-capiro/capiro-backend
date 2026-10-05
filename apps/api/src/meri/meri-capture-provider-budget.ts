@@ -90,7 +90,6 @@ export function validateCaptureBudgetQualification(
     !integer(q.maxTokens, true) ||
     q.maxTokens > 1_000_000 ||
     !integer(q.maxCostMicros, true) ||
-    q.maxCostMicros > 15_000_000 ||
     !Array.isArray(q.rates) ||
     !q.rates.length ||
     q.rates.length > 32
@@ -231,6 +230,8 @@ export function admitCaptureProviderBudget(
     return { metadata: { ...envelope(metadata), [KEY]: state }, state };
   }
   const q = validateCaptureBudgetQualification(qualification, policy);
+  // Declared ceilings are recorded for accounting; a capture never refuses
+  // dispatch over them. The operator journal bounds the approved spend.
   const { budget } = admitResearchProviderBudget(
     {},
     {
@@ -239,6 +240,7 @@ export function admitCaptureProviderBudget(
       maxCostMicros: q.maxCostMicros,
       deadlineAt: new Date(policy.expiresAt).toISOString(),
     },
+    'ledger_only',
   );
   const state: CaptureProviderBudgetState = {
     version: 1,
