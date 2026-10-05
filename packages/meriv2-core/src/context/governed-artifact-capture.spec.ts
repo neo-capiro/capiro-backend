@@ -155,10 +155,10 @@ describe('separate case46 governed capability', () => {
     };
     expect(describeMeriCase46ExportMismatch(p, input)).toEqual([]);
     expect(describeMeriCase46ExportMismatch(p, { ...input, text: MERI_CASE46.text.trimEnd() })).toEqual([
-      expect.stringContaining('including its final newline'),
+      'text differs from the source only in trailing whitespace: the source text ends with "\\n" and yours ends with ""; keep every other character unchanged',
     ]);
     expect(describeMeriCase46ExportMismatch(p, { ...input, text: 'Aster briefing' })).toEqual([
-      expect.stringContaining('copy the text returned by the document read exactly'),
+      expect.stringContaining('copy the source document text exactly'),
     ]);
     const many = describeMeriCase46ExportMismatch(p, {
       ...input,

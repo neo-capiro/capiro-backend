@@ -2256,20 +2256,14 @@ describe('MeriV3AssistantService', () => {
     ]);
   });
 
-  test('case46 export reads the client source; an inexact export is blocked without a proposal', async () => {
+  test('case46 export capture is write-only; an inexact export is blocked with exact reasons and corrected once', async () => {
     const p = governedArtifactTestPolicy();
     const exact = { title: MERI_CASE46.title, format: 'txt', text: MERI_CASE46.text, sections: [] };
     const guessed = {
       type: 'function_call',
       call_id: 'case46-guess',
       name: 'create_word',
-      arguments: JSON.stringify({ ...exact, text: 'Aster briefing' }),
-    };
-    const read = {
-      type: 'function_call',
-      call_id: 'case46-read',
-      name: 'read_client_documents',
-      arguments: JSON.stringify({ documentId: 'brief-1' }),
+      arguments: JSON.stringify({ ...exact, text: MERI_CASE46.text.trimEnd() }),
     };
     const exported = {
       type: 'function_call',
@@ -2280,7 +2274,6 @@ describe('MeriV3AssistantService', () => {
     const complete = jest
       .fn()
       .mockResolvedValueOnce(response({ output: [guessed], outputText: '', functionCalls: [guessed] }))
-      .mockResolvedValueOnce(response({ output: [read], outputText: '', functionCalls: [read] }))
       .mockResolvedValueOnce(
         response({ output: [exported], outputText: '', functionCalls: [exported] }),
       )
@@ -2374,13 +2367,11 @@ describe('MeriV3AssistantService', () => {
     const exposed = (complete.mock.calls[0]?.[0] as { tools: Array<{ name: string }> }).tools.map(
       (tool) => tool.name,
     );
-    expect(exposed).toEqual(expect.arrayContaining(['create_word', 'read_client_documents']));
-    expect(exposed).not.toContain('send_email');
-    expect(invoke).toHaveBeenCalledTimes(1);
-    expect(invoke.mock.calls[0]?.[0]).toBe('read_client_documents');
-    // The blocked result tells the model which field differed from the source.
+    expect(exposed).toEqual(['create_word']);
+    expect(invoke).not.toHaveBeenCalled();
+    // The blocked result names the exact difference from the source.
     expect(JSON.stringify(complete.mock.calls[1]?.[0])).toContain(
-      'copy the text returned by the document read exactly',
+      'differs from the source only in trailing whitespace',
     );
     expect(createProposal).toHaveBeenCalledTimes(1);
     expect(createProposal.mock.calls[0]?.[0]).toEqual({
