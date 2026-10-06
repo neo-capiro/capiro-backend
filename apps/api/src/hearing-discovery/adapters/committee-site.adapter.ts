@@ -43,9 +43,10 @@ import type {
 interface Anchor {
   href: string;
   text: string;
+  newsIndex?: boolean;
 }
 
-const ANCHOR_RE = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+const ANCHOR_RE = /<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
 
 /** Document categories we can name from link text with a hard rule. */
 const DOCUMENT_CATEGORIES: Array<{ pattern: RegExp; updateType: SiteUpdateType }> = [
@@ -71,6 +72,9 @@ const EMBED_RE =
   /<iframe\b[^>]*src=["']([^"']+)["']|<video\b[^>]*src=["']([^"']+)["']|["'](https?:\/\/[^"']*\.m3u8[^"']*)["']/gi;
 
 export interface CommitteeSiteAdapterOptions {
+  /** Required for explicit state namespace news attribution. */
+  stateCommitteeName?: (key: string) => string | undefined;
+  committeeName?: (key: string) => string | undefined;
   /** Prior conditional-GET state per URL, so an unchanged page costs a 304. */
   priorState?: (url: string) => ConditionalState | undefined;
   /** Persist the new conditional state after a successful fetch. */
@@ -79,7 +83,8 @@ export interface CommitteeSiteAdapterOptions {
 
 export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
   readonly adapterKey = 'committee-site';
-  readonly parserVersion = 'committee-site/2026-08-20';
+  readonly parserVersion = 'committee-site/2026-10-06';
+  updateErrors: string[] = [];
 
   constructor(private readonly options: CommitteeSiteAdapterOptions = {}) {}
 
@@ -98,8 +103,19 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
     source: SourceDescriptor,
     ctx: DiscoveryContext,
   ): Promise<CommitteeUpdateObservation[]> {
+    this.updateErrors = [];
     const systemCode = source.committeeSystemCode;
     if (!systemCode) return [];
+    const requiresAttribution =
+      systemCode.startsWith('state:') ||
+      new URL(source.sourceUrl).hostname === 'clerk.house.gov' ||
+      (/^(www\.)?cha\.house\.gov$/.test(new URL(source.sourceUrl).hostname) &&
+        systemCode !== 'hsha00');
+    const stateName = requiresAttribution
+      ? (this.options.committeeName?.(systemCode) ?? this.options.stateCommitteeName?.(systemCode))
+      : null;
+    if (requiresAttribution && !stateName)
+      throw new Error('Shared committee source has no verified committee identity');
     const prior = this.options.priorState?.(source.sourceUrl);
     const res = await fetchText(source.sourceUrl, { prior, accept: 'text/html' });
     if (!res.ok) {
@@ -115,12 +131,73 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
     if (res.notModified || res.body == null) return [];
 
     const anchors = extractAnchors(res.body, source.sourceUrl);
+    // Follow only news indexes actually linked by the official landing page.
+    // Never invent endpoints or crawl an unbounded archive. A failed linked
+    // index is a source failure, not a successful empty feed.
+    const newsIndexes = [
+      ...new Set(
+        anchors
+          .filter(
+            (a) =>
+              sameHost(a.href, source.sourceUrl) &&
+              (isNewsIndex(a.href) ||
+                (systemCode.startsWith('state:') &&
+                  /^\/media\/?$/i.test(new URL(a.href).pathname))),
+          )
+          .map((a) => a.href),
+      ),
+    ]
+      .filter((url) => url !== source.sourceUrl)
+      .slice(0, 4);
+    for (const url of newsIndexes) {
+      const page = await fetchText(url, { accept: 'text/html' });
+      if (!page.ok) {
+        this.updateErrors.push(
+          `committee news index fetch failed: ${url}: ${page.error ?? `HTTP ${page.status}`}`,
+        );
+        continue;
+      }
+      if (page.body)
+        anchors.push(...extractAnchors(page.body, url).map((a) => ({ ...a, newsIndex: true })));
+    }
     const updates: CommitteeUpdateObservation[] = [];
     const seen = new Set<string>();
 
     for (const a of anchors) {
       const text = a.text;
       if (!text || text.length < 8) continue;
+
+      if (
+        sameHost(a.href, source.sourceUrl) &&
+        (isNewsArticle(a.href) ||
+          ((a.newsIndex || newsIndexes.length > 0) && isDatedArticle(a.href)) ||
+          (stateName && /press[_-]?release.*\.pdf$/i.test(a.href)))
+      ) {
+        if (
+          (stateName && !headlineNamesCommittee(text, stateName)) ||
+          /^(read more|learn more|view all|continue reading|accessibility|news|press releases?|latest news)$/i.test(
+            text,
+          )
+        )
+          continue;
+        pushUnique(updates, seen, {
+          committeeSystemCode: systemCode,
+          updateType: 'committee_news_published',
+          normalizedTitle: text.slice(0, 500),
+          normalizedSummary: null,
+          sourceUrl: a.href,
+          officialPublishedAt: null,
+          previousValue: null,
+          newValue: null,
+          parserVersion: this.parserVersion,
+          contentHash: contentHash({
+            systemCode,
+            type: 'committee_news_published',
+            href: newsIdentityUrl(a.href),
+          }),
+        });
+        continue;
+      }
 
       const category = DOCUMENT_CATEGORIES.find(
         (c) => c.pattern.test(text) && DOC_HREF_RE.test(a.href),
@@ -169,6 +246,7 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
         }),
       });
     }
+    if (this.updateErrors.length && !updates.length) throw new Error(this.updateErrors.join('; '));
     ctx.log(
       `[committee-site] ${systemCode}: ${anchors.length} anchors, ${updates.length} normalized updates`,
     );
@@ -269,9 +347,98 @@ function absolutize(href: string, baseUrl: string): string | null {
   }
 }
 
+// These patterns identify CMS publication paths, not political keywords in a
+// headline. Landing/category/archive links are excluded from article records.
+const NEWS_SEGMENT =
+  /^(news|newsroom|press|press-?releases?(?:-republican|-democratic)?|releases?|majority-news|minority-news|(?:republican|democratic)pressreleases(?:-redirect)?)$/i;
+const NEWS_CATEGORY =
+  /^(all|archive|archives|page|pages|majority|minority|republican|democrat|republican-news|democratic-news|press-contacts|press-releases?|releases?|news|newsroom|media|statements)$/i;
+function newsPath(url: string): { parts: string[]; query: URLSearchParams } | null {
+  try {
+    const parsed = new URL(url);
+    if (!['https:', 'http:'].includes(parsed.protocol)) return null;
+    return { parts: parsed.pathname.split('/').filter(Boolean), query: parsed.searchParams };
+  } catch {
+    return null;
+  }
+}
+export function isNewsIndex(url: string): boolean {
+  const path = newsPath(url);
+  if (!path || path.query.size) return false;
+  const index = path.parts.findIndex((part) => NEWS_SEGMENT.test(part));
+  return index >= 0 && path.parts.slice(index + 1).every((part) => NEWS_CATEGORY.test(part));
+}
+export function isNewsArticle(url: string): boolean {
+  const path = newsPath(url);
+  if (!path) return false;
+  // House CMS uses /news/documentsingle.aspx?DocumentID=12345.
+  if (
+    path.parts.some((part) => NEWS_SEGMENT.test(part)) &&
+    (NEWS_SEGMENT.test(path.parts.at(-1) ?? '') ||
+      /^documentsingle\.aspx$/i.test(path.parts.at(-1) ?? '')) &&
+    [...path.query].some(
+      ([key, value]) => /^(documentid|contentid|id)$/i.test(key) && /^[a-z0-9-]+$/i.test(value),
+    )
+  )
+    return true;
+  const index = path.parts.findIndex((part) => NEWS_SEGMENT.test(part));
+  if (index < 0 || index === path.parts.length - 1) return false;
+  const last = path.parts.at(-1)!;
+  return (
+    !NEWS_CATEGORY.test(last) &&
+    !/^(\d{1,4}|index(?:\.html?|\.aspx)?|documentsingle\.aspx|pressreleases\.aspx|feed|rss(?:\.xml)?)$/i.test(
+      last,
+    ) &&
+    !/\.(pdf|docx?|xml|aspx)$/i.test(last) &&
+    last.length >= 8
+  );
+}
+
+export function headlineNamesCommittee(headline: string, name: string): boolean {
+  const normalize = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/&/g, ' and ')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  const fullName = normalize(name);
+  // Single topic words such as "Agriculture" are not evidence of attribution.
+  const candidates = /\bcommittee\b/.test(fullName)
+    ? [fullName]
+    : [`${fullName} committee`, `committee on ${fullName}`];
+  const text = ` ${normalize(headline)} `;
+  return candidates.some((candidate) => text.includes(` ${candidate} `));
+}
+function newsIdentityUrl(url: string): string {
+  const parsed = new URL(url);
+  parsed.protocol = 'https:';
+  parsed.hostname = parsed.hostname.replace(/^www\./, '');
+  parsed.hash = '';
+  const identifiers = [...parsed.searchParams].filter(([key]) =>
+    /^(id|documentid|contentid)$/i.test(key),
+  );
+  parsed.search = '';
+  for (const [key, value] of identifiers)
+    parsed.searchParams.set(key.toLowerCase(), value.toLowerCase());
+  return parsed.toString();
+}
+function isDatedArticle(url: string): boolean {
+  const path = newsPath(url);
+  return Boolean(
+    path &&
+    /^\d{4}$/.test(path.parts[0] ?? '') &&
+    /^\d{1,2}$/.test(path.parts[1] ?? '') &&
+    ((/^\d{1,2}$/.test(path.parts[2] ?? '') && (path.parts[3]?.length ?? 0) >= 8) ||
+      (path.parts.length === 3 && (path.parts[2]?.length ?? 0) >= 8)),
+  );
+}
+
 function sameHost(a: string, b: string): boolean {
   try {
-    return new URL(a).hostname.toLowerCase() === new URL(b).hostname.toLowerCase();
+    return (
+      new URL(a).hostname.toLowerCase().replace(/^www\./, '') ===
+      new URL(b).hostname.toLowerCase().replace(/^www\./, '')
+    );
   } catch {
     return false;
   }

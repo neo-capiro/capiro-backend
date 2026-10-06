@@ -636,9 +636,14 @@ export class LiveHearingsService {
     ]);
 
     const sourceIds = [...new Set(coverageRows.map((row) => row.sourceId))];
-    const committeeSources = sourceIds.length
-      ? await this.prisma.committeeSource.findMany({ where: { id: { in: sourceIds } } })
-      : [];
+    const committeeSources = await this.prisma.committeeSource.findMany({
+      where: {
+        OR: [
+          { id: { in: sourceIds } },
+          { enabled: true, committeeSystemCode: { in: stateCommitteeKeys } },
+        ],
+      },
+    });
     const sourceById = new Map(committeeSources.map((source) => [source.id, source]));
     const sourceCoverage = coverageRows.map((coverage) => {
       const source = sourceById.get(coverage.sourceId);
@@ -680,6 +685,22 @@ export class LiveHearingsService {
         pageSize: 400,
       },
       sourceCoverage,
+      publicationSources: committeeSources
+        .filter(
+          (source) =>
+            source.enabled &&
+            source.committeeSystemCode &&
+            stateCommitteeKeys.includes(source.committeeSystemCode),
+        )
+        .map((source) => ({
+          sourceUrl: source.sourceUrl,
+          sourceHealth: source.sourceHealth,
+          lastCheckedAt: source.lastCheckedAt?.toISOString() ?? null,
+          lastSuccessAt: source.lastSuccessAt?.toISOString() ?? null,
+          lastError: source.lastError,
+          scope: 'committee',
+          note: 'Official committee page checked for publications. Shared chamber news is included only when its headline names this committee.',
+        })),
       updates: {
         rows: committeeUpdates.map((update) => ({
           id: update.id,

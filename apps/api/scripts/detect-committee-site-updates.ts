@@ -37,7 +37,7 @@ async function main(): Promise<void> {
       );
       const jobs = new DiscoveryJobsService(prisma);
       return jobs.detectCommitteeUpdates({
-        limit: numFlag('limit', 60),
+        limit: numFlag('limit', 500),
         delayMs: numFlag('delay-ms', 400),
         dryRun: boolFlag('dry-run'),
         log: (m) => console.log(m),

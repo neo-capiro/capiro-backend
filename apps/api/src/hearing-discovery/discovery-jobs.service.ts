@@ -15,6 +15,7 @@
  */
 import type { PrismaClient } from '@prisma/client';
 import type { RunCounts } from '../ingestion/sync-run.helper.js';
+import { parseStateCommitteeFollowKey } from './florida-committee-alerts.js';
 import { contentHash } from './hearing-identity.js';
 import { CommitteeSourceRepository } from './committee-source.repository.js';
 import { CanonicalHearingRepository, insertSiteUpdates } from './canonical-hearing.repository.js';
@@ -224,7 +225,10 @@ export class DiscoveryJobsService {
   async detectCommitteeUpdates(opts: JobOptions = {}): Promise<RunCounts> {
     const now = opts.now ?? new Date();
     const log = opts.log ?? (() => {});
-    const sources = await this.sources.listEnabled({ adapterKey: 'committee-site' });
+    const sources = await this.sources.listEnabled({
+      adapterKey: 'committee-site',
+      oldestCheckedFirst: true,
+    });
     const slice = opts.limit ? sources.slice(0, opts.limit) : sources;
     const counts: RunCounts = { inserted: 0, updated: 0, skipped: 0, errors: 0 };
 
@@ -236,7 +240,28 @@ export class DiscoveryJobsService {
       string,
       { etag?: string | null; lastModified?: string | null; contentHash?: string | null }
     >();
+    const stateIds = sources.flatMap((source) => {
+      const ref = parseStateCommitteeFollowKey(source.committeeSystemCode ?? '');
+      return ref?.jurisdiction === 'FL' ? [ref.stateCommitteeId] : [];
+    });
+    const stateBodies = stateIds.length
+      ? await this.prisma.stateCommittee.findMany({
+          where: { state: 'FL', id: { in: stateIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const stateNames = new Map(stateBodies.map((body) => [body.id, body.name]));
+    const federalBodies = await this.prisma.congressCommittee.findMany({
+      where: { isCurrent: true, parentSystemCode: null },
+      select: { systemCode: true, name: true },
+    });
+    const federalNames = new Map(federalBodies.map((body) => [body.systemCode, body.name]));
     const adapter = new CommitteeSiteAdapter({
+      committeeName: (key) => federalNames.get(key),
+      stateCommitteeName: (key) => {
+        const ref = parseStateCommitteeFollowKey(key);
+        return ref?.jurisdiction === 'FL' ? stateNames.get(ref.stateCommitteeId) : undefined;
+      },
       priorState: (url) => state.get(url),
       saveState: (url, s) => state.set(url, s),
     });
@@ -249,10 +274,18 @@ export class DiscoveryJobsService {
         const updates = (await adapter.discoverUpdates?.(source, ctx)) ?? [];
         await this.sources.recordOutcome(
           source.id,
-          { ok: true, observedEvents: updates.length },
+          {
+            ok: adapter.updateErrors.length === 0,
+            observedEvents: updates.length,
+            error: adapter.updateErrors.length ? adapter.updateErrors.join('; ') : undefined,
+          },
           now,
           adapter.parserVersion,
         );
+        if (adapter.updateErrors.length) {
+          counts.errors += 1;
+          for (const error of adapter.updateErrors) log(`[site-updates] partial: ${error}`);
+        }
         if (!updates.length || opts.dryRun) {
           counts.skipped += 1;
           continue;

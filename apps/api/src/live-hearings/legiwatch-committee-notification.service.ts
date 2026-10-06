@@ -62,6 +62,9 @@ interface Claim {
 // These are the same observations shown in a committee's publications feed.
 // Flags apply to their source category even when no canonical hearing exists yet.
 const categoryEnabled = Prisma.sql`CASE
+  WHEN u.update_type='committee_news_published'
+    THEN (f.notify_on_publication AND u.official_published_at IS NOT NULL
+      AND u.official_published_at>=f.alert_started_at)
   WHEN u.update_type='hearing_announced' THEN f.notify_on_new_hearing
   WHEN u.update_type IN ('date_changed','time_changed','room_changed','postponed','canceled')
     THEN f.notify_on_schedule_change

@@ -152,6 +152,14 @@ describeDatabase('committee alerts through production PrismaService and Postgres
       checks.push(
         'parent publication reaches subcommittee follower once; follow-both dedup; tenant isolation; nullable hearing route',
       );
+      await publication('Official news with unknown publication date', {
+        type: 'committee_news_published',
+      });
+      assert.equal((await service.syncFollow({ committeeSystemCode: child })).inserted, 0);
+      assert.equal((await rows()).length, 1);
+      checks.push(
+        'undated committee news backfill stays in the feed without creating false fresh alerts',
+      );
       await db.$executeRawUnsafe(
         "INSERT INTO committee_site_update(id,committee_system_code,update_type,normalized_title,source_url,content_hash,first_seen_at,last_seen_at,created_at,updated_at) SELECT $1||':'||n,$2,'committee_memo_published','Burst '||n,'https://www.house.gov/',$1||':'||n,now(),now(),now(),now() FROM generate_series(1,425)n",
         run + ':burst',
