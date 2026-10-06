@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-06T05:06:02.823Z",
+  "service": "api",
+  "status": "SUCCEEDED",
+  "qualification": "IMMUTABLE_BUILD_AND_IMAGE_SMOKE_PASS",
+  "sourceSha": "287f437a1725e9e7d4910662f354fef593771cb1",
+  "resolvedSourceSha": "287f437a1725e9e7d4910662f354fef593771cb1",
+  "buildId": "capiro-build-web-dev:2b661e5c-f5e5-4002-95d8-0a9321856dac",
+  "startedAt": "2026-10-06T00:59:18.416000-04:00",
+  "finishedAt": "2026-10-06T01:05:45.616000-04:00",
+  "requiredMarkers": [
+    "IMAGE_SMOKE_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+  ],
+  "markersSeen": [
+    "IMAGE_SMOKE_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+  ],
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:dcf3c4a2ba167e93d6bfb2bd191d842cb8ca6a2c42c74ee013c8e1befd1cee72",
+  "imageDigest": "sha256:dcf3c4a2ba167e93d6bfb2bd191d842cb8ca6a2c42c74ee013c8e1befd1cee72",
+  "imageTags": [
+    "287f437a1725e9e7d4910662f354fef593771cb1"
+  ]
+}
