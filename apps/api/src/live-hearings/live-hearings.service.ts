@@ -1,3 +1,4 @@
+import { projectCaptureResolution } from './live-hearings-capture-projection.js';
 import { HEARING_DOCUMENT_UPDATE_TYPES, mergeHearingDocuments } from './live-hearings-documents.js';
 import {
   resolveCanonicalHearingId,
@@ -50,6 +51,24 @@ import {
   strictOfficialSourceUrl,
 } from './live-hearings-browser-source.js';
 
+interface CalendarCaptureRow {
+  id: string;
+  hearingId: string;
+  status: string;
+  domainStatus: string | null;
+  scheduledStart: Date | null;
+  actualStart: Date | null;
+  actualEnd: Date | null;
+  capturedSeconds: number;
+  transcriptGapSeconds: number;
+  reconnectCount: number;
+  failureCode: string | null;
+  resolutionState: string | null;
+  resolutionCapturePolicy: string | null;
+  lastResolutionAt: Date | null;
+  selectedStreamCandidateId: string | null;
+}
+
 /** One canonical hearing as the master calendar renders it. */
 export interface CalendarEvent {
   id: string;
@@ -86,11 +105,16 @@ export interface CalendarEvent {
   officialPlaybackKind: 'official_player_page' | 'official_listing_page' | null;
   witnesses: string[];
   streamAvailability: string;
+  streamState: string;
+  capturePolicy: string | null;
   coverageStatus: string;
   sourceRevision: number;
   lastOfficialUpdateAt: string | null;
   /** Global capture state, when a capture record exists. */
   capture: {
+    id: string;
+    capturePolicy: string | null;
+    streamState: string;
     status: string;
     scheduledStart: string | null;
     actualStart: string | null;
@@ -1131,7 +1155,20 @@ export class LiveHearingsService {
 
     const [captures, candidates, subscriptions, follows, committees, documentUpdates] =
       await Promise.all([
-        this.prisma.publicHearingCapture.findMany({ where: { hearingId: { in: ids } } }),
+        // Resolution/domain fields are SQL-owned and absent from the legacy
+        // Prisma model. Read one bounded batch, as the attendance detail does.
+        this.prisma.$queryRawUnsafe<CalendarCaptureRow[]>(
+          `SELECT id, hearing_id AS "hearingId", status, domain_status AS "domainStatus",
+                  scheduled_start AS "scheduledStart", actual_start AS "actualStart",
+                  actual_end AS "actualEnd", captured_seconds AS "capturedSeconds",
+                  transcript_gap_seconds AS "transcriptGapSeconds", reconnect_count AS "reconnectCount",
+                  failure_code AS "failureCode", resolution_state AS "resolutionState",
+                  resolution_capture_policy AS "resolutionCapturePolicy",
+                  last_resolution_at AS "lastResolutionAt",
+                  selected_stream_candidate_id AS "selectedStreamCandidateId"
+           FROM public_hearing_capture WHERE hearing_id=ANY($1::text[])`,
+          ids,
+        ),
         this.prisma.hearingStreamCandidate.findMany({
           where: { hearingId: { in: ids } },
           orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }],
@@ -1210,6 +1247,7 @@ export class LiveHearingsService {
       const capture = captureByHearing.get(row.id) ?? null;
       const sub = subByHearing.get(row.id) ?? null;
       const hearingCandidates = candidatesByHearing.get(row.id) ?? [];
+      const captureResolution = projectCaptureResolution(capture, hearingCandidates);
       const identity = storedCommitteeIdentity(row);
       const committee =
         !row.geographicJurisdiction || row.geographicJurisdiction === 'US'
@@ -1280,12 +1318,15 @@ export class LiveHearingsService {
         officialPlaybackKind: playback?.sourceKind ?? null,
         witnesses: row.witnesses ?? [],
         streamAvailability: row.streamAvailability,
+        ...captureResolution,
         coverageStatus: row.coverageStatus,
         sourceRevision: row.sourceRevision,
         lastOfficialUpdateAt: row.lastOfficialUpdateAt?.toISOString() ?? null,
         capture: capture
           ? {
-              status: capture.status,
+              id: capture.id,
+              ...captureResolution,
+              status: capture.domainStatus ?? capture.status,
               scheduledStart: capture.scheduledStart?.toISOString() ?? null,
               actualStart: capture.actualStart?.toISOString() ?? null,
               actualEnd: capture.actualEnd?.toISOString() ?? null,
