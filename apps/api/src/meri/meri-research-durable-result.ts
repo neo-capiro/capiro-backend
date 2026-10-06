@@ -6,6 +6,13 @@ export const RESEARCH_SAFE_READ_RESULT_VERSION = 1 as const;
 export const MAX_RESEARCH_SAFE_READ_RESULT_BYTES = 1_000_000;
 
 export type QualifiedReadClassifier = 'complete' | 'empty';
+/**
+ * A durable read's owner classification. Only complete and empty reads are
+ * qualified report sources; a partial read is receipted so the read-time
+ * re-check still covers what the model saw (Neo, 2026-10-06).
+ */
+export type DurableReadClassifier = QualifiedReadClassifier | 'partial';
+export const DURABLE_READ_CLASSIFIERS: readonly string[] = ['complete', 'empty', 'partial'];
 
 export interface DurableResearchResultEnvelope {
   version: 1;
@@ -17,7 +24,7 @@ export interface DurableResearchResultEnvelope {
   toolVersion: string;
   inputSha256: string;
   resultSha256: string;
-  classifier: QualifiedReadClassifier;
+  classifier: DurableReadClassifier;
   input: Record<string, unknown>;
   result: unknown;
   completedAt: string;
@@ -101,7 +108,7 @@ export function openDurableResearchResult(
     typeof value.toolVersion !== 'string' ||
     !/^[a-f0-9]{64}$/.test(value.inputSha256) ||
     !/^[a-f0-9]{64}$/.test(value.resultSha256) ||
-    !['complete', 'empty'].includes(value.classifier) ||
+    !DURABLE_READ_CLASSIFIERS.includes(value.classifier) ||
     !value.input ||
     typeof value.input !== 'object' ||
     Array.isArray(value.input) ||

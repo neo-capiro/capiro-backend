@@ -1203,28 +1203,33 @@ describe('Meri durable safe-read commit and replay', () => {
     expect(h.artifacts.size).toBe(2);
   });
 
-  it('does not commit HTTP-200 logical errors or partial owner payloads', async () => {
+  it('does not commit HTTP-200 logical errors, and receipts a partial owner payload as partial', async () => {
     const h = harness();
     await expect(
       h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
         ...outcome('logical-error', 'radar'),
         result: { status: 'error', error: 'upstream logical failure' },
       }),
-    ).rejects.toThrow('not a qualified');
-    await expect(
-      h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
-        ...outcome('partial', 'radar'),
-        result: {
-          ...completeMemoryResult('partial'),
-          nextCursor: 'next',
-          coverage: {
-            ...completeMemoryResult('partial').coverage,
-            complete: false,
-          },
-        },
-      }),
-    ).rejects.toThrow('not a qualified');
+    ).rejects.toThrow('not a re-checkable');
     expect(h.artifacts.size).toBe(0);
+    // The model saw the partial page, so the read-time re-check must cover it
+    // (Neo, 2026-10-06); it is receipted as partial, never as a qualified read.
+    await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
+      ...outcome('partial', 'radar'),
+      result: {
+        ...completeMemoryResult('partial'),
+        nextCursor: 'next',
+        coverage: {
+          ...completeMemoryResult('partial').coverage,
+          complete: false,
+        },
+      },
+    });
+    expect(h.artifacts.size).toBe(1);
+    expect(h.session.metadata.durableStepReceipts.at(-1)).toMatchObject({
+      executionId: 'partial',
+      classifier: 'partial',
+    });
   });
 
   it('redacts private refs, hashes, inputs, and owner results from the ordinary session response', async () => {

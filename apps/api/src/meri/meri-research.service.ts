@@ -2248,8 +2248,14 @@ export class MeriResearchService {
       );
     this.assertCurrentSafeReadPolicy(ctx, input.tool, input.toolVersion);
     const readOutcome = classifyApiToolReadOutcome(input.tool, input.result);
-    if (readOutcome?.kind !== 'complete' && readOutcome?.kind !== 'empty')
-      throw new ConflictException('The owner result is not a qualified complete safe read.');
+    // A partial read is receipted too: the model saw it, so the read-time
+    // re-check must cover it. It never becomes a qualified report source.
+    if (
+      readOutcome?.kind !== 'complete' &&
+      readOutcome?.kind !== 'empty' &&
+      readOutcome?.kind !== 'partial'
+    )
+      throw new ConflictException('The owner result is not a re-checkable safe read.');
 
     let outcomeMetadata: unknown = current.metadata;
     if (!readDurableResearchCoordinator(outcomeMetadata)) {

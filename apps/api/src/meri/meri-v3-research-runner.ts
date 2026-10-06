@@ -163,7 +163,11 @@ export class MeriV3ResearchRunner {
       const durable = entry.durableSafeRead;
       if (!durable) continue;
       const publicTool = publicResearchSourceTool(durable.tool);
-      if (!publicTool || !qualifiedDurableStep(result.steps, entry)) continue;
+      if (!publicTool || !recheckableDurableStep(result.steps, entry)) continue;
+      // Every re-checkable read is declared, so the read-time re-check covers
+      // it; only a complete or empty read is shown as a source.
+      toolsUsed.push(publicTool);
+      if (!qualifiedDurableStep(result.steps, entry)) continue;
       const source: SourceAttribution = {
         tool: publicTool,
         label: 'Research source',
@@ -171,7 +175,6 @@ export class MeriV3ResearchRunner {
         confidence: 'high',
       };
       sources.push(source);
-      toolsUsed.push(publicTool);
       const projected = projectResearchObserverEvent(
         {
           type: 'source',
@@ -319,7 +322,7 @@ export class MeriV3ResearchRunner {
     let frame = await this.complete(ctx, childInput, auth, 'read-only', () => {});
     const qualified = qualifyResearchChildFrame(frame);
     const handles = researchChildEvidenceHandles(frame.citations ?? []).filter((handle) =>
-      qualified.toolsUsed.includes(handle.slice(0, handle.indexOf(':'))),
+      qualified.qualifiedTools.includes(handle.slice(0, handle.indexOf(':'))),
     );
     let output: ResearchChildStructuredOutputV1;
     let schemaCorrections: 0 | 1 = 0;
@@ -494,11 +497,11 @@ export class MeriV3ResearchRunner {
     const durableTools = ledgerEntries.flatMap((entry) =>
       entry.durableSafeRead ? [entry.durableSafeRead.tool] : [],
     );
-    // Only qualified durable reads become declared report sources; any other
-    // receipted read the model saw is an undeclared private input.
+    // Re-checkable durable reads (complete, empty or partial) are declared
+    // report inputs; any other receipted read the model saw is undeclared.
     const qualifiedDurableExecutionIds = new Set(
       ledgerEntries.flatMap((entry) =>
-        entry.durableSafeRead && qualifiedDurableStep(result.steps, entry)
+        entry.durableSafeRead && recheckableDurableStep(result.steps, entry)
           ? [entry.durableSafeRead.executionId]
           : [],
       ),
@@ -592,15 +595,20 @@ export class MeriV3ResearchRunner {
 
 function qualifyResearchChildFrame(frame: ResearchDoneFrame): {
   sources: SourceAttribution[];
+  /** Declared for the read-time re-check: every re-checkable durable read. */
   toolsUsed: string[];
+  /** Complete or empty reads only: the tools a finding may cite. */
+  qualifiedTools: string[];
   ledgerEntries: LedgerEntry[];
 } {
   const ledgerEntries = frame.ledgerEntries ?? [];
   const sources: SourceAttribution[] = [];
   const toolsUsed: string[] = [];
+  const qualifiedTools: string[] = [];
   for (const entry of ledgerEntries) {
     const durable = entry.durableSafeRead;
-    if (!durable) continue;
+    if (!durable || !recheckableDurableStep(frame.steps, entry)) continue;
+    toolsUsed.push(durable.tool);
     const matchedStep = qualifiedDurableStep(frame.steps, entry);
     if (!matchedStep) continue;
     sources.push({
@@ -609,17 +617,38 @@ function qualifyResearchChildFrame(frame: ResearchDoneFrame): {
       summary: `${durable.tool} returned a qualified ${durable.classifier} result.`,
       confidence: 'high',
     });
-    toolsUsed.push(durable.tool);
+    qualifiedTools.push(durable.tool);
   }
-  return { sources, toolsUsed: [...new Set(toolsUsed)], ledgerEntries };
+  return {
+    sources,
+    toolsUsed: [...new Set(toolsUsed)],
+    qualifiedTools: [...new Set(qualifiedTools)],
+    ledgerEntries,
+  };
 }
 
 type ResearchLedgerEntry = NonNullable<DoneFrame['ledgerEntries']>[number];
 
-/** A durable read is a report source only when its step, receipt and owner classification agree. */
+const QUALIFIED_READ_KINDS: ReadonlySet<string> = new Set(['complete', 'empty']);
+const RECHECKABLE_READ_KINDS: ReadonlySet<string> = new Set(['complete', 'empty', 'partial']);
+
+/** A durable read is a report source only when it is also complete or empty. */
 function qualifiedDurableStep(
   steps: DoneFrame['steps'],
   entry: ResearchLedgerEntry,
+): DoneFrame['steps'][number] | null {
+  return recheckableDurableStep(steps, entry, QUALIFIED_READ_KINDS);
+}
+
+/**
+ * A durable read the read-time re-check covers: its step, receipt and owner
+ * classification agree. A partial read qualifies here (Neo, 2026-10-06) so the
+ * model never sees a private input the re-check does not cover.
+ */
+function recheckableDurableStep(
+  steps: DoneFrame['steps'],
+  entry: ResearchLedgerEntry,
+  kinds: ReadonlySet<string> = RECHECKABLE_READ_KINDS,
 ): DoneFrame['steps'][number] | null {
   const durable = entry.durableSafeRead;
   if (!durable) return null;
@@ -634,7 +663,7 @@ function qualifiedDurableStep(
     matchedStep.durableSafeRead?.receiptId !== durable.receiptId ||
     matchedStep.durableSafeRead?.tool !== durable.tool ||
     !ownerClassification ||
-    (ownerClassification.kind !== 'complete' && ownerClassification.kind !== 'empty') ||
+    !kinds.has(ownerClassification.kind) ||
     ownerClassification.kind !== durable.classifier
   )
     return null;

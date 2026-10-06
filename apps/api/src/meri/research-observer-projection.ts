@@ -147,7 +147,11 @@ function projectReceiptCandidate(event: Record<string, unknown>): Record<string,
   if (receipt.effectClass === 'safe_read') durableSafeRead.effectClass = 'safe_read';
   if (receipt.status === 'complete' || receipt.status === 'failed')
     durableSafeRead.status = receipt.status;
-  if (receipt.classifier === 'complete' || receipt.classifier === 'empty')
+  if (
+    receipt.classifier === 'complete' ||
+    receipt.classifier === 'empty' ||
+    receipt.classifier === 'partial'
+  )
     durableSafeRead.classifier = receipt.classifier;
 
   if (receipt.persisted !== true) {

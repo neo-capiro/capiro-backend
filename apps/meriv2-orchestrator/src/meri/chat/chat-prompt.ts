@@ -102,7 +102,7 @@ export interface DurableSafeReadOutcome {
   providerCallId: string;
   tool: string;
   toolVersion: string;
-  classifier: 'complete' | 'empty';
+  classifier: 'complete' | 'empty' | 'partial';
   sequence: number;
   receiptId: string;
   replayed: boolean;

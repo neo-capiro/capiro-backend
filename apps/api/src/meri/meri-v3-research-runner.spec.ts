@@ -1103,6 +1103,38 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     );
   });
 
+  it('declares a partial receipted read for the re-check without showing it as a source', async () => {
+    const base = fixture();
+    const durable = { ...childDurable, executionId: 'partial-execution', classifier: 'partial' as const };
+    const partialPayload = {
+      ...childMemoryResult,
+      nextCursor: 'next-page',
+      coverage: { ...childMemoryResult.coverage, complete: false },
+    };
+    const { runner } = fixture([
+      {
+        ...base.done,
+        steps: [
+          { tool: 'search_memory', label: 'Memory page', status: 'done', durableSafeRead: durable },
+        ],
+        ledgerEntries: [
+          { tool: 'search_memory', result: partialPayload, serialized: '{}', durableSafeRead: durable },
+        ],
+      } as MeriV3ChatStreamEvent,
+    ]);
+    const onEvent = jest.fn();
+
+    const result = await runner.run(ctx, input, auth, onEvent);
+
+    // Declared, so the read-time re-check replays it; never a visible source.
+    expect(result.toolsUsed).toEqual(['search_memory']);
+    expect(result.sources).toEqual([]);
+    expect(onEvent).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'source' }));
+    expect(result.producerInputCategories.unsupported).not.toHaveProperty(
+      'receipted_unqualified_tool:search_memory',
+    );
+  });
+
   it('rejects an HTTP-200 logical error even when an untrusted frame labels it complete', async () => {
     const base = fixture();
     const durable = {

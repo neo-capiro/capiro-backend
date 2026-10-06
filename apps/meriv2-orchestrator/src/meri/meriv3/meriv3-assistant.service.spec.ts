@@ -2872,6 +2872,109 @@ describe('Durable research cancellation across API replicas', () => {
     expect(result.ledgerEntries?.[0]).not.toHaveProperty('durableSafeRead');
   });
 
+  test('commits a partial owner page as a partial receipt instead of failing the reservation', async () => {
+    const call = {
+      type: 'function_call' as const,
+      call_id: 'provider-call-partial',
+      name: 'search_memory',
+      arguments: JSON.stringify({ query: 'radar' }),
+    };
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(response({ outputText: 'Done from a partial page.' }));
+    const ownerResult = {
+      tool: 'search_memory',
+      coverage: {
+        complete: false,
+        paginationComplete: true,
+        sources: [
+          {
+            domain: 'institutional_knowledge',
+            sourceStatus: 'healthy',
+            hasMore: true,
+            truncated: false,
+            paginationComplete: true,
+            coverageComplete: true,
+          },
+        ],
+      },
+      factContentUnavailableCount: 0,
+      contentStatus: 'available',
+      contentTruncated: false,
+      nextCursor: 'next-page',
+      results: [{ id: 'fact-a', content: 'first page' }],
+      records: [{ id: 'fact-a', content: 'first page' }],
+    };
+    const invoke = jest.fn(async () => ownerResult);
+    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
+    const committed: Array<Record<string, unknown>> = [];
+    const failures: Array<Record<string, unknown>> = [];
+    let replayToolVersion = '';
+    global.fetch = jest.fn(async (url, init) => {
+      const href = String(url);
+      if (href.endsWith('/tool-schemas'))
+        return new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'search_memory',
+                description: 'Memory',
+                input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      if (href.endsWith('/active'))
+        return new Response(JSON.stringify({ active: true }), { status: 200 });
+      if (href.endsWith('/safe-read/replay')) {
+        replayToolVersion = String(JSON.parse(String(init?.body)).toolVersion ?? '');
+        return new Response(JSON.stringify({ replayed: false }), { status: 200 });
+      }
+      if (href.endsWith('/safe-read/reservations'))
+        return new Response(
+          JSON.stringify({
+            dispatchAllowed: true,
+            reservationId: 'reservation-partial',
+            tool: 'search_memory',
+            toolVersion: replayToolVersion,
+          }),
+          { status: 200 },
+        );
+      if (href.endsWith('/safe-read/failures')) {
+        failures.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({ outcome: 'retryable_failure' }), { status: 200 });
+      }
+      if (href.endsWith('/safe-read/outcomes')) {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        committed.push(body);
+        return new Response(
+          JSON.stringify({ ...body, classifier: 'partial', sequence: 4, receiptId: 'receipt-partial' }),
+          { status: 200 },
+        );
+      }
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'user-token' }, () =>
+      assistant.run(context, {
+        messages: [{ role: 'user', text: 'Research radar.' }],
+        toolPolicy: 'read-only',
+        ...researchAuthority(['search_memory']),
+      }),
+    );
+
+    expect(failures).toEqual([]);
+    expect(committed).toHaveLength(1);
+    expect(committed[0]).toMatchObject({ result: ownerResult });
+    expect(result.steps?.[0]).toMatchObject({
+      status: 'done',
+      durableSafeRead: expect.objectContaining({ classifier: 'partial' }),
+    });
+    expect(result.ledgerEntries?.[0]?.durableSafeRead).toEqual(result.steps?.[0]?.durableSafeRead);
+  });
+
   test('budget exhaustion prevents registry invocation and outcome side effects', async () => {
     const call = {
       type: 'function_call' as const,
