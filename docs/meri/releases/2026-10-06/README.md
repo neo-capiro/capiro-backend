@@ -90,6 +90,6 @@ Handover: [HANDOVER-2026-10-06-pm.md](../../implementation/HANDOVER-2026-10-06-p
 
 `migration-status` ran read-only on every API candidate (admin-migrate 91 to 97, then 99). The only migration applied today is the passage-search one above.
 
-Production changes outside code: tenant flag `meri.jobs` on for capiro-internal (11:22 UTC, `outputs/meri-stage2-20261006/flags/`); task family `capiro-dev-api-federal-evidence-backfill:1` for the one-off historical BILLS backfill (`FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED=true` on that family only; the API service, the Package 4 rules and the outbox drain stay off).
+Production changes outside code: tenant flag `meri.jobs` on for capiro-internal (11:22 UTC, `outputs/meri-stage2-20261006/flags/`); task family `capiro-dev-api-federal-evidence-backfill:1` for the one-off historical BILLS backfill (`FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED=true` on that family only; the API service, the Package 4 rules and the outbox drain stay off). The backfill stored 7,754 119th-Congress bill-version packages and then stalled on one package that exceeds the 5-second interactive-transaction timeout (handover §6.1).
 
 Paid turns this afternoon: eleven (T5 ×7, research check ×1, commitments audit ×1, OH HB 1 ×1, bill text ×1). Neo's verdicts are pending on the passing D4b report, the commitments audit answer and the bill-text answer.
