@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-plan-limits-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T11:43:34.442793+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "832c6956059302cd3a9662b42d0fe581b1dda67a",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f902cfe78a209ee7d654f1894d1f11d590629d95340cfac9442a97e29934d4bb",
+      "buildId": "capiro-build-web-dev:9c624b20-de68-4481-aaa7-36a605d5bb8f"
+    }
+  ],
+  "schemaChange": false,
+  "change": "#2089 research plan string limits stated to the planner (T5 plan failure) and #2088 D4b narrowed to verb forms",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
