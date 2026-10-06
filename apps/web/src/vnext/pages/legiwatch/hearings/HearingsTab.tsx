@@ -1358,10 +1358,10 @@ export function HearingsTab({ scope }: { scope: string }) {
             </div>
           </section>
 
-          <section className="lw-card" aria-label="Saved browser sessions">
+          <section className="lw-card" aria-label="Saved recording attempts">
             <div className="lw-card__head">
-              <h2 className="lw-card__title">Saved browser sessions</h2>
-              <span className="lw-card__meta">Browser sessions · separate capture attempts</span>
+              <h2 className="lw-card__title">Saved recording attempts</h2>
+              <span className="lw-card__meta">Browser and server sessions · separate capture attempts</span>
             </div>
 
             {!calendar.isError && live ? (
