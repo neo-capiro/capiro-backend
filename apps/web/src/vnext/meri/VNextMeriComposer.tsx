@@ -31,6 +31,7 @@ import {
   clientNoteComposerText,
   type MeriClientNoteDraft,
 } from './MeriClientNoteDialog.js';
+import { useMe } from '../../lib/me.js';
 import { useMeriComposerDraft } from './meri-composer-drafts.js';
 import { MERI_REASONING_MODES, useMeriReasoningMode } from './meri-reasoning-state.js';
 import { meriStartWorkCards } from './meri-start-work.js';
@@ -148,9 +149,13 @@ export function VNextMeriComposer({
     handleAttachFiles,
     removeStagedAttachment,
     sendMessage,
+    delegateJob,
     handleStop,
     scopePersistStatus,
   } = controller;
+  // Stage 2 "Delegate this" renders only when /api/me says exactly true; the
+  // API refuses job kinds on its own when the tenant flag is off.
+  const jobsEnabled = useMe().data?.features?.meriJobs === true;
   const { draft, setDraft, clearForSubmission } = useMeriComposerDraft(
     workspaceIdentityKey,
     activeConversationId,
@@ -688,6 +693,29 @@ export function VNextMeriComposer({
     [canSend, draft, sendMessage, toast, clearForSubmission],
   );
 
+  // Same send gate and draft restore as submit(); the draft becomes a
+  // deliverable job (plan, research, then a Word document to file).
+  const delegate = useCallback(async () => {
+    const content = draft.trim();
+    if (!canSend) return;
+    if (!content) {
+      toast.success('Write what Meri should deliver, then choose Delegate this.');
+      return;
+    }
+    setSubmitting(true);
+    const restoreDraft = clearForSubmission();
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    try {
+      const accepted = await delegateJob(content);
+      if (accepted === false) restoreDraft();
+    } catch {
+      restoreDraft();
+      window.setTimeout(() => textareaRef.current?.focus(), 0);
+    } finally {
+      setSubmitting(false);
+    }
+  }, [canSend, draft, delegateJob, toast, clearForSubmission]);
+
   const onKeyDown = (event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
     // Enter confirms an IME composition on many keyboards. Sending that event
     // truncated Japanese/Chinese/Korean input before the browser committed it.
@@ -735,6 +763,29 @@ export function VNextMeriComposer({
           {!activePane ? (
             <>
               <div className="vnext-meri__add-popover-eyebrow">ADD TO CONVERSATION</div>
+              {jobsEnabled ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="vnext-meri__add-popover-item"
+                  data-meri-delegate
+                  disabled={!canSend || !draft.trim()}
+                  onClick={() => {
+                    setAddOpen(false);
+                    void delegate();
+                  }}
+                >
+                  <span className="vnext-meri__add-popover-tile">
+                    <MeriIcon name="Briefcase02" size={13} color="var(--m-gray-600)" />
+                  </span>
+                  <span className="vnext-meri__add-popover-item-body">
+                    <span className="vnext-meri__add-popover-item-label">Delegate this</span>
+                    <span className="vnext-meri__add-popover-item-desc">
+                      WORK ON IT IN THE BACKGROUND AND DELIVER A WORD DOCUMENT
+                    </span>
+                  </span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 role="menuitem"
