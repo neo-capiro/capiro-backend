@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
 import { LlmCompletionService } from '../engagement/llm-completion.service.js';
 import { parseHearingBriefJson } from './hearing-brief-json.js';
+import { briefReferences, resolveBriefReferences } from './hearing-brief-references.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 import {
   HearingSpeakerAttributionService,
@@ -110,15 +111,15 @@ const RESPONSE_SCHEMA = {
     },
     keyMoments: {
       type: 'array',
+      maxItems: 12,
       items: {
         type: 'object',
         additionalProperties: false,
         properties: {
-          startMs: { type: ['number', 'null'] },
-          speaker: { type: ['string', 'null'] },
+          evidenceRef: { type: 'string' },
           summary: { type: 'string' },
         },
-        required: ['startMs', 'speaker', 'summary'],
+        required: ['evidenceRef', 'summary'],
       },
     },
     sources: { type: 'array', items: { type: 'string' } },
@@ -129,8 +130,8 @@ const RESPONSE_SCHEMA = {
 const SYSTEM_PROMPT = [
   'You are a senior legislative analyst writing for a government-relations client.',
   'Write a professional brief grounded ONLY in the packet you are given: hearing facts,',
-  'committee roster, witnesses, transcript excerpts (with timestamps) and the client profile.',
-  'Cite transcript moments inline as [h:mm:ss] or [mm:ss]. Where the packet is silent, say so',
+  'committee roster, witnesses, transcript excerpts with source references and the client profile.',
+  'Cite transcript evidence inline using its exact reference, for example [E001]. Never write timestamp citations; the server adds verified timestamps. Where the packet is silent, say so',
   'in one short sentence instead of inventing. Be specific about names, positions and asks.',
   'Direct prose, short paragraphs, "- " bullets where they aid scanning, **bold** sparingly.',
   'Do not repeat the section name inside its content. Produce every requested section, in order.',
@@ -249,6 +250,7 @@ export class HearingBriefGenerationService {
       speakerMap,
     );
     const excerpt = selected.lines;
+    const references = briefReferences(selected.evidence);
     const focus = (input.focus ?? '').trim().slice(0, MAX_FOCUS_CHARS);
 
     const packet = {
@@ -306,12 +308,12 @@ export class HearingBriefGenerationService {
           focus ? `Client focus for this brief: ${focus}` : '',
           'Treat findings as navigation aids; recorded facts must be supported by the supplied transcript. Never invent votes, amounts, deadlines, commitments or speaker identities.',
           'Separate recorded statements from implications and recommendations. Recommendations are proposed actions, never commitments made by a witness. Give actionable next steps with a rationale; do not invent an owner or due date.',
-          'Executive summary, Key exchanges, Positions on the record, and Commitments, deadlines and open questions must cite the exact bracketed timestamps supplied below, or explicitly state that no supported evidence is available. Use only supplied startMs values for keyMoments.',
+          'Executive summary, Key exchanges, Positions on the record, and Commitments, deadlines and open questions must cite supplied evidence references such as [E001], or explicitly state that no supported evidence is available. Copy references exactly, one per pair of brackets. Do not invent references or write timestamp citations. Each keyMoment must use a supplied evidenceRef, not a timestamp or speaker name. With no transcript, return an empty keyMoments array and no transcript references.',
+          'Prefer clear paraphrases. Any direct quotation must be verbatim from the specific cited passage and followed by that passage reference in the same paragraph. Key moment summaries must be plain text without citation tokens; any quoted words must come from that key moment’s selected passage.',
           `Transcript coverage: ${JSON.stringify(packet.transcriptCoverage)}. Capture status: ${packet.captureStatus}. Gaps: ${JSON.stringify(packet.captureGaps)}. Disclose partial coverage; never call an excerpt a complete account.`,
           `Matched findings: ${JSON.stringify(findings)}`,
-          `Key moment anchors (use these exact startMs values): ${JSON.stringify(selected.evidence.map(({ startMs, speaker }) => ({ startMs, speaker })))}`,
           excerpt.length
-            ? `Transcript excerpts:\n${excerpt.join('\n')}`
+            ? `Transcript evidence:\n${references.map(({ ref, source }) => `[${ref}] ${source.speaker}: ${source.text}`).join('\n')}`
             : 'Transcript excerpts: none.',
         ]
           .filter(Boolean)
@@ -334,18 +336,11 @@ export class HearingBriefGenerationService {
         String(parsed.title ?? '')
           .trim()
           .slice(0, 200) || title;
-      keyMoments = Array.isArray(parsed.keyMoments)
-        ? (parsed.keyMoments as Array<Record<string, unknown>>)
-            .filter((m) => m && typeof m.summary === 'string' && m.summary.trim())
-            .slice(0, 12)
-            .map((m) => ({
-              ...(typeof m.startMs === 'number' ? { startMs: m.startMs } : {}),
-              ...(typeof m.speaker === 'string' && m.speaker ? { speaker: m.speaker } : {}),
-              summary: String(m.summary).trim().slice(0, 400),
-            }))
-        : [];
+      const resolved = resolveBriefReferences(sections, selected.evidence, parsed.keyMoments);
+      sections = resolved.sections;
+      keyMoments = resolved.keyMoments;
       if (mode === 'recap')
-        keyMoments = validateBriefCitations(sections, selected.evidence, keyMoments);
+        validateBriefCitations(sections, selected.evidence, keyMoments);
       else keyMoments = [];
     } catch (error) {
       this.logger.warn(

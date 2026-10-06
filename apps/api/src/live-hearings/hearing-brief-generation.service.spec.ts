@@ -89,12 +89,12 @@ function harness(input: {
               .map((name) => ({
                 name,
                 content: input.segments?.length
-                  ? 'Recorded exchange [00:00].'
+                  ? 'Recorded exchange [E001].'
                   : 'Agenda and client profile.',
               })),
-            keyMoments: [
-              { startMs: 5000, speaker: 'Jane Q. Smith', summary: 'Opened the hearing' },
-            ],
+            keyMoments: input.segments?.length
+              ? [{ evidenceRef: 'E002', summary: 'Opened the hearing' }]
+              : [],
             sources: ['Official page'],
           }),
         raw: { usage: { input_tokens: 10, output_tokens: 20 } },
@@ -185,8 +185,8 @@ describe('HearingBriefGenerationService.generate', () => {
       return {
         ...result,
         text: result.text.replaceAll(
-          'Recorded exchange [00:00].',
-          'Recorded exchange [00:00].\n\nFurther source context.',
+          'Recorded exchange [E001].',
+          'Recorded exchange [E001].\n\nFurther source context.',
         ),
       };
     });
@@ -243,9 +243,9 @@ describe('HearingBriefGenerationService.generate', () => {
     expect(speakers.resolve).toHaveBeenCalledWith('hearing-1', { force: false, ctx });
     const request = llm.complete.mock.calls[0]![0];
     expect(request.userVolatile).toContain(
-      '[00:00] Jane Q. Smith: The committee will come to order.',
+      '[E001] Jane Q. Smith: The committee will come to order.',
     );
-    expect(request.userVolatile).toContain('[00:05] Speaker 2: Thank you, Chair.');
+    expect(request.userVolatile).toContain('[E002] Speaker 2: Thank you, Chair.');
     expect(request.userVolatile).toContain('"speakerName":"Jane Q. Smith"');
     expect(request).toMatchObject({
       provider: 'anthropic',
