@@ -195,6 +195,20 @@ describe('research producer input classification', () => {
     expect(JSON.stringify(result.producerInputCategories)).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}/);
   });
 
+  it('covers a receipted public-data read as public data, not as an unowned private read', () => {
+    const result = classify({
+      ledgerEntries: [
+        { tool: 'context_plane', serialized: '', result: { origin: 'initial_context' } },
+        { tool: 'search_memory', serialized: '', result: {}, durableSafeRead: { tool: 'search_memory', executionId: 'exec-memory' } },
+        // Partial public web pages are receipted since #2106 (T5 run a1a36b6f).
+        { tool: 'search_public_web', serialized: '', result: { results: [] }, durableSafeRead: { tool: 'search_public_web', executionId: 'exec-web' } },
+      ],
+    });
+    expect(result.producerInputMode).toBe('governed_inputs');
+    expect(result.producerInputCategories.unsupported).toEqual({});
+    expect(result.producerInputCategories.covered).toMatchObject({ 'public_tool:search_public_web': 1 });
+  });
+
   it('refuses a receipted read the model saw that will not be declared as a source', () => {
     const result = classify({ qualifiedDurableExecutionIds: new Set() });
     expect(result.producerInputMode).toBe('unsupported_private_inputs');
