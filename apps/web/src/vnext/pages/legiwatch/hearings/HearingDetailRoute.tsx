@@ -850,7 +850,10 @@ export function HearingDetailRoute() {
           hearingId={hearingId}
           hearingTitle={e.title}
           clientId={clientId}
-          hasTranscript={availability.available && segments.length > 0}
+          hasTranscript={availability.available && segments.length > 0 ? true : transcript.isSuccess ? false : undefined}
+          scheduledStart={e.scheduledStart}
+          calendarDate={e.calendarDate}
+          eventStatus={e.eventStatus}
           canSaveMoment={availability.available && segments.length > 0}
           pendingAction={pendingAction}
           onPendingHandled={() => setPendingAction(null)}

@@ -53,6 +53,9 @@ export function HearingActions({
   hearingTitle,
   clientId,
   hasTranscript,
+  scheduledStart,
+  calendarDate,
+  eventStatus,
   canSaveMoment,
   pendingAction,
   onPendingHandled,
@@ -61,8 +64,11 @@ export function HearingActions({
   hearingTitle: string;
   /** '' when the lens is All Clients. */
   clientId: string;
-  /** Decides whether a brief is a recap (transcript) or a preparation (none yet). */
-  hasTranscript: boolean;
+  /** Undefined while transcript availability has not been confirmed. */
+  hasTranscript: boolean | undefined;
+  scheduledStart?: string | null;
+  calendarDate?: string | null;
+  eventStatus?: string | null;
   canSaveMoment: boolean;
   pendingAction: { action: string; refs: ActionRefs } | null;
   onPendingHandled: () => void;
@@ -294,6 +300,9 @@ export function HearingActions({
           hearingTitle={hearingTitle}
           initialClientId={briefDialog.clientId}
           hasTranscript={hasTranscript}
+          scheduledStart={scheduledStart}
+          calendarDate={calendarDate}
+          eventStatus={eventStatus}
           onClose={() => setBriefDialog(null)}
           onSaved={(draftId) => {
             // A save that resolves after this exact dialog session was closed

@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
 import { LlmCompletionService } from '../engagement/llm-completion.service.js';
 import { parseHearingBriefJson } from './hearing-brief-json.js';
-import { briefReferences, resolveBriefReferences } from './hearing-brief-references.js';
+import { BRIEF_KEY_MOMENT_CHAR_LIMIT, briefReferences, resolveBriefReferences } from './hearing-brief-references.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 import {
   HearingSpeakerAttributionService,
@@ -117,7 +117,10 @@ const RESPONSE_SCHEMA = {
         additionalProperties: false,
         properties: {
           evidenceRef: { type: 'string' },
-          summary: { type: 'string' },
+          summary: {
+            type: 'string',
+            description: `A complete paraphrase of at most ${BRIEF_KEY_MOMENT_CHAR_LIMIT} characters, preserving material qualifications.`,
+          },
         },
         required: ['evidenceRef', 'summary'],
       },
@@ -316,6 +319,7 @@ export class HearingBriefGenerationService {
           focus ? `Client focus for this brief: ${focus}` : '',
           'Treat findings as navigation aids; recorded facts must be supported by the supplied transcript. Never invent votes, amounts, deadlines, commitments or speaker identities.',
           'Separate recorded statements from implications and recommendations. Recommendations are proposed actions, never commitments made by a witness. Give actionable next steps with a rationale; do not invent an owner or due date.',
+          `Each key moment summary must be at most ${BRIEF_KEY_MOMENT_CHAR_LIMIT} characters. Rewrite concisely while retaining all material negations, uncertainty and conditions; never cut off a qualification to fit.`,
           'Executive summary, Key exchanges, Positions on the record, and Commitments, deadlines and open questions must cite supplied evidence references such as [E001], or explicitly state that no supported evidence is available. Copy references exactly, one per pair of brackets. Do not invent references or write timestamp citations. Each keyMoment must use a supplied evidenceRef, not a timestamp or speaker name. With no transcript, return an empty keyMoments array and no transcript references.',
           mode === 'recap'
             ? 'Paraphrase all testimony accurately in sections and key moments. Do not use quotation marks or direct quotations, including for emphasis or terminology. Retain exact evidence references in sections. Key moment summaries must be plain text without citation tokens and grounded in their selected passage.'

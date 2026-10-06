@@ -225,8 +225,32 @@ export async function loadConfiguredFeed(feed: RssFeed, fetcher: typeof fetch = 
       signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok) throw new Error(`rss_http_${response.status}`);
-    const body = await response.text(),
-      error = validateFeedXml(body);
+    const body = await response.text();
+    // A retired feed may redirect to a publisher's HTML homepage. Preserve that
+    // transport result rather than reporting incidental HTML entities as bad XML.
+    // Inspect only the document root: HTML inside feed CDATA is legitimate.
+    const root = body
+      .replace(/^\uFEFF/, '')
+      .trimStart()
+      .replace(/^<\?xml[^?]*\?>\s*/i, '')
+      .replace(/^(?:<!--[\s\S]*?-->\s*)*/, '');
+    const contentType = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+    if (
+      /^(?:<!doctype\s+html\b|<html(?:\s|>))/i.test(root) ||
+      (['text/html', 'application/xhtml+xml'].includes(contentType ?? '') &&
+        !/^<(?:rss|feed|rdf:RDF)(?:\s|>)/i.test(root))
+    ) {
+      throw new Error(
+        response.redirected ? 'rss_html_response_after_redirect' : 'rss_html_response',
+      );
+    }
+    if (
+      contentType &&
+      /^(?:application\/(?:json|pdf)|text\/json|image\/|audio\/|video\/)/.test(contentType)
+    ) {
+      throw new Error(`rss_unexpected_content_type: ${contentType}`);
+    }
+    const error = validateFeedXml(body);
     if (error) throw new Error(`rss_invalid_feed: ${error}`);
     const rssItems = body.split(/<item[ >]/).slice(1),
       entries = rssItems.length ? rssItems : body.split(/<entry[ >]/).slice(1);

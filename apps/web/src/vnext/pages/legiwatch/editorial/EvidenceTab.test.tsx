@@ -70,7 +70,7 @@ test('publisher day precision keeps its calendar day and does not claim a releas
     dateFormat.mockRestore();
   }
 });
-test('publisher coverage distinguishes configured failure from retained reporting and freshness', async () => {
+test('publisher coverage distinguishes static qualification from retained reporting and missing intake receipt', async () => {
   mocks.get.mockImplementation(async (url: string) => ({
     data: url.endsWith('/folders')
       ? []
@@ -95,11 +95,84 @@ test('publisher coverage distinguishes configured failure from retained reportin
           },
   }));
   mount(<EvidenceTab lane="news" />);
-  expect(await screen.findByText(/Configured source: Unavailable/)).toBeTruthy();
+  expect(await screen.findByText(/Coverage qualification: Not qualified/)).toBeTruthy();
+  expect(screen.getByText('Latest intake: Receipt not available')).toBeTruthy();
+  expect(screen.queryByText(/Succeeded at last check/)).toBeNull();
   expect(screen.getByText(/3 retained articles · 0 with full text/)).toBeTruthy();
   expect(
     screen.getByText(/do not establish complete regional coverage or a healthy feed/),
   ).toBeTruthy();
+});
+test('publisher coverage shows endpoint failures separately from successful intake and static regional qualification', async () => {
+  mocks.get.mockImplementation(async (url: string) => ({
+    data: url.endsWith('/folders')
+      ? []
+      : url.includes('/monitors')
+        ? { monitors: [] }
+        : {
+            items: [],
+            coverage: [
+              {
+                id: 'h',
+                publisher: 'The Hill',
+                status: 'unavailable',
+                source_group: 'national',
+                intake: {
+                  status: 'succeeded',
+                  feeds: [
+                    {
+                      url: 'https://thehill.com/feed/',
+                      status: 'succeeded',
+                      observedAt: '2026-10-06T12:00:00Z',
+                    },
+                  ],
+                },
+              },
+              {
+                id: 'p',
+                publisher: 'Politico',
+                status: 'unavailable',
+                source_group: 'florida',
+                intake: {
+                  status: 'failed',
+                  feeds: [
+                    {
+                      url: 'https://rss.politico.com/politics-news.xml',
+                      status: 'failed',
+                      observedAt: '2026-10-06T12:00:00Z',
+                      reason: 'Politics endpoint HTTP 403',
+                    },
+                    {
+                      url: 'https://rss.politico.com/congress.xml',
+                      status: 'failed',
+                      observedAt: '2026-10-06T12:00:00Z',
+                      reason: 'Congress endpoint HTTP 503',
+                    },
+                  ],
+                },
+              },
+              {
+                id: 'w',
+                publisher: 'WUSF',
+                status: 'partial',
+                intake: { status: 'succeeded', feeds: [] },
+              },
+              {
+                id: 'u',
+                publisher: 'Unconfigured newspaper',
+                status: 'unavailable',
+                intake: { status: 'no_verified_endpoint', feeds: [] },
+              },
+            ],
+          },
+  }));
+  mount(<EvidenceTab lane="news" />);
+  expect(await screen.findAllByText('Latest intake: Succeeded at last check')).toHaveLength(2);
+  expect(screen.getByText(/Politics endpoint HTTP 403/)).toBeTruthy();
+  expect(screen.getByText(/Congress endpoint HTTP 503/)).toBeTruthy();
+  expect(screen.getByText('Latest intake: No verified intake endpoint')).toBeTruthy();
+  expect(screen.getAllByText(/Coverage qualification: Not qualified/)).toHaveLength(3);
+  expect(screen.getByText(/Coverage qualification: Partial/)).toBeTruthy();
 });
 test('calendar navigation has no irrelevant fiscal filters or fabricated project schedule', async () => {
   mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&budgetView=calendar');

@@ -1,5 +1,5 @@
 import { BRIEF_TRANSCRIPT_CHAR_LIMIT, buildBriefEvidence, validateBriefCitations } from './hearing-brief-evidence.js';
-import { briefReferences, resolveBriefReferences } from './hearing-brief-references.js';
+import { BRIEF_KEY_MOMENT_CHAR_LIMIT, briefReferences, resolveBriefReferences } from './hearing-brief-references.js';
 
 const evidence = buildBriefEvidence([
   { label: 'chair', sequence: 1, startMs: 4994010, text: 'Please respond within two weeks after receiving the questions.' },
@@ -7,6 +7,38 @@ const evidence = buildBriefEvidence([
 ], [], new Map([['chair', 'Chair'], ['witness', 'Witness']])).evidence;
 
 describe('server-owned hearing brief references', () => {
+
+  it('withholds an oversized grounded moment rather than cutting off its closing qualification', () => {
+    const summary = 'The witness described proposed demonstrations in 2028 and a later development epoch in 2035. The exchange also discussed architecture choices, industrial capacity, interceptor availability, supply-chain constraints, and the need for further congressional oversight and independent cost analysis before selecting a path. Several options remained under consideration and would require sustained review. The witness did not establish a full-capability date.';
+    const selected = buildBriefEvidence([
+      { label: 'witness', sequence: 1, startMs: 1000, text: summary },
+    ], [], new Map()).evidence;
+    expect(summary.indexOf('did not establish')).toBeGreaterThanOrEqual(BRIEF_KEY_MOMENT_CHAR_LIMIT);
+    expect(() => resolveBriefReferences([], selected, [{ evidenceRef: 'E001', summary }]))
+      .toThrow('Key moment summary exceeds 400 characters; draft withheld');
+  });
+
+  it('preserves the complete 400-character boundary including its final negation', () => {
+    const qualifier = 'The witness did not establish a full-capability date.';
+    const summary = 'Recorded context. '.repeat(30).slice(0, BRIEF_KEY_MOMENT_CHAR_LIMIT - qualifier.length) + qualifier;
+    const selected = buildBriefEvidence([
+      { label: 'witness', sequence: 1, startMs: 1000, text: summary },
+    ], [], new Map()).evidence;
+    const resolved = resolveBriefReferences([], selected, [{ evidenceRef: 'E001', summary: `  ${summary}  ` }]);
+    expect(summary).toHaveLength(400);
+    expect(resolved.keyMoments[0]!.summary).toBe(summary);
+    expect(resolved.keyMoments[0]!.summary.endsWith(qualifier)).toBe(true);
+  });
+
+  it('rejects even one excess character rather than silently shortening a complete moment', () => {
+    const summary = 'x'.repeat(BRIEF_KEY_MOMENT_CHAR_LIMIT + 1);
+    const selected = buildBriefEvidence([
+      { label: 'witness', sequence: 1, startMs: 1000, text: summary },
+    ], [], new Map()).evidence;
+    expect(() => resolveBriefReferences([], selected, [{ evidenceRef: 'E001', summary }]))
+      .toThrow('Key moment summary exceeds 400 characters');
+  });
+
   it('maps selected evidence to exact milliseconds and source speaker without model arithmetic', () => {
     expect(briefReferences(evidence).map(x => x.ref)).toEqual(['E001', 'E002']);
     const resolved = resolveBriefReferences(

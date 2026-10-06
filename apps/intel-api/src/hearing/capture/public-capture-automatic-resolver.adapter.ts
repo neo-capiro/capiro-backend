@@ -1,3 +1,4 @@
+import { blockedRecoveryTarget, type BlockedRecoveryCandidate, type BlockedRecoveryProbe } from './blocked-source-recovery.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StreamResolverService } from '../stream-resolver.service.js';
@@ -60,6 +61,40 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
   async resolve(input: { pageUrl?: string; hearingId?: string }): Promise<ResolverResultLike> {
     const result = await this.resolveInternal(input);
     return result.rawResult;
+  }
+
+  /** Exact new-source probe only: never promotes a sibling sharing the page URL. */
+  async probeBlockedRecoveryCandidate(candidate: BlockedRecoveryCandidate): Promise<BlockedRecoveryProbe | null> {
+    const target = blockedRecoveryTarget(candidate);
+    if (!target) return null;
+    if (!stateCaptureEnabled() && isFloridaStatePublisherUrl(target)) return null;
+    const hearing = await this.loadHearing(candidate.hearingId);
+    if (!hearing || hearing.publicAccess !== 'PUBLIC' ||
+      !['scheduled','in_progress'].includes(hearing.eventStatus.toLowerCase())) return null;
+    let raw: ResolverResultLike;
+    try { raw = await this.resolver.resolve({ pageUrl: target, hearingId: candidate.hearingId }); }
+    catch { raw = { status: 'unresolvable', note: 'Resolver source error during late-source probe' }; }
+    const attemptedAt = new Date();
+    const classified = classifyStreamResolution({ ...raw, reviewedSourcePermission: false }, {
+      now: attemptedAt, scheduledStart: hearing.scheduledStart ?? undefined,
+      eventStatus: hearing.eventStatus, publicAccess: hearing.publicAccess,
+    });
+    // No fallback to other candidates and no persisted signed/resolved media URL.
+    const updated = await this.prisma.$executeRawUnsafe(
+      `UPDATE hearing_stream_candidate SET resolution_state=$8,capture_policy=$9,last_probe_at=$7,
+         failure_reason=$10,updated_at=$7
+       WHERE id=$1 AND hearing_id=$2 AND source_id=$3 AND first_seen_at=$4::timestamptz
+         AND official_page_url=$5 AND media_url IS NOT DISTINCT FROM $6::text
+         AND updated_at=$11::timestamptz
+         AND capture_policy IN ('REVIEW_REQUIRED','SERVER_CAPTURE_ALLOWED')
+         AND (expires_at IS NULL OR expires_at > $7)
+         AND (last_probe_at IS NULL OR last_probe_at < $7)`,
+      candidate.id,candidate.hearingId,candidate.sourceId,candidate.firstSeenAt,
+      candidate.officialPageUrl,candidate.mediaUrl,attemptedAt,
+      candidateResolutionState(classified.state),classified.capturePolicy,
+      classified.state === 'READY_FOR_SERVER_CAPTURE' ? null : classified.reasonCode, candidate.updatedAt,
+    );
+    return Number(updated) === 1 ? { candidate, classified, attemptedAt } : null;
   }
 
   /**

@@ -359,7 +359,9 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
             </div>
             <p className="lw-evidence-filter-summary">
               {params.q || params.monitorId || params.publisher || params.days !== '7'
-                ? `Showing retained news for ${client ? 'the selected client' : 'all accessible clients'}.`
+                ? params.monitorId
+                  ? 'Showing retained news matching the selected monitor and filters.'
+                  : 'Showing public retained news matching these filters.'
                 : 'Showing all retained news in the last 7 days.'}
             </p>
           </div>
@@ -442,15 +444,52 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
           <details>
             <summary>Publisher coverage ({news.data?.coverage?.length ?? 0})</summary>
             <p>
-              Configured source availability and retained publisher articles are separate. Counts
-              cover the last {params.days} days across retained news, before search and monitor
-              filters. Publisher-level articles do not establish complete regional coverage or a
-              healthy feed.
+              Catalog coverage qualification, latest intake results, and retained articles are
+              separate. Counts cover the last {params.days} days across retained news, before search
+              and monitor filters. Publisher-level articles do not establish complete regional
+              coverage or a healthy feed.
             </p>
             {(news.data?.coverage ?? []).map((r: Row) => (
               <p key={r.id}>
-                <strong>{r.publisher}</strong> · {budgetLabel(r.source_group)} · Configured source:{' '}
-                {budgetLabel(r.status)}
+                <strong>{r.publisher}</strong> · {budgetLabel(r.source_group)} · Coverage
+                qualification:{' '}
+                {r.status === 'unavailable' ? 'Not qualified' : budgetLabel(r.status)}
+                {typeof r.evidence?.reason === 'string' && <small>{r.evidence.reason}</small>}
+                <small>
+                  Latest intake:{' '}
+                  {r.intake?.status === 'succeeded'
+                    ? 'Succeeded at last check'
+                    : r.intake?.status === 'partial'
+                      ? 'Mixed or incomplete results'
+                      : r.intake?.status === 'failed'
+                        ? 'Failed at last check'
+                        : r.intake?.status === 'no_verified_endpoint'
+                          ? 'No verified intake endpoint'
+                          : 'Receipt not available'}
+                </small>
+                {(r.intake?.feeds ?? []).map((feed: Row) => (
+                  <small key={feed.url}>
+                    <a href={feed.url} target="_blank" rel="noreferrer">
+                      Intake endpoint
+                    </a>
+                    {' · '}
+                    {feed.status === 'succeeded'
+                      ? 'Succeeded'
+                      : feed.status === 'failed'
+                        ? 'Failed'
+                        : feed.status === 'partial'
+                          ? 'Partial'
+                          : feed.status === 'not_checked'
+                            ? 'Receipt not available'
+                            : 'Result not classified'}
+                    {' · '}
+                    {feed.observedAt
+                      ? `Checked ${time(feed.observedAt)}`
+                      : 'No check time available'}
+                    {feed.reason && ` · ${feed.reason}`}
+                    {feed.primaryFailure && ` · Original endpoint: ${feed.primaryFailure}`}
+                  </small>
+                ))}
                 {r.retained && (
                   <small>
                     {r.retained.articles} retained articles · {r.retained.fullTextArticles} with

@@ -56,6 +56,67 @@ describe('configured publisher feed recovery', () => {
     });
     expect(result.items[0]?.title).toBe('Primary publication');
   });
+  it('identifies a retired feed redirect to HTML without repairing the page into RSS', async () => {
+    const response = new Response(
+      '<!doctype html><html><title>Research & commentary</title></html>',
+      { headers: { 'content-type': 'text/html; charset=UTF-8' } },
+    );
+    Object.defineProperty(response, 'redirected', { value: true });
+    const fetcher = jest.fn(async () => response);
+    await expect(loadConfiguredFeed(feed('brookings'), fetcher as typeof fetch)).rejects.toThrow(
+      'rss_html_response_after_redirect',
+    );
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('identifies an HTML challenge even with an XML content type and leading comments', async () => {
+    const fetcher = jest.fn(
+      async () =>
+        new Response(
+          '<?xml version="1.0"?>\n<!-- publisher -->\n<html><body>Access page</body></html>',
+          { headers: { 'content-type': 'application/xml' } },
+        ),
+    );
+    await expect(loadConfiguredFeed(feed('brookings'), fetcher as typeof fetch)).rejects.toThrow(
+      'rss_html_response',
+    );
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('distinguishes a JSON response from malformed XML and leaves legitimate malformed feed diagnostics intact', async () => {
+    await expect(
+      loadConfiguredFeed(
+        feed('brookings'),
+        jest.fn(
+          async () =>
+            new Response('{"error":"Unavailable"}', {
+              headers: { 'content-type': 'application/json' },
+            }),
+        ) as typeof fetch,
+      ),
+    ).rejects.toThrow('rss_unexpected_content_type: application/json');
+    await expect(
+      loadConfiguredFeed(
+        feed('brookings'),
+        jest.fn(
+          async () =>
+            new Response('<rss><channel><title>Bad & entity</title></channel></rss>', {
+              headers: { 'content-type': 'application/rss+xml' },
+            }),
+        ) as typeof fetch,
+      ),
+    ).rejects.toThrow('rss_invalid_feed');
+  });
+  it('accepts legitimate feed HTML inside CDATA and existing text/plain RSS delivery', async () => {
+    const body =
+      '<rss version="2.0"><channel><item><title>Published article</title><link>https://www.brookings.edu/articles/example/</link><description><![CDATA[<html><p>Quoted HTML & content</p></html>]]></description></item></channel></rss>';
+    const result = await loadConfiguredFeed(
+      feed('brookings'),
+      jest.fn(
+        async () => new Response(body, { headers: { 'content-type': 'text/plain' } }),
+      ) as typeof fetch,
+    );
+    expect(result.items).toHaveLength(1);
+    expect(result.primaryFailure).toBeNull();
+  });
   it.each([
     ['dhs', 503, 'https://www.dhs.gov/news-releases/press-releases', 'dhs-press-index'],
     [
@@ -148,7 +209,7 @@ describe('configured publisher feed recovery', () => {
       .mockResolvedValueOnce(new Response('<html>Maintenance</html>'))
       .mockResolvedValueOnce(new Response(fallbackBody('dhs')));
     const result = await loadConfiguredFeed(feed('dhs'), fetcher as typeof fetch);
-    expect(result.primaryFailure).toMatch(/^rss_invalid_feed:/);
+    expect(result.primaryFailure).toBe('rss_html_response');
     expect(result.provider).toBe('dhs-press-index');
   });
 });

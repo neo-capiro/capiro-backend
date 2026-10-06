@@ -284,6 +284,7 @@ jobs:
       - name: Tests — apps/api LegiWatch scope
         env:
           DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+          CAPIRO_DISPOSABLE_PG: '1'
         # In-band on the 6 GB job heap. A 1 GB idle limit restarts the worker
         # after every suite (~30 s ts-jest reload each) and overran the job.
         run: >
@@ -301,6 +302,7 @@ jobs:
           src/prisma/tenant-scope-guard.spec.ts
           src/hearing-discovery/
           src/live-hearings/
+          src/bill-impact/
           scripts/verify-migrations.spec.ts
           scripts/verify-image-parity.spec.ts
           scripts/sync-legiscan-bills.spec.ts
@@ -313,7 +315,7 @@ jobs:
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 110 1299
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 143 1801
 
       - name: Selected bill inventory qualification
         env:
@@ -328,6 +330,18 @@ jobs:
       - name: Assert selected inventory qualification is clean
         if: always()
         run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/inventory-summary.json" selected-inventory 2 11
+
+      - name: Tests — HB1211 scoped dataset inventory operator
+        env:
+          DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+          LEGIWATCH_PHASE7_TEST_DATABASE: disposable
+        run: |
+          export HB1211_REPO_ROOT="$GITHUB_WORKSPACE"
+          export HB1211_TEST_API_ROOT="$GITHUB_WORKSPACE/apps/api"
+          pnpm --filter @capiro/api exec node --import tsx --test \
+            ../../docs/handoff/legiwatch-hb1211-inventory-2026-10-06-operator/operator.test.cjs \
+            ../../docs/handoff/legiwatch-hb1211-inventory-2026-10-06-operator/runtime.test.cjs \
+            ../../docs/handoff/legiwatch-hb1211-inventory-2026-10-06-operator/postgres.test.cjs
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
@@ -360,6 +374,10 @@ jobs:
           src/hearing/capture/public-capture-persistent-queue.adapter.spec.ts
           src/hearing/capture/public-capture-queue.adapter.spec.ts
           src/hearing/capture/public-capture-task-runner.spec.ts
+          src/hearing/capture/capture-start-policy.spec.ts
+          src/hearing/capture/capture-start-postgres.spec.ts
+          src/hearing/capture/blocked-source-recovery.spec.ts
+          src/hearing/capture/blocked-source-recovery.postgres.spec.ts
           src/hearing/capture/public-capture.orchestrator.spec.ts
           src/hearing/capture/public-hearing-capture-attempt.store.spec.ts
           src/hearing/capture/public-hearing-capture-state.spec.ts
@@ -429,7 +447,7 @@ jobs:
 
       - name: Assert apps/intel-api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 82 1020
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 91 1237
 
       # ---------------------------------------------------------------- web --
       # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
@@ -465,7 +483,7 @@ jobs:
       # Create Watch removal retires one describe block and six feature tests.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 286 1004
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 287 1014
 
       # New real-DB, media, review, consent and UI suites have their own explicit
       # floors. The earlier saved-session fixture stays on its separate DB.

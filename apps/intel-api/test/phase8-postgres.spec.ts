@@ -23,6 +23,7 @@ import { EditorialService } from '../src/tracker/editorial/editorial.service.js'
 import { runEditorialWork } from '../src/tracker/editorial/editorial-runtime.js';
 import { discoverEditorialWork } from '../src/tracker/editorial/editorial-discovery.js';
 import { digest, object } from '../src/tracker/reports/report-domain.js';
+import { loadPublisherIntakeReceipts, publisherIntakeEndpoints, reconcilePublisherCoverage } from '../src/tracker/editorial/publisher-coverage.js';
 jest.setTimeout(120000);
 describe('Phase 8 public observations, private selections and actual database retries', () => {
   const p = new PrismaService(),
@@ -60,6 +61,80 @@ describe('Phase 8 public observations, private selections and actual database re
     beforeFetch = global.fetch,
     beforeEnv = { ...process.env };
   const scope = () => ({ jurisdiction: 'FL', sessionKey: session, clientId: null, folderId });
+  it('reads latest exact publisher receipts under the real application role, preserving endpoint failures', async () => {
+    const rollback = new Error('Rollback immutable receipt fixtures');
+    const fixtureIds: string[] = [];
+    try {
+      await p.$transaction(async (tx) => {
+        const hill = publisherIntakeEndpoints.find((e) => e.slug === 'the_hill')!;
+        const politics = publisherIntakeEndpoints.find((e) => e.slug === 'politico')!;
+        const congress = publisherIntakeEndpoints.find((e) => e.slug === 'politico_congress')!;
+        const insert = async (
+          slug: string,
+          url: string,
+          at: string,
+          status: string,
+          source = 'rss',
+        ) => {
+          const id = randomUUID();
+          fixtureIds.push(id);
+          const scope = JSON.stringify({ publisher: slug });
+          const manifest = JSON.stringify({
+            status,
+            coverage: 'current_feed_only',
+            retained: 0,
+            rejected: 0,
+            ...(status === 'failed' ? { reason: 'HTTP 403' } : {}),
+        });
+        await tx.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,observed_at,content_hash,scope,manifest,complete) VALUES(${id},${source},${url},${at}::timestamptz,'fixture',${scope}::jsonb,${manifest}::jsonb,false)`;
+        return id;
+      };
+      const oldHill = await insert(hill.slug, hill.url, '2099-01-01T00:00:00Z', 'retained');
+      const failedHill = await insert(hill.slug, hill.url, '2099-01-02T00:00:00Z', 'failed');
+      const goodPolitics = await insert(
+        politics.slug,
+        politics.url,
+        '2099-01-02T00:00:00Z',
+        'retained',
+      );
+      const failedCongress = await insert(
+        congress.slug,
+        congress.url,
+        '2099-01-02T00:00:00Z',
+        'failed',
+      );
+      // Newer receipts for the wrong identity, endpoint or producer must not win.
+      await insert('wrong-publisher', hill.url, '2099-01-03T00:00:00Z', 'retained');
+      await insert(hill.slug, hill.url + '?different=1', '2099-01-03T00:00:00Z', 'retained');
+      await insert(hill.slug, hill.url, '2099-01-03T00:00:00Z', 'retained', 'unverified');
+      await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+      const receipts = await loadPublisherIntakeReceipts(tx);
+      expect(receipts.map((r) => r.id)).toEqual(
+        expect.arrayContaining([failedHill, goodPolitics, failedCongress]),
+      );
+      expect(receipts.map((r) => r.id)).not.toContain(oldHill);
+      expect(receipts.filter((r) => r.scope.publisher === hill.slug)).toHaveLength(1);
+      const coverage = reconcilePublisherCoverage(
+        [
+          { publisher: 'The Hill', status: 'unavailable' },
+          { publisher: 'Politico', status: 'unavailable' },
+        ],
+        [],
+        receipts,
+      );
+      expect(coverage[0]).toMatchObject({ status: 'unavailable', intake: { status: 'failed' } });
+      expect(coverage[1]).toMatchObject({ status: 'unavailable', intake: { status: 'partial' } });
+      expect(coverage[1]!.intake.feeds.map((f) => f.status)).toEqual(['succeeded', 'failed']);
+      // Receipts are immutable, including in the fully migrated test database.
+      // Roll back the whole fixture transaction instead of deleting evidence.
+      throw rollback;
+      });
+    } catch (error) {
+      if (error !== rollback) throw error;
+    }
+    const remaining = await p.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*) AS count FROM legiwatch_source_receipt WHERE id=ANY(${fixtureIds}::text[])`;
+    expect(remaining[0].count).toBe(0n);
+  });
   it('reads current public bill status in a bounded batch without changing retained evidence', async () => {
     const id = `119-hr-${Date.now()}`;
     await api.$executeRaw`INSERT INTO congress_bill(id,congress,bill_type,bill_number,title,status,status_at,origin_chamber) VALUES(${id},119,'hr','99999','Synthetic current-status fixture','passed_chamber','2026-07-22'::timestamptz,'House')`;

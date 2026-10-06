@@ -31,7 +31,9 @@ describe('PublicCapturePersistentQueueAdapter', () => {
     ).resolves.toEqual({ enqueued: true, jobId: 'job-1' });
 
     const [sql, dedupeKey, hearingId, captureId, payload] = prisma.$queryRawUnsafe.mock.calls[0];
-    expect(sql).toContain('ON CONFLICT (dedupe_key) DO NOTHING');
+    expect(sql).toContain('ON CONFLICT (dedupe_key) DO UPDATE');
+    expect(sql).toContain("public_hearing_capture_job.status='pending'");
+    expect(sql).toContain('public_hearing_capture_job.lease_owner IS NULL');
     expect(sql).toContain("VALUES ('capture'");
     expect(dedupeKey).toBe('public-hearing-capture:v1:hearing-1');
     expect(hearingId).toBe('hearing-1');
@@ -161,6 +163,8 @@ describe('PublicCapturePersistentQueueAdapter', () => {
     const sql = prisma.$executeRawUnsafe.mock.calls[0][0] as string;
     expect(sql).toContain('ON CONFLICT (dedupe_key) DO UPDATE');
     expect(sql).toContain("WHERE public_hearing_capture_job.status <> 'leased'");
-    expect(sql).toContain("WHEN public_hearing_capture_job.status IN ('completed','failed') THEN 0");
+    expect(sql).toContain(
+      "WHEN public_hearing_capture_job.status IN ('completed','failed') THEN 0",
+    );
   });
 });

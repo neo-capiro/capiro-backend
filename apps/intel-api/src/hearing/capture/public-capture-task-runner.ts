@@ -348,6 +348,24 @@ export async function runPublicCaptureTask(
         captureId: work.captureId,
         outcome,
       });
+      if (outcome.action === 'DEFERRED_UNTIL_START') {
+        if (work.job) {
+          await queue.deferUntilStart({
+            jobId: work.job.id,
+            hearingId: work.hearingId,
+            captureId: work.captureId,
+            workerId,
+            claimedAttempts: work.job.attempts,
+            now: now(),
+            dueAt: outcome.dueAt,
+          });
+        }
+        result.requeued += 1;
+        log(
+          `PUBLIC_CAPTURE_WAITING_FOR_START hearing=${work.hearingId} due=${outcome.dueAt.toISOString()}`,
+        );
+        continue;
+      }
       if (
         outcome.action === 'FAILED' ||
         (outcome.action === 'TERMINAL' && outcome.status === 'FAILED')

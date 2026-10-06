@@ -22,7 +22,11 @@ import { ResearchService } from '../research/research.service.js';
 import { object } from '../reports/report-domain.js';
 import { hash, isFolderAdmin } from '../folders/folder-tracker.service.js';
 import { requestKey, checkedVersion } from '../keywords/keyword-rule.service.js';
-import { reconcilePublisherCoverage, type PublisherObservation } from './publisher-coverage.js';
+import {
+  loadPublisherIntakeReceipts,
+  reconcilePublisherCoverage,
+  type PublisherObservation,
+} from './publisher-coverage.js';
 
 export type Phase8Scope = {
   jurisdiction: string;
@@ -196,11 +200,14 @@ export class Phase8EvidenceService {
       const rows = await tx.$queryRaw<
         Array<Record<string, unknown>>
       >`SELECT o.*, EXISTS(SELECT 1 FROM intel_legiwatch_evidence_tracking t WHERE t.tenant_id=${ctx.tenantId} AND t.owner_clerk_id=${ctx.clerkUserId} AND t.kind='news' AND t.source_id=o.id AND t.folder_id=${scope.folderId} AND NOT t.removed) AS saved, (SELECT t.version FROM intel_legiwatch_evidence_tracking t WHERE t.tenant_id=${ctx.tenantId} AND t.owner_clerk_id=${ctx.clerkUserId} AND t.kind='news' AND t.source_id=o.id AND t.folder_id=${scope.folderId}) AS tracking_version FROM legiwatch_news_source o WHERE o.is_current AND COALESCE(o.published_at,o.observed_at)>=${since} AND (${publisher}='' OR o.publisher=${publisher}) AND (${q}='' OR o.title ILIKE ${'%' + q + '%'} OR o.summary ILIKE ${'%' + q + '%'}) AND (${monitor?.id ?? ''}='' OR EXISTS(SELECT 1 FROM intel_legiwatch_news_match m WHERE m.tenant_id=${ctx.tenantId} AND m.owner_clerk_id=${ctx.clerkUserId} AND m.monitor_id=${monitor?.id ?? ''} AND m.observation_id=o.id AND m.definition_version=${monitor?.version ?? 0})) ORDER BY COALESCE(o.published_at,o.observed_at) DESC,o.id LIMIT ${limit + 1} OFFSET ${offset}`;
-      const coverage =
-        await tx.$queryRaw<Array<Record<string, unknown>>>`SELECT * FROM legiwatch_source_coverage ORDER BY source_group,publisher`;
+      const coverage = await tx.$queryRaw<
+        Array<Record<string, unknown>>
+      >`SELECT * FROM legiwatch_source_coverage ORDER BY source_group,publisher`;
       // Public publisher inventory across the selected window, independent of
       // pagination and private monitor matches. This does not certify feed health.
-      const retained = await tx.$queryRaw<PublisherObservation[]>`SELECT publisher,count(*)::int AS articles,
+      const retained = await tx.$queryRaw<
+        PublisherObservation[]
+      >`SELECT publisher,count(*)::int AS articles,
         count(*) FILTER (WHERE body_complete)::int AS full_text_articles,
         max(published_at) AS latest_published_at,max(observed_at) AS latest_observed_at
         FROM legiwatch_news_source WHERE is_current AND COALESCE(published_at,observed_at)>=${since}
@@ -218,7 +225,11 @@ export class Phase8EvidenceService {
           : null,
         items: rows.slice(0, limit),
         nextOffset: rows.length > limit ? offset + limit : null,
-        coverage: reconcilePublisherCoverage(coverage, retained),
+        coverage: reconcilePublisherCoverage(
+          coverage,
+          retained,
+          await loadPublisherIntakeReceipts(tx),
+        ),
         window: { since: since.toISOString(), days },
         coverageMessage:
           'Results reflect retained sources. Missing article bodies and unavailable providers limit coverage.',

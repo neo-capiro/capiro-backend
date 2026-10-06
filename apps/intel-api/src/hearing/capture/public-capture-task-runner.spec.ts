@@ -8,6 +8,50 @@ import {
 import { PublicCaptureCredentialsAdapter } from './public-capture-credentials.adapter.js';
 
 describe('standalone capture task claims', () => {
+  it('reschedules an early job without reporting completion or a recording failure', async () => {
+    const dueAt = new Date(Date.now() + 3_600_000);
+    const spies = [
+      jest
+        .spyOn(PublicCapturePersistentQueueAdapter.prototype, 'claimDue')
+        .mockResolvedValue([
+          {
+            id: 'job',
+            jobType: 'capture',
+            hearingId: 'hearing',
+            captureId: 'capture',
+            attempts: 3,
+          },
+        ] as never),
+      jest
+        .spyOn(PublicCaptureCredentialsAdapter.prototype, 'resolve')
+        .mockResolvedValue({ apiKey: 'test' } as never),
+      jest
+        .spyOn(PublicCaptureWorkerCoordinator.prototype, 'run')
+        .mockResolvedValue({ action: 'DEFERRED_UNTIL_START', dueAt }),
+    ];
+    const defer = jest
+      .spyOn(PublicCapturePersistentQueueAdapter.prototype, 'deferUntilStart')
+      .mockResolvedValue(undefined);
+    const complete = jest.spyOn(PublicCapturePersistentQueueAdapter.prototype, 'complete');
+    const fail = jest.spyOn(PublicCapturePersistentQueueAdapter.prototype, 'fail');
+    try {
+      const result = await runPublicCaptureTask('worker', [], { prisma: {} as never });
+      expect(result).toMatchObject({ requeued: 1, failed: 0, completed: 0 });
+      expect(defer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          jobId: 'job',
+          hearingId: 'hearing',
+          captureId: 'capture',
+          claimedAttempts: 3,
+          dueAt,
+        }),
+      );
+      expect(complete).not.toHaveBeenCalled();
+      expect(fail).not.toHaveBeenCalled();
+    } finally {
+      [...spies, defer, complete, fail].forEach((spy) => spy.mockRestore());
+    }
+  });
   it.each([
     [{ action: 'FAILED', error: 'storage unavailable' }, 1, 0, 0],
     [{ action: 'RECOVERING' }, 0, 1, 0],
