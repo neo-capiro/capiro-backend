@@ -192,6 +192,9 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
              c.id IS NULL OR
              c.domain_status NOT IN ('COMPLETE','COMPLETE_WITH_GAPS','FAILED','CANCELED','BLOCKED')
            )
+           -- An active worker owns reconciliation until its lease expires.
+           -- Do not let these oldest rows occupy every bounded discovery slot.
+           AND (c.worker_lease_owner IS NULL OR c.lease_expires_at IS NULL OR c.lease_expires_at <= $1)
            AND (c.id IS NULL OR c.next_preflight_at IS NULL OR c.next_preflight_at <= $1)
          ORDER BY h.starts_at ASC, h.id ASC`,
         now,

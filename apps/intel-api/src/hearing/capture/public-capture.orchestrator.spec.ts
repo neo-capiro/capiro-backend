@@ -152,6 +152,69 @@ describe('long-running capture lease lifecycle', () => {
 });
 
 describe('public capture orchestration', () => {
+  it('retries a pending stream after T-5 and queues it when it becomes available at T-4', async () => {
+    const h = storeHarness();
+    let now = new Date('2026-08-20T13:55:00Z');
+    const resolve = jest.fn().mockResolvedValueOnce({ status: 'pending' }).mockResolvedValueOnce(firstPartyResolution);
+    const enqueue = jest.fn(async () => ({ enqueued: true, jobId: 'job-1' }));
+    const orchestrator = new PublicCaptureOrchestrator(h.store, { resolve }, { enqueue, schedulePreflight: jest.fn() }, { now: () => now });
+    await expect(orchestrator.reconcile('hearing-1')).resolves.toMatchObject({
+      action: 'WAITING_FOR_STREAM', dueAt: new Date('2026-08-20T13:55:20Z'),
+    });
+    now = new Date('2026-08-20T13:55:10Z');
+    await expect(orchestrator.reconcile('hearing-1')).resolves.toMatchObject({ action: 'PREFLIGHT_SCHEDULED' });
+    expect(resolve).toHaveBeenCalledTimes(1);
+    now = new Date('2026-08-20T13:56:00Z');
+    await expect(orchestrator.reconcile('hearing-1')).resolves.toMatchObject({ action: 'CAPTURE_JOB_ENQUEUED' });
+    expect(resolve).toHaveBeenCalledTimes(2);
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(h.getRow().resolutionState).toBe('READY_FOR_SERVER_CAPTURE');
+  });
+
+  it('honors source-error backoff without postponing elapsed retries on each scheduler pass', async () => {
+    const h = storeHarness();
+    let now = new Date('2026-08-20T13:55:00Z');
+    const resolve = jest.fn().mockRejectedValueOnce(new Error('network timeout'))
+      .mockRejectedValueOnce(new Error('network timeout')).mockResolvedValueOnce(firstPartyResolution);
+    const enqueue = jest.fn(async () => ({ enqueued: true, jobId: 'job-1' }));
+    const orchestrator = new PublicCaptureOrchestrator(h.store, { resolve }, { enqueue, schedulePreflight: jest.fn() }, { now: () => now });
+    await expect(orchestrator.reconcile('hearing-1')).resolves.toMatchObject({ action: 'WAITING_FOR_STREAM', dueAt: new Date('2026-08-20T13:56:00Z') });
+    now = new Date('2026-08-20T13:55:30Z');
+    await expect(orchestrator.reconcile('hearing-1')).resolves.toMatchObject({ action: 'PREFLIGHT_SCHEDULED' });
+    expect(resolve).toHaveBeenCalledTimes(1);
+    now = new Date('2026-08-20T13:56:00Z');
+    await expect(orchestrator.reconcile('hearing-1')).resolves.toMatchObject({ action: 'WAITING_FOR_STREAM', dueAt: new Date('2026-08-20T13:58:00Z') });
+    now = new Date('2026-08-20T13:57:00Z');
+    await expect(orchestrator.reconcile('hearing-1')).resolves.toMatchObject({ action: 'PREFLIGHT_SCHEDULED' });
+    expect(resolve).toHaveBeenCalledTimes(2);
+    now = new Date('2026-08-20T13:58:00Z');
+    await expect(orchestrator.reconcile('hearing-1')).resolves.toMatchObject({ action: 'CAPTURE_JOB_ENQUEUED' });
+    expect(resolve).toHaveBeenCalledTimes(3);
+    expect(enqueue).toHaveBeenCalledTimes(1);
+  });
+
+  it('actually resolves each elapsed early checkpoint and does not probe again before the next one', async () => {
+    const h = storeHarness();
+    let now = new Date('2026-08-19T13:00:00Z');
+    const resolve = jest.fn(async () => ({ status: 'pending' as const }));
+    const orchestrator = new PublicCaptureOrchestrator(h.store, { resolve }, { enqueue: jest.fn(), schedulePreflight: jest.fn() }, { now: () => now });
+    await expect(orchestrator.reconcile('hearing-1')).resolves.toMatchObject({ action: 'PREFLIGHT_SCHEDULED', dueAt: new Date('2026-08-19T14:00:00Z') });
+    expect(resolve).not.toHaveBeenCalled();
+    for (const [checkpoint, next] of [
+      ['2026-08-19T14:00:00Z', '2026-08-20T13:00:00Z'],
+      ['2026-08-20T13:00:00Z', '2026-08-20T13:45:00Z'],
+      ['2026-08-20T13:45:00Z', '2026-08-20T13:55:00Z'],
+    ]) {
+      now = new Date(checkpoint!);
+      await expect(orchestrator.reconcile('hearing-1')).resolves.toMatchObject({ action: 'WAITING_FOR_STREAM', dueAt: new Date(next!) });
+      const attempts = resolve.mock.calls.length;
+      now = new Date(now.getTime() + 1_000);
+      await expect(orchestrator.reconcile('hearing-1')).resolves.toMatchObject({ action: 'PREFLIGHT_SCHEDULED', dueAt: new Date(next!) });
+      expect(resolve).toHaveBeenCalledTimes(attempts);
+    }
+    expect(resolve).toHaveBeenCalledTimes(3);
+  });
+
   it('leaves an actively leased capture and its optimistic version unchanged during scheduler passes', async () => {
     const h = storeHarness();
     const now = new Date('2026-08-20T15:00:00Z');
