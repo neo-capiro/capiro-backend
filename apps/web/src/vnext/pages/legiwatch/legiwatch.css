@@ -595,7 +595,7 @@
   .capiro-vnext-root .lw .lw-mobile-nav__field { display: grid; gap: 4px; min-width: 0; }
   .capiro-vnext-root .lw .lw-mobile-nav__field > span { color: var(--lw-faint); font-family: var(--lw-mono); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
   .capiro-vnext-root .lw .lw-mobile-nav select { width: 100%; min-width: 0; height: 38px; padding: 0 8px; border: 1px solid var(--lw-control); border-radius: 6px; background: var(--lw-surface); color: var(--lw-ink); font: inherit; }
-  .capiro-vnext-root .lw .lw-tabs { display: none; }
+  .capiro-vnext-root .lw .lw-tabs[aria-label="LegiWatch sections"] { display: none; }
 }
 
 /* generic white card */
@@ -1700,7 +1700,8 @@
 }
 @media (max-width: 1179px) { .capiro-vnext-root .lw .lw-b360 { width: 92%; } }
 @media (max-width: 779px) {
-  .capiro-vnext-root .lw .lw-b360 { width: 100%; top: auto; left: 0; height: 92%; border-radius: 16px 16px 0 0; animation: lwSheet .2s cubic-bezier(.2, 0, 0, 1); }
+  .capiro-vnext-root .lw .lw-b360 { width: 100%; top: auto; left: 0; height: 92%; border-radius: 16px 16px 0 0; animation: lwSheet .2s cubic-bezier(.2, 0, 0, 1); display: block; overflow-y: auto; overscroll-behavior: contain; }
+  .capiro-vnext-root .lw .lw-b360 .lw-tabs { position: sticky; top: 0; z-index: 1; background: var(--lw-surface); flex-wrap: nowrap; overflow-x: auto; }
 }
 /* Header row: title block + Export + Open full page + Tracked + Close. Five
    items on a 390px sheet — it has to wrap, and the title has to be allowed to
