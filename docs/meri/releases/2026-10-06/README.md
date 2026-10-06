@@ -29,3 +29,31 @@ Roll 4 live check:
 - The report states that primary-source reads were unavailable, so its policy claims are marked unconfirmed. Neo's verdict on the content is pending.
 
 `verify-image-parity.ts` shows only the known `:latest` drift on api, web and intel-api (builds publish by SHA).
+
+## Later on October 6: research quality, D4b and Release B (dark)
+
+Handover §9 step 2 started with a budget-topic check (session `d3934ccd`, API 576 from LegiWatch's `567ef73ad`, which contains every fix above). The report published and the auditor recorded no finding. But it could only say the budget-timeline and report-language lookups were unavailable. Tracing that led to two research-path fixes. With PE data flowing, D4b then held the budget report, so the flagged sentence is now captured for the reviewer.
+
+| Roll | Code | Revision | Rollback | Source | Digest | Live check |
+| --- | --- | --- | --- | --- | --- | --- |
+| [s2-pe-durable-reads](s2-pe-durable-reads/README.md) | #2063 PE reads are classified, receipted, durable research sources (API side) | API 578, superseded within minutes by LegiWatch 580 and 582 (`0a5107e5d`, which contains #2063) | 577 | `5e38f2c20` | `sha256:2561d381…` | See the orchestrator row |
+| [s2-pe-durable-reads-orch](s2-pe-durable-reads-orch/README.md) | #2063 (orchestrator classifies PE reads) | orchestrator 155 | 154 | `5e38f2c20` | `sha256:b821063c…` | Session `d3304790`: steps 1 and 2 now complete, but the parent's PE re-reads were still refused (see next row) |
+| [s2-coordinator-rereads](s2-coordinator-rereads/README.md) | #2067 a completed step can be re-read while a later step is ready | API 586 | 585 | `287f437a1` (rebuilt from main: LegiWatch's branch commit `7235fb172` was live as 584 and was not an ancestor of `b9cb7f704`) | `sha256:dcf3c4a2…` | Session `e25804d0`: timeline read 3 times, program element twice and report language once, all receipted; **held by D4b** |
+| [s2-held-findings](s2-held-findings/README.md) | #2073 held findings and flagged sentences on the review request; ships #2068 and #2072 dark | API 589 | 587 | `e41ad6e6e` | `sha256:153eefd4…` | Session `26489d5d`: held by D4b; review `4da46ece` carries the sentence (below) |
+
+`migration-status` ran read-only on each API candidate (admin-migrate 88, 89 and 90): schema up to date, 457 migrations. No migration was applied.
+
+**D4b, decision for Neo.** The captured sentence:
+
+> Its recorded FY27 HASC and SASC authorization marks and HAC-D appropriations mark each equal the FY27 request; HAC-D is the latest recorded stage, **not enacted funding**.
+
+This keeps the two vehicles apart correctly. The rule (`checkVehicleConflation`, `packages/meriv2-core/src/grounding/auditor.ts`) fires on an authorization term followed within 40 characters, in the same clause, by any `appropriat\w+` word. Its enumeration exemption looks only at the words right after the authorization term, so "authorization marks and HAC-D appropriations" matches. The earlier released budget report escaped only because "$288.3M" put a period inside the window.
+
+Recommendation: narrow D4b to the verb forms it targets. That means `appropriates`/`appropriated`/`provides the money` after an authorization subject, and `authorizes`/`authorized` after an appropriations subject, instead of the noun labels. It is a shared enforce-mode safety check, so the change waits for Neo.
+
+**Release B, merged:**
+- #2068 `features.meriJobs` on `/api/me`.
+- #2069 the web research parser keeps the job view.
+- #2072 deliverable jobs: a Word document rendered from the authorized report, filed into client Files once with key `meri-job:<id>:<index>`.
+
+The API parts are deployed dark in 589. The web part is not deployed (no web-vnext roll yet). `meri.jobs` is off everywhere.

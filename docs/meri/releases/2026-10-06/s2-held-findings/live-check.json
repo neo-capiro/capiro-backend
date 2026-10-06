@@ -1,0 +1,80 @@
+{
+  "check": "one Deep Research run on ZZ-QA-Meri1651-Test-DoNotUse as neo@capiro.ai in capiro-internal",
+  "topic": "What does Capiro have on program element 0605231A for FY27 versus FY26? Keep it to one short paragraph with sources.",
+  "summary": {
+    "researchId": "26489d5d-89b1-4112-8a0f-b9c8b19775c5",
+    "conversationId": "e7bcb7b3-50bd-4d33-aea5-ba393d24ef00",
+    "columnStatus": "complete",
+    "run": {
+      "status": "complete",
+      "leaseEpoch": 2
+    },
+    "job": {
+      "kind": "research",
+      "status": "completed",
+      "goalRevision": 0,
+      "deliverables": [],
+      "awaitingStart": false
+    },
+    "report": {
+      "id": "366aacd5-efdd-4154-8056-faa49f30abc8",
+      "title": "Capiro budget-line 0605231A: FY27 versus FY26",
+      "chars": 67
+    },
+    "pass": true
+  },
+  "coordinatorSteps": [
+    [
+      "retrieve-line-and-timeline",
+      "completed"
+    ],
+    [
+      "verify-relevant-report-language",
+      "completed"
+    ],
+    [
+      "validate-and-summarize-comparison",
+      "pending"
+    ]
+  ],
+  "receipts": [
+    [
+      "get_program_element",
+      "complete"
+    ],
+    [
+      "get_pe_budget_timeline",
+      "complete"
+    ],
+    [
+      "get_pe_budget_timeline",
+      "complete"
+    ],
+    [
+      "get_program_element",
+      "complete"
+    ],
+    [
+      "get_pe_budget_timeline",
+      "complete"
+    ],
+    [
+      "get_pe_report_language",
+      "empty"
+    ]
+  ],
+  "heldReview": {
+    "found": true,
+    "reviewId": "4da46ece-9b1d-4aaf-bfe7-50ea5a4fc26d",
+    "surface": "research",
+    "reason": "Grounding auditor: D4b (high): Sentence has one budget vehicle do the other\u2019s job. Authorization (NDAA; HASC/SASC) sets policy/ceilings; appropriations (HAC-D/SAC-D/enacted) provide money \u2014 they are different bills and must not be blended.",
+    "findings": [
+      {
+        "span": "Its recorded FY27 HASC and SASC authorization marks and HAC-D appropriations mark each equal the FY27 request; HAC-D is the latest recorded stage, **not enacted funding**.",
+        "check": "D4b",
+        "detail": "Sentence has one budget vehicle do the other\u2019s job. Authorization (NDAA; HASC/SASC) sets policy/ceilings; appropriations (HAC-D/SAC-D/enacted) provide money \u2014 they are different bills and must not be blended.",
+        "severity": "high"
+      }
+    ]
+  }
+}

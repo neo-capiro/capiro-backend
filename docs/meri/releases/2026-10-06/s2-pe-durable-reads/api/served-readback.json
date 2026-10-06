@@ -1,0 +1,52 @@
+{
+  "servedTaskDefinition": {
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:172d245faf641ca05c3b878e226b9fc2b3f1f2c8f5b2a3eee154997f284a1d8f",
+    "env": [
+      {
+        "name": "RELEASE_SHA",
+        "value": "0a5107e5ddd500b674cda934fb518a41c337dd2b"
+      },
+      {
+        "name": "GIT_SHA",
+        "value": "0a5107e5ddd500b674cda934fb518a41c337dd2b"
+      }
+    ]
+  },
+  "servedTasks": [
+    {
+      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:582",
+      "digest": "sha256:172d245faf641ca05c3b878e226b9fc2b3f1f2c8f5b2a3eee154997f284a1d8f",
+      "status": "RUNNING",
+      "health": "HEALTHY"
+    },
+    {
+      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:582",
+      "digest": "sha256:172d245faf641ca05c3b878e226b9fc2b3f1f2c8f5b2a3eee154997f284a1d8f",
+      "status": "RUNNING",
+      "health": "HEALTHY"
+    }
+  ],
+  "deployments": [
+    {
+      "s": "PRIMARY",
+      "r": "COMPLETED",
+      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:582",
+      "run": 2
+    }
+  ],
+  "promote": {
+    "schemaVersion": 1,
+    "manifestHash": "4f73aa6349fd7af8a3fc967e936de61a81403c1e4f2420bac5092c147207af47",
+    "service": "api",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2561d381fbd04134474b770b511d3a024090f2e3f35547cfde2eeacfbdd26f9e",
+    "candidateTaskHash": "6bd11dd0df4ccfc4d913b106f0978c24f08047785b713ba05a15726ca266341c",
+    "rollbackTaskHash": "e85a539a2451aa9e2154ebe493184aca477b1b95784fa027e28722e654555a91",
+    "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:0eaa3d78e07254af7351298bbb03573b819ee1096956230071dae1dda1d0d19a",
+    "status": "ecs-healthy-manual-acceptance-required",
+    "awsMutation": true,
+    "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:577",
+    "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:578",
+    "deploymentId": "ecs-svc/8140929844917534639"
+  }
+}

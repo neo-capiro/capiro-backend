@@ -1,0 +1,46 @@
+{
+  "servedTaskDefinition": {
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:b821063c71dca82836178ef82be38019f8fb8956bd2264189d9bfeb3a3033c91",
+    "env": [
+      {
+        "name": "RELEASE_SHA",
+        "value": "5e38f2c203830c199124e991f4453b693df4406b"
+      },
+      {
+        "name": "GIT_SHA",
+        "value": "5e38f2c203830c199124e991f4453b693df4406b"
+      }
+    ]
+  },
+  "servedTasks": [
+    {
+      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:155",
+      "digest": "sha256:b821063c71dca82836178ef82be38019f8fb8956bd2264189d9bfeb3a3033c91",
+      "status": "RUNNING",
+      "health": "HEALTHY"
+    }
+  ],
+  "deployments": [
+    {
+      "s": "PRIMARY",
+      "r": "COMPLETED",
+      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:155",
+      "run": 1
+    }
+  ],
+  "promote": {
+    "schemaVersion": 1,
+    "manifestHash": "d5e6d4bfb3ec78e7dce4534465a14e8af7933eb0af7786249fbda5de2416cf9b",
+    "service": "meriv2-orchestrator",
+    "configHash": "3a4fabd2139e347cd8b45192579f2a3fbaaa6fc3678762b5252f727a4461951b",
+    "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:b821063c71dca82836178ef82be38019f8fb8956bd2264189d9bfeb3a3033c91",
+    "candidateTaskHash": "002033dc53179eec1586afb829cff1acc1aaf99bda87189b8d2be3f6dea57718",
+    "rollbackTaskHash": "296fadc11dcf0eed065c6f63407da93b0a568a88e73ec40efefc481f6b462442",
+    "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:aa82bcf35786f862f3743f233763eed4476da8e431e7c7ce47850270d545b7a2",
+    "status": "ecs-healthy-manual-acceptance-required",
+    "awsMutation": true,
+    "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:154",
+    "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-meriv2-orchestrator:155",
+    "deploymentId": "ecs-svc/8867221046850172411"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "check": "one Deep Research run on ZZ-QA-Meri1651-Test-DoNotUse as neo@capiro.ai in capiro-internal",
+  "topic": "What does Capiro have on program element 0605231A for FY27 versus FY26? Keep it to one short paragraph with sources.",
+  "summary": {
+    "researchId": "d3304790-62c4-4bb4-9d64-9842151b3e6f",
+    "conversationId": "516dcbeb-79fd-473b-bf8c-d899a02453e5",
+    "columnStatus": "complete",
+    "run": {
+      "status": "complete",
+      "leaseEpoch": 2
+    },
+    "job": {
+      "kind": "research",
+      "status": "completed",
+      "goalRevision": 0,
+      "deliverables": [],
+      "awaitingStart": false
+    },
+    "report": {
+      "id": "9c6615d4-19dc-450f-8424-189c954fedb9",
+      "title": "Capiro budget line 0605231A: FY27 versus FY26",
+      "chars": 865
+    },
+    "pass": true
+  },
+  "coordinatorSteps": [
+    [
+      "retrieve-budget-evidence",
+      "completed"
+    ],
+    [
+      "check-recorded-explanations",
+      "completed"
+    ],
+    [
+      "validate-and-summarize",
+      "pending"
+    ]
+  ],
+  "receipts": [
+    [
+      "get_program_element",
+      "complete"
+    ],
+    [
+      "get_pe_report_language",
+      "empty"
+    ]
+  ],
+  "apiLogLines": [
+    "[Nest] 6  - 10/06/2026, 4:45:04 AM     LOG [MeriResearchService] Research producer inputs governed: session=d3304790-62c4-4bb4-9d64-9842151b3e6f unsupported={} covered={\"context_packet_items\":9,\"steering_records\":6,\"context_record:clients\":1,\"context_record:institutional_knowledge\":38,\"failed_tool_results\":4}"
+  ]
+}
