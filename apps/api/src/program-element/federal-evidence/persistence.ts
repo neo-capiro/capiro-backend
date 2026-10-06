@@ -406,6 +406,15 @@ async function refreshLegacyPeProjection(
 }
 
 /**
+ * Inserting a revision fills its full-text passages through the
+ * federal_evidence_passage trigger (4,000-character windows). For a large bill
+ * version that takes tens of seconds, past Prisma's 5-second default, and the
+ * one package then failed every batch of the 119th BILLS backfill (batch 9 on,
+ * 2026-10-06). Bounded, so a stuck write still fails.
+ */
+const FEDERAL_EVIDENCE_SNAPSHOT_TRANSACTION = { maxWait: 10_000, timeout: 180_000 };
+
+/**
  * Persist a complete immutable revision, its candidates, the source observation,
  * lifecycle events and outbox records in one transaction.
  */
@@ -572,7 +581,7 @@ export async function persistFederalEvidenceSnapshot(
         .filter((m) => m.qualificationState === 'pending')
         .map((m) => m.rawMention),
     };
-  });
+  }, FEDERAL_EVIDENCE_SNAPSHOT_TRANSACTION);
 }
 
 /** Record disappearance only after an exhaustive, complete inventory. */
