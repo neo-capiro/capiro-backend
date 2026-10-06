@@ -236,3 +236,51 @@ describe('official committee news', () => {
     });
   });
 });
+
+describe('official hearing enrichment', () => {
+  it('extracts clean published witness names and their extensionless testimony documents', async () => {
+    const names = [
+      'Honorable David J. Trachtenberg',
+      'Dr. Thomas O. Karako',
+      'Mr. David E. Mosher',
+    ];
+    fetchMock.mockResolvedValue(
+      html(`<h2>Witnesses</h2><ul>${names
+        .map(
+          (name, i) =>
+            `<li><h3>${name}</h3><p>Published affiliation</p><a href="/download/testimony/witness-${i}">Download Witness Testimony</a></li>`,
+        )
+        .join('')}</ul>
+      <footer><ul><li>Contact Committee Staff</li></ul></footer>
+      <a href="https://unrelated.example/download/testimony/unrelated">Unrelated testimony</a>
+      <iframe src="https://www.senate.gov/isvp/?comm=armed&amp;filename=armedA092926"></iframe>`),
+    );
+    const result = await new CommitteeSiteAdapter().enrichEvent(
+      source,
+      {
+        id: 'sen-119-338758',
+        congress: 119,
+        chamber: 'Senate',
+        committeeSystemCode: 'ssas00',
+        committeeName: 'Armed Services',
+        title: 'Golden Dome',
+        calendarDate: new Date('2026-09-29'),
+        startsAt: null,
+        timeZone: null,
+        officialPageUrl: source.sourceUrl + 'hearings/golden-dome',
+      },
+      ctx,
+    );
+    expect(result?.witnesses).toEqual(names);
+    expect(result?.documents).toEqual(
+      names.map((name, i) => ({
+        title: `Witness testimony: ${name}`,
+        url: source.sourceUrl + `download/testimony/witness-${i}`,
+        publishedAt: null,
+      })),
+    );
+    expect(result?.streamCandidates?.[0]?.officialPageUrl).toBe(
+      'https://www.senate.gov/isvp/?comm=armed&filename=armedA092926',
+    );
+  });
+});

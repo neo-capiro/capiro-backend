@@ -25,7 +25,7 @@
  * silent zero.
  */
 import { contentHash } from '../hearing-identity.js';
-import { cleanText, fetchText, type ConditionalState } from './source-http.js';
+import { cleanText, decodeEntities, fetchText, type ConditionalState } from './source-http.js';
 import type {
   CanonicalHearingRef,
   CommitteeSourceAdapter,
@@ -287,10 +287,15 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
     if (res.notModified || res.body == null) return null;
 
     const anchors = extractAnchors(res.body, pageUrl);
+    const testimonyTitles = extractWitnessTestimonyTitles(res.body, pageUrl);
     const documents = anchors
-      .filter((a) => DOC_HREF_RE.test(a.href) && a.text.length >= 8)
+      .filter((a) => isHearingDocument(a.href, pageUrl) && a.text.length >= 8)
       .slice(0, 50)
-      .map((a) => ({ title: a.text.slice(0, 300), url: a.href, publishedAt: null }));
+      .map((a) => ({
+        title: (testimonyTitles.get(a.href) ?? a.text).slice(0, 300),
+        url: a.href,
+        publishedAt: null,
+      }));
 
     const witnesses = extractWitnesses(res.body);
     const streamCandidates = extractEmbeds(res.body, pageUrl);
@@ -347,9 +352,21 @@ export function extractAnchors(html: string, baseUrl: string): Anchor[] {
 
 function absolutize(href: string, baseUrl: string): string | null {
   try {
-    return new URL(href, baseUrl).toString();
+    return new URL(decodeEntities(href), baseUrl).toString();
   } catch {
     return null;
+  }
+}
+
+/** Official CMS testimony downloads need not expose a file extension. */
+export function isHearingDocument(href: string, pageUrl: string): boolean {
+  if (DOC_HREF_RE.test(href)) return true;
+  try {
+    return (
+      sameHost(href, pageUrl) && /^\/download\/testimony\/[^/]+\/?$/i.test(new URL(href).pathname)
+    );
+  } catch {
+    return false;
   }
 }
 
@@ -497,21 +514,42 @@ function monthNumber(name: string): number | null {
  * heading — scraping every list item on a committee page would return navigation
  * links as witnesses. Bounded, and empty when the heading is absent.
  */
-export function extractWitnesses(html: string): string[] {
-  const start = /witness(es)?\s*(:|<\/)/i.exec(html);
+function witnessItems(html: string): string[] {
+  const start =
+    /<h[1-6]\b[^>]*>\s*(?:<[^>]+>\s*)*witness(?:es)?\s*:?\s*(?:<\/[^>]+>\s*)*<\/h[1-6]>/i.exec(
+      html,
+    );
   if (!start) return [];
-  const window = html.slice(start.index, start.index + 8000);
-  const items = window.match(/<li\b[^>]*>([\s\S]*?)<\/li>/gi) ?? [];
-  const out: string[] = [];
-  for (const item of items) {
-    const text = cleanText(item);
-    // A witness line is a person, not a sentence or a nav label.
-    if (text.length < 6 || text.length > 200) continue;
-    if (!/[A-Z][a-z]+\s+[A-Z]/.test(text)) continue;
-    out.push(text);
-    if (out.length >= 40) break;
+  const window = html.slice(start.index + start[0].length, start.index + 16_000);
+  const list = /<(?:ul|ol)\b[^>]*>([\s\S]*?)<\/(?:ul|ol)>/i.exec(window)?.[1] ?? '';
+  return (list.match(/<li\b[^>]*>([\s\S]*?)<\/li>/gi) ?? []).slice(0, 40);
+}
+function witnessName(item: string): string | null {
+  const heading = /<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/i.exec(item)?.[1];
+  const text = cleanText(
+    heading ?? item.replace(/<(?:a|button)\b[^>]*>[\s\S]*?<\/(?:a|button)>/gi, ''),
+  );
+  return text.length >= 6 && text.length <= 200 && /[A-Z][a-z]+\s+[A-Z]/.test(text) ? text : null;
+}
+export function extractWitnesses(html: string): string[] {
+  return witnessItems(html)
+    .map(witnessName)
+    .filter((name): name is string => name !== null);
+}
+function extractWitnessTestimonyTitles(html: string, pageUrl: string): Map<string, string> {
+  const titles = new Map<string, string>();
+  for (const item of witnessItems(html)) {
+    const name = witnessName(item);
+    if (!name) continue;
+    for (const anchor of extractAnchors(item, pageUrl)) {
+      if (
+        sameHost(anchor.href, pageUrl) &&
+        /\/download\/testimony\//i.test(new URL(anchor.href).pathname)
+      )
+        titles.set(anchor.href, `Witness testimony: ${name}`);
+    }
   }
-  return out;
+  return titles;
 }
 
 /**
