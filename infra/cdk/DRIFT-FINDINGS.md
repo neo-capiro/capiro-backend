@@ -303,3 +303,20 @@ log group's last event was 2026-09-20.
 | Log group `/capiro/dev/meri-hermes-worker` | kept; expires under its 30-day retention |
 
 No database change. Approvals and journal history are untouched.
+
+## Deep Research per-run budget (2026-10-06 UTC, Neo's OK; Stage 2 Release A)
+
+Configuration revision (deployment plan §2.5), env only, same image digest:
+`capiro-dev-api:563` → `capiro-dev-api:564`.
+
+| Key | Before | After |
+| --- | --- | --- |
+| `CLIO_RESEARCH_MAX_TOTAL_TOKENS` | unset (code default 120000) | `4000000` |
+| `CLIO_RESEARCH_MAX_COST_USD` | unset (code default 6) | `25` |
+
+Why: research reservations count the request body in bytes as tokens, so one
+V3 research call reserved about 240,000 units and every run was refused at its
+first model call (`Research provider budget rejected reservations (HTTP 409)`).
+Settled spend uses actual usage; the cap stops runaway runs only. Codified in
+`compute-stack.ts` (API environment) in the same PR as this entry.
+
