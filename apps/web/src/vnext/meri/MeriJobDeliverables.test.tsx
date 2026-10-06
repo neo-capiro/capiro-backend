@@ -23,8 +23,8 @@ function stubFetch(session: unknown, file?: { status: number; body?: unknown }) 
       calls.push({ url, method: init?.method ?? 'GET' });
       if (url.endsWith('/file'))
         return new Response(JSON.stringify(file?.body ?? {}), { status: file?.status ?? 200 });
-      if (url.endsWith('/docx'))
-        return new Response(new Blob(['docx']), {
+      if (/\/(docx|xlsx|pptx)$/.test(url))
+        return new Response(new Blob(['office']), {
           status: 200,
           headers: { 'Content-Disposition': "attachment; filename*=UTF-8''HR%201%20office%20brief.docx" },
         });
@@ -68,6 +68,31 @@ describe('deliverable job card', () => {
     });
     expect(calls.some((call) => call.url.endsWith('/research/job-1/deliverables/0/docx'))).toBe(true);
     expect(URL.createObjectURL).toHaveBeenCalled();
+  });
+
+  test.each([
+    ['xlsx', 'Excel workbook'],
+    ['pptx', 'PowerPoint deck'],
+  ] as const)('downloads a %s deliverable from its own path and labels it', async (format, label) => {
+    const calls = stubFetch({
+      job: job({ deliverables: [{ format, title: 'FY27 marks', artifactId: null }] }),
+    });
+    await mount();
+    await waitFor(() => expect(screen.getByText(`(${label})`)).toBeTruthy());
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Download' }));
+    });
+    expect(calls.some((call) => call.url.endsWith(`/research/job-1/deliverables/0/${format}`))).toBe(
+      true,
+    );
+    expect(calls.some((call) => call.url.endsWith('/docx'))).toBe(false);
+  });
+
+  test('offers no download for a format the API does not render', async () => {
+    stubFetch({ job: job({ deliverables: [{ format: 'pdf', title: 'Brief', artifactId: null }] }) });
+    await mount();
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Job deliverables' })).toBeTruthy());
+    expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
   });
 
   test('files once on confirmation and links to the client Files', async () => {
