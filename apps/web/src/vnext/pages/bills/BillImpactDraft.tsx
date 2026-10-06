@@ -26,7 +26,7 @@ interface Options {
 }
 interface Draft {
   client: { id: string; name: string };
-  version: Version;
+  version: Omit<Version, 'unavailableReason'>;
   lifecycle: Lifecycle;
   coverage: string;
   limitations: string;
@@ -37,6 +37,59 @@ interface Draft {
     evidence: Array<{ id: string; locator: string; text: string }>;
     clientBasis: Array<{ id: string; label: string; text: string }>;
   }>;
+}
+const record = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value && typeof value === 'object' && !Array.isArray(value));
+const nullableText = (value: unknown) => value === null || typeof value === 'string';
+const clientShape = (value: unknown) =>
+  record(value) && typeof value.id === 'string' && typeof value.name === 'string';
+const lifecycleShape = (value: unknown) =>
+  record(value) &&
+  typeof value.title === 'string' &&
+  ['latestAction', 'actionDate', 'sourceUrl'].every((key) => nullableText(value[key]));
+const versionShape = (value: unknown) =>
+  record(value) &&
+  ['id', 'revision', 'label', 'sourceUrl'].every((key) => typeof value[key] === 'string') &&
+  nullableText(value.publishedDate);
+function checkedOptions(value: unknown): Options {
+  if (
+    !record(value) ||
+    !clientShape(value.client) ||
+    !lifecycleShape(value.lifecycle) ||
+    !nullableText(value.contextUnavailable) ||
+    !Array.isArray(value.versions) ||
+    !value.versions.every((v) => versionShape(v) && record(v) && nullableText(v.unavailableReason))
+  )
+    throw Error('Invalid impact response');
+  return value as unknown as Options;
+}
+function checkedDraft(value: unknown): Draft {
+  if (
+    !record(value) ||
+    !clientShape(value.client) ||
+    !lifecycleShape(value.lifecycle) ||
+    !versionShape(value.version) ||
+    typeof value.coverage !== 'string' ||
+    typeof value.limitations !== 'string' ||
+    !Array.isArray(value.impacts) ||
+    !value.impacts.every(
+      (item) =>
+        record(item) &&
+        ['possibleImplication', 'assumptions', 'verificationStep'].every(
+          (key) => typeof item[key] === 'string',
+        ) &&
+        Array.isArray(item.evidence) &&
+        item.evidence.every(
+          (e) => record(e) && ['id', 'locator', 'text'].every((key) => typeof e[key] === 'string'),
+        ) &&
+        Array.isArray(item.clientBasis) &&
+        item.clientBasis.every(
+          (c) => record(c) && ['id', 'label', 'text'].every((key) => typeof c[key] === 'string'),
+        ),
+    )
+  )
+    throw Error('Invalid impact response');
+  return value as unknown as Draft;
 }
 const errorText = (error: unknown) => {
   const value = error as { response?: { data?: { message?: unknown } } };
@@ -103,20 +156,23 @@ function ScopedImpactDraft({ billId, clientId }: { billId: string; clientId: str
   const api = useApi(),
     scope = useApiScope();
   const [selection, setSelection] = useState('');
-  const path = `/legiwatch/bills/${encodeURIComponent(billId)}/impact`;
+  const path = `/api/legiwatch/bills/${encodeURIComponent(billId)}/impact`;
   const options = useQuery({
     queryKey: ['bill-impact-options', scope, billId, clientId],
-    queryFn: async () => (await api.get<Options>(path, { params: { clientId } })).data,
+    queryFn: async () =>
+      checkedOptions((await api.get<unknown>(path, { params: { clientId } })).data),
   });
   const generate = useMutation({
     mutationFn: async (version: Version) =>
-      (
-        await api.post<Draft>(
-          path,
-          { clientId, versionId: version.id, revision: version.revision },
-          { timeout: 165_000 },
-        )
-      ).data,
+      checkedDraft(
+        (
+          await api.post<unknown>(
+            path,
+            { clientId, versionId: version.id, revision: version.revision },
+            { timeout: 165_000 },
+          )
+        ).data,
+      ),
   });
   const version = options.data?.versions.find((v) => v.id === selection);
   const data = generate.data;

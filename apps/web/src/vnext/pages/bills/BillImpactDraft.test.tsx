@@ -27,7 +27,13 @@ const options = () => ({
 });
 const draft = {
   client: { id: 'client-a', name: 'Client A' },
-  version,
+  version: {
+    id: version.id,
+    revision: version.revision,
+    label: version.label,
+    publishedDate: version.publishedDate,
+    sourceUrl: version.sourceUrl,
+  },
   lifecycle,
   coverage: 'Complete selected text supplied.',
   limitations: 'One version only.',
@@ -104,7 +110,7 @@ it('requires explicit version selection and posts only its exact identity', asyn
   fireEvent.click(button);
   await screen.findByRole('heading', { name: 'Draft for review — Client A' });
   expect(post).toHaveBeenCalledWith(
-    '/legiwatch/bills/fl-2026-hb1211/impact',
+    '/api/legiwatch/bills/fl-2026-hb1211/impact',
     { clientId: 'client-a', versionId: 'v1', revision: 'hash1' },
     { timeout: 165000 },
   );
@@ -160,5 +166,42 @@ it('shows verification failure without a partial draft', async () => {
   fireEvent.change(screen.getByRole('combobox'), { target: { value: 'v1' } });
   fireEvent.click(screen.getByRole('button', { name: 'Generate impact draft' }));
   await screen.findByRole('alert');
+  expect(screen.queryByLabelText('Impact draft for review')).toBeNull();
+});
+
+it('uses the API route rather than receiving the web SPA fallback', async () => {
+  mount();
+  await screen.findByRole('combobox');
+  expect(get).toHaveBeenCalledWith('/api/legiwatch/bills/fl-2026-hb1211/impact', {
+    params: { clientId: 'client-a' },
+  });
+});
+for (const value of [
+  '<!doctype html><html>SPA</html>',
+  {},
+  { ...options(), versions: undefined },
+  { ...options(), versions: [null] },
+]) {
+  it(
+    'withholds malformed options without crashing the whole LegiWatch route: ' +
+      JSON.stringify(value),
+    async () => {
+      get.mockResolvedValue({ data: value });
+      mount();
+      expect(await screen.findByRole('alert')).toHaveTextContent('The impact draft is unavailable');
+      expect(screen.queryByRole('combobox')).toBeNull();
+      expect(post).not.toHaveBeenCalled();
+    },
+  );
+}
+it('withholds malformed generated evidence without displaying an incomplete draft', async () => {
+  post.mockResolvedValue({
+    data: { ...draft, impacts: [{ ...draft.impacts[0], evidence: null }] },
+  });
+  mount();
+  await screen.findByRole('combobox');
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'v1' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Generate impact draft' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('The impact draft is unavailable');
   expect(screen.queryByLabelText('Impact draft for review')).toBeNull();
 });

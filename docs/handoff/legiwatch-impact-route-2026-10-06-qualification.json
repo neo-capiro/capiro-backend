@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "d51690c8bc283e19a431d5646aaf1268f8985717",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:d4c7e35b1a4dd3b33915996e983af017f03f293e39490a2142cb0e1c6372fa78",
+  "reviewedAt": "2026-10-06T21:12:07.046533+00:00",
+  "schemaChange": false,
+  "build": {
+    "status": "passed",
+    "id": "capiro-build-web-dev:78073f7a-9255-4a32-9d59-80b023101688",
+    "architecture": "linux/arm64",
+    "nginxSmoke": "passed",
+    "apiRouteInBundle": "passed",
+    "immutableEcrDigest": "passed",
+    "isolationGuard": "passed"
+  },
+  "automatedTests": {
+    "status": "passed",
+    "id": "capiro-build-web-dev:00baff27-e6a7-4a6b-8bd7-1150fcd1a207",
+    "web": {
+      "success": true,
+      "numTotalTests": 1186,
+      "numPassedTests": 1186,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 335
+    },
+    "fullWebTypecheck": "passed",
+    "operatorRuntimeTests": 24
+  },
+  "retirementCompatibility": {
+    "status": "passed",
+    "reviewer": "Codex root",
+    "scope": "Web request path/response boundary only; no schema, authorization, tenant scope, source policy, scheduler, service configuration or MERI runtime changes. Actual backend generated-version metadata is distinct from options metadata and has a matching regression case. Native isolation and all 335 web suites passed."
+  },
+  "priorAttempts": {
+    "stoppedSource3a7621c": "superseded before completion by actual backend version metadata correction",
+    "sourceA597v2Gate": "failed missing strategy-verifier dependency in clean-checkout setup",
+    "sourceA597v3Gate": "1186 web tests/typecheck passed; operator tests failed Windows-default paths in Linux setup",
+    "sourceA597v4Gate": "1186 web tests/typecheck passed; operator runtime 23/24 passed; one prior raw-error assertion was corrected to expect the safe category in the final qualified source"
+  },
+  "manualAcceptance": "Pending separately recorded live deployment/browser verification; this qualification does not certify model output or upstream data completeness."
+}

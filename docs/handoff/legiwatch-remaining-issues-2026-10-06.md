@@ -1,5 +1,7 @@
 # LegiWatch remaining issues October 6 2026
 
+This earlier snapshot is superseded by [post-release verification](./legiwatch-post-release-2026-10-06.md). The following text preserves the state before PR 2122; its references to unshipped candidates and unavailable client-impact analysis are historical.
+
 Federal and Florida discovery, news recovery and debrief safeguards were merged and deployed in [PR 2117](https://github.com/neo-capiro/capirov2/pull/2117). The API, web app and six affected ingestion schedules use the qualified release. The full gate passed 4,090 API, Intel API and web tests with zero failures or skips, plus database and recording qualification.
 
 The latest production readback has 151 of 152 enabled committee sources healthy, three completed federal discovery cursors, ten retained DHS articles and thirty Commerce articles. Four news feeds and JCT remain failed. Newly confirmed publisher status and debrief presentation defects have tested private candidate patches; they are not deployed. Complete future hearing coverage and universal server recording are not certified.
