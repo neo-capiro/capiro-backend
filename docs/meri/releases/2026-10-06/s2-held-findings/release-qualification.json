@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-held-findings-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T05:31:44.130691+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "e41ad6e6e7bb3710eca78acab8ad9c43324a3202",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:153eefd453dd7e6729bf2763ae7550610ac8379c415878f47748514ae2f75763",
+      "buildId": "capiro-build-web-dev:d135b6a1-beab-428c-bd38-5df018408879"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Held research reports carry their flagged sentences to the reviewer (#2073). Also ships, dark behind meri.jobs: features.meriJobs on /api/me (#2068) and deliverable jobs that render a Word document from the authorized report and file it once (#2072). migration-status on this image: up to date. No migration applied.",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
