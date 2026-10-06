@@ -174,6 +174,22 @@ describe('LlmCompletionService — truncation reporting', () => {
 });
 
 describe('LlmCompletionService — request shaping', () => {
+  test('opt-in Anthropic JSON output preserves schema, reasoning effort and caching', async () => {
+    const { svc, calls } = makeService([okAnthropic]);
+    const schema = { type: 'object', additionalProperties: false, properties: { title: { type: 'string' } }, required: ['title'] };
+    await svc.complete({ ...anthReq, model: 'claude-sonnet-5', anthropicJsonOutput: true,
+      jsonSchema: schema, reasoningEffort: 'medium', cacheSystem: true, cacheUserStatic: true });
+    expect(calls[0]!.body.output_config).toEqual({ effort: 'medium', format: { type: 'json_schema', schema } });
+    expect(calls[0]!.body.thinking).toEqual({ type: 'adaptive' });
+    expect(calls[0]!.body.temperature).toBeUndefined();
+    expect((calls[0]!.body.system as Array<Record<string, unknown>>)[0]!.cache_control).toEqual({ type: 'ephemeral' });
+  });
+
+  test('does not add native format to existing Anthropic callers', async () => {
+    const { svc, calls } = makeService([okAnthropic]);
+    await svc.complete(anthReq);
+    expect(calls[0]!.body.output_config).not.toHaveProperty('format');
+  });
   test('Anthropic caching marks system + static user block with cache_control', async () => {
     const { svc, calls } = makeService([okAnthropic]);
     await svc.complete({ ...anthReq, cacheSystem: true, cacheUserStatic: true });

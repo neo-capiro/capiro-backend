@@ -111,7 +111,7 @@ const RESPONSE_SCHEMA = {
     },
     keyMoments: {
       type: 'array',
-      maxItems: 12,
+      description: 'At most 12 concise source-backed key moments.',
       items: {
         type: 'object',
         additionalProperties: false,
@@ -288,6 +288,7 @@ export class HearingBriefGenerationService {
       (mode === 'recap' && capture?.status !== 'COMPLETE') ||
       (Array.isArray(capture?.gaps) && capture.gaps.length > 0);
     let raw: Record<string, unknown> = {};
+    let completionDiagnostics: Record<string, unknown> = {};
     try {
       const completion = await this.llm.complete({
         provider: 'anthropic',
@@ -320,13 +321,23 @@ export class HearingBriefGenerationService {
           .join('\n\n'),
         jsonSchema: RESPONSE_SCHEMA as unknown as Record<string, unknown>,
         jsonSchemaName: 'hearing_brief',
+        anthropicJsonOutput: true,
         maxTokens: 6000,
+        reasoningEffort: 'medium',
         temperature: 0.3,
         timeoutMs: 300_000,
         cacheSystem: true,
         cacheUserStatic: true,
       });
       raw = completion.raw;
+      completionDiagnostics = {
+        stopReason: completion.stopReason,
+        truncated: completion.truncated,
+        outputCharacters: completion.text.length,
+        outputTokens: completion.usage?.outputTokens,
+      };
+      if (completion.truncated || completion.stopReason === 'refusal')
+        throw new Error('Incomplete generated brief');
       const parsed = parseHearingBriefJson(completion.text);
       const normalized = normalizeSections(parsed.sections, expected);
       sections = normalized.sections;
@@ -344,7 +355,7 @@ export class HearingBriefGenerationService {
       else keyMoments = [];
     } catch (error) {
       this.logger.warn(
-        `hearing brief generation failed for ${hearingId} (${error instanceof Error ? error.message : String(error)}); draft withheld`,
+        `hearing brief generation failed for ${hearingId} (${error instanceof Error ? error.message : String(error)}); draft withheld; completion=${JSON.stringify(completionDiagnostics)}`,
       );
       generationFailed = true;
     }
