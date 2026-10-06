@@ -287,7 +287,7 @@ test('provider failure retains conservative reservation and never retries at ope
     calls++;
     throw Error('PROVIDER_FAILED');
   };
-  await assert.rejects(r.retrieve(db, deps, e), /PROVIDER_FAILED/);
+  await assert.rejects(r.retrieve(db, deps, e), /^Error: HB1211_DATASET_LIST_UNEXPECTED_FAILURE$/);
   assert.equal(calls, 1);
   assert.equal(db.s.usage.used, 28011);
   assert.equal(db.receipts.length, 1);

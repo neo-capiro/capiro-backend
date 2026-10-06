@@ -1,6 +1,8 @@
 # HB1211 dataset inventory operator — review candidate
 
-Status: implementation and 23 local tests passed. Four real-PostgreSQL tests are supplied and MUST pass in the native disposable-database gate before production use. Local Docker daemon is unavailable. No preparation, ECS launch, provider request, quota reservation or database write has been executed by this operator.
+Status at 2026-10-06 20:52 UTC: the original operator passed 27 native tests, including four disposable-PostgreSQL cases, on qualified API source `0732f2511796411c2d9a492e6a3b0a4bc33cb225`. Its reviewed production preview succeeded; retrieval exited 1 with `UNEXPECTED_RUNTIME_FAILURE`. Independent SELECT readback reconciled one `legal_source_receipt` reservation, eight charged units, no candidate/apply receipt, unchanged protected bill fields and versions, and still-absent inventory. No apply ran. The failed/unknown provider outcome is not automatically replayable or refundable.
+
+The follow-up stage classifier passed 24 local operator/runtime tests and is included in the next native web qualification. It emits fixed stage/status categories without provider response text or credentials. The serving API subsequently moved to merge source `f3e36015596b952d766ebcc101327408c5a4104a`; the old exact serving-source guard must not be bypassed for a new write attempt. Any separately reviewed retry requires qualification bound to its actual source/image, a fresh preparation and preview, current quota/nonoverlap checks, and a new reservation; preserve the original receipts.
 
 Version only runtime.cjs, operator.cjs, operator.test.cjs, runtime.test.cjs, postgres.test.cjs and this README under docs/handoff/legiwatch-hb1211-inventory-2026-10-06-operator/. Keep prepared definitions, real qualification documents, owner snapshots and execution receipts private. Do not version raw production task definitions or inherited secret references.
 
