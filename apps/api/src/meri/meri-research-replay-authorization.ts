@@ -158,12 +158,41 @@ function memoryProof(value: unknown): string[] | null {
   return proofs.sort();
 }
 
+/**
+ * A file listing shows which files exist, not what they say. It is receipted
+ * like any complete or partial read (T5 cab91bd9), so its owner proof is the
+ * identity of the page the reader was shown: the same files, names, types,
+ * sizes and upload times under the current viewer ACL. Extraction state is
+ * excluded; reading a file during the run updates it.
+ */
+function documentListingProof(root: Record<string, unknown>): string[] | null {
+  const documents = rows(root.documents);
+  const coverage = record(root.coverage);
+  if (!documents || !coverage || typeof root.clientId !== 'string') return null;
+  if (documents.some((row) => typeof row.id !== 'string' || typeof row.fileName !== 'string'))
+    return null;
+  return [
+    researchJsonSha256({
+      clientId: root.clientId,
+      query: coverage.query ?? null,
+      documents: documents.map((row) => ({
+        id: row.id,
+        fileName: row.fileName,
+        contentType: row.contentType ?? null,
+        byteSize: row.byteSize ?? null,
+        createdAt: row.createdAt ?? null,
+      })),
+    }),
+  ];
+}
+
 function documentProof(value: unknown): string[] | null {
   const root = record(value);
   if (!root || root.tool !== 'read_client_documents') return null;
+  if (root.document === undefined && Array.isArray(root.documents))
+    return documentListingProof(root);
   const document = record(root.document);
   if (!document || typeof document.id !== 'string' || typeof document.contentHash !== 'string') {
-    // Listings carry no owner content version and therefore cannot authorize replay.
     return null;
   }
   const records = rows(root.records);
