@@ -56,6 +56,68 @@ describe('automatic stream resolver', () => {
     expect(resolve).not.toHaveBeenCalled();
   });
 
+  it('surfaces a known browser stream when the future official event page has no media', async () => {
+    const officialPageUrl = 'https://www.congress.gov/event/119th-congress/house-event/119575';
+    const browserUrl = 'https://www.youtube.com/embed/R2JXs4FXjHw';
+    const resolve = jest.fn(async ({ pageUrl }: { pageUrl?: string }) => ({
+      status: 'unresolvable' as const,
+      reference: pageUrl,
+      note: 'No video links on the congress.gov event',
+    }));
+    const result = await new AutomaticStreamResolver({ resolve }).resolve({
+      hearingId: 'cm-119-119575',
+      officialPageUrl,
+      videos: [{ url: browserUrl, providerHint: 'youtube' }],
+      context: {
+        now: new Date('2026-10-06T02:00:00Z'),
+        scheduledStart: new Date('2026-10-06T14:00:00Z'),
+        publicAccess: 'PUBLIC',
+      },
+    });
+    expect(result.selected.state).toBe('BROWSER_CAPTURE_ONLY');
+    expect(result.selected.capturePolicy).toBe('BROWSER_CAPTURE_ONLY');
+    expect(result.selected.reasonCode).toBe('YOUTUBE_BROWSER_ONLY');
+    expect(result.selectedTarget?.url).toBe(browserUrl);
+    expect(result.rawResult.reference).toBe(browserUrl);
+    expect(resolve).toHaveBeenCalledTimes(1);
+    expect(resolve).toHaveBeenCalledWith({ pageUrl: officialPageUrl, hearingId: 'cm-119-119575' });
+  });
+
+  it('keeps an actual pending first-party source ahead of a browser-only option', async () => {
+    const officialPageUrl = 'https://www.armed-services.senate.gov/hearings/upcoming';
+    const resolve = jest.fn(async () => ({
+      status: 'pending' as const,
+      reference: officialPageUrl,
+      note: 'The official stream is not live yet',
+    }));
+    const result = await new AutomaticStreamResolver({ resolve }).resolve({
+      hearingId: 'hearing-1',
+      officialPageUrl,
+      videos: [{ url: 'https://www.youtube.com/embed/example' }],
+      context: { now: new Date('2026-10-06T02:00:00Z'), publicAccess: 'PUBLIC' },
+    });
+    expect(result.selected.state).toBe('WAITING_FOR_STREAM');
+    expect(result.selectedTarget?.url).toBe(officialPageUrl);
+  });
+
+  it('still waits for a future hearing with no published stream', async () => {
+    const resolve = jest.fn(async () => ({
+      status: 'unresolvable' as const,
+      note: 'No stream found',
+    }));
+    const result = await new AutomaticStreamResolver({ resolve }).resolve({
+      hearingId: 'hearing-1',
+      officialPageUrl: 'https://www.congress.gov/event/119th-congress/house-event/119575',
+      context: {
+        now: new Date('2026-10-06T02:00:00Z'),
+        scheduledStart: new Date('2026-10-06T14:00:00Z'),
+        publicAccess: 'PUBLIC',
+      },
+    });
+    expect(result.selected.state).toBe('WAITING_FOR_STREAM');
+    expect(result.selected.reasonCode).toBe('NO_MEDIA_DISCOVERED');
+  });
+
   it('ranks first-party media above the official event page', () => {
     const targets = buildStreamResolutionTargets({
       officialPageUrl: 'https://www.armed-services.senate.gov/hearings/example',

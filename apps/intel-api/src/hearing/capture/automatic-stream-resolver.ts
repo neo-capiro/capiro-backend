@@ -15,11 +15,7 @@ export interface StreamResolutionTarget {
   priority: number;
   providerHint?: string;
   automaticProbeAllowed: boolean;
-  policyHint:
-    | 'FIRST_PARTY_CANDIDATE'
-    | 'BROWSER_ONLY'
-    | 'LICENSE_REQUIRED'
-    | 'REVIEW_REQUIRED';
+  policyHint: 'FIRST_PARTY_CANDIDATE' | 'BROWSER_ONLY' | 'LICENSE_REQUIRED' | 'REVIEW_REQUIRED';
 }
 
 export interface AutomaticStreamResolverPort {
@@ -150,7 +146,11 @@ export function buildStreamResolutionTargets(input: {
   videos?: readonly HearingVideoReference[];
 }): StreamResolutionTarget[] {
   const output = new Map<string, StreamResolutionTarget>();
-  const add = (rawUrl: string | undefined, kind: StreamResolutionTargetKind, providerHint?: string) => {
+  const add = (
+    rawUrl: string | undefined,
+    kind: StreamResolutionTargetKind,
+    providerHint?: string,
+  ) => {
     const url = safeHttpsUrl(rawUrl);
     if (!url) return;
     const classified = classifyTarget(url, kind, providerHint);
@@ -232,7 +232,10 @@ function chooseBetter(
       case 'READY_FOR_SERVER_CAPTURE':
         return 100;
       case 'WAITING_FOR_STREAM':
-        return 90;
+        // An empty future event page is only a possibility of later media.
+        // It must not hide an already published browser-only stream. Keep
+        // a real pending first-party source ahead of browser-only options.
+        return outcome.reasonCode === 'NO_MEDIA_DISCOVERED' ? 75 : 90;
       case 'BROWSER_CAPTURE_ONLY':
         return 80;
       case 'NO_PUBLIC_STREAM':
