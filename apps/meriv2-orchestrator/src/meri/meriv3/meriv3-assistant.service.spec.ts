@@ -3877,6 +3877,76 @@ describe('Stage 2 orchestrator hardening', () => {
       });
     });
 
+    test('a Deep Research plan turn runs as the research surface and returns its JSON unchanged', async () => {
+      for (const capability of CAPABILITIES) enroll(capability, 'enforce');
+      process.env.MERI_AUTO_CORRECTION_CATEGORIES = 'budget_amount,budget_delta,bill_status';
+      const plan = JSON.stringify({
+        version: 1,
+        title: 'PE 0605231A FY27 versus FY26',
+        steps: [
+          {
+            id: 'step-1',
+            objective: 'Find the FY27 request and FY26 enacted amounts for PE 0605231A.',
+            dependsOn: [],
+          },
+        ],
+        clarifyingQuestions: [],
+      });
+      const complete = jest.fn().mockResolvedValue(response({ outputText: plan }));
+      const assistant = build(registry([]), complete);
+      const spies = logSpies(assistant);
+      const governed = {
+        operationId: 'meri.research',
+        contextPacket: { packetId: 'packet-plan' },
+      } as unknown as MeriGovernedTurnContext;
+      const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(governed, () =>
+          assistant.run(pilotContext, {
+            conversationId: 'research-plan',
+            clientId: 'client-1',
+            toolPolicy: 'none',
+            messages: [
+              {
+                role: 'user',
+                text: 'Research topic from the lobbyist: What is the FY27 request for PE 0605231A versus FY26? Produce the plan JSON now.',
+              },
+            ],
+          }),
+        ),
+      );
+      const canary = firstEvent(spies.log, 'meri.canary.turn');
+      expect(canary.surface).toBe('research');
+      expect(canary.modes).toMatchObject({
+        evidenceAccuracy: 'off',
+        coverageRetrieval: 'off',
+        autoCorrection: 'off',
+      });
+      expect(eventsNamed(spies.log, 'meri.coverage.turn')).toHaveLength(0);
+      expect(result.reply).toBe(plan);
+      expect(() => JSON.parse(result.reply)).not.toThrow();
+    });
+
+    test('a chat turn under a meri.chat governed context stays on the chat surface', async () => {
+      enroll('COVERAGE_RETRIEVAL', 'enforce');
+      const complete = jest.fn().mockResolvedValue(response({ outputText: 'H.R. 1 passed.' }));
+      const assistant = build(registry([]), complete);
+      const spies = logSpies(assistant);
+      const governed = {
+        operationId: 'meri.chat',
+        contextPacket: { packetId: 'packet-chat' },
+      } as unknown as MeriGovernedTurnContext;
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(governed, () =>
+          assistant.run(pilotContext, {
+            conversationId: 'chat-turn',
+            toolPolicy: 'none',
+            messages: [{ role: 'user', text: 'What is the status of H.R. 1?' }],
+          }),
+        ),
+      );
+      expect(firstEvent(spies.log, 'meri.canary.turn').surface).toBe('chat');
+    });
+
     test('warns once about unknown MERI_AUTO_CORRECTION_CATEGORIES tokens even when every token is unknown', async () => {
       enroll('AUTO_CORRECTION', 'shadow');
       process.env.MERI_AUTO_CORRECTION_CATEGORIES = 'bill-status,member-vote';
