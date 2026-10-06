@@ -85,7 +85,21 @@ export const PUBLIC_DATA_RESEARCH_TOOLS: ReadonlySet<string> = new Set([
   'search_state_bills',
   'get_state_bill_status',
   'get_legal_reference',
+  // Receipted public sources whose reads are public even when not durably
+  // qualified (a partial page or bill read): no tenant context is read.
+  'get_bill_status',
+  'read_bill_text',
+  'scrape_web_page',
 ]);
+
+/**
+ * Whether a research run may admit this tool: its results are either re-checked
+ * by a durable owner receipt or public. Any other read would make the report's
+ * producer inputs unsupported, so research does not offer it.
+ */
+export function researchProducerInputCoverableTool(name: string): boolean {
+  return Boolean(publicResearchSourceTool(name)) || PUBLIC_DATA_RESEARCH_TOOLS.has(name);
+}
 
 export const GOVERNED_CONTEXT_RECORD_DOMAINS = [
   'clients',
