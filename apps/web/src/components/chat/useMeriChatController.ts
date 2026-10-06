@@ -1972,6 +1972,28 @@ export function useMeriChatController({
     }
   }, [executeResearchPlan, executeResearchRun, isStreaming, researchRecovery]);
 
+  // Stage 2: a delegated job continues while its conversation is open. An
+  // interrupted job holds no lease and its V3 turns need this user's session,
+  // so the open client resumes it once per run instead of waiting for
+  // "Reconnect". Plain research keeps the explicit Reconnect control.
+  const autoResumedRunsRef = useRef(new Set<string>());
+  useEffect(() => {
+    const saved = researchRecovery;
+    if (
+      !saved?.job ||
+      saved.job.kind === 'research' ||
+      isStreaming ||
+      isResearchStreaming ||
+      saved.run.status !== 'interrupted' ||
+      saved.run.readyToStart !== true ||
+      currentSessionRef.current !== saved.conversationId ||
+      autoResumedRunsRef.current.has(saved.run.id)
+    )
+      return;
+    autoResumedRunsRef.current.add(saved.run.id);
+    void resumeResearch();
+  }, [researchRecovery, isStreaming, isResearchStreaming, resumeResearch]);
+
   // Submit per-question answers from the inline clarify form, then run research.
   const submitResearchAnswers = useCallback(
     async (answers: Record<string, string>, skipped: boolean) => {
