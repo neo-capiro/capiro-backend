@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-bill-text-public-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T17:18:37.059421+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "9ee56613f25f05c274a43215e42109b23462c8c5",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:9a01d791d08bfd4ab0f152f47c60d8633fa3c441bbb4c23c5b5c33c04c71da88",
+      "buildId": "capiro-build-web-dev:94aeef94-8728-4d25-95d7-d0a37821310b"
+    }
+  ],
+  "schemaChange": false,
+  "change": "#2115 bill-text locator, text search and 9,000-character pages; #2118 receipted public-data reads are public",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
