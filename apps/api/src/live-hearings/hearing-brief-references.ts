@@ -5,11 +5,21 @@ type Evidence = ReturnType<typeof buildBriefEvidence>['evidence'];
 const normalizeQuote = (text: string) =>
   text.replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
 
-function verifyQuotes(content: string, sourceForQuote: (end: number) => Evidence[number] | undefined) {
+function verifyQuotes(
+  content: string,
+  location: { sectionIndex: number } | { momentIndex: number },
+  sourceForQuote: (end: number) => { source?: Evidence[number]; referenceId?: string },
+) {
   for (const quote of content.matchAll(/[“"]([^“”"\n]{20,})[”"]/g)) {
-    const source = sourceForQuote(quote.index! + quote[0].length);
+    const { source, referenceId } = sourceForQuote(quote.index! + quote[0].length);
     if (!source || !normalizeQuote(source.text).includes(normalizeQuote(quote[1]!)))
-      throw new Error('Quotation is not present in its cited transcript passage');
+      throw new Error(`Quotation is not present in its cited transcript passage; ${JSON.stringify({
+        ...location,
+        // Never log model-authored reference text or the quotation itself.
+        referenceId: source ? referenceId : null,
+        quoteLength: quote[1]!.length,
+        reason: source ? 'text_mismatch' : 'missing_or_unknown_reference',
+      })}`);
   }
 }
 
@@ -24,13 +34,13 @@ export function resolveBriefReferences(
   moments: unknown,
 ) {
   const references = new Map(briefReferences(evidence).map(({ ref, source }) => [ref, source]));
-  const resolvedSections = sections.map((section) => {
+  const resolvedSections = sections.map((section, sectionIndex) => {
     if (/\[\d{1,2}:\d{2}(?::\d{2})?\]/.test(section.content))
       throw new Error('Model must select evidence references, not author transcript timestamps');
-    if (evidence.length) verifyQuotes(section.content, (end) => {
+    if (evidence.length) verifyQuotes(section.content, { sectionIndex }, (end) => {
       const paragraph = section.content.slice(end).split(/\n\s*\n/, 1)[0]!;
       const ref = paragraph.match(/\[(E[^\]\r\n]*)\]/i)?.[1];
-      return ref ? references.get(ref) : undefined;
+      return { source: ref ? references.get(ref) : undefined, referenceId: ref };
     });
     return {
       ...section,
@@ -43,7 +53,7 @@ export function resolveBriefReferences(
   });
   if (!Array.isArray(moments) || moments.length > 12)
     throw new Error('Invalid key moment references');
-  const resolvedMoments = moments.map((moment: unknown) => {
+  const resolvedMoments = moments.map((moment: unknown, momentIndex) => {
     const value = moment as Record<string, unknown> | null;
     const source = value && typeof value.evidenceRef === 'string'
       ? references.get(value.evidenceRef)
@@ -52,7 +62,7 @@ export function resolveBriefReferences(
       throw new Error('Key moment requires a supplied transcript evidence reference');
     if (/\[(?:E[^\]\r\n]*|\d{1,2}:\d{2}(?::\d{2})?)\]/i.test(value.summary))
       throw new Error('Key moment summary must not contain citation tokens');
-    verifyQuotes(value.summary, () => source);
+    verifyQuotes(value.summary, { momentIndex }, () => ({ source, referenceId: value.evidenceRef as string }));
     return {
       startMs: source.startMs,
       speaker: source.speaker,

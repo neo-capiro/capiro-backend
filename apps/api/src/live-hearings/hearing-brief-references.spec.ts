@@ -58,6 +58,32 @@ describe('server-owned hearing brief references', () => {
     expect(() => resolveBriefReferences([], evidence, [{ evidenceRef: 'E002', summary: content }])).toThrow('its cited transcript passage');
   });
 
+  it.each([
+    { location: 'sectionIndex', reference: '[E002]', expectedRef: 'E002', reason: 'text_mismatch' },
+    { location: 'sectionIndex', reference: '[E-private-model-content]', expectedRef: null, reason: 'missing_or_unknown_reference' },
+    { location: 'sectionIndex', reference: '', expectedRef: null, reason: 'missing_or_unknown_reference' },
+    { location: 'momentIndex', reference: 'E002', expectedRef: 'E002', reason: 'text_mismatch' },
+  ])('reports safe quote diagnostic context for $location / $reference', ({ location, reference, expectedRef, reason }) => {
+    const quotation = 'Please respond within two weeks after receiving the questions.';
+    let message = '';
+    try {
+      resolveBriefReferences(
+        location === 'sectionIndex' ? [{ name: 'private section title', content: `“${quotation}” ${reference}` }] : [],
+        evidence,
+        location === 'momentIndex' ? [{ evidenceRef: reference, summary: `“${quotation}”` }] : [],
+      );
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain('Quotation is not present in its cited transcript passage; ');
+    expect(JSON.parse(message.split('; ')[1]!)).toEqual({
+      [location]: 0, referenceId: expectedRef, quoteLength: quotation.length, reason,
+    });
+    expect(message).not.toContain(quotation);
+    expect(message).not.toContain('private');
+    expect(message).not.toContain(evidence[1]!.text);
+  });
+
   it.each(['A claim [E999]', 'A claim [1:23:14]'])('rejects embedded key moment citations: %s', summary => {
     expect(() => resolveBriefReferences([], evidence, [{ evidenceRef: 'E001', summary }])).toThrow('must not contain citation tokens');
   });
