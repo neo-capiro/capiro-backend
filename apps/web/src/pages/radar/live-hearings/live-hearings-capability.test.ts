@@ -37,6 +37,8 @@ describe('Live Hearings capture capabilities', () => {
   });
 
   test('keeps real recording outcomes visible while describing pending restrictions honestly', () => {
+    expect(captureSummaryLabel(event({ capture: { status: 'ended' } }))).toBe('Capture Ended');
+    expect(captureSummaryLabel(event({ capture: { status: 'FAILED' } }))).toBe('Capture failed');
     expect(captureSummaryLabel(event({ capture: { status: 'COMPLETE' }, capturePolicy: 'BROWSER_CAPTURE_ONLY' }))).toBe('Capture Complete');
     expect(captureSummaryLabel(event({ capture: { status: 'SCHEDULED' } }))).toBe('Capture Scheduled');
     const unavailable = event({ capture: { status: 'SCHEDULED' }, streamState: 'NO_PUBLIC_STREAM' });
