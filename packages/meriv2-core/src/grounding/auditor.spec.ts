@@ -396,6 +396,24 @@ describe('D4b — authorization vs appropriation conflation', () => {
       checkVehicleConflation('The NDAA conference report set the authorization at $150M.'),
     ).toEqual([]);
   });
+  it.each([
+    // Held a live budget report on 2026-10-06 (review 4da46ece): correct, labeled vehicles.
+    'Its recorded FY27 HASC and SASC authorization marks and HAC-D appropriations mark each equal the FY27 request; HAC-D is the latest recorded stage, **not enacted funding**.',
+    '$288M (FY27 HASC and SASC marks, authorization) and $288M (FY27 HAC-D mark, appropriations).',
+    'The SASC authorization covers these funds.',
+    'The HAC-D mark matches the authorization level.',
+  ])('does NOT flag a sentence that only labels each vehicle: %s', (sentence) => {
+    expect(checkVehicleConflation(sentence)).toEqual([]);
+  });
+  it.each([
+    'The NDAA appropriated $5 billion for hypersonic research.',
+    'The SASC mark funded the program at $40M.',
+    'The authorization bill provides the money for the line.',
+    'The appropriations bill authorized $20M for the new start.',
+    'The SAC-D mark is authorizing a new program.',
+  ])('still flags a vehicle doing the other one’s job: %s', (sentence) => {
+    expect(checkVehicleConflation(sentence).map((finding) => finding.check)).toEqual(['D4b']);
+  });
 });
 
 describe('D6 — failed / stale rule framing', () => {
