@@ -43,7 +43,7 @@ export const HILL_DAY_BLUEPRINT_ID = 'bp_hill_day_schedule';
 
 export interface HillDayClient {
   listBlueprints(): Promise<Blueprint[]>;
-  listDocuments(params?: { clientId?: string; status?: string; cursor?: string; limit?: number }): Promise<Page<LibraryRow>>;
+  listDocuments(params?: { clientId?: string; status?: string; kind?: LibraryRow['kind']; cursor?: string; limit?: number }): Promise<Page<LibraryRow>>;
   createDocument(body: { blueprintId: string; clientId: string; name: string; lookbackDays?: number; timeZone?: string }): Promise<CreatedDocument>;
   listClients(q?: string): Promise<ClientsResponse>;
   calendar(clientId: string, from: string, to: string, timeZone: string): Promise<CalendarResponse>;

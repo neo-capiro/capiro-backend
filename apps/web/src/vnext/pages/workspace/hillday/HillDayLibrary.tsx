@@ -1,14 +1,12 @@
 /**
  * Hill Day Library — /workspace/documents.
  *
- * Title + actions, the Template Studio banner, and the "Recent documents"
- * table. No template picker here — that's the wizard's own step 1
- * (/workspace/documents/new), which reads the same blueprint catalog and
- * already handles both the implemented and not-yet-implemented cases;
- * showing the same grid on both pages just made "New document" a two-click
- * detour through an identical choice. Document rows come from the workspace
- * engine's Hill Day API (api.ts) and list Hill Day packets alongside the
- * firm's other workspace documents.
+ * Title + "New document", and the "Recent documents" table. Workspace is
+ * Hill Day–only: Template Studio and the firm's other workspace documents are
+ * hidden, so rows are Hill Day packets only (`kind: 'hillday'`, filtered by
+ * the API and again here). No template picker here — that's the wizard's own
+ * step 1 (/workspace/documents/new). Document rows come from the workspace
+ * engine's Hill Day API (api.ts).
  */
 import { useNavigate } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -26,12 +24,16 @@ export function HillDayLibrary() {
   const docsQuery = useInfiniteQuery({
     queryKey: ['hd', 'documents', scope, RECENT_LIMIT],
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) => api.listDocuments({ limit: RECENT_LIMIT, cursor: pageParam }),
+    queryFn: ({ pageParam }) =>
+      api.listDocuments({ kind: 'hillday', limit: RECENT_LIMIT, cursor: pageParam }),
     getNextPageParam: (page) => page.nextCursor ?? undefined,
     staleTime: 15_000,
   });
 
-  const docs = docsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  // The client-side filter also covers a workspace API that predates `kind`.
+  const docs = (docsQuery.data?.pages.flatMap((page) => page.items) ?? []).filter(
+    (d) => d.kind === 'hillday',
+  );
 
   return (
     <div className="hd-root" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', background: 'var(--hd-canvas)' }}>
@@ -48,37 +50,16 @@ export function HillDayLibrary() {
         <div style={{ minWidth: 0 }}>
           <h1 className="hd-library__title">Documents</h1>
           <p className="hd-library__lede">
-            Client-ready documents drafted from platform evidence and finished by you. Every
-            template pulls from the Directory, Portfolio and Intelligence layers.
+            Client-ready Hill Day schedules drafted from platform evidence and finished by you,
+            pulling from the Directory, Portfolio and Intelligence layers.
           </p>
         </div>
         <div className="hd-library__actions">
-          <HdSecondary onClick={() => navigate('/workspace/studio')}>
-            <HdIcon name="LayoutAlt01" size={18} />
-            Template Studio
-          </HdSecondary>
           <HdPrimary onClick={() => navigate('/workspace/documents/new')}>
             <HdIcon name="Plus" size={18} />
             New document
           </HdPrimary>
         </div>
-      </div>
-
-      <div className="hd-studio-banner">
-        <HdIcon name="LayoutAlt01" size={20} />
-        <span style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ fontWeight: 600, color: 'var(--hd-gray-900)' }}>Template Studio.</span>{' '}
-          Blueprints own what a document says; document themes own what it looks like. Firm-scope
-          blueprints publish to every user.
-        </span>
-        <button
-          type="button"
-          className="hd-studio-banner__open"
-          onClick={() => navigate('/workspace/studio')}
-        >
-          Open Studio
-          <HdIcon name="ArrowRight" size={16} />
-        </button>
       </div>
 
       <div className="hd-library__section-head" style={{ marginTop: 44 }}>

@@ -891,7 +891,6 @@ export function WorkspaceEditorStabilized({ draftId, isRunView = false }: Worksp
           <div className="ws-vnext-empty__desc">This draft belongs to the standard Workspace editor. Nothing is wrong with the document.</div>
           <div className="ws-audit-actions">
             <CapiroButton variant="primary" onClick={() => navigate(`/workspace/draft/${draftId}`)}>Open standard editor</CapiroButton>
-            <CapiroButton variant="secondary" onClick={() => navigate('/workspace/new')}>Create an Agent document</CapiroButton>
           </div>
         </div>
       </div>
