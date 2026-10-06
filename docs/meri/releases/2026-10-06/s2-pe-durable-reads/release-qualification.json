@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-pe-durable-reads-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T04:27:58.729968+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "5e38f2c203830c199124e991f4453b693df4406b",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2561d381fbd04134474b770b511d3a024090f2e3f35547cfde2eeacfbdd26f9e",
+      "buildId": "capiro-build-web-dev:f838406d-0fc9-4bc6-9d5b-f09a26806ff2"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Program-element reads complete durable research steps (#2063): shared read-outcome classifiers and durable owner replay for get_program_element, get_pe_budget_timeline and get_pe_report_language. API first; the orchestrator roll follows. migration-status on this image: up to date (admin-migrate 88). No migration applied by this roll.",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
