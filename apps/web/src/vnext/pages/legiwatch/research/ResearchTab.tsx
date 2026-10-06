@@ -520,10 +520,12 @@ function ResearchWorkspace() {
           className="lw-research__search"
           onSubmit={(e) => {
             e.preventDefault();
+            if (unsupportedLegalScope) return;
             change({ researchQuery: draft, cursor: '' });
           }}
         >
           <CapiroInput
+            disabled={unsupportedLegalScope}
             label={
               view === 'statutes'
                 ? 'Citation or title'
@@ -537,7 +539,7 @@ function ResearchWorkspace() {
               view === 'statutes' ? '395.003' : view === 'rules' ? '1-1.008' : '"health care"'
             }
           />
-          <CapiroButton type="submit">Search</CapiroButton>
+          <CapiroButton type="submit" disabled={unsupportedLegalScope}>Search</CapiroButton>
         </form>
       ) : null}
 

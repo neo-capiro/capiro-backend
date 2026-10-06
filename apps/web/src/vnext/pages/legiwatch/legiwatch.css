@@ -562,7 +562,7 @@
     flex: 0 0 100%;
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
     gap: 8px;
     align-items: stretch;
   }
@@ -570,8 +570,8 @@
   .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action {
     box-sizing: border-box;
     min-width: 0;
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     justify-content: center;
     gap: 0;
