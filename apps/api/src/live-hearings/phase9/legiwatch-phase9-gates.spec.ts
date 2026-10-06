@@ -200,6 +200,34 @@ describe('LegiWatch Phase 9 fail-closed gates', () => {
     ).toEqual({ complete: false, reasonCode: 'STREAM_POLICY_STILL_REQUIRES_REVIEW' });
   });
 
+  it.each(['no_public_stream', 'blocked'])(
+    'does not let a %s rollup override existing capture or candidate evidence',
+    (hearingCoverageStatus) => {
+      expect(assessCaptureOutcome({ hearingCoverageStatus, candidates: [] }).complete).toBe(true);
+      expect(
+        assessCaptureOutcome({ hearingCoverageStatus, captureStatus: 'CAPTURING', candidates: [] })
+          .complete,
+      ).toBe(false);
+      expect(
+        assessCaptureOutcome({
+          hearingCoverageStatus,
+          captureStatus: 'FAILED',
+          failureCode: 'NETWORK_LOST',
+          candidates: [],
+        }),
+      ).toEqual({ complete: true, reasonCode: 'NETWORK_LOST' });
+      expect(
+        assessCaptureOutcome({
+          hearingCoverageStatus,
+          candidates: [{ capturePolicy: 'REVIEW_REQUIRED', resolutionState: 'NOT_CHECKED' }],
+        }),
+      ).toEqual({ complete: false, reasonCode: 'STREAM_POLICY_STILL_REQUIRES_REVIEW' });
+      expect(
+        assessCaptureOutcome({ hearingCoverageStatus: 'discovered', candidates: [] }).complete,
+      ).toBe(false);
+    },
+  );
+
   it('requires enabled, scheduled, non-stale runtime heartbeats', () => {
     const now = new Date('2026-08-21T12:00:00Z');
     expect(

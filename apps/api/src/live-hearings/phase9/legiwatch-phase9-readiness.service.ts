@@ -580,6 +580,7 @@ export class LegiWatchPhase9ReadinessService {
       if (!eligible) continue;
       eligibleEvents += 1;
       const outcome = assessCaptureOutcome({
+        hearingCoverageStatus: capture ? undefined : hearing.coverageStatus,
         captureStatus: capture?.domainStatus,
         terminalReasonCode: capture?.terminalReasonCode,
         failureCode: capture?.failureCode,

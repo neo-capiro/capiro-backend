@@ -137,6 +137,47 @@ async function evaluate(value: any, mode: 'READINESS' | 'CUTOVER_VERIFICATION' =
 }
 
 describe('LegiWatchPhase9ReadinessService', () => {
+  it.each(['no_public_stream', 'blocked'])(
+    'counts a terminal %s rollup as explained non-capture, while retaining real capture gaps',
+    async (coverageStatus) => {
+      const value = snapshot();
+      value.captureAllPublicEvents = true;
+      value.demand = [];
+      value.captures = [];
+      value.candidates = [];
+      value.hearings[0].coverageStatus = coverageStatus;
+      const report = await evaluate(value);
+      expect(report.counts).toMatchObject({ eligibleEvents: 1, eventsWithOutcomes: 1 });
+      expect(findGate(report, 'CAPTURE_OUTCOMES_EXPLICIT').status).toBe('PASS');
+      expect(value.captures).toEqual([]);
+
+      // A historical ready stream without a recording is still a real gap.
+      value.candidates = snapshot().candidates;
+      const ready = await evaluate(value);
+      expect(ready.counts.eventsWithOutcomes).toBe(0);
+      expect(ready.exceptions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            reasonCode: 'SERVER_CAPTURE_ELIGIBLE_WITHOUT_TERMINAL_OUTCOME',
+          }),
+        ]),
+      );
+
+      // The terminal rollup cannot explain away an incomplete capture record.
+      value.candidates = [];
+      value.captures = [
+        { ...snapshot().captures[0], domainStatus: 'FAILED', terminalReasonCode: null },
+      ];
+      const failed = await evaluate(value);
+      expect(failed.counts).toMatchObject({ eventsWithOutcomes: 0, captureFailures: 1 });
+      expect(failed.exceptions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ reasonCode: 'TERMINAL_CAPTURE_WITHOUT_REASON' }),
+        ]),
+      );
+    },
+  );
+
   it('audits federal provenance without counting linked or pending Florida ledger rows', async () => {
     const mixed = snapshot();
     mixed.observations[0].jurisdiction = 'US';
