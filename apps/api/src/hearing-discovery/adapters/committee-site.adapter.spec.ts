@@ -32,6 +32,107 @@ function html(body: string) {
 beforeEach(() => fetchMock.mockReset());
 
 describe('official committee news', () => {
+  describe('verified Foreign Affairs press-index migration', () => {
+    const origin = 'https://foreignaffairs.house.gov';
+    const obsolete = `${origin}/media/press-releases`;
+    const current = `${origin}/news/press-releases`;
+    const foreign = {
+      ...source,
+      committeeSystemCode: 'hsfa00',
+      chamber: 'house' as const,
+      sourceUrl: `${origin}/`,
+    };
+    const article = '<a href="/news/press-releases/committee-statement">Committee statement</a>';
+    const indexes = [
+      '/media/press-releases',
+      '/news',
+      '/press',
+      '/newsroom',
+      '/news/press-releases',
+    ];
+    const landing = indexes.map((path) => `<a href="${path}">Press releases</a>`).join('');
+
+    it('keeps the published replacement within four indexes, reads it once and retains the original404', async () => {
+      fetchMock.mockImplementation(async (url) => {
+        if (url === foreign.sourceUrl) return html(landing + article);
+        if (url === obsolete) return { ...html(''), ok: false, status: 404, error: 'HTTP 404' };
+        return html(article);
+      });
+      const adapter = new CommitteeSiteAdapter();
+      const updates = await adapter.discoverUpdates(foreign, ctx);
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+        foreign.sourceUrl,
+        current,
+        obsolete,
+        `${origin}/news`,
+        `${origin}/press`,
+      ]);
+      expect(updates).toHaveLength(1);
+      expect(updates[0]).toMatchObject({
+        committeeSystemCode: 'hsfa00',
+        sourceUrl: `${current}/committee-statement`,
+        updateType: 'committee_news_published',
+        officialPublishedAt: null,
+      });
+      expect(adapter.updateErrors).toEqual([
+        `committee news index fetch failed: ${obsolete}: HTTP 404; current official index available: ${current} (original failure retained)`,
+      ]);
+    });
+
+    it.each([403, 429, 500])('does not label HTTP%s as a recovered migration', async (status) => {
+      fetchMock.mockImplementation(async (url) => {
+        if (url === foreign.sourceUrl) return html(landing);
+        if (url === obsolete) return { ...html(''), ok: false, status, error: `HTTP ${status}` };
+        return html(article);
+      });
+      const adapter = new CommitteeSiteAdapter();
+      await adapter.discoverUpdates(foreign, ctx);
+      expect(adapter.updateErrors).toEqual([
+        `committee news index fetch failed: ${obsolete}: HTTP ${status}`,
+      ]);
+    });
+
+    it('retains both errors when the current index also fails and never claims recovery', async () => {
+      fetchMock.mockImplementation(async (url) => {
+        if (url === foreign.sourceUrl) return html(landing);
+        if (url === obsolete) return { ...html(''), ok: false, status: 404, error: 'HTTP 404' };
+        if (url === current) return { ...html(''), ok: false, status: 403, error: 'HTTP 403' };
+        return html('');
+      });
+      const adapter = new CommitteeSiteAdapter();
+      await expect(adapter.discoverUpdates(foreign, ctx)).rejects.toThrow('HTTP 403');
+      expect(adapter.updateErrors).toEqual([
+        `committee news index fetch failed: ${current}: HTTP 403`,
+        `committee news index fetch failed: ${obsolete}: HTTP 404`,
+      ]);
+    });
+
+    it('does not invent the replacement when the official page does not publish it', async () => {
+      fetchMock.mockImplementation(async (url) =>
+        url === foreign.sourceUrl
+          ? html(`<a href="${obsolete}">Press releases</a>${article}`)
+          : { ...html(''), ok: false, status: 404, error: 'HTTP 404' },
+      );
+      const adapter = new CommitteeSiteAdapter();
+      await adapter.discoverUpdates(foreign, ctx);
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([foreign.sourceUrl, obsolete]);
+      expect(adapter.updateErrors[0]).not.toContain('current official index available');
+    });
+
+    it.each([
+      { ...foreign, committeeSystemCode: 'hswm00' },
+      { ...foreign, sourceUrl: 'https://other.house.gov/' },
+    ])('does not apply the migration outside the exact committee and host: %j', async (other) => {
+      fetchMock.mockImplementation(async (url) =>
+        url === other.sourceUrl ? html(landing) : html(article),
+      );
+      await new CommitteeSiteAdapter().discoverUpdates(other, ctx);
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+        other.sourceUrl,
+        ...indexes.slice(0, 4).map((path) => new URL(path, other.sourceUrl).href),
+      ]);
+    });
+  });
   it('attributes a shared Florida page separately for each committee instead of treating later bodies as304', async () => {
     fetchMock.mockResolvedValueOnce(
       html(
