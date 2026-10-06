@@ -57,3 +57,13 @@ Recommendation: narrow D4b to the verb forms it targets. That means `appropriate
 - #2072 deliverable jobs: a Word document rendered from the authorized report, filed into client Files once with key `meri-job:<id>:<index>`.
 
 The API parts are deployed dark in 589. The web part is not deployed (no web-vnext roll yet). `meri.jobs` is off everywhere.
+
+## Release B web (dark)
+
+| Roll | Code | Revision | Rollback | Source | Digest | Check |
+| --- | --- | --- | --- | --- | --- | --- |
+| [s2-release-b-web](s2-release-b-web/README.md) | #2069 job view parser, #2080 Delegate this, #2081 deliverable card, #2082 running-jobs rail, #2083 job auto-resume | web-vnext 414 | 413 | `5152d990b` | `sha256:2fad3db0…` | `CAPIRO_WEB_RELEASE_SHA` equals the source; bundle probe `RUNNING JOBS` passed in the image smoke test; `/api/me` reports `meriJobs: false`, so nothing renders |
+
+This was the first web-vnext roll through the Meri release path. Both ancestry reads saw 412 (`f63686c95`, on main). The env diff is the three release SHA keys only.
+
+No paid turn was run: no backend changed and the new UI is hidden. The UI live checks are T5 and T7 once `meri.jobs` is enabled (Neo's OK), plus the Release F Playwright flows.

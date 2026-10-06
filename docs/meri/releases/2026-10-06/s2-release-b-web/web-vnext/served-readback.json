@@ -1,0 +1,53 @@
+{
+  "servedTaskDefinition": {
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:2fad3db01db1ac213acb081acc44e252927ce8e4dc3741442e7b0ca369ffe9f6",
+    "env": [
+      {
+        "name": "GIT_SHA",
+        "value": "5152d990bbdd924c94d72d88b969bd82f04b19fa"
+      },
+      {
+        "name": "RELEASE_SHA",
+        "value": "5152d990bbdd924c94d72d88b969bd82f04b19fa"
+      }
+    ]
+  },
+  "servedTasks": [
+    {
+      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:414",
+      "digest": "sha256:2fad3db01db1ac213acb081acc44e252927ce8e4dc3741442e7b0ca369ffe9f6",
+      "status": "RUNNING",
+      "health": "HEALTHY"
+    }
+  ],
+  "deployments": [
+    {
+      "s": "PRIMARY",
+      "r": "COMPLETED",
+      "td": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:414",
+      "run": 1
+    }
+  ],
+  "promote": {
+    "schemaVersion": 1,
+    "manifestHash": "840e1d8fda2f6bb32a263f6ab60f7c05801d22f24629d1e1e6f2a12b0fec2a9a",
+    "service": "web-vnext",
+    "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+    "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:2fad3db01db1ac213acb081acc44e252927ce8e4dc3741442e7b0ca369ffe9f6",
+    "candidateTaskHash": "78e1c50dcc36bf8e112cba8d9057b5154f05ba11d872c9cbc7d5dfde2a21deaf",
+    "rollbackTaskHash": "3b04328c664beda9e70530c6857e19549efd00922995d9055ffdbdaba7195caa",
+    "rollbackImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:d2dc72d6e35a454283cf1095cef84cd9391599f606b69e5df38d909f39a6abc1",
+    "status": "ecs-healthy-manual-acceptance-required",
+    "awsMutation": true,
+    "rollbackTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:413",
+    "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:414",
+    "deploymentId": "ecs-svc/1372364729075226002"
+  },
+  "capiroWebReleaseSha": "5152d990bbdd924c94d72d88b969bd82f04b19fa",
+  "bundleProbe": "RUNNING JOBS",
+  "darkCheck": {
+    "tenant": "capiro-internal",
+    "meriJobs": false,
+    "meriv3Chat": true
+  }
+}
