@@ -337,3 +337,17 @@ test('apply refuses canonical drift and archive corruption; protected trigger ch
     assert.equal(db.receipts.length, 2);
   }
 });
+
+test('provider failures identify the stage without exposing credentials or arbitrary response text', async () => {
+  const { providerStep } = require('./runtime.cjs');
+  for (const [error, expected] of [
+    [new Error('LegiScan HTTP 403 for op=getDataset'), 'HTTP_403'],
+    [new Error('LegiScan op=getDataset status=ERROR: secret-access-key'), 'PROVIDER_REJECTED'],
+    [Object.assign(new Error('https://provider/?key=secret'), { name: 'TimeoutError' }), 'TIMEOUT'],
+    [new Error('request to https://provider/?key=secret failed'), 'UNEXPECTED_FAILURE'],
+    [new Error('PRIVATE_API_ACCESS_KEY'), 'UNEXPECTED_FAILURE'],
+  ]) {
+    await assert.rejects(providerStep('DATASET_DOWNLOAD', async () => { throw error; }), { message: 'HB1211_DATASET_DOWNLOAD_' + expected });
+  }
+  assert.equal(await providerStep('DATASET_LIST', async () => 7), 7);
+});

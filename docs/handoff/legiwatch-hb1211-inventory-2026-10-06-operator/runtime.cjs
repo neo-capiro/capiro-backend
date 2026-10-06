@@ -267,6 +267,20 @@ async function writeReceipt(db, id, source, manifest, complete, observedAt) {
     [id, source, JSON.stringify(SCOPE), JSON.stringify(manifest), complete, observedAt],
   );
 }
+async function providerStep(stage, operation) {
+  try {
+    return await operation();
+  } catch (error) {
+    const message = typeof error?.message === 'string' ? error.message : '';
+    const http = /^LegiScan HTTP (\d{3}) for op=/.exec(message);
+    const category = http ? `HTTP_${http[1]}`
+      : /^(TimeoutError|AbortError)$/.test(error?.name ?? '') ? 'TIMEOUT'
+      : /^LegiScan op=\w+ status=/.test(message) ? 'PROVIDER_REJECTED'
+      : 'UNEXPECTED_FAILURE';
+    // Never log a provider URL, credential, access key, or arbitrary response text.
+    throw Error(`HB1211_${stage}_${category}`);
+  }
+}
 async function retrieve(db, deps, env) {
   const cap = environment(env),
     release = runtimeBinding(env),
@@ -294,12 +308,12 @@ async function retrieve(db, deps, env) {
     );
   });
   // A failed/unknown attempt keeps the conservative reservation. Never auto-replay.
-  const listing = selectListing(await deps.getDatasetList(env.LEGISCAN_API_KEY, 'FL'));
-  const result = await deps.getDataset(env.LEGISCAN_API_KEY, 2220, listing.access_key);
+  const listing = selectListing(await providerStep('DATASET_LIST', () => deps.getDatasetList(env.LEGISCAN_API_KEY, 'FL')));
+  const result = await providerStep('DATASET_DOWNLOAD', () => deps.getDataset(env.LEGISCAN_API_KEY, 2220, listing.access_key));
   const receivedAt = new Date().toISOString(),
     zip = decodeDataset(listing, result),
     archiveHash = bytesHash(zip);
-  const parsed = await deps.parseDatasetZip(zip);
+  const parsed = await providerStep('DATASET_PARSE', () => deps.parseDatasetZip(zip));
   // Validate before archive storage; no state_bill mutation in this phase.
   qualifyParsed(parsed, deps.reportSourceFacts, receivedAt, {});
   return transaction(db, false, async () => {
@@ -525,6 +539,7 @@ async function main() {
   }
 }
 module.exports = {
+  providerStep,
   runtimeBinding,
   BILL,
   BILL_HASH,
