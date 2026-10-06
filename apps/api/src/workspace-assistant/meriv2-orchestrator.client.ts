@@ -46,12 +46,22 @@ export class MeriV2OrchestratorClient {
     if (!bearerToken) {
       throw new Error('MeriV2 in-editor-assistant proxy requires the caller bearer token');
     }
+    const tenantId = ctx.tenantId?.trim();
+    const clerkUserId = ctx.clerkUserId?.trim();
+    if (!tenantId || !clerkUserId) {
+      throw new Error('MeriV2 in-editor-assistant proxy requires authenticated tenant and Clerk user identities');
+    }
 
     const governed = await this.contextPlane.resolveEditor(ctx, dto);
     const headers: Record<string, string> = {
       authorization: `Bearer ${bearerToken}`,
       'content-type': 'application/json',
       'x-internal-service-secret': this.internalSecret,
+      // The orchestrator's existing service guard requires explicit delegation
+      // and rechecks active membership using the Clerk ID, not our local UUID.
+      // These identities come only from authenticated server context.
+      'x-capiro-delegated-tenant': tenantId,
+      'x-capiro-delegated-user': clerkUserId,
     };
     if (aiProvider) headers['x-capiro-ai-provider'] = JSON.stringify(aiProvider);
 
