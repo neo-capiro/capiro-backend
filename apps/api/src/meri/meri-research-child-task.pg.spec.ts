@@ -139,6 +139,8 @@ function runtimeResult(taskId: string) {
     producerInputSha256: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     producerInputMode: 'covered_inputs' as const,
     clientContextSha256: null,
+    producerInputDraft: null,
+    producerInputCategories: { unsupported: {}, covered: {} },
     schemaCorrections: 0 as const,
   };
 }

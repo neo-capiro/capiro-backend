@@ -10,6 +10,8 @@ import {
   type MemoryAuthority,
   type MemoryClass,
   type MemoryConflictStatus,
+  type MemoryFilterDecision,
+  type MemoryRecallAccess,
   type MemorySensitivity,
 } from '../memory/governance';
 import { estimateTokens } from './token-budget';
@@ -189,19 +191,10 @@ export class ContextCompiler {
     for (const layer of req.layers) {
       for (const row of grouped.get(layer) ?? []) {
         const record = governedRecord(row, req, selectedIds.has(row.id));
-        const decision = filterGovernedMemory(record, {
-          tenantId: req.effectiveTenantId ?? req.tenantId,
-          userId: req.userId ?? '',
-          clientId: req.clientId ?? null,
-          // Server-derived and fail-closed (closeout §6, contract changes 3+4).
-          // This was hardcoded `true`, so EVERY v2 compile bypassed the ethical
-          // wall and served walled client memory straight into the prompt. The
-          // caller must resolve the wall server-side and say so explicitly.
-          ethicalWallAllowed: req.ethicalWallAllowed === true,
-          allowedSensitivities: req.allowedSensitivities ?? ['normal'],
-          fourEyesEnabled: req.fourEyesEnabled ?? false,
-          now: clockUse ? new Date(clockUse.eligibilityAt) : now,
-        });
+        const decision = filterGovernedMemory(
+          record,
+          steeringAccess(req, clockUse ? new Date(clockUse.eligibilityAt) : now),
+        );
         if (!decision.include) {
           if (decision.reason === 'conflict_unresolved') conflictCount += 1;
           exclusions.push(
@@ -490,9 +483,49 @@ function selectUnits(
   return { selected, omitted, cost: selectedCost };
 }
 
+type SteeringAccessRequest = Pick<
+  ContextRequest,
+  | 'tenantId'
+  | 'effectiveTenantId'
+  | 'userId'
+  | 'clientId'
+  | 'ethicalWallAllowed'
+  | 'allowedSensitivities'
+  | 'fourEyesEnabled'
+>;
+
+function steeringAccess(req: SteeringAccessRequest, now: Date): MemoryRecallAccess {
+  return {
+    tenantId: req.effectiveTenantId ?? req.tenantId,
+    userId: req.userId ?? '',
+    clientId: req.clientId ?? null,
+    // Server-derived and fail-closed (closeout §6, contract changes 3+4).
+    // This was hardcoded `true`, so EVERY v2 compile bypassed the ethical
+    // wall and served walled client memory straight into the prompt. The
+    // caller must resolve the wall server-side and say so explicitly.
+    ethicalWallAllowed: req.ethicalWallAllowed === true,
+    allowedSensitivities: req.allowedSensitivities ?? ['normal'],
+    fourEyesEnabled: req.fourEyesEnabled ?? false,
+    now,
+  };
+}
+
+/**
+ * Re-decide one steering row under the same v2 record mapping and access policy
+ * the compiler applies. Readers use it to confirm that an item compiled into an
+ * earlier packet is still admissible before releasing output derived from it.
+ */
+export function governedSteeringRowDecision(
+  row: SteeringRow,
+  req: SteeringAccessRequest,
+  now: Date = new Date(),
+): MemoryFilterDecision {
+  return filterGovernedMemory(governedRecord(row, req, false), steeringAccess(req, now));
+}
+
 function governedRecord(
   row: SteeringRow,
-  req: ContextRequest,
+  req: Pick<ContextRequest, 'tenantId' | 'effectiveTenantId'>,
   explicitSelection: boolean,
 ): GovernedMemoryRecord {
   const legacy = classifyLegacyMemory({

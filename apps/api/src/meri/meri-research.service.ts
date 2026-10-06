@@ -128,6 +128,16 @@ import {
   publicResearchSourceTool,
 } from './meri-report-provenance.js';
 import {
+  describeResearchProducerInputCategories,
+  joinResearchProducerInputs,
+  pinResearchProducerInputs,
+  ResearchProducerInputNotCurrent,
+  type ResearchProducerInputCategories,
+  type ResearchProducerInputDraftV1,
+  type ResearchProducerInputManifestV1,
+  type ResearchProducerInputMode,
+} from './meri-research-producer-inputs.js';
+import {
   isResearchObserverErrorMessage,
   projectResearchObserverError,
   projectResearchObserverEvent,
@@ -2951,6 +2961,8 @@ export class MeriResearchService {
       const joinedResult = joinResearchChildEvidence(result, childResults);
       await this.finishResearch(ctx, acceptedSession, sse, progress, {
         ...joinedResult,
+        // Admitted child findings enter the parent prompt with their inputs.
+        ...joinResearchProducerInputs(result, childResults),
         runAuth: auth,
         auditorMode: await resolveTenantAuditorMode(this.prisma, ctx.tenantId),
         bufferReport: true,
@@ -3656,8 +3668,10 @@ export class MeriResearchService {
       evidenceManifest?: MeriEvidenceManifest;
       producerInputEvaluated?: true;
       producerInputSha256?: string;
-      producerInputMode?: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+      producerInputMode?: ResearchProducerInputMode;
       clientContextSha256?: string | null;
+      producerInputDraft?: ResearchProducerInputDraftV1 | null;
+      producerInputCategories?: ResearchProducerInputCategories;
       producerClientContext?: string | null;
     },
   ) {
@@ -3802,11 +3816,19 @@ export class MeriResearchService {
         const citations = researchMetadata(message.metadata).citations;
         return count + (Array.isArray(citations) ? citations.length : 0);
       }, 0) ?? 0;
-    const producerInput = result.producerInputEvaluated
+    const producerInput: {
+      producerInputSha256?: string;
+      producerInputMode?: ResearchProducerInputMode;
+      clientContextSha256: string | null;
+      producerInputDraft?: ResearchProducerInputDraftV1 | null;
+      producerInputCategories?: ResearchProducerInputCategories;
+    } = result.producerInputEvaluated
       ? {
           producerInputSha256: result.producerInputSha256,
           producerInputMode: result.producerInputMode,
           clientContextSha256: result.clientContextSha256 ?? null,
+          producerInputDraft: result.producerInputDraft ?? null,
+          producerInputCategories: result.producerInputCategories,
         }
       : certifyResearchProducerInputs({
           hashMaterial: {
@@ -3833,16 +3855,46 @@ export class MeriResearchService {
         });
     if (!producerInput.producerInputSha256 || !producerInput.producerInputMode)
       throw new ConflictException('The research report producer proof is unavailable.');
-    if (producerInput.producerInputMode === 'unsupported_private_inputs')
+    if (producerInput.producerInputMode === 'unsupported_private_inputs') {
+      this.logger.warn(
+        `Research producer inputs refused: session=${session.id} ` +
+          describeResearchProducerInputCategories(producerInput.producerInputCategories),
+      );
       throw new ConflictException(
         'The research report includes private producer inputs without a current authorization adapter.',
       );
+    }
+    let producerInputManifest: ResearchProducerInputManifestV1 | undefined;
+    if (producerInput.producerInputMode === 'governed_inputs') {
+      const draft = producerInput.producerInputDraft;
+      if (!draft) throw new ConflictException('The research report producer proof is unavailable.');
+      try {
+        producerInputManifest = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+          pinResearchProducerInputs(
+            tx,
+            ctx,
+            { sessionClientId: session.clientId, conversationId: handoff?.conversationId ?? null },
+            draft,
+          ),
+        );
+      } catch (error) {
+        if (error instanceof ResearchProducerInputNotCurrent)
+          this.logger.warn(
+            `Research producer input not current at publication: session=${session.id} category=${error.category}`,
+          );
+        throw error;
+      }
+      this.logger.log(
+        `Research producer inputs governed: session=${session.id} ` +
+          describeResearchProducerInputCategories(producerInput.producerInputCategories),
+      );
+    }
     await this.assertReplayedReportSourcesAuthorized(
       ctx,
       session.id,
       result.runAuth.run!,
       toolsUsed,
-      producerInput,
+      { ...producerInput, producerInputManifest },
     );
 
     const retrieval = result.retrieval ?? result.runAuth.governedContext?.retrieval;
@@ -3942,8 +3994,14 @@ export class MeriResearchService {
         receipts: readDurableResearchStepReceipts(currentMetadata),
         toolsUsed,
         producerInputSha256: producerInput.producerInputSha256!,
-        producerInputMode: producerInput.producerInputMode as 'source_free' | 'covered_inputs',
+        producerInputMode: producerInput.producerInputMode as
+          | 'source_free'
+          | 'covered_inputs'
+          | 'governed_inputs',
         clientContextSha256: producerInput.clientContextSha256,
+        ...(producerInputManifest
+          ? { producerInputManifestSha256: researchJsonSha256(producerInputManifest) }
+          : {}),
       });
       const persistedReportMetadata = {
         ...reportMetadata,
@@ -4009,7 +4067,7 @@ export class MeriResearchService {
           reportArtifactId: artifact.id,
           sources: sources as unknown as Prisma.InputJsonValue,
           metadata: {
-            ...researchMetadata(currentMetadata),
+            ...withoutProducerInputManifest(researchMetadata(currentMetadata)),
             backingConversationId: conversationId,
             ...(result.citations ? { citations: result.citations } : {}),
             run: terminalResearchRun(
@@ -4018,6 +4076,8 @@ export class MeriResearchService {
               held ? 'Report held for review' : 'Report saved',
             ),
             heldForReview: held,
+            // Private: ids and versions only, re-checked on every report read.
+            ...(producerInputManifest ? { producerInputManifest } : {}),
             ...(result.telemetry ? { telemetry: result.telemetry } : {}),
             ...(result.providerCalls ? { providerCalls: result.providerCalls } : {}),
             ...(result.evidenceManifest ? { evidenceManifest: result.evidenceManifest } : {}),
@@ -4277,8 +4337,26 @@ export class MeriResearchService {
     const persisted = new Map(
       readResearchChildTasks(current.metadata).map((task) => [task.id, task]),
     );
-    const eligible = successful.filter(
+    const completed = successful.filter(
       (child) => persisted.get(child.taskId)?.status === 'completed',
+    );
+    // A child's findings carry its producer inputs into the parent. A child
+    // with an input class that has no current-authorization adapter is dropped.
+    const ungoverned = completed.filter(
+      (child) => child.producerInputMode === 'unsupported_private_inputs',
+    );
+    for (const child of ungoverned) {
+      this.logger.warn(
+        `Bounded child producer inputs refused: session=${session.id} task=${child.taskId} ` +
+          describeResearchProducerInputCategories(child.producerInputCategories),
+      );
+      await this.persistChildTaskFailure(ctx, session.id, run.id, run.leaseEpoch, child.taskId, {
+        code: 'source_not_current',
+        message: 'A child input has no current-authorization adapter.',
+      }).catch(() => undefined);
+    }
+    const eligible = completed.filter(
+      (child) => child.producerInputMode !== 'unsupported_private_inputs',
     );
     if (!eligible.length) return [];
 
@@ -4944,8 +5022,9 @@ export class MeriResearchService {
     toolsUsed: string[] | null,
     options?: {
       producerInputSha256?: string;
-      producerInputMode?: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+      producerInputMode?: ResearchProducerInputMode;
       clientContextSha256?: string | null;
+      producerInputManifest?: ResearchProducerInputManifestV1;
       reportArtifactId?: string;
       conversationId?: string;
     },
@@ -4975,6 +5054,9 @@ export class MeriResearchService {
                 producerInputSha256: options.producerInputSha256,
                 producerInputMode: options.producerInputMode!,
                 clientContextSha256: options.clientContextSha256 ?? null,
+                ...(options.producerInputManifest
+                  ? { producerInputManifest: options.producerInputManifest }
+                  : {}),
               },
             }
           : {}),
@@ -5212,6 +5294,11 @@ function joinResearchChildEvidence<
     ledgerEntries,
     citations,
   };
+}
+
+function withoutProducerInputManifest(metadata: Record<string, unknown>): Record<string, unknown> {
+  const { producerInputManifest: _previousRun, ...rest } = metadata;
+  return rest;
 }
 
 function researchChildLedgerKey(entry: LedgerEntry): string {
