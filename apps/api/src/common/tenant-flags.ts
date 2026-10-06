@@ -578,6 +578,11 @@ export const MERI_JOB_FLAGS = {
 
 export type MeriJobFlagKey = (typeof MERI_JOB_FLAGS)[keyof typeof MERI_JOB_FLAGS];
 
+/** Whether the tenant may create Stage 2 job kinds (`meri.jobs`, default OFF). */
+export function meriJobsEnabled(settings: unknown): boolean {
+  return tenantFeatureEnabled(settings, MERI_JOB_FLAGS.jobs, false);
+}
+
 /** Flags the capiro-admin flag endpoint may set. */
 export function adminSettableMeriFlags(): string[] {
   return [...Object.values(MERIV2_FLAGS), ...Object.values(MERI_JOB_FLAGS)];
