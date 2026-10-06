@@ -16,6 +16,7 @@ const NO_STREAM_ACCESS = new Set(['NOT_STREAMED']);
 const SERVER_BLOCKING_STREAM_STATES = new Set([
   'NO_PUBLIC_STREAM',
   'BROWSER_ONLY',
+  'BROWSER_CAPTURE_ONLY',
   'POLICY_BLOCKED',
   'SOURCE_ERROR',
 ]);
@@ -86,9 +87,6 @@ export function serverCaptureCapability(event: CanonicalHearingEvent): HearingAc
   if (status === 'COMPLETED' || status === 'ADJOURNED' || streamState === 'ENDED') {
     return { allowed: false, mode: 'NONE', reason: 'The live proceeding has ended.' };
   }
-  if (ACTIVE_CAPTURE_STATES.has(captureStatus)) {
-    return { allowed: true, mode: 'SERVER', reason: 'Automatic capture is already scheduled.' };
-  }
   if (policy !== 'SERVER_CAPTURE_ALLOWED') {
     const reason =
       policy === 'BROWSER_CAPTURE_ONLY'
@@ -106,17 +104,37 @@ export function serverCaptureCapability(event: CanonicalHearingEvent): HearingAc
     const reason =
       streamState === 'NO_PUBLIC_STREAM'
         ? 'No public stream is available.'
-        : streamState === 'BROWSER_ONLY'
+        : ['BROWSER_ONLY', 'BROWSER_CAPTURE_ONLY'].includes(streamState)
           ? 'This source is available only through browser-assisted recording.'
           : streamState === 'POLICY_BLOCKED'
             ? 'The resolved source is blocked by capture policy.'
             : 'The official stream could not be resolved.';
-    return { allowed: false, mode: streamState === 'BROWSER_ONLY' ? 'BROWSER' : 'NONE', reason };
+    return { allowed: false, mode: ['BROWSER_ONLY', 'BROWSER_CAPTURE_ONLY'].includes(streamState) ? 'BROWSER' : 'NONE', reason };
   }
   if (access && access !== 'PUBLIC' && access !== 'UNKNOWN') {
     return { allowed: false, mode: 'NONE', reason: 'Public access has not been confirmed.' };
   }
+  if (ACTIVE_CAPTURE_STATES.has(captureStatus)) {
+    return { allowed: true, mode: 'SERVER', reason: 'Automatic capture is already scheduled.' };
+  }
   return { allowed: true, mode: 'SERVER' };
+}
+
+/** A pending request does not override the source's current recording policy. */
+export function captureSummaryLabel(event: CanonicalHearingEvent): string {
+  const status = normalizeEnum(event.capture?.status);
+  if (['', 'NOT_SCHEDULED', 'SCHEDULED', 'PREPARING', 'WAITING_FOR_BROADCAST'].includes(status)) {
+    const policy = event.capturePolicy ?? event.capture?.capturePolicy;
+    if (normalizeEnum(policy) !== 'SERVER_CAPTURE_ALLOWED') return capturePolicyLabel(policy);
+    const state = normalizeEnum(event.streamState ?? event.capture?.streamState);
+    if (['BROWSER_ONLY', 'BROWSER_CAPTURE_ONLY'].includes(state)) return 'Browser recording only';
+    if (state === 'NO_PUBLIC_STREAM') return 'No public stream';
+    if (state === 'POLICY_BLOCKED') return 'Capture blocked';
+    if (state === 'SOURCE_ERROR') return 'Stream unavailable';
+  }
+  return status && status !== 'NOT_SCHEDULED'
+    ? `Capture ${captureStatusLabel(event)}`
+    : 'No capture requested';
 }
 
 export function browserCaptureCapability(event: CanonicalHearingEvent): HearingActionCapability {

@@ -34,6 +34,7 @@ import {
   isLiveEvent,
   browserCaptureCapability,
   serverCaptureCapability,
+  captureSummaryLabel,
   type CanonicalHearingEvent,
 } from '../lib/canonical-hearings.js';
 import { LwPill, LwSeg, LwButton, LwSkeleton } from '../lib/primitives.js';
@@ -1236,9 +1237,7 @@ export function HearingsTab({ scope }: { scope: string }) {
                             <div className="lw-lrow__match">
                               {closed
                                 ? reason
-                                : e.capture?.status
-                                  ? `CAPTURE ${e.capture.status.toUpperCase()}`
-                                  : 'NO CAPTURE REQUESTED'}
+                                : captureSummaryLabel(e).toUpperCase()}
                             </div>
                           </button>
                           {stateCalendar ? (

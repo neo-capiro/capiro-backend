@@ -30,6 +30,7 @@ export {
   serverCaptureCapability,
   capturePolicyLabel,
   captureStatusLabel,
+  captureSummaryLabel,
   isLiveEvent,
   safeOfficialHttpUrl,
 } from '../../../../pages/radar/live-hearings/live-hearings-capability.js';

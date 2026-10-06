@@ -4,6 +4,7 @@ import {
   isLiveEvent,
   safeOfficialHttpUrl,
   serverCaptureCapability,
+  captureSummaryLabel,
 } from './live-hearings-capability.js';
 import type { CanonicalHearingEvent } from './live-hearings.types.js';
 
@@ -24,6 +25,25 @@ function event(overrides: Partial<CanonicalHearingEvent> = {}): CanonicalHearing
 }
 
 describe('Live Hearings capture capabilities', () => {
+  test.each([
+    ['BROWSER_CAPTURE_ONLY', 'Browser recording only'],
+    ['LICENSE_REQUIRED', 'License required'],
+    ['BLOCKED', 'Capture blocked'],
+    ['REVIEW_REQUIRED', 'Source review required'],
+  ])('does not let a pending schedule override %s policy', (capturePolicy, label) => {
+    const candidate = event({ capturePolicy, capture: { status: 'SCHEDULED' } });
+    expect(serverCaptureCapability(candidate).allowed).toBe(false);
+    expect(captureSummaryLabel(candidate)).toBe(label);
+  });
+
+  test('keeps real recording outcomes visible while describing pending restrictions honestly', () => {
+    expect(captureSummaryLabel(event({ capture: { status: 'COMPLETE' }, capturePolicy: 'BROWSER_CAPTURE_ONLY' }))).toBe('Capture Complete');
+    expect(captureSummaryLabel(event({ capture: { status: 'SCHEDULED' } }))).toBe('Capture Scheduled');
+    const unavailable = event({ capture: { status: 'SCHEDULED' }, streamState: 'NO_PUBLIC_STREAM' });
+    expect(serverCaptureCapability(unavailable).allowed).toBe(false);
+    expect(captureSummaryLabel(unavailable)).toBe('No public stream');
+  });
+
   test('allows unattended capture only when the source is explicitly approved', () => {
     expect(serverCaptureCapability(event())).toEqual(
       expect.objectContaining({ allowed: true, mode: 'SERVER' }),
