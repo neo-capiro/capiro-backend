@@ -216,3 +216,27 @@
 .lw-hearing-title__expand { margin-top: 5px; font-size: 12px; white-space: normal; }
 .capiro-vnext-root .lw .lw-detail .lw-detail__tabs { flex-wrap: wrap; overflow: visible; height: auto; max-height: none; }
 .capiro-vnext-root .lw .lw-hrow .lw-hrow__title { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* Saved attempts use the same search/select recipes as the schedule toolbar. */
+.capiro-vnext-root .lw .lw-recording-filters .lw-search {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.capiro-vnext-root .lw .lw-recording-filters .lw-selectwrap {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.capiro-vnext-root .lw .lw-recording-filters__exclude {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--lw-sans);
+  font-size: 13px;
+  color: var(--lw-label);
+}
+
+.capiro-vnext-root .lw .lw-recording-filters__exclude input {
+  accent-color: var(--lw-brand);
+}
