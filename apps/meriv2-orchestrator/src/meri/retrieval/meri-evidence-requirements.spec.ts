@@ -883,6 +883,61 @@ describe('coverage comparison', () => {
 });
 
 describe('coverage follow-up and disclosure', () => {
+  it('never dispatches an untargeted follow-up with no identifying argument', () => {
+    // A commitments audit misread as a bill-status claim used to make the server
+    // run an empty floor-vote search and a whole member roster before answering.
+    const requirements = [
+      {
+        id: 'bill-status.procedure',
+        requirementId: 'bill-status.procedure',
+        claimCategory: 'bill_status',
+        toolFamilies: ['search_floor_votes', 'list_members'],
+        essential: true,
+        rationale: 'procedure',
+      },
+    ] as Parameters<typeof planFollowUp>[0]['requirements'];
+    const gaps = [
+      {
+        requirementId: 'bill-status.procedure',
+        essential: true,
+        status: 'never_called',
+        materiality: 'changes_answer',
+        evidenceIds: [],
+      },
+    ] as Parameters<typeof planFollowUp>[0]['gaps'];
+    const toolSchemas = [
+      {
+        name: 'search_floor_votes',
+        readOnly: true,
+        input_schema: { properties: { billId: {}, chamber: {} } },
+      },
+      { name: 'list_members', readOnly: true, input_schema: { properties: { chamber: {} } } },
+    ];
+    expect(
+      planFollowUp({
+        gaps,
+        requirements,
+        request: 'List each commitment with its current status.',
+        frame,
+        toolSchemas,
+      }),
+    ).toBeNull();
+    expect(
+      planFollowUp({
+        gaps,
+        requirements,
+        request: 'What is the status of H.R. 8800?',
+        frame,
+        toolSchemas,
+      })?.calls,
+    ).toEqual([
+      expect.objectContaining({
+        name: 'search_floor_votes',
+        arguments: expect.objectContaining({ billId: expect.any(String) }),
+      }),
+    ]);
+  });
+
   const documentSchema = {
     name: 'read_client_documents',
     readOnly: true,

@@ -414,6 +414,7 @@ export function composeChatSystemPrompt(
     '',
     '# Researching efficiently (you have a bounded tool budget)',
     'You get a limited number of tool ROUNDS, so spend them well. When several lookups are independent, request them TOGETHER in one turn (parallel tool calls) instead of one per turn. Do NOT narrate every step ("Let me now look up…") — a brief one-line plan up front is fine, then work quietly and save your words for the answer. Stop researching as soon as you have enough to answer; over-gathering wastes the budget and risks never reaching the answer.',
+    'Every earlier tool result in this turn stays in your context, and each extra round resends all of it. Never repeat a call with the same tool and arguments (a repeat returns only a pointer to the earlier result). When a list or search returns several threads, meetings, or documents you need, read them in the SAME round rather than one per round. Ask for a full page (the tool’s limit) instead of paging through small ones. Do not search again for records a list already returned; read them. If a source reports it is unavailable, disconnected, not configured, or not mapped, report that once and do not call it again this turn.',
     '',
     '# ALWAYS finish with a complete answer',
     'Never end your turn after tool calls without writing the answer, and never reply with only your research narration. Once you have gathered enough, WRITE THE FULL ANSWER. If a multi-part question was asked, answer EACH part explicitly and in order — restate each sub-question and respond to it.',

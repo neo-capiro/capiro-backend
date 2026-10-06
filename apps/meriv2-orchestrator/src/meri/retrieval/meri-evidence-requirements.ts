@@ -73,6 +73,8 @@ export interface DocumentContentEvidence {
 
 /** Tools whose result without a `documentId` is a file listing, never document content. */
 const DOCUMENT_CONTENT_TOOLS = new Set(['read_client_documents']);
+/** Claims about one bill or vote: a follow-up without its identifier cannot target it. */
+const UNTARGETABLE_EMPTY_FOLLOW_UPS = new Set<ClaimCategory>(['bill_status', 'member_vote']);
 const DOCUMENT_KEYWORD =
   /\b(?:summari[sz]e|review|extract|from)\b[\s\S]{0,80}\b(?:transcript|document|attachment|file|memo|report|minutes)\b/i;
 const CHAMBER_PATTERNS: Readonly<Record<string, RegExp>> = {
@@ -842,6 +844,11 @@ export function planFollowUp(input: {
         ? schema.input_schema.required.filter((key): key is string => typeof key === 'string')
         : [];
       if (required.some((key) => args[key] === undefined)) continue;
+      // A bill-status or vote follow-up with no bill, member or route argument is
+      // an untargeted listing (an empty floor-vote search) that cannot satisfy
+      // the gap. A roster read stays valid without arguments.
+      if (!Object.keys(args).length && UNTARGETABLE_EMPTY_FOLLOW_UPS.has(requirement.claimCategory))
+        continue;
       // A document-content follow-up needs the document itself. A call with only
       // the client id would be a file listing, which can never satisfy content.
       if (

@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-child-goal-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T13:00:51.635463+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "447557786b4904f61f7c9d0691c65ae9a9564e93",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:97bad22905610679f49c3432db9447a86fe2d7de079d18798dea2990f72cb089",
+      "buildId": "capiro-build-web-dev:07b0a224-fc8c-4792-8270-f18330618be3"
+    }
+  ],
+  "schemaChange": false,
+  "change": "#2094 child goals bounded and trimmed (T5 research_child_goal_invalid); job status not masked by approval proposals",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}

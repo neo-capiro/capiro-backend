@@ -59,6 +59,17 @@ function exhaustAcquisition(
 }
 
 describe('MeriRunBudget', () => {
+  test('remembers the first provider call that settled each read signature', () => {
+    const controller = budget();
+    const signature = controller.toolSignature(scope, 'read_alpha', { query: 'same' });
+    const other = controller.toolSignature(scope, 'read_alpha', { query: 'other' });
+    expect(controller.settledRead(signature)).toBeNull();
+    controller.rememberSettledRead(signature, 'call-1');
+    controller.rememberSettledRead(signature, 'call-2');
+    expect(controller.settledRead(signature)).toBe('call-1');
+    expect(controller.settledRead(other)).toBeNull();
+  });
+
   test('bounds an unchanged alternating A/B failure cycle across rounds', () => {
     const controller = budget();
     for (let lap = 0; lap < 3; lap += 1) {

@@ -156,6 +156,8 @@ describe('operational status is not legislative status', () => {
     'Explain the failed API request.',
     'Report the failed query’s status.',
     'C1 verification, read only: Search my own connected mailbox exactly once for the literal text "c1zero20261002xqv9173". Return only the matching-message count and any actual search or coverage limitation; omit message contents, addresses, and subjects. Do not retry, broaden the query, or change anything. A failed search is unknown, not zero.',
+    'What has changed with the commitments and deliverables we owe this client? Audit every commitment we have made. List each commitment with: what was promised, when and where it was made, the internal owner, current status (completed, in progress, or no record of action), and what needs follow-up. Cross-check emails, meeting notes, debriefs, native tasks, action items, and monday.com work.',
+    'What is the status of each action item from Tuesday’s meeting?',
   ])('does not schedule legislative evidence for %s', (request) => {
     expect(inferClaimCategories(request)).not.toContain('bill_status');
     expect(plan(request).requiredRequirementIds).not.toContain('bill-status.official-status');
@@ -170,6 +172,8 @@ describe('operational status is not legislative status', () => {
     'The server failed, but is the measure still alive?',
     'After the failed search, verify whether H.R. 123 passed.',
     'The failed mailbox lookup does not tell us the bill status.',
+    'What is the status of the NDAA? Also list my open tasks.',
+    'What is the current status of the Critical Minerals Supply Chain Resiliency Act, and which follow-ups do we owe?',
   ])('retains actual or unresolved legislative evidence for %s', (request) => {
     expect(inferClaimCategories(request)).toContain('bill_status');
   });
