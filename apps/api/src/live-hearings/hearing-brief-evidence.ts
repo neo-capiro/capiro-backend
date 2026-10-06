@@ -2,6 +2,8 @@ import type { SpeakerTurn } from './hearing-speaker-attribution.service.js';
 
 export const BRIEF_TRANSCRIPT_CHAR_LIMIT = 120_000;
 const TURN_LIMIT = 600;
+const CLOSING_TURN_COUNT = 3;
+const CLOSING_TURN_CHAR_LIMIT = 2000;
 
 export function briefClock(ms: number): string {
   const seconds = Math.max(0, Math.floor(ms / 1000));
@@ -47,7 +49,8 @@ export function buildBriefEvidence(
   const selected = new Set<number>();
   if (turns.length) {
     selected.add(0);
-    selected.add(turns.length - 1);
+    for (let i = Math.max(0, turns.length - CLOSING_TURN_COUNT); i < turns.length; i++)
+      selected.add(i);
   }
   // Reserve half of a long-hearing packet for chronological coverage before
   // adding matched topics, which can otherwise crowd out the whole middle.
@@ -78,10 +81,27 @@ export function buildBriefEvidence(
     0,
     BRIEF_TRANSCRIPT_CHAR_LIMIT - overhead.reduce((a, s) => a + s.length + 1, 0),
   );
-  let cap = Math.floor(budget / Math.max(1, picked.length));
-  let remaining = budget;
-  let slots = picked.length;
-  for (const length of picked.map((t) => t.text.length).sort((a, b) => a - b)) {
+  // Closing requests often appear at the end of the chair's final turn. Keep
+  // the last three actual turns outside the per-turn cap. Unusually long
+  // closing turns retain their tail, visibly marked as an excerpt, rather
+  // than silently replacing the closing evidence with opening words.
+  const closingStart = Math.max(0, picked.length - CLOSING_TURN_COUNT);
+  const allPickedTextFits = picked.reduce((sum, turn) => sum + turn.text.length, 0) <= budget;
+  const closingText = picked
+    .slice(closingStart)
+    .map((turn) =>
+      !allPickedTextFits && turn.text.length > CLOSING_TURN_CHAR_LIMIT
+        ? `…${turn.text.slice(-(CLOSING_TURN_CHAR_LIMIT - 1))}`
+        : turn.text,
+    );
+  const regularBudget = budget - closingText.reduce((sum, text) => sum + text.length, 0);
+  let cap = Math.floor(regularBudget / Math.max(1, closingStart));
+  let remaining = regularBudget;
+  let slots = closingStart;
+  for (const length of picked
+    .slice(0, closingStart)
+    .map((t) => t.text.length)
+    .sort((a, b) => a - b)) {
     if (length > cap) break;
     remaining -= length;
     slots--;
@@ -89,9 +109,14 @@ export function buildBriefEvidence(
   }
   let truncatedTurns = 0;
   const evidence = picked.map((turn, index) => {
-    const truncated = turn.text.length > cap;
+    const text =
+      index >= closingStart
+        ? closingText[index - closingStart]!
+        : turn.text.length > cap
+          ? `${turn.text.slice(0, Math.max(0, cap - 1))}…`
+          : turn.text;
+    const truncated = text !== turn.text;
     if (truncated) truncatedTurns++;
-    const text = truncated ? `${turn.text.slice(0, Math.max(0, cap - 1))}…` : turn.text;
     return {
       ...turn,
       text,

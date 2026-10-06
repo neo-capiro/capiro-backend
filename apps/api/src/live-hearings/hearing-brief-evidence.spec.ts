@@ -53,6 +53,66 @@ describe('hearing debrief evidence', () => {
     });
   });
 
+  it('retains closing deadlines at the end of long hearings within the character budget', () => {
+    const turns = Array.from({ length: 2000 }, (_, i) => ({
+      sequence: i,
+      label: '0',
+      startMs: i * 10000,
+      text:
+        'Routine testimony. '.repeat(100) + (i === 1999 ? ' Please respond within two weeks.' : ''),
+    }));
+    const selected = buildBriefEvidence(
+      turns,
+      turns.slice(0, 700).map((t) => t.startMs),
+      new Map(),
+    );
+    expect(selected.evidence.slice(-3).map((e) => e.sequence)).toEqual([1997, 1998, 1999]);
+    expect(selected.evidence.at(-1)?.text).toBe(turns.at(-1)?.text);
+    expect(selected.lines.join('\n')).toContain('Please respond within two weeks.');
+    expect(selected.evidence.length).toBeLessThanOrEqual(600);
+    expect(selected.lines.join('\n').length).toBeLessThanOrEqual(BRIEF_TRANSCRIPT_CHAR_LIMIT);
+  });
+
+  it('preserves the tail of an oversized closing turn with its real citation anchor', () => {
+    const turns = Array.from({ length: 600 }, (_, i) => ({
+      sequence: i,
+      label: '0',
+      startMs: i * 10000,
+      text:
+        'Routine testimony. '.repeat(1000) + (i === 599 ? ' Please respond within two weeks.' : ''),
+    }));
+    const selected = buildBriefEvidence(turns, [], new Map());
+    const closing = selected.evidence.at(-1)!;
+    expect(closing.text).toMatch(/^…/);
+    expect(closing.text).toContain('Please respond within two weeks.');
+    expect(closing.startMs).toBe(turns.at(-1)?.startMs);
+    expect(selected.lines.join('\n').length).toBeLessThanOrEqual(BRIEF_TRANSCRIPT_CHAR_LIMIT);
+    expect(selected.coverage.truncatedTurns).toBe(600);
+    expect(() =>
+      validateBriefCitations(
+        [
+          {
+            name: 'Commitments, deadlines and open questions',
+            content: '“Please respond within two weeks.” [1:39:50]',
+          },
+        ],
+        selected.evidence,
+        [{ startMs: closing.startMs, summary: 'Requested responses within two weeks.' }],
+      ),
+    ).not.toThrow();
+  });
+
+  it('does not shorten a long closing turn when the full transcript fits', () => {
+    const text = 'A recorded statement. '.repeat(1000) + ' The hearing is adjourned.';
+    const selected = buildBriefEvidence(
+      [{ label: '0', sequence: 1, startMs: 0, text }],
+      [],
+      new Map(),
+    );
+    expect(selected.evidence[0]?.text).toBe(text);
+    expect(selected.coverage.limited).toBe(false);
+  });
+
   it('rejects invented timestamps and derives key-moment speakers from the source', () => {
     const selected = buildBriefEvidence(
       [{ sequence: 1, label: '0', startMs: 5000, text: 'We will provide a report.' }],
