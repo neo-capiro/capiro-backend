@@ -165,7 +165,9 @@ export interface ResearchProducerInputClassification {
   producerInputCategories: ResearchProducerInputCategories;
 }
 
-type LedgerEntryWithReceipt = LedgerEntry & { durableSafeRead?: { tool: string } };
+type LedgerEntryWithReceipt = LedgerEntry & {
+  durableSafeRead?: { tool: string; executionId: string };
+};
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -224,6 +226,8 @@ function recordKey(ref: ResearchContextRecordRef): string {
 export function classifyResearchProducerInputs(input: {
   hashMaterial: unknown;
   durableTools: string[];
+  /** Durable reads whose step, receipt and owner classification agree (declared sources). */
+  qualifiedDurableExecutionIds: ReadonlySet<string>;
   clientContext: string | null | undefined;
   governedContext: MeriGovernedTurnContext | undefined;
   handoff: MeriResearchHandoff | null;
@@ -320,6 +324,10 @@ export function classifyResearchProducerInputs(input: {
       // for any other tool has no owner proof and was never re-checked before.
       if (!publicResearchSourceTool(entry.durableSafeRead.tool))
         bump(unsupported, `receipted_unowned_tool:${entry.durableSafeRead.tool}`);
+      // A receipted read the model saw that will not be declared as a report
+      // source would escape the read-time re-check.
+      else if (!input.qualifiedDurableExecutionIds.has(entry.durableSafeRead.executionId))
+        bump(unsupported, `receipted_unqualified_tool:${entry.durableSafeRead.tool}`);
       continue;
     }
     if (entry.tool === 'context_plane') {
