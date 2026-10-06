@@ -225,6 +225,11 @@ export function createResearchChildTaskBatch(input: {
   });
 }
 
+/** A child goal fits the task contract: at most the text limit, never ending in whitespace. */
+export function boundResearchChildGoal(goal: string): string {
+  return goal.length <= MAX_TEXT ? goal.trim() : goal.slice(0, MAX_TEXT).trim();
+}
+
 export function readResearchChildTasks(metadata: unknown): ResearchChildTaskV1[] {
   const raw = researchMetadata(metadata).researchChildTasks;
   if (raw === undefined) return [];

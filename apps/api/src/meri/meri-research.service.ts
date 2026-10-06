@@ -178,6 +178,7 @@ import {
 } from './meri-research-coordinator.js';
 import {
   ResearchChildTaskError,
+  boundResearchChildGoal,
   completeResearchChildTask,
   createResearchChildTaskBatch,
   currentResearchGoalRevision,
@@ -4244,19 +4245,23 @@ export class MeriResearchService {
         {
           id: `${run.id}:child:${goalRevision}:1`,
           role: 'evidence_reviewer',
-          goal: `Review the admitted evidence for: ${plan.steps
-            .filter((step) => step.effect === 'read')
-            .map((step) => step.objective)
-            .join('; ')}`.slice(0, 2_000),
+          goal: boundResearchChildGoal(
+            `Review the admitted evidence for: ${plan.steps
+              .filter((step) => step.effect === 'read')
+              .map((step) => step.objective)
+              .join('; ')}`,
+          ),
           allowedCapabilities: left,
         },
         {
           id: `${run.id}:child:${goalRevision}:2`,
           role: 'scope_analyst',
-          goal: `Independently identify scope gaps and contradictions for: ${plan.steps
-            .filter((step) => step.effect === 'read')
-            .map((step) => step.objective)
-            .join('; ')}`.slice(0, 2_000),
+          goal: boundResearchChildGoal(
+            `Independently identify scope gaps and contradictions for: ${plan.steps
+              .filter((step) => step.effect === 'read')
+              .map((step) => step.objective)
+              .join('; ')}`,
+          ),
           allowedCapabilities: right,
         },
       ],

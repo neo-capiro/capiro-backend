@@ -1,4 +1,5 @@
 import {
+  boundResearchChildGoal,
   completeResearchChildTask,
   createResearchChildTaskBatch,
   currentResearchGoalRevision,
@@ -49,13 +50,13 @@ const plan: ResearchPlanV1 = {
   clarifyingQuestions: [],
 };
 
-function tasks() {
+function tasks(firstGoal = 'Review the current evidence for the first admitted read step.') {
   return createResearchChildTaskBatch({
     specs: [
       {
         id: 'child:one',
         role: 'evidence_reviewer',
-        goal: 'Review the current evidence for the first admitted read step.',
+        goal: firstGoal,
         allowedCapabilities: ['search_memory'],
       },
       {
@@ -118,6 +119,19 @@ describe('bounded research child-task contract', () => {
         }),
       ]),
     );
+  });
+
+  it('bounds a long joined goal without leaving edge whitespace', () => {
+    // A cut that lands just after a space used to fail the whole run with
+    // research_child_goal_invalid before any step started.
+    const objective = `${'a'.repeat(1_999)} next objective`;
+    expect(objective.slice(0, 2_000).endsWith(' ')).toBe(true);
+    const goal = boundResearchChildGoal(objective);
+    expect(goal).toHaveLength(1_999);
+    expect(goal.trim()).toBe(goal);
+    expect(tasks(goal)[0]?.goal).toBe(goal);
+    expect(() => tasks(objective.slice(0, 2_000))).toThrow('research_child_goal_invalid');
+    expect(boundResearchChildGoal('Short goal.')).toBe('Short goal.');
   });
 
   it('rejects broader capabilities and a child-selected model route', () => {
