@@ -19,6 +19,9 @@ export const PUBLIC_RESEARCH_SOURCE_TOOLS = [
   'scrape_web_page',
   'read_chat_attachments',
   'get_research_evidence',
+  'get_program_element',
+  'get_pe_budget_timeline',
+  'get_pe_report_language',
 ] as const;
 
 const PUBLIC_RESEARCH_SOURCE_TOOL_SET = new Set<string>(PUBLIC_RESEARCH_SOURCE_TOOLS);
