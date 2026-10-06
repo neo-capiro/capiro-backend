@@ -17,6 +17,7 @@ import type { PrismaClient } from '@prisma/client';
 import type { RunCounts } from '../ingestion/sync-run.helper.js';
 import { parseStateCommitteeFollowKey } from './florida-committee-alerts.js';
 import { contentHash } from './hearing-identity.js';
+import { committeeCatalogCode } from './committee-catalog-alias.js';
 import { CommitteeSourceRepository } from './committee-source.repository.js';
 import { CanonicalHearingRepository, insertSiteUpdates } from './canonical-hearing.repository.js';
 import { StreamCandidateRepository } from './stream-candidate.repository.js';
@@ -157,7 +158,7 @@ export class DiscoveryJobsService {
     const counts: RunCounts = { inserted: 0, updated: 0, skipped: 0, errors: 0 };
 
     for (const row of [...upcoming, ...recent]) {
-      const systemCode = row.committeeSystemCode ?? row.committeeCode;
+      const systemCode = committeeCatalogCode(row.committeeSystemCode ?? row.committeeCode);
       if (!systemCode || !row.url) {
         counts.skipped += 1;
         continue;

@@ -205,4 +205,27 @@ describe('Live Hearings Phase 7 pure contracts', () => {
     await expect(service.transcript('h-1', {})).rejects.toMatchObject({ status: 403 });
     expect(raw).not.toHaveBeenCalled();
   });
+
+  it('projects only validated names once per transcript page and preserves original nonnumeric labels', async () => {
+    const raw = jest.fn()
+      .mockResolvedValueOnce([{ captureId: 'capture-1', domainStatus: 'COMPLETE' }])
+      .mockResolvedValueOnce([
+        { id: 's1', sequence: 1, speakerLabel: '8', resolvedSpeakerName: 'Shaheen, Jeanne' },
+        { id: 's2', sequence: 2, speakerLabel: '1' },
+        { id: 's3', sequence: 3, speakerLabel: '9' },
+        { id: 's4', sequence: 4, speakerLabel: 'Official witness label' },
+      ])
+      .mockResolvedValueOnce([{ count: 4 }]);
+    const speakerMap = jest.fn().mockResolvedValue(new Map([['1', 'Validated automatic name'], ['9', 'Reviewed manual name']]));
+    const service = new LiveHearingsPhase7Service({
+      committeeHearing: { findUnique: jest.fn().mockResolvedValue(publicHearing) },
+      $queryRawUnsafe: raw,
+    } as never, {} as never, {} as never, { speakerMap } as never);
+    const result = await service.transcript('h-1', {});
+    expect(result.items.map((item) => item.speakerName)).toEqual([
+      null, 'Validated automatic name', 'Reviewed manual name', 'Official witness label',
+    ]);
+    expect(speakerMap).toHaveBeenCalledTimes(1);
+    expect(speakerMap).toHaveBeenCalledWith('capture-1');
+  });
 });

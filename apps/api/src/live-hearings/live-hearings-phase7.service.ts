@@ -10,6 +10,7 @@ import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { LiveHearingsService } from './live-hearings.service.js';
 import { assessStrictSchedulePolicy } from './live-hearings-phase7-schedule.guard.js';
 import { stateCapturePolicy } from './legiwatch-state-capture-policy.js';
+import { HearingSpeakerAttributionService } from './hearing-speaker-attribution.service.js';
 
 import {
   selectBrowserSource,
@@ -96,7 +97,6 @@ interface TranscriptSegmentRow {
   endMs: number;
   text: string;
   speakerLabel: string | null;
-  resolvedSpeakerName: string | null;
   speakerConfidence: number | null;
   transcriptionConfidence: number | null;
   isFinal: boolean;
@@ -212,6 +212,7 @@ export class LiveHearingsPhase7Service {
     private readonly prisma: PrismaService,
     private readonly hearings: LiveHearingsService,
     private readonly committees: CommitteeDirectoryService,
+    private readonly speakers?: HearingSpeakerAttributionService,
   ) {}
 
   async room(ctx: TenantContext, hearingId: string): Promise<Record<string, unknown>> {
@@ -293,15 +294,12 @@ export class LiveHearingsPhase7Service {
               s.end_ms AS "endMs",
               s.text,
               s.speaker_label AS "speakerLabel",
-              sp.display_name AS "resolvedSpeakerName",
               s.speaker_confidence AS "speakerConfidence",
               s.transcription_confidence AS "transcriptionConfidence",
               s.is_final AS "isFinal",
               s.has_gap_before AS "hasGapBefore",
               s.revision
        FROM public_hearing_transcript_segment s
-       LEFT JOIN public_hearing_speaker sp
-         ON sp.capture_id = s.capture_id AND sp.speaker_label = s.speaker_label
        WHERE s.capture_id=$1
          AND (
            $2::int IS NULL OR
@@ -324,6 +322,9 @@ export class LiveHearingsPhase7Service {
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
     const last = page.at(-1);
+    // Validate identities once for this capture, never once per transcript row.
+    const speakerMap = page.length && this.speakers
+      ? await this.speakers.speakerMap(capture.id) : new Map<string, string>();
 
     return {
       hearingId,
@@ -337,7 +338,7 @@ export class LiveHearingsPhase7Service {
         speakerLabel: row.speakerLabel,
         // A bare diarization index is not a name; older rails stored real labels.
         speakerName:
-          row.resolvedSpeakerName ??
+          (row.speakerLabel ? speakerMap.get(row.speakerLabel) : undefined) ??
           (row.speakerLabel && !/^\d+$/.test(row.speakerLabel.trim()) ? row.speakerLabel : null),
         confidence: row.transcriptionConfidence ?? row.speakerConfidence,
         transcriptionConfidence: row.transcriptionConfidence,

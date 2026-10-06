@@ -25,7 +25,8 @@
  * silent zero.
  */
 import { contentHash } from '../hearing-identity.js';
-import { cleanText, decodeEntities, fetchText, type ConditionalState } from './source-http.js';
+import { cleanText, decodeEntities, type ConditionalState } from './source-http.js';
+import { createFloridaCommitteeFetch } from './florida-committee-fetch.js';
 import type {
   CanonicalHearingRef,
   CommitteeSourceAdapter,
@@ -85,6 +86,9 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
   readonly adapterKey = 'committee-site';
   readonly parserVersion = 'committee-site/2026-10-06';
   updateErrors: string[] = [];
+  // DiscoveryJobsService and phase9 create an adapter for every invocation;
+  // cached responses and a publisher429 circuit never survive into a new run.
+  private readonly fetchPage = createFloridaCommitteeFetch();
 
   constructor(private readonly options: CommitteeSiteAdapterOptions = {}) {}
 
@@ -117,7 +121,7 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
     if (requiresAttribution && !stateName)
       throw new Error('Shared committee source has no verified committee identity');
     const prior = this.options.priorState?.(source.sourceUrl);
-    const res = await fetchText(source.sourceUrl, { prior, accept: 'text/html' });
+    const res = await this.fetchPage(source.sourceUrl, { prior, accept: 'text/html' });
     if (!res.ok) {
       throw new Error(`committee site fetch failed: ${res.error ?? `HTTP ${res.status}`}`);
     }
@@ -159,7 +163,7 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
           .filter((url) => url !== source.sourceUrl)
           .slice(0, 4);
     for (const url of newsIndexes) {
-      const page = await fetchText(url, { accept: 'text/html' });
+      const page = await this.fetchPage(url, { accept: 'text/html' });
       if (!page.ok) {
         this.updateErrors.push(
           `committee news index fetch failed: ${url}: ${page.error ?? `HTTP ${page.status}`}`,
@@ -281,7 +285,7 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
   ): Promise<EventEnrichment | null> {
     const pageUrl = hearing.officialPageUrl;
     if (!pageUrl || !sameHost(pageUrl, source.sourceUrl)) return null;
-    const res = await fetchText(pageUrl, {
+    const res = await this.fetchPage(pageUrl, {
       prior: this.options.priorState?.(pageUrl),
       accept: 'text/html',
     });
@@ -322,7 +326,7 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
   }
 
   async healthCheck(source: SourceDescriptor): Promise<SourceHealth> {
-    const res = await fetchText(source.sourceUrl, { accept: 'text/html', timeoutMs: 15_000 });
+    const res = await this.fetchPage(source.sourceUrl, { accept: 'text/html', timeoutMs: 15_000 });
     return {
       ok: res.ok,
       status: res.status,

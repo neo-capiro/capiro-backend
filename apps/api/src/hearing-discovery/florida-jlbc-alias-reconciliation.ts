@@ -212,6 +212,15 @@ export function floridaJlbcAliasConfirmation(repairId: string): string {
   return `${floridaAliasConfirmation(repairId)}:jlbc-official-calendar`;
 }
 
+export function verifiedJlbcCanonicalDirectoryId(
+  stateCommitteeId: string | null,
+  review: FloridaJlbcAliasReview,
+): boolean {
+  // Normal first-party refresh can now fill this exact directory association.
+  // No other committee ID is compatible with this reviewed one-event repair.
+  return stateCommitteeId === null || stateCommitteeId === review.aliasStateCommitteeId;
+}
+
 export async function reconcileFloridaJlbcAlias(
   tx: Tx,
   review: FloridaJlbcAliasReview,
@@ -287,7 +296,7 @@ export async function reconcileFloridaJlbcAlias(
     alias.bodySourceKey !== review.enrichedAliasBodySourceKey ||
     alias.location !== review.houseLocation ||
     canonical.legislativeSession !== review.legislativeSession ||
-    canonical.stateCommitteeId !== null ||
+    !verifiedJlbcCanonicalDirectoryId(canonical.stateCommitteeId, review) ||
     canonical.bodySourceKey !== review.bodySourceKey ||
     ![review.houseLocation, review.senateLocation].includes(canonical.location ?? '')
   )

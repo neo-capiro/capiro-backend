@@ -23,6 +23,21 @@ import {
 
 const TENANT_A = '00000000-0000-0000-0000-00000000000a';
 const TENANT_B = '00000000-0000-0000-0000-00000000000b';
+
+describe('verified federal committee catalog alias filters', () => {
+  it('keeps an empty filter from becoming a committee family', () => {
+    expect(() => buildWhere({ committee: '   ' })).not.toThrow();
+    expect(JSON.stringify(buildWhere({ committee: '   ' }))).not.toContain('hlzs00');
+  });
+  it.each(['hszs00', 'hlzs00'])('includes published China code in the %s room', (committee) => {
+    const where = buildWhere({ committee });
+    expect(where.OR).toContainEqual({ committeeSystemCode: { in: expect.arrayContaining(['hszs00', 'hlzs00']) } });
+    expect(where.OR).toContainEqual({ committeeSystemCode: null, committeeCode: { in: expect.arrayContaining(['hlzs00']) } });
+  });
+  it('does not expand unrelated House intelligence codes', () => {
+    expect(JSON.stringify(buildWhere({ committee: 'hlig00' }))).not.toContain('hlzs00');
+  });
+});
 const USER_A1 = 'user-a1';
 const USER_A2 = 'user-a2';
 const USER_B1 = 'user-b1';

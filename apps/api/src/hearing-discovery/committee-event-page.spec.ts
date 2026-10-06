@@ -32,6 +32,18 @@ const observation = (patch: Record<string, unknown> = {}) => ({
 const resolve = (observations: ReturnType<typeof observation>[]) =>
   new CommitteeEventPageResolver().resolve(source, hearing, observations);
 describe('committee event page identity', () => {
+  it.each([null, '', '   '])('does not qualify a linked page from missing committee scope %j', async (committeeSystemCode) => {
+    expect(await new CommitteeEventPageResolver().resolve(source, { ...hearing, committeeSystemCode: null }, [observation({ committeeSystemCode })])).toBeNull();
+  });
+  it('qualifies the exact China catalog alias without relaxing date, time or host scope', async () => {
+    const chinaPage = 'https://chinaselectcommittee.house.gov/about/events/import-controls';
+    const chinaSource = { ...source, sourceUrl: 'https://chinaselectcommittee.house.gov/' };
+    const chinaHearing = { ...hearing, chamber: 'House', committeeSystemCode: 'hszs00', subcommitteeSystemCode: null };
+    const observed = observation({ chamber: 'house', committeeSystemCode: 'hlzs00', subcommitteeSystemCode: null, officialPageUrl: chinaPage });
+    expect(await new CommitteeEventPageResolver().resolve(chinaSource, chinaHearing, [observed])).toBe(chinaPage);
+    const wrongDate = observation({ ...observed.sourceMetadata.event, calendarDate: '2026-09-28' });
+    expect(await new CommitteeEventPageResolver().resolve(chinaSource, chinaHearing, [wrongDate])).toBeNull();
+  });
   it('accepts an already associated official event with exact parent, subcommittee and time', async () => {
     expect(await resolve([observation()])).toBe(page);
   });
