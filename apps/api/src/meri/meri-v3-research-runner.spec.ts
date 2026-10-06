@@ -418,6 +418,28 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     expect(correctionPrompt).toContain('Rejected output: Findings: the memory record supports it.');
   });
 
+  it('accepts a correction whose only steps are progress, not reads', async () => {
+    const base = fixture();
+    const { runner, client } = fixture();
+    let call = 0;
+    client.streamChat.mockImplementation(async (params) => {
+      call += 1;
+      params.onEvent(
+        call === 1
+          ? childDoneFrame(base.done, '{malformed')
+          : ({
+              ...formatOnlyFrame(base.done, 'progress-finding', 'search_memory:memory-a'),
+              steps: [{ tool: 'synthesize', label: 'Writing the answer', status: 'done' }],
+            } as MeriV3ChatStreamEvent),
+      );
+    });
+
+    const result = await runner.runChild(ctx, childTask(), childInput, auth);
+
+    expect(result.schemaCorrections).toBe(1);
+    expect(result.output.findings[0]?.id).toBe('progress-finding');
+  });
+
   it('rejects a correction that cites an unread handle or reads again', async () => {
     const base = fixture();
     const unread = fixture();
