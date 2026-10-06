@@ -125,7 +125,12 @@ function fixture() {
     executeRead: jest.fn(async (..._args: any[]) => ({
       structuredResult: {
         structuredContent: {
-          documents: [{ id: doc, notes: '  # Krisp notes\n\nFollow up tomorrow.\n' } as ProviderDocumentFixture],
+          documents: [
+            {
+              id: doc,
+              notes: '  # Krisp notes\n\nFollow up tomorrow.\n',
+            } as ProviderDocumentFixture,
+          ],
         },
       },
     })),

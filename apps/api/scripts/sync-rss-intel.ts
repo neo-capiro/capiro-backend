@@ -176,7 +176,12 @@ export interface ParsedFeedItem {
  * LegiWatch observation ledger. Passing only `publisher` made retain() store
  * hostnames in intel_article.source and emptied every saved source filter.
  */
-export function retainInputFor(feed: RssFeed, item: ParsedFeedItem, now: Date = new Date(), provider = 'rss') {
+export function retainInputFor(
+  feed: RssFeed,
+  item: ParsedFeedItem,
+  now: Date = new Date(),
+  provider = 'rss',
+) {
   const publishedAt = publishedAtFor(item.pubDate, now);
   return {
     provider,
@@ -186,8 +191,13 @@ export function retainInputFor(feed: RssFeed, item: ParsedFeedItem, now: Date = 
     publisher: new URL(item.url).hostname,
     title: item.title,
     summary: item.description,
-    publishedAt: item.publicationPrecision === 'day' && publishedAt ? item.pubDate! : publishedAt?.toISOString(),
-    ...(item.publicationPrecision === 'day' && publishedAt ? { publicationPrecision: 'day' as const } : {}),
+    publishedAt:
+      item.publicationPrecision === 'day' && publishedAt
+        ? item.pubDate!
+        : publishedAt?.toISOString(),
+    ...(item.publicationPrecision === 'day' && publishedAt
+      ? { publicationPrecision: 'day' as const }
+      : {}),
     author: item.author,
     feedUrl: feed.url,
     categories: item.categories,
@@ -197,9 +207,13 @@ export function retainInputFor(feed: RssFeed, item: ParsedFeedItem, now: Date = 
 
 export async function retainFailedFeed(prisma: PrismaClient, feed: RssFeed, failure: string) {
   if (process.env.LEGIWATCH_NEWS_INGEST_ENABLED !== 'true') return;
-  const observedAt = new Date().toISOString(), manifest = {
-    observedAt, status: 'failed', reason: failure.slice(0, 500), history: 'unqualified',
-  };
+  const observedAt = new Date().toISOString(),
+    manifest = {
+      observedAt,
+      status: 'failed',
+      reason: failure.slice(0, 500),
+      history: 'unqualified',
+    };
   await prisma.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,content_hash,scope,manifest,complete) VALUES(${newsHash([feed.url, observedAt])},'rss',${feed.url},${newsHash(['failed', observedAt])},${JSON.stringify({ publisher: feed.source, domain: new URL(feed.url).hostname })}::jsonb,${JSON.stringify(manifest)}::jsonb,false)`;
 }
 
@@ -207,30 +221,65 @@ export async function loadConfiguredFeed(feed: RssFeed, fetcher: typeof fetch = 
   let primaryFailure: string | null = null;
   try {
     const response = await fetcher(feed.url, {
-      headers: { 'User-Agent': RSS_USER_AGENT }, signal: AbortSignal.timeout(20_000),
+      headers: { 'User-Agent': RSS_USER_AGENT },
+      signal: AbortSignal.timeout(20_000),
     });
     if (!response.ok) throw new Error(`rss_http_${response.status}`);
-    const body = await response.text(), error = validateFeedXml(body);
+    const body = await response.text(),
+      error = validateFeedXml(body);
     if (error) throw new Error(`rss_invalid_feed: ${error}`);
-    const rssItems = body.split(/<item[ >]/).slice(1), entries = rssItems.length ? rssItems : body.split(/<entry[ >]/).slice(1);
+    const rssItems = body.split(/<item[ >]/).slice(1),
+      entries = rssItems.length ? rssItems : body.split(/<entry[ >]/).slice(1);
     const items: ParsedFeedItem[] = [];
     let rejected = 0;
     for (const entry of entries.slice(0, 30)) {
-      const title = extractText(entry, 'title'), link = extractText(entry, 'link') || entry.match(/href="([^"]+)"/)?.[1];
-      if (!title || !link) { rejected++; continue; }
-      items.push({ title, url: link.startsWith('http') ? link : `https://${link}`,
-        pubDate: extractText(entry, 'pubDate') || extractText(entry, 'published') || extractText(entry, 'updated'),
-        description: extractText(entry, 'description') || extractText(entry, 'summary') || extractText(entry, 'content'),
-        author: extractText(entry, 'author') || extractText(entry, 'dc:creator'), categories: extractCategories(entry) });
+      const title = extractText(entry, 'title'),
+        link = extractText(entry, 'link') || entry.match(/href="([^"]+)"/)?.[1];
+      if (!title || !link) {
+        rejected++;
+        continue;
+      }
+      items.push({
+        title,
+        url: link.startsWith('http') ? link : `https://${link}`,
+        pubDate:
+          extractText(entry, 'pubDate') ||
+          extractText(entry, 'published') ||
+          extractText(entry, 'updated'),
+        description:
+          extractText(entry, 'description') ||
+          extractText(entry, 'summary') ||
+          extractText(entry, 'content'),
+        author: extractText(entry, 'author') || extractText(entry, 'dc:creator'),
+        categories: extractCategories(entry),
+      });
     }
-    return { body, items, rejected, observedItems: entries.length, provider: 'rss', sourceUrl: feed.url, primaryFailure };
-  } catch (error) { primaryFailure = (error as Error).message; }
-  const fallback = process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true' ? PUBLISHER_NEWS_FALLBACKS[feed.source] : undefined;
+    return {
+      body,
+      items,
+      rejected,
+      observedItems: entries.length,
+      provider: 'rss',
+      sourceUrl: feed.url,
+      primaryFailure,
+    };
+  } catch (error) {
+    primaryFailure = (error as Error).message;
+  }
+  const fallback =
+    process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true'
+      ? PUBLISHER_NEWS_FALLBACKS[feed.source]
+      : undefined;
   // Never use another route to evade a publisher rate limit. Only the two
   // reviewed public publisher interfaces are configured; no guessed URLs.
   if (!fallback || primaryFailure === 'rss_http_429') throw new Error(primaryFailure);
   try {
-    return { ...await loadPublisherNews(fallback, fetcher), provider: fallback.kind, sourceUrl: fallback.url, primaryFailure };
+    return {
+      ...(await loadPublisherNews(fallback, fetcher)),
+      provider: fallback.kind,
+      sourceUrl: fallback.url,
+      primaryFailure,
+    };
   } catch (error) {
     throw new Error(`${primaryFailure}; ${(error as Error).message}`);
   }
@@ -278,10 +327,13 @@ async function main() {
   for (const feed of FEEDS) {
     await new Promise((r) => setTimeout(r, DELAY_MS));
     try {
-      const loaded = await loadConfiguredFeed(feed), xml = loaded.body;
+      const loaded = await loadConfiguredFeed(feed),
+        xml = loaded.body;
       if (loaded.primaryFailure) {
         await retainFailedFeed(prisma, feed, loaded.primaryFailure);
-        console.warn(`[rss-sync] ${feed.source} primary failed: ${loaded.primaryFailure}; using ${loaded.provider}`);
+        console.warn(
+          `[rss-sync] ${feed.source} primary failed: ${loaded.primaryFailure}; using ${loaded.provider}`,
+        );
       }
       let feedCount = 0,
         rejected = loaded.rejected;
@@ -332,14 +384,18 @@ async function main() {
           status: rejected ? 'partial' : 'retained',
           provider: loaded.provider,
           primarySourceUrl: feed.url,
-          ...(loaded.primaryFailure ? { primaryFailure: loaded.primaryFailure, coverage: 'current_publisher_index_only' } : {}),
+          ...(loaded.primaryFailure
+            ? { primaryFailure: loaded.primaryFailure, coverage: 'current_publisher_index_only' }
+            : {}),
         };
         await prisma.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,content_hash,scope,manifest,complete) VALUES(${id},${loaded.provider === 'rss' ? 'rss' : 'publisher-news'},${loaded.sourceUrl},${contentHash},${JSON.stringify({ publisher: feed.source, domain: new URL(loaded.sourceUrl).hostname })}::jsonb,${JSON.stringify(manifest)}::jsonb,false) ON CONFLICT DO NOTHING`;
       }
       if (feedCount > 0) console.log(`[rss-sync] ${feed.source}: ${feedCount} articles`);
       if (rejected) {
         feedsFailed++;
-        console.warn(`[rss-sync] ${feed.source} partial: ${feedCount} retained, ${rejected} rejected`);
+        console.warn(
+          `[rss-sync] ${feed.source} partial: ${feedCount} retained, ${rejected} rejected`,
+        );
       } else feedsProcessed++;
     } catch (err) {
       console.warn(`[rss-sync] ${feed.source} failed: ${(err as Error).message}`);

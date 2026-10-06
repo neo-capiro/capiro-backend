@@ -34,10 +34,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { LiveHearingsPhase7Service } from './live-hearings-phase7.service.js';
 import { CommitteeDirectoryService } from './committee-directory.service.js';
 import { requireStateCalendar } from './legiwatch-calendar-access.js';
-import {
-  STATE_CAPTURE_LINK_ONLY,
-  stateCapturePolicy,
-} from './legiwatch-state-capture-policy.js';
+import { STATE_CAPTURE_LINK_ONLY, stateCapturePolicy } from './legiwatch-state-capture-policy.js';
 import {
   selectOfficialPlaybackSource,
   strictOfficialSourceUrl,
@@ -729,7 +726,10 @@ export class LegiWatchWave1Service {
     // The archive is the DURABLE HISTORICAL corpus: proceedings that already
     // happened, or whose capture reached a terminal state. A scheduled future
     // hearing belongs to the calendar, not here.
-    const baseWhere = input.temporalScope === 'all' ? `h.visibility = 'public'` : `
+    const baseWhere =
+      input.temporalScope === 'all'
+        ? `h.visibility = 'public'`
+        : `
       h.visibility = 'public'
       AND (h.starts_at < now() OR (h.starts_at IS NULL AND h.date < (now() AT TIME ZONE 'America/New_York')::date))
       AND (

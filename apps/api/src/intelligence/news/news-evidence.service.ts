@@ -56,11 +56,17 @@ export class NewsEvidenceService {
       input.publishedAt && Number.isFinite(Date.parse(input.publishedAt))
         ? new Date(input.publishedAt)
         : null;
-    if (input.publicationPrecision === 'day' &&
-        (!input.publishedAt || !/^\d{4}-\d{2}-\d{2}$/.test(input.publishedAt) ||
-         !publishedAt || publishedAt.toISOString().slice(0, 10) !== input.publishedAt))
+    if (
+      input.publicationPrecision === 'day' &&
+      (!input.publishedAt ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(input.publishedAt) ||
+        !publishedAt ||
+        publishedAt.toISOString().slice(0, 10) !== input.publishedAt)
+    )
       throw new BadRequestException('INVALID_PUBLICATION_DAY');
-    const publicationPrecision = publishedAt ? input.publicationPrecision ?? 'instant' : 'unknown';
+    const publicationPrecision = publishedAt
+      ? (input.publicationPrecision ?? 'instant')
+      : 'unknown';
     const summary =
       input.rights === 'headline_link' ? null : (input.summary?.slice(0, 10000) ?? null);
     const body = input.rights === 'full_text' ? (input.body?.slice(0, 2_000_000) ?? null) : null;

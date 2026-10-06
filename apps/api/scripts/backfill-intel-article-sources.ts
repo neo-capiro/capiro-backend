@@ -36,7 +36,9 @@ import { PUBLISHER_NEWS_FALLBACKS } from './lib/publisher-news-fallback.js';
 export function feedSlugMap(feeds: readonly RssFeed[] = ALL_FEEDS): Map<string, string> {
   const map = new Map<string, string>();
   for (const feed of feeds) {
-    for (const url of [feed.url, PUBLISHER_NEWS_FALLBACKS[feed.source]?.url].filter((v): v is string => !!v)) {
+    for (const url of [feed.url, PUBLISHER_NEWS_FALLBACKS[feed.source]?.url].filter(
+      (v): v is string => !!v,
+    )) {
       const existing = map.get(url);
       if (existing && existing !== feed.source) {
         throw new Error(`feed_url ${url} maps to both ${existing} and ${feed.source}`);

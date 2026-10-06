@@ -155,7 +155,8 @@ export class LegiWatchPhase9JobsService {
           });
           if (result.errors > 0)
             throw new LegiWatchPhase9PartialFailure(
-              `Committee enrichment incomplete: ${result.errors} error(s)`, { ...result },
+              `Committee enrichment incomplete: ${result.errors} error(s)`,
+              { ...result },
             );
           return result;
         }
@@ -167,7 +168,8 @@ export class LegiWatchPhase9JobsService {
           });
           if (result.errors > 0)
             throw new LegiWatchPhase9PartialFailure(
-              `Committee updates incomplete: ${result.errors} error(s)`, { ...result },
+              `Committee updates incomplete: ${result.errors} error(s)`,
+              { ...result },
             );
           return result;
         }
@@ -180,7 +182,8 @@ export class LegiWatchPhase9JobsService {
           });
           if (result.errors > 0)
             throw new LegiWatchPhase9PartialFailure(
-              `Source probe incomplete: ${result.errors} error(s)`, { ...result },
+              `Source probe incomplete: ${result.errors} error(s)`,
+              { ...result },
             );
           return result;
         }
@@ -209,7 +212,8 @@ export class LegiWatchPhase9JobsService {
           });
           if (result.errors > 0)
             throw new LegiWatchPhase9PartialFailure(
-              `Archive reconciliation incomplete: ${result.errors} error(s)`, { ...result },
+              `Archive reconciliation incomplete: ${result.errors} error(s)`,
+              { ...result },
             );
           return result;
         }

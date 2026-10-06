@@ -135,7 +135,7 @@ const SYSTEM_PROMPT = [
   'in one short sentence instead of inventing. Be specific about names, positions and asks.',
   'Direct prose, short paragraphs, "- " bullets where they aid scanning, **bold** sparingly.',
   'A generic Speaker N label is a diarization cluster, not an identity. Never map clusters to roster order. Attribute by name only when supplied speaker metadata or an explicit introduction or address in the cited exchange establishes the identity. Resolve conflicting labels conservatively with a neutral role.',
-  'Do not transfer one respondent\'s claim to another within an exchange; cite the actual respondent\'s passage. Preserve uncertainty and distinguish stated future plans from completed actions or guaranteed deadlines. Do not infer classification from adjacent discussion.',
+  "Do not transfer one respondent's claim to another within an exchange; cite the actual respondent's passage. Preserve uncertainty and distinguish stated future plans from completed actions or guaranteed deadlines. Do not infer classification from adjacent discussion.",
   'Use supplied official proper-name and affiliation spellings. If a transcribed name or acronym is uncertain and no verified match is supplied, describe the role or function rather than guess. Preserve the specific committee or subcommittee identity.',
   'Do not repeat the section name inside its content. Produce every requested section, in order.',
   'Aim for 1,000–1,400 words across the brief, with concise key moments. Use fewer words when the evidence is sparse; never pad or repeat facts across sections.',
@@ -359,8 +359,7 @@ export class HearingBriefGenerationService {
       const resolved = resolveBriefReferences(sections, selected.evidence, parsed.keyMoments);
       sections = resolved.sections;
       keyMoments = resolved.keyMoments;
-      if (mode === 'recap')
-        validateBriefCitations(sections, selected.evidence, keyMoments);
+      if (mode === 'recap') validateBriefCitations(sections, selected.evidence, keyMoments);
       else keyMoments = [];
     } catch (error) {
       this.logger.warn(
@@ -460,7 +459,10 @@ function hasElapsedHearingSchedule(hearing: Record<string, unknown>, now: Date):
   // legislative calendar day as elapsed, never midnight UTC on the same day.
   const day = typeof hearing.calendarDate === 'string' ? hearing.calendarDate : '';
   const today = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   }).format(now);
   return /^\d{4}-\d{2}-\d{2}$/.test(day) && day < today;
 }
