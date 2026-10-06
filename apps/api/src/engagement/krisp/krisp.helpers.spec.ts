@@ -1,8 +1,9 @@
-import { krispNotetakerEnabled } from '../../common/krisp-notetaker-flags.js';
+import { krispImportMode, krispNotetakerEnabled } from '../../common/krisp-notetaker-flags.js';
 import {
   krispArguments,
   krispPayload,
   krispNotes,
+  krispTranscript,
   krispNextPage,
   matchKrispMeeting,
   normalizeKrispMeeting,
@@ -10,6 +11,55 @@ import {
 
 const id = '0123456789abcdef0123456789abcdef';
 describe('Krisp tenant flag and provider contract', () => {
+  test('only C2 uses direct notes, independently of whether Krisp is enabled', () => {
+    expect(krispImportMode('c2-strategies')).toBe('direct_notes');
+    for (const slug of ['capiro-internal', 'other-firm', '', 'c2-strategies-other'])
+      expect(krispImportMode(slug)).toBe('generated');
+  });
+  test('the generation path requests and parses only the matching complete transcript', () => {
+    const schema = {
+      properties: {
+        ids: {},
+        include: { type: 'array', items: { enum: ['notes', 'transcript'] } },
+        format: { enum: ['json'] },
+      },
+    };
+    expect(krispArguments(schema, { ids: [id], content: 'transcript' })).toEqual({
+      ids: [id],
+      include: ['transcript'],
+      format: 'json',
+    });
+    const data = {
+      results: [
+        { id, document: { id, transcript: 'Pat: Send the proposal.', notes: 'Do not copy me' } },
+      ],
+    };
+    expect(krispTranscript(data, id)).toBe('Pat: Send the proposal.');
+    expect(krispTranscript(data, 'f'.repeat(32))).toBeNull();
+    expect(krispTranscript({ documents: [{ id, notes: 'Notes only' }] }, id)).toBeNull();
+    expect(
+      krispTranscript(
+        {
+          documents: [
+            { id, full_transcript: { segments: [{ speaker: { name: 'Pat' }, text: 'Send it.' }] } },
+          ],
+        },
+        id,
+      ),
+    ).toBe('Pat: Send it.');
+    expect(() =>
+      krispTranscript(
+        { results: [{ id, document: { id: 'f'.repeat(32), transcript: 'Other meeting' } }] },
+        id,
+      ),
+    ).toThrow('different document');
+    for (const doc of [
+      { id, transcript: 'x'.repeat(100001) },
+      { id, transcript: 'partial', truncated: true },
+      { id, transcript: { text: 'partial', truncated: true } },
+    ])
+      expect(() => krispTranscript({ documents: [doc] }, id)).toThrow('limit');
+  });
   test('the tenant flag enables Krisp; missing, false, and non-boolean values deny', () => {
     const yes = { clioFeatureFlags: { 'notetaker.krisp.enabled': true } };
     expect(krispNotetakerEnabled(yes)).toBe(true);

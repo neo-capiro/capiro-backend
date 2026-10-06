@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { EmbeddingProvider } from '../../embeddings/embedding-provider.js';
 import type { TemporalKnowledgeGraphService } from '../../knowledge/graph/temporal-knowledge-graph.service.js';
 import type {
@@ -1123,5 +1124,138 @@ describe('Phase 3 fact content and bounded recall', () => {
     expect(result.stopReason).toBe('invalid_memory_item_id');
     expect(withTenantUser).not.toHaveBeenCalled();
     expect(embeddingProvider.embed).not.toHaveBeenCalled();
+  });
+});
+
+describe('governed memory semantic read cost and visibility (2026-10-06)', () => {
+  let warn: jest.SpyInstance;
+  beforeEach(() => {
+    warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  });
+  afterEach(() => warn.mockRestore());
+
+  const warnings = () => warn.mock.calls.map(([message]) => String(message));
+
+  it('joins memory embeddings on a pre-cast text id so the clause can use an index under RLS', async () => {
+    const { adapter, dataset, queryRaw } = setup({
+      governed: [approved()],
+      semanticScores: [{ id: 'memory-approved', score: 0.91 }],
+    });
+    await adapter.retrieve(dataset, { ...selectedClientRequest(), queryClass: 'semantic_recall' });
+    const sql = (queryRaw.mock.calls[0]![0] as { text: string }).text;
+    // A uuid-to-text cast is not leakproof, so under FORCE RLS on context_embeddings
+    // this clause could never become an index condition (17-19 s in production).
+    expect(sql).not.toMatch(/ce\.source_id\s*=\s*mi\.id::text/);
+    expect(sql).toMatch(
+      /eligible_semantic AS MATERIALIZED \(\s*SELECT mi\.id, mi\.tenant_id, mi\.updated_at, mi\.id::text AS source_id\s+FROM eligible mi\s*\)/,
+    );
+    expect(sql).toMatch(/FROM eligible_semantic mi\s+JOIN context_embeddings ce/);
+    expect(sql).toMatch(/AND ce\.source_id = mi\.source_id\s/);
+  });
+
+  it('keeps the lexical-only statement free of the semantic CTEs', async () => {
+    const { adapter, dataset, queryRaw } = setup({ governed: [approved()] });
+    await adapter.retrieve(dataset, selectedClientRequest());
+    const sql = (queryRaw.mock.calls[0]![0] as { text: string }).text;
+    expect(sql).not.toContain('eligible_semantic');
+    expect(sql).not.toContain('<=>');
+  });
+
+  it("gives the governed read an explicit transaction budget instead of Prisma's 5 s default", async () => {
+    const { adapter, dataset, withTenantUser } = setup({ governed: [approved()] });
+    await adapter.retrieve(dataset, { ...selectedClientRequest(), queryClass: 'semantic_recall' });
+    expect(withTenantUser).toHaveBeenCalledWith('tenant-1', 'user-1', expect.any(Function), {
+      timeoutMs: 10_000,
+    });
+  });
+
+  it('logs an expired semantic transaction before the lexical rerun, without the raw error text', async () => {
+    const { adapter, dataset, withTenantUser } = setup({ governed: [approved()] });
+    const original = withTenantUser.getMockImplementation()!;
+    withTenantUser.mockImplementationOnce(async (tenant, user, callback) => {
+      await original(tenant, user, callback);
+      throw new Error(
+        'Transaction API error: Transaction already closed: A query cannot be executed on an expired transaction. postgres://secret@db',
+      );
+    });
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    expect(result.stopReason).toBe('governed_memory_semantic_projection_incomplete');
+    const logged = warnings().filter((line) => line.includes('governed_memory.read_failed'));
+    expect(logged).toHaveLength(1);
+    expect(JSON.parse(logged[0]!)).toMatchObject({
+      event: 'governed_memory.read_failed',
+      fallback: 'lexical_rerun',
+      reason: 'transaction_expired',
+      errorName: 'Error',
+      queryClass: 'semantic_recall',
+      tenantId: 'tenant-1',
+    });
+    expect(logged[0]).not.toContain('secret');
+  });
+
+  it('logs a healthy semantic read as nothing', async () => {
+    const { adapter, dataset } = setup({
+      governed: [approved()],
+      semanticScores: [{ id: 'memory-approved', score: 0.91 }],
+    });
+    const result = await adapter.retrieve(dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    expect(result.sourceStatus).toBe('healthy');
+    expect(warnings()).toEqual([]);
+  });
+
+  it('logs an embedding budget miss with its reason', async () => {
+    jest.useFakeTimers();
+    try {
+      const { adapter, dataset } = setup({
+        governed: [approved()],
+        embed: () => new Promise(() => {}),
+      });
+      const pending = adapter.retrieve(dataset, {
+        ...selectedClientRequest(),
+        queryClass: 'semantic_recall',
+      });
+      await jest.advanceTimersByTimeAsync(2_000);
+      await pending;
+      const logged = warnings().filter((line) =>
+        line.includes('governed_memory.embedding_unavailable'),
+      );
+      expect(logged).toHaveLength(1);
+      expect(JSON.parse(logged[0]!)).toMatchObject({
+        reason: 'budget_exceeded',
+        budgetMs: 2_000,
+        tenantId: 'tenant-1',
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('logs a provider error and an invalid vector as distinct reasons', async () => {
+    const failing = setup({
+      governed: [approved()],
+      embed: async () => {
+        throw new Error('bedrock throttled');
+      },
+    });
+    await failing.adapter.retrieve(failing.dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    const short = setup({ governed: [approved()], embed: async () => [] });
+    await short.adapter.retrieve(short.dataset, {
+      ...selectedClientRequest(),
+      queryClass: 'semantic_recall',
+    });
+    const reasons = warnings()
+      .filter((line) => line.includes('governed_memory.embedding_unavailable'))
+      .map((line) => JSON.parse(line).reason);
+    expect(reasons).toEqual(['provider_error', 'invalid_vector']);
+    expect(warnings().join('\n')).not.toContain('bedrock throttled');
   });
 });

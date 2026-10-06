@@ -2,11 +2,14 @@ import type { TenantContext } from '@capiro/shared';
 import { KrispNotetakerService } from './krisp-notetaker.service.js';
 
 jest.mock('../../meri/meri-managed-mcp.service.js', () => ({ MeriManagedMcpService: class {} }));
+jest.mock('../../meeting-capture/meeting-capture-persistence.service.js', () => ({
+  MeetingCapturePersistenceService: class {},
+}));
 
 const ctx = {
   tenantId: 'tenant',
   userId: 'user',
-  tenantSlug: 'other-firm',
+  tenantSlug: 'c2-strategies',
   clerkUserId: 'clerk',
   role: 'standard_user',
 } as TenantContext;
@@ -35,7 +38,7 @@ function matches(row: any, where: any): boolean {
   });
 }
 
-function fixture() {
+function fixture(tenantSlug = ctx.tenantSlug) {
   let item: any = {
     id: 'import',
     tenantId: ctx.tenantId,
@@ -48,7 +51,7 @@ function fixture() {
     leaseUntil: null,
   };
   const tenant = {
-    slug: ctx.tenantSlug,
+    slug: tenantSlug,
     status: 'active',
     settings: { clioFeatureFlags: { 'notetaker.krisp.enabled': true } },
   };
@@ -118,7 +121,11 @@ function fixture() {
         appId: 'krisp',
         name: 'mcp__meriv3_krisp__get_multiple_documents',
         input_schema: {
-          properties: { document_ids: { type: 'array' }, include_notes: { type: 'boolean' } },
+          properties: {
+            document_ids: { type: 'array' },
+            include_notes: { type: 'boolean' },
+            include_transcript: { type: 'boolean' },
+          },
         },
       },
     ]),
@@ -129,6 +136,7 @@ function fixture() {
             {
               id: doc,
               notes: '  # Krisp notes\n\nFollow up tomorrow.\n',
+              transcript: 'Pat: I will send the proposal tomorrow.',
             } as ProviderDocumentFixture,
           ],
         },
@@ -144,11 +152,19 @@ function fixture() {
     })),
   };
   const runtime = { assertBackgroundOwner: jest.fn(), assertExternalAction: jest.fn() };
+  const persistence = {
+    generateMeetingDebriefDraft: jest.fn(async () => ({
+      recap: 'Meri recap.',
+      actionItems: ['Pat: send the proposal tomorrow.'],
+      notes: 'Meri notes.',
+    })),
+  };
   const service = new KrispNotetakerService(
     prisma as never,
     managed as never,
     crypto as never,
     runtime as never,
+    persistence as never,
   );
   const run = () => (service as any).process(ctx, preference, 'import');
   return {
@@ -160,6 +176,7 @@ function fixture() {
     managed,
     crypto,
     runtime,
+    persistence,
     notes,
     debriefs,
     item: () => item,
@@ -167,6 +184,31 @@ function fixture() {
 }
 
 describe('automatic Krisp notes and debriefs', () => {
+  test.each(['c2-strategies', 'capiro-internal'])(
+    'status reports the current database mode for %s',
+    async (slug) => {
+      const f = fixture(slug);
+      f.tx.krispNotetakerPreference.findUnique = jest.fn(async () => null);
+      f.tx.krispMeetingImport.findMany = jest.fn(async () => []);
+      expect(await f.service.status(ctx)).toMatchObject({
+        importMode: slug === 'c2-strategies' ? 'direct_notes' : 'generated',
+      });
+    },
+  );
+  test('a changed tenant flow during the provider read cannot save the wrong content', async () => {
+    const f = fixture();
+    const read = f.managed.executeRead.getMockImplementation()!;
+    f.managed.executeRead.mockImplementation(async (...args) => {
+      const result = await read(...args);
+      f.tenant.slug = 'other-firm';
+      return result;
+    });
+    await f.run();
+    expect(f.item().status).toBe('failed');
+    expect(f.notes).toHaveLength(0);
+    expect(f.debriefs).toHaveLength(0);
+    expect(f.persistence.generateMeetingDebriefDraft).not.toHaveBeenCalled();
+  });
   test('the sweep selects opted-in users across tenants and still enforces each tenant flag', async () => {
     const f = fixture();
     const findMany = jest.fn(async (_args: any) => [preference]);
@@ -185,7 +227,7 @@ describe('automatic Krisp notes and debriefs', () => {
     await f.service.sweep();
     expect(discover).toHaveBeenCalledTimes(1);
   });
-  test('a completed import saves encrypted approved artifacts together and never repeats', async () => {
+  test('C2 copies exact Krisp notes into both artifacts without generation and never repeats', async () => {
     const f = fixture();
     await f.run();
     await f.run();
@@ -195,6 +237,7 @@ describe('automatic Krisp notes and debriefs', () => {
     expect(f.managed.executeRead.mock.calls[0]?.[2]).toEqual({
       document_ids: [doc],
       include_notes: true,
+      include_transcript: false,
     });
     expect(f.notes).toHaveLength(1);
     expect(f.debriefs).toHaveLength(1);
@@ -211,6 +254,78 @@ describe('automatic Krisp notes and debriefs', () => {
       leaseToken: null,
     });
     expect(JSON.stringify(f.item())).not.toContain('Follow up tomorrow');
+    expect(f.persistence.generateMeetingDebriefDraft).not.toHaveBeenCalled();
+    expect(f.runtime.assertExternalAction).not.toHaveBeenCalledWith('meeting_debrief_generate');
+    expect(f.debriefs[0].bodyCiphertext).toBe(f.notes[0].bodyCiphertext);
+  });
+  test.each(['capiro-internal', 'other-firm', 'new-tenant'])(
+    '%s retains Meri generation from the transcript',
+    async (slug) => {
+      const f = fixture(slug);
+      await f.run();
+      await f.run();
+      expect(f.managed.executeRead.mock.calls[0]?.[2]).toEqual({
+        document_ids: [doc],
+        include_notes: false,
+        include_transcript: true,
+      });
+      expect(f.persistence.generateMeetingDebriefDraft).toHaveBeenCalledTimes(1);
+      expect(f.persistence.generateMeetingDebriefDraft).toHaveBeenCalledWith(ctx, 'meeting', {
+        method: 'upload',
+        sourceText: 'Pat: I will send the proposal tomorrow.',
+      });
+      expect(f.runtime.assertExternalAction).toHaveBeenCalledWith('meeting_debrief_generate');
+      expect(f.crypto.encrypt).toHaveBeenCalledWith(
+        'Recap\nMeri recap.\n\nAction Items\n- Pat: send the proposal tomorrow.\n\nNotes\nMeri notes.',
+      );
+      expect(f.notes).toHaveLength(1);
+      expect(f.debriefs).toHaveLength(1);
+      expect(f.notes[0]).toMatchObject({
+        status: 'approved',
+        accessLevel: 'tenant_admins_and_author',
+      });
+      expect(f.debriefs[0].bodyCiphertext).toBe(f.notes[0].bodyCiphertext);
+      expect(f.item().status).toBe('done');
+    },
+  );
+  test('another tenant with notes but no transcript waits for its original generation source', async () => {
+    const f = fixture('other-firm');
+    f.managed.executeRead.mockResolvedValue({
+      structuredResult: {
+        structuredContent: { documents: [{ id: doc, notes: 'Finished notes', transcript: '' }] },
+      },
+    });
+    await f.run();
+    expect(f.item()).toMatchObject({
+      status: 'pending',
+      attempts: 0,
+      error: 'Waiting for Krisp to finish the transcript.',
+    });
+    expect(f.persistence.generateMeetingDebriefDraft).not.toHaveBeenCalled();
+    expect(f.notes).toHaveLength(0);
+  });
+  test('generation failure can retry without leaving partial artifacts', async () => {
+    const f = fixture('other-firm');
+    f.persistence.generateMeetingDebriefDraft.mockRejectedValueOnce(
+      new Error('provider unavailable'),
+    );
+    await f.run();
+    expect(f.item().status).toBe('failed');
+    expect(f.notes).toHaveLength(0);
+    expect(f.debriefs).toHaveLength(0);
+    await f.run();
+    expect(f.item().status).toBe('done');
+    expect(f.notes).toHaveLength(1);
+  });
+  test('revocation during generation blocks persistence', async () => {
+    const f = fixture('other-firm');
+    f.persistence.generateMeetingDebriefDraft.mockImplementation(async () => {
+      f.tx.krispNotetakerPreference.findFirst.mockResolvedValue(null);
+      return { recap: 'Generated', actionItems: [], notes: '' };
+    });
+    await f.run();
+    expect(f.notes).toHaveLength(0);
+    expect(f.debriefs).toHaveLength(0);
   });
   test('a failed debrief save rolls back the note; a retry produces exactly one pair', async () => {
     const f = fixture();

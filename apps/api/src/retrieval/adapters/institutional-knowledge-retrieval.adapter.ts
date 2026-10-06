@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { GovernedMemoryRecord } from '@capiro/meriv2-core';
 import { EMBEDDING_PROVIDER, type EmbeddingProvider } from '../../embeddings/embedding-provider.js';
@@ -28,6 +28,10 @@ const MEMORY_VECTOR_DIMENSIONS = 1024;
 const MEMORY_RECALL_PROJECTION_VERSION = 'canonical-body-rrf-v3';
 const DEFAULT_MEMORY_PAGE_SIZE = 50;
 const MEMORY_EMBEDDING_BUDGET_MS = 2_000;
+// The governed read is one statement plus the per-client wall checks; on
+// capiro-internal it takes about 0.1 s. Prisma's 5 s default is set explicitly
+// with headroom so a slow database is not silently turned into a lexical rerun.
+const MEMORY_READ_TRANSACTION_MS = 10_000;
 const MEMORY_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MEMORY_QUERY_CLASSES = new Set(['lookup', 'semantic_recall']);
 
@@ -78,6 +82,7 @@ function edgePayload(edge: TemporalKnowledgeGraphEdge): KnowledgeJsonObject {
 export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAdapter {
   readonly key = 'knowledge-plane-temporal-graph';
   readonly domains = ['institutional_knowledge'] as const;
+  private readonly logger = new Logger(InstitutionalKnowledgeRetrievalAdapter.name);
 
   constructor(
     private readonly graph: TemporalKnowledgeGraphService,
@@ -137,6 +142,7 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
     // Only the user's query is sent; canonical facts and access checks are read
     // freshly after this bounded attempt, including on every continuation.
     const vector = await this.queryEmbedding(request);
+    const readStartedAt = Date.now();
     try {
       return await this.prisma.withTenantUser(
         request.caller.tenantId,
@@ -324,11 +330,26 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
                   : 'governed_memory_scan_complete',
           };
         },
+        { timeoutMs: MEMORY_READ_TRANSACTION_MS },
       );
-    } catch {
+    } catch (error) {
       // An SQL projection error can abort a PostgreSQL transaction even when
       // caught inside its callback. Read canonical evidence again without the
       // optional semantic query; do not turn that into an empty healthy scan.
+      // The log line keeps the cause visible: until 2026-10-06 every semantic
+      // read on capiro-internal expired its transaction here without a trace.
+      this.logger.warn(
+        JSON.stringify({
+          event: 'governed_memory.read_failed',
+          fallback: vector ? 'lexical_rerun' : 'none',
+          reason: memoryReadFailureReason(error),
+          errorName: error instanceof Error ? error.name : typeof error,
+          errorCode: memoryReadErrorCode(error),
+          elapsedMs: Date.now() - readStartedAt,
+          queryClass: request.queryClass,
+          tenantId: request.caller.tenantId,
+        }),
+      );
       if (vector) {
         return this.retrieveGovernedMemory(
           dataset,
@@ -350,20 +371,38 @@ export class InstitutionalKnowledgeRetrievalAdapter implements RetrievalSourceAd
   private async queryEmbedding(request: RetrievalRequest): Promise<number[] | null> {
     if (request.queryClass !== 'semantic_recall' || !request.query?.trim()) return null;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const startedAt = Date.now();
+    const unavailable = (reason: string, error?: unknown): null => {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'governed_memory.embedding_unavailable',
+          reason,
+          ...(error === undefined
+            ? {}
+            : { errorName: error instanceof Error ? error.name : typeof error }),
+          elapsedMs: Date.now() - startedAt,
+          budgetMs: MEMORY_EMBEDDING_BUDGET_MS,
+          tenantId: request.caller.tenantId,
+        }),
+      );
+      return null;
+    };
     try {
+      const budgetExceeded = Symbol('budget_exceeded');
       const vector = await Promise.race([
         this.embeddingProvider.embed(request.query.trim()),
-        new Promise<null>((resolve) => {
-          timer = setTimeout(() => resolve(null), MEMORY_EMBEDDING_BUDGET_MS);
+        new Promise<typeof budgetExceeded>((resolve) => {
+          timer = setTimeout(() => resolve(budgetExceeded), MEMORY_EMBEDDING_BUDGET_MS);
         }),
       ]);
+      if (vector === budgetExceeded) return unavailable('budget_exceeded');
       return vector?.length === MEMORY_VECTOR_DIMENSIONS &&
         embeddingProjection(this.embeddingProvider).dimensions === MEMORY_VECTOR_DIMENSIONS &&
         vector.every(Number.isFinite)
         ? vector
-        : null;
-    } catch {
-      return null;
+        : unavailable('invalid_vector');
+    } catch (error) {
+      return unavailable('provider_error', error);
     } finally {
       if (timer) clearTimeout(timer);
     }
@@ -779,6 +818,21 @@ function finiteMemoryNumber(value: unknown): number | null {
   return Number.isSafeInteger(converted) ? converted : null;
 }
 
+/** A bounded cause for the read-failure log; the raw message is never logged. */
+function memoryReadFailureReason(error: unknown): string {
+  const message = error instanceof Error ? error.message : '';
+  if (/Transaction already closed|expired transaction|Transaction API error/i.test(message)) {
+    return 'transaction_expired';
+  }
+  if (/statement timeout|canceling statement/i.test(message)) return 'statement_timeout';
+  return 'query_failed';
+}
+
+function memoryReadErrorCode(error: unknown): string | null {
+  const code = (error as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && /^[A-Z0-9_]{1,16}$/i.test(code) ? code : null;
+}
+
 function memoryLexicalScoreSql(query: string, alias: string): Prisma.Sql {
   const tokens = memoryQueryTokens(query);
   if (!tokens.length) return Prisma.sql`0`;
@@ -800,6 +854,17 @@ function memoryLexicalScoreSql(query: string, alias: string): Prisma.Sql {
  * model, whose physical uniqueness key makes one deterministic projection per
  * memory item. The selected score and projection hash flow directly into final
  * fusion/cursor continuity; there is no second, order-dependent duplicate map.
+ *
+ * The join compares `ce.source_id` with an id cast to text BEFORE the join, in
+ * a MATERIALIZED CTE. context_embeddings has FORCE ROW LEVEL SECURITY, and
+ * PostgreSQL pushes a join clause below the policy only when every function in
+ * it is leakproof. `texteq` is; the uuid-to-text cast (`uuid_out`) is not. With
+ * `ce.source_id = mi.id::text` the clause could never use
+ * `context_embeddings_unique`, so the planner (estimating one eligible row)
+ * rescanned every tenant memory embedding once per eligible row: 17 to 19 s for
+ * 404 rows on capiro-internal (EXPLAIN ANALYZE, 2026-10-06). Comparing two text
+ * columns makes it one index probe per row (about 70 ms, identical ranks).
+ * MATERIALIZED keeps the planner from inlining the cast back into the clause.
  */
 function memorySemanticCandidatesSql(vector: number[] | null, model: string): Prisma.Sql {
   if (vector?.length !== MEMORY_VECTOR_DIMENSIONS || !model) {
@@ -812,17 +877,21 @@ function memorySemanticCandidatesSql(vector: number[] | null, model: string): Pr
     )`;
   }
   const literal = `[${vector.join(',')}]`;
-  return Prisma.sql`semantic_candidates AS (
+  return Prisma.sql`eligible_semantic AS MATERIALIZED (
+    SELECT mi.id, mi.tenant_id, mi.updated_at, mi.id::text AS source_id
+    FROM eligible mi
+  ),
+  semantic_candidates AS (
     SELECT mi.id,
            ROW_NUMBER() OVER (
              ORDER BY ce.embedding <=> ${literal}::vector, mi.updated_at DESC, mi.id ASC
            ) AS semantic_rank,
            1 - (ce.embedding <=> ${literal}::vector) AS semantic_score,
            ce.content_hash AS embedding_content_hash
-    FROM eligible mi
+    FROM eligible_semantic mi
     JOIN context_embeddings ce
       ON ce.source_type = 'memory_item'
-     AND ce.source_id = mi.id::text
+     AND ce.source_id = mi.source_id
      AND ce.tenant_id = mi.tenant_id
      AND ce.model = ${model}
     ORDER BY ce.embedding <=> ${literal}::vector, mi.updated_at DESC, mi.id ASC

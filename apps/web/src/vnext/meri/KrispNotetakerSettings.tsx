@@ -9,6 +9,7 @@ interface ImportedMeeting {
   error: string | null;
 }
 interface Snapshot {
+  importMode?: 'direct_notes' | 'generated';
   preference: {
     enabled: boolean;
     folderId: string | null;
@@ -94,13 +95,15 @@ export function KrispNotetakerSettings({ connected }: { connected: boolean }) {
   const pending =
     snapshot?.imports.filter((item) => !['done', 'skipped'].includes(item.status)) ?? [];
   const completed = snapshot?.imports.filter((item) => item.status === 'done').length ?? 0;
+  const directNotes = snapshot?.importMode === 'direct_notes';
 
   return (
     <section className="krisp-notetaker-settings" aria-label="Krisp automatic notes">
       <h2>Automatic meeting notes</h2>
       <p>
-        Let Krisp capture your meetings. Meri checks every few minutes and copies Krisp’s notes
-        directly into Meeting Notes and Debrief when they are ready.
+        {directNotes
+          ? 'Let Krisp capture your meetings. Meri checks every few minutes and copies Krisp’s notes directly into Meeting Notes and Debrief when they are ready.'
+          : 'Let Krisp capture your meetings. Meri checks every few minutes and generates Meeting Notes and Debrief from the completed transcripts.'}
       </p>
       <label className="krisp-notetaker-settings__toggle">
         <input
@@ -136,9 +139,11 @@ export function KrispNotetakerSettings({ connected }: { connected: boolean }) {
         </select>
       </label>
       <p className="krisp-notetaker-settings__detail">
-        Starts with meetings held after you enable this setting. Meri saves the same Krisp notes
-        in both places on meetings you own, without generating new text or automatically sharing
-        them. Your originals remain in Krisp.
+        Starts with meetings held after you enable this setting.{' '}
+        {directNotes
+          ? 'Meri saves the same Krisp notes in both places on meetings you own, without generating new text.'
+          : 'Meri generates and saves notes and a debrief on meetings you own.'}{' '}
+        Nothing is automatically shared. Your originals remain in Krisp.
       </p>
       <button
         type="button"
