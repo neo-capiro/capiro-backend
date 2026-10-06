@@ -47,6 +47,7 @@ import {
   type InEditorInput,
 } from './in-editor-prompt.js';
 import { flattenSystemParts } from '../prompt-cache.helpers.js';
+import { createMeriExecutionControl } from '../meri-execution-control.js';
 
 const VERIFIER_SYSTEM_PROMPT =
   'You are a strict grounding verifier for a government-affairs assistant. Given SOURCES and a ' +
@@ -56,7 +57,19 @@ const VERIFIER_SYSTEM_PROMPT =
   'Mark supported=true only when a listed source backs the claim. Be conservative: if unsure, use ' +
   'supported=false with sourceIds [].';
 
-const MAX_ROUNDS = 8;
+const MAX_ROUNDS = 3;
+export const EDITOR_TOTAL_BUDGET_MS = 120_000;
+const FINAL_EDIT_RESERVE_MS = 60_000;
+const VERIFICATION_RESERVE_MS = 10_000;
+
+function withinEditorBudget<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason ?? new DOMException('Editor deadline exceeded', 'TimeoutError'));
+    work.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+    if (signal.aborted) { abort(); return; }
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
 // Raised from 8192: a truncated turn now discards its edits (see the max_tokens
 // branch in the loop), so too low a cap costs the user the whole edit.
 const MAX_TOKENS = 16384;
@@ -95,6 +108,21 @@ export class InEditorAssistantService {
   }
 
   async run(ctx: MeriContext, dto: InEditorInput): Promise<AssistantResult> {
+    const control = createMeriExecutionControl({}, EDITOR_TOTAL_BUDGET_MS);
+    try {
+      return await withinEditorBudget(this.runWithinBudget(ctx, dto, control), control.signal);
+    } catch (error) {
+      if (!control.signal.aborted) throw error;
+      this.logger.warn('in-editor total request deadline reached; edits withheld');
+      return { reply: 'I could not finish this edit in time. No changes were applied. Please try a smaller edit.', edits: [] };
+    } finally {
+      control.dispose();
+    }
+  }
+
+  private async runWithinBudget(
+    ctx: MeriContext, dto: InEditorInput, control: ReturnType<typeof createMeriExecutionControl>,
+  ): Promise<AssistantResult> {
     const messages: Array<{ role: 'user' | 'assistant'; content: unknown }> = (dto.messages ?? [])
       .filter(
         (m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string',
@@ -107,7 +135,7 @@ export class InEditorAssistantService {
 
     const systemParts = composeInEditorSystemPrompt(dto);
     const system = flattenSystemParts(systemParts);
-    const toolSchemas = [...(await this.fetchToolSchemas()), PROPOSE_EDITS_TOOL];
+    const toolSchemas = [...(await this.fetchToolSchemas(control.signal)), PROPOSE_EDITS_TOOL];
     const assurance = resolveInEditorAssurance(dto);
     const assuranceRisk = classifyAssuranceRisk('in-editor', assurance.plan);
     const assuranceMode = resolveAssuranceRolloutMode({
@@ -123,29 +151,49 @@ export class InEditorAssistantService {
     const groundingBodies: string[] = [];
     const citedPeRecords = new Map<string, PeRecordForValidation>();
     const ledgerEntries: LedgerEntry[] = [];
+    let forceFinal = false;
 
     for (let round = 0; round < MAX_ROUNDS; round += 1) {
+      control.assertActive();
+      const remaining = control.deadlineAt! - Date.now();
+      const finalRound = forceFinal || round === MAX_ROUNDS - 1 || remaining <= FINAL_EDIT_RESERVE_MS + VERIFICATION_RESERVE_MS;
+      const modelBudgetMs = Math.max(1, Math.min(this.callTimeoutMs, remaining - (finalRound ? VERIFICATION_RESERVE_MS : FINAL_EDIT_RESERVE_MS)));
+      const modelControl = createMeriExecutionControl(control, modelBudgetMs);
       let content: ContentBlock[];
       let stopReason: string | null;
       let stopDetails: { category: string | null; explanation: string | null } | null = null;
       try {
-        const resp = await this.llm.completeWithTools({
-          system: systemParts,
+        const resp = await withinEditorBudget(this.llm.completeWithTools({
+          system: finalRound
+            ? `${system}\n\nFinish the requested edit now using only established evidence. Do not research further. Call propose_document_edits with concise edits, or an empty edits array explaining what evidence is missing. Do not invent facts to finish.`
+            : systemParts,
           messages,
-          tools: toolSchemas as AnthropicToolSchema[],
+          tools: (finalRound ? [PROPOSE_EDITS_TOOL] : toolSchemas) as AnthropicToolSchema[],
+          ...(finalRound ? { toolChoice: { type: 'tool' as const, name: 'propose_document_edits' } } : {}),
           maxTokens: MAX_TOKENS,
-          timeoutMs: this.callTimeoutMs,
-        });
+          anthropicEffort: 'low',
+          timeoutMs: modelBudgetMs,
+          signal: modelControl.signal,
+        }), modelControl.signal);
+        control.assertActive();
         void this.meterRound(ctx, resp);
         content = resp.content as ContentBlock[];
         stopReason = resp.stopReason;
         stopDetails = resp.stopDetails ?? null;
       } catch (e) {
+        if (modelControl.signal.aborted && !control.signal.aborted && !finalRound) {
+          // A timed-out research attempt has no admissible new evidence. The
+          // reserved response may use existing sources or explain the gap.
+          forceFinal = true;
+          continue;
+        }
         this.logger.warn(`in-editor model call failed: ${(e as Error).message}`);
         return {
           reply: 'Sorry — I hit an error reaching the model. Please try again in a moment.',
           edits: [],
         };
+      } finally {
+        modelControl.dispose();
       }
 
       const textOut = content
@@ -204,12 +252,14 @@ export class InEditorAssistantService {
         const subjectId = String(
           (dto.document as Record<string, unknown> | undefined)?.id ?? 'in-editor',
         );
-        const { confidence, structuralWarnings } = await this.verifyEdits(
+        const { confidence, structuralWarnings } = await withinEditorBudget(this.verifyEdits(
           edits,
           groundingBodies,
           citedPeRecords,
           subjectId,
-        );
+          control,
+        ), control.signal);
+        control.assertActive();
         const held = evaluateBeforeApply
           ? this.holdUnverifiedEdits(
               edits,
@@ -236,6 +286,8 @@ export class InEditorAssistantService {
         return { reply: textOut || 'Done.', edits: [], steps };
       }
 
+      if (finalRound) return { reply: 'I could not complete a verified edit within this request. No changes were applied.', edits: [], steps };
+
       messages.push({ role: 'assistant', content });
       const results = await Promise.all(
         toolUses.map(async (tu) => {
@@ -250,7 +302,13 @@ export class InEditorAssistantService {
             });
           } else {
             try {
-              result = await this.registry.invoke(tu.name, tu.input ?? {}, ctx);
+              const toolControl = createMeriExecutionControl(control, Math.max(1, control.deadlineAt! - Date.now() - FINAL_EDIT_RESERVE_MS));
+              try {
+                result = await withinEditorBudget(this.registry.invoke(tu.name, tu.input ?? {}, ctx, toolControl), toolControl.signal);
+              } finally {
+                toolControl.dispose();
+              }
+              control.assertActive();
               this.captureGrounding(tu.name, result, groundingBodies, citedPeRecords);
               steps.push({ tool: tu.name, label: toolLabel(tu.name), status: 'done' });
             } catch (e) {
@@ -275,28 +333,7 @@ export class InEditorAssistantService {
       messages.push({ role: 'user', content: results });
     }
 
-    let reply =
-      'I gathered a lot of context but ran out of steps before finishing — ask again and I’ll continue.';
-    try {
-      const resp = await this.llm.completeWithTools({
-        system: `${system}\n\n# FINISH NOW\nYou have used your research budget and must NOT call any more tools (including propose_document_edits). Summarize what you found and give your recommended change in prose so the user can ask you to apply it. Cite the data you gathered; flag anything still uncertain.`,
-        messages,
-        tools: toolSchemas as AnthropicToolSchema[],
-        toolChoice: 'none',
-        maxTokens: MAX_TOKENS,
-        timeoutMs: this.callTimeoutMs,
-      });
-      void this.meterRound(ctx, resp);
-      const text = (resp.content as ContentBlock[])
-        .filter((b) => b.type === 'text' && typeof b.text === 'string')
-        .map((b) => b.text as string)
-        .join('\n')
-        .trim();
-      if (text) reply = text;
-    } catch (e) {
-      this.logger.warn(`in-editor synthesis call failed: ${(e as Error).message}`);
-    }
-    return { reply, edits: [], steps };
+    return { reply: 'I could not complete a verified edit within this request. No changes were applied.', edits: [], steps };
   }
 
   private holdUnverifiedEdits(
@@ -405,18 +442,20 @@ export class InEditorAssistantService {
     );
   }
 
-  private async fetchToolSchemas(): Promise<AnthropicToolSchema[]> {
+  private async fetchToolSchemas(signal: AbortSignal): Promise<AnthropicToolSchema[]> {
     const bearer = RequestCredentialsStore.get()?.bearerToken;
     if (!bearer) {
       this.logger.warn('in-editor: no bearer to fetch tool schemas; proceeding without data tools');
       return [];
     }
     try {
-      const res = await fetch(`${this.apiBaseUrl}/api/clio/tool-schemas?surface=in-editor`, {
+      const schemaControl = AbortSignal.any([signal, AbortSignal.timeout(5_000)]);
+      const res = await withinEditorBudget(fetch(`${this.apiBaseUrl}/api/clio/tool-schemas?surface=in-editor`, {
         headers: { authorization: `Bearer ${bearer}`, accept: 'application/json' },
-      });
+        signal: schemaControl,
+      }), schemaControl);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const body = (await res.json()) as { schemas?: AnthropicToolSchema[] };
+      const body = (await withinEditorBudget(res.json(), schemaControl)) as { schemas?: AnthropicToolSchema[] };
       return selectMeriCapabilitySchemas(body.schemas ?? [], 'in_editor', this.registry.list());
     } catch (e) {
       this.logger.warn(`in-editor: tool-schema fetch failed (${(e as Error).message})`);
@@ -463,6 +502,7 @@ export class InEditorAssistantService {
     groundingBodies: string[],
     citedPeRecords: Map<string, PeRecordForValidation>,
     subjectId = 'in-editor',
+    control?: ReturnType<typeof createMeriExecutionControl>,
   ): Promise<{ confidence?: Confidence; structuralWarnings?: PeStructuralWarning[] }> {
     try {
       const editText = edits
@@ -477,7 +517,7 @@ export class InEditorAssistantService {
       }
       const structuralWarnings = collectPeStructuralWarnings(pes, editText);
 
-      return await this.verifyEditsInner(editText, groundingBodies, structuralWarnings, subjectId);
+      return await this.verifyEditsInner(editText, groundingBodies, structuralWarnings, subjectId, control);
     } catch (e) {
       this.logger.warn(
         `in-editor verifyEdits failed (returning edits unannotated): ${(e as Error).message}`,
@@ -491,6 +531,7 @@ export class InEditorAssistantService {
     groundingBodies: string[],
     structuralWarnings: PeStructuralWarning[],
     subjectId = 'in-editor',
+    control?: ReturnType<typeof createMeriExecutionControl>,
   ): Promise<{ confidence?: Confidence; structuralWarnings?: PeStructuralWarning[] }> {
     let confidence: Confidence | undefined;
     if (this.verifierEnabled) {
@@ -498,12 +539,24 @@ export class InEditorAssistantService {
         const sourceList = groundingBodies.length
           ? groundingBodies.map((b, i) => `[${i + 1}] ${b}`).join('\n')
           : '(no sources were retrieved)';
-        const raw = await this.llm.completeJson({
+        control?.assertActive();
+        const response = await this.llm.completeWithTools({
           system: VERIFIER_SYSTEM_PROMPT,
-          prompt: `SOURCES:\n${sourceList}\n\nDOCUMENT:\n${editText.slice(0, 12_000)}`,
+          messages: [{ role: 'user', content: `SOURCES:\n${sourceList}\n\nDOCUMENT:\n${editText.slice(0, 12_000)}` }],
+          tools: [],
+          toolChoice: 'none',
           maxTokens: 1500,
+          anthropicEffort: 'low',
+          timeoutMs: Math.max(1, Math.min(this.callTimeoutMs, (control?.deadlineAt ?? Date.now() + this.callTimeoutMs) - Date.now())),
+          signal: control?.signal,
         });
-        const claims = parseVerifierClaims(JSON.stringify(raw));
+        control?.assertActive();
+        if (response.stopReason === 'max_tokens' || response.stopReason === 'refusal')
+          throw new Error('Incomplete editor verification');
+        const text = response.content.map(block =>
+          block.type === 'text' && 'text' in block && typeof block.text === 'string' ? block.text : '',
+        ).join('\n');
+        const claims = parseVerifierClaims(text);
         if (claims.length) {
           confidence = confidenceLevel(summarizeVerification(claims).unsupportedRatio);
           this.persistClaims(subjectId, claims, groundingBodies);

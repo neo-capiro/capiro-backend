@@ -26,6 +26,10 @@ describe('buildSystemPrompt', () => {
     expect(p).toContain('CLOSED-WORLD RULE');
     expect(p).toContain('AUTHORIZATION vs APPROPRIATION');
     expect(p).toContain('propose_document_edits');
+    expect(p).toContain('use the linked source evidence already present');
+    expect(p).toContain('existing draft and user assertions alone are not evidence for new facts');
+    expect(p).toContain('Retrieve missing evidence before adding or changing');
+    expect(p).toContain('Prefer one direct propose_document_edits response');
   });
 
   it('handles an empty/absent document gracefully', () => {

@@ -1,4 +1,4 @@
-import { prepareAnthropicRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
+import { ANTHROPIC_TEXT_MODEL, prepareAnthropicRequest, upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { Logger } from '@nestjs/common';
 import { AnthropicLlmClient, OpenAiLlmClient, type LlmClient } from '@capiro/meriv2-core';
 import { parseProviderUsage, type ProviderUsage } from '@capiro/shared';
@@ -94,6 +94,8 @@ export interface CompleteWithToolsParams {
   timeoutMs?: number;
   /** 'auto' (default) · 'none' (text-only) · {type:'tool',name} forces that tool (A7). */
   toolChoice?: 'auto' | 'none' | { type: 'tool'; name: string };
+  /** Optional bounded drafting effort; omitted by other tool-loop callers. */
+  anthropicEffort?: 'low' | 'medium' | 'high';
   signal?: AbortSignal;
   onTextDelta?: (delta: string) => void;
 }
@@ -601,6 +603,8 @@ export class RequestScopedLlmClient implements LlmClient {
           prepareAnthropicRequest({
             model,
             max_tokens: params.maxTokens,
+            ...(params.anthropicEffort && upgradeTextModel(model) === ANTHROPIC_TEXT_MODEL
+              ? { output_config: { effort: params.anthropicEffort } } : {}),
             system,
             tools,
             // undefined/'auto' → Anthropic default; 'none' → no tool; {type:'tool',name} → force it (A7).
