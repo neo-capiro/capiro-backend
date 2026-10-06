@@ -4313,7 +4313,28 @@ export class MeriV3AssistantService {
   }
 }
 
-function providerSettlementBody(
+/**
+ * The API's settlement contract (strictProviderSettlementInput) requires exactly
+ * these keys plus leaseEpoch, which the transport adds. logicalOperationId and
+ * retryOfAttemptId were added to that contract in 6da9414dd and never sent from
+ * here, so every Deep Research settlement was refused with HTTP 400 and every
+ * run ended partial at its first model call (Stage 2 Release A live check).
+ */
+export const PROVIDER_SETTLEMENT_KEYS = [
+  'reservationId',
+  'logicalOperationId',
+  'attemptId',
+  'retryOfAttemptId',
+  'kind',
+  'phase',
+  'provider',
+  'model',
+  'outcome',
+  'inputTokens',
+  'outputTokens',
+] as const;
+
+export function providerSettlementBody(
   reservation: MeriProviderReservation,
   outcome:
     | { kind: 'known'; inputTokens: number; outputTokens: number }
@@ -4322,7 +4343,9 @@ function providerSettlementBody(
 ): Record<string, unknown> {
   return {
     reservationId: reservation.reservationId,
+    logicalOperationId: reservation.logicalOperationId,
     attemptId: reservation.attemptId,
+    retryOfAttemptId: reservation.retryOfAttemptId,
     kind: reservation.kind,
     phase: reservation.phase,
     provider: reservation.provider,
