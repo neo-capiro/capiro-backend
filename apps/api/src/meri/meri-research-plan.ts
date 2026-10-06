@@ -10,6 +10,9 @@ export const RESEARCH_PLAN_LIMITS = {
   maxTotalToolCalls: 48,
   maxTotalTokens: 120_000,
   maxStringChars: 600,
+  maxTitleChars: 120,
+  maxIdChars: 64,
+  maxCapabilityNameChars: 160,
 } as const;
 
 export const RESEARCH_EVIDENCE_DOMAINS = [
@@ -111,7 +114,7 @@ export function validateResearchPlan(
   }
 
   if (parsed.version !== RESEARCH_PLAN_VERSION) issues.push('version_must_be_1');
-  const title = requiredString(parsed.title, 'title', issues, 120);
+  const title = requiredString(parsed.title, 'title', issues, RESEARCH_PLAN_LIMITS.maxTitleChars);
   const scope = parseScope(parsed.scope, context.scope, issues);
   const budget = parseBudget(parsed.budget, 'budget', issues);
   const clarifyingQuestions = stringArray(
@@ -135,7 +138,7 @@ export function validateResearchPlan(
         return;
       }
       exactKeys(candidate, EXACT_STEP_KEYS, path, issues);
-      const id = requiredString(candidate.id, `${path}.id`, issues, 64);
+      const id = requiredString(candidate.id, `${path}.id`, issues, RESEARCH_PLAN_LIMITS.maxIdChars);
       if (id && !STEP_ID_RE.test(id)) issues.push(`${path}.id_invalid`);
       const objective = requiredString(candidate.objective, `${path}.objective`, issues);
       const dependsOn = stringArray(
@@ -144,7 +147,7 @@ export function validateResearchPlan(
         issues,
         0,
         RESEARCH_PLAN_LIMITS.maxDependenciesPerStep,
-        64,
+        RESEARCH_PLAN_LIMITS.maxIdChars,
       );
       const domains = enumArray(
         candidate.requiredEvidenceDomains,
@@ -160,7 +163,7 @@ export function validateResearchPlan(
         issues,
         1,
         RESEARCH_PLAN_LIMITS.maxCapabilitiesPerStep,
-        160,
+        RESEARCH_PLAN_LIMITS.maxCapabilityNameChars,
       );
       const effect =
         candidate.effect === 'read' || candidate.effect === 'approval_required'
@@ -248,6 +251,7 @@ export function buildResearchPlanSystemPrompt(
     'A read step has effect "read" and may name only read capabilities. A business-action step has effect "approval_required", must name an approval-gated capability, and is only a proposal: research will not execute it.',
     `Total allocations must equal the sum of step allocations and must not exceed ${RESEARCH_PLAN_LIMITS.maxTotalToolCalls} tool calls or ${RESEARCH_PLAN_LIMITS.maxTotalTokens} tokens. Every allocation is a positive integer.`,
     'Step IDs must be stable lowercase kebab-case and unique. dependsOn contains only step IDs in this plan and the graph must be acyclic.',
+    `String limits: title at most ${RESEARCH_PLAN_LIMITS.maxTitleChars} characters; step IDs at most ${RESEARCH_PLAN_LIMITS.maxIdChars}; objective, completionCondition, and each clarifying question at most ${RESEARCH_PLAN_LIMITS.maxStringChars}. Write each objective and completionCondition as one or two short sentences.`,
     'Required shape:',
     '{"version":1,"title":"...","scope":{"sessionId":"...","tenantId":"...","actorId":"...","clientId":null,"conversationId":null},"budget":{"toolCalls":1,"tokens":1000},"steps":[{"id":"verify-status","objective":"...","dependsOn":[],"requiredEvidenceDomains":["legislative"],"allowedCapabilities":["canonical_tool_name"],"effect":"read","completionCondition":"...","budget":{"toolCalls":1,"tokens":1000}}],"clarifyingQuestions":[]}',
     'Ask at most six clarifying questions and only for material user decisions. Put retrievable gaps in the plan instead.',
@@ -264,6 +268,7 @@ export function buildResearchPlanRepairPrompt(
       baseSystemPrompt,
       '',
       'This is the single allowed repair attempt. Correct every listed validation error. Return only the corrected complete JSON object.',
+      'An error ending in _too_long_max_N names a string that must be rewritten in N characters or fewer.',
     ].join('\n'),
     user: [
       `Validation errors: ${error.issues.join('; ')}`,
@@ -478,7 +483,7 @@ function requiredString(
     return '';
   }
   const value = raw.trim();
-  if (value.length > max) issues.push(`${path}_too_long`);
+  if (value.length > max) issues.push(`${path}_too_long_max_${max}`);
   return value;
 }
 

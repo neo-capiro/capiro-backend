@@ -189,7 +189,7 @@ function fixture(
         callback(tx),
     ),
   };
-  let capabilityNames = ['search_memory', 'get_client_context', 'send_email'];
+  let capabilityNames = ['search_memory', 'get_client_context', 'search_public_web', 'send_email'];
   const tools = {
     anthropicToolSchemas: jest.fn(() =>
       capabilityNames.map((name) => ({
@@ -416,7 +416,10 @@ describe('MeriResearchService typed-plan admission', () => {
   });
 
   it('carries a valid same-scope plan revision and current read union into V3 dispatch', async () => {
-    const replacement = validPlan(null, 'get_client_context');
+    // The revision names a non-coverable read; research offers only reads whose
+    // results can be re-checked when the report is read.
+    const replacement = validPlan(null, 'search_public_web');
+    replacement.steps[0]!.allowedCapabilities = ['get_client_context', 'search_public_web'];
     const f = fixture({
       storedPlan: validPlan(),
       replacePlanDuringEnabled: replacement,
@@ -426,11 +429,11 @@ describe('MeriResearchService typed-plan admission', () => {
     expect(f.runner.run.mock.calls[0]?.[1]).toMatchObject({
       admittedPlanExecution: {
         plan: replacement,
-        allowedReadCapabilities: ['get_client_context'],
+        allowedReadCapabilities: ['search_public_web'],
       },
     });
     expect(f.runner.run.mock.calls[0]?.[1]).toMatchObject({
-      user: expect.stringContaining('get_client_context'),
+      user: expect.stringContaining('search_public_web'),
     });
     expect(f.runner.run.mock.calls[0]?.[1]).toMatchObject({
       user: expect.not.stringContaining('\"allowedCapabilities\":[\"search_memory\"]'),

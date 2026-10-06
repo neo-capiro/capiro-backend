@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import {
   RESEARCH_PLAN_LIMITS,
   ResearchPlanValidationError,
+  buildResearchPlanRepairPrompt,
   buildResearchPlanSystemPrompt,
   researchPlanStringProjection,
   validateResearchPlan,
@@ -192,5 +193,36 @@ describe('typed research plan admission', () => {
     expect(prompt).toContain('send_email');
     expect(prompt).toContain('approval_required');
     expect(prompt).not.toContain('invented_tool');
+  });
+
+  it('names the string limit in the prompt, the issue, and the repair instruction', () => {
+    const prompt = buildResearchPlanSystemPrompt('Meri', context);
+    expect(prompt).toContain(`title at most ${RESEARCH_PLAN_LIMITS.maxTitleChars} characters`);
+    expect(prompt).toContain(
+      `objective, completionCondition, and each clarifying question at most ${RESEARCH_PLAN_LIMITS.maxStringChars}`,
+    );
+
+    const long = validPlan();
+    long.steps[1]!.completionCondition = 'x'.repeat(RESEARCH_PLAN_LIMITS.maxStringChars + 1);
+    long.title = 't'.repeat(RESEARCH_PLAN_LIMITS.maxTitleChars + 1);
+    const issues = issuesFor(long);
+    expect(issues).toContain(
+      `steps[1].completionCondition_too_long_max_${RESEARCH_PLAN_LIMITS.maxStringChars}`,
+    );
+    expect(issues).toContain(`title_too_long_max_${RESEARCH_PLAN_LIMITS.maxTitleChars}`);
+
+    const atLimit = validPlan();
+    atLimit.steps[1]!.completionCondition = 'x'.repeat(RESEARCH_PLAN_LIMITS.maxStringChars);
+    expect(issuesFor(atLimit)).toEqual([]);
+
+    const repair = buildResearchPlanRepairPrompt(
+      prompt,
+      JSON.stringify(long),
+      new ResearchPlanValidationError(issues),
+    );
+    expect(repair.system).toContain('_too_long_max_N');
+    expect(repair.user).toContain(
+      `steps[1].completionCondition_too_long_max_${RESEARCH_PLAN_LIMITS.maxStringChars}`,
+    );
   });
 });
