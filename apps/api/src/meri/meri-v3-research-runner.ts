@@ -70,6 +70,9 @@ interface ResearchRunInput {
   };
 }
 
+/** How much of a rejected child output the single correction sees. */
+const RESEARCH_CHILD_CORRECTION_ECHO_CHARS = 12_000;
+
 type DoneFrame = Extract<MeriV3ChatStreamEvent, { type: 'done' }>;
 type ResearchDoneFrame = DoneFrame & {
   producerInputEvaluated?: true;
@@ -314,8 +317,8 @@ export class MeriV3ResearchRunner {
     };
 
     let frame = await this.complete(ctx, childInput, auth, 'read-only', () => {});
-    let qualified = qualifyResearchChildFrame(frame);
-    let handles = researchChildEvidenceHandles(frame.citations ?? []).filter((handle) =>
+    const qualified = qualifyResearchChildFrame(frame);
+    const handles = researchChildEvidenceHandles(frame.citations ?? []).filter((handle) =>
       qualified.toolsUsed.includes(handle.slice(0, handle.indexOf(':'))),
     );
     let output: ResearchChildStructuredOutputV1;
@@ -329,28 +332,35 @@ export class MeriV3ResearchRunner {
       if (!(error instanceof ResearchChildTaskError)) throw error;
       if (Date.now() >= Date.parse(task.deadlineAt) || auth.signal?.aborted) throw error;
       schemaCorrections = 1;
-      frame = await this.complete(
+      // The correction only reformats: it reads nothing, so the rejected
+      // turn's qualified reads remain its evidence and producer inputs, and
+      // the rejected output it sees never outruns them.
+      const correction = await this.complete(
         ctx,
         {
           ...childInput,
+          admittedPlanExecution: childInput.admittedPlanExecution && {
+            ...childInput.admittedPlanExecution,
+            allowedReadCapabilities: [],
+          },
           system: [
             childInput.system,
             'This is the single allowed correction. Do not run a broader task or request more permission.',
           ].join('\n'),
           user: [
-            `The previous output was rejected: ${error.code}.`,
+            `The previous output was rejected: ${error.message}.`,
             `Currently valid evidence handles: ${handles.join(', ') || '(none)'}.`,
-            `Return only the corrected JSON for goal revision ${task.goalRevision}.`,
+            `Rejected output: ${frame.reply.slice(0, RESEARCH_CHILD_CORRECTION_ECHO_CHARS)}`,
+            `Return only the corrected JSON for goal revision ${task.goalRevision}. Keep only findings that the currently valid evidence handles support.`,
           ].join('\n'),
         },
         auth,
         'read-only',
         () => {},
       );
-      qualified = qualifyResearchChildFrame(frame);
-      handles = researchChildEvidenceHandles(frame.citations ?? []).filter((handle) =>
-        qualified.toolsUsed.includes(handle.slice(0, handle.indexOf(':'))),
-      );
+      if ((correction.ledgerEntries ?? []).length || (correction.steps ?? []).length)
+        throw new ResearchChildTaskError('research_child_correction_read');
+      frame = { ...frame, reply: correction.reply, model: correction.model };
       output = validateResearchChildOutput(frame.reply, {
         goalRevision: task.goalRevision,
         allowedEvidenceHandles: handles,
