@@ -508,7 +508,7 @@ export function CreateBriefDialog({
           </p>
           {generate.isPending ? (
             <p role="status" className="lw-card__meta" style={{ margin: 0 }}>
-              Drafting your brief… This usually takes under a minute.
+              Drafting your brief… Long hearings can take a few minutes.
             </p>
           ) : generate.isError ? (
             <p role="alert" className="lw-card__meta" style={{ margin: 0, ...DANGER }}>

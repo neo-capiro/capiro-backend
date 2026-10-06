@@ -17,6 +17,7 @@ interface Call {
   method: 'get' | 'post' | 'patch';
   url: string;
   body?: unknown;
+  config?: { timeout?: number };
 }
 const calls: Call[] = [];
 const handlers = {
@@ -30,8 +31,8 @@ vi.mock('../../../../lib/use-api.js', () => ({
       calls.push({ method: 'get', url });
       return { data: await handlers.get(url) };
     },
-    post: async (url: string, body?: unknown) => {
-      calls.push({ method: 'post', url, body });
+    post: async (url: string, body?: unknown, config?: { timeout?: number }) => {
+      calls.push({ method: 'post', url, body, config });
       return { data: await handlers.post(url, body) };
     },
     patch: async (url: string, body?: unknown) => {
@@ -138,8 +139,29 @@ describe('CreateBriefDialog', () => {
       clientId: CLIENT_A,
       focus: 'impact on the waiver ask',
     });
+    expect(calls.find((c) => c.url === GENERATE_URL)!.config?.timeout).toBe(420_000);
     expect(calls.some((c) => c.url.startsWith('/workspace-api/'))).toBe(false);
     expect(screen.getByRole('button', { name: 'Save to Workspace' })).toBeTruthy();
+  });
+
+  it('explains the longer hearing budget while generation is pending', async () => {
+    let finish!: (brief: typeof BRIEF) => void;
+    handlers.post.mockImplementation(
+      () =>
+        new Promise<typeof BRIEF>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    renderDialog();
+    await screen.findByRole('option', { name: 'Aperture Defense' });
+    fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
+
+    expect(await screen.findByText(/Long hearings can take a few minutes/)).toBeTruthy();
+    expect(screen.queryByText(/under a minute/)).toBeNull();
+    expect(calls.some((call) => call.url.startsWith('/workspace-api/'))).toBe(false);
+
+    finish(BRIEF);
+    await screen.findByText('Executive summary');
   });
 
   it('applies a Meri edit to the draft and can undo it', async () => {
