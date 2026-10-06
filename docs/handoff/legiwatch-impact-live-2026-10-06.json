@@ -22,7 +22,7 @@
   "followup": {
     "pullRequest": "https://github.com/neo-capiro/capirov2/pull/2131",
     "mobileDefect": "At 390 by 844 the broad tab-hiding rule hid all Bill 360 sections; fixed header and stats left about 85 pixels for content.",
-    "mobileAcceptance": "Pending separately qualified CSS release and live verification"
+    "mobileAcceptance": "Passed after PR 2131; see legiwatch-mobile-live-2026-10-06.json"
   },
   "privateEvidence": "C:/dev/qa-legiwatch/remaining-issues-20261006/browser-live/impact-generated-dom.txt"
 }

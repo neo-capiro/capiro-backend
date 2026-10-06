@@ -15,11 +15,11 @@ The source recovery in [PR 2117](https://github.com/neo-capiro/capirov2/pull/211
 | Four unavailable notification types | In-app categories/preferences, tenant scope and durable deduplication shipped; real drain succeeded. | External email remains disabled; not every category had a natural example. |
 | Florida text and analysis | HB 1211 has four texts, three official analyses and chronological comparison. PR 2122 adds unsaved client-impact drafts. | Only complete retained text and substantive authorized client context can be used. |
 | Budget visibility | Amounts and readable stages/funds visible; scoped filters and honest empty states verified. | Missing amounts are not presented as zero. |
-| Watchlist and CSS | Shortcut visible beside Settings. Prior desktop/mobile acceptance completed; follow-up mobile check opens setup without page overflow. | Final Impact hotfix acceptance is recorded separately. |
+| Watchlist and CSS | Shortcut visible beside Settings. PR 2131 restores all seven mobile Bill 360 tabs and increases the scrollable reading view from about 85 to 718 pixels at 390×844. Desktop navigation/layout and mobile page width passed live checks. | Detailed Impact and responsive acceptance are recorded separately; this is not a universal CSS certification. |
 
 PR 2122 distinguishes static publisher qualification, recent intake receipts and retained counts. Live News acceptance shows dated WUSF/The Hill intake separately from unqualified catalog status; filtered public news no longer claims client relevance. The elapsed-hearing dialog disables recap generation without a transcript and explains why. Live hearing 119575 acceptance saved no draft.
 
-The new Impact tab initially crashed live because its request omitted `/api` and received SPA HTML. [PR 2130](https://github.com/neo-capiro/capirov2/pull/2130) corrects the path and validates options and generated drafts before rendering; invalid responses stay local to the panel. Its final qualification/deployment/live acceptance are separate evidence.
+The new Impact tab initially crashed live because its request omitted `/api` and received SPA HTML. [PR 2130](https://github.com/neo-capiro/capirov2/pull/2130) corrects the path and validates options and generated drafts before rendering; invalid responses stay local to the panel. Its shipped live acceptance loaded all four HB 1211 versions and produced one unsaved, safely qualified empty client-impact draft without a page crash. [PR 2131](https://github.com/neo-capiro/capirov2/pull/2131) then fixes the mobile drawer's broad tab-hiding rule and reading-area constraint. Each release passed 1,186 web tests in 335 suites, full web typechecking and 24 native operator/runtime checks; immutable build qualification and separate live evidence record the precise limits.
 
 ## Committee, calendar and news health
 
@@ -47,6 +47,8 @@ HB 1211's dataset attempt reserved eight provider units and exited 1. Independen
 
 - Prior UI/debrief acceptance: `legiwatch-live-acceptance-2026-10-06.md`
 - PR 2122 qualification: `legiwatch-remaining-quality-2026-10-06-qualification.json`
+- Impact hotfix/live acceptance: `legiwatch-impact-route-2026-10-06-qualification.json`, `legiwatch-impact-live-2026-10-06.json`
+- Mobile drawer qualification/live acceptance: `legiwatch-mobile-drawer-2026-10-06-qualification.json`, `legiwatch-mobile-live-2026-10-06.json`
 - Private audit: `C:/dev/qa-legiwatch/remaining-issues-20261006/quality-post-release-audit-v4/`
 - Scheduled-owner pins: private `quality-worker-pins/`
 - Live screenshots/DOM: private `browser-live/`

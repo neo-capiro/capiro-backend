@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-06",
+  "pullRequest": "https://github.com/neo-capiro/capirov2/pull/2131",
+  "qualifiedSource": "6910fb3029c576232ef47c4daa115a27596a4ac8",
+  "imageDigest": "sha256:d0a32b9bd2859f920d6d528ec45010c9c83b37d2e7d28efed5604b4847a99ef2",
+  "webTaskDefinitionRevision": 431,
+  "deployment": "ECS healthy; final guarded promotion receipt returned successfully",
+  "manualAcceptance": {
+    "method": "Reloaded authenticated live browser, documented Playwright controls, rendered DOM and screenshots",
+    "bill": "FL HB 1211, 2026",
+    "mobile": {
+      "viewport": { "width": 390, "height": 844 },
+      "pageWidth": 390,
+      "sheetHeight": 776.4791870117188,
+      "sheetScrollHeight": 2541,
+      "sheetScrollTopAfterOrdinaryScroll": 1022.6666870117188,
+      "readingHeightBelowStickyTabs": 718.4791870117188,
+      "priorReadingHeight": 85.14583587646484,
+      "tabs": 7,
+      "tabsDisplay": "flex",
+      "tabsPosition": "sticky",
+      "sectionsIndividuallyOpened": ["Overview", "Path & Votes", "Funding", "Provisions", "Impact", "Hearings", "Evidence"],
+      "impactOptionsLoaded": 4,
+      "mainNavigation": "Mobile selector remains available"
+    },
+    "desktop": {
+      "viewportWidth": 1280,
+      "pageWidth": 1280,
+      "drawerDisplay": "flex",
+      "tabs": 7,
+      "mainNavigationVisible": true
+    },
+    "temporaryViewport": "Reset to the default desktop viewport",
+    "limits": "Responsive drawer/navigation acceptance does not establish all source coverage, universal CSS consistency or recording completeness. No new generation or saved draft was required."
+  },
+  "privateEvidence": "C:/dev/qa-legiwatch/remaining-issues-20261006/browser-live/mobile-drawer-*"
+}
