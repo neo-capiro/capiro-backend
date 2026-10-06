@@ -205,12 +205,10 @@ export function buildResearchReportProvenance(
   ) {
     throw new Error('A source-free report contains covered private producer inputs.');
   }
-  if (
-    toolsUsed.length === 0 &&
-    input.receipts.some((receipt) => receipt.version === 2 && receipt.status === 'complete')
-  ) {
-    throw new Error('A source-free report cannot inherit a durable source receipt.');
-  }
+  // Receipts the report does not declare are not its inputs: the producer
+  // classification refuses any receipted read it saw that is not declared, so
+  // undeclared receipts belong to other producers (for example a bounded child
+  // whose findings were dropped). Declared tools are bound by the manifest below.
   const manifest = reportReceiptManifest(
     input.receipts,
     {

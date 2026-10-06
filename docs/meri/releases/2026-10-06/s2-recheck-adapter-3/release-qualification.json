@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-recheck-adapter-3-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T02:51:29.349099+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "4b14a110994bb148af2503acf81ad978a91d12de",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1b0d027ed3040a36f20b8738534b11cc7e2f15df96a4613d4e88b8a090dbef5e",
+      "buildId": "capiro-build-web-dev:b15a09ae-33e9-472c-a50c-ed64d2526d1b"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Research runs read only through re-checkable tools (#2056): execution admits durable owner reads and audited public-data tools only; bill and web-page reads count as public. Fixes the unreceipted search_research_sources refusal seen on the second live check. No migration.",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}

@@ -160,25 +160,7 @@ export class MeriV3ResearchRunner {
       const durable = entry.durableSafeRead;
       if (!durable) continue;
       const publicTool = publicResearchSourceTool(durable.tool);
-      if (!publicTool) continue;
-      const matchingSteps = result.steps.filter(
-        (step) => step.durableSafeRead?.executionId === durable.executionId,
-      );
-      const matchedStep = matchingSteps.length === 1 ? matchingSteps[0] : undefined;
-      if (
-        !matchedStep ||
-        matchedStep.status !== 'done' ||
-        matchedStep.durableSafeRead?.receiptId !== durable.receiptId ||
-        matchedStep.durableSafeRead?.tool !== durable.tool
-      )
-        continue;
-      const ownerClassification = classifyApiToolReadOutcome(durable.tool, entry.result);
-      if (
-        !ownerClassification ||
-        (ownerClassification.kind !== 'complete' && ownerClassification.kind !== 'empty') ||
-        ownerClassification.kind !== durable.classifier
-      )
-        continue;
+      if (!publicTool || !qualifiedDurableStep(result.steps, entry)) continue;
       const source: SourceAttribution = {
         tool: publicTool,
         label: 'Research source',
@@ -496,6 +478,15 @@ export class MeriV3ResearchRunner {
     const durableTools = ledgerEntries.flatMap((entry) =>
       entry.durableSafeRead ? [entry.durableSafeRead.tool] : [],
     );
+    // Only qualified durable reads become declared report sources; any other
+    // receipted read the model saw is an undeclared private input.
+    const qualifiedDurableExecutionIds = new Set(
+      ledgerEntries.flatMap((entry) =>
+        entry.durableSafeRead && qualifiedDurableStep(result.steps, entry)
+          ? [entry.durableSafeRead.executionId]
+          : [],
+      ),
+    );
     const producerInput = classifyResearchProducerInputs({
       hashMaterial: {
         systemSha256: createHash('sha256').update(input.system).digest('hex'),
@@ -509,6 +500,7 @@ export class MeriV3ResearchRunner {
           input.handoff?.messages.filter((message) => message.role === 'assistant').length ?? 0,
       },
       durableTools,
+      qualifiedDurableExecutionIds,
       clientContext: input.clientContext,
       governedContext: auth.governedContext,
       handoff: input.handoff,
@@ -593,21 +585,8 @@ function qualifyResearchChildFrame(frame: ResearchDoneFrame): {
   for (const entry of ledgerEntries) {
     const durable = entry.durableSafeRead;
     if (!durable) continue;
-    const matchingSteps = frame.steps.filter(
-      (step) => step.durableSafeRead?.executionId === durable.executionId,
-    );
-    const matchedStep = matchingSteps.length === 1 ? matchingSteps[0] : undefined;
-    const ownerClassification = classifyApiToolReadOutcome(durable.tool, entry.result);
-    if (
-      !matchedStep ||
-      matchedStep.status !== 'done' ||
-      matchedStep.durableSafeRead?.receiptId !== durable.receiptId ||
-      matchedStep.durableSafeRead.tool !== durable.tool ||
-      !ownerClassification ||
-      (ownerClassification.kind !== 'complete' && ownerClassification.kind !== 'empty') ||
-      ownerClassification.kind !== durable.classifier
-    )
-      continue;
+    const matchedStep = qualifiedDurableStep(frame.steps, entry);
+    if (!matchedStep) continue;
     sources.push({
       tool: durable.tool,
       label: matchedStep.label,
@@ -617,4 +596,31 @@ function qualifyResearchChildFrame(frame: ResearchDoneFrame): {
     toolsUsed.push(durable.tool);
   }
   return { sources, toolsUsed: [...new Set(toolsUsed)], ledgerEntries };
+}
+
+type ResearchLedgerEntry = NonNullable<DoneFrame['ledgerEntries']>[number];
+
+/** A durable read is a report source only when its step, receipt and owner classification agree. */
+function qualifiedDurableStep(
+  steps: DoneFrame['steps'],
+  entry: ResearchLedgerEntry,
+): DoneFrame['steps'][number] | null {
+  const durable = entry.durableSafeRead;
+  if (!durable) return null;
+  const matchingSteps = steps.filter(
+    (step) => step.durableSafeRead?.executionId === durable.executionId,
+  );
+  const matchedStep = matchingSteps.length === 1 ? matchingSteps[0] : undefined;
+  const ownerClassification = classifyApiToolReadOutcome(durable.tool, entry.result);
+  if (
+    !matchedStep ||
+    matchedStep.status !== 'done' ||
+    matchedStep.durableSafeRead?.receiptId !== durable.receiptId ||
+    matchedStep.durableSafeRead?.tool !== durable.tool ||
+    !ownerClassification ||
+    (ownerClassification.kind !== 'complete' && ownerClassification.kind !== 'empty') ||
+    ownerClassification.kind !== durable.classifier
+  )
+    return null;
+  return matchedStep;
 }
