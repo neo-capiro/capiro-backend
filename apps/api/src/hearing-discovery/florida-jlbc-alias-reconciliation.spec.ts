@@ -1,7 +1,12 @@
 import { FLORIDA_JLBC_ALIAS_REVIEW } from './florida-jlbc-alias-review.js';
-import { floridaJlbcAliasConfirmation } from './florida-jlbc-alias-reconciliation.js';
+import { floridaJlbcAliasConfirmation, verifiedJlbcCanonicalDirectoryId } from './florida-jlbc-alias-reconciliation.js';
 
 describe('Florida JLBC alias reconciliation guard', () => {
+  it('accepts the exact directory fill while rejecting other bodies', () => {
+    expect(verifiedJlbcCanonicalDirectoryId(null, FLORIDA_JLBC_ALIAS_REVIEW)).toBe(true);
+    expect(verifiedJlbcCanonicalDirectoryId(FLORIDA_JLBC_ALIAS_REVIEW.aliasStateCommitteeId, FLORIDA_JLBC_ALIAS_REVIEW)).toBe(true);
+    expect(verifiedJlbcCanonicalDirectoryId('official-ca4b3cebb28c0902685d6ff220ae1a3e', FLORIDA_JLBC_ALIAS_REVIEW)).toBe(false);
+  });
   it('uses a one-pair confirmation token distinct from the generic repair', () => {
     expect(floridaJlbcAliasConfirmation(FLORIDA_JLBC_ALIAS_REVIEW.repairId)).toBe(
       'fl-jlbc-openstates-official-2026-09-20:apply-reviewed-aliases:jlbc-official-calendar',

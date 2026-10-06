@@ -143,6 +143,28 @@ describe('CommitteeDirectoryService', () => {
     });
   });
 
+  it('uses one China directory entry for both publisher and catalog code links', async () => {
+    const { service, prisma, hearings } = fixture();
+    const china = { systemCode: 'hszs00', thomasId: 'HSZS', name: 'House Select Committee on China', chamber: 'house', parentSystemCode: null, url: 'https://chinaselectcommittee.house.gov/', jurisdiction: 'China', isCurrent: true, lastSyncedAt };
+    prisma.congressCommittee.findMany.mockResolvedValue([china]);
+    prisma.congressCommittee.findFirst.mockResolvedValue(china);
+    prisma.committeeHearing.findMany.mockResolvedValue([{ id: 'cm-119-119538', committeeSystemCode: 'hlzs00', subcommitteeSystemCode: null, title: 'Import Controls', date: future, startsAt: future, eventStatus: 'scheduled', type: 'hearing' }]);
+    const directory = await service.committees();
+    expect(directory.rows).toHaveLength(1);
+    expect(directory.rows[0]).toMatchObject({ systemCode: 'hszs00', upcomingEventCount: 1 });
+    expect(prisma.committeeHearing.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ AND: expect.arrayContaining([expect.objectContaining({ OR: expect.arrayContaining([{ committeeSystemCode: { in: ['hszs00', 'hlzs00'] } }]) })]) }) }));
+    const ctx = { tenantId: 'tenant-a', userId: 'user-a' } as never;
+    const canonical = await service.committee('hszs00', ctx);
+    const alias = await service.committee('hlzs00', ctx);
+    expect(alias).toMatchObject({ systemCode: 'hszs00' });
+    expect(alias?.systemCode).toEqual(canonical?.systemCode);
+    expect(hearings.calendar).toHaveBeenCalledWith(ctx, expect.objectContaining({ committee: 'hszs00' }));
+    await service.members('hlzs00');
+    await service.updates('hlzs00');
+    expect(prisma.congressCommittee.findFirst).toHaveBeenLastCalledWith({ where: { systemCode: 'hszs00', isCurrent: true } });
+    expect(prisma.committeeSiteUpdate.findMany).toHaveBeenLastCalledWith(expect.objectContaining({ where: { committeeSystemCode: { in: ['hszs00', 'hlzs00'] } } }));
+  });
+
   it('counts a subcommittee event in both its own room and its parent room', async () => {
     const { service } = fixture();
 

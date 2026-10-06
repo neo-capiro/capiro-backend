@@ -1,3 +1,5 @@
+import { committeeCatalogCode } from './committee-catalog-alias.js';
+
 /** Congress.gov defines a body's final two digits: 00 is the parent, other
  * digits identify a child of that same four-letter committee code.
  * https://github.com/LibraryOfCongress/api.congress.gov/blob/main/Documentation/CommitteeEndpoint.md
@@ -35,8 +37,8 @@ export function storedCommitteeIdentity(row: {
   subcommitteeSystemCode?: string | null;
   committeeCode?: string | null;
 }): { committeeSystemCode: string | null; subcommitteeSystemCode: string | null } {
-  const canonical = row.committeeSystemCode?.trim().toLowerCase() || null;
-  const legacy = row.committeeCode?.trim().toLowerCase() || null;
+  const canonical = committeeCatalogCode(row.committeeSystemCode);
+  const legacy = committeeCatalogCode(row.committeeCode);
   const explicitChild = row.subcommitteeSystemCode?.trim().toLowerCase() || null;
   const main = canonical ?? legacy;
   const parent = committeeParentCode(main) ?? main;

@@ -655,13 +655,18 @@ export async function resolveFloridaAgenda(
   // which already carries qualified aliases/rosters, rather than manufacture
   // an empty session-specific Senate committee from a Senate-hosted notice.
   let officialJointBody: { id: string } | null = null;
+  // The reviewed dual-provider JLBC identity predates the directory's JLBC
+  // code. Keep its durable event/body key and resolve only this exact alias.
+  const jointDirectoryKey = observation.bodySourceKey === 'fl:joint:lbc'
+    ? 'fl:joint:JLBC'
+    : observation.bodySourceKey;
   if (
     observation.chamber === 'joint' &&
     observation.eventType === 'joint' &&
-    /^fl:joint:[A-Z]{2,8}$/.test(observation.bodySourceKey)
+    /^fl:joint:[A-Z]{2,8}$/.test(jointDirectoryKey)
   ) {
     const directory = await prisma.stateCommittee.findUnique({
-      where: { officialSourceKey: `FL:directory:${observation.bodySourceKey}` },
+      where: { officialSourceKey: `FL:directory:${jointDirectoryKey}` },
     });
     if (directory) {
       const cleanName = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();

@@ -142,6 +142,22 @@ describe('official joint committee directory identity', () => {
     });
     expect(db.stateCommittee.upsert).not.toHaveBeenCalled();
   });
+  it('links the retained JLBC body key to the verified directory without changing notice identity', async () => {
+    const jlbc = { ...directory, id: 'official-203133a6dd941346b3a08cfec2a92ccc', name: 'Joint Legislative Budget Commission', officialSourceKey: 'FL:directory:fl:joint:JLBC' };
+    const db = { stateCommittee: { findUnique: jest.fn(async () => jlbc), upsert: jest.fn() } };
+    const event = { ...observation(), bodySourceKey: 'fl:joint:lbc', bodyName: jlbc.name };
+    await resolveFloridaAgenda(db as unknown as PrismaClient, event);
+    expect(db.stateCommittee.findUnique).toHaveBeenCalledWith({ where: { officialSourceKey: jlbc.officialSourceKey } });
+    expect(event.stateCommitteeId).toBe(jlbc.id);
+    expect(event.bodySourceKey).toBe('fl:joint:lbc');
+    expect(db.stateCommittee.upsert).not.toHaveBeenCalled();
+  });
+  it('rejects a different directory body for the retained JLBC key', async () => {
+    const db = { stateCommittee: { findUnique: jest.fn(async () => directory), upsert: jest.fn() } };
+    const event = { ...observation(), bodySourceKey: 'fl:joint:lbc', bodyName: 'Joint Legislative Budget Commission' };
+    await expect(resolveFloridaAgenda(db as unknown as PrismaClient, event)).rejects.toThrow('joint directory identity conflicts');
+    expect(db.stateCommittee.upsert).not.toHaveBeenCalled();
+  });
   it.each([
     { state: 'GA' },
     { chamber: 'senate' },

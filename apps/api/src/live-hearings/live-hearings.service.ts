@@ -1,4 +1,5 @@
 import { projectCaptureResolution } from './live-hearings-capture-projection.js';
+import { committeeCatalogCode, committeeCatalogReadCodes } from '../hearing-discovery/committee-catalog-alias.js';
 import { HEARING_DOCUMENT_UPDATE_TYPES, mergeHearingDocuments } from './live-hearings-documents.js';
 import {
   resolveCanonicalHearingId,
@@ -923,7 +924,7 @@ export class LiveHearingsService {
     // A code-backed filter must keep those exact same-body variants visible.
     if (/^[hsj][a-z]{3}\d{2}$/i.test(query.committee ?? '')) {
       const directory = await this.prisma.congressCommittee.findMany({
-        where: { systemCode: query.committee!.toLowerCase() },
+        where: { systemCode: committeeCatalogCode(query.committee)! },
         select: { name: true, chamber: true },
       });
       if (directory.length === 1) {
@@ -1459,13 +1460,16 @@ export function buildWhere(query: CalendarQuery): Prisma.CommitteeHearingWhereIn
   if (query.committee) {
     // Accept a system code or a display name; the corpus has rows keyed either
     // way (the legacy sync writes committee_code, Phase 3 writes both).
-    const code = query.committee.trim().toLowerCase();
+    const code = committeeCatalogCode(query.committee) ?? '';
     const parent = committeeParentCode(code);
     // A full committee includes children identified by Congress.gov's exact
     // four-letter family + two-digit body code, including legacy imports.
     const family =
       parent === code
-        ? Array.from({ length: 100 }, (_, n) => `${code.slice(0, 4)}${String(n).padStart(2, '0')}`)
+        ? [...new Set([
+            ...Array.from({ length: 100 }, (_, n) => `${code.slice(0, 4)}${String(n).padStart(2, '0')}`),
+            ...committeeCatalogReadCodes(code),
+          ])]
         : null;
     where.OR = family
       ? [

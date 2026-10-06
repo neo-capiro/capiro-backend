@@ -2,6 +2,7 @@ import { federalHearingWhere } from '../hearing-discovery/hearing-geography.js';
 import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { storedCommitteeIdentity } from '../hearing-discovery/hearing-committee-identity.js';
+import { committeeCatalogCode, committeeCatalogReadCodes } from '../hearing-discovery/committee-catalog-alias.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { LiveHearingsService, type CalendarEvent } from './live-hearings.service.js';
 
@@ -316,7 +317,7 @@ export class CommitteeDirectoryService {
     asOf: string;
   }> {
     const committee = await this.prisma.congressCommittee.findFirst({
-      where: { systemCode: id, isCurrent: true },
+      where: { systemCode: normalizeCode(id), isCurrent: true },
     });
     if (!committee) {
       return {
@@ -378,11 +379,11 @@ export class CommitteeDirectoryService {
     asOf: string;
   }> {
     const committee = await this.prisma.congressCommittee.findFirst({
-      where: { systemCode: id, isCurrent: true },
+      where: { systemCode: normalizeCode(id), isCurrent: true },
     });
     if (!committee) return { rows: [], total: 0, asOf: new Date().toISOString() };
 
-    const sourceCodes = [committee.systemCode];
+    const sourceCodes = committeeCatalogReadCodes(committee.systemCode);
     if (committee.parentSystemCode) sourceCodes.push(committee.parentSystemCode);
 
     const rows = await this.prisma.committeeSiteUpdate.findMany({
@@ -423,7 +424,7 @@ export class CommitteeDirectoryService {
       where: { isCurrent: true },
       orderBy: [{ chamber: 'asc' }, { parentSystemCode: 'asc' }, { name: 'asc' }],
     });
-    const codes = committees.map((row) => row.systemCode);
+    const codes = [...new Set(committees.flatMap((row) => committeeCatalogReadCodes(row.systemCode)))];
 
     const [events, sources] = await Promise.all([
       codes.length
@@ -559,7 +560,7 @@ export class CommitteeDirectoryService {
 }
 
 function normalizeCode(value: string | null | undefined): string {
-  return (value ?? '').trim().toLowerCase();
+  return committeeCatalogCode(value) ?? '';
 }
 
 function normalizeRole(value: string | null): string {

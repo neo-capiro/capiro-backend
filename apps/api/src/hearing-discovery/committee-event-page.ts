@@ -1,4 +1,5 @@
 import type { CanonicalHearingRef, SourceDescriptor } from './hearing-discovery.types.js';
+import { committeeCatalogCode } from './committee-catalog-alias.js';
 
 type Observation = { sourceMetadata: unknown; source: { adapterKey: string; sourceUrl: string } };
 export type ScopedHearingRef = CanonicalHearingRef & { subcommitteeSystemCode?: string | null };
@@ -51,10 +52,14 @@ export class CommitteeEventPageResolver {
     const direct = new Set<string>();
     for (const row of observations) {
       const event = (row.sourceMetadata as { event?: Record<string, unknown> } | null)?.event;
+      const observedCommittee = typeof event?.committeeSystemCode === 'string'
+        ? committeeCatalogCode(event.committeeSystemCode)
+        : null;
+      const hearingCommittee = committeeCatalogCode(hearing.committeeSystemCode);
       if (
         !OFFICIAL_ADAPTERS.has(row.source.adapterKey) ||
         !event ||
-        event.committeeSystemCode !== hearing.committeeSystemCode ||
+        !observedCommittee || !hearingCommittee || observedCommittee !== hearingCommittee ||
         (event.subcommitteeSystemCode ?? null) !== (hearing.subcommitteeSystemCode ?? null) ||
         event.congress !== hearing.congress ||
         String(event.chamber).toLowerCase() !== hearing.chamber.toLowerCase() ||
