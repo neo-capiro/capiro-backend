@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-release-a-orch-3-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T00:58:20.014786+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "14b7deb1c74301a1907d1bb7841432a71652e679",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:aa82bcf35786f862f3743f233763eed4476da8e431e7c7ce47850270d545b7a2",
+      "buildId": "capiro-build-web-dev:694dc327-e879-4134-8040-83bffa0f6873"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Stage 2 Release A follow-up 3, orchestrator only: research provider settlements send the full API contract (logicalOperationId, retryOfAttemptId), so Deep Research settlements are no longer refused with HTTP 400 (#2044).",
+  "reviewer": "Lead agent (Stage 1): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo: \"implement stage 1\" (2026-10-05); program plan \u00a710 release path."
+}
