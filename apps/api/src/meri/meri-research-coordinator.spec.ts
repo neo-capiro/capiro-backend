@@ -189,6 +189,89 @@ describe('durable per-step research coordinator', () => {
     );
   });
 
+  it('re-reads a completed step while a later step is ready, and keeps first reads in order', () => {
+    const first = admitted();
+    const active = activateDurableResearchCoordinator({
+      metadata: first.metadata,
+      run: { ...run(), eventSequence: first.coordinator.events.at(-1)!.sequence },
+      deadlineAt: '2026-09-28T00:30:00.000Z',
+    });
+    const reserved = reserveDurableResearchStep({
+      metadata: active.metadata,
+      run: active.run,
+      reservationId: 'reservation-house',
+      providerCallId: 'call-house',
+      kind: 'dispatch',
+      tool: 'get_bill_status',
+      toolVersion: `sha256:${'b'.repeat(64)}`,
+      toolInput: { billId: 'hr-1' },
+      now: new Date('2026-09-28T00:01:00.000Z'),
+    });
+    const completed = completeDurableResearchStep({
+      metadata: reserved.metadata,
+      run: reserved.run,
+      reservationId: 'reservation-house',
+      receiptId: 'receipt-house',
+      resultRef: 'private-result-house',
+      now: new Date('2026-09-28T00:01:01.000Z'),
+    });
+
+    // 'compare-client-position' is now ready, yet another read for the completed
+    // first step (a further source, or one a bounded child read first) proceeds.
+    const reread = reserveDurableResearchStep({
+      metadata: completed.metadata,
+      run: completed.run,
+      reservationId: 'reservation-house-2',
+      providerCallId: 'call-house-2',
+      kind: 'dispatch',
+      tool: 'get_bill_status',
+      toolVersion: `sha256:${'b'.repeat(64)}`,
+      toolInput: { billId: 'hr-2' },
+      now: new Date('2026-09-28T00:01:02.000Z'),
+    });
+    expect(reread.step).toMatchObject({ id: 'read-house-text', attempt: 2, outcome: 'reserved' });
+
+    // A failed re-read restores the earlier completion; nothing downstream is lost.
+    const failed = failDurableResearchStep({
+      metadata: reread.metadata,
+      run: reread.run,
+      reservationId: 'reservation-house-2',
+      code: 'owner_result_not_complete',
+    });
+    expect(failed.coordinator.steps[0]).toMatchObject({
+      outcome: 'completed',
+      resultRef: 'private-result-house',
+      sourceRefs: ['receipt:receipt-house'],
+    });
+
+    // A tool whose step is not yet reachable is still refused at the boundary.
+    const second = reserveDurableResearchStep({
+      metadata: failed.metadata,
+      run: failed.run,
+      reservationId: 'reservation-client',
+      providerCallId: 'call-client',
+      kind: 'dispatch',
+      tool: 'search_memory',
+      toolVersion: `sha256:${'c'.repeat(64)}`,
+      toolInput: { query: 'client position' },
+      now: new Date('2026-09-28T00:01:03.000Z'),
+    });
+    expect(second.step.id).toBe('compare-client-position');
+    expect(() =>
+      reserveDurableResearchStep({
+        metadata: second.metadata,
+        run: second.run,
+        reservationId: 'reservation-task',
+        providerCallId: 'call-task',
+        kind: 'dispatch',
+        tool: 'create_task',
+        toolVersion: `sha256:${'d'.repeat(64)}`,
+        toolInput: { title: 'follow up' },
+        now: new Date('2026-09-28T00:01:04.000Z'),
+      }),
+    ).toThrow();
+  });
+
   it('never completes a logical failure and permits a new bounded attempt', () => {
     const first = admitted();
     const active = activateDurableResearchCoordinator({
