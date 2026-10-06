@@ -186,6 +186,9 @@ export function senateNoticeRefs(
     if (date && window && (date < window.from || date > window.to)) return;
     const href = $(tr).find('a.mtgrecord_notice').attr('href');
     const noticeId = /\/MeetingNotice\/(\d+)/i.exec(href ?? '')?.[1];
+    // An explicitly empty committee slot is not a missing notice. Keep real
+    // notice IDs, including canceled proceedings, on the ordinary path.
+    if (date && !href && /\bnot meeting\b/i.test(tds.eq(2).text())) return;
     if (!date || !noticeId || !href) {
       issues.push(`Unresolved Senate notice row: ${clean(tds.eq(0).text())}`);
       return;
@@ -264,6 +267,7 @@ export function senateDailyCalendar(html: string, date: string, session: string)
     const watch = event.find('a[href*="/VideoPlayer/"]').attr('href');
     const watchUrl = watch ? new URL(watch, FL_SENATE).href : null;
     const canceled = /cancelled|canceled|not meeting/i.test(event.find('.location').text());
+    if (!href && /\bnot meeting\b/i.test(event.find('.location').text())) return;
     if (match) {
       notices.push({
         id: match[2]!,

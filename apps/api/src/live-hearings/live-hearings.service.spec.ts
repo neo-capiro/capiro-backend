@@ -211,6 +211,12 @@ function makePrisma(seed: {
         return rows.slice(0, args.take ?? rows.length);
       },
     },
+    $queryRawUnsafe: async (sql: string, ids: string[]) => {
+      if (!sql.includes('FROM public_hearing_capture WHERE hearing_id=ANY($1::text[])')) {
+        throw new Error('Unexpected unscoped capture hydration query');
+      }
+      return store.captures.filter((capture) => ids.includes(String(capture.hearingId)));
+    },
     publicHearingCapture: {
       findMany: async (args: { where?: Row } = {}) =>
         store.captures.filter((c) => matches(c, args.where)),
@@ -575,6 +581,63 @@ describe('LiveHearingsService — capture and candidate hydration', () => {
     });
     const res = await service.calendar(ctxA, {});
     expect(res.rows[0]?.capture).toMatchObject({ status: 'capturing', capturedSeconds: 120 });
+  });
+
+  it('projects an explicit browser restriction over a pending capture without inventing approval', async () => {
+    const id = String(hearing().id);
+    const { service } = makeService({
+      hearings: [hearing()],
+      captures: [
+        {
+          id: 'capture-pending',
+          hearingId: id,
+          status: 'scheduled',
+          domainStatus: 'SCHEDULED',
+          resolutionState: 'NOT_CHECKED',
+        },
+      ],
+      candidates: [
+        {
+          id: 'browser',
+          hearingId: id,
+          capturePolicy: 'BROWSER_CAPTURE_ONLY',
+          resolutionState: 'POLICY_BLOCKED',
+          provider: 'youtube',
+          priority: 1,
+        },
+      ],
+    });
+    const row = (await service.calendar(ctxA, {})).rows[0]!;
+    expect(row).toMatchObject({
+      capturePolicy: 'BROWSER_CAPTURE_ONLY',
+      streamState: 'POLICY_BLOCKED',
+      capture: {
+        id: 'capture-pending',
+        status: 'SCHEDULED',
+        capturePolicy: 'BROWSER_CAPTURE_ONLY',
+        streamState: 'POLICY_BLOCKED',
+      },
+    });
+  });
+
+  it('uses the current capture domain outcome instead of legacy ended storage status', async () => {
+    const { service } = makeService({
+      hearings: [hearing()],
+      captures: [
+        {
+          id: 'complete',
+          hearingId: hearing().id,
+          status: 'ended',
+          domainStatus: 'COMPLETE_WITH_GAPS',
+          resolutionState: 'ENDED',
+        },
+      ],
+    });
+    expect((await service.calendar(ctxA, {})).rows[0]?.capture).toMatchObject({
+      id: 'complete',
+      status: 'COMPLETE_WITH_GAPS',
+      streamState: 'ENDED',
+    });
   });
 
   it('never exposes a raw media URL to a normal user', async () => {

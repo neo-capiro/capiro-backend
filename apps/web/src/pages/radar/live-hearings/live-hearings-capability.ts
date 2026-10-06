@@ -132,9 +132,9 @@ export function captureSummaryLabel(event: CanonicalHearingEvent): string {
     if (state === 'POLICY_BLOCKED') return 'Capture blocked';
     if (state === 'SOURCE_ERROR') return 'Stream unavailable';
   }
-  return status && status !== 'NOT_SCHEDULED'
-    ? `Capture ${captureStatusLabel(event)}`
-    : 'No capture requested';
+  if (!status || status === 'NOT_SCHEDULED') return 'No capture requested';
+  const label = captureStatusLabel(event);
+  return label.toLowerCase().startsWith('capture ') ? label : `Capture ${label}`;
 }
 
 export function browserCaptureCapability(event: CanonicalHearingEvent): HearingActionCapability {
@@ -176,11 +176,15 @@ export function captureStatusLabel(event: CanonicalHearingEvent): string {
     PREPARING: 'Preparing',
     WAITING_FOR_BROADCAST: 'Waiting for broadcast',
     RECORDING: 'Recording',
+    CAPTURING: 'Recording',
     RECOVERING: 'Recovering',
+    ENDED: 'Ended',
+    BLOCKED: 'Blocked',
+    FINALIZING: 'Finalizing',
     COMPLETE: 'Complete',
     COMPLETE_WITH_GAPS: 'Complete with gaps',
     FAILED: 'Capture failed',
     CANCELED: 'Canceled',
   };
-  return labels[status] ?? capturePolicyLabel(event.capturePolicy);
+  return labels[status] ?? (status ? 'Status unavailable' : capturePolicyLabel(event.capturePolicy));
 }

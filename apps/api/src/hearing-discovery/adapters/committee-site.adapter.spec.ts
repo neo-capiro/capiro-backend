@@ -32,6 +32,41 @@ function html(body: string) {
 beforeEach(() => fetchMock.mockReset());
 
 describe('official committee news', () => {
+  it('reads an explicitly registered news index without following sibling navigation', async () => {
+    fetchMock.mockResolvedValueOnce(
+      html(
+        '<a href="/media/press-releases">Press releases</a>' +
+          '<a href="/news">News</a>' +
+          '<a href="/2026/10/chairman-announces-policy">Chairman announces policy</a>' +
+          '<a href="/news/press-releases/committee-statement">Committee statement</a>' +
+          '<a href="https://other.house.gov/2026/10/unrelated">Unrelated committee news</a>',
+      ),
+    );
+    const adapter = new CommitteeSiteAdapter();
+    const updates = await adapter.discoverUpdates(
+      {
+        ...source,
+        committeeSystemCode: 'hsfa00',
+        chamber: 'house',
+        sourceUrl: 'https://foreignaffairs.house.gov/news',
+      },
+      ctx,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updates.map((update) => update.normalizedTitle)).toEqual([
+      'Chairman announces policy',
+      'Committee statement',
+    ]);
+    expect(
+      updates.every(
+        (update) =>
+          update.committeeSystemCode === 'hsfa00' &&
+          update.updateType === 'committee_news_published' &&
+          update.officialPublishedAt === null,
+      ),
+    ).toBe(true);
+    expect(adapter.updateErrors).toEqual([]);
+  });
   it('discovers actual linked news indexes and deduplicates article links without inventing publication dates', async () => {
     fetchMock
       .mockResolvedValueOnce(
