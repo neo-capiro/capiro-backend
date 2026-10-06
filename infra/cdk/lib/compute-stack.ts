@@ -784,6 +784,13 @@ export class ComputeStack extends cdk.Stack {
       MERIV2_ACTION_PROPOSALS_ENABLED: 'true',
       MERIV2_CONTROL_METRICS: 'on',
       MERIV2_CONTEXT_PACKET_V2: 'enforce',
+      // Deep Research per-run provider budget (Stage 2 Release A, Neo's OK
+      // 2026-10-05). Reservations count the request body in bytes as tokens, so
+      // one V3 research call reserves ~240k units; the 120k code default
+      // refused every run at its first call. Settled spend uses actual usage.
+      // Applied as configuration revision capiro-dev-api:564 (DRIFT-FINDINGS).
+      CLIO_RESEARCH_MAX_TOTAL_TOKENS: '4000000',
+      CLIO_RESEARCH_MAX_COST_USD: '25',
       // Business Development Phase 3 Jev controls are deliberately dark in
       // the managed baseline. A reviewed deployment may register a task
       // definition with a tenant-scoped shadow override, but a later CDK
