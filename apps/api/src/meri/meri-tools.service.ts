@@ -25,6 +25,14 @@ import { ConfigService } from '@nestjs/config';
 import { MeriPdfRenderError } from './meri-docgen-pdf.js';
 import { EngagementTaskStatus, Prisma, type PrismaClient } from '@prisma/client';
 import { lookupStateBillLive, type StateBillLiveOutcome } from './meri-state-bill-live.js';
+import {
+  BILL_TEXT_PAGE_CHARS,
+  BILL_TEXT_PASSAGE_SEARCH_SQL,
+  billTextCursor,
+  groupBillTextSearchRows,
+  locateBillTextPassages,
+  type BillTextSearchRow,
+} from './meri-bill-text-search.js';
 import type { TenantContext } from '@capiro/shared';
 import {
   formatBillId,
@@ -1122,6 +1130,9 @@ export class MeriToolsService {
       ),
       search_congress_bills: obj({
         query: str('Keyword search, or a bill designation/id ("H.R. 8800", "119-hr-8800")'),
+        textQuery: str(
+          'Search inside stored bill TEXT (119th Congress) instead of titles: words, "an exact phrase", or, -exclude. Returns matching bills with passages and a readCursor for read_bill_text.',
+        ),
         policyArea: str('Policy area filter'),
         congress: int('Congress number, e.g. 118 or 119'),
         activeSince: str('ISO date; only bills with action since then'),
@@ -1143,6 +1154,9 @@ export class MeriToolsService {
             'Optional exact publisher bill version code. Omit to read the current canonical revision.',
           ),
           cursor: str('Opaque continuation from the prior read of this exact current revision.'),
+          query: str(
+            'Words or "an exact phrase" to locate in this bill version. Returns the best matching passages with section headings and a readCursor for each, instead of the first page. Not with cursor.',
+          ),
         },
         ['billId'],
       ),
@@ -3736,6 +3750,27 @@ export class MeriToolsService {
     const activeSince = optionalString(input, 'activeSince', 30);
     const limit = clampInt(input.limit, 1, 50, 20);
     const page = clampInt(input.page, 1, 100, 1);
+    const textQuery = optionalString(input, 'textQuery', 300);
+    if (textQuery) {
+      const rows = await this.prisma.$queryRawUnsafe<BillTextSearchRow[]>(
+        BILL_TEXT_PASSAGE_SEARCH_SQL,
+        textQuery,
+        Number.isSafeInteger(congressNum) ? congressNum : null,
+        Math.min(100, limit * 2),
+      );
+      const results = groupBillTextSearchRows(rows);
+      return {
+        tool: 'search_congress_bills',
+        generatedAt: new Date().toISOString(),
+        mode: 'bill_text',
+        textQuery,
+        results,
+        total: results.length,
+        note: results.length
+          ? 'Bills whose stored text matches, best first, with matching passages (« » marks the match). Read a passage in context with read_bill_text and its readCursor. Stored text covers 119th-Congress bills.'
+          : 'No stored bill text matches. Stored text covers 119th-Congress bills; try other wording before concluding no bill addresses the topic.',
+      };
+    }
 
     // Direct lookup when the query is itself a bill designation/id — a title
     // substring search would otherwise miss "H.R. 8800".
@@ -3837,6 +3872,9 @@ export class MeriToolsService {
     if (!billId)
       throw new BadRequestException('Use an exact canonical federal bill ID or designation.');
     const requestedVersion = optionalString(input, 'versionCode', 32);
+    const locate = optionalString(input, 'query', 300);
+    if (locate && input.cursor !== undefined)
+      throw new BadRequestException('Use query or cursor, not both.');
     let expectedRevisionId: string | null = null;
     let expectedTextHash: string | null = null;
     let offset = 0;
@@ -3915,14 +3953,13 @@ export class MeriToolsService {
       throw new BadRequestException('Bill text changed since the previous page; restart the read.');
     if (offset > row.extractedText.length)
       throw new BadRequestException('Bill-text continuation is outside the current revision.');
-    let end = Math.min(row.extractedText.length, offset + 12_000);
+    if (locate) return this.locatedBillText(billId, row, locate);
+    let end = Math.min(row.extractedText.length, offset + BILL_TEXT_PAGE_CHARS);
     if (end < row.extractedText.length && /[\uD800-\uDBFF]/.test(row.extractedText.charAt(end - 1)))
       end -= 1;
     const nextCursor =
       end < row.extractedText.length
-        ? Buffer.from(
-            JSON.stringify([billId, row.versionCode, row.revisionId, row.extractionHash, end]),
-          ).toString('base64url')
+        ? billTextCursor(billId, row.versionCode, row.revisionId, row.extractionHash, end)
         : null;
     return {
       tool: 'read_bill_text',
@@ -3954,6 +3991,70 @@ export class MeriToolsService {
         nextCursor,
       },
       note: 'This is exact bill-version text from the current federal evidence owner. It is not amendment text or bill status.',
+    };
+  }
+
+  /**
+   * The passages of one stored bill version that best match a query, with the
+   * section heading above each and a cursor to read on from it. Coverage is
+   * partial by construction: these are excerpts, not the whole text.
+   */
+  private locatedBillText(billId: string, row: FederalBillTextRow, query: string) {
+    const versionCode = row.versionCode;
+    const located = locateBillTextPassages(row.extractedText, query);
+    const passages = located.passages.map((passage) => ({
+      heading: passage.heading,
+      startOffset: passage.startOffset,
+      endOffset: passage.endOffset,
+      matchedTerms: passage.matchedTerms,
+      readCursor:
+        passage.startOffset > 0
+          ? billTextCursor(billId, versionCode, row.revisionId, row.extractionHash, passage.startOffset)
+          : null,
+    }));
+    const text = located.passages
+      .map(
+        (passage) =>
+          `[${passage.heading ?? 'Text'} | characters ${passage.startOffset}-${passage.endOffset}]\n` +
+          row.extractedText.slice(passage.startOffset, passage.endOffset),
+      )
+      .join('\n\n…\n\n');
+    return {
+      tool: 'read_bill_text',
+      authoritativeOwner: 'federal_evidence_current',
+      currentStatus: 'available',
+      found: true,
+      billId,
+      versionCode,
+      revisionId: row.revisionId,
+      packageId: row.packageId,
+      provider: row.provider,
+      lineageKey: row.lineageKey,
+      versionHash: row.contentHash,
+      textHash: row.extractionHash,
+      sourceLocator: row.sourceUrl,
+      sourceModifiedAt: row.sourceModifiedAt,
+      publishedAt: row.publishedAt,
+      fetchedAt: row.fetchedAt,
+      query,
+      queryParts: located.parts,
+      totalHits: located.totalHits,
+      passages,
+      text,
+      trust: 'external_untrusted',
+      coverage: {
+        locator: { query },
+        totalCharacters: row.extractedText.length,
+        pageComplete: true,
+        contentComplete: false,
+        paginationComplete: false,
+        complete: false,
+        truncated: true,
+        nextCursor: null,
+      },
+      note: located.passages.length
+        ? 'Excerpts of the exact bill-version text that match the query, best first by section order. Read on from a passage with read_bill_text and its readCursor before relying on surrounding context.'
+        : 'No exact match for these words in this bill version. Try other wording or a shorter phrase before concluding the bill does not address the topic.',
     };
   }
 

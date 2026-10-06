@@ -324,6 +324,120 @@ describe('remaining canonical source families', () => {
     expect(classifyApiToolReadOutcome('read_bill_text', result)).toEqual({ kind: 'complete' });
   });
 
+  it('locates matching passages in a long bill version as a partial, re-checkable read', async () => {
+    const filler = 'General provisions apply to this Act. '.repeat(400);
+    const text = `SEC. 1. SHORT TITLE.\n${filler}\nSEC. 1210. GALLIUM RESERVE.\nThe Secretary shall maintain a gallium reserve for hypersonic programs.\n${filler}`;
+    const row = {
+      revisionId: REVISION,
+      sourceKey: 'govinfo:BILLS-119hr42ih',
+      provider: 'govinfo',
+      packageId: 'BILLS-119hr42ih',
+      billId: '119-hr-42',
+      versionCode: 'ih',
+      lineageKey: 'bill:119-hr-42:ih',
+      contentHash: HASH_A,
+      extractionHash: HASH_B,
+      sourceUrl: 'https://www.govinfo.gov/x',
+      sourceModifiedAt: null,
+      publishedAt: null,
+      fetchedAt: new Date('2026-01-02T00:00:00Z'),
+      extractedText: text,
+    };
+    const prisma = { $queryRawUnsafe: jest.fn().mockResolvedValue([row]) };
+    const tools = service({ prisma });
+    const result = (await tools.execute(CTX, 'read_bill_text', {
+      billId: 'H.R. 42',
+      query: '"gallium reserve" hypersonic',
+    })) as Record<string, any>;
+    expect(result.passages).toHaveLength(1);
+    expect(result.passages[0]).toMatchObject({ heading: 'SEC. 1210. GALLIUM RESERVE.' });
+    expect(result.text).toContain('The Secretary shall maintain a gallium reserve');
+    expect(result.text.length).toBeLessThan(text.length);
+    expect(classifyApiToolReadOutcome('read_bill_text', result)).toEqual({
+      kind: 'partial',
+      reason: 'bill_text_coverage_incomplete',
+    });
+    // The passage cursor reads on from the passage in the same revision.
+    const onward = (await tools.execute(CTX, 'read_bill_text', {
+      billId: 'H.R. 42',
+      cursor: result.passages[0].readCursor,
+    })) as Record<string, any>;
+    expect(onward.text.startsWith(text.slice(result.passages[0].startOffset, result.passages[0].startOffset + 40))).toBe(true);
+    await expect(
+      tools.execute(CTX, 'read_bill_text', {
+        billId: 'H.R. 42',
+        query: 'gallium',
+        cursor: result.passages[0].readCursor,
+      }),
+    ).rejects.toThrow('Use query or cursor, not both.');
+  });
+
+  it('keeps a full page and a worst-case located read inside the model-visible tool result limit', async () => {
+    // The orchestrator shows the model at most 12,000 characters of a tool
+    // result and strips anything larger down to metadata, dropping the text.
+    const text = 'SEC. 101. GALLIUM. The gallium reserve shall be maintained. '.repeat(2_000);
+    const row = {
+      revisionId: REVISION,
+      sourceKey: 'govinfo:BILLS-119hr42ih',
+      provider: 'govinfo',
+      packageId: 'BILLS-119hr42ih',
+      billId: '119-hr-42',
+      versionCode: 'ih',
+      lineageKey: 'bill:119-hr-42:ih',
+      contentHash: HASH_A,
+      extractionHash: HASH_B,
+      sourceUrl: 'https://www.govinfo.gov/content/pkg/BILLS-119hr42ih/html/BILLS-119hr42ih.htm',
+      sourceModifiedAt: new Date('2026-01-01T00:00:00Z'),
+      publishedAt: new Date('2026-01-01T00:00:00Z'),
+      fetchedAt: new Date('2026-01-02T00:00:00Z'),
+      extractedText: text,
+    };
+    const tools = service({ prisma: { $queryRawUnsafe: jest.fn().mockResolvedValue([row]) } });
+    const page = await tools.execute(CTX, 'read_bill_text', { billId: 'H.R. 42' });
+    expect(JSON.stringify(page).length).toBeLessThan(12_000);
+    const located = (await tools.execute(CTX, 'read_bill_text', {
+      billId: 'H.R. 42',
+      query: '"gallium reserve" maintained gallium section',
+    })) as Record<string, any>;
+    expect(located.passages).toHaveLength(6);
+    expect(JSON.stringify(located).length).toBeLessThan(12_000);
+  });
+
+  it('searches stored bill text and groups matching passages by bill', async () => {
+    const prisma = {
+      $queryRawUnsafe: jest.fn().mockResolvedValue([
+        {
+          billId: '119-hr-42',
+          versionCode: 'ih',
+          revisionId: REVISION,
+          extractionHash: HASH_B,
+          startOffset: 7200,
+          endOffset: 11200,
+          rank: 0.8,
+          snippet: 'maintain a «gallium» reserve',
+          title: 'Minerals Act',
+        },
+      ]),
+    };
+    const result = (await service({ prisma }).execute(CTX, 'search_congress_bills', {
+      textQuery: '"gallium reserve"',
+      congress: 119,
+      limit: 5,
+    })) as Record<string, any>;
+    expect(prisma.$queryRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining('federal_evidence_passage'),
+      '"gallium reserve"',
+      119,
+      10,
+    );
+    expect(result).toMatchObject({ mode: 'bill_text', total: 1 });
+    expect(result.results[0]).toMatchObject({
+      billId: '119-hr-42',
+      title: 'Minerals Act',
+      passages: [expect.objectContaining({ startOffset: 7200, readCursor: expect.any(String) })],
+    });
+  });
+
   it('marks actually fetched public content untrusted and binds proof to response bytes', async () => {
     const body = '<html><head><title>Primary</title></head><body>Consulted page text</body></html>';
     jest.spyOn(globalThis, 'fetch').mockResolvedValue(

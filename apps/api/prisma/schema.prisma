@@ -4438,11 +4438,28 @@ model FederalEvidenceRevision {
   extractedText    String    @map("extracted_text") @db.Text
   completeness     String    @db.VarChar(16)
   metadata         Json      @default("{}") @map("metadata_jsonb")
+  passages         FederalEvidencePassage[]
 
   @@unique([sourceKey, contentHash, extractionHash, parserVersion], map: "federal_evidence_revision_identity_key")
   @@index([billId, fetchedAt(sort: Desc)], map: "federal_evidence_revision_bill_idx")
   @@index([packageId, fetchedAt(sort: Desc)], map: "federal_evidence_revision_package_idx")
   @@map("federal_evidence_revision")
+}
+
+/// Full-text windows of a stored BILLS revision for Meri's bill-text search:
+/// 4,000 characters every 3,600. Written only by the revision insert trigger
+/// (migration 20281008040000); insert-only like the revision it indexes.
+model FederalEvidencePassage {
+  revisionId  String                  @map("revision_id") @db.Uuid
+  ordinal     Int
+  startOffset Int                     @map("start_offset")
+  endOffset   Int                     @map("end_offset")
+  tsv         Unsupported("tsvector")
+  revision    FederalEvidenceRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@id([revisionId, ordinal], map: "federal_evidence_passage_pkey")
+  @@index([tsv], map: "federal_evidence_passage_tsv_idx", type: Gin)
+  @@map("federal_evidence_passage")
 }
 
 /// Append-only publisher observations. A removed row is written only after a
