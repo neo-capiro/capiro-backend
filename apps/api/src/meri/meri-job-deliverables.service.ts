@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
@@ -10,22 +12,41 @@ import { meriJobsEnabled } from '../common/tenant-flags.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
 import { MeriDocgenService } from './meri-docgen.service.js';
-import { deliverableFileName, researchReportWordSpec } from './meri-job-deliverables.js';
+import {
+  DELIVERABLE_MIME,
+  deliverableFileName,
+  isRenderableDeliverableFormat,
+  MeriDeliverableReadBackError,
+  readBackDeliverable,
+  researchReportExcelSpec,
+  researchReportPptxSpec,
+  researchReportWordSpec,
+  type RenderableDeliverableFormat,
+} from './meri-job-deliverables.js';
 import { meriJobDeliverables, type MeriJobDeliverable } from './meri-job.js';
 import { readResearchHandoff } from './meri-research-handoff.js';
 import { MeriResearchService } from './meri-research.service.js';
 
-const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+export interface RenderedDeliverable {
+  fileName: string;
+  contentType: string;
+  buffer: Buffer;
+  deliverable: MeriJobDeliverable;
+}
 
 /**
- * Deliverable jobs (Stage 2 Release B). The Word document is rendered from the
- * job's report through `getReportMarkdown`, which applies the held-report rule
- * and the read-time source and producer-input re-check, so a deliverable is
- * never available after its report would be withheld. Filing into the
- * client's Files is one user confirmation and is idempotent per deliverable.
+ * Deliverable jobs (Stage 2 Releases B and C). The Word, Excel or PowerPoint
+ * file is rendered from the job's report through `getReportMarkdown`, which
+ * applies the held-report rule and the read-time source and producer-input
+ * re-check, so a deliverable is never available after its report would be
+ * withheld. The bytes are read back as the requested Office container before
+ * they are served or filed. Filing into the client's Files is one user
+ * confirmation and is idempotent per deliverable.
  */
 @Injectable()
 export class MeriJobDeliverablesService {
+  private readonly logger = new Logger(MeriJobDeliverablesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly research: MeriResearchService,
@@ -46,22 +67,80 @@ export class MeriJobDeliverablesService {
     if (session.kind !== 'deliverable')
       throw new BadRequestException('This job has no deliverables.');
     const deliverable = meriJobDeliverables(session.deliverables)[index];
-    if (!deliverable || deliverable.format !== 'docx')
+    if (!deliverable || !isRenderableDeliverableFormat(deliverable.format))
       throw new NotFoundException('Deliverable not found');
-    return { session, deliverable };
+    return { session, deliverable, format: deliverable.format };
   }
 
-  /** The current Word document for a completed deliverable job. */
-  async docx(
+  /**
+   * The current file for a completed deliverable job. `requested` is the
+   * format named in the download path; it must be the job's own format.
+   */
+  async render(
     ctx: TenantContext,
     jobId: string,
     index: number,
-  ): Promise<{ fileName: string; contentType: string; buffer: Buffer; deliverable: MeriJobDeliverable }> {
-    const { deliverable } = await this.deliverable(ctx, jobId, index);
+    requested?: string,
+  ): Promise<RenderedDeliverable> {
+    const { deliverable, format } = await this.deliverable(ctx, jobId, index);
+    if (requested !== undefined && requested !== format)
+      throw new NotFoundException('Deliverable not found');
     const report = await this.research.getReportMarkdown(ctx, jobId);
     const title = deliverable.title || report.title;
-    const buffer = await this.docgen.buildDocx(researchReportWordSpec(title, report.markdown));
-    return { fileName: deliverableFileName(title), contentType: DOCX_MIME, buffer, deliverable };
+    const { buffer, expected } = await this.build(format, title, report.markdown);
+    try {
+      await readBackDeliverable(format, buffer, expected);
+    } catch (error) {
+      if (!(error instanceof MeriDeliverableReadBackError)) throw error;
+      this.logger.error(
+        JSON.stringify({
+          event: 'meri.job.deliverable.read_back_failed',
+          jobId,
+          index,
+          format,
+          reason: error.message,
+          bytes: buffer.length,
+        }),
+      );
+      throw new InternalServerErrorException(
+        'The document could not be verified after it was produced. Nothing was delivered.',
+      );
+    }
+    return {
+      fileName: deliverableFileName(title, format),
+      contentType: DELIVERABLE_MIME[format],
+      buffer,
+      deliverable,
+    };
+  }
+
+  /** Kept for the Release B route and callers: the Word deliverable. */
+  docx(ctx: TenantContext, jobId: string, index: number): Promise<RenderedDeliverable> {
+    return this.render(ctx, jobId, index, 'docx');
+  }
+
+  private async build(
+    format: RenderableDeliverableFormat,
+    title: string,
+    markdown: string,
+  ): Promise<{ buffer: Buffer; expected: { title: string; sheets?: number; slides?: number } }> {
+    if (format === 'xlsx') {
+      const spec = researchReportExcelSpec(title, markdown);
+      return {
+        buffer: await this.docgen.buildXlsx(spec),
+        expected: { title: spec.title, sheets: spec.sheets.length },
+      };
+    }
+    if (format === 'pptx') {
+      const spec = researchReportPptxSpec(title, markdown);
+      // buildPptx adds a title slide before the report slides.
+      return {
+        buffer: await this.docgen.buildPptx(spec),
+        expected: { title: spec.title, slides: spec.slides.length + 1 },
+      };
+    }
+    const spec = researchReportWordSpec(title, markdown);
+    return { buffer: await this.docgen.buildDocx(spec), expected: { title: spec.title } };
   }
 
   /** One confirmation files the deliverable into the job's client Files. */
@@ -94,7 +173,7 @@ export class MeriJobDeliverablesService {
         };
     }
 
-    const document = await this.docx(ctx, jobId, index);
+    const document = await this.render(ctx, jobId, index);
     const receipt = await this.filing.saveJobDeliverable(ctx, {
       clientId: session.clientId,
       ...(conversationId ? { conversationId } : {}),
