@@ -25,7 +25,9 @@ export function presentHearingIntelligence(items: HearingIntelligenceItem[], seg
     if (seen.has(identity)) return [];
     seen.add(identity);
     const context = anchor ? transcriptContext(segments, index) : item.evidenceText?.trim();
-    const fragment = item.title.trim().split(/\s+/).length < 4 && item.summary.trim().split(/\s+/).length < 5;
+    // A generic extraction title can be long even when its finding is only
+    // "Maine?" or "Why not". Judge the finding's content, not title length.
+    const fragment = item.summary.trim().split(/\s+/).length < 5;
     return [{ ...item,
       title: fragment ? `${item.insightType === 'QUESTION' ? 'Question' : 'Transcript finding'} — review in context` : item.title,
       summary: fragment ? 'This automatic finding is a short transcript fragment. Review the surrounding testimony before relying on it.' : item.summary,

@@ -953,11 +953,11 @@ function PublishedRecords({
                 ))}
               </div>
             ) : (
-              <p className="lwcr-claim">No current LegiScan referrals are linked.</p>
+              <p className="lwcr-claim">{referred.total > 0 ? 'No bills on this page. Use Previous bills to return to the referral list.' : 'No current LegiScan referrals are linked.'}</p>
             )}
             <nav className="lw-pagination" aria-label="Referred bill pages" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
               <LwButton disabled={(referred.page ?? 1) <= 1} onClick={() => onReferralPage((referred.page ?? 1) - 1)}>Previous bills</LwButton>
-              <span role="status">Showing {referred.rows.length ? ((referred.page ?? 1) - 1) * (referred.pageSize ?? 25) + 1 : 0}–{((referred.page ?? 1) - 1) * (referred.pageSize ?? 25) + referred.rows.length} of {referred.total} bills</span>
+              <span role="status">{referred.rows.length ? `Showing ${((referred.page ?? 1) - 1) * (referred.pageSize ?? 25) + 1}–${((referred.page ?? 1) - 1) * (referred.pageSize ?? 25) + referred.rows.length} of ${referred.total} bills` : `${referred.total} referred bills · page ${referred.page ?? 1} is empty`}</span>
               <LwButton disabled={(referred.page ?? 1) * (referred.pageSize ?? 25) >= referred.total} onClick={() => onReferralPage((referred.page ?? 1) + 1)}>Next bills</LwButton>
             </nav>
           </>

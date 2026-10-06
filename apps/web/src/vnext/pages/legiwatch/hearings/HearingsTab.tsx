@@ -74,6 +74,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 type FloridaCoverageState =
   | 'checking'
+  | 'pending'
   | 'error'
   | 'missing'
   | 'failed'
@@ -83,6 +84,7 @@ type FloridaCoverageState =
 
 const FLORIDA_COVERAGE_LABEL: Record<FloridaCoverageState, string> = {
   checking: 'Checking',
+  pending: 'Source check in progress',
   error: 'Check unavailable',
   missing: 'Coverage not verified',
   failed: 'Failed check',
@@ -118,6 +120,7 @@ function floridaCoverageState(
   });
   if (stale) return 'stale';
   if (selected.some((row) => row.status.toLowerCase() === 'partial')) return 'partial';
+  if (selected.some((row) => row.status.toLowerCase() === 'attempted')) return 'pending';
 
   // A verified negative requires BOTH chambers, a successful source check and
   // a receipt whose inclusive window contains the entire displayed range.
@@ -494,6 +497,8 @@ export function HearingsTab({ scope }: { scope: string }) {
           <p className="lw-card__meta">
             {floridaCoverage === 'checking'
               ? 'The House and Senate source checks are still loading.'
+              : floridaCoverage === 'pending'
+                ? 'A Florida source check is in progress. Results are pending.'
               : floridaCoverage === 'error'
                 ? 'The source coverage check could not be loaded.'
                 : floridaCoverage === 'failed'
@@ -1561,6 +1566,8 @@ export function HearingsTab({ scope }: { scope: string }) {
               const status = source
                 ? source.status === 'failed'
                   ? 'Failed check'
+                  : source.status === 'attempted' && fresh
+                    ? 'Source check in progress; result pending.'
                   : source.status === 'partial' && fresh
                   ? sessionIssue
                     ? 'Notice found, session unresolved'
@@ -1575,9 +1582,9 @@ export function HearingsTab({ scope }: { scope: string }) {
                 <div key={chamber}>
                   <p className="lw-card__meta">
                     {chamber === 'house' ? 'House' : 'Senate'} · {status}
-                    {source ? ` · ${source.details?.found ?? source.items} of ${source.details?.expected ?? 'unknown'} notices found` : ''}
+                    {source && source.status !== 'attempted' ? ` · ${source.details?.found ?? source.items} of ${source.details?.expected ?? 'unknown'} notices found` : ''}
                   </p>
-                  {source ? <p className="lw-card__meta">Last check: {new Date(source.checkedAt).toLocaleString()}</p> : null}
+                  {source ? <p className="lw-card__meta">{source.status === 'attempted' ? 'Check started' : 'Last check'}: {new Date(source.checkedAt).toLocaleString()}</p> : null}
                   {source?.details?.issues?.length ? (
                     <p className="lw-card__meta">Technical issue: {source.details.issues.join('; ')}</p>
                   ) : null}

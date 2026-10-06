@@ -11,16 +11,19 @@ describe('Florida committee referrals on PostgreSQL', () => {
   const committeeId = `referral-committee-${suffix}`;
   const billIds = Array.from({ length: 26 }, (_, i) => `referral-bill-${suffix}-${String(i).padStart(2, '0')}`);
   const outsideId = `referral-other-session-${suffix}`;
+  let connected = false;
   const ctx = { tenantId, tenantSlug: `referral-${suffix}`, userId: `reader-${suffix}`, clerkUserId: `reader-${suffix}`, role: 'standard_user' } as TenantContext;
   beforeAll(async () => {
     if (!process.env.DATABASE_URL || process.env.CAPIRO_DISPOSABLE_PG !== '1') throw Error('Disposable PostgreSQL is required');
     await p.$connect();
+    connected = true;
     await p.tenant.create({ data: { id: tenantId, slug: ctx.tenantSlug, name: 'Synthetic referral qualification' } });
     await p.$executeRaw`INSERT INTO intel_feature_flag(id,feature,tenant_id,enabled) VALUES(${randomUUID()},'legiwatch_state_calendar_v1',${tenantId},true)`;
     await p.stateCommittee.create({ data: { id: committeeId, state: 'FL', name: 'Synthetic Referral Committee', chamber: 'lower', legislativeSession: '2097', officialSourceKey: `FL:2097:H:${suffix}`, sourceEvidence: {} } });
     await p.stateBill.createMany({ data: [...billIds, outsideId].map((id, index) => ({ id, state: 'FL', session: id === outsideId ? '2098' : '2097', sessionKey: id === outsideId ? '2098' : '2097', identifier: 'HB 1', billNumber: 'hb1', title: `Synthetic referral ${index}`, currentCommitteeId: committeeId, latestActionDate: new Date('2097-01-01T00:00:00Z') })) });
   });
   afterAll(async () => {
+    if (!connected) return;
     await p.stateBill.deleteMany({ where: { id: { in: [...billIds, outsideId] } } });
     await p.stateCommittee.deleteMany({ where: { id: committeeId } });
     await p.$executeRaw`DELETE FROM intel_feature_flag WHERE tenant_id=${tenantId}`;

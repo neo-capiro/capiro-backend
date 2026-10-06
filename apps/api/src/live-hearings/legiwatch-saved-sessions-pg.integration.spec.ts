@@ -434,7 +434,11 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
       VALUES ('speaker-segment','capture-speaker',1000,'8','Quantum sensing discussion',1)`);
     await client.query(`INSERT INTO public_hearing_speaker (capture_id,speaker_label,display_name,source)
       VALUES ('capture-speaker','8','Shaheen, Jeanne','llm')`);
-    const search = async () => (await service.searchArchive(ctx, { q: 'Quantum' })).rows[0]?.transcriptHit;
+    const search = async () => {
+      const result = await service.searchArchive(ctx, { q: 'Quantum' });
+      const row = result.rows[0] as { transcriptHit?: { speakerName: string | null } } | undefined;
+      return row?.transcriptHit;
+    };
     expect(await search()).toMatchObject({ speakerName: null });
     await client.query(`UPDATE public_hearing_speaker SET display_name='Tim Kaine',source='manual' WHERE capture_id='capture-speaker'`);
     expect(await search()).toMatchObject({ speakerName: 'Tim Kaine' });

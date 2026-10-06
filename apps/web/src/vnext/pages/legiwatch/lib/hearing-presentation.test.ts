@@ -17,6 +17,16 @@ describe('honest hearing presentation', () => {
     expect(hasTestSessionTitle('[test] replay')).toBe(true);
     expect(hasTestSessionTitle('Water quality testing oversight')).toBe(false);
   });
+  it.each(['Maine?', 'Why not'])('marks "%s" provisional despite a long generic title and linked transcript', (summary) => {
+    const segment = { id: 'source', sequence: 1, startMs: 0, endMs: 1000, text: summary, speakerLabel: '2', isFinal: true };
+    const finding = { id: 'finding', insightType: 'QUESTION', title: 'Question raised during the hearing', summary, evidenceText: summary, segmentId: segment.id };
+    expect(presentHearingIntelligence([finding], [segment])[0]).toMatchObject({
+      title: 'Question — review in context', preliminary: true, evidenceText: summary, speakerName: 'Speaker 3',
+    });
+    expect(presentHearingIntelligence([{ ...finding, summary: 'The witness explained why shipyard investment requires sustained appropriations.' }], [segment])[0]).toMatchObject({
+      title: finding.title, preliminary: false,
+    });
+  });
   it('deduplicates the same source finding and replaces fragments with attributed transcript context', () => {
     const segments = [
       { id: 'before', sequence: 0, startMs: 0, endMs: 1000, text: 'Our shipyard is in', speakerLabel: '8', speakerName: 'Senator Tim Kaine', isFinal: true },
