@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-recheck-adapter-4-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T03:18:08.551181+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "c9f570eee3490147330492fd1acef95b9cbe6763",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:4cdba7f7aa83b0a3530aae1911ff744236aef9ffed2ea52ebfa95b7ad68c45b8",
+      "buildId": "capiro-build-web-dev:4cb826e7-1c2c-4033-8ab2-f2e3fb5650d1"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Undeclared receipts from dropped bounded children no longer block a report (#2058): one qualification helper decides declared sources and the classifier refuses any receipted read the model saw that is not declared. Also carries #2052 (LegiWatch committee ingestion, another workstream); its migration 20281008020000_legiwatch_committee_news_update_type was already applied (migration-status on this image: up to date, admin-migrate 87). No migration applied by this roll.",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
