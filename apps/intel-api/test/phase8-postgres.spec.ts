@@ -60,6 +60,34 @@ describe('Phase 8 public observations, private selections and actual database re
     beforeFetch = global.fetch,
     beforeEnv = { ...process.env };
   const scope = () => ({ jurisdiction: 'FL', sessionKey: session, clientId: null, folderId });
+  it('reads current public bill status in a bounded batch without changing retained evidence', async () => {
+    const id = `119-hr-${Date.now()}`;
+    await api.$executeRaw`INSERT INTO congress_bill(id,congress,bill_type,bill_number,title,status,status_at,origin_chamber) VALUES(${id},119,'hr','99999','Synthetic current-status fixture','passed_chamber','2026-07-22'::timestamptz,'House')`;
+    try {
+      const rows = await new SourceDataRepository(p).getFeedBillStatuses([id, id, "'; DROP TABLE congress_bill; --", 'fl-2026-h1211']);
+      expect(rows).toEqual([{ id, status: 'passed_chamber', statusAt: new Date('2026-07-22T00:00:00Z'), originChamber: 'House' }]);
+    } finally { await api.$executeRaw`DELETE FROM congress_bill WHERE id=${id}`; }
+  });
+  it('reconciles publisher articles across pages without converting configured unavailability to health', async () => {
+    const publisher = `coverage-${randomUUID()}.invalid`, coverageId = randomUUID();
+    await api.$executeRaw`INSERT INTO legiwatch_source_coverage(id,publisher,source_group,source_url,status,evidence,owner) VALUES(${coverageId},${publisher},'regional',${`https://${publisher}/feed`},'unavailable','{}','test')`;
+    for (let i = 0; i < 2; i++) await news.retain({ provider: 'test', url: `https://${publisher}/${i}`, publisher, title: 'Retained reporting', publishedAt: new Date().toISOString(), rights: 'headline_link' });
+    const result = await evidence.news(ctx, { ...scope(), days: 1, limit: 1, publisher });
+    expect(result.items).toHaveLength(1);
+    expect(result.coverage.find((row) => row.id === coverageId)).toMatchObject({ status: 'unavailable', retained: { articles: 2, fullTextArticles: 0 } });
+  });
+  it('filters budget update events by the exact selected legislative session', async () => {
+    const receiptId = randomUUID(), projectId = randomUUID(), wantedEvent = randomUUID(), otherEvent = randomUUID();
+    await api.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,content_hash,scope,manifest,complete) VALUES(${receiptId},'test','https://example.invalid/session-test','test','{}','{}',true)`;
+    await api.$executeRaw`INSERT INTO florida_budget_project(id,fiscal_year,title,identities,evidence) VALUES(${projectId},'2026-27','Session fixture','[]','{}')`;
+    for (const [sessionKey, eventId] of [[session, wantedEvent], [session + '-other', otherEvent]]) {
+      const documentId = randomUUID();
+      await api.$executeRaw`INSERT INTO florida_budget_document(id,publisher,source_url,content_hash,title,fiscal_year,session_key,chamber,stage,role,receipt_id,sections,complete) VALUES(${documentId},'Test',${'https://example.invalid/' + documentId},'test','Session budget','2026-27',${sessionKey},'House','chamber_proposal','comparison',${receiptId},'[]',true)`;
+      await api.$executeRaw`INSERT INTO florida_budget_event(id,project_id,document_id,kind,payload) VALUES(${eventId},${projectId},${documentId},'new_document','{}')`;
+    }
+    const result = await evidence.budget(ctx, { ...scope(), fiscalYear: '2026-27', projectId });
+    expect((result.events as Array<{ id: string }>).map((row) => row.id)).toEqual([wantedEvent]);
+  });
   it('discovers scheduled work under the real application role without bypassing owner RLS', async () => {
     const monitorId = randomUUID(),
       configId = randomUUID(),

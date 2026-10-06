@@ -175,6 +175,8 @@ export interface FeedItemWorkState {
 }
 
 export interface FeedItem {
+  /** Current canonical status, distinct from immutable alert-time evidence. */
+  currentBillStatus?: { label: string; asOf: string | null } | null;
   id: string;
   /** Owning client (always present). Drives the client label on the global feed. */
   clientId: string;

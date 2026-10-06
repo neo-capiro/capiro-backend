@@ -1,3 +1,5 @@
+import { ExpandableHearingTitle } from './ExpandableHearingTitle.js';
+import { hearingEventLabel, hearingHasPassed, recordingAttemptDate } from '../lib/hearing-presentation.js';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LwButton, LwPill, LwSkeleton } from '../lib/primitives.js';
@@ -78,6 +80,8 @@ export function ServerCaptureSessions() {
                 ? { tone: 'gray' as const, label: 'CLOSED' }
                 : postponed
                   ? { tone: 'warning' as const, label: 'POSTPONED' }
+                  : hearingHasPassed(row.startsAt, row.date) && (row.capturePending || !status || status === 'SCHEDULED')
+                    ? { tone: 'warning' as const, label: 'CAPTURE NOT STARTED' }
                   : row.capturePending
                     ? { tone: 'brand' as const, label: 'SCHEDULED' }
                     : status === 'COMPLETE' || status === 'COMPLETE_WITH_GAPS'
@@ -87,7 +91,7 @@ export function ServerCaptureSessions() {
                         : status
                           ? { tone: 'brand' as const, label: status }
                           : { tone: 'gray' as const, label: 'SCHEDULED' };
-            const when = row.date ? `${formatHearingDay(m)} · ${formatHearingTime(m)}` : '';
+            const when = row.date ? `${formatHearingDay(m, true)} · ${formatHearingTime(m)}` : '';
             return (
               <div
                 key={row.id}
@@ -105,9 +109,9 @@ export function ServerCaptureSessions() {
                 aria-label={`Open ${row.title}`}
               >
                 <div>
-                  <div className="lw-hrow__title">{row.title}</div>
+                  <div className="lw-hrow__title"><ExpandableHearingTitle title={row.title} /></div>
                   <div className="lw-hrow__sub">
-                    {when}
+                    {when} · {hearingEventLabel(row.eventStatus, row.startsAt, row.date)}
                     {row.committeeName ? ` · ${row.committeeName}` : ''}
                     {row.eventStatus === 'canceled'
                       ? ' · Proceeding canceled'
@@ -115,6 +119,7 @@ export function ServerCaptureSessions() {
                         ? ' · Postponed'
                         : ''}
                     {row.visibility !== 'public' ? ' · No longer public' : ''}
+                    {row.capture?.actualStart ? <span style={{ display: 'block' }}>Capture attempt: {recordingAttemptDate(row.capture.actualStart)}</span> : null}
                   </div>
                 </div>
                 <span className="lw-hrow__pill">
@@ -125,6 +130,7 @@ export function ServerCaptureSessions() {
           })}
         </div>
       )}
+      <p className="lw-card__meta">Capture status describes the processing outcome. Open a hearing to check its transcript and retained audio intervals.</p>
       {totalPages > 1 ? (
         <div className="lw-controls" style={{ marginTop: 8 }}>
           <LwButton disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>

@@ -11,6 +11,7 @@
  * unknowns block is never hidden (none = say so); Escape/backdrop close;
  * browser back restores the underlying worklist state.
  */
+import { feedExplanation } from './feed-presentation.js';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useLwAlert, useLwPacket, useLwWorkState, useLwAssignSelf } from '../lib/api.js';
 import {
@@ -193,7 +194,7 @@ function PacketDrawerContent({
               {it.whyItMatters ? (
                 <section>
                   <h3 className="lw-sect__title">Why this matters</h3>
-                  <p className="lw-state__body" style={{ maxWidth: 'none' }}>{it.whyItMatters}</p>
+                  <p className="lw-state__body" style={{ maxWidth: 'none' }}>{feedExplanation(it)}</p>
                 </section>
               ) : null}
 

@@ -506,7 +506,9 @@ export class LiveHearingsService {
     return loadFloridaDirectoryResources();
   }
 
-  async stateBody(ctx: TenantContext, id: string) {
+  async stateBody(ctx: TenantContext, id: string, referralPage = 1) {
+    const referralPageSize = 25;
+    const page = Number.isSafeInteger(referralPage) && referralPage > 0 ? Math.min(referralPage, 100000) : 1;
     await requireStateCalendar(this.prisma, ctx.tenantId);
     const requestedBody = await this.prisma.stateCommittee.findUnique({
       where: { id },
@@ -643,8 +645,9 @@ export class LiveHearingsService {
       }),
       this.prisma.stateBill.findMany({
         where: referredBillWhere,
-        orderBy: [{ latestActionDate: 'desc' }, { identifier: 'asc' }],
-        take: 25,
+        orderBy: [{ latestActionDate: 'desc' }, { identifier: 'asc' }, { id: 'asc' }],
+        skip: (page - 1) * referralPageSize,
+        take: referralPageSize,
         select: {
           id: true,
           identifier: true,
@@ -790,6 +793,8 @@ export class LiveHearingsService {
           })),
         })),
         total: referredBillCount,
+        page,
+        pageSize: referralPageSize,
       },
     };
   }

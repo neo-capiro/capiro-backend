@@ -112,7 +112,7 @@ describe('LW-QA-013 — LegiWatch Settings (read/write over real per-user storag
     expect(screen.getByText(/Status is not loaded here/)).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Record a hearing' })).toHaveAttribute(
       'href',
-      '#monitoring-record-hearing',
+      '/legiwatch?tab=hearings&client=client-A',
     );
     expect(screen.getByRole('link', { name: 'Inspect saved watchlists' })).toHaveAttribute(
       'href',

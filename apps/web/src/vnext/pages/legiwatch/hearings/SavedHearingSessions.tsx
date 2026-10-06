@@ -1,3 +1,5 @@
+import { ExpandableHearingTitle } from './ExpandableHearingTitle.js';
+import { recordingAttemptDate } from '../lib/hearing-presentation.js';
 import { Link } from 'react-router-dom';
 import { LwButton, LwPill } from '../lib/primitives.js';
 import {
@@ -11,14 +13,13 @@ export function SavedSessionLinks({ sessions }: { sessions: SavedHearingSession[
     <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0', display: 'grid', gap: 10 }}>
       {sessions.map((session) => (
         <li key={session.id}>
-          <Link className="lw-backlink" to={savedHearingSessionPath(session.id)}>
-            Open saved session: {session.title}
-          </Link>
+          <ExpandableHearingTitle title={session.title} />
+          <Link className="lw-backlink" to={savedHearingSessionPath(session.id)} aria-label={`Open saved session: ${session.title}`}>Open saved session</Link>
           <div className="lw-card__meta" style={{ marginTop: 4 }}>
             {session.transcriptSegmentCount} saved transcript segments ·{' '}
             {session.intelligenceMomentCount} intelligence moments ·{' '}
             {session.status.replace(/_/g, ' ')}
-            {session.startedAt ? ` · ${new Date(session.startedAt).toLocaleDateString()}` : ''}
+            {' · '}{recordingAttemptDate(session.startedAt)} · Attempt {session.id.slice(-8)}
           </div>
         </li>
       ))}

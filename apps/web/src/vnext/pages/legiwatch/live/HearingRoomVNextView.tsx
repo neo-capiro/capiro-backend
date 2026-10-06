@@ -1,3 +1,5 @@
+import { transcriptContext } from '../lib/hearing-intelligence-presentation.js';
+import { speakerDisplay } from '../lib/hearing-detail-states.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { HearingRoomViewModel } from './LiveHearingRoomController.js';
@@ -42,6 +44,19 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const pendingJump = useRef<string | null>(null);
   const session = room.session;
+  const displaySpeaker = (segment: HearingTranscriptItem) => speakerDisplay({ speakerName: segment.resolvedSpeakerName ?? undefined, speakerLabel: segment.speakerLabel ?? undefined }) ?? 'Speaker not identified';
+  const cards = useMemo(() => {
+    const seen = new Set<string>();
+    return room.cards.flatMap((card) => {
+      const identity = `${card.cardType}|${card.segmentId ?? card.startMs ?? card.id}|${(card.body || card.title).replace(/\s+/g, ' ').trim().toLowerCase()}`;
+      if (seen.has(identity)) return [];
+      seen.add(identity);
+      const anchor = room.segments.find((segment) => card.segmentId ? segment.id === card.segmentId : card.startMs != null && card.startMs >= segment.startMs && card.startMs < segment.endMs);
+      const index = anchor ? room.segments.indexOf(anchor) : -1;
+      const context = transcriptContext(room.segments, index);
+      return [{ ...card, context: context ? `${context.slice(0, 900)}${context.length > 900 ? '…' : ''}` : undefined, speaker: anchor ? displaySpeaker(anchor) : undefined }];
+    });
+  }, [room.cards, room.segments]);
   useEffect(() => {
     if (!room.captureActive) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -68,7 +83,7 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
     return room.segments.filter(
       (segment) =>
         (!search || segment.text.toLowerCase().includes(search)) &&
-        (!speaker || (segment.resolvedSpeakerName ?? segment.speakerLabel) === speaker) &&
+        (!speaker || displaySpeaker(segment) === speaker) &&
         (!matchedOnly || matchTimes.some((time) => matchesTime(segment, time))),
     );
   }, [room.segments, query, speaker, matchedOnly, matchTimes]);
@@ -76,7 +91,7 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
     () => [
       ...new Set(
         room.segments
-          .map((segment) => segment.resolvedSpeakerName ?? segment.speakerLabel)
+          .map((segment) => displaySpeaker(segment))
           .filter((name): name is string => Boolean(name)),
       ),
     ],
@@ -153,7 +168,7 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
       <div className="lw-room__segment-body">
         <div className="lw-room__row">
           <span className="lw-tseg__sp">
-            {segment.resolvedSpeakerName ?? segment.speakerLabel ?? 'Speaker'}
+            {displaySpeaker(segment)}
           </span>
           {matches(segment) && (
             <LwPill tone="brand" size="22">
@@ -163,7 +178,7 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
           <LwPill tone="gray" size="22">
             FINAL
           </LwPill>
-          {room.recordingPanel && room.playEvidence && (
+          {room.recordingPanel && room.playEvidence && room.canPlayEvidence?.(segment.startMs) && (
             <button className="lw-btn" onClick={() => room.playEvidence?.(segment.startMs)}>
               Play audio here
             </button>
@@ -377,12 +392,11 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
                     <div className="lw-block__label">Public capture</div>
                     <p className="lw-room__copy">
                       This session reviews the shared server capture of the public hearing source.
-                      The saved audio and canonical transcript below come from that capture, not
-                      from this browser.
+                      The canonical transcript comes from that capture. Audio playback is available only for retained intervals; transcript completion does not guarantee saved audio.
                     </p>
                     {publicDetailPath && (
                       <a className="lw-room__link" href={publicDetailPath}>
-                        Open saved public audio ↗
+                        Review hearing and audio availability ↗
                       </a>
                     )}
                   </div>
@@ -724,7 +738,7 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
               <h2 className="lw-panel__title" id="room-intel-title">
                 Intelligence
               </h2>
-              <span className="lw-card__meta">{room.cards.length} moments</span>
+              <span className="lw-card__meta">{cards.length} moments</span>
             </div>
             {room.intelligenceError && (
               <div className="lw-room__notice" role="alert">
@@ -734,14 +748,14 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
             )}
             <div className="lw-room__intel-scroll">
               <div className="lw-history__label lw-room__intel-label">Moments</div>
-              {!room.cards.length ? (
+              {!cards.length ? (
                 <p className="lw-room__empty">
                   {room.intelligenceProcessing
                     ? 'Public intelligence is still being extracted from the canonical transcript.'
                     : 'Relevant moments will appear here as the hearing is transcribed.'}
                 </p>
               ) : (
-                room.cards.map((card) => (
+                cards.map((card) => (
                   <article key={card.id} className="lw-room__moment">
                     <div className="lw-room__row">
                       <LwPill
@@ -763,6 +777,8 @@ export function HearingRoomVNextView({ room }: { room: HearingRoomViewModel }) {
                       )}
                     </div>
                     <h3 className="lw-room__moment-title">{card.title}</h3>
+                    <p className="lw-room__meta">Automatic finding · needs source review{card.speaker ? ` · ${card.speaker}` : ''}</p>
+                    {card.context ? <blockquote className="lw-room__copy">Transcript context: {card.context}</blockquote> : <p className="lw-room__meta">Load the cited transcript passage to review the source context.</p>}
                     {card.body && <p className="lw-room__copy">{card.body}</p>}
                   </article>
                 ))

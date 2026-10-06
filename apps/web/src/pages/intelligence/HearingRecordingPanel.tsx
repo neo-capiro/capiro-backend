@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { PlaybackInterval } from '../../lib/hearing-playback-coverage.js';
 import { useApi } from '../../lib/use-api.js';
 import {
   recordingSeek,
@@ -22,11 +23,13 @@ export function HearingRecordingPanel({
   canEnable,
   evidenceTime,
   onProgress,
+  onCoverage,
 }: {
   sessionId: string;
   live: boolean;
   canEnable: boolean;
   evidenceTime?: { ms: number; revision: number };
+  onCoverage?: (intervals: PlaybackInterval[]) => void;
   onProgress?: (progress: { endMs: number; bytes: number } | null) => void;
 }) {
   const api = useApi(),
@@ -53,6 +56,14 @@ export function HearingRecordingPanel({
     : permissionUnavailable
       ? 'Saved audio playback is unavailable because source permission has expired or changed. Ask a tenant administrator to review the source permission.'
       : null;
+  useEffect(() => {
+    onCoverage?.(!manifest.isError && !playbackUnavailable && recording?.playbackAvailability === 'available'
+      ? recording.epochs.filter((epoch) => epoch.playable && epoch.durableBytes > 0 && epoch.decodedDurationMs != null)
+        .map((epoch) => ({ startMs: epoch.startMs, endMs: Math.min(epoch.durableEndMs, epoch.startMs + epoch.decodedDurationMs!) }))
+        .filter((range) => range.endMs > range.startMs)
+      : []);
+    return () => onCoverage?.([]);
+  }, [recording, manifest.isError, playbackUnavailable, onCoverage]);
   useEffect(() => {
     onProgress?.(
       recording && !manifest.isError

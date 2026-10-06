@@ -256,9 +256,10 @@ describe('StateCommitteeRoomRoute', () => {
     expect(screen.getByText('Health Services')).toBeTruthy();
     expect(screen.getByText(/LegiScan bill calendar/)).toHaveTextContent('Oct 3, 2026');
     expect(screen.getByText('Showing 1 of 2 proceedings in this one-year window.')).toBeTruthy();
-    expect(screen.getByText('Showing 1 of 2 bills with current or recorded referrals.')).toBeTruthy();
+    expect(screen.getByText('Showing 1–1 of 2 bills')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith(
       '/api/legiwatch/live-hearings/state-committees/fl-lower-health',
+      { params: { referralPage: 1 } },
     );
     expect(
       queryClient.getQueryData([
@@ -266,8 +267,31 @@ describe('StateCommitteeRoomRoute', () => {
         'state-committee-room',
         'tenant-test:self:user-test',
         'fl-lower-health',
+        1,
       ]),
     ).toEqual(detail);
+  });
+
+  it('opens referral pages from the server and preserves the committee and client scope', async () => {
+    const fallback = apiGet.getMockImplementation()!;
+    apiGet.mockImplementation((url: string, config?: { params?: { referralPage?: number } }) => {
+      if (url.includes('/state-committees/')) {
+        const page = config?.params?.referralPage ?? 1;
+        return Promise.resolve({ data: { ...detail, referredBills: { total: 26, page, pageSize: 25, rows: page === 1 ? Array.from({ length: 25 }, (_, i) => ({ ...detail.referredBills.rows[0], id: `bill-${i}`, title: `Bill ${i}` })) : [{ ...detail.referredBills.rows[0], id: 'bill-last', title: 'Last referred bill' }] } } });
+      }
+      return fallback(url);
+    });
+    renderRoom('/legiwatch/committees/FL/fl-lower-health?section=records&client=client-7');
+    expect(await screen.findByText('Showing 1–25 of 26 bills')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Previous bills' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Next bills' }));
+    expect(await screen.findByText('Last referred bill')).toBeTruthy();
+    expect(screen.getByText('Showing 26–26 of 26 bills')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Next bills' })).toBeDisabled();
+    expect(screen.getByTestId('location')).toHaveTextContent('client=client-7');
+    expect(screen.getByTestId('location')).toHaveTextContent('referralPage=2');
+    fireEvent.click(screen.getByRole('button', { name: 'Previous bills' }));
+    expect(await screen.findByText('Bill 0')).toBeTruthy();
   });
 
   it('opens legacy update deep links, preserves the client lens, and normalizes section navigation', async () => {

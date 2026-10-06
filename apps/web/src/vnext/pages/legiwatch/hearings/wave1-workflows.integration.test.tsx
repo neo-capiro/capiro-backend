@@ -66,7 +66,7 @@ import { AttendDialog } from './AttendDialog.js';
 import { ClientRelevancePanel } from './ClientRelevancePanel.js';
 import { HearingActions } from './HearingActions.js';
 import { ArchiveSubTab } from './ArchiveSubTab.js';
-import { CommitteeFollowControl } from './CommitteeFollow.js';
+import { CommitteeFollowControl, CommitteeIntelligenceHistorySection } from './CommitteeFollow.js';
 import { sanitizeHeadline } from './ArchiveSubTab.js';
 
 const HEARING_ID = 'cm-119-9001';
@@ -206,7 +206,8 @@ function archivePage(overrides: Record<string, unknown> = {}) {
 }
 
 function LocationProbe() {
-  return <output data-testid="current-location">{useLocation().pathname}</output>;
+  const location = useLocation();
+  return <output data-testid="current-location">{location.pathname}{location.search}</output>;
 }
 
 function renderIn(ui: React.ReactElement, initialEntries = ['/legiwatch']) {
@@ -266,6 +267,28 @@ beforeEach(() => {
 });
 
 afterEach(() => cleanup());
+
+describe('Committee intelligence context', () => {
+  it('labels short extractions, removes duplicate evidence and preserves client navigation', async () => {
+    const row = {
+      id: 'finding-a', hearingId: HEARING_ID, insightType: 'QUESTION',
+      title: 'Question raised during the hearing', summary: 'Why not', evidenceText: 'Why not?',
+      segmentId: 'segment-a', startMs: 0, hearingTitle: 'Public hearing',
+      hearingDate: '2025-04-01', detailPath: `/legiwatch/hearings/${HEARING_ID}?detailTab=intelligence`,
+    };
+    handlers.get.mockReturnValue({
+      rows: [row, { ...row, id: 'finding-b' }], total: 2, hasMore: false,
+      corpus: { hearings: 1, hearingsWithTranscript: 1, pendingExtractionJobs: 0 },
+    });
+    renderIn(<CommitteeIntelligenceHistorySection systemCode="hsas00" clientId={CLIENT_A} />);
+    expect(await screen.findByText('Needs context')).toBeTruthy();
+    expect(screen.getAllByText('Why not?')).toHaveLength(1);
+    expect(screen.getByText(/Showing this committee only/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Review hearing evidence/ }).textContent).toContain('2025');
+    fireEvent.click(screen.getByRole('button', { name: /Review hearing evidence/ }));
+    expect(screen.getByTestId('current-location').textContent).toContain(`client=${CLIENT_A}`);
+  });
+});
 
 // ── W1-1 · Follow ──────────────────────────────────────────────────────────
 
@@ -732,7 +755,7 @@ describe('W1-3 Archive', () => {
   it('navigates a result to the canonical Hearing Detail, at the matching segment', async () => {
     renderIn(<ArchiveSubTab clientId="" />);
     const title = await screen.findByRole('button', {
-      name: 'Shipbuilding industrial base oversight',
+      name: 'Open hearing',
     });
     fireEvent.click(title);
     // The canonical destination, with the transcript deep-link on it.

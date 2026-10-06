@@ -62,7 +62,7 @@ describe('ServerCaptureSessions (My Sessions durable server list)', () => {
     renderPanel();
     const region = await screen.findByLabelText('Server captures list');
     const row = await within(region).findByRole('button', { name: /Oversight of the Federal Bureau/ });
-    expect(within(region).getByText('SCHEDULED')).toBeInTheDocument();
+    expect(within(region).getByText('CAPTURE NOT STARTED')).toBeInTheDocument();
     fireEvent.click(row);
     expect(await screen.findByText('Hearing detail reached')).toBeInTheDocument();
   });

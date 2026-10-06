@@ -1,3 +1,5 @@
+import { ExpandableHearingTitle } from './ExpandableHearingTitle.js';
+import { hearingEventLabel } from '../lib/hearing-presentation.js';
 /**
  * LegiWatch V2 Wave 1 (W1-3) — the Archive.
  *
@@ -402,7 +404,7 @@ function ArchiveResultCard({
           {row.chamber}
         </LwPill>
         <LwPill tone="gray" size="22">
-          {row.eventStatus.toUpperCase()}
+          {hearingEventLabel(row.eventStatus, row.scheduledStart, row.calendarDate)}
         </LwPill>
         {row.transcript.available ? (
           <LwPill tone="brand" size="22">
@@ -420,15 +422,9 @@ function ArchiveResultCard({
       </div>
 
       <h3 style={{ margin: '8px 0 2px', fontSize: 15, lineHeight: 1.3 }}>
-        <button
-          type="button"
-          className="lw-backlink"
-          style={{ padding: 0, textAlign: 'left', font: 'inherit' }}
-          onClick={() => onOpen(hash)}
-        >
-          {row.title}
-        </button>
+        <ExpandableHearingTitle title={row.title} />
       </h3>
+      <button type="button" className="lw-backlink" onClick={() => onOpen(hash)}>Open hearing</button>
 
       <div className="lw-card__meta" style={{ fontSize: 12 }}>
         {row.committeeName ?? '—'}

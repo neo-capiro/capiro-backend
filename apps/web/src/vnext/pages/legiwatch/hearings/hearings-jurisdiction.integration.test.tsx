@@ -398,3 +398,14 @@ describe('Hearings calendar jurisdiction (public Florida feed)', () => {
     expect(screen.queryByLabelText('Published legal dates')).toBeNull();
   });
 });
+
+it('names and clears a folder calendar scope while preserving jurisdiction', async () => {
+  featureFlags = { legiwatch_state_calendar_v1: true };
+  apiPost.mockImplementation(async () => ({ data: { folders: [{ id: 'folder-a', name: 'Defense priorities' }], billIds: [], matches: [] } }));
+  openSchedule('/legiwatch?jurisdiction=FL&calendarFolder=folder-a');
+  const scope = await screen.findByRole('status', { name: 'Active calendar folder scope' });
+  await waitFor(() => expect(scope.textContent).toContain('Defense priorities'));
+  fireEvent.click(within(scope).getByRole('button', { name: 'Clear folder scope' }));
+  await waitFor(() => expect(screen.queryByRole('status', { name: 'Active calendar folder scope' })).toBeNull());
+  expect((screen.getByLabelText('Calendar jurisdiction') as HTMLSelectElement).value).toBe('FL');
+});

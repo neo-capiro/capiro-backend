@@ -99,6 +99,18 @@ describe('encodeCursor', () => {
 });
 
 describe('FeedService.getFeed', () => {
+  it('uses current status separately from immutable alert evidence and includes combined hearing packets', async () => {
+    const row = { ...mkRow(1, 0.5), sourceType: 'combined', sourceRef: '119-hr-8800',
+      evidence: { bill: { billId: '119-hr-8800', displayNum: 'H.R. 8800', stage: 'introduced' } } };
+    const { prisma, getArgs } = mockPrisma([row]);
+    const source = { ...NO_SOURCE_DATA, getFeedBillStatuses: jest.fn().mockResolvedValue([
+      { id: '119-hr-8800', status: 'passed_chamber', originChamber: 'House', statusAt: new Date('2026-07-22') },
+    ]) };
+    const result = await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, source, NO_WORK_STATE).getFeed('t1', 'c1', { sourceTypes: ['hearing'] });
+    expect(getArgs().where.sourceType).toEqual({ in: ['hearing', 'combined'] });
+    expect(source.getFeedBillStatuses).toHaveBeenCalledWith(['119-hr-8800']);
+    expect(result.items[0]).toMatchObject({ currentBillStatus: { label: 'Passed House', asOf: '2026-07-22T00:00:00.000Z' }, evidence: { bill: { stage: 'introduced' } } });
+  });
   it('always filters tenantId + clientId and applies default statuses', async () => {
     const { prisma, getArgs } = mockPrisma([mkRow(1, 0.5)], [{ sourceType: 'bill', _count: 1 }]);
     await new FeedService(prisma, NO_CRYPTO, NO_ACTIONS, NO_SOURCE_DATA, NO_WORK_STATE).getFeed('t1', 'c1', {});

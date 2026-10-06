@@ -25,6 +25,8 @@ interface BillSearchResult {
     billIdentifier?: string;
     billTitle?: string;
     title?: string;
+    jurisdiction?: string;
+    sessionKey?: string;
     excerpt?: { quote: string };
   }>;
   coverage?: { complete: boolean; reason: string };
@@ -70,7 +72,7 @@ export function LegiWatchSearchOverlay({
     return () => window.clearTimeout(t);
   }, [raw]);
 
-  const hearings = useArchiveSearch({ q, page: 1, pageSize: 6 }, q.length >= 2);
+  const hearings = useArchiveSearch({ q, page: 1, pageSize: 6, temporalScope: 'all' }, q.length >= 2);
 
   const committees = useQuery<{ rows: CommitteeRow[] }>({
     queryKey: ['lw-vnext', 'search-committees', scope],
@@ -119,6 +121,8 @@ export function LegiWatchSearchOverlay({
           billIdentifier: row.number,
           billTitle: row.title,
           title: row.title,
+          jurisdiction: row.jurisdiction,
+          sessionKey: row.sessionKey,
         }))
       : page.items,
   );
@@ -185,8 +189,8 @@ export function LegiWatchSearchOverlay({
         <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
           <legend className="lw-sect__title">Search</legend>
           <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-            <button type="button" aria-pressed={billSearchMode === 'information'} onClick={() => setBillSearchMode('information')}>Bill information</button>
-            <button type="button" aria-pressed={billSearchMode === 'documents'} disabled={!researchEnabled} onClick={() => setBillSearchMode('documents')}>Bill-document text</button>
+            <button type="button" className={`lw-btn lw-filter-pill${billSearchMode === 'information' ? ' is-active' : ''}`} aria-pressed={billSearchMode === 'information'} onClick={() => setBillSearchMode('information')}>Bill information</button>
+            <button type="button" className={`lw-btn lw-filter-pill${billSearchMode === 'documents' ? ' is-active' : ''}`} aria-pressed={billSearchMode === 'documents'} disabled={!researchEnabled} onClick={() => setBillSearchMode('documents')}>Bill-document text</button>
           </div>
           {researchEnabled && billSearchMode === 'documents' ? (
             <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
@@ -223,6 +227,7 @@ export function LegiWatchSearchOverlay({
               : ''}
             <button
               type="button"
+              className="lw-btn"
               onClick={() => {
                 if (hearings.isError) void hearings.refetch();
                 if (committees.isError) void committees.refetch();
@@ -268,6 +273,9 @@ export function LegiWatchSearchOverlay({
                     >
                       <div style={{ fontSize: 13, fontWeight: 600 }}>
                         {bill.billIdentifier ?? bill.billId} · {bill.billTitle ?? bill.title}
+                      </div>
+                      <div className="lw-state__body">
+                        {bill.jurisdiction === 'US' ? 'U.S. Congress' : bill.jurisdiction === 'FL' ? 'Florida' : bill.jurisdiction || textJurisdiction || 'Jurisdiction unavailable'} · {bill.sessionKey || (billSearchMode === 'documents' ? textSession : '') || 'Session unavailable'}
                       </div>
                       {'excerpt' in bill && bill.excerpt?.quote ? (
                         <p className="lw-state__body">{bill.excerpt.quote}</p>
@@ -345,6 +353,7 @@ export function LegiWatchSearchOverlay({
                 {matchedBills.length < 6 ? (
                   <button
                     type="button"
+                    className="lw-btn"
                     disabled={bills.isFetchingNextPage}
                     onClick={() => void bills.fetchNextPage()}
                   >

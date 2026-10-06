@@ -112,10 +112,22 @@ describe('LegiWatchModule — Hearings landing (v2 restyle)', () => {
     expect(await screen.findByText(/News monitoring is not enabled/)).toBeTruthy();
   });
 
-  it('marks Updates selected for analytics without changing the analytics route', async () => {
+  it('selects only Analytics on its route', async () => {
     mount('/legiwatch?tab=analytics');
-    await waitFor(() => expect(screen.getByRole('tab', { name: /Updates/ })).toHaveAttribute('aria-selected', 'true'));
+    await waitFor(() => expect(screen.getByRole('tab', { name: /Updates/ })).toHaveAttribute('aria-selected', 'false'));
     expect(screen.getByRole('button', { name: 'Trends / Analytics' })).toHaveClass('is-active');
+  });
+
+  it('opens watchlists and alerts beside Settings while preserving the client lens', async () => {
+    mount('/legiwatch?tab=hearings&client=c1');
+    const watchlists = screen.getByRole('button', { name: 'Open watchlists' });
+    expect(watchlists.parentElement).toContainElement(screen.getByRole('button', { name: 'LegiWatch settings' }));
+    fireEvent.click(watchlists);
+    expect(screen.getByLabelText('Current navigation')).toHaveTextContent('tab=bills');
+    expect(screen.getByLabelText('Current navigation')).toHaveTextContent('client=c1');
+    fireEvent.click(screen.getByRole('button', { name: 'Open alerts' }));
+    expect(screen.getByLabelText('Current navigation')).toHaveTextContent('tab=feed');
+    expect(screen.getByLabelText('Current navigation')).toHaveTextContent('client=c1');
   });
 
   it('provides compact labelled mobile selectors without changing route identities', async () => {

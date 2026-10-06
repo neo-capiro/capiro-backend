@@ -84,6 +84,10 @@ export class AttendanceRequestDto {
 
 export class ArchiveSearchQueryDto {
   @IsOptional()
+  @IsIn(['past', 'all'])
+  temporalScope?: 'past' | 'all';
+
+  @IsOptional()
   @IsString()
   @MaxLength(400)
   q?: string;

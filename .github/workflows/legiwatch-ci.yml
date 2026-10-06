@@ -80,6 +80,7 @@ jobs:
       LEGIWATCH_COMMITTEE_TEST_DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro_committee_alerts_ci
       LEGIWATCH_RECORDING_TEST_DATABASE: disposable
       LEGIWATCH_PHASE5_TEST_DATABASE: disposable
+      LEGIWATCH_PHASE8_TEST_DATABASE: disposable
       CAPIRO_DISPOSABLE_PG: '1'
     services:
       folder-postgres:
@@ -126,6 +127,7 @@ jobs:
         run: |
           pnpm --filter @capiro/api exec prisma generate
           pnpm --filter @capiro/intel-api exec prisma generate
+          pnpm --filter @capiro/workspace exec prisma generate
 
       # Scoped to the three packages LegiWatch spans, deliberately NOT repo-wide.
       # ci-pr.yml already runs `turbo run typecheck` across all 14 packages on
@@ -181,6 +183,7 @@ jobs:
           docker exec -i "${{ job.services.folder-postgres.id }}" psql -U legiwatch_test -d capiro -v ON_ERROR_STOP=1 < scripts/ci/research-portfolio-append-only-prerequisite.sql
           pnpm --filter @capiro/api exec prisma migrate deploy
           pnpm --filter @capiro/intel-api exec prisma migrate deploy
+          pnpm --filter @capiro/workspace exec prisma migrate deploy
           pnpm --filter @capiro/intel-api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/folder-pg-summary.json test/folder-tracker-postgres.spec.ts test/folder-import-postgres.spec.ts test/folder-corpus-search-postgres.spec.ts
           pnpm --filter @capiro/api exec jest --ci --runInBand --json --outputFile=$GITHUB_WORKSPACE/source-pg-summary.json src/ingestion/legiscan-documents-postgres.spec.ts
           node --test apps/intel-api/scripts/legiwatch-import-apply.spec.mjs
@@ -306,7 +309,7 @@ jobs:
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 102 1222
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 103 1226
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and
@@ -403,10 +406,12 @@ jobs:
           test/bill-fit.spec.ts
           src/tracker/alert-noise-qa.spec.ts
           src/tracker/tracker-board-state-stage.spec.ts
+          src/tracker/editorial/publisher-coverage.spec.ts
+          test/phase8-postgres.spec.ts
 
       - name: Assert apps/intel-api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 80 1008
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 82 1020
 
       # ---------------------------------------------------------------- web --
       # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
@@ -427,6 +432,9 @@ jobs:
           src/pages/intelligence/LiveHearingRoomPage.capture
           src/lib/hearing-watch-api
           src/lib/use-hearing-wake-lock
+          src/lib/hearing-playback-coverage.test.ts
+          src/vnext/adapters/routes/navigation-match.test.ts
+          src/vnext/shell/AppShellUui/
           src/vnext/pages/legiwatch/
           src/pages/clients/intelligence-v1/components/TopAlertsList
           src/pages/clients/intelligence-v1/components/HearingsMarkupList
@@ -439,7 +447,7 @@ jobs:
       # Create Watch removal retires one describe block and six feature tests.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 280 984
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 286 1004
 
       # New real-DB, media, review, consent and UI suites have their own explicit
       # floors. The earlier saved-session fixture stays on its separate DB.

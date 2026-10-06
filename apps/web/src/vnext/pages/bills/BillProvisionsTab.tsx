@@ -10,7 +10,8 @@ export function BillProvisionsTab({ provisions }: { provisions: FundingProvision
   if (!provisions.length) {
     return (
       <div className="b360-empty">
-        <CapiroEmptyState title="No funding provisions identified for this bill." />
+        <CapiroEmptyState title="A provisions analysis is not available for this bill yet." />
+        <p>This does not mean the bill has no substantive provisions. Open Evidence to review published bill text and staff analyses.</p>
       </div>
     );
   }

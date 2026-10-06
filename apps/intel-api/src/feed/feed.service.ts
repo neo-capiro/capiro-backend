@@ -5,6 +5,7 @@ import { SourceDataRepository } from '../sourcedata/source-data.repository.js';
 import { ActionItemService } from './action-item.service.js';
 import { recommendedActionsFor } from './recommended-actions.util.js';
 import { normalizeEvidence } from './normalize-evidence.js';
+import { currentFeedBillStatus, feedSourceTypes } from './feed-presentation.js';
 import {
   applyResolvedHearingIds,
   sessionIdsNeedingHearingId,
@@ -270,6 +271,7 @@ export class FeedService {
    *   roll-up across every client (P11). Both paths are tenant-scoped in app code.
    */
   async getFeed(tenantId: string, clientId: string | null | undefined, q: FeedQuery) {
+    const sourceTypes = feedSourceTypes(q.sourceTypes);
     const order: 'date' | 'score' = q.order === 'score' ? 'score' : 'date';
     const limit = Math.min(Math.max(q.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
     const statuses = q.statuses?.length ? q.statuses : DEFAULT_STATUSES;
@@ -295,7 +297,7 @@ export class FeedService {
     }
 
     const where: Record<string, unknown> = { ...baseWhere };
-    if (q.sourceTypes?.length) where['sourceType'] = { in: q.sourceTypes };
+    if (sourceTypes?.length) where['sourceType'] = { in: sourceTypes };
 
     // Bill 360 (§1.4): equality predicate on source_ref so a single-bill event
     // history hits @@index([tenantId, sourceType, sourceRef]) — never a JS filter.
@@ -448,7 +450,7 @@ export class FeedService {
             userId: q.userId,
             statuses,
             severities: q.severities,
-            sourceTypes: q.sourceTypes,
+            sourceTypes,
             sourceRef: q.sourceRef,
             since: q.since,
             until: q.until,
@@ -522,6 +524,17 @@ export class FeedService {
     // Order matters and is asserted by test: decryptQuotes (above) → actionState →
     // termTagById → clientNames → normalize. Normalizing earlier would copy the
     // hearing mentions and the decrypted quote text would land on an orphaned object.
+    const billIds = items.flatMap((it) => {
+      const evidence = normalizeEvidence({ ...it, topicLabel: null });
+      return evidence.bill?.billId ? [evidence.bill.billId] : [];
+    });
+    const currentStatuses = new Map<string, ReturnType<typeof currentFeedBillStatus>>();
+    try {
+      for (const row of await this.sourceData.getFeedBillStatuses(billIds))
+        currentStatuses.set(row.id, currentFeedBillStatus(row));
+    } catch {
+      // Retain the historical alert when the separate current-status read is unavailable.
+    }
     const decorated = items.map((it) => {
       const evidence = normalizeEvidence({
         sourceType: it.sourceType,
@@ -535,6 +548,7 @@ export class FeedService {
       return {
         ...it,
         evidence,
+        currentBillStatus: evidence.bill ? currentStatuses.get(evidence.bill.billId) ?? null : null,
         clientName: clientNames.get(it.clientId.toLowerCase()) ?? null,
         // deriveTag reads the RAW row on purpose — it runs independently of
         // normalization and reads the stored flat `matchedTags` key directly.

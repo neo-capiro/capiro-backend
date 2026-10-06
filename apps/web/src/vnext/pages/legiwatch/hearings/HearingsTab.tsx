@@ -1,3 +1,5 @@
+import { ExpandableHearingTitle } from './ExpandableHearingTitle.js';
+import { recordingAttemptDate, hasTestSessionTitle } from '../lib/hearing-presentation.js';
 import { LegalDeadlineOverlay } from '../research/LegalDeadlineOverlay.js';
 
 /**
@@ -267,7 +269,13 @@ export function HearingsTab({ scope }: { scope: string }) {
   const interrupted = sessions.filter((session) => captureNeedsAttention(session.status));
   // Show ALL loaded browser sessions — never hide a loaded row behind an
   // arbitrary "first 3" cut. Older sessions stay reachable via load-more.
-  const visibleSessions = sessions;
+  const [hideTestSessions, setHideTestSessions] = useState(false);
+  const [sessionSearch, setSessionSearch] = useState('');
+  const [sessionLifecycle, setSessionLifecycle] = useState('all');
+  const visibleSessions = sessions.filter((session) =>
+    (!hideTestSessions || !hasTestSessionTitle(session.title)) &&
+    (!sessionSearch.trim() || session.title.toLowerCase().includes(sessionSearch.trim().toLowerCase())) &&
+    (sessionLifecycle === 'all' || (sessionLifecycle === 'completed') === ['ended', 'completed'].includes(session.status)));
 
   // The user's saved desktop preference (LegiWatch Settings → default view).
   const [view, setView] = useState<ViewMode>(
@@ -797,6 +805,11 @@ export function HearingsTab({ scope }: { scope: string }) {
   return (
     <div className="lw-body lw-hearings-body">
       {subStrip}
+      {sub === 'schedule' && selectedFolders.length ? <div className="lw-card" role="status" aria-label="Active calendar folder scope" style={{ padding: 12, marginBottom: 12 }}>
+        <strong>Folder calendar: </strong>{selectedFolders.map((id, index) => folderChoices.data?.folders.find((folder) => folder.id === id)?.name ?? `Selected folder ${index + 1}`).join(', ')}
+        <span> · Events matching the selected folders</span>{' '}
+        <LwButton onClick={() => setCalendarParam('calendarFolder', '')}>Clear folder scope</LwButton>
+      </div> : null}
       {sub === 'schedule' ? (
         <>
           {narrow ? (
@@ -1401,7 +1414,15 @@ export function HearingsTab({ scope }: { scope: string }) {
               </div>
             )}
 
-            <div className="lw-history__label">Recent session history</div>
+            <div className="lw-history__label">Recent session history · {visibleSessions.length} of {sessions.length} loaded</div>
+            <div className="lw-controls" aria-label="Filter saved recording attempts">
+              <input className="lw-input" aria-label="Search recording attempts" placeholder="Search recordings" value={sessionSearch} onChange={(event) => setSessionSearch(event.target.value)} />
+              <select className="lw-select" aria-label="Recording attempt status" value={sessionLifecycle} onChange={(event) => setSessionLifecycle(event.target.value)}>
+                <option value="all">All attempts</option><option value="completed">Completed attempts</option><option value="other">Active or interrupted attempts</option>
+              </select>
+              <label><input type="checkbox" checked={hideTestSessions} onChange={(event) => setHideTestSessions(event.target.checked)} /> Hide titles marked test or QA</label>
+            </div>
+            {sessions.length > 0 && !visibleSessions.length ? <p className="lw-card__meta">No loaded attempts match these filters. Clear the filters or load older sessions.</p> : null}
             <div className="lw-history__rows">
               {visibleSessions.map((s) => {
                 const rec = captureNeedsAttention(s.status);
@@ -1429,7 +1450,7 @@ export function HearingsTab({ scope }: { scope: string }) {
                     aria-label={`Open ${s.title}`}
                   >
                     <div>
-                      <div className="lw-hrow__title">{s.title}</div>
+                      <div className="lw-hrow__title"><ExpandableHearingTitle title={s.title} /></div>
                       <div className="lw-hrow__sub">
                         {done
                           ? 'Completed'
@@ -1439,6 +1460,10 @@ export function HearingsTab({ scope }: { scope: string }) {
                               ? 'Capture failed · review saved session'
                               : s.status}
                         {s.watchlistMatchCount != null ? ` · ${s.watchlistMatchCount} matches` : ''}
+                        {' · '}{recordingAttemptDate(s.startedAt)}
+                        {' · '}{browserSession ? 'Browser recording' : 'Server session'}
+                        {s.recordingPolicy === 'transcript_only' ? ' · Transcript only; audio not retained' : ''}
+                        <span style={{ display: 'block' }}>Attempt {s.id.slice(-8)} · {s.hearingId ? 'Linked to a hearing' : 'Hearing link not established'}</span>
                       </div>
                     </div>
                     <span className="lw-hrow__pill">

@@ -98,6 +98,7 @@ export function HearingPublicationsPanel({
   recapRequested,
   onRecapOpened,
   playEvidence,
+  canPlayEvidence,
 }: {
   sessionId: string;
   eventId?: string;
@@ -110,6 +111,7 @@ export function HearingPublicationsPanel({
   recapRequested: boolean;
   onRecapOpened: () => void;
   playEvidence: (ms: number) => void;
+  canPlayEvidence?: (ms: number) => boolean;
 }) {
   const api = useApi(),
     scope = useApiScope(),
@@ -478,7 +480,7 @@ export function HearingPublicationsPanel({
                       {e.text}
                     </span>
                   </label>
-                  <button onClick={() => playEvidence(e.startMs)}>Play evidence audio</button>
+                  {canPlayEvidence?.(e.startMs) ? <button onClick={() => playEvidence(e.startMs)}>Play evidence audio</button> : <span className="lw-card__meta">No retained audio for this passage</span>}
                 </article>
               ))}
             {!evidence.length && <p>Final testimony will appear here after it is saved.</p>}
@@ -674,9 +676,9 @@ export function HearingPublicationsPanel({
                       e && (
                         <blockquote key={id}>
                           <p>{e.text}</p>
-                          <button onClick={() => playEvidence(e.startMs)}>
+                          {canPlayEvidence?.(e.startMs) ? <button onClick={() => playEvidence(e.startMs)}>
                             Play {time(e.startMs)}–{time(e.endMs)}
-                          </button>
+                          </button> : <span className="lw-card__meta">No retained audio for this passage</span>}
                         </blockquote>
                       )
                     );

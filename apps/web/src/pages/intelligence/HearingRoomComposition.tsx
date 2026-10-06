@@ -1,3 +1,4 @@
+import { hasPlaybackAt, type PlaybackInterval } from '../../lib/hearing-playback-coverage.js';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -98,6 +99,7 @@ export interface HearingRoomViewModel {
   recordingPanel?: ReactNode;
   publicationsPanel?: ReactNode;
   playEvidence?: (ms: number) => void;
+  canPlayEvidence?: (ms: number) => boolean;
   captureStartedAt?: number;
   captureOffsetMs?: number;
   capturedElapsedMs?: number;
@@ -348,10 +350,12 @@ export function createHearingRoomComponents(ui: HearingRoomUi) {
     segments,
     interim,
     playEvidence,
+    canPlayEvidence,
   }: {
     segments: LiveSegment[];
     interim: string;
     playEvidence?: (ms: number) => void;
+  canPlayEvidence?: (ms: number) => boolean;
   }) {
     const parentRef = useRef<HTMLDivElement | null>(null);
     const shouldVirtualize = segments.length > 200;
@@ -375,7 +379,7 @@ export function createHearingRoomComponents(ui: HearingRoomUi) {
         <Text type="secondary" style={{ fontSize: 11 }}>
           [{Math.floor(s.startMs / 1000)}s]
         </Text>
-        {playEvidence && (
+        {playEvidence && canPlayEvidence?.(s.startMs) && (
           <Button type="link" size="small" onClick={() => playEvidence(s.startMs)}>
             Play audio here
           </Button>
@@ -531,6 +535,9 @@ export function createHearingRoomComponents(ui: HearingRoomUi) {
     const [bytesSent, setBytesSent] = useState(0);
     const [bytesSaved, setBytesSaved] = useState(0);
     const [evidenceTime, setEvidenceTime] = useState<{ ms: number; revision: number }>();
+  const [playbackCoverage, setPlaybackCoverage] = useState<{ scope: string; id: string; intervals: PlaybackInterval[] }>();
+  const onPlaybackCoverage = useCallback((intervals: PlaybackInterval[]) => setPlaybackCoverage({ scope: apiScope, id, intervals }), [apiScope, id]);
+  const canPlayEvidence = (ms: number) => playbackCoverage?.scope === apiScope && playbackCoverage.id === id && hasPlaybackAt(playbackCoverage.intervals, ms);
     /** Shared by the transcript list and the publications panel: both must drive
      *  the SAME mounted player, with a monotonic revision so a repeated position
      *  still re-seeks. */
@@ -1402,7 +1409,8 @@ export function createHearingRoomComponents(ui: HearingRoomUi) {
     const recordingPanelNode = isPublicReview ? (
       <PublicHearingAudioPanel
         key={`public-audio:${apiScope}:${session.data?.hearingId ?? ''}:${session.data?.publicCaptureId ?? ''}`}
-        hearingId={session.data?.hearingId ?? ''}
+        onCoverage={onPlaybackCoverage}
+      hearingId={session.data?.hearingId ?? ''}
         seek={
           evidenceTime ? { positionMs: evidenceTime.ms, request: evidenceTime.revision } : undefined
         }
@@ -1415,6 +1423,7 @@ export function createHearingRoomComponents(ui: HearingRoomUi) {
         canEnable={!captureActive && !session.data?.startedAt}
         evidenceTime={evidenceTime}
         onProgress={onRecordingProgress}
+      onCoverage={onPlaybackCoverage}
       />
     ) : null;
 
@@ -1435,6 +1444,7 @@ export function createHearingRoomComponents(ui: HearingRoomUi) {
           recapRequested={recapOpen}
           onRecapOpened={() => setRecapOpen(false)}
           playEvidence={playEvidenceAt}
+        canPlayEvidence={canPlayEvidence}
         />
       ) : null;
     const publicationsPanel = (
@@ -1492,6 +1502,7 @@ export function createHearingRoomComponents(ui: HearingRoomUi) {
             recordingPanel: recordingPanelNode,
             publicationsPanel,
             playEvidence: playEvidenceAt,
+    canPlayEvidence,
             sourcePlayer: effectiveEmbeddableUrl ? (
               <MediaPlayer src={effectiveEmbeddableUrl} />
             ) : effectiveYoutubeId ? (
@@ -1766,6 +1777,7 @@ export function createHearingRoomComponents(ui: HearingRoomUi) {
               <TranscriptList
                 segments={segments}
                 interim={interim}
+                canPlayEvidence={canPlayEvidence}
                 playEvidence={
                   isPublicReview || session.data?.recordingPolicy === 'audio_and_transcript'
                     ? playEvidenceAt

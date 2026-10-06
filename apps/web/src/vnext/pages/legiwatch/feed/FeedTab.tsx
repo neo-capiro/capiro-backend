@@ -37,6 +37,7 @@ import { LwPill, LwSeg, LwButton } from '../lib/primitives.js';
 import { LwStateLoading, LwStateEmpty, LwStateUnavailable, LwStateAllClear } from '../states/SystemStates.js';
 import { PacketDrawer } from './PacketDrawer.js';
 import { feedHearingDetailHref } from '../lib/feed-hearing-link.js';
+import { feedExplanation, feedSourceCount, feedStatusText } from './feed-presentation.js';
 import { groupFeedEvents } from './group-feed-events.js';
 
 type Arrange = 'stream' | 'byClient';
@@ -243,7 +244,7 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
           <div className="lw-prow__meta">
             <LwPill tone={tone} size="22">{band}</LwPill>
             {it.severity === 'critical' && !it.evidence?.match?.details?.length && <span>Client match needs review</span>}
-            {it.evidence?.bill?.displayNum && <span>{it.evidence.bill.displayNum}{it.evidence.provenance?.jurisdiction && it.evidence.provenance.jurisdiction !== 'US' ? ` · ${it.evidence.provenance.jurisdiction}` : ''}{it.evidence.bill.stage ? ` · ${it.evidence.bill.stage}` : ''}</span>}
+            {it.evidence?.bill?.displayNum && <span>{it.evidence.bill.displayNum}{it.evidence.provenance?.jurisdiction && it.evidence.provenance.jurisdiction !== 'US' ? ` · ${it.evidence.provenance.jurisdiction}` : ''}{feedStatusText(it) ? ` · ${feedStatusText(it)}` : ''}</span>}
             <span className="lw-prow__src">{ageLabel(it.createdAt)}</span>
           </div>
           <button
@@ -258,7 +259,7 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
           {it.whyItMatters ? (
             <div className="lw-prow__block">
               <span className="lw-prow__prefix">WHY · </span>
-              {it.whyItMatters}
+              {feedExplanation(it)}
             </div>
           ) : null}
           {it.evidence?.match?.matchedTags?.length ? (
@@ -464,7 +465,7 @@ function ScopedFeedTab({ scope, clients, suppressAlert }: { scope: string; clien
               <RailOption
                 key={f.id}
                 label={f.label}
-                count={counts[f.id] ?? null}
+                count={feedSourceCount(counts, f.id)}
                 active={source === f.id}
                 onClick={() => updateView({ filter: f.id })}
               />

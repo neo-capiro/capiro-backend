@@ -60,6 +60,7 @@ function mount() {
 test('searches bill information across the available corpus and opens the exact bill', async () => {
   const close = mount();
   const hit = await screen.findByRole('link', { name: /HB 1207/ });
+  expect(hit).toHaveTextContent('Florida · 2026');
   expect(mocks.get).toHaveBeenCalledWith(
     '/intel-api/legiwatch/bills/search',
     expect.objectContaining({

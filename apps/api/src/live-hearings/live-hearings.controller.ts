@@ -45,6 +45,11 @@ const CAPTURE_STATES = [
   'blocked',
 ] as const;
 
+export class StateCommitteeQueryDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100000)
+  referralPage?: number;
+}
+
 /**
  * The global ValidationPipe runs whitelist + forbidNonWhitelisted, so every
  * public query field must be declared here. Canonical fields are listed first;
@@ -208,8 +213,8 @@ export class LiveHearingsController {
     return this.service.calendarCoverage(ctx, query);
   }
   @Get('state-committees/:id')
-  stateBody(@CurrentTenant() ctx: TenantContext, @Param('id') id: string) {
-    return this.service.stateBody(ctx, id);
+  stateBody(@CurrentTenant() ctx: TenantContext, @Param('id') id: string, @Query() query: StateCommitteeQueryDto = {}) {
+    return this.service.stateBody(ctx, id, query.referralPage);
   }
 
   @Get('calendar')

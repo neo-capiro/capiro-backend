@@ -1,3 +1,8 @@
+import { useApiScope } from '../../../../lib/use-api-scope.js';
+import { presentHearingIntelligence } from '../lib/hearing-intelligence-presentation.js';
+import { hearingEventLabel, hearingHasPassed } from '../lib/hearing-presentation.js';
+import { ExpandableHearingTitle } from './ExpandableHearingTitle.js';
+import { hasPlaybackAt, type PlaybackInterval } from '../../../../lib/hearing-playback-coverage.js';
 /**
  * Canonical hearing detail route — `/legiwatch/hearings/:hearingId` (PR B,
  * LW-QA-003/004). The vNext module previously offered NO detail path: calendar
@@ -22,6 +27,8 @@ import {
   captureSummaryLabel,
   type PublicTranscriptSegment,
   type HearingIntelligenceItem,
+  type CanonicalHearingEvent,
+  safeOfficialHttpUrl,
 } from '../lib/canonical-hearings.js';
 import {
   formatHearingDay,
@@ -108,6 +115,10 @@ export function HearingDetailRoute() {
   const [transcriptQuery, setTranscriptQuery] = useState('');
   const [segmentToReveal, setSegmentToReveal] = useState<string | null>(null);
   const retainedAudio = useIntelFeatureEnabled('legiwatch_hearing_recording_v1');
+  const audioScope = useApiScope();
+  const [audioCoverage, setAudioCoverage] = useState<{ hearingId: string; scope: string; intervals: PlaybackInterval[] }>();
+  const onAudioCoverage = useCallback((intervals: PlaybackInterval[]) => setAudioCoverage({ hearingId, scope: audioScope, intervals }), [hearingId, audioScope]);
+  const canPlayEvidence = (ms: number) => retainedAudio && audioCoverage?.hearingId === hearingId && audioCoverage.scope === audioScope && hasPlaybackAt(audioCoverage.intervals, ms);
   const [audioSeek, setAudioSeek] = useState<{ positionMs: number; request: number }>();
   const lastHashJump = useRef('');
   const captureStatus = event.data?.capture?.status?.toUpperCase();
@@ -319,7 +330,7 @@ export function HearingDetailRoute() {
   const closed = isClosedSession(e.publicAccessStatus);
   const accessLabel = accessPillLabel(e.publicAccessStatus);
   const availability = transcriptAvailability(e);
-  const intel = intelligence.data ?? [];
+  const intel = presentHearingIntelligence(intelligence.data ?? [], segments);
   // §8: extraction pending must never render as "no intelligence extracted".
   // The route's status arrives on the envelope (useHearingIntelligence).
   const intelProcessing =
@@ -348,7 +359,7 @@ export function HearingDetailRoute() {
             {accessLabel}
           </LwPill>
           <LwPill tone="gray" size="22">
-            {(e.eventStatus ?? '').toUpperCase()}
+            {hearingEventLabel(e.eventStatus, e.scheduledStart, e.calendarDate)}
           </LwPill>
           {e.capture ? (
             <LwPill tone="gray" size="22">
@@ -356,9 +367,9 @@ export function HearingDetailRoute() {
             </LwPill>
           ) : null}
         </div>
-        <h1 className="lw-detail__title">{e.title}</h1>
+        <h1 className="lw-detail__title"><ExpandableHearingTitle title={e.title} /></h1>
         <div className="lw-detail__when">
-          {formatHearingDay(moment)} · {formatHearingTime(moment)}
+          {formatHearingDay(moment, true)} · {formatHearingTime(moment)}
         </div>
       </div>
 
@@ -511,8 +522,7 @@ export function HearingDetailRoute() {
                 Attend control renders only when the server says a mode is actually
                 available, so a closed session has no attendance affordance at all. */}
             <p className="lw-card__meta" style={{ marginTop: 10, fontSize: 12 }}>
-              Follow sends updates about this hearing. Record hearing asks Capiro to capture and
-              transcribe it; these are separate actions.
+              Follow sends updates. Automatic recording runs on the server when the source permits it; browser recording requires you to keep a shared audio tab open.
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
               <LwButton
@@ -534,7 +544,7 @@ export function HearingDetailRoute() {
                   (attendance.data.browserAvailable ??
                     (attendance.data.availableModes ?? []).includes('browser'))) ? (
                 <LwButton variant="primary" onClick={() => setDialog('attend')}>
-                  Record hearing
+                  {hearingHasPassed(e.scheduledStart, e.calendarDate) ? 'Review replay recording' : (attendance.data.automaticAvailable ?? attendance.data.canRequest) ? 'Request automatic recording' : 'Record in browser'}
                 </LwButton>
               ) : attendance.data ? (
                 // No control, but the state is still stated rather than hidden.
@@ -552,6 +562,12 @@ export function HearingDetailRoute() {
               )}
             </div>
 
+            {attendance.data && !(attendance.data.automaticAvailable ?? attendance.data.canRequest) && (attendance.data.browserAvailable ?? attendance.data.availableModes?.includes('browser')) ? (
+              <p className="lw-card__meta" role="status" style={{ marginTop: 10 }}>
+                Automatic recording unavailable. {attendance.data.message}
+                {(attendance.data.browserAvailable ?? attendance.data.availableModes?.includes('browser')) ? ' Browser recording requires your device and a shared tab with audio; it does not run unattended.' : ''}
+              </p>
+            ) : null}
             {follow.data?.following ? (
               <p className="lw-card__meta" style={{ marginTop: 8, fontSize: 12 }}>
                 Following for{' '}
@@ -568,7 +584,7 @@ export function HearingDetailRoute() {
             // `public-audio` is the incoming deep-link anchor; the wrapper owns
             // the id so the player itself needs no modification.
             <div id="public-audio">
-              <PublicHearingAudioPanel hearingId={hearingId} seek={audioSeek} />
+              <PublicHearingAudioPanel hearingId={hearingId} seek={audioSeek} onCoverage={onAudioCoverage} />
             </div>
           ) : null}
           {!closed ? (
@@ -576,6 +592,7 @@ export function HearingDetailRoute() {
               hearingId={hearingId}
               clientId={clientId || undefined}
               playEvidence={playEvidence}
+              canPlayEvidence={canPlayEvidence}
             />
           ) : null}
       </div>
@@ -609,6 +626,7 @@ export function HearingDetailRoute() {
                     onChange={(ev) => setTranscriptQuery(ev.target.value)}
                   />
                 </div>
+                {retainedAudio && audioCoverage?.hearingId === hearingId && audioCoverage.scope === audioScope && !audioCoverage.intervals.length ? <p className="lw-card__meta">No retained audio is currently available for this transcript. Transcript completion does not mean the recording was retained.</p> : null}
                 {availability.state !== 'transcript-ready' ? (
                   <p style={{ color: 'var(--lw-meta)', fontSize: 13 }}>{availability.note}</p>
                 ) : null}
@@ -656,7 +674,7 @@ export function HearingDetailRoute() {
                           <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
                             {msToClock(s.startMs)}
                           </span>
-                          {retainedAudio ? (
+                          {canPlayEvidence(s.startMs) ? (
                             <button
                               type="button"
                               className="lw-backlink"
@@ -755,7 +773,7 @@ export function HearingDetailRoute() {
                       </LwPill>
                       <strong style={{ fontSize: 14 }}>{item.title}</strong>
                       {item.preliminary ? (
-                        <span style={{ fontSize: 11, color: 'var(--lw-meta)' }}>preliminary</span>
+                        <span style={{ fontSize: 11, color: 'var(--lw-meta)' }}>Needs source review</span>
                       ) : null}
                     </div>
                     <p style={{ margin: '4px 0 0', fontSize: 13 }}>{item.summary}</p>
@@ -771,7 +789,7 @@ export function HearingDetailRoute() {
                           aria-label={`Jump to transcript evidence at ${item.startMs != null ? msToClock(item.startMs) : 'recorded position'}`}
                         >
                           <span className="lw-mono" style={{ fontSize: 11, color: 'var(--lw-meta)' }}>
-                            Evidence: “{item.evidenceText.slice(0, 200)}”
+                            Transcript context: “{item.evidenceText}”
                             {item.startMs != null ? ` @ ${msToClock(item.startMs)}` : ''}
                             {item.speakerName ? ` — ${item.speakerName}` : ''}
                           </span>
@@ -781,7 +799,7 @@ export function HearingDetailRoute() {
                           className="lw-mono"
                           style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--lw-meta)' }}
                         >
-                          Evidence: “{item.evidenceText.slice(0, 200)}”
+                          Transcript context: “{item.evidenceText}”
                           {item.startMs != null ? ` @ ${msToClock(item.startMs)}` : ''}
                           {item.speakerName ? ` — ${item.speakerName}` : ''}
                         </p>
@@ -821,7 +839,7 @@ export function HearingDetailRoute() {
         hidden={activeTab !== 'sources-documents'}
         style={activeTab !== 'sources-documents' ? { display: 'none' } : undefined}
       >
-          <SourcesAndDocumentsSection hearingId={hearingId} />
+          <SourcesAndDocumentsSection hearingId={hearingId} event={e} />
       </div>
       </div>
 
@@ -860,15 +878,26 @@ export function HearingDetailRoute() {
 
 /** The real "what changed" timeline (`committee_site_update` rows). The
  * canonical official source link is rendered once in the overview facts. */
-function SourcesAndDocumentsSection({ hearingId }: { hearingId: string }) {
+function SourcesAndDocumentsSection({ hearingId, event }: { hearingId: string; event: CanonicalHearingEvent }) {
   const updates = useHearingUpdates(hearingId);
   return (
     <section className="lw-card lw-detail__card" aria-label="Sources and documents">
       <div className="lw-card__head">
         <h2 className="lw-card__title">Sources & Documents</h2>
       </div>
+      <dl className="lw-detail__facts"><OfficialHearingLinks {...event} /></dl>
+      <h3 className="lw-sect__title" style={{ marginTop: 16 }}>Official documents & agenda</h3>
+      <ul>
+        {(event.documents ?? []).filter((document) => safeOfficialHttpUrl(document.sourceUrl)).map((document, index) => (
+          <li key={document.id ?? `document-${index}`}><a href={safeOfficialHttpUrl(document.sourceUrl)!} target="_blank" rel="noreferrer">{document.title || 'Official document'}</a>{document.documentType ? ` · ${document.documentType.replace(/_/g, ' ')}` : ''}</li>
+        ))}
+        {(event.agenda ?? []).map((item, index) => <li key={item.key ?? `agenda-${index}`}>
+          {safeOfficialHttpUrl(item.sourceUrl) ? <a href={safeOfficialHttpUrl(item.sourceUrl)!} target="_blank" rel="noreferrer">{item.title}</a> : item.title}
+        </li>)}
+      </ul>
+      {!(event.documents?.length || event.agenda?.length) ? <p className="lw-card__meta">No agenda or document links have been published in the collected source record.</p> : null}
       <h3 className="lw-sect__title" style={{ marginTop: 16 }}>
-        What changed
+        Observed changes
       </h3>
       {updates.isLoading ? (
         <LwSkeleton height={60} />
@@ -892,7 +921,8 @@ function SourcesAndDocumentsSection({ hearingId }: { hearingId: string }) {
                 {new Date(u.firstSeenAt).toLocaleDateString('en-US', {
                   month: 'short',
                   day: 'numeric',
-                })}
+                  year: 'numeric',
+                })} · Observed
               </span>{' '}
               {u.title}
               {u.previousValue && u.newValue ? ` — ${u.previousValue} → ${u.newValue}` : ''}

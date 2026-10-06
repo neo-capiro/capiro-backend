@@ -632,7 +632,7 @@ function FloridaDirectory({
                 {ageLabel(committee.lastSyncedAt)} · source health opens in room
               </div>
               <div style={{ fontSize: 12, color: 'var(--lw-meta)' }}>
-                Committee follow and committee-level alerts are not available for Florida yet.
+                Open the committee room to follow this committee and manage hearing and committee alerts.
               </div>
               <button
                 type="button"

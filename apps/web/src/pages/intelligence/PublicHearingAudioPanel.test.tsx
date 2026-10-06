@@ -133,3 +133,13 @@ describe('canonical server private playback', () => {
     expect(mocks.post).toHaveBeenCalledTimes(2);
   });
 });
+
+it('publishes only playable retained coverage and clears it when the player unmounts', async () => {
+  const onCoverage = vi.fn();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  mocks.get.mockResolvedValue({ data: { epochs: [epoch('good', 0, 10000), { ...epoch('expired', 20000, 30000), expiresAt: '2020-01-01' }] } });
+  const { unmount } = render(<QueryClientProvider client={client}><PublicHearingAudioPanel hearingId="coverage" onCoverage={onCoverage} /></QueryClientProvider>);
+  await waitFor(() => expect(onCoverage).toHaveBeenLastCalledWith([{ startMs: 0, endMs: 10000 }]));
+  unmount();
+  expect(onCoverage).toHaveBeenLastCalledWith([]);
+});

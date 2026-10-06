@@ -9,6 +9,7 @@ export function PublicHearingReviewPanel(props: {
   hearingId: string;
   clientId?: string;
   playEvidence: (ms: number) => void;
+  canPlayEvidence?: (ms: number) => boolean;
 }) {
   const scope = useApiScope();
   return <ScopedReview key={`${scope}:${props.hearingId}`} {...props} />;
@@ -17,10 +18,12 @@ function ScopedReview({
   hearingId,
   clientId,
   playEvidence,
+  canPlayEvidence,
 }: {
   hearingId: string;
   clientId?: string;
   playEvidence: (ms: number) => void;
+  canPlayEvidence?: (ms: number) => boolean;
 }) {
   const api = useApi(),
     scope = useApiScope();
@@ -92,6 +95,7 @@ function ScopedReview({
           recapRequested={recapRequested}
           onRecapOpened={() => setRecapRequested(false)}
           playEvidence={playEvidence}
+          canPlayEvidence={canPlayEvidence}
         />
       ) : null}
     </section>

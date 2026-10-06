@@ -208,3 +208,18 @@ describe('browser retained evidence playback', () => {
     expect(container.querySelector('audio')).toBeNull();
   });
 });
+
+it('publishes decoded playable intervals only and excludes permission-restricted audio', async () => {
+  const onCoverage = vi.fn();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  mocks.get.mockImplementation(async (url) => ({ data: url.endsWith('/capability') ? { available: true } : {
+    recording: { id: 'recording', state: 'partial', playbackAvailability: 'available', expiresAt: '2099-01-01', epochs: [
+      { ...epoch('good', 0, 10000), decodedDurationMs: 5000 }, { ...epoch('bad', 20000, 30000), playable: false },
+    ] },
+  } }));
+  const { unmount } = render(<QueryClientProvider client={client}><HearingRecordingPanel sessionId="coverage" live={false} canEnable={false} onCoverage={onCoverage} /></QueryClientProvider>);
+  await waitFor(() => expect(onCoverage).toHaveBeenLastCalledWith([{ startMs: 0, endMs: 5000 }]));
+  await act(async () => client.setQueryData(['intel', 'hearing-recording', mocks.scope, 'coverage'], { recording: { state: 'partial', playbackAvailability: 'permission_unavailable', expiresAt: '2099-01-01', epochs: [epoch('good', 0, 10000)] } }));
+  await waitFor(() => expect(onCoverage).toHaveBeenLastCalledWith([]));
+  unmount();
+});

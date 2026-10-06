@@ -45,6 +45,22 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
+test('a jurisdiction change resets incompatible bill sessions', async () => {
+  mount('/legiwatch?tab=research&researchView=coverage&jurisdiction=US&session=119');
+  expect(screen.getByRole('textbox', { name: 'Bill session' })).toHaveValue('119');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Jurisdiction' }), { target: { value: 'FL' } });
+  expect(screen.getByRole('textbox', { name: 'Bill session' })).toHaveValue(String(new Date().getFullYear()));
+  await waitFor(() => expect(mocks.get).toHaveBeenCalledWith(expect.stringContaining('jurisdiction=FL&sessionKey=' + new Date().getFullYear())));
+});
+
+test('a federal statute deep link does not request Florida material under a federal scope', async () => {
+  mount('/legiwatch?tab=research&researchView=statutes&jurisdiction=US&session=119&researchQuery=395.003');
+  expect(screen.getByText(/Statute and Constitution lookup is available for Florida/)).toBeTruthy();
+  expect(mocks.get.mock.calls.some(([url]) => url.includes('/references?'))).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'Use Florida legal sources' }));
+  await waitFor(() => expect(mocks.get).toHaveBeenCalledWith(expect.stringContaining('/references?jurisdiction=FL')));
+});
+
 function Switch() {
   const [, set] = useSearchParams();
   return (

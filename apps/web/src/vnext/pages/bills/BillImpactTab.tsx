@@ -21,11 +21,13 @@ export function BillImpactTab({
     return (
       <div className="b360-empty">
         <CapiroEmptyState title="No Program Element or procurement-line impacts linked to this bill." />
+        <p>A client-specific impact assessment is not available here. Review the bill’s published text and your client’s priorities before drawing an impact conclusion.</p>
       </div>
     );
   }
   return (
     <>
+      <p>These are documented funding links. They do not establish a client-specific impact assessment.</p>
       <FundingPositionTable
         title="Program Element & procurement-line impacts"
         count={rows.length}
