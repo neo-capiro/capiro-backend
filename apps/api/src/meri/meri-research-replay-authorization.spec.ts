@@ -51,6 +51,47 @@ function document(contentHash = 'a'.repeat(64)) {
   };
 }
 
+function listing(
+  generatedAt = '2026-10-06T17:31:17.000Z',
+  documents: Array<Record<string, unknown>> = [
+    {
+      id: 'document-1',
+      fileName: 'capabilities.pdf',
+      contentType: 'application/pdf',
+      byteSize: 1200,
+      createdAt: '2026-09-28T00:00:00.000Z',
+      extractionStatus: 'pending',
+      extractionMetadata: null,
+    },
+    {
+      id: 'document-2',
+      fileName: 'supply-chain.docx',
+      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      byteSize: 800,
+      createdAt: '2026-09-29T00:00:00.000Z',
+      extractionStatus: 'pending',
+      extractionMetadata: null,
+    },
+  ],
+) {
+  return {
+    tool: 'read_client_documents',
+    generatedAt,
+    clientId: 'client-1',
+    coverage: {
+      total: documents.length,
+      returned: documents.length,
+      truncated: false,
+      nextCursor: null,
+      complete: true,
+      paginationComplete: true,
+      query: null,
+      queryAppliesTo: 'fileName',
+    },
+    documents,
+  };
+}
+
 describe('durable replay current-owner authorization adapters', () => {
   it('supports only finite canonical memory, document, debrief, and mail owners', () => {
     expect(supportsDurableOwnerReauthorization('search_memory')).toBe(true);
@@ -75,6 +116,29 @@ describe('durable replay current-owner authorization adapters', () => {
     expect(currentOwnerResultAuthorizesReplay('search_memory', memory(), live)).toBe(true);
     live.records[0]!.updatedAt = new Date('2026-09-29T00:00:00.000Z') as never;
     expect(currentOwnerResultAuthorizesReplay('search_memory', memory(), live)).toBe(false);
+  });
+
+  it('re-checks a file listing by the identity of the files it showed', () => {
+    const saved = listing();
+    // Live: a later read, Date upload times, and extraction state updated by reading a file.
+    const live = listing('2026-10-06T17:39:24.000Z');
+    for (const row of live.documents) {
+      row.createdAt = new Date(String(row.createdAt));
+      row.extractionStatus = 'extracted';
+      row.extractionMetadata = { lastSectionRead: { extractedAt: '2026-10-06T17:32:00.000Z' } };
+    }
+    expect(currentOwnerResultAuthorizesReplay('read_client_documents', saved, live)).toBe(true);
+
+    const renamed = listing();
+    renamed.documents[1]!.fileName = 'renamed.docx';
+    expect(currentOwnerResultAuthorizesReplay('read_client_documents', saved, renamed)).toBe(false);
+    const revoked = listing(undefined, [listing().documents[0]!]);
+    expect(currentOwnerResultAuthorizesReplay('read_client_documents', saved, revoked)).toBe(false);
+    expect(currentOwnerResultAuthorizesReplay('read_client_documents', saved, document())).toBe(
+      false,
+    );
+    const empty = listing(undefined, []);
+    expect(currentOwnerResultAuthorizesReplay('read_client_documents', empty, empty)).toBe(true);
   });
 
   it('rejects unversioned projections while preserving owner-proven empty results', () => {
