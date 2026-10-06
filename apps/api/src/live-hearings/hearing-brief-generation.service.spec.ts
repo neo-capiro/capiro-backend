@@ -37,7 +37,12 @@ function prefill(findings: Array<Record<string, unknown>> = []) {
 }
 
 function harness(input: {
-  segments?: Array<{ sequence: number; startMs: number; text: string; speakerLabel: string | null }>;
+  segments?: Array<{
+    sequence: number;
+    startMs: number;
+    text: string;
+    speakerLabel: string | null;
+  }>;
   completion?: string | Error;
   credential?: null;
   findings?: Array<Record<string, unknown>>;
@@ -58,7 +63,8 @@ function harness(input: {
       fn({ client: { findFirst: jest.fn(async () => client) } }),
     ),
     $queryRawUnsafe: jest.fn(async (sql: string) => {
-      if (sql.includes('FROM public_hearing_capture')) return input.segments ? [{ id: 'cap-1' }] : [];
+      if (sql.includes('FROM public_hearing_capture'))
+        return input.segments ? [{ id: 'cap-1', status: 'COMPLETE', gaps: [] }] : [];
       if (sql.includes('FROM public_hearing_transcript_segment')) return input.segments ?? [];
       return [];
     }),
@@ -78,11 +84,17 @@ function harness(input: {
           input.completion ??
           JSON.stringify({
             title: 'Acme Aerospace — Defense posture hearing recap',
-            sections: [
-              { name: 'Executive summary', content: 'Short summary.' },
-              { name: 'Key exchanges', content: '- Exchange one [00:05]' },
+            sections: (_req.userVolatile.match(/Sections, in order: (.*)\./)?.[1] ?? '')
+              .split(' | ')
+              .map((name) => ({
+                name,
+                content: input.segments?.length
+                  ? 'Recorded exchange [00:00].'
+                  : 'Agenda and client profile.',
+              })),
+            keyMoments: [
+              { startMs: 5000, speaker: 'Jane Q. Smith', summary: 'Opened the hearing' },
             ],
-            keyMoments: [{ startMs: 5000, speaker: 'Jane Q. Smith', summary: 'Opened the hearing' }],
             sources: ['Official page'],
           }),
         raw: { usage: { input_tokens: 10, output_tokens: 20 } },
@@ -129,8 +141,8 @@ describe('selectBriefExcerpt', () => {
       text: `turn ${i} `.repeat(20),
     }));
     const lines = selectBriefExcerpt(turns, [4_990_000], new Map([['0', 'Jane Q. Smith']]));
-    expect(lines.length).toBeLessThanOrEqual(120);
-    expect(lines.join('\n').length).toBeLessThanOrEqual(30_000);
+    expect(lines.length).toBeLessThanOrEqual(600);
+    expect(lines.join('\n').length).toBeLessThanOrEqual(120_000);
     expect(lines.some((line) => line.includes('turn 499 '))).toBe(true);
     expect(lines[0]).toMatch(/^\[00:00\] Jane Q\. Smith: /);
     expect(lines.some((line) => line.includes('Speaker 2:'))).toBe(true);
@@ -162,7 +174,10 @@ describe('normalizeSections', () => {
 describe('HearingBriefGenerationService.generate', () => {
   it('writes a preparation brief when no transcript exists', async () => {
     const { service, llm } = harness({});
-    const brief = await service.generate(ctx, 'hearing-1', { clientId: 'client-1', focus: 'FY27 marks' });
+    const brief = await service.generate(ctx, 'hearing-1', {
+      clientId: 'client-1',
+      focus: 'FY27 marks',
+    });
     expect(brief.mode).toBe('preparation');
     expect(brief.sections.map((s) => s.name)).toEqual([
       'Hearing overview',
@@ -178,7 +193,7 @@ describe('HearingBriefGenerationService.generate', () => {
     expect(request.userVolatile).toContain('FY27 marks');
     expect(request.userStatic).toContain('Composite airframe parts');
     expect(brief.contextPacket).toMatchObject({ mode: 'preparation', focus: 'FY27 marks' });
-    expect(brief.lowConfidence).toBe(true);
+    expect(brief.lowConfidence).toBe(false);
   });
 
   it('writes a recap brief with resolved speaker names when a transcript exists', async () => {
@@ -204,14 +219,17 @@ describe('HearingBriefGenerationService.generate', () => {
     expect(brief.mode).toBe('recap');
     expect(speakers.resolve).toHaveBeenCalledWith('hearing-1', { force: false, ctx });
     const request = llm.complete.mock.calls[0]![0];
-    expect(request.userVolatile).toContain('[00:00] Jane Q. Smith: The committee will come to order.');
+    expect(request.userVolatile).toContain(
+      '[00:00] Jane Q. Smith: The committee will come to order.',
+    );
     expect(request.userVolatile).toContain('[00:05] Speaker 2: Thank you, Chair.');
     expect(request.userVolatile).toContain('"speakerName":"Jane Q. Smith"');
     expect(brief.title).toBe('Acme Aerospace — Defense posture hearing recap');
-    expect(brief.keyMoments).toEqual([{ startMs: 5000, speaker: 'Jane Q. Smith', summary: 'Opened the hearing' }]);
+    expect(brief.keyMoments).toEqual([
+      { startMs: 5000, speaker: 'Speaker 2', summary: 'Opened the hearing' },
+    ]);
     expect(brief.sources).toEqual([
       { kind: 'hearing', id: 'hearing-1', path: '/legiwatch/hearings/hearing-1' },
-      { kind: 'model_cited', label: 'Official page' },
     ]);
   });
 
@@ -221,7 +239,9 @@ describe('HearingBriefGenerationService.generate', () => {
     expect(brief.mode).toBe('preparation');
     // Falls back to the prefill's own client (possibly null) and to whatever
     // witnesses loadRoster returned, rather than throwing on the absent client.
-    expect(brief.contextPacket).toMatchObject({ client: { id: 'client-1', name: 'Acme Aerospace' } });
+    expect(brief.contextPacket).toMatchObject({
+      client: { id: 'client-1', name: 'Acme Aerospace' },
+    });
     expect(speakers.loadRoster).toHaveBeenCalledWith('hearing-1');
   });
 
@@ -233,7 +253,11 @@ describe('HearingBriefGenerationService.generate', () => {
     };
     const noClientPrefill = {
       ...prefill([]),
-      context: { ...prefill([]).context, client: null, hearing: { ...prefill([]).context.hearing, witnesses: [] } },
+      context: {
+        ...prefill([]).context,
+        client: null,
+        hearing: { ...prefill([]).context.hearing, witnesses: [] },
+      },
     };
     const wave1 = { buildBriefPrefill: jest.fn(async () => noClientPrefill) };
     const noClientPrisma = {
@@ -254,7 +278,15 @@ describe('HearingBriefGenerationService.generate', () => {
       complete: jest.fn(async () => ({
         text: JSON.stringify({
           title: 'Preparation brief',
-          sections: [{ name: 'Hearing overview', content: 'x' }],
+          sections: [
+            'Hearing overview',
+            'Why it matters to the client',
+            'Members to watch',
+            'Witnesses and expected positions',
+            'Likely questions and suggested asks',
+            'Preparation checklist',
+            'Sources and limitations',
+          ].map((name) => ({ name, content: 'Agenda context.' })),
           keyMoments: [],
           sources: [],
         }),
@@ -278,23 +310,34 @@ describe('HearingBriefGenerationService.generate', () => {
 
   it('fails fast with 503 when the tenant has no AI credential', async () => {
     const { service, llm } = harness({ credential: null });
-    await expect(service.generate(ctx, 'hearing-1', { clientId: 'client-1' })).rejects.toBeInstanceOf(
-      ServiceUnavailableException,
-    );
+    await expect(
+      service.generate(ctx, 'hearing-1', { clientId: 'client-1' }),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
     expect(llm.complete).not.toHaveBeenCalled();
   });
 
-  it('falls back to a grounded scaffold when the model call fails', async () => {
+  it('withholds a draft when the provider fails', async () => {
     const { service } = harness({ completion: new Error('upstream 529') });
-    const brief = await service.generate(ctx, 'hearing-1', { clientId: 'client-1' });
-    expect(brief.lowConfidence).toBe(true);
-    expect(brief.sections).toHaveLength(7);
-    expect(brief.sections[0]!.content).toContain('Defense posture');
+    await expect(
+      service.generate(ctx, 'hearing-1', { clientId: 'client-1' }),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
   });
 
-  it('flags truncated output as low confidence', async () => {
-    const { service } = harness({ truncated: true });
-    const brief = await service.generate(ctx, 'hearing-1', { clientId: 'client-1' });
-    expect(brief.lowConfidence).toBe(true);
+  it('withholds incomplete or truncated output rather than saving a scaffold', async () => {
+    for (const input of [{ truncated: true }, { completion: '{"sections":[]}' }]) {
+      const { service } = harness(input);
+      await expect(
+        service.generate(ctx, 'hearing-1', { clientId: 'client-1' }),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    }
+  });
+
+  it('does not label a completed hearing with no transcript as preparation', async () => {
+    const { service, wave1, llm } = harness({});
+    const packet = prefill();
+    packet.context.hearing.eventStatus = 'completed';
+    wave1.buildBriefPrefill.mockResolvedValue(packet);
+    await expect(service.generate(ctx, 'hearing-1', {})).rejects.toThrow('usable transcript');
+    expect(llm.complete).not.toHaveBeenCalled();
   });
 });

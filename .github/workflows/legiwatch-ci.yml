@@ -153,6 +153,9 @@ jobs:
       - name: Tests — state bill supporting document records
         run: pnpm --filter @capiro/api exec tsx scripts/verify-state-document-records.ts
 
+      - name: Tests — automatic public recording policy
+        run: pnpm --filter @capiro/api exec tsx scripts/verify-public-audio-policy.ts
+
       - name: Tests — saved hearing association SQL
         env:
           DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5432/legiwatch_test
@@ -333,6 +336,7 @@ jobs:
           src/hearing/capture/public-hearing-capture-state.spec.ts
           src/hearing/capture/public-hearing-capture.store.closeout.spec.ts
           src/hearing/capture/public-hearing-capture.store.spec.ts
+          src/hearing/capture/global-public-audio-policy.spec.ts
           src/hearing/capture/public-hearing-transcript.store.spec.ts
           src/hearing/capture/server-deepgram-stream.manager.spec.ts
           src/hearing/capture/stream-preflight-policy.spec.ts

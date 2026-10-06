@@ -87,6 +87,58 @@ function directoryPdfObservations(sourceEvidence: unknown): JsonRecord[] {
   });
 }
 
+/** Resolve an assignment already attached to a stable legislator ID by the
+ * reviewed directory importer. Both subjects and the same published edition
+ * must agree; this never matches people by display name or guesses an alias. */
+export function floridaDirectoryCommitteeAssignment(
+  committee: { officialSourceKey: string | null; name: string; sourceEvidence: unknown },
+  legislator: {
+    state: string;
+    chamber: string | null;
+    district: string | null;
+    sourceEvidence: unknown;
+  },
+): { role: string | null; asOfDate: string } | null {
+  if (legislator.state !== 'FL' || !committee.officialSourceKey?.startsWith('FL:2026:'))
+    return null;
+  const chamber = committee.officialSourceKey.includes(':house:')
+    ? 'lower'
+    : committee.officialSourceKey.includes(':senate:')
+      ? 'upper'
+      : null;
+  if (!chamber || legislator.chamber !== chamber) return null;
+  const body = directoryPdfObservations(committee.sourceEvidence)[0];
+  const person = directoryPdfObservations(legislator.sourceEvidence)[0];
+  if (!body || !person) return null;
+  const bodySubject = record(body.subject);
+  const personSubject = record(person.subject);
+  const bodySource = record(body.source);
+  const personSource = record(person.source);
+  const hash = text(bodySource?.sha256);
+  const asOfDate = isoDate(bodySource?.asOfDate);
+  if (
+    bodySubject?.kind !== 'committee' ||
+    bodySubject.officialSourceKey !== committee.officialSourceKey ||
+    bodySubject.name !== committee.name ||
+    personSubject?.kind !== 'legislator' ||
+    personSubject.state !== 'FL' ||
+    personSubject.chamber !== chamber ||
+    personSubject.district !== legislator.district ||
+    !legislator.district ||
+    !hash ||
+    !/^[a-f0-9]{64}$/i.test(hash) ||
+    personSource?.sha256 !== hash ||
+    !asOfDate ||
+    isoDate(personSource?.asOfDate) !== asOfDate
+  )
+    return null;
+  const matches = (Array.isArray(person.committeeAssignments) ? person.committeeAssignments : [])
+    .map(record)
+    .filter((row) => row?.name === committee.name);
+  if (matches.length !== 1) return null;
+  return { role: text(matches[0]?.role), asOfDate };
+}
+
 function normalized(value: string): string {
   return value
     .normalize('NFKD')

@@ -3,6 +3,7 @@ import type { Prisma } from '../../generated/prisma-client/index.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import type { HearingEvidence } from './publication-domain.js';
 import { evidenceHash } from './publication-domain.js';
+import { globalPublicAudioSource } from './capture/global-public-audio-policy.js';
 
 export type PublicReviewCapture = {
   id: string;
@@ -27,6 +28,12 @@ export async function publicReviewCapture(
       AND (${captureId ?? null}::text IS NULL OR c.id=${captureId ?? null}) FOR SHARE OF h`;
   const capture = captures[0];
   if (!capture) throw new NotFoundException('CANONICAL_PUBLIC_CAPTURE_REQUIRED');
+  const global = await globalPublicAudioSource(tx, hearingId, {
+    sourceUrl: capture.sourceUrl,
+    tenantId: ctx.tenantId,
+    clerkUserId: ctx.clerkUserId,
+  });
+  if (global) return capture;
   const grants = await tx.$queryRaw<
     Array<{ id: string }>
   >`SELECT p.id FROM intel_hearing_media_permission p

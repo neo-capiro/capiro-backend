@@ -45,8 +45,7 @@ const QUICK_PROMPTS = [
 const DANGER = { color: 'var(--lw-danger, #b42318)' };
 
 function generateError(err: unknown): string {
-  const status = (err as { response?: { status?: number } } | null)?.response?.status;
-  return status === 503 ? 'No AI credential is configured for this tenant.' : w1Error(err);
+  return w1Error(err);
 }
 
 interface ChatMessage {
@@ -206,8 +205,7 @@ export function CreateBriefDialog({
     saveToClient.mutate(
       { ...exportInput(), clientId },
       {
-        onSuccess: () =>
-          setClientSaveNotice(`Saved to ${clientName ?? 'the client'}'s Documents.`),
+        onSuccess: () => setClientSaveNotice(`Saved to ${clientName ?? 'the client'}'s Documents.`),
         onError: (err) => setClientSaveError(w1Error(err)),
       },
     );
@@ -299,8 +297,8 @@ export function CreateBriefDialog({
               <h3>{brief.title}</h3>
               {brief.lowConfidence ? (
                 <p role="status" className="lw-card__meta">
-                  Meri flagged this draft as low confidence. Check its claims against the
-                  transcript and sources before sharing.
+                  Meri flagged this draft as low confidence. Check its claims against the transcript
+                  and sources before sharing.
                 </p>
               ) : null}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0' }}>

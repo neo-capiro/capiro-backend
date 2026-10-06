@@ -1,5 +1,5 @@
 import { federalHearingWhere } from './hearing-geography.js';
-import { resolveCanonicalHearingId } from './hearing-alias.js';
+import { resolveCanonicalHearingId, officialHearingChamber } from './hearing-alias.js';
 /**
  * `committee_hearing` persistence for the canonical reconciler.
  *
@@ -111,13 +111,13 @@ export class CanonicalHearingRepository {
         });
         if (
           hit &&
-          (hit.chamber !== displayChamber(event.chamber) ||
+          (officialHearingChamber(hit.chamber) !== displayChamber(event.chamber) ||
             (hit.geographicJurisdiction && hit.geographicJurisdiction !== 'US'))
         )
           throw new Error('Official hearing ID is occupied by a different scope');
         if (
           hit &&
-          hit.chamber === displayChamber(event.chamber) &&
+          officialHearingChamber(hit.chamber) === displayChamber(event.chamber) &&
           (!hit.geographicJurisdiction || hit.geographicJurisdiction === 'US')
         )
           return { kind: 'id', hearingId: await this.resolveAlias(hit.id) };

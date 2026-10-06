@@ -5,6 +5,7 @@ import {
   resolveCanonicalHearingIds,
   resolveOfficialMeetingId,
   supplementCanonicalHearing,
+  officialHearingChamber,
 } from './hearing-alias.js';
 import {
   planCanonicalWrite,
@@ -29,6 +30,28 @@ function db(rows: Array<Record<string, unknown>>) {
   } as unknown as PrismaClient;
 }
 describe('durable canonical hearing aliases', () => {
+  it('normalizes Congress.gov NoChamber consistently without accepting cross-chamber or state collisions', async () => {
+    expect(officialHearingChamber('NoChamber')).toBe('Joint');
+    for (const existing of ['Joint', 'NoChamber']) {
+      expect(
+        await resolveOfficialMeetingId(
+          db([{ id: 'cm-119-338796', chamber: existing, geographicJurisdiction: 'US' }]),
+          { congress: 119, eventId: '338796', chamber: 'NoChamber' },
+        ),
+      ).toBe('cm-119-338796');
+    }
+    for (const patch of [
+      { chamber: 'House' },
+      { chamber: 'NoChamber', geographicJurisdiction: 'FL' },
+    ]) {
+      await expect(
+        resolveOfficialMeetingId(
+          db([{ id: 'cm-119-338796', geographicJurisdiction: 'US', ...patch }]),
+          { congress: 119, eventId: '338796', chamber: 'Joint' },
+        ),
+      ).rejects.toThrow('different scope');
+    }
+  });
   const canonical = {
     id: 'sen-119-338740',
     chamber: 'Senate',

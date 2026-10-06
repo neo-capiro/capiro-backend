@@ -1,15 +1,20 @@
 import type { PrismaService } from '../../prisma/prisma.service.js';
 import { Prisma } from '../../../generated/prisma-client/index.js';
 import { capturableHearingView } from '../state-capture-policy.js';
+import {
+  globalPublicAudioSource,
+  globalPublicAudioRetentionDays,
+} from './global-public-audio-policy.js';
 
 export { stateCaptureEnabled } from '../state-capture-policy.js';
 export const publicAudioEnabled = () => process.env.HEARING_PUBLIC_AUDIO_STORAGE_ENABLED === 'true';
 
-/** An explicit source grant plus current tenant demand; never capture-all. */
+/** Explicit tenant permission, or separately opted-in approved public capture-all. */
 export async function approvedPublicCapture(
   prisma: PrismaService,
   hearingId: string,
   transaction?: Prisma.TransactionClient,
+  includeGlobal = true,
 ) {
   const read = async (tx: Prisma.TransactionClient) => {
     const canonical = await tx.$queryRaw<Array<{ id: string }>>`
@@ -18,6 +23,19 @@ export async function approvedPublicCapture(
       WHERE id=${hearingId}
       LIMIT 1`;
     if (!canonical.length) return [];
+    const global = includeGlobal
+      ? await globalPublicAudioSource(tx, hearingId, { capturing: true })
+      : null;
+    if (global) {
+      const retentionDays = globalPublicAudioRetentionDays();
+      return [
+        {
+          sourceUrl: global.sourceUrl,
+          retentionDays,
+          expiresAt: new Date(Date.now() + retentionDays * 86_400_000),
+        },
+      ];
+    }
     return tx.$queryRaw<
       Array<{
         id: string;

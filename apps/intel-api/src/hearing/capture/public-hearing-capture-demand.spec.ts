@@ -44,9 +44,26 @@ interface CaseDef {
   subs: Array<{ user: string; mode: string; byUser: boolean; byRule: string | null }>;
   expectedDemand: number;
   expectedDue: boolean;
+  startsOffsetHours?: number | null;
 }
 
 const CASES: CaseDef[] = [
+  {
+    key: 'old-scheduled',
+    type: 'hearing',
+    startsOffsetHours: -48,
+    subs: [{ user: USER_A, mode: 'automatic', byUser: true, byRule: null }],
+    expectedDemand: 1,
+    expectedDue: false,
+  },
+  {
+    key: 'undated-scheduled',
+    type: 'hearing',
+    startsOffsetHours: null,
+    subs: [{ user: USER_A, mode: 'automatic', byUser: true, byRule: null }],
+    expectedDemand: 1,
+    expectedDue: false,
+  },
   {
     key: 'browser-only',
     type: 'hearing',
@@ -189,12 +206,13 @@ describeDb('PublicHearingCaptureStore automatic demand on PostgreSQL (hearing-de
              (id, chamber, committee_name, title, date, starts_at, type, url,
               visibility, event_status)
            VALUES ($1, 'senate', 'Synthetic demand QA', 'Demand contract case',
-                   CURRENT_DATE, now() + interval '2 hours', $2,
+                   CURRENT_DATE, now() + ($5::integer * interval '1 hour'), $2,
                    'https://example.invalid/' || $1, $3, $4)`,
           hearingId(c.key),
           c.type,
           c.visibility ?? 'public',
           c.eventStatus ?? 'scheduled',
+          c.startsOffsetHours === undefined ? 2 : c.startsOffsetHours,
         );
         for (const sub of c.subs) {
           await tx.$executeRawUnsafe(
@@ -234,9 +252,7 @@ describeDb('PublicHearingCaptureStore automatic demand on PostgreSQL (hearing-de
         USER_B,
       );
       await tx.$executeRawUnsafe(`DELETE FROM tenants WHERE id = $1::uuid`, TENANT);
-      await tx.$executeRawUnsafe(
-        `DELETE FROM committee_hearing WHERE id LIKE '${PREFIX}-%'`,
-      );
+      await tx.$executeRawUnsafe(`DELETE FROM committee_hearing WHERE id LIKE '${PREFIX}-%'`);
     });
     await prisma.$disconnect();
     if (priorCaptureAll === undefined) delete process.env.LEGIWATCH_CAPTURE_ALL_PUBLIC_EVENTS;
@@ -259,12 +275,8 @@ describeDb('PublicHearingCaptureStore automatic demand on PostgreSQL (hearing-de
     // demand; the due scan alone would not stop a direct worker invocation,
     // so assertCaptureAllowed must refuse them through the existing
     // permission boundary while the eligible official type passes.
-    await expect(
-      store.assertCaptureAllowed(hearingId('private-open-hearing')),
-    ).rejects.toThrow();
-    await expect(
-      store.assertCaptureAllowed(hearingId('canceled-open-hearing')),
-    ).rejects.toThrow();
+    await expect(store.assertCaptureAllowed(hearingId('private-open-hearing'))).rejects.toThrow();
+    await expect(store.assertCaptureAllowed(hearingId('canceled-open-hearing'))).rejects.toThrow();
     await expect(
       store.assertCaptureAllowed(hearingId('official-open-hearing')),
     ).resolves.toBeUndefined();

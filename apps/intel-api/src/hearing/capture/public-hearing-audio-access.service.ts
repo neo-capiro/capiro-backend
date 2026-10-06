@@ -11,6 +11,7 @@ import {
   HEARING_RECORDING_FEATURE,
 } from '../../feature-flags/feature-flag.service.js';
 import { RecordingStorageService } from '../recording/recording-storage.service.js';
+import { globalPublicAudioSource } from './global-public-audio-policy.js';
 
 @Injectable()
 export class PublicHearingAudioAccessService {
@@ -22,6 +23,13 @@ export class PublicHearingAudioAccessService {
   private async sources(ctx: WorkspaceTenantContext, hearingId: string) {
     if (!(await this.flags.isEnabled(HEARING_RECORDING_FEATURE, ctx.tenantId)))
       throw new NotFoundException('Recording unavailable');
+    const global = await this.prisma.withSystem((tx) =>
+      globalPublicAudioSource(tx, hearingId, {
+        tenantId: ctx.tenantId,
+        clerkUserId: ctx.clerkUserId,
+      }),
+    );
+    if (global) return [{ source_url: global.sourceUrl }];
     return this.prisma.withSystem(
       (tx) => tx.$queryRaw<
         Array<{ source_url: string }>
