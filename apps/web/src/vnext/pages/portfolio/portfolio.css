@@ -294,6 +294,11 @@
   color: var(--capiro-color-text-primary);
   border-color: var(--capiro-color-border-quiet);
 }
+/* Same greyed treatment as the rail's disabled entries (shell-uui.css). */
+.capiro-portfolio__filter:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .capiro-portfolio__filter-count {
   font-size: 12px;
   color: var(--capiro-color-text-faint);

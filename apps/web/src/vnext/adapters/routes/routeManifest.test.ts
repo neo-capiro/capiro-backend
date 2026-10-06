@@ -62,13 +62,42 @@ describe('routeManifest — Portfolio inline navigation', () => {
     expect(portfolio?.children?.some((child) => child.label === 'Defense Budget')).toBe(false);
   });
 
-  it('hides Business Development until the tenant flag is on', () => {
+  it('links Business Development only for capiro-internal with the tenant flag on', () => {
     const portfolio = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'portfolio');
     const children = portfolio?.children ?? [];
-    expect(visibleVNextRoutes(children, {}).map((child) => child.id)).not.toContain('portfolio-business-development');
-    const visible = visibleVNextRoutes(children, { meFeatures: { businessDevelopment: true } });
-    expect(visible.map((child) => child.id)).toContain('portfolio-business-development');
-    expect(visible.map((child) => child.path)).toContain('/clients?view=business-development');
+    const bizDev = (context: Parameters<typeof visibleVNextRoutes>[1]) =>
+      visibleVNextRoutes(children, context).find((child) => child.id === 'portfolio-business-development');
+
+    expect(
+      bizDev({ tenantSlug: 'capiro-internal', meFeatures: { businessDevelopment: true } })?.path,
+    ).toBe('/clients?view=business-development');
+  });
+
+  it('greys out Business Development (shown, no path) for everyone else', () => {
+    const portfolio = VNEXT_ROUTE_MANIFEST.find((route) => route.id === 'portfolio');
+    const children = portfolio?.children ?? [];
+    const bizDev = (context: Parameters<typeof visibleVNextRoutes>[1]) =>
+      visibleVNextRoutes(children, context).find((child) => child.id === 'portfolio-business-development');
+
+    for (const context of [
+      { tenantSlug: 'acme-federal', meFeatures: { businessDevelopment: true } },
+      { tenantSlug: 'acme-federal' },
+      { tenantSlug: 'capiro-internal' },
+      { meFeatures: { businessDevelopment: true } },
+      {},
+    ]) {
+      const entry = bizDev(context);
+      expect(entry?.label).toBe('Business Development');
+      expect(entry?.path).toBeNull();
+    }
+  });
+
+  it('keeps hiding meFeature entries without enabledTenantSlugs when the feature is off', () => {
+    const routes = [
+      { id: 'x', label: 'X', path: '/x', availability: 'existing' as const, meFeature: 'x' },
+    ];
+    expect(visibleVNextRoutes(routes, { tenantSlug: 'capiro-internal' })).toEqual([]);
+    expect(visibleVNextRoutes(routes, { meFeatures: { x: true } })[0]?.path).toBe('/x');
   });
 
   it('can hide the Research Portfolios entry without changing its stable route', () => {

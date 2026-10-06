@@ -63,6 +63,7 @@ const MEMBERS = [
 
 interface MockConfig {
   meFeatures?: Record<string, boolean | undefined>;
+  tenantSlug?: string;
   role?: string;
   listError?: boolean;
   prospects?: BizDevProspect[];
@@ -217,7 +218,7 @@ vi.mock('../../../lib/me.js', () => ({
         tourCompleted: true,
         legiwatchIntroSeen: true,
       },
-      tenant: { id: 't-1', slug: 'test', name: 'Test' },
+      tenant: { id: 't-1', slug: meConfig.tenantSlug ?? 'capiro-internal', name: 'Test' },
       role: meConfig.role ?? 'user_admin',
       billingAdmin: false,
       features: { meetingsV2: false, meriDockUndockUi: false, ...(meConfig.meFeatures ?? {}) },
@@ -265,7 +266,7 @@ describe('Business Development flag gating', () => {
     expect(apiMock.get).not.toHaveBeenCalledWith(
       expect.stringContaining('/api/business-development'),
     );
-    expect(screen.queryByText('Business Development')).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Business Development' })).toBeDisabled();
     expect(screen.queryByText('Add prospect')).not.toBeInTheDocument();
   });
 
@@ -273,6 +274,28 @@ describe('Business Development flag gating', () => {
     renderAt('?view=business-development', {});
     await waitFor(() => expect(screen.getByText('Portfolio')).toBeInTheDocument());
     expect(screen.queryByText('Add prospect')).not.toBeInTheDocument();
+  });
+
+  it('greys out the tab for any tenant other than capiro-internal, even with the flag on', async () => {
+    renderAt('?view=business-development', {
+      tenantSlug: 'acme-federal',
+      meFeatures: { businessDevelopment: true },
+    });
+    await waitFor(() => expect(screen.getByText('Portfolio')).toBeInTheDocument());
+    const bizDevTab = screen.getByRole('tab', { name: 'Business Development' });
+    expect(bizDevTab).toBeDisabled();
+    expect(bizDevTab).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tab', { name: 'Clients' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByText('Add prospect')).not.toBeInTheDocument();
+    expect(apiMock.get).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/business-development'),
+    );
+  });
+
+  it('keeps the tab clickable for capiro-internal with the flag on', async () => {
+    renderAt('', { meFeatures: { businessDevelopment: true } }, <VNextClientCrmRoute />);
+    await waitFor(() => expect(screen.getByText(/Every client account/)).toBeInTheDocument());
+    expect(screen.getByRole('tab', { name: 'Business Development' })).toBeEnabled();
   });
 });
 

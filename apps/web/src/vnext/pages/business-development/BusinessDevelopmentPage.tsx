@@ -4,6 +4,7 @@ import { UseMutationResult, useMutation, useQuery, useQueryClient } from '@tanst
 import { hasAtLeast } from '@capiro/shared';
 import { useApi } from '../../../lib/use-api.js';
 import { useMe } from '../../../lib/me.js';
+import { businessDevelopmentAvailable } from './bizdev-access.js';
 import { CapiroButton, CapiroIconButton } from '../../components/actions/index.js';
 import { CapiroDrawer, CapiroModal } from '../../components/overlays/index.js';
 import { CapiroEmptyState, CapiroErrorState } from '../../components/feedback/index.js';
@@ -2983,14 +2984,16 @@ function Pipeline({
 /**
  * Portfolio → Business Development (Phase 1).
  *
- * FAILS CLOSED on `me.features.businessDevelopment`: absent, loading, errored
- * or false all render the ordinary Clients Portfolio instead — the view, its
- * queries and its endpoints only exist when the tenant flag is exactly true.
- * The API independently 404s every business-development route when off.
+ * FAILS CLOSED on `businessDevelopmentAvailable`: a tenant other than
+ * capiro-internal, or an absent, loading, errored or false
+ * `me.features.businessDevelopment`, all render the ordinary Clients Portfolio
+ * instead — the view, its queries and its endpoints only exist for
+ * capiro-internal with the tenant flag exactly true. The API independently
+ * 404s every business-development route when the flag is off.
  */
 export function BusinessDevelopmentPage() {
   const me = useMe();
-  if (me.data?.features.businessDevelopment === true) {
+  if (businessDevelopmentAvailable(me.data)) {
     return (
       <Pipeline
         tenantId={me.data.tenant.id}

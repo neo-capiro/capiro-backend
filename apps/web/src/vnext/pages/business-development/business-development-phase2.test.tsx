@@ -346,7 +346,7 @@ vi.mock('../../../lib/me.js', () => ({
         tourCompleted: true,
         legiwatchIntroSeen: true,
       },
-      tenant: { id: 't-1', slug: 'test', name: 'Test' },
+      tenant: { id: 't-1', slug: 'capiro-internal', name: 'Test' },
       role: 'user_admin',
       billingAdmin: false,
       features: {
