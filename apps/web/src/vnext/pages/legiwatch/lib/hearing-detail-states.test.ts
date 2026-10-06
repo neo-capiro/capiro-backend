@@ -6,6 +6,7 @@ import {
   hearingNavigationTarget,
   isClosedSession,
   speakerDisplay,
+  streamStatusLabel,
   transcriptAvailability,
 } from './hearing-detail-states.js';
 
@@ -26,6 +27,14 @@ function event(
 }
 
 describe('hearing detail — public-access classification (LW-QA-002)', () => {
+  it('describes stream availability without exposing enum values or promising a recording', () => {
+    expect(streamStatusLabel('READY_FOR_SERVER_CAPTURE')).toBe('Stream ready');
+    expect(streamStatusLabel(' browser_capture_only ')).toBe('Browser recording only');
+    expect(streamStatusLabel('SOURCE_ERROR')).toBe('Stream unavailable');
+    expect(streamStatusLabel(undefined)).toBe('Not yet checked');
+    expect(streamStatusLabel('UNRECOGNIZED_INTERNAL_STATE')).toBe('Status unavailable');
+  });
+
   it('CLOSED / PRIVATE are closed sessions', () => {
     expect(classifyPublicAccess('CLOSED')).toBe('closed');
     expect(classifyPublicAccess('PRIVATE')).toBe('closed');

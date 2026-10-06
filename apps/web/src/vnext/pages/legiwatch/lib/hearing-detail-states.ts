@@ -30,6 +30,27 @@ export function accessPillLabel(publicAccessStatus: string | null | undefined): 
   return 'ACCESS UNVERIFIED';
 }
 
+/** Source availability is distinct from a completed or authorized recording. */
+export function streamStatusLabel(state: string | null | undefined): string {
+  const labels: Record<string, string> = {
+    NOT_CHECKED: 'Not yet checked',
+    WAITING_FOR_STREAM: 'Waiting for stream',
+    READY: 'Stream ready',
+    READY_FOR_SERVER_CAPTURE: 'Stream ready',
+    LIVE: 'Live',
+    ENDED: 'Ended',
+    ARCHIVED: 'Archived',
+    NO_PUBLIC_STREAM: 'No public stream',
+    BROWSER_ONLY: 'Browser recording only',
+    BROWSER_CAPTURE_ONLY: 'Browser recording only',
+    POLICY_BLOCKED: 'Stream access restricted',
+    SOURCE_ERROR: 'Stream unavailable',
+    CANCELED: 'Canceled',
+    CANCELLED: 'Canceled',
+  };
+  return labels[state?.trim().toUpperCase() || 'NOT_CHECKED'] ?? 'Status unavailable';
+}
+
 type EventForAvailability = Partial<
   Pick<CanonicalHearingEvent, 'eventStatus' | 'publicAccessStatus' | 'capture'>
 >;

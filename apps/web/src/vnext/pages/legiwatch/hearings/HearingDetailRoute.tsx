@@ -32,6 +32,7 @@ import {
   accessPillLabel,
   isClosedSession,
   speakerDisplay,
+  streamStatusLabel,
   transcriptAvailability,
 } from '../lib/hearing-detail-states.js';
 import { LwPill, LwButton, LwSkeleton } from '../lib/primitives.js';
@@ -429,7 +430,7 @@ export function HearingDetailRoute() {
                   eventStatus={e.eventStatus}
                 />
                 <dt>Stream status</dt>
-                <dd>{e.streamState ?? 'NOT_CHECKED'}</dd>
+                <dd>{streamStatusLabel(e.streamState)}</dd>
                 <dt>Witnesses</dt>
                 <dd>
                   {e.witnesses?.length ? e.witnesses.map((w) => w.name).join(', ') : 'None listed'}
