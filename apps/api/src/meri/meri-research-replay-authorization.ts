@@ -33,6 +33,11 @@ import {
   canonicalActionItemReauthorizationInput,
 } from './meri-action-item-read.proof.js';
 import { withMeriChatAttachmentReadScope } from './meri-chat-attachment-read-scope.js';
+import {
+  assertResearchProducerInputsCurrent,
+  readResearchProducerInputManifest,
+  type ResearchProducerInputManifestV1,
+} from './meri-research-producer-inputs.js';
 
 const SUPPORTED_OWNER_TOOLS = new Set([
   'search_memory',
@@ -361,8 +366,14 @@ export interface ResearchReportReadScope {
     leaseEpoch: number;
     toolsUsed: string[];
     producerInputSha256: string;
-    producerInputMode: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+    producerInputMode:
+      | 'source_free'
+      | 'covered_inputs'
+      | 'governed_inputs'
+      | 'unsupported_private_inputs';
     clientContextSha256: string | null;
+    /** Pinned at publication for governed inputs; persisted in private session metadata. */
+    producerInputManifest?: ResearchProducerInputManifestV1;
   };
 }
 
@@ -466,13 +477,18 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
       let runId: string;
       let leaseEpoch: number;
       let clientContextSha256: string | null;
+      let producerInputManifest: ResearchProducerInputManifestV1 | null = null;
       if (scope.publication) {
         const declared = stringArray(scope.publication.toolsUsed);
         if (
           !declared ||
           declared.some((tool) => !publicResearchSourceTool(tool)) ||
           !/^[a-f0-9]{64}$/.test(scope.publication.producerInputSha256) ||
-          !['source_free', 'covered_inputs'].includes(scope.publication.producerInputMode) ||
+          !['source_free', 'covered_inputs', 'governed_inputs'].includes(
+            scope.publication.producerInputMode,
+          ) ||
+          (scope.publication.producerInputMode === 'governed_inputs') !==
+            Boolean(scope.publication.producerInputManifest) ||
           !(
             scope.publication.clientContextSha256 === null ||
             /^[a-f0-9]{64}$/.test(scope.publication.clientContextSha256)
@@ -491,6 +507,7 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
         runId = scope.publication.runId;
         leaseEpoch = scope.publication.leaseEpoch;
         clientContextSha256 = scope.publication.clientContextSha256;
+        producerInputManifest = scope.publication.producerInputManifest ?? null;
       } else {
         const artifactId = scope.reportArtifactId ?? session.reportArtifactId;
         if (!artifactId || session.reportArtifactId !== artifactId)
@@ -537,6 +554,15 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
         runId = artifactProof.runId;
         leaseEpoch = artifactProof.leaseEpoch;
         clientContextSha256 = artifactProof.clientContextSha256;
+        if (artifactProof.producerInputMode === 'governed_inputs') {
+          producerInputManifest = readResearchProducerInputManifest(session.metadata);
+          if (
+            !producerInputManifest ||
+            researchJsonSha256(producerInputManifest) !==
+              artifactProof.producerInputManifestSha256
+          )
+            throw new ConflictException('The research report producer proof is unavailable.');
+        }
         if (
           reportReceiptManifestSha256(allReceipts, { id: runId, leaseEpoch }, toolsUsed) !==
           artifactProof.receiptManifestSha256
@@ -573,6 +599,15 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
         if (!client || reportBodySha256(canonicalClientContext(client)) !== clientContextSha256)
           throw new ConflictException('A research producer input version changed.');
       }
+      // Governed inputs (Context Plane packet items and records, handoff
+      // attachments): each must still be current and admitted for this reader.
+      if (producerInputManifest)
+        await assertResearchProducerInputsCurrent(
+          tx,
+          ctx,
+          { sessionClientId: session.clientId, conversationId },
+          producerInputManifest,
+        );
 
       const envelopes = [];
       for (const receipt of receipts) {

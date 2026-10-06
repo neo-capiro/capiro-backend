@@ -42,14 +42,18 @@ export interface ResearchReportProvenanceV1 {
   toolsUsed: string[];
   sourceMode: 'durable_receipts' | 'producer_proven_source_free' | 'producer_current_inputs';
   producerInputSha256: string;
-  producerInputMode: 'source_free' | 'covered_inputs';
+  producerInputMode: 'source_free' | 'covered_inputs' | 'governed_inputs';
   clientContextSha256: string | null;
+  /** Present only for governed inputs: the pinned manifest in private session metadata. */
+  producerInputManifestSha256?: string;
 }
 
 export interface ResearchProducerInputCertificate {
   producerInputSha256: string;
   producerInputMode: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
   clientContextSha256: string | null;
+  /** Counts per refused category, for the publication refusal log. */
+  producerInputCategories: { unsupported: Record<string, number>; covered: Record<string, number> };
 }
 
 /**
@@ -83,6 +87,20 @@ export function certifyResearchProducerInputs(input: {
     input.contextPacketItemCount > 0 ||
     input.unreceiptedLedgerEntryCount > 0;
   const hasCoveredPrivateInputs = input.toolsUsed.length > 0 || Boolean(clientContextSha256);
+  const unsupported = Object.fromEntries(
+    (
+      [
+        ['handoff_summary', input.handoffSummaryPresent ? 1 : 0],
+        ['handoff_attachments', input.handoffAttachmentCount],
+        ['assistant_handoff_turns', input.assistantHandoffTurns],
+        ['inherited_citations', input.inheritedCitationCount],
+        ['inherited_unavailable', input.inheritedUnavailableCount],
+        ['inherited_omitted', input.inheritedOmittedCount],
+        ['context_packet_items', input.contextPacketItemCount],
+        ['unreceipted_ledger_entries', input.unreceiptedLedgerEntryCount],
+      ] as const
+    ).filter(([, count]) => count > 0),
+  );
   return {
     producerInputSha256: researchJsonSha256({
       version: 1,
@@ -104,6 +122,7 @@ export function certifyResearchProducerInputs(input: {
         ? 'covered_inputs'
         : 'source_free',
     clientContextSha256,
+    producerInputCategories: { unsupported, covered: {} },
   };
 }
 
@@ -175,6 +194,12 @@ export function buildResearchReportProvenance(
     throw new Error('A research report provenance receipt requires producer input authority.');
   }
   if (
+    (input.producerInputMode === 'governed_inputs') !==
+    SHA256_RE.test(String(input.producerInputManifestSha256 ?? ''))
+  ) {
+    throw new Error('Governed producer inputs require exactly one pinned input manifest.');
+  }
+  if (
     input.producerInputMode === 'source_free' &&
     (toolsUsed.length > 0 || input.clientContextSha256)
   ) {
@@ -228,6 +253,9 @@ export function buildResearchReportProvenance(
     producerInputSha256: input.producerInputSha256,
     producerInputMode: input.producerInputMode,
     clientContextSha256: input.clientContextSha256,
+    ...(input.producerInputManifestSha256
+      ? { producerInputManifestSha256: input.producerInputManifestSha256 }
+      : {}),
   };
 }
 
@@ -254,7 +282,12 @@ export function readResearchReportProvenance(value: unknown): ResearchReportProv
     !SHA256_RE.test(String(proof.bodySha256)) ||
     !SHA256_RE.test(String(proof.receiptManifestSha256)) ||
     !SHA256_RE.test(String(proof.producerInputSha256)) ||
-    !['source_free', 'covered_inputs'].includes(String(proof.producerInputMode)) ||
+    !['source_free', 'covered_inputs', 'governed_inputs'].includes(
+      String(proof.producerInputMode),
+    ) ||
+    (proof.producerInputMode === 'governed_inputs'
+      ? !SHA256_RE.test(String(proof.producerInputManifestSha256))
+      : proof.producerInputManifestSha256 !== undefined) ||
     !(proof.clientContextSha256 === null || SHA256_RE.test(String(proof.clientContextSha256))) ||
     !Array.isArray(proof.toolsUsed) ||
     toolsUsed.length !== proof.toolsUsed.length ||
@@ -266,7 +299,9 @@ export function readResearchReportProvenance(value: unknown): ResearchReportProv
     (proof.sourceMode === 'producer_proven_source_free') !==
       (toolsUsed.length === 0 && proof.producerInputMode === 'source_free') ||
     (proof.sourceMode === 'producer_current_inputs') !==
-      (toolsUsed.length === 0 && proof.producerInputMode === 'covered_inputs') ||
+      (toolsUsed.length === 0 &&
+        (proof.producerInputMode === 'covered_inputs' ||
+          proof.producerInputMode === 'governed_inputs')) ||
     (proof.producerInputMode === 'source_free' &&
       (toolsUsed.length > 0 || proof.clientContextSha256))
   ) {
