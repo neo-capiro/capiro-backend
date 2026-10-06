@@ -395,7 +395,17 @@ async function mappedMailSearch(
   const tools = Object.create(MeriToolsService.prototype) as any;
   tools.engagement = engagement;
   const input = { query: 'Report', asOf: MAPPED_AS_OF.toISOString() };
-  return tool === 'list_emails' ? tools.listEmails(ctx, input) : tools.searchEmails(ctx, input);
+  // This positive fixture models a freshly synced mailbox. Keep its clock at
+  // the stored sync time so wall-clock aging does not turn an authorization
+  // regression into an unrelated stale-mail rejection.
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(MAPPED_AS_OF.getTime());
+  try {
+    return await (tool === 'list_emails'
+      ? tools.listEmails(ctx, input)
+      : tools.searchEmails(ctx, input));
+  } finally {
+    clock.mockRestore();
+  }
 }
 
 function harness(
