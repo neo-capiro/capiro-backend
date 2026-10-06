@@ -567,7 +567,8 @@
     align-items: stretch;
   }
   .capiro-vnext-root .lw .lw-pagehead__actions .lw-lens { grid-column: 1 / -1; min-width: 0; width: 100%; }
-  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action {
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action,
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action--settings {
     box-sizing: border-box;
     min-width: 0;
     width: 44px;
