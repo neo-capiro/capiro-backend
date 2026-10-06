@@ -320,3 +320,19 @@ first model call (`Research provider budget rejected reservations (HTTP 409)`).
 Settled spend uses actual usage; the cap stops runaway runs only. Codified in
 `compute-stack.ts` (API environment) in the same PR as this entry.
 
+
+## LegiScan key on the API serve task (2026-10-06 UTC, Neo's OK; Meri live state-bill lookup)
+
+Configuration revision (deployment plan §2.5), secret only, same image digest
+(`sha256:8ba4408b…`, `d53a5919e`): `capiro-dev-api:602` → `capiro-dev-api:603`.
+
+| Secret | Before | After |
+| --- | --- | --- |
+| `LEGISCAN_API_KEY` | unset | `capiro/dev/legiscan_api_key` |
+
+Why: #2098 lets `get_state_bill_status` and the other state tools look up an
+exact designation in LegiScan when the hourly sync has not stored it yet,
+within a 1,000-query monthly live budget inside the shared 28,000 soft budget.
+No IAM change: the execution role already reads `capiro/dev/*` through
+`CapiroDevRuntimeSecretsRead`. Codified in `compute-stack.ts` (serve secrets
+and the execution-role secret patterns) in the same PR as this entry.
