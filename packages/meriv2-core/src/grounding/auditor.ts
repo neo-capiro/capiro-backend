@@ -257,11 +257,15 @@ export function checkQuoteSpans(output: string, ledger: ToolResultLedger): Audit
 
 // An AUTHORIZATION subject doing an APPROPRIATIONS action, in the SAME clause
 // (no . or ; between), and not an enumeration ("NDAA and appropriations …").
+// The action must be a verb ("appropriates", "funds $…", "provides the money"):
+// the noun labels "appropriations"/"authorization" name a vehicle and are how a
+// correct sentence keeps the two apart ("HASC and SASC authorization marks and
+// the HAC-D appropriations mark each equal the request").
 const AUTH_DOES_APPROP =
-  /\b(?:NDAA|authoriz\w+|HASC|SASC)\b(?!\s+(?:and|or|,|nor))[^.;]{0,40}?\b(?:appropriat\w+|provides? the money|provides? the funding)\b/i;
+  /\b(?:NDAA|authoriz\w+|HASC|SASC)\b(?!\s+(?:and|or|,|nor))[^.;]{0,40}?\b(?:appropriat(?:es|ed|ing)\b|provides? the (?:money|funding)\b|fund(?:s|ed)\s+(?:\$|the\b|a\b|an\b|it\b|this\b))/i;
 // An APPROPRIATIONS subject doing an AUTHORIZATION action, same clause.
 const APPROP_DOES_AUTH =
-  /\b(?:HAC-?D|SAC-?D|appropriations? (?:bill|committee|mark|act|conference))\b(?!\s+(?:and|or|,|nor))[^.;]{0,40}?\bauthoriz\w+\b/i;
+  /\b(?:HAC-?D|SAC-?D|appropriations? (?:bill|committee|mark|act|conference))\b(?!\s+(?:and|or|,|nor))[^.;]{0,40}?\b(?:authoriz(?:es|ing)\b|authorized\s+(?:\$|up\s+to\b))/i;
 
 /**
  * Flag a sentence that has one vehicle DO the other's job — an authorization
