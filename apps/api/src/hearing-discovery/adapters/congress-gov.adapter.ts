@@ -93,11 +93,13 @@ export interface CongressGovAdapterOptions {
 
 export class CongressGovAdapter implements CommitteeSourceAdapter {
   readonly adapterKey = 'congress-gov';
-  readonly parserVersion = 'congress-gov/2026-09-09';
+  readonly parserVersion = 'congress-gov/2026-10-06-completeness';
+  discoveryErrors: string[] = [];
 
   constructor(private readonly options: CongressGovAdapterOptions) {}
 
   async discoverEvents(source: SourceDescriptor, ctx: DiscoveryContext): Promise<SourceEvent[]> {
+    this.discoveryErrors = [];
     if (!this.options.apiKey) {
       throw new Error('CONGRESS_API_KEY is required for the congress-gov adapter');
     }
@@ -105,40 +107,78 @@ export class CongressGovAdapter implements CommitteeSourceAdapter {
     const listLimit = this.options.listLimit ?? 250;
     const maxPages = this.options.maxPages ?? 8;
     const events: SourceEvent[] = [];
+    // One retry budget for the entire pass, not one per page/detail. Never
+    // retry HTTP refusals/rate limits or opaque fetch errors here.
+    let timeoutRetries = 1;
+    const read = async <T>(url: string) => {
+      let result = await fetchJson<T>(url);
+      if (
+        !result.ok &&
+        result.status === 0 &&
+        /^timeout after \d+ms$/.test(result.error ?? '') &&
+        timeoutRetries > 0
+      ) {
+        timeoutRetries -= 1;
+        ctx.log('[congress-gov] transient request timeout; using the single bounded retry');
+        await sleep(1_000);
+        result = await fetchJson<T>(url);
+      }
+      return result;
+    };
 
     for (const congress of congresses) {
       let offset = 0;
       for (let page = 0; page < maxPages; page += 1) {
         await sleep(ctx.delayMs);
         const listUrl = this.listUrl(congress, listLimit, offset, ctx.since);
-        const list = await fetchJson<{ committeeMeetings: MeetingListItem[] }>(listUrl);
+        const list = await read<{
+          committeeMeetings: MeetingListItem[];
+          pagination?: { next?: string; count?: number };
+        }>(listUrl);
         if (!list.ok) {
-          throw new Error(`committee-meeting list failed: ${list.error ?? 'unknown'}`);
+          this.discoveryErrors.push(`committee-meeting list failed: ${list.error ?? 'unknown'}`);
+          break;
         }
-        const items = list.data?.committeeMeetings ?? [];
+        if (!Array.isArray(list.data?.committeeMeetings)) {
+          this.discoveryErrors.push(
+            'committee-meeting list response missing committeeMeetings array',
+          );
+          break;
+        }
+        const items = list.data.committeeMeetings;
         if (items.length === 0) break;
 
         for (const item of items) {
-          if (!item.eventId || !item.url) continue;
+          if (!item.eventId || !item.url) {
+            this.discoveryErrors.push(
+              'committee-meeting list item missing event identity or detail URL',
+            );
+            continue;
+          }
           await sleep(ctx.delayMs);
-          const detail = await fetchJson<{ committeeMeeting: MeetingDetail }>(
-            this.withAuth(item.url),
-          );
+          const detail = await read<{ committeeMeeting: MeetingDetail }>(this.withAuth(item.url));
           const d = detail.data?.committeeMeeting;
-          if (!d) {
+          if (!detail.ok || !d) {
             // A single unreadable detail record must not abort discovery; the
             // caller counts it, and the coverage audit surfaces a pattern of them.
-            ctx.log(
-              `[congress-gov] detail fetch failed for event ${item.eventId}: ${detail.error ?? 'no payload'}`,
-            );
+            const error = `detail fetch failed for event ${item.eventId}: ${detail.error ?? 'no payload'}`;
+            this.discoveryErrors.push(error);
+            ctx.log(`[congress-gov] ${error}`);
             continue;
           }
           const event = this.toSourceEvent(d, item, congress, ctx);
           if (event) events.push(event);
+          else this.discoveryErrors.push(`event ${item.eventId} could not be normalized`);
         }
 
         offset += listLimit;
         if (items.length < listLimit) break;
+        const count = list.data.pagination?.count;
+        if (!list.data.pagination?.next && typeof count === 'number' && count <= offset) break;
+        if (page === maxPages - 1)
+          this.discoveryErrors.push(
+            `committee-meeting page limit reached (${maxPages}); discovery incomplete`,
+          );
       }
     }
     return events;

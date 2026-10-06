@@ -24,6 +24,7 @@ function prefill(findings: Array<Record<string, unknown>> = []) {
         chamber: 'Senate',
         committeeName: 'Armed Services',
         calendarDate: '2026-09-22',
+        scheduledStart: null as string | null,
         eventStatus: 'scheduled',
         witnesses: ['Gen. Ada Lin'],
         detailPath: '/legiwatch/hearings/hearing-1',
@@ -172,6 +173,13 @@ describe('normalizeSections', () => {
 });
 
 describe('HearingBriefGenerationService.generate', () => {
+  beforeEach(() => {
+    jest.useFakeTimers({
+      now: new Date('2026-09-22T14:00:00Z'),
+      doNotFake: ['nextTick', 'setImmediate'],
+    });
+  });
+  afterEach(() => jest.useRealTimers());
   it('retains supported multi-paragraph prose when the provider emits literal JSON line breaks', async () => {
     const { service, llm } = harness({
       segments: [
@@ -180,7 +188,7 @@ describe('HearingBriefGenerationService.generate', () => {
       ],
     });
     const original = llm.complete.getMockImplementation()!;
-    llm.complete.mockImplementationOnce(async request => {
+    llm.complete.mockImplementationOnce(async (request) => {
       const result = await original(request);
       return {
         ...result,
@@ -247,7 +255,9 @@ describe('HearingBriefGenerationService.generate', () => {
     );
     expect(request.userVolatile).toContain('[E002] Speaker 2: Thank you, Chair.');
     expect(request.userVolatile).toContain('"speakerName":"Jane Q. Smith"');
-    expect(request.userVolatile).toContain('Paraphrase all testimony accurately in sections and key moments.');
+    expect(request.userVolatile).toContain(
+      'Paraphrase all testimony accurately in sections and key moments.',
+    );
     expect(request.userVolatile).toContain('Do not use quotation marks or direct quotations');
     expect(request.userVolatile).toContain('Retain exact evidence references in sections.');
     expect(request).toMatchObject({
@@ -373,5 +383,52 @@ describe('HearingBriefGenerationService.generate', () => {
     wave1.buildBriefPrefill.mockResolvedValue(packet);
     await expect(service.generate(ctx, 'hearing-1', {})).rejects.toThrow('usable transcript');
     expect(llm.complete).not.toHaveBeenCalled();
+  });
+
+  it.each(['2026-09-22T13:00:00Z', '2026-09-22T14:00:00Z'])(
+    'does not create an upcoming preparation brief after scheduled start %s',
+    async (scheduledStart) => {
+      const { service, wave1, llm } = harness({});
+      const packet = prefill();
+      packet.context.hearing.scheduledStart = scheduledStart;
+      wave1.buildBriefPrefill.mockResolvedValue(packet);
+      await expect(service.generate(ctx, 'hearing-1', {})).rejects.toThrow(
+        'scheduled time has passed',
+      );
+      expect(llm.complete).not.toHaveBeenCalled();
+    },
+  );
+
+  it('keeps future same-day preparation available', async () => {
+    const { service, wave1 } = harness({});
+    const packet = prefill();
+    packet.context.hearing.scheduledStart = '2026-09-22T15:00:00Z';
+    wave1.buildBriefPrefill.mockResolvedValue(packet);
+    expect((await service.generate(ctx, 'hearing-1', {})).mode).toBe('preparation');
+  });
+
+  it('uses the Eastern calendar day for date-only notices without inventing a start time', async () => {
+    jest.setSystemTime(new Date('2026-09-23T01:00:00Z'));
+    const sameDay = harness({});
+    expect((await sameDay.service.generate(ctx, 'hearing-1', {})).mode).toBe('preparation');
+    jest.setSystemTime(new Date('2026-09-23T05:00:00Z'));
+    const priorDay = harness({});
+    await expect(priorDay.service.generate(ctx, 'hearing-1', {})).rejects.toThrow(
+      'scheduled time has passed',
+    );
+    expect(priorDay.llm.complete).not.toHaveBeenCalled();
+  });
+
+  it('continues to generate grounded recap when an elapsed hearing has transcript evidence', async () => {
+    const { service, wave1 } = harness({
+      segments: [
+        { sequence: 0, startMs: 0, text: 'Recorded exchange.', speakerLabel: '1' },
+        { sequence: 1, startMs: 5000, text: 'Opening statement.', speakerLabel: '0' },
+      ],
+    });
+    const packet = prefill();
+    packet.context.hearing.scheduledStart = '2026-09-22T13:00:00Z';
+    wave1.buildBriefPrefill.mockResolvedValue(packet);
+    expect((await service.generate(ctx, 'hearing-1', {})).mode).toBe('recap');
   });
 });

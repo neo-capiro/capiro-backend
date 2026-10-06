@@ -30,16 +30,21 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { ALL_FEEDS, FUTURE_PUBLISHED_TOLERANCE_MS, type RssFeed } from './sync-rss-intel.js';
 import { sourceSlugsForHost } from '../src/explorer/news-semantic-matching.js';
+import { PUBLISHER_NEWS_FALLBACKS } from './lib/publisher-news-fallback.js';
 
 /** Pure: feed_url → canonical slug. The sole authority for relabelling. */
 export function feedSlugMap(feeds: readonly RssFeed[] = ALL_FEEDS): Map<string, string> {
   const map = new Map<string, string>();
   for (const feed of feeds) {
-    const existing = map.get(feed.url);
-    if (existing && existing !== feed.source) {
-      throw new Error(`feed_url ${feed.url} maps to both ${existing} and ${feed.source}`);
+    for (const url of [feed.url, PUBLISHER_NEWS_FALLBACKS[feed.source]?.url].filter(
+      (v): v is string => !!v,
+    )) {
+      const existing = map.get(url);
+      if (existing && existing !== feed.source) {
+        throw new Error(`feed_url ${url} maps to both ${existing} and ${feed.source}`);
+      }
+      map.set(url, feed.source);
     }
-    map.set(feed.url, feed.source);
   }
   return map;
 }

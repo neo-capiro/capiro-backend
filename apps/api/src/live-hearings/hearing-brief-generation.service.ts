@@ -135,7 +135,7 @@ const SYSTEM_PROMPT = [
   'in one short sentence instead of inventing. Be specific about names, positions and asks.',
   'Direct prose, short paragraphs, "- " bullets where they aid scanning, **bold** sparingly.',
   'A generic Speaker N label is a diarization cluster, not an identity. Never map clusters to roster order. Attribute by name only when supplied speaker metadata or an explicit introduction or address in the cited exchange establishes the identity. Resolve conflicting labels conservatively with a neutral role.',
-  'Do not transfer one respondent\'s claim to another within an exchange; cite the actual respondent\'s passage. Preserve uncertainty and distinguish stated future plans from completed actions or guaranteed deadlines. Do not infer classification from adjacent discussion.',
+  "Do not transfer one respondent's claim to another within an exchange; cite the actual respondent's passage. Preserve uncertainty and distinguish stated future plans from completed actions or guaranteed deadlines. Do not infer classification from adjacent discussion.",
   'Use supplied official proper-name and affiliation spellings. If a transcribed name or acronym is uncertain and no verified match is supplied, describe the role or function rather than guess. Preserve the specific committee or subcommittee identity.',
   'Do not repeat the section name inside its content. Produce every requested section, in order.',
   'Aim for 1,000–1,400 words across the brief, with concise key moments. Use fewer words when the evidence is sparse; never pad or repeat facts across sections.',
@@ -237,6 +237,10 @@ export class HearingBriefGenerationService {
     )
       throw new ServiceUnavailableException(
         'The hearing has ended, but a usable transcript is not available yet. Retry the debrief after transcription completes.',
+      );
+    if (!turns.length && hasElapsedHearingSchedule(prefill.context.hearing, new Date()))
+      throw new ServiceUnavailableException(
+        'No usable transcript is available for this hearing, and its scheduled time has passed. A recap cannot be generated yet. Check the hearing source and recording status.',
       );
     const mode: HearingBriefMode = turns.length ? 'recap' : 'preparation';
     const clientName = client?.name ?? prefill.context.client?.name ?? 'the client';
@@ -355,8 +359,7 @@ export class HearingBriefGenerationService {
       const resolved = resolveBriefReferences(sections, selected.evidence, parsed.keyMoments);
       sections = resolved.sections;
       keyMoments = resolved.keyMoments;
-      if (mode === 'recap')
-        validateBriefCitations(sections, selected.evidence, keyMoments);
+      if (mode === 'recap') validateBriefCitations(sections, selected.evidence, keyMoments);
       else keyMoments = [];
     } catch (error) {
       this.logger.warn(
@@ -447,6 +450,23 @@ export class HearingBriefGenerationService {
     return rows;
   }
 }
+function hasElapsedHearingSchedule(hearing: Record<string, unknown>, now: Date): boolean {
+  if (typeof hearing.scheduledStart === 'string') {
+    const start = Date.parse(hearing.scheduledStart);
+    if (Number.isFinite(start)) return start <= now.getTime();
+  }
+  // Date-only notices do not establish a start time. Treat only a prior
+  // legislative calendar day as elapsed, never midnight UTC on the same day.
+  const day = typeof hearing.calendarDate === 'string' ? hearing.calendarDate : '';
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) && day < today;
+}
+
 function boundedJson(value: unknown, limit: number): string | null {
   if (value == null) return null;
   try {

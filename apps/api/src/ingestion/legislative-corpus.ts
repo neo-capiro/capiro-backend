@@ -17,6 +17,25 @@ type Extracted = {
   complete: boolean;
   isCurrent: boolean;
 };
+
+/** A guarded inventory refresh checks the document list, not the whole bill.
+ * Its timestamp qualifies only the exact current provider revision. */
+export function inventoryObservedAt(
+  inventory: { observedAt?: unknown; providerChangeHash?: unknown; sourceListComplete?: unknown },
+  providerChangeHash: string | null,
+  wholeBillCheckedAt: string | null,
+): string | null {
+  if (
+    providerChangeHash &&
+    inventory.providerChangeHash === providerChangeHash &&
+    inventory.sourceListComplete === true &&
+    typeof inventory.observedAt === 'string' &&
+    Number.isFinite(Date.parse(inventory.observedAt))
+  )
+    return inventory.observedAt;
+  return wholeBillCheckedAt;
+}
+
 /** Completeness is restricted to the explicit bill inventory, never a whole session inferred from stored rows. */
 export function qualifyLegislativeCorpus(
   selectedBillIds: string[],

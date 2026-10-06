@@ -32,6 +32,7 @@ import { LegiWatchPhase9ReadinessService } from './legiwatch-phase9-readiness.se
 import {
   LegiWatchPhase9PartialFailure,
   LegiWatchPhase9RuntimeService,
+  normalizeRuntimeMetrics,
 } from './legiwatch-phase9-runtime.service.js';
 import { LegiWatchCommitteeNotificationService } from '../legiwatch-committee-notification.service.js';
 import { LegiWatchLifecycleNotificationService } from '../legiwatch-lifecycle-notification.service.js';
@@ -89,7 +90,7 @@ export class LegiWatchPhase9JobsService {
       jobKey: input.job,
       workerId,
       manual: input.manual,
-      skipIfRunning: input.job === 'florida-archive',
+      skipIfRunning: input.job === 'florida-archive' || input.job === 'central-discovery',
       leaseSeconds:
         input.job === 'florida-archive' ? integerEnv('FL_ARCHIVE_LEASE_SECONDS', 5_400) : undefined,
       execute: async () => {
@@ -132,35 +133,59 @@ export class LegiWatchPhase9JobsService {
           return metrics;
         }
         if (input.job === 'central-discovery') {
-          return this.central.run({
+          const result = await this.central.run({
             daysAhead: integerEnv('LEGIWATCH_DISCOVERY_DAYS_AHEAD', 60),
             delayMs: integerEnv('LEGIWATCH_DISCOVERY_DELAY_MS', 200),
             maxCongressPages: integerEnv('LEGIWATCH_DISCOVERY_MAX_PAGES', 8),
             log: console.log,
           });
+          if (result.sourcesFailed > 0)
+            throw new LegiWatchPhase9PartialFailure(
+              `${result.sourcesFailed} central discovery source(s) incomplete`,
+              { ...result },
+            );
+          return result;
         }
         if (input.job === 'committee-enrichment') {
-          return discovery.enrichCommitteeHearings({
+          const result = await discovery.enrichCommitteeHearings({
             withinHours: integerEnv('LEGIWATCH_ENRICHMENT_WITHIN_HOURS', 168),
             limit: input.limit ?? integerEnv('LEGIWATCH_ENRICHMENT_LIMIT', 500),
             delayMs: integerEnv('LEGIWATCH_ENRICHMENT_DELAY_MS', 250),
             log: console.log,
           });
+          if (result.errors > 0)
+            throw new LegiWatchPhase9PartialFailure(
+              `Committee enrichment incomplete: ${result.errors} error(s)`,
+              { ...result },
+            );
+          return result;
         }
         if (input.job === 'committee-updates') {
-          return discovery.detectCommitteeUpdates({
+          const result = await discovery.detectCommitteeUpdates({
             limit: input.limit ?? integerEnv('LEGIWATCH_UPDATE_LIMIT', 500),
             delayMs: integerEnv('LEGIWATCH_UPDATE_DELAY_MS', 400),
             log: console.log,
           });
+          if (result.errors > 0)
+            throw new LegiWatchPhase9PartialFailure(
+              `Committee updates incomplete: ${result.errors} error(s)`,
+              { ...result },
+            );
+          return result;
         }
         if (input.job === 'source-probe') {
-          return discovery.probeSources({
+          const result = await discovery.probeSources({
             adapters: await this.probeAdapters(),
             limit: input.limit ?? integerEnv('LEGIWATCH_PROBE_LIMIT', 2_000),
             delayMs: integerEnv('LEGIWATCH_PROBE_DELAY_MS', 200),
             log: console.log,
           });
+          if (result.errors > 0)
+            throw new LegiWatchPhase9PartialFailure(
+              `Source probe incomplete: ${result.errors} error(s)`,
+              { ...result },
+            );
+          return result;
         }
         if (input.job === 'coverage-audit') {
           return this.readiness.evaluateAndPersist(workerId, {
@@ -180,11 +205,17 @@ export class LegiWatchPhase9JobsService {
           });
         }
         if (input.job === 'archive-reconciliation') {
-          return discovery.reconcileArchives({
+          const result = await discovery.reconcileArchives({
             lookbackDays: integerEnv('LEGIWATCH_ARCHIVE_LOOKBACK_DAYS', 30),
             limit: input.limit ?? integerEnv('LEGIWATCH_ARCHIVE_LIMIT', 2_000),
             log: console.log,
           });
+          if (result.errors > 0)
+            throw new LegiWatchPhase9PartialFailure(
+              `Archive reconciliation incomplete: ${result.errors} error(s)`,
+              { ...result },
+            );
+          return result;
         }
         if (input.job === 'parallel-comparison') {
           return this.readiness.evaluateAndPersist(workerId, {
@@ -202,7 +233,9 @@ export class LegiWatchPhase9JobsService {
           try {
             lifecycleInserted = await this.lifecycleNotifications.reconcileFollowedLifecycle();
           } catch (error) {
-            failures.push(`Hearing lifecycle: ${error instanceof Error ? error.message : String(error)}`);
+            failures.push(
+              `Hearing lifecycle: ${error instanceof Error ? error.message : String(error)}`,
+            );
           }
           const codes = await this.prisma.withSystem(
             (tx) => tx.$queryRaw<Array<{ code: string }>>`
@@ -323,15 +356,7 @@ function booleanEnv(name: string, fallback: boolean): boolean {
 }
 
 function resultMetrics(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  const record = value as Record<string, unknown>;
-  const output: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(record)) {
-    if (typeof item === 'number' || typeof item === 'boolean' || typeof item === 'string') {
-      output[key] = item;
-    }
-  }
-  return output;
+  return normalizeRuntimeMetrics(value);
 }
 
 function assertNever(value: never): never {

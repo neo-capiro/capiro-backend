@@ -21,9 +21,19 @@ import {
 } from './evidence-api.js';
 import './evidence.css';
 const option = (value: string, label = value) => ({ value, label });
-const budgetLabel = (value: unknown) => String(value ?? 'Not stated').replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
-const amountLabel = (r: Row) => `${budgetLabel(r.chamber)} · ${budgetLabel(r.stage)} · ${budgetLabel(r.fund)} · ${budgetLabel(r.basis)} · ${r.state === 'amount' ? money(r.minorUnits) : budgetLabel(r.state)}`;
+const budgetLabel = (value: unknown) =>
+  String(value ?? 'Not stated')
+    .replaceAll('_', ' ')
+    .replace(/^./, (c) => c.toUpperCase());
+const amountLabel = (r: Row) =>
+  `${budgetLabel(r.chamber)} · ${budgetLabel(r.stage)} · ${budgetLabel(r.fund)} · ${budgetLabel(r.basis)} · ${r.state === 'amount' ? money(r.minorUnits) : budgetLabel(r.state)}`;
 const time = (v: unknown) => (v ? new Date(String(v)).toLocaleString() : 'Date not stated');
+const newsPublication = (row: Row) =>
+  row.published_at
+    ? row.publication_precision === 'day'
+      ? `Published ${new Date(String(row.published_at)).toLocaleDateString(undefined, { timeZone: 'UTC', dateStyle: 'medium' })} · Time not stated`
+      : `Published ${time(row.published_at)}`
+    : `Publication date not stated · Observed ${time(row.observed_at)}`;
 export function EvidenceTab({ lane }: { lane: 'news' | 'budget' }) {
   const enabled = useIntelFeatureEnabled(PHASE8_FEATURES[lane]),
     apiScope = useApiScope(),
@@ -87,12 +97,15 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
     }
     setP(n);
   };
-  const clearFilters = (keys: string[]) => setP((previous) => {
-    const next = new URLSearchParams(previous);
-    for (const key of keys) next.delete(key === 'q' ? queryKey : key === 'offset' ? offsetKey : key);
-    next.delete('q'); next.delete('offset');
-    return next;
-  });
+  const clearFilters = (keys: string[]) =>
+    setP((previous) => {
+      const next = new URLSearchParams(previous);
+      for (const key of keys)
+        next.delete(key === 'q' ? queryKey : key === 'offset' ? offsetKey : key);
+      next.delete('q');
+      next.delete('offset');
+      return next;
+    });
   const params = {
     clientId: client,
     folderId: folder,
@@ -312,7 +325,9 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
               <CapiroSelect
                 label="Time window"
                 value={params.days}
-                options={[1, 3, 7, 14].map((n) => option(String(n), `${n} day${n === 1 ? '' : 's'}`))}
+                options={[1, 3, 7, 14].map((n) =>
+                  option(String(n), `${n} day${n === 1 ? '' : 's'}`),
+                )}
                 onChange={(e) => set('days', e.target.value)}
               />
               <CapiroSelect
@@ -376,7 +391,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                     </td>
                     <td>
                       {row.publisher}
-                      <small>{row.published_at ? `Published ${time(row.published_at)}` : `Publication date not stated · Observed ${time(row.observed_at)}`}</small>
+                      <small>{newsPublication(row)}</small>
                     </td>
                     <td>
                       <div className="lw-evidence-actions">
@@ -426,11 +441,23 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
           </div>
           <details>
             <summary>Publisher coverage ({news.data?.coverage?.length ?? 0})</summary>
-            <p>Configured source availability and retained publisher articles are separate. Counts cover the last {params.days} days across retained news, before search and monitor filters. Publisher-level articles do not establish complete regional coverage or a healthy feed.</p>
+            <p>
+              Configured source availability and retained publisher articles are separate. Counts
+              cover the last {params.days} days across retained news, before search and monitor
+              filters. Publisher-level articles do not establish complete regional coverage or a
+              healthy feed.
+            </p>
             {(news.data?.coverage ?? []).map((r: Row) => (
               <p key={r.id}>
-                <strong>{r.publisher}</strong> · {budgetLabel(r.source_group)} · Configured source: {budgetLabel(r.status)}
-                {r.retained && <small>{r.retained.articles} retained articles · {r.retained.fullTextArticles} with full text · Latest publication: {time(r.retained.latestPublishedAt)} · Latest observation: {time(r.retained.latestObservedAt)}</small>}
+                <strong>{r.publisher}</strong> · {budgetLabel(r.source_group)} · Configured source:{' '}
+                {budgetLabel(r.status)}
+                {r.retained && (
+                  <small>
+                    {r.retained.articles} retained articles · {r.retained.fullTextArticles} with
+                    full text · Latest publication: {time(r.retained.latestPublishedAt)} · Latest
+                    observation: {time(r.retained.latestObservedAt)}
+                  </small>
+                )}
               </p>
             ))}
           </details>
@@ -618,55 +645,67 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
       )}
       {lane === 'budget' && (
         <>
-          {view !== 'calendar' && <div className="lw-evidence-card">
-            <div className="lw-evidence-toolbar">
-              <CapiroInput
-                label="Fiscal year"
-                value={params.fiscalYear}
-                placeholder="2026-27"
-                onChange={(e) => set('fiscalYear', e.target.value)}
-              />
-              <CapiroSelect
-                label="Legislative session"
-                value={params.sessionKey}
-                options={[
-                  option('', 'All sessions'),
-                  option('2026'),
-                  option('2026E'),
-                  option('2025'),
-                ]}
-                onChange={(e) => set('budgetSession', e.target.value)}
-              />
-              {view === 'projects' && <CapiroInput
-                label="Search project title or request identity"
-                value={params.q}
-                onChange={(e) => set('q', e.target.value)}
-              />}
-              {(params.q || params.sessionKey || params.fiscalYear !== '2026-27' || params.projectId) && (
-                <CapiroButton
-                  size="compact"
-                  onClick={() => {
-                    clearFilters(['q', 'budgetSession', 'fiscalYear', 'project', 'offset']);
-                  }}
-                >
-                  Clear filters
-                </CapiroButton>
-              )}
+          {view !== 'calendar' && (
+            <div className="lw-evidence-card">
+              <div className="lw-evidence-toolbar">
+                <CapiroInput
+                  label="Fiscal year"
+                  value={params.fiscalYear}
+                  placeholder="2026-27"
+                  onChange={(e) => set('fiscalYear', e.target.value)}
+                />
+                <CapiroSelect
+                  label="Legislative session"
+                  value={params.sessionKey}
+                  options={[
+                    option('', 'All sessions'),
+                    option('2026'),
+                    option('2026E'),
+                    option('2025'),
+                  ]}
+                  onChange={(e) => set('budgetSession', e.target.value)}
+                />
+                {view === 'projects' && (
+                  <CapiroInput
+                    label="Search project title or request identity"
+                    value={params.q}
+                    onChange={(e) => set('q', e.target.value)}
+                  />
+                )}
+                {(params.q ||
+                  params.sessionKey ||
+                  params.fiscalYear !== '2026-27' ||
+                  params.projectId) && (
+                  <CapiroButton
+                    size="compact"
+                    onClick={() => {
+                      clearFilters(['q', 'budgetSession', 'fiscalYear', 'project', 'offset']);
+                    }}
+                  >
+                    Clear filters
+                  </CapiroButton>
+                )}
+              </div>
+              <p className="lw-evidence-filter-summary">
+                Budget figures are shown for the selected fiscal year and session. Requests are not
+                awards.
+              </p>
             </div>
-            <p className="lw-evidence-filter-summary">
-              Budget figures are shown for the selected fiscal year and session. Requests are not awards.
-            </p>
-          </div>}
+          )}
           {view !== 'calendar' && <p className="lw-evidence-notice">{budget.data?.notice}</p>}
           {view === 'calendar' ? (
             <section aria-label="Budget calendar navigation">
               <h3>Legislative calendar</h3>
-              <p>This view links to the legislative hearing calendar. A project-specific budget schedule is not available here; fiscal-year and project filters do not apply to that calendar.</p>
               <p>
-              <Link to={`/legiwatch?tab=hearings&client=${encodeURIComponent(client)}`}>
-                Open the legislative calendar and hearing workflow
-              </Link>
-              . Following a project creates no recording.
+                This view links to the legislative hearing calendar. A project-specific budget
+                schedule is not available here; fiscal-year and project filters do not apply to that
+                calendar.
+              </p>
+              <p>
+                <Link to={`/legiwatch?tab=hearings&client=${encodeURIComponent(client)}`}>
+                  Open the legislative calendar and hearing workflow
+                </Link>
+                . Following a project creates no recording.
               </p>
             </section>
           ) : view === 'projects' ? (
@@ -710,8 +749,12 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                           ))}
                         </td>
                         <td>
-                          {(row.recentAmounts ?? []).map((amount: Row) => <small key={amount.id}>{amountLabel(amount.observation)}</small>)}
-                          {!row.recentAmounts?.length && <small>No published amount recorded</small>}
+                          {(row.recentAmounts ?? []).map((amount: Row) => (
+                            <small key={amount.id}>{amountLabel(amount.observation)}</small>
+                          ))}
+                          {!row.recentAmounts?.length && (
+                            <small>No published amount recorded</small>
+                          )}
                         </td>
                         <td>
                           <CapiroButton
@@ -757,7 +800,9 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                   </CapiroButton>
                   <h3>Compare exact source observations</h3>
                   <ul aria-label="Published budget amounts">
-                    {(budget.data?.amounts ?? []).map((r: Row) => <li key={r.id}>{amountLabel(r.observation)}</li>)}
+                    {(budget.data?.amounts ?? []).map((r: Row) => (
+                      <li key={r.id}>{amountLabel(r.observation)}</li>
+                    ))}
                   </ul>
                   <div className="lw-evidence-toolbar">
                     {[
@@ -771,10 +816,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                         options={[
                           option('', 'Choose an amount'),
                           ...(budget.data?.amounts ?? []).map((r: Row) =>
-                            option(
-                              r.id,
-                              amountLabel(r.observation),
-                            ),
+                            option(r.id, amountLabel(r.observation)),
                           ),
                         ]}
                         onChange={(e) => (choose as (s: string) => void)(e.target.value)}
@@ -841,8 +883,8 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                       </p>
                       {[comparison.left, comparison.right].map((a: Row) => (
                         <p key={a.id}>
-                          {budgetLabel(a.chamber)} · {budgetLabel(a.stage)} · FY {a.fiscalYear} · {budgetLabel(a.fund)} · {budgetLabel(a.basis)} ·{' '}
-                          {a.locator}{' '}
+                          {budgetLabel(a.chamber)} · {budgetLabel(a.stage)} · FY {a.fiscalYear} ·{' '}
+                          {budgetLabel(a.fund)} · {budgetLabel(a.basis)} · {a.locator}{' '}
                           <CapiroButton
                             size="compact"
                             onClick={() => void open('budget', { id: a.documentId })}
@@ -938,20 +980,33 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
               </table>
             </div>
           )}
-          {!loading && !failed && view === 'updates' && !budget.data?.events?.length && <p className="lw-evidence-empty">No retained budget updates for fiscal year {params.fiscalYear}{params.sessionKey ? `, session ${params.sessionKey}` : ''}{params.projectId ? ', and the selected project' : ''}. This does not establish that no budget activity occurred.</p>}
-          {!loading && !failed && ['projects', 'documents'].includes(view) && !(view === 'projects' ? budget.data?.projects?.length : budget.data?.documents?.length) && (
+          {!loading && !failed && view === 'updates' && !budget.data?.events?.length && (
             <p className="lw-evidence-empty">
-              No qualified fiscal documents are retained for this scope. Source qualification is
-              required before a project comparison can be shown.
+              No retained budget updates for fiscal year {params.fiscalYear}
+              {params.sessionKey ? `, session ${params.sessionKey}` : ''}
+              {params.projectId ? ', and the selected project' : ''}. This does not establish that
+              no budget activity occurred.
             </p>
           )}
+          {!loading &&
+            !failed &&
+            ['projects', 'documents'].includes(view) &&
+            !(view === 'projects'
+              ? budget.data?.projects?.length
+              : budget.data?.documents?.length) && (
+              <p className="lw-evidence-empty">
+                No qualified fiscal documents are retained for this scope. Source qualification is
+                required before a project comparison can be shown.
+              </p>
+            )}
         </>
       )}
       {loading && <p role="status">Loading source evidence…</p>}
       {selected && (
         <CapiroModal open onClose={() => setSelected(null)} title={selected.title}>
           <p>
-            {String(selected.authority ?? '').replaceAll('_', ' ')} · observed {time(selected.observedAt)}
+            {String(selected.authority ?? '').replaceAll('_', ' ')} · observed{' '}
+            {time(selected.observedAt)}
           </p>
           <p>{selected.complete ? 'Complete source' : 'Available source fields only'}</p>
           {sourceUrl(selected.sourceUrl) && (
@@ -969,7 +1024,10 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
             )}
           </>
           <pre className="lw-evidence-text">{selected.text}</pre>
-          <details><summary>Source revision details</summary><small>{selected.revision}</small></details>
+          <details>
+            <summary>Source revision details</summary>
+            <small>{selected.revision}</small>
+          </details>
         </CapiroModal>
       )}
       {importReview && (

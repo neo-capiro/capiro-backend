@@ -318,6 +318,34 @@ describe('LegiWatchPhase9RuntimeService', () => {
     expect(JSON.parse(String(failure?.[3]))).not.toHaveProperty('nested');
   });
 
+  it('persists validated complete-source cursors on a partial discovery failure', async () => {
+    const { service, execute } = harness();
+    const watermarks = {
+      congress: '2026-10-06T12:00:00.000Z',
+      house: '2026-10-06T16:00:00.000Z',
+    };
+    const error = new LegiWatchPhase9PartialFailure('one source incomplete', {
+      sourcesFailed: 1,
+      discoveryWatermarks: { ...watermarks, invalid: 'not a date', object: { secret: true } },
+      untrusted: { arbitrary: true },
+    });
+    await expect(
+      service.run({
+        jobKey: 'central-discovery',
+        workerId: 'central-worker',
+        execute: async () => {
+          throw error;
+        },
+      }),
+    ).rejects.toBe(error);
+    const failure = execute.mock.calls.find(([sql]) => String(sql).includes("status='failed'"));
+    expect(String(failure?.[0])).toContain("metrics=COALESCE(metrics, '{}'::jsonb) || $3::jsonb");
+    const persisted = JSON.parse(String(failure?.[3]));
+    expect(persisted.discoveryWatermarks).toEqual(watermarks);
+    expect(persisted.sourcesFailed).toBe(1);
+    expect(persisted).not.toHaveProperty('untrusted');
+  });
+
   it('records success and failure without leaking raw error formatting', async () => {
     const { service, execute } = harness();
     await service.succeed({ jobKey: 'metrics', metrics: { emitted: 1 } });

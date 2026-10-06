@@ -406,10 +406,32 @@ export class LegiWatchPhase9RuntimeService {
 
 function runtimeMetricsFromError(error: unknown): Record<string, unknown> {
   if (!(error instanceof LegiWatchPhase9PartialFailure)) return {};
+  return normalizeRuntimeMetrics(error.runtimeMetrics);
+}
+
+export function normalizeRuntimeMetrics(input: unknown): Record<string, unknown> {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
   const metrics: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(error.runtimeMetrics)) {
+  for (const [key, value] of Object.entries(input)) {
     if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') {
       metrics[key] = value;
+    } else if (
+      key === 'discoveryWatermarks' &&
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value)
+    ) {
+      // Complete sources retain progress even when a different source fails.
+      // This is the only structured error metric accepted, never arbitrary data.
+      metrics[key] = Object.fromEntries(
+        Object.entries(value).filter(
+          ([sourceId, at]) =>
+            sourceId.length > 0 &&
+            sourceId.length <= 200 &&
+            typeof at === 'string' &&
+            Number.isFinite(Date.parse(at)),
+        ),
+      );
     }
   }
   return metrics;

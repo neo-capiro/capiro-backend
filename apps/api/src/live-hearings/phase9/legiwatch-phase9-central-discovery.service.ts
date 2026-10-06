@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { CongressGovAdapter, currentCongress } from '../../hearing-discovery/adapters/congress-gov.adapter.js';
+import {
+  CongressGovAdapter,
+  currentCongress,
+} from '../../hearing-discovery/adapters/congress-gov.adapter.js';
 import { HouseRepositoryAdapter } from '../../hearing-discovery/adapters/house-repository.adapter.js';
 import { SenateScheduleAdapter } from '../../hearing-discovery/adapters/senate-schedule.adapter.js';
 import { CommitteeSourceRepository } from '../../hearing-discovery/committee-source.repository.js';
@@ -28,19 +31,24 @@ export interface LegiWatchCentralDiscoveryResult {
   streamCandidates: number;
   reconciliationErrors: number;
   sourceErrors: Array<{ adapterKey: string; sourceUrl: string; error: string }>;
+  /** Only completed discovery/reconciliation passes advance these cursors.
+   * Runtime merges them into its existing metrics on success AND partial failure. */
+  discoveryWatermarks: Record<string, string>;
 }
 
 @Injectable()
 export class LegiWatchPhase9CentralDiscoveryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async run(input: {
-    now?: Date;
-    daysAhead?: number;
-    delayMs?: number;
-    maxCongressPages?: number;
-    log?: (message: string) => void;
-  } = {}): Promise<LegiWatchCentralDiscoveryResult> {
+  async run(
+    input: {
+      now?: Date;
+      daysAhead?: number;
+      delayMs?: number;
+      maxCongressPages?: number;
+      log?: (message: string) => void;
+    } = {},
+  ): Promise<LegiWatchCentralDiscoveryResult> {
     const now = input.now ?? new Date();
     const log = input.log ?? (() => {});
     const congress = currentCongress(now);
@@ -71,10 +79,7 @@ export class LegiWatchPhase9CentralDiscoveryService {
           resolveSystemCodeByName: resolveHouseCode,
         }),
       ],
-      [
-        'senate-schedule',
-        new SenateScheduleAdapter({ congress, resolveCommitteeName }),
-      ],
+      ['senate-schedule', new SenateScheduleAdapter({ congress, resolveCommitteeName })],
     ]);
 
     const result: LegiWatchCentralDiscoveryResult = {
@@ -93,22 +98,31 @@ export class LegiWatchPhase9CentralDiscoveryService {
       streamCandidates: 0,
       reconciliationErrors: 0,
       sourceErrors: [],
+      discoveryWatermarks: await loadDiscoveryWatermarks(this.prisma, now),
     };
 
     for (const source of centralSources.sort(
-      (left, right) => left.priority - right.priority || left.adapterKey.localeCompare(right.adapterKey),
+      (left, right) =>
+        left.priority - right.priority || left.adapterKey.localeCompare(right.adapterKey),
     )) {
       result.sourcesAttempted += 1;
       const adapter = adapters.get(source.adapterKey);
       if (!adapter) {
         const error = `No Phase 9 adapter is registered for ${source.adapterKey}`;
         result.sourcesFailed += 1;
-        result.sourceErrors.push({ adapterKey: source.adapterKey, sourceUrl: source.sourceUrl, error });
+        result.sourceErrors.push({
+          adapterKey: source.adapterKey,
+          sourceUrl: source.sourceUrl,
+          error,
+        });
         await sourceRepository.recordOutcome(source.id, { ok: false, error }, now);
         continue;
       }
 
-      const since = await sourceWatermark(this.prisma, source.id, now);
+      const completedAt = result.discoveryWatermarks[source.id];
+      const since = completedAt
+        ? new Date(Date.parse(completedAt) - 5 * 60_000)
+        : new Date(now.getTime() - 7 * 86_400_000);
       const ctx: DiscoveryContext = {
         since,
         daysAhead,
@@ -127,28 +141,30 @@ export class LegiWatchPhase9CentralDiscoveryService {
         result.siteUpdates += reconciled.totals.siteUpdates;
         result.streamCandidates += reconciled.totals.streamCandidates;
         result.reconciliationErrors += reconciled.totals.errors;
+        const failures = [...(adapter.discoveryErrors ?? [])];
+        if (reconciled.totals.errors > 0)
+          failures.push(`${reconciled.totals.errors} event(s) failed reconciliation`);
+        const error = failures.length ? failures.join('; ').slice(0, 1_000) : undefined;
         await sourceRepository.recordOutcome(
           source.id,
           {
-            ok: reconciled.totals.errors === 0,
+            ok: failures.length === 0,
             observedEvents: events.length,
-            error:
-              reconciled.totals.errors > 0
-                ? `${reconciled.totals.errors} event(s) failed reconciliation`
-                : undefined,
+            error,
           },
           now,
           adapter.parserVersion,
         );
-        if (reconciled.totals.errors > 0) {
+        if (failures.length) {
           result.sourcesFailed += 1;
           result.sourceErrors.push({
             adapterKey: source.adapterKey,
             sourceUrl: source.sourceUrl,
-            error: `${reconciled.totals.errors} event(s) failed reconciliation`,
+            error: error!,
           });
         } else {
           result.sourcesSucceeded += 1;
+          result.discoveryWatermarks[source.id] = now.toISOString();
         }
       } catch (error) {
         const message = boundedError(error);
@@ -167,19 +183,27 @@ export class LegiWatchPhase9CentralDiscoveryService {
   }
 }
 
-async function sourceWatermark(
+async function loadDiscoveryWatermarks(
   prisma: PrismaService,
-  sourceId: string,
   now: Date,
-): Promise<Date | null> {
-  const row = await prisma.committeeSource.findUnique({
-    where: { id: sourceId },
-    select: { lastSuccessAt: true },
-  });
-  if (!row?.lastSuccessAt) return new Date(now.getTime() - 7 * 86_400_000);
-  // Revisit a small overlap so an upstream event at the exact watermark is not
-  // lost to inclusive/exclusive source semantics. Observation idempotency absorbs it.
-  return new Date(row.lastSuccessAt.getTime() - 5 * 60_000);
+): Promise<Record<string, string>> {
+  // Source health probes also write committee_source.last_success_at. It is
+  // never an ingestion cursor. Missing/invalid dedicated cursors deliberately
+  // recover seven days of updates; this is NOT a full-history completeness claim.
+  const rows = await prisma.$queryRawUnsafe<Array<{ watermarks: unknown }>>(
+    `SELECT metrics->'discoveryWatermarks' AS watermarks
+     FROM legiwatch_runtime_heartbeat WHERE job_key='central-discovery'`,
+  );
+  const value = rows[0]?.watermarks;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      ([, at]) =>
+        typeof at === 'string' &&
+        Number.isFinite(Date.parse(at)) &&
+        Date.parse(at) <= now.getTime(),
+    ),
+  );
 }
 
 function boundedInteger(value: number, minimum: number, maximum: number): number {

@@ -27,15 +27,79 @@ beforeEach(() => {
   }));
 });
 afterEach(cleanup);
+test('publisher day precision keeps its calendar day and does not claim a release time', async () => {
+  mocks.get.mockImplementation(async (url: string) => ({
+    data: url.endsWith('/folders')
+      ? []
+      : url.includes('/monitors')
+        ? { monitors: [] }
+        : {
+            items: [
+              {
+                id: 'day',
+                title: 'Official DHS release',
+                publisher: 'www.dhs.gov',
+                published_at: '2026-10-05T00:00:00Z',
+                publication_precision: 'day',
+              },
+            ],
+            coverage: [],
+          },
+  }));
+  // Emulate an Eastern viewer independently of the test machine's timezone.
+  // Native formatting without the UTC day override would show October 4.
+  const dateFormat = vi.spyOn(Date.prototype, 'toLocaleDateString').mockImplementation(function (
+    this: Date,
+    optionsLocale,
+    options,
+  ) {
+    return new Intl.DateTimeFormat(optionsLocale ?? 'en-US', {
+      timeZone: 'America/New_York',
+      ...options,
+    }).format(this);
+  });
+  try {
+    expect(
+      new Date('2026-10-05T00:00:00Z').toLocaleDateString('en-US', { dateStyle: 'medium' }),
+    ).toBe('Oct 4, 2026');
+    mount(<EvidenceTab lane="news" />);
+    expect(await screen.findByText('Published Oct 5, 2026 · Time not stated')).toBeTruthy();
+    expect(screen.queryByText(/Published Oct 4/)).toBeNull();
+    expect(screen.queryByText(/Publication date not stated/)).toBeNull();
+  } finally {
+    dateFormat.mockRestore();
+  }
+});
 test('publisher coverage distinguishes configured failure from retained reporting and freshness', async () => {
-  mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/folders') ? [] : url.includes('/monitors') ? { monitors: [] } : {
-    items: [], coverage: [{ id: 'p', publisher: 'Politico', source_group: 'florida_regional', status: 'unavailable',
-      retained: { articles: 3, fullTextArticles: 0, latestPublishedAt: '2026-10-05T12:00:00Z', latestObservedAt: '2026-10-06T12:00:00Z' } }],
-  } }));
+  mocks.get.mockImplementation(async (url: string) => ({
+    data: url.endsWith('/folders')
+      ? []
+      : url.includes('/monitors')
+        ? { monitors: [] }
+        : {
+            items: [],
+            coverage: [
+              {
+                id: 'p',
+                publisher: 'Politico',
+                source_group: 'florida_regional',
+                status: 'unavailable',
+                retained: {
+                  articles: 3,
+                  fullTextArticles: 0,
+                  latestPublishedAt: '2026-10-05T12:00:00Z',
+                  latestObservedAt: '2026-10-06T12:00:00Z',
+                },
+              },
+            ],
+          },
+  }));
   mount(<EvidenceTab lane="news" />);
   expect(await screen.findByText(/Configured source: Unavailable/)).toBeTruthy();
   expect(screen.getByText(/3 retained articles · 0 with full text/)).toBeTruthy();
-  expect(screen.getByText(/do not establish complete regional coverage or a healthy feed/)).toBeTruthy();
+  expect(
+    screen.getByText(/do not establish complete regional coverage or a healthy feed/),
+  ).toBeTruthy();
 });
 test('calendar navigation has no irrelevant fiscal filters or fabricated project schedule', async () => {
   mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&budgetView=calendar');
@@ -45,20 +109,46 @@ test('calendar navigation has no irrelevant fiscal filters or fabricated project
   expect(mocks.get.mock.calls.some(([url]) => url.includes('/budget?'))).toBe(false);
 });
 test('budget update emptiness is specific to the selected fiscal year and session', async () => {
-  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&budgetView=updates&fiscalYear=2025-26&budgetSession=2025');
-  expect(await screen.findByText(/No retained budget updates for fiscal year 2025-26, session 2025/)).toBeTruthy();
+  mount(
+    <EvidenceTab lane="budget" />,
+    '/legiwatch?tab=budget&budgetView=updates&fiscalYear=2025-26&budgetSession=2025',
+  );
+  expect(
+    await screen.findByText(/No retained budget updates for fiscal year 2025-26, session 2025/),
+  ).toBeTruthy();
   expect(screen.queryByLabelText('Search project title or request identity')).toBeNull();
   expect(screen.queryByText(/No qualified fiscal documents/)).toBeNull();
 });
 test('budget document labels are readable and clearing filters resets every field together', async () => {
-  mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/folders') ? [] : {
-    projects: [], documents: [{ id: 'd', title: 'Published appropriation', chamber: 'house', stage: 'chamber_proposal', role: 'appropriation', fiscal_year: '2025-26', session_key: '2025', complete: true }],
-  } }));
-  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&budgetView=documents&fiscalYear=2025-26&budgetSession=2025');
+  mocks.get.mockImplementation(async (url: string) => ({
+    data: url.endsWith('/folders')
+      ? []
+      : {
+          projects: [],
+          documents: [
+            {
+              id: 'd',
+              title: 'Published appropriation',
+              chamber: 'house',
+              stage: 'chamber_proposal',
+              role: 'appropriation',
+              fiscal_year: '2025-26',
+              session_key: '2025',
+              complete: true,
+            },
+          ],
+        },
+  }));
+  mount(
+    <EvidenceTab lane="budget" />,
+    '/legiwatch?tab=budget&budgetView=documents&fiscalYear=2025-26&budgetSession=2025',
+  );
   expect(await screen.findByText('House · Chamber proposal')).toBeTruthy();
   expect(screen.getByText(/FY 2025-26 · Session 2025 · Appropriation/)).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
-  await waitFor(() => expect((screen.getByLabelText('Fiscal year') as HTMLInputElement).value).toBe('2026-27'));
+  await waitFor(() =>
+    expect((screen.getByLabelText('Fiscal year') as HTMLInputElement).value).toBe('2026-27'),
+  );
   expect((screen.getByLabelText('Legislative session') as HTMLSelectElement).value).toBe('');
 });
 function mount(child: React.ReactNode, route = '/legiwatch?tab=news&folder=folder') {
@@ -244,18 +334,18 @@ test('changing project clears stale observation selections and disables compare'
   await waitFor(() => expect(leftSelect.options.length).toBe(3));
   fireEvent.change(leftSelect, { target: { value: 'a-amt1' } });
   fireEvent.change(rightSelect, { target: { value: 'a-amt2' } });
-  expect(
-    (screen.getByRole('button', { name: 'Compare' }) as HTMLButtonElement).disabled,
-  ).toBe(false);
+  expect((screen.getByRole('button', { name: 'Compare' }) as HTMLButtonElement).disabled).toBe(
+    false,
+  );
   fireEvent.click(screen.getByRole('button', { name: 'All projects' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Synthetic QA Budget B' }));
   const nextLeft = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
   const nextRight = (await screen.findByLabelText('Right observation')) as HTMLSelectElement;
   await waitFor(() => expect(nextLeft.value).toBe(''));
   expect(nextRight.value).toBe('');
-  expect(
-    (screen.getByRole('button', { name: 'Compare' }) as HTMLButtonElement).disabled,
-  ).toBe(true);
+  expect((screen.getByRole('button', { name: 'Compare' }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
   expect(mocks.post.mock.calls.some(([url]) => url.includes('/budget/compare'))).toBe(false);
 });
 
@@ -270,9 +360,7 @@ test('changing fiscal year clears the old comparison result', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
   expect(await screen.findByText(/Change: \$50\.00 · 50\.00%/)).toBeTruthy();
   fireEvent.change(screen.getByLabelText('Fiscal year'), { target: { value: '2027-28' } });
-  await waitFor(() =>
-    expect(screen.queryByText(/Change: \$50\.00 · 50\.00%/)).toBeNull(),
-  );
+  await waitFor(() => expect(screen.queryByText(/Change: \$50\.00 · 50\.00%/)).toBeNull());
   expect(leftSelect.value).toBe('');
   expect(rightSelect.value).toBe('');
 });
@@ -280,13 +368,12 @@ test('changing fiscal year clears the old comparison result', async () => {
 test('a comparison finishing after a scope switch does not surface under the new scope', async () => {
   mockBudgetApi();
   let resolveCompare: ((v: unknown) => void) | undefined;
-  mocks.post.mockImplementation(
-    async (url: string, body: Record<string, unknown>) =>
-      url.includes('/budget/compare')
-        ? new Promise((resolve) => {
-            resolveCompare = resolve;
-          })
-        : { data: {} },
+  mocks.post.mockImplementation(async (url: string, body: Record<string, unknown>) =>
+    url.includes('/budget/compare')
+      ? new Promise((resolve) => {
+          resolveCompare = resolve;
+        })
+      : { data: {} },
   );
   mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&project=project-a');
   const leftSelect = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
@@ -307,9 +394,7 @@ test('a comparison finishing after a scope switch does not surface under the new
       right: { id: 'a-amt2', chamber: 'Senate', stage: 'proposed', fiscalYear: '2026-27' },
     },
   });
-  await waitFor(() =>
-    expect(screen.queryByText(/Change: \$50\.00 · 50\.00%/)).toBeNull(),
-  );
+  await waitFor(() => expect(screen.queryByText(/Change: \$50\.00 · 50\.00%/)).toBeNull());
 });
 
 test('a valid comparison survives an unrelated refetch with an unchanged selection', async () => {
@@ -349,21 +434,20 @@ test('changing an amount selection after a successful compare clears the prior r
   // selection must drop it; the project/fiscal-year scope did not change.
   fireEvent.change(rightSelect, { target: { value: '' } });
   await waitFor(() => expect(screen.queryByText(/Change: \$50\.00 · 50\.00%/)).toBeNull());
-  expect(
-    (screen.getByRole('button', { name: 'Compare' }) as HTMLButtonElement).disabled,
-  ).toBe(true);
+  expect((screen.getByRole('button', { name: 'Compare' }) as HTMLButtonElement).disabled).toBe(
+    true,
+  );
 });
 
 test('a comparison finishing after the amount selection changed is not applied', async () => {
   mockBudgetApi();
   let resolveCompare: ((v: unknown) => void) | undefined;
-  mocks.post.mockImplementation(
-    async (url: string, body: Record<string, unknown>) =>
-      url.includes('/budget/compare')
-        ? new Promise((resolve) => {
-            resolveCompare = resolve;
-          })
-        : { data: {} },
+  mocks.post.mockImplementation(async (url: string, body: Record<string, unknown>) =>
+    url.includes('/budget/compare')
+      ? new Promise((resolve) => {
+          resolveCompare = resolve;
+        })
+      : { data: {} },
   );
   mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&project=project-a');
   const leftSelect = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
@@ -392,13 +476,12 @@ test('a comparison finishing after the amount selection changed is not applied',
 test('a late action error after a scope change is not surfaced', async () => {
   mockBudgetApi();
   let rejectCompare: ((e: unknown) => void) | undefined;
-  mocks.post.mockImplementation(
-    async (url: string, body: Record<string, unknown>) =>
-      url.includes('/budget/compare')
-        ? new Promise((_, reject) => {
-            rejectCompare = reject;
-          })
-        : { data: {} },
+  mocks.post.mockImplementation(async (url: string, body: Record<string, unknown>) =>
+    url.includes('/budget/compare')
+      ? new Promise((_, reject) => {
+          rejectCompare = reject;
+        })
+      : { data: {} },
   );
   mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&project=project-a');
   const leftSelect = (await screen.findByLabelText('Left observation')) as HTMLSelectElement;
@@ -412,9 +495,7 @@ test('a late action error after a scope change is not surfaced', async () => {
   // the old selection and must not appear under the new one.
   fireEvent.change(screen.getByLabelText('Fiscal year'), { target: { value: '2027-28' } });
   rejectCompare!(new Error('EXACT_BUDGET_REVISIONS_REQUIRED'));
-  await waitFor(() =>
-    expect(screen.queryByText(/EXACT_BUDGET_REVISIONS_REQUIRED/)).toBeNull(),
-  );
+  await waitFor(() => expect(screen.queryByText(/EXACT_BUDGET_REVISIONS_REQUIRED/)).toBeNull());
 });
 
 test('a scope collision across concatenated parts still clears state', async () => {

@@ -1,0 +1,360 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "e6ff0250b6f79f92bbfd16edb69d48f27e96883f",
+  "productionCodeBaseline": "a84dce2f53e72cf57792f9cf4001302ed8d36e7e",
+  "reviewedAt": "2026-10-06T17:00:06.055331+00:00",
+  "builds": {
+    "build-api": {
+      "sha": "e6ff0250b6f79f92bbfd16edb69d48f27e96883f",
+      "id": "capiro-build-web-dev:a3eb75f9-0d1e-4812-9399-2b955d8c7f38",
+      "status": "SUCCEEDED",
+      "phase": "COMPLETED",
+      "markers": [
+        "UI_API_RUNTIME_IMPORT_PASS\n",
+        "PUBLISHER_NEWS_RUNTIME_IMPORT_PASS\n",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS\n",
+        "CANDIDATE_API_SOURCE_SHA=e6ff0250b6f79f92bbfd16edb69d48f27e96883f\n",
+        "CANDIDATE_API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:af7b8083afe0791a80bc359425c85afe8853da79d88314c55cd04d8c416c6e5e\n"
+      ],
+      "logUrl": "https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Fcodebuild$252Fcapiro-build-web-dev/log-events/a3eb75f9-0d1e-4812-9399-2b955d8c7f38",
+      "failedPhases": [],
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:af7b8083afe0791a80bc359425c85afe8853da79d88314c55cd04d8c416c6e5e"
+    },
+    "build-web-vnext": {
+      "sha": "e6ff0250b6f79f92bbfd16edb69d48f27e96883f",
+      "id": "capiro-build-web-dev:3ea18993-ab18-4d84-bae8-6dc522fbf26a",
+      "status": "SUCCEEDED",
+      "phase": "COMPLETED",
+      "markers": [
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS\n",
+        "CANDIDATE_WEB_VNEXT_SOURCE_SHA=e6ff0250b6f79f92bbfd16edb69d48f27e96883f\n",
+        "CANDIDATE_WEB_VNEXT_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:2296282b4c467213be642e01a4bc316da4a2c9c14d0b6566d71d0bc326d9da59\n"
+      ],
+      "logUrl": "https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Fcodebuild$252Fcapiro-build-web-dev/log-events/3ea18993-ab18-4d84-bae8-6dc522fbf26a",
+      "failedPhases": [],
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:2296282b4c467213be642e01a4bc316da4a2c9c14d0b6566d71d0bc326d9da59"
+    },
+    "qualification": {
+      "sha": "e6ff0250b6f79f92bbfd16edb69d48f27e96883f",
+      "id": "capiro-build-web-dev:7d5c00e2-c95a-4074-9ba9-f7e9b6d0a691",
+      "status": "SUCCEEDED",
+      "phase": "COMPLETED",
+      "markers": [
+        "UI_GATE_BEGIN Generate Prisma clients\n",
+        "UI_GATE_PASS Generate Prisma clients\n",
+        "UI_GATE_BEGIN Typecheck (apps/api, apps/intel-api, apps/web)\n",
+        "UI_GATE_PASS Typecheck (apps/api, apps/intel-api, apps/web)\n",
+        "UI_GATE_BEGIN Bootstrap restricted worker in the owned LegiWatch service\n",
+        "UI_GATE_PASS Bootstrap restricted worker in the owned LegiWatch service\n",
+        "UI_GATE_BEGIN LegiWatch additive migrations and PostgreSQL recovery\n",
+        "UI_GATE_PASS LegiWatch additive migrations and PostgreSQL recovery\n",
+        "UI_GATE_BEGIN Prepare isolated committee alert test database\n",
+        "UI_GATE_PASS Prepare isolated committee alert test database\n",
+        "UI_GATE_BEGIN Tests \u2014 saved hearing association SQL\n",
+        "UI_GATE_PASS Tests \u2014 saved hearing association SQL\n",
+        "UI_GATE_BEGIN Selected bill inventory qualification\n",
+        "UI_GATE_PASS Selected bill inventory qualification\n",
+        "UI_GATE_BEGIN Assert selected inventory qualification is clean\n",
+        "UI_GATE_PASS Assert selected inventory qualification is clean\n",
+        "UI_GATE_BEGIN Tests \u2014 apps/api LegiWatch scope\n",
+        "UI_GATE_PASS Tests \u2014 apps/api LegiWatch scope\n",
+        "UI_GATE_BEGIN Assert apps/api scope is clean\n",
+        "UI_GATE_PASS Assert apps/api scope is clean\n",
+        "UI_GATE_BEGIN Tests \u2014 apps/intel-api LegiWatch scope\n",
+        "UI_GATE_PASS Tests \u2014 apps/intel-api LegiWatch scope\n",
+        "UI_GATE_BEGIN Assert apps/intel-api scope is clean\n",
+        "UI_GATE_PASS Assert apps/intel-api scope is clean\n",
+        "UI_GATE_BEGIN Tests \u2014 apps/web LegiWatch scope\n",
+        "UI_GATE_PASS Tests \u2014 apps/web LegiWatch scope\n",
+        "UI_GATE_BEGIN Assert apps/web scope is clean\n",
+        "UI_GATE_PASS Assert apps/web scope is clean\n",
+        "UI_GATE_BEGIN Phase 4 recording, review, delivery and document qualification\n",
+        "UI_GATE_PASS Phase 4 recording, review, delivery and document qualification\n",
+        "UI_GATE_BEGIN Phase 5 source revisions, private briefs and delivery qualification\n",
+        "UI_GATE_PASS Phase 5 source revisions, private briefs and delivery qualification\n",
+        "LEGIWATCH_UI_QUALIFICATION_PASS\n",
+        "UI_RESULT folder-pg-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 34, \"numPassedTests\": 34, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 3}\n",
+        "UI_RESULT source-pg-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 2, \"numPassedTests\": 2, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 1}\n",
+        "UI_RESULT saved-session-sql-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 28, \"numPassedTests\": 28, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 1}\n",
+        "UI_RESULT inventory-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 11, \"numPassedTests\": 11, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 2}\n",
+        "UI_RESULT api-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 1776, \"numPassedTests\": 1776, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 142}\n",
+        "UI_RESULT intel-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 1157, \"numPassedTests\": 1157, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 87}\n",
+        "UI_RESULT web-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 1157, \"numPassedTests\": 1157, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 334}\n",
+        "UI_RESULT work/phase4-qualification/api.json {\"success\": true, \"passed\": null, \"numTotalTests\": 92, \"numPassedTests\": 92, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 7}\n",
+        "UI_RESULT work/phase4-qualification/intel-api.json {\"success\": true, \"passed\": null, \"numTotalTests\": 115, \"numPassedTests\": 115, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 15}\n",
+        "UI_RESULT work/phase4-qualification/web.json {\"success\": true, \"passed\": null, \"numTotalTests\": 119, \"numPassedTests\": 119, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 28}\n",
+        "UI_RESULT work/phase5-qualification/api.json {\"success\": true, \"passed\": null, \"numTotalTests\": 222, \"numPassedTests\": 222, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 15}\n",
+        "UI_RESULT work/phase5-qualification/intel.json {\"success\": true, \"passed\": null, \"numTotalTests\": 26, \"numPassedTests\": 26, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 4}\n",
+        "UI_RESULT work/phase5-qualification/core.json {\"success\": true, \"passed\": null, \"numTotalTests\": 119, \"numPassedTests\": 119, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 3}\n",
+        "UI_RESULT work/phase5-qualification/orchestrator.json {\"success\": true, \"passed\": null, \"numTotalTests\": 70, \"numPassedTests\": 70, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 3}\n",
+        "UI_RESULT work/phase5-qualification/web.json {\"success\": true, \"passed\": null, \"numTotalTests\": 74, \"numPassedTests\": 74, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 13}\n",
+        "UI_RESULT work/phase5-qualification/summary.json {\"success\": null, \"passed\": null, \"numTotalTests\": null, \"numPassedTests\": null, \"numFailedTests\": null, \"numPendingTests\": null, \"numTotalTestSuites\": null}\n"
+      ],
+      "logUrl": "https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Fcodebuild$252Fcapiro-build-web-dev/log-events/7d5c00e2-c95a-4074-9ba9-f7e9b6d0a691",
+      "failedPhases": []
+    }
+  },
+  "tests": {
+    "folder-pg-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 34,
+      "numPassedTests": 34,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 3
+    },
+    "source-pg-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 2,
+      "numPassedTests": 2,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 1
+    },
+    "saved-session-sql-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 28,
+      "numPassedTests": 28,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 1
+    },
+    "inventory-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 11,
+      "numPassedTests": 11,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 2
+    },
+    "api-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 1776,
+      "numPassedTests": 1776,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 142
+    },
+    "intel-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 1157,
+      "numPassedTests": 1157,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 87
+    },
+    "web-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 1157,
+      "numPassedTests": 1157,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 334
+    },
+    "work/phase4-qualification/api.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 92,
+      "numPassedTests": 92,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 7
+    },
+    "work/phase4-qualification/intel-api.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 115,
+      "numPassedTests": 115,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 15
+    },
+    "work/phase4-qualification/web.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 119,
+      "numPassedTests": 119,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 28
+    },
+    "work/phase5-qualification/api.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 222,
+      "numPassedTests": 222,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 15
+    },
+    "work/phase5-qualification/intel.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 26,
+      "numPassedTests": 26,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 4
+    },
+    "work/phase5-qualification/core.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 119,
+      "numPassedTests": 119,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 3
+    },
+    "work/phase5-qualification/orchestrator.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 70,
+      "numPassedTests": 70,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 3
+    },
+    "work/phase5-qualification/web.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 74,
+      "numPassedTests": 74,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 13
+    },
+    "work/phase5-qualification/summary.json": {
+      "success": null,
+      "passed": null,
+      "numTotalTests": null,
+      "numPassedTests": null,
+      "numFailedTests": null,
+      "numPendingTests": null,
+      "numTotalTestSuites": null
+    }
+  },
+  "typechecks": "All API programs, Intel API and web typecheck passed in exact-source native gate",
+  "runtime": "API compiled hearing/debrief imports and pruned RSS script imports passed offline; web assets and Nginx config passed",
+  "schemaChange": false,
+  "schemaEvidence": {
+    "baseline": "a84dce2f53e72cf57792f9cf4001302ed8d36e7e",
+    "changedMigrationOrSchemaOrLockPaths": [],
+    "migrationTreeHash": "6ac2931d653eeb45cafb0c3cc04feee3e0071eeba7ad1149c31cfab90914f1d1"
+  },
+  "review": {
+    "status": "no blockers",
+    "reviewer": "Codex root with independent Hermes and debrief review",
+    "operatorGuardTests": {
+      "passed": 78,
+      "failed": 0,
+      "skipped": 0
+    },
+    "operatorFileHashes": {
+      "owners/archive-reconciliation/pin-archive-reconciliation.mjs": "0be81419c9ec2748f78e950aee442cc6595c31ebd28c3817d03f0e4b388b57ca",
+      "owners/archive-reconciliation/pin-archive-reconciliation.test.mjs": "b28ccf94a484b271cf007f7bb99ab5a57fe80aa25db4cc84a506579b9b913755",
+      "owners/central-discovery/pin-central-discovery.mjs": "c3538899ab0f90eaafc80e7e35ca5a0ac22eb01ab84cf2fbb40ff6de0c94d21e",
+      "owners/central-discovery/pin-central-discovery.test.mjs": "6fc4b45241ffcdd2ab2e5a5eca7c6442fa33b59d89373e9b70408beda55c6d6d",
+      "owners/committee-enrichment/pin-committee-enrichment.mjs": "5b8f75159247248dabf9be5a6b18c9641aa161fca25a65869eb6d4de710eccee",
+      "owners/committee-enrichment/pin-committee-enrichment.test.mjs": "09402275f50f097b3fb48fb5f21ce98f1a93e4e2c6df88691a483583fe9392f6",
+      "owners/committee-updates/pin-committee-updates.mjs": "656df49143c5a14e8c1678b2fc4f5adf6795ef6eed8decc6cf0a6f721a070464",
+      "owners/committee-updates/pin-committee-updates.test.mjs": "6c2fa57933812045ada1f40a4f28c303230792861974567a95e886e55902a3e3",
+      "owners/rss-intel/pin-rss-intel.mjs": "4e9ffd1cf487ae6491e957ea5c1e68c82c4407f41c8b033d154303880ae4e7f5",
+      "owners/rss-intel/pin-rss-intel.test.mjs": "3ed8df41ca2651d234a5fe6beed477916eae8ef26dd0d496a6d3fef26496e3e6",
+      "owners/source-probe/pin-source-probe.mjs": "325fbf0143ed1f48c5964dd2cd5d17866bae7403fb24f8a0a96af3b169f08d0a",
+      "owners/source-probe/pin-source-probe.test.mjs": "946b84b04b2be6c8802e60bd913337801fcad71556c8b08cebf3b24e5ab73194"
+    }
+  },
+  "githubActions": {
+    "status": "startup_failure_before_jobs",
+    "countedAsPassed": false,
+    "replacement": "Exact-source native LegiWatch qualification using frozen workflow steps and explicit floors"
+  },
+  "confirmedCorrections": [
+    "Completed discovery cursor separated from health probes, persisted on success and partial failure",
+    "Valid partial observations retained without cursor advance; page/detail/day failures visible",
+    "Discovery worker partial counts cause failed heartbeat and nonzero exit",
+    "DHS and Commerce official current news fallbacks with original failed-feed receipts and honest publication precision",
+    "Elapsed/no-transcript hearings cannot generate future preparation as a recap",
+    "Inventory-specific timestamp qualifies exact selected document revisions without claiming a whole-bill check"
+  ],
+  "serverPublisherCheck": [
+    {
+      "key": "serverPublisherCheck",
+      "source": "dhs-index",
+      "status": 200,
+      "finalUrl": "https://www.dhs.gov/news-releases/press-releases",
+      "bytes": 143117,
+      "items": 10,
+      "publishedDays": [
+        "2026-10-05",
+        "2026-10-05",
+        "2026-10-05",
+        "2026-10-05",
+        "2026-10-05",
+        "2026-10-02",
+        "2026-10-02",
+        "2026-10-01",
+        "2026-10-01",
+        "2026-10-01"
+      ],
+      "durationMs": 71,
+      "observedAt": "2026-10-06T16:30:46.757Z"
+    },
+    {
+      "key": "serverPublisherCheck",
+      "source": "commerce-api",
+      "status": 200,
+      "finalUrl": "https://api.commerce.gov/api/news?api_key=DEMO_KEY&sort=-created&page%5Blimit%5D=30",
+      "bytes": 215841,
+      "items": 30,
+      "publishedDays": [
+        "2026-09-30T15:41:10-04:00",
+        "2026-09-30T15:35:55-04:00",
+        "2026-09-17T17:38:16-04:00",
+        "2026-09-02T16:29:24-04:00",
+        "2026-07-15T22:53:28-04:00"
+      ],
+      "durationMs": 4175,
+      "observedAt": "2026-10-06T16:30:50.932Z"
+    },
+    {
+      "key": "serverPublisherCheck",
+      "source": "ways-means-event",
+      "status": 200,
+      "finalUrl": "https://waysandmeans.house.gov/event/full-committee-field-hearing-the-one-big-beautiful-bill-delivering-for-small-business-manufacturing-and-working-families/",
+      "bytes": 41816,
+      "items": null,
+      "publishedDays": null,
+      "durationMs": 47,
+      "observedAt": "2026-10-06T16:30:50.980Z"
+    },
+    {
+      "key": "serverPublisherCheck",
+      "source": "jct",
+      "status": 403,
+      "finalUrl": "https://www.jct.gov/",
+      "bytes": 5481,
+      "items": null,
+      "publishedDays": null,
+      "durationMs": 57,
+      "observedAt": "2026-10-06T16:30:51.037Z"
+    }
+  ],
+  "limits": {
+    "news": "Bounded current window only (maximum30), no full-history completeness claim; Reuters/State/Cato/Brookings remain failed",
+    "florida": "Publisher429/backoff remains possible and explicit; complete2026 calendar receipts are window-scoped",
+    "discovery": "First cursor recovers seven days, subsequent overlap five minutes; no complete future inventory claim from zero rows",
+    "recording": "Capture-all+Florida enabled; current119575 has browser-only YouTube media, no approved server media; zero future rows is vacuous",
+    "debrief": "Golden Dome saved/reloaded acceptance complete (seven reviewed sections,1371words); all219 retained source passages included. Missing transcripts cannot produce a truthful recorded-hearing recap",
+    "lifecycle": "Source-policy BLOCKED recovery when a future new approved source arrives remains a bounded design follow-up; no current approved recovery case was proved",
+    "billDepth": "HB1211 retained four text versions and three official analyses. Fresh production inventory qualification and substantive client-impact analysis are not certified by unit/fixture success"
+  },
+  "promotion": "Not promoted by this qualification record; fresh guarded manifests and separate live acceptance required"
+}

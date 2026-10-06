@@ -9,6 +9,7 @@ import { reportSourceFacts } from './legiscan-published-records.js';
 import { persistDocumentEvidence } from './legiscan-document-evidence.js';
 import { currentQuotaMonth, LEGISCAN_HARD_CAP, monthToDateQueries } from './legiscan-quota.util.js';
 import type { LegalResearchManifest } from './legal-research-manifest.js';
+import { inventoryObservedAt } from './legislative-corpus.js';
 
 /** Backfill the missing document inventory only when the provider still describes
  * the exact canonical bill revision. A changed bill must use the normal writer. */
@@ -50,7 +51,10 @@ export async function refreshResearchBillInventory(
       raw.change_hash !== bill.legiscanChangeHash
     )
       throw Error('CANONICAL_BILL_REVISION_REFRESH_REQUIRED');
-    const inventory = reportSourceFacts(raw).documentInventory;
+    const inventory = {
+      ...reportSourceFacts(raw).documentInventory,
+      observedAt: new Date().toISOString(),
+    };
     if (!inventory.sourceListComplete || inventory.expected.length > 500)
       throw Error('PROVIDER_DOCUMENT_INVENTORY_INCOMPLETE');
     await prisma.$transaction(async (tx) => {
@@ -85,7 +89,13 @@ export async function hydrateResearchDocuments(
       state: manifest.jurisdiction,
       sessionKey: manifest.sessionKey,
     },
-    select: { id: true, legiscanBillId: true, legiscanChangeHash: true, reportSourceFacts: true },
+    select: {
+      id: true,
+      legiscanBillId: true,
+      legiscanChangeHash: true,
+      reportSourceFacts: true,
+      sourceCheckedAt: true,
+    },
   });
   const session = await prisma.stateSession.findFirst({
     where: { state: manifest.jurisdiction, sessionKey: manifest.sessionKey },
@@ -102,7 +112,12 @@ export async function hydrateResearchDocuments(
       !bill.legiscanBillId ||
       !inventory ||
       inventory.providerChangeHash !== bill.legiscanChangeHash ||
-      !Array.isArray(inventory.expected)
+      !Array.isArray(inventory.expected) ||
+      !inventoryObservedAt(
+        inventory,
+        bill.legiscanChangeHash,
+        bill.sourceCheckedAt?.toISOString() ?? null,
+      )
     ) {
       try {
         inventory = await refreshResearchBillInventory(

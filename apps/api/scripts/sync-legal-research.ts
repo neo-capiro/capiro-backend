@@ -6,7 +6,10 @@ import { hydrateResearchDocuments } from '../src/ingestion/research-document-hyd
 import { fetchAdoptedRuleText } from '../src/external/state-register/fl-adopted-text.client.js';
 import { fetchFloridaConstitution } from '../src/external/state-register/fl-constitution.client.js';
 
-import { qualifyLegislativeCorpus } from '../src/ingestion/legislative-corpus.js';
+import {
+  inventoryObservedAt,
+  qualifyLegislativeCorpus,
+} from '../src/ingestion/legislative-corpus.js';
 
 /** Bounded API-owned pilot ingestion. Explicit manifest required; no notification owner here. */
 
@@ -192,7 +195,11 @@ export async function runLegalResearch(prisma: PrismaClient, input: LegalResearc
           return {
             billId: b.id,
             providerChangeHash: b.legiscanChangeHash,
-            sourceCheckedAt: b.sourceCheckedAt?.toISOString() ?? null,
+            sourceCheckedAt: inventoryObservedAt(
+              inventory,
+              b.legiscanChangeHash,
+              b.sourceCheckedAt?.toISOString() ?? null,
+            ),
             sourceListComplete:
               inventory.sourceListComplete === true &&
               inventory.providerChangeHash === b.legiscanChangeHash,
