@@ -2,13 +2,36 @@
 
 **Start a new session with [HANDOVER-2026-10-06.md](HANDOVER-2026-10-06.md).**
 
-**Stage 2 progress, October 6, 2026 (early morning UTC, lead agent).** Executing [00-Meri-Deployment-Plan-Opus-5-5-2026-10-05.md](00-Meri-Deployment-Plan-Opus-5-5-2026-10-05.md) §4. Release A shipped dark; Deep Research repaired through report generation; client-scoped report publication is blocked by design (decision needed).
+**Stage 2 progress, October 6, 2026 (about 03:40 UTC, lead agent).** Handover section 9 step 1, the research re-check adapter, is **implemented, tested, merged and deployed**. A client-scoped Deep Research report now publishes and stays readable while its inputs are current. Release B is unblocked. Evidence: [releases/2026-10-06](../releases/2026-10-06/README.md).
 
-- **Served:** API `capiro-dev-api:564` from `f39bf0476` (563 promoted from the jobs-foundation image, then 564 is an env-only configuration revision; release rollback 562), orchestrator `capiro-dev-meriv2-orchestrator:153` from `14b7deb1c` (rollback 152). Evidence: [s2-release-a](../releases/2026-10-05/s2-release-a/README.md), [s2-release-a-orch](../releases/2026-10-05/s2-release-a-orch/README.md), [s2-release-a-orch-2](../releases/2026-10-05/s2-release-a-orch-2/README.md), [s2-release-a-orch-3](../releases/2026-10-05/s2-release-a-orch-3/README.md).
-- **Release A (dark), #2038:** migration `20281008010000_clio_research_sessions_jobs` applied with Neo's OK (admin-migrate 85; status check 86 is the family's read-only latest): `kind`, `goal_revision`, `deliverables_jsonb` on `clio_research_sessions`. Job status projected from the stored run state; `kind` on create gated by tenant flag `meri.jobs` (off everywhere); lease sweeper shipped off (`MERI_JOB_SWEEPER_ENABLED`). Web-vnext build path added to the launcher (#2036).
-- **Deep Research repaired (found by the Release A live check; it had 1 run in 14 days):** plan turns no longer held to the client-file read gate (#2040); planning runs as the research surface so chat evidence stages stop rewriting the plan JSON (#2042); per-run research budget raised to 4,000,000 units and $25 with Neo's OK (configuration revision API 564, codified #2045), because reservations count request bytes; settlements send the full API contract (#2044). No other orchestrator-to-API research contract drift (audited).
-- **Blocked, decision needed:** a client-scoped research report is refused at publication: "The research report includes private producer inputs without a current authorization adapter." Context-packet items, handoff summaries, attachments, inherited citations or unreceipted tool results make the producer input `unsupported_private_inputs`, which fails closed. The test report was also held by the enforce-mode auditor (D4b, authorization/appropriation conflation). Every Stage 2 job runs on this path, so Release B waits for this decision.
-- **Live checks:** `outputs/meri-stage2-20261005/research-check*.mjs`, one Deep Research run on the QA client per check, five runs in total; per-call cost is in the orchestrator's finalized-turn telemetry.
+- **Served:**
+  - API `capiro-dev-api:574` from `c9f570eee` (digest `sha256:4cdba7f7…`; rollback 573, which pins the 572 that LegiWatch rolled from `c91bbe29f`). The env diff is the SHA keys only; the research budget env from 564 is carried.
+  - Orchestrator `capiro-dev-meriv2-orchestrator:153` from `14b7deb1c`, unchanged (rollback 152).
+  - Web-vnext 400, rolled by another workstream.
+  - Admin-migrate latest is 87: a read-only `migration-status` run on the 574 image reports the schema up to date.
+- **Adapter (#2051, then #2054, #2056 and #2058):**
+  - Every non-user producer input is classified. Governed inputs are pinned at publication in private session metadata, bound by a manifest hash in the report provenance, and re-checked against their canonical owner on every read (session, export, history, model context); the body is withheld on any missing, changed, walled or no-longer-admitted input. The governed inputs are Context Plane packet items, records in `clients`, `contacts`, `strategies_work` and `institutional_knowledge`, and handoff attachments. The owners are the compiler's own v2 steering governance, canonical memory eligibility, the client wall, row versions, and the attachment digest.
+  - An audited list of public-data tools and content-free failures count as public. Research execution admits only receipted owner tools and public-data tools.
+  - Still refused, as designed: conversation summary, assistant turns, inherited citations, other Context Plane domains (mail, meetings, tasks and others), unreceipted tenant tools, and receipted reads that are not declared.
+  - A refused publication logs per-category counts (names only).
+- **Rolls (no migration applied):**
+  - 566 (`fd6a8b557`): failed closed, because `memory_items` forces owner RLS and the check ran without the reader identity.
+  - 568 (`30fd674d0`): refused an unreceipted `search_research_sources` read.
+  - 570 (`4b14a1109`): the provenance builder refused undeclared receipts from dropped children.
+  - 574 (`c9f570eee`): **pass**. Coverage `unsupported={}` (9 packet items, 37 memory records, 1 client record, 8 public reads). Report `ebd713a5` (3,439 characters) is released on the session read and in conversation history, and no private manifest appears in public projections.
+  - Four paid research runs in total.
+- **Neo's verdict pending** on the roll-4 report (session `5d29ceb1`, conversation `e07b8369`). It truthfully says primary-source reads were unavailable, and both bounded children failed `schema_invalid`. Research quality, not authorization, is the next limit.
+- **Next (handover section 9):**
+  - Step 2, D4b: no auditor finding on this non-budget topic. Try a budget topic once.
+  - Step 3: Release B.
+  - Open adapter gaps for a later decision:
+    - Research started after a chat reply is still refused (assistant turns and summary).
+    - Mail, meetings and tasks Context Plane records have no adapter.
+    - The per-record re-check runs one query per input (about 50 per read today); batch it if reads get slow.
+- **Unchanged from the previous block:**
+  - Release A shipped dark (#2038, jobs migration applied; `meri.jobs` off; sweeper off).
+  - Deep Research repairs #2040, #2042, #2044 and #2045.
+  - Release B still needs Neo's OK for `meri.jobs` and the sweeper configuration revision.
 
 **Stage 1 handover, October 5, 2026 (night, lead agent).** Executed [00-Meri-Deployment-Plan-Opus-5-5-2026-10-05.md](00-Meri-Deployment-Plan-Opus-5-5-2026-10-05.md) §3. Label: `01_READY_FOR_02` (see [01-handover.md](01-handover.md)). One step remains and is named: merge the §4.3 PRs on or after 2026-10-12, then roll and confirm one live turn each.
 

@@ -1,0 +1,26 @@
+{
+  "check": "one Deep Research run on ZZ-QA-Meri1651-Test-DoNotUse as neo@capiro.ai in capiro-internal",
+  "topic": "Summarize the current federal policy landscape for critical minerals supply chains and what it means for this client. Keep it to one short paragraph with sources.",
+  "summary": {
+    "researchId": "4971a63b-c416-4d81-89e6-e7566676dc26",
+    "conversationId": "4647ecdf-64f3-4d57-954d-8af326f61b8d",
+    "columnStatus": "failed",
+    "run": {
+      "status": "failed",
+      "leaseEpoch": 2
+    },
+    "job": {
+      "kind": "research",
+      "status": "failed",
+      "goalRevision": 0,
+      "deliverables": [],
+      "awaitingStart": false
+    },
+    "report": null,
+    "pass": false
+  },
+  "apiLogLines": [
+    "[Nest] 6  - 10/06/2026, 2:15:11 AM    WARN [MeriResearchService] Research producer input not current at publication: session=4971a63b-c416-4d81-89e6-e7566676dc26 category=context_packet_item_missing",
+    "[Nest] 6  - 10/06/2026, 2:15:11 AM    WARN [MeriResearchService] Research run failed: A research producer input is no longer current."
+  ]
+}

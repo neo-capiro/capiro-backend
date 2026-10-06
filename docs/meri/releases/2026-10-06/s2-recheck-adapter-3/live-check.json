@@ -1,0 +1,26 @@
+{
+  "check": "one Deep Research run on ZZ-QA-Meri1651-Test-DoNotUse as neo@capiro.ai in capiro-internal",
+  "topic": "Summarize the current federal policy landscape for critical minerals supply chains and what it means for this client. Keep it to one short paragraph with sources.",
+  "summary": {
+    "researchId": "1d04ca37-8dd5-43f1-b50c-7696a8a86cbc",
+    "conversationId": "230d91a4-4d34-485c-964e-979ad753df8b",
+    "columnStatus": "failed",
+    "run": {
+      "status": "failed",
+      "leaseEpoch": 2
+    },
+    "job": {
+      "kind": "research",
+      "status": "failed",
+      "goalRevision": 0,
+      "deliverables": [],
+      "awaitingStart": false
+    },
+    "report": null,
+    "pass": false
+  },
+  "apiLogLines": [
+    "[Nest] 7  - 10/06/2026, 3:04:43 AM     LOG [MeriResearchService] Research producer inputs governed: session=1d04ca37-8dd5-43f1-b50c-7696a8a86cbc unsupported={} covered={\"context_packet_items\":9,\"steering_records\":6,\"context_record:clients\":1,\"context_record:institutional_knowledge\":37,\"failed_tool_results\":4}",
+    "[Nest] 7  - 10/06/2026, 3:04:43 AM    WARN [MeriResearchService] Research run failed: A source-free report cannot inherit a durable source receipt."
+  ]
+}
