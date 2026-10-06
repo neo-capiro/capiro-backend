@@ -226,5 +226,33 @@
       ]
     },
     "note": "Actual EventBridge runs and image digests; not a guarantee that every official source permits server recording."
+  },
+  "finalCombinedDelta": {
+    "id": "capiro-build-web-dev:32e0aa57-d644-4c9f-89d6-affa01abe3a4",
+    "sourceSha": "c91bbe29f971630d584768a91de47623d1bb5098",
+    "status": "SUCCEEDED",
+    "startedAt": "2026-10-05T22:52:25.960000-04:00",
+    "finishedAt": "2026-10-05T22:56:38.549000-04:00",
+    "assertions": [
+      "[hearing-committee-final-delta] OK \u2014 5 suites / 77 tests, 0 failed, 0 skipped, 0 todo."
+    ],
+    "completionMarker": [
+      "HEARING_COMMITTEE_FINAL_DELTA_QUALIFICATION_PASS"
+    ],
+    "coveredFiles": [
+      "src/hearing-discovery/legislative-calendar-postgres.spec.ts",
+      "src/hearing-discovery/adapters/florida-calendar.adapter.spec.ts",
+      "src/hearing-discovery/legislative-calendar.spec.ts",
+      "src/live-hearings/legiwatch-committee-alerts-pg.integration.spec.ts",
+      "src/meri/meri-research-producer-inputs.spec.ts"
+    ],
+    "previousFailure": {
+      "buildId": "capiro-build-web-dev:2cea46fd-0ed6-49cc-b29c-e5d11eca1a4b",
+      "sourceSha": "62e667a8d86319e5776e39e24658e3f646e2a9a6",
+      "passedTests": 40,
+      "failedTests": 1,
+      "reason": "Explicit closed visibility violated existing public/private database constraint. Corrected classifier/projection to existing private value, which capture permission maps to CLOSED."
+    },
+    "migrationUnchangedFrom": "718361f129a377ddae0af177bfa3c2ea49912308"
   }
 }
