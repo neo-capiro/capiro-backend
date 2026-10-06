@@ -131,6 +131,7 @@ import {
   describeResearchProducerInputCategories,
   joinResearchProducerInputs,
   pinResearchProducerInputs,
+  researchProducerInputCoverableTool,
   ResearchProducerInputNotCurrent,
   type ResearchProducerInputCategories,
   type ResearchProducerInputDraftV1,
@@ -2937,11 +2938,16 @@ export class MeriResearchService {
           clientContext,
           admittedPlanExecution: {
             plan: acceptedPlan,
+            // A report publishes only when every producer input can be
+            // re-checked at read, so the run reads only through such tools.
             allowedReadCapabilities: [
               ...new Set(
                 acceptedPlan.steps
                   .flatMap((step) => step.allowedCapabilities)
-                  .filter((name) => this.tools.isConcurrencySafe(name)),
+                  .filter(
+                    (name) =>
+                      this.tools.isConcurrencySafe(name) && researchProducerInputCoverableTool(name),
+                  ),
               ),
             ].sort(),
           },
