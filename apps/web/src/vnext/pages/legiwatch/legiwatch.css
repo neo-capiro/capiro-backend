@@ -251,6 +251,7 @@
 .capiro-vnext-root .lw :is(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--lw-focus); outline-offset: 3px; }
 .capiro-vnext-root .lw :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea):not([class]) {
   min-width: 0;
+  min-height: var(--lw-native-control-min, 36px);
   max-width: 100%;
   padding: 8px 10px;
   border: 1px solid var(--lw-control);
@@ -2098,6 +2099,7 @@
  * editing the geometry back out of every call site. The type ramp is untouched.
  */
 @media (max-width: 1179px) {
+  .capiro-vnext-root .lw { --lw-native-control-min: var(--capiro-hit-size, 44px); }
   .capiro-vnext-root .lw .lw-btn,
   .capiro-vnext-root .lw .lw-seg__item,
   .capiro-vnext-root .lw .lw-navbtn,
