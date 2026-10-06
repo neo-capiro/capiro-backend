@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { config } from '../../env.js';
 import { readMeriJob, type MeriJobView } from '../../components/chat/meri-research-recovery.js';
+import {
+  isMeriDeliverableFormat,
+  MERI_DELIVERABLE_LABEL,
+  type MeriDeliverableFormat,
+} from '../../components/chat/meri-deliverable-format.js';
 
 type RowState = {
   busy?: 'download' | 'file';
@@ -22,9 +27,10 @@ function fileNameFrom(disposition: string | null, fallback: string): string {
 }
 
 /**
- * Stage 2 deliverable job card. The Word document is rendered by the API from
- * the job's authorized report on every request, and filing into the client's
- * Files happens only on this explicit confirmation (once per deliverable).
+ * Stage 2 deliverable job card. The Word, Excel or PowerPoint file is rendered
+ * by the API from the job's authorized report on every request, and filing
+ * into the client's Files happens only on this explicit confirmation (once per
+ * deliverable).
  */
 export function MeriJobDeliverables({
   researchId,
@@ -68,12 +74,12 @@ export function MeriJobDeliverables({
     setRows((previous) => ({ ...previous, [index]: { ...previous[index], ...next } }));
 
   const download = useCallback(
-    async (index: number, title: string) => {
+    async (index: number, title: string, format: MeriDeliverableFormat) => {
       if (!researchId) return;
       update(index, { busy: 'download', error: undefined });
       try {
         const response = await fetch(
-          `${config.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchId)}/deliverables/${index}/docx`,
+          `${config.apiBaseUrl}/api/clio/research/${encodeURIComponent(researchId)}/deliverables/${index}/${format}`,
           { headers: await authHeaders() },
         );
         if (!response.ok)
@@ -86,7 +92,10 @@ export function MeriJobDeliverables({
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = fileNameFrom(response.headers.get('Content-Disposition'), `${title}.docx`);
+        anchor.download = fileNameFrom(
+          response.headers.get('Content-Disposition'),
+          `${title}.${format}`,
+        );
         anchor.click();
         URL.revokeObjectURL(url);
         update(index, { busy: undefined });
@@ -147,19 +156,22 @@ export function MeriJobDeliverables({
       <span className="vnext-meri__durable-kicker">DELIVERABLE</span>
       <ul>
         {job.deliverables.map((deliverable, index) => {
+          // Only Office files are rendered; any other recorded format has no download.
+          const format = deliverable.format;
+          if (!isMeriDeliverableFormat(format)) return null;
           const row = rows[index] ?? {};
           const filed = Boolean(row.filedLocation) || Boolean(deliverable.artifactId);
           return (
-            <li key={`${deliverable.format}:${index}`} data-meri-deliverable={index}>
+            <li key={`${format}:${index}`} data-meri-deliverable={index}>
               <span className="vnext-meri__job-deliverable-title">
-                {deliverable.title} <small>(Word document)</small>
+                {deliverable.title} <small>({MERI_DELIVERABLE_LABEL[format]})</small>
               </span>
               <div className="vnext-meri__durable-actions">
                 <button
                   type="button"
                   className="vnext-meri__durable-send"
                   disabled={Boolean(row.busy)}
-                  onClick={() => void download(index, deliverable.title)}
+                  onClick={() => void download(index, deliverable.title, format)}
                 >
                   {row.busy === 'download' ? 'Preparing…' : 'Download'}
                 </button>

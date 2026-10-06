@@ -60,6 +60,20 @@ describe('Delegate this', () => {
     });
   });
 
+  test.each([
+    ['Compare the House and Senate marks in an Excel workbook', 'xlsx'],
+    ['Build a six-slide quarterly update deck', 'pptx'],
+  ] as const)('asks for the file the request names: %s', async (request, format) => {
+    const bodies = stubResearchCreation();
+    const { result } = renderHook(() => useMeriChatController({ selectedClientName: null }), {
+      wrapper,
+    });
+    await act(async () => {
+      await result.current.delegateJob(request);
+    });
+    expect(bodies[0]).toMatchObject({ kind: 'deliverable', deliverables: [{ format }] });
+  });
+
   test('ordinary research stays a research session', async () => {
     const bodies = stubResearchCreation();
     const { result } = renderHook(() => useMeriChatController({ selectedClientName: null }), {

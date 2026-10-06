@@ -98,6 +98,7 @@ import type { TrustStep } from './work-performed-shared.js';
 import type { CanvasArtifact } from './MeriCanvas.js';
 import type { MessageFeedbackPayload } from './message-feedback-shared.js';
 import type { MeriLearnedMemory } from './MeriMemoryPanel.js';
+import { deliverableFormatFor, type MeriDeliverableFormat } from './meri-deliverable-format.js';
 
 type SseEvent =
   | { type: 'runtime'; telemetry?: Record<string, unknown> }
@@ -296,7 +297,7 @@ const MAX_IMAGE_ATTACHMENTS = 4;
 /** A Stage 2 job request carried on research creation (`meri.jobs`). */
 export interface MeriJobRequest {
   kind: 'deliverable';
-  deliverables: Array<{ format: 'docx'; title?: string }>;
+  deliverables: Array<{ format: MeriDeliverableFormat; title?: string }>;
 }
 
 interface AttachmentUploadResponse {
@@ -1632,13 +1633,17 @@ export function useMeriChatController({
   );
 
   // Stage 2 "Delegate this": the same durable research flow, created as a
-  // deliverable job (a Word document the user can download and file). The API
-  // refuses it unless the tenant flag meri.jobs is on.
+  // deliverable job (a Word, Excel or PowerPoint file the user can download
+  // and file; the request's wording picks the format, Word by default). The
+  // API refuses it unless the tenant flag meri.jobs is on.
   const delegateJob = useCallback(
     async (content: string): Promise<boolean> => {
       if (isStreaming) return false;
       researchSessionRef.current = null;
-      return runResearch(content, { kind: 'deliverable', deliverables: [{ format: 'docx' }] });
+      return runResearch(content, {
+        kind: 'deliverable',
+        deliverables: [{ format: deliverableFormatFor(content) }],
+      });
     },
     [isStreaming, runResearch],
   );
