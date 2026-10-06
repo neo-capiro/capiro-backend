@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { isMeriDurableTerminal } from '../../components/chat/meri-durable-research.js';
+import { MeriJobDeliverables } from './MeriJobDeliverables.js';
 import { useMeriDurableResearch } from './useMeriDurableResearch.js';
 
 function outcomeLabel(value: string): string {
@@ -83,6 +84,13 @@ export function MeriDurableResearchControls({
           ? 'Cancel requested. Waiting for the worker to confirm termination.'
           : (snapshot.run?.stage ?? 'The durable research task is complete.')}
       </p>
+      {terminal ? (
+        <MeriJobDeliverables
+          researchId={researchId}
+          authHeaders={controller.authHeaders}
+          refreshKey={runStatus}
+        />
+      ) : null}
       {runStatus === 'running' ? (
         <p className="vnext-meri__durable-background">
           This durable task continues in the background if you close or leave this thread.
