@@ -96,6 +96,7 @@ const HISTORY_SESSION = {
  */
 const DETAIL_EVENT = {
   ...calRow({}),
+  streamState: 'READY_FOR_SERVER_CAPTURE',
   capture: { id: 'cap-1', status: 'ended', failureReason: null, gapSeconds: 0 },
 };
 
@@ -442,6 +443,8 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
     fireEvent.click(chip);
     await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings/cm-119-9001'));
     await waitFor(() => expect(screen.getByRole('heading', { name: /Shipbuilding industrial base oversight/i })).toBeTruthy());
+    expect(screen.getByText('Stream ready')).toBeInTheDocument();
+    expect(screen.queryByText('READY_FOR_SERVER_CAPTURE')).not.toBeInTheDocument();
     fireEvent.click(screen.getByText('← Back to LegiWatch'));
     await waitFor(() => expect(location.current.pathname).toBe('/legiwatch/hearings'));
     expect(new URLSearchParams(location.current.search).get('calendarDate')).toBe('2026-02-24');

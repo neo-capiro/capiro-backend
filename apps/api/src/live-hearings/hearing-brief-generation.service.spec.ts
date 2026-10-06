@@ -251,6 +251,8 @@ describe('HearingBriefGenerationService.generate', () => {
       provider: 'anthropic',
       timeoutMs: 300_000,
       maxTokens: 6000,
+      anthropicJsonOutput: true,
+      reasoningEffort: 'medium',
       system: expect.stringContaining('1,000–1,400 words'),
     });
     expect(brief.title).toBe('Acme Aerospace — Defense posture hearing recap');

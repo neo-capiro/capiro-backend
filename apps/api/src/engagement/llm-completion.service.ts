@@ -56,6 +56,8 @@ export interface LlmCompletionRequest {
   /** Structured-output JSON schema (both providers). */
   jsonSchema: Record<string, unknown>;
   jsonSchemaName?: string;
+  /** Opt in to Anthropic's native JSON output; schema must use its supported subset. */
+  anthropicJsonOutput?: boolean;
   /**
    * Output budget. Anthropic `max_tokens` (defaults to 2400 — the legacy value —
    * when undefined). OpenAI `max_output_tokens` is set only when defined, so the
@@ -607,6 +609,12 @@ export class LlmCompletionService {
           ? Math.max(req.maxTokens ?? 0, THINKING_MAX_TOKENS)
           : (req.maxTokens ?? 2400),
         ...anthropicThinking,
+        ...(req.anthropicJsonOutput
+          ? { output_config: {
+              ...(thinkingOn ? { effort: anthropicEffort(req.model, req.reasoningEffort!) } : {}),
+              format: { type: 'json_schema', schema: req.jsonSchema },
+            } }
+          : {}),
         // See LlmCompletionRequest.temperature — Anthropic-only by design, and
         // dropped entirely while thinking is on: sampling parameters were removed
         // alongside budget_tokens on 4.7+ and return a 400 there.
