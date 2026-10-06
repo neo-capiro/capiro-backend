@@ -2,12 +2,7 @@ import { contentHash } from './hearing-identity.js';
 import { calendarDayParts } from '../live-hearings/legiwatch-calendar-export.js';
 
 export type CalendarStatus =
-  | 'scheduled'
-  | 'postponed'
-  | 'canceled'
-  | 'in_progress'
-  | 'completed'
-  | 'unknown';
+  'scheduled' | 'postponed' | 'canceled' | 'in_progress' | 'completed' | 'unknown';
 export type CalendarTime = {
   date: string;
   rawTime: string | null;
@@ -38,6 +33,8 @@ export type CalendarDocument = {
 export type CalendarFacts = {
   title: string;
   status: CalendarStatus;
+  /** Only source-qualified visibility may change recording eligibility. */
+  visibility?: 'public' | 'closed' | 'unknown';
   time: CalendarTime;
   location: string | null;
   agenda: AgendaItem[];
@@ -91,6 +88,11 @@ export function legislativeEventId(observation: LegislativeObservation): string 
 
 export function validateCalendarObservation(o: LegislativeObservation): void {
   legislativeEventId(o);
+  if (
+    o.fields.visibility !== undefined &&
+    !['public', 'closed', 'unknown'].includes(o.fields.visibility)
+  )
+    throw new Error('Invalid calendar visibility');
   if (!publicSourceUrl(o.sourceUrl)) throw new Error('Invalid public source URL');
   if (o.publishedAt && !Number.isFinite(Date.parse(o.publishedAt)))
     throw new Error('Invalid publication time');

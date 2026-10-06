@@ -29,6 +29,28 @@ const ref: SenateNoticeRef = {
   canceled: false,
 };
 describe('Florida first-party calendar contract', () => {
+  it.each([
+    ['Secured briefing on critical incident response protocols', true, 'closed'],
+    ['Public workshop on critical incident response protocols', true, undefined],
+    ['Secured briefing on critical incident response protocols', false, undefined],
+  ])(
+    'qualifies visibility from the specific agenda and explicit access restriction: %s',
+    (agenda, restriction, expected) => {
+      const notice = houseNoticeObservation(
+        `<main class="cm_contents"><h1 class="ribbon">Security &amp; Threat Assessment Committee</h1>
+       <dl aria-label="Meeting Information"><dt>Start Date and Time:</dt><dd>February 2, 2026 1:00 PM</dd>
+       <time datetime="2026-02-02T13:00:00-05:00"></time></dl>
+       <h2 id="meeting-summary">Meeting Overview/Summary:</h2><div>${agenda}<br>
+       ${restriction ? 'NOTE: a meeting will be closed for secured briefings and limited only to committee members and approved staff.' : ''}</div></main>`,
+        'https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15076',
+        '2026',
+      );
+      expect(notice.fields.visibility).toBe(expected);
+      expect(notice.completeFields.includes('visibility')).toBe(expected === 'closed');
+      expect(() => validateCalendarObservation(notice)).not.toThrow();
+    },
+  );
+
   it('decodes publisher text that is HTML-encoded twice before storing titles', () => {
     const committees = senateCommitteeLinks(
       '<a href="/Committees/Show/RE/2026">Rules &amp;amp; Ethics</a>',

@@ -280,4 +280,28 @@ describe('Phase 3 calendar persistence on PostgreSQL', () => {
     ).toBe(2);
     expect(await prisma.stateBillCalendarSnapshot.count({ where: { billKey: billId } })).toBe(2);
   });
+  it('projects an explicit closed notice and never reopens it when later visibility is omitted', async () => {
+    const closed = notice();
+    closed.fields.visibility = 'closed';
+    closed.completeFields.push('visibility');
+    await repo.reconcile(source, 'upstream-909', closed, now);
+    const before = await prisma.committeeHearing.findUniqueOrThrow({ where: { id: hearingId } });
+    expect(before.visibility).toBe('closed');
+    expect(before.calendarSnapshot).toMatchObject({ visibility: 'closed' });
+    await repo.reconcile(
+      source,
+      'upstream-909',
+      { ...notice(), completeness: 'partial', completeFields: [] },
+      now,
+    );
+    const after = await prisma.committeeHearing.findUniqueOrThrow({ where: { id: hearingId } });
+    expect(after.visibility).toBe('closed');
+    expect(after.calendarRevision).toBe(before.calendarRevision);
+    const transition = await prisma.legislativeCalendarTransition.findFirstOrThrow({
+      where: { hearingId },
+      orderBy: { revision: 'desc' },
+    });
+    expect(transition.changedFields).toContain('visibility');
+    expect(transition.after).toMatchObject({ visibility: 'closed' });
+  });
 });
