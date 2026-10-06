@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-scrape-evidence-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T20:39:34.548564+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "f3e36015596b952d766ebcc101327408c5a4104a",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:bbb902ae88b4f46cf759e9532f002445806a726cdc9a856cf7c312f50b18e00a",
+      "buildId": "capiro-build-web-dev:956a39c1-be32-41e9-9085-791c9c8ce833"
+    }
+  ],
+  "schemaChange": false,
+  "change": "The source re-check compares a scraped page by the text the producer read, not its raw bytes or links, and names changed fields on refusal (#2128). Follows T5 run 9 (00eb08de). Built from main f3e360155, which also carries LegiWatch #2122 (already served as API 619).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
