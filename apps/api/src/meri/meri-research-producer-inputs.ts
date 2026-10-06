@@ -320,10 +320,17 @@ export function classifyResearchProducerInputs(input: {
   let failedToolResults = 0;
   for (const entry of input.ledgerEntries) {
     if (entry.durableSafeRead) {
+      const receiptedTool = entry.durableSafeRead.tool;
       // Receipted public sources are re-checked by the receipt path. A receipt
-      // for any other tool has no owner proof and was never re-checked before.
-      if (!publicResearchSourceTool(entry.durableSafeRead.tool))
-        bump(unsupported, `receipted_unowned_tool:${entry.durableSafeRead.tool}`);
+      // for any other tool has no owner proof and was never re-checked before,
+      // except a public-data read: it carries no tenant context, so it is
+      // covered as public data whether or not it was receipted (T5 a1a36b6f:
+      // partial search_public_web reads, receipted since #2106).
+      if (!publicResearchSourceTool(receiptedTool) && PUBLIC_DATA_RESEARCH_TOOLS.has(receiptedTool)) {
+        publicTools.add(receiptedTool);
+        bump(covered, `public_tool:${receiptedTool}`);
+      } else if (!publicResearchSourceTool(receiptedTool))
+        bump(unsupported, `receipted_unowned_tool:${receiptedTool}`);
       // A receipted read the model saw that will not be declared as a report
       // source would escape the read-time re-check.
       else if (!input.qualifiedDurableExecutionIds.has(entry.durableSafeRead.executionId))
