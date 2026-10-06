@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { classifyApiToolReadOutcome, MERI_CAPABILITY_REGISTRY } from '@capiro/shared';
 import { MeriToolsService } from './meri-tools.service.js';
 import {
+  changedResultFields,
   currentOwnerResultAuthorizesReplay,
   supportsDurableOwnerReauthorization,
 } from './meri-research-replay-authorization.js';
@@ -536,7 +537,7 @@ describe('remaining canonical source families', () => {
     ],
     ['read_bill_text', billText(), billText('Changed bill bytes')],
     ['get_bill_status', billStatus(), billStatus('introduced')],
-    ['scrape_web_page', webPage(), { ...webPage(), contentHash: HASH_B }],
+    ['scrape_web_page', webPage(), webPage('Changed page text')],
     ['read_chat_attachments', attachment(), attachment('Changed attachment bytes')],
     [
       'get_research_evidence',
@@ -608,7 +609,7 @@ describe('remaining canonical source families', () => {
     expect(currentOwnerResultAuthorizesReplay('get_bill_status', saved, changedNote)).toBe(false);
   });
 
-  it('binds web page title and links to proof in replay binding', () => {
+  it('binds web page title, URL and read text to proof, not markup bytes or links', () => {
     const saved = webPage('content');
     expect(
       currentOwnerResultAuthorizesReplay('scrape_web_page', saved, structuredClone(saved)),
@@ -618,11 +619,17 @@ describe('remaining canonical source families', () => {
       title: 'Changed Title',
     };
     expect(currentOwnerResultAuthorizesReplay('scrape_web_page', saved, changedTitle)).toBe(false);
-    const changedLinks = {
+    const redirected = { ...saved, url: 'https://example.gov/b' };
+    expect(currentOwnerResultAuthorizesReplay('scrape_web_page', saved, redirected)).toBe(false);
+    // T5 00eb08de: markup churn (tokens, cache stamps, rotating links) is not a new version.
+    const churned = {
       ...saved,
+      contentHash: HASH_B,
       links: ['https://example.com/other'],
+      generatedAt: '2026-10-06T20:07:00.000Z',
     };
-    expect(currentOwnerResultAuthorizesReplay('scrape_web_page', saved, changedLinks)).toBe(false);
+    expect(currentOwnerResultAuthorizesReplay('scrape_web_page', saved, churned)).toBe(true);
+    expect(changedResultFields(saved, churned)).toEqual(['contentHash', 'generatedAt', 'links']);
   });
 
   it('binds attachment provenance sourceMessageId and text to proof in replay binding', () => {

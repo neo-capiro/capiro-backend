@@ -260,9 +260,22 @@ function remainingSourceFamilyProof(tool: string, value: unknown): string[] | nu
     return [researchJsonSha256(rest)];
   }
   if (tool === 'scrape_web_page') {
-    if (!coverage) return null;
-    const { generatedAt, ...rest } = root;
-    return [researchJsonSha256(rest)];
+    if (!coverage || typeof root.url !== 'string' || typeof root.text !== 'string') return null;
+    // The evidence is the page text the producer read. The raw-byte hash and
+    // the navigation links change with markup churn (tokens, cache stamps,
+    // rotating links) while the text stands (T5 00eb08de).
+    return [
+      researchJsonSha256({
+        url: root.url,
+        kind: root.kind ?? 'html',
+        title: root.title ?? null,
+        contentType: root.contentType ?? null,
+        pages: root.pages ?? null,
+        text: root.text,
+        totalChars: root.totalChars ?? null,
+        truncated: root.truncated ?? null,
+      }),
+    ];
   }
   if (tool === 'read_chat_attachments' || tool === 'get_research_evidence') {
     if (!coverage || !Array.isArray(root.records)) return null;
@@ -424,6 +437,19 @@ export function currentOwnerResultAuthorizesReplay(
  * returns Date objects; compare both in the JSON shape (T5 cab91bd9: every
  * non-empty search_memory re-check failed on updatedAt).
  */
+/** Names (never values) of the top-level result fields that differ, for the refusal log. */
+export function changedResultFields(savedResult: unknown, currentResult: unknown): string[] {
+  const saved = record(wireShape(savedResult)) ?? {};
+  const current = record(wireShape(currentResult)) ?? {};
+  return [...new Set([...Object.keys(saved), ...Object.keys(current)])]
+    .filter(
+      (key) =>
+        (key in saved ? researchJsonSha256(saved[key]) : 'absent') !==
+        (key in current ? researchJsonSha256(current[key]) : 'absent'),
+    )
+    .sort();
+}
+
 function wireShape(value: unknown): unknown {
   try {
     return JSON.parse(JSON.stringify(value)) as unknown;
@@ -879,7 +905,8 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
     if (!currentOwnerResultAuthorizesReplay(envelope.tool, envelope.result, currentResult)) {
       logger.warn(
         `Research source re-check refused: session=${loaded.sessionId} tool=${envelope.tool} ` +
-          `execution=${envelope.executionId} reason=version_changed`,
+          `execution=${envelope.executionId} reason=version_changed ` +
+          `changed=${JSON.stringify(changedResultFields(envelope.result, currentResult))}`,
       );
       throw new ConflictException('A research source version changed.');
     }
