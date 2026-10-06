@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-child-correction-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T12:33:25.841398+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "aa208004f2610b44e85e9ec02d5254abafd73a80",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f8d45756c2ece5c3cb231331504ff365b00f67001995144f62519ff1b3cea15c",
+      "buildId": "capiro-build-web-dev:dc82871e-2bbb-4d63-87b1-d91b16148008"
+    }
+  ],
+  "schemaChange": false,
+  "change": "#2091 bounded child correction is format-only and keeps the rejected turn's reads as evidence (T5 provider budget exhaustion)",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
