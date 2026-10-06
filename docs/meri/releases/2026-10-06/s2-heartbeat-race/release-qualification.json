@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-heartbeat-race-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T16:30:40.696420+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "a84dce2f53e72cf57792f9cf4001302ed8d36e7e",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:e545a3661fb153955732c381ad35db134d0d5c258448b05604b61cd78ccfc53d",
+      "buildId": "capiro-build-web-dev:912f4579-d656-46f5-bb76-1f3a4161eb4b"
+    }
+  ],
+  "schemaChange": false,
+  "change": "#2114 heartbeat retries a lost compare-and-swap; context records are not correction reads",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
