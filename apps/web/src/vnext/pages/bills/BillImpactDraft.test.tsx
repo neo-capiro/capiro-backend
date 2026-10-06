@@ -27,7 +27,13 @@ const options = () => ({
 });
 const draft = {
   client: { id: 'client-a', name: 'Client A' },
-  version,
+  version: {
+    id: version.id,
+    revision: version.revision,
+    label: version.label,
+    publishedDate: version.publishedDate,
+    sourceUrl: version.sourceUrl,
+  },
   lifecycle,
   coverage: 'Complete selected text supplied.',
   limitations: 'One version only.',

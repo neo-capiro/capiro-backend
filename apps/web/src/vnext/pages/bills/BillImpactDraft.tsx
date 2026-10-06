@@ -26,7 +26,7 @@ interface Options {
 }
 interface Draft {
   client: { id: string; name: string };
-  version: Version;
+  version: Omit<Version, 'unavailableReason'>;
   lifecycle: Lifecycle;
   coverage: string;
   limitations: string;
@@ -50,7 +50,7 @@ const lifecycleShape = (value: unknown) =>
 const versionShape = (value: unknown) =>
   record(value) &&
   ['id', 'revision', 'label', 'sourceUrl'].every((key) => typeof value[key] === 'string') &&
-  ['publishedDate', 'unavailableReason'].every((key) => nullableText(value[key]));
+  nullableText(value.publishedDate);
 function checkedOptions(value: unknown): Options {
   if (
     !record(value) ||
@@ -58,7 +58,7 @@ function checkedOptions(value: unknown): Options {
     !lifecycleShape(value.lifecycle) ||
     !nullableText(value.contextUnavailable) ||
     !Array.isArray(value.versions) ||
-    !value.versions.every(versionShape)
+    !value.versions.every((v) => versionShape(v) && record(v) && nullableText(v.unavailableReason))
   )
     throw Error('Invalid impact response');
   return value as unknown as Options;
