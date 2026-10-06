@@ -118,12 +118,14 @@ export function krispArguments(
     until?: string;
     folderId?: string | null;
     ids?: string[];
+    content?: 'notes' | 'transcript';
     cursor?: string;
     offset?: number;
     page?: number;
   },
 ): Record<string, unknown> {
   const properties = object(schema.properties);
+  const content = values.content ?? 'notes';
   const out: Record<string, unknown> = {};
   const aliases: Record<string, unknown> = {
     start_date: values.since,
@@ -140,9 +142,9 @@ export function krispArguments(
     document_ids: values.ids,
     documentIds: values.ids,
     ids: values.ids,
-    include_notes: values.ids ? true : undefined,
-    include_transcript: values.ids ? false : undefined,
-    include_full_transcript: values.ids ? false : undefined,
+    include_notes: values.ids ? content === 'notes' : undefined,
+    include_transcript: values.ids ? content === 'transcript' : undefined,
+    include_full_transcript: values.ids ? content === 'transcript' : undefined,
     include_summary: values.ids ? false : undefined,
     cursor: values.cursor,
     page_token: values.cursor,
@@ -159,8 +161,11 @@ export function krispArguments(
       out[key] = krispArguments(prop, values);
     } else if (['fields', 'include', 'parts'].includes(key) && values.ids) {
       const allowed = object(prop.items).enum;
-      if (prop.type === 'array' && Array.isArray(allowed) && allowed.includes('notes'))
-        out[key] = ['notes'];
+      if (prop.type === 'array' && Array.isArray(allowed)) {
+        if (!allowed.includes(content))
+          throw new Error(`Krisp ${content} access is not supported.`);
+        out[key] = [content];
+      }
     } else if (
       key === 'format' &&
       values.ids &&
@@ -231,6 +236,58 @@ export function krispNotes(payload: unknown, expectedId: string): string | null 
   )
     throw new Error('Krisp notes exceed the complete import limit.');
   return notes;
+}
+
+/** Transcript input for the existing Meri generation flow outside C2. */
+export function krispTranscript(payload: unknown, expectedId: string): string | null {
+  const rows = krispRows(payload, ['documents', 'meetings', 'results', 'items']);
+  const single = object(payload);
+  if (
+    !rows.length &&
+    (single.transcript !== undefined ||
+      single.full_transcript !== undefined ||
+      single.document !== undefined)
+  )
+    rows.push(single);
+  const row = rows.find(
+    (candidate) =>
+      documentId(candidate.document_id ?? candidate.id ?? candidate.documentId) === expectedId,
+  );
+  if (!row) return null;
+  const document = row.document === undefined ? row : object(row.document);
+  if (document.id !== undefined && documentId(document.id) !== expectedId)
+    throw new Error('Krisp returned a different document.');
+  const raw = document.transcript ?? document.full_transcript;
+  let text: string | undefined;
+  if (typeof raw === 'string') text = raw;
+  else if (typeof object(raw).text === 'string') text = object(raw).text as string;
+  else {
+    const segments = Array.isArray(raw) ? raw : (object(raw).segments ?? object(raw).utterances);
+    if (Array.isArray(segments))
+      text = segments
+        .map((segment) => {
+          const part = object(segment);
+          if (typeof part.text !== 'string')
+            throw new Error('Unsupported Krisp transcript segment.');
+          const speaker =
+            typeof part.speaker === 'string' ? part.speaker : object(part.speaker).name;
+          return `${typeof speaker === 'string' ? speaker + ': ' : ''}${part.text}`;
+        })
+        .join('\n');
+  }
+  if (raw != null && text === undefined) throw new Error('Unsupported Krisp transcript format.');
+  if (!text?.trim()) return null;
+  if (
+    row.truncated === true ||
+    document.truncated === true ||
+    object(raw).truncated === true ||
+    text.length > KRISP_MAX_NOTES_CHARS ||
+    /\b(?:\d[\d,]* characters (?:dropped|omitted)|truncated.{0,60}(?:characters|fetch))\b/i.test(
+      text,
+    )
+  )
+    throw new Error('Krisp transcript exceeds the complete import limit.');
+  return text.trim();
 }
 /** Krisp search returns count for this page, not a total or a next cursor. */
 export function krispNextPage(
