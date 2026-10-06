@@ -13,7 +13,7 @@ import type {
 export const FL_SENATE = 'https://www.flsenate.gov';
 export const FL_HOUSE = 'https://www.flhouse.gov';
 export const FL_CHANNEL = 'https://thefloridachannel.org';
-export const FL_CALENDAR_PARSER = 'fl-calendar/2026-09-21.2';
+export const FL_CALENDAR_PARSER = 'fl-calendar/2026-10-06.1';
 export const FL_ARCHIVE_PARSER = 'fl-archive/2026-09-16.1';
 
 /**
