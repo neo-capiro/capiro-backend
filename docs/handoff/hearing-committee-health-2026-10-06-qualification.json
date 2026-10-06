@@ -254,5 +254,29 @@
       "reason": "Explicit closed visibility violated existing public/private database constraint. Corrected classifier/projection to existing private value, which capture permission maps to CLOSED."
     },
     "migrationUnchangedFrom": "718361f129a377ddae0af177bfa3c2ea49912308"
+  },
+  "migrationProductionApply": {
+    "status": "passed",
+    "taskId": "ae98c2d03174465fbb2e3280c783da92",
+    "exitCode": 0,
+    "imageDigest": "sha256:d10c4536a371a2a80f26086da1f943ac21318d0c1a7969ec2113fa21f31fe330",
+    "sourceSha": "c91bbe29f971630d584768a91de47623d1bb5098",
+    "migration": "20281008020000_legiwatch_committee_news_update_type",
+    "checksum": "faf5ff39d72bf15445d4aa593724d8aa81ea4dcef3e1bef3f6bf06c6bc18f46a",
+    "runner": "Prisma migrate deploy",
+    "ledgerRows": 613,
+    "newLedgerRows": 1,
+    "pending": [],
+    "priorLedgerSha256": "7b541b01567ae2d568b742e35ed4be644024bc44c0b79d7f4e936befb993b374",
+    "validatedTypeCount": 17,
+    "unchanged": [
+      "table identity",
+      "owner",
+      "ACL",
+      "RLS",
+      "other constraints",
+      "prior migration ledger",
+      "retired runtime absence"
+    ]
   }
 }
