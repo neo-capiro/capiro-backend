@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-10-06T23:46:23.530Z",
+  "status": "passed",
+  "origin": "https://os.capiro.ai",
+  "sourceSha": "a734bb0a54322ac5327dc04b81647a407a28fb61",
+  "indexAsset": "/assets/index-CseVEuUa.js",
+  "vnextAsset": "/assets/VNextApp-DvnUgYhH.js",
+  "c2DirectCopyDescription": true,
+  "otherTenantGenerationDescription": true,
+  "serverSelectedImportMode": true
+}

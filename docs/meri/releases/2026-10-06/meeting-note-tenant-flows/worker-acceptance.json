@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-10-06T23:40:14.640Z",
+  "checkedAt": "2026-10-06T23:44:51.438Z",
   "status": "passed",
   "sourceSha": "786e4d4940bcddc6c48d31f112c69d82275529ae",
   "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:1d398563b254b8d16061e04ca9561c492b32191313a6fe9bc99f116f20f59158",
