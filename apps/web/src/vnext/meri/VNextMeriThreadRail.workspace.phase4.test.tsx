@@ -15,6 +15,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@clerk/clerk-react', () => ({ useAuth: () => mocks.auth }));
 vi.mock('react-router-dom', () => ({ useNavigate: () => mocks.navigate }));
 vi.mock('../../lib/use-api.js', () => ({ useApi: () => mocks.api }));
+// The running-jobs section has its own tests; keep its /me read out of this API call sequence.
+vi.mock('../../lib/me.js', () => ({ useMe: () => ({ data: undefined }) }));
 vi.mock('../../state/impersonation.js', () => ({ useImpersonation: () => mocks.impersonation }));
 vi.mock('../components/feedback/toast.js', () => ({ useCapiroToast: () => mocks.toast }));
 vi.mock('./meri-icons.js', () => ({ MeriIcon: () => null }));
