@@ -361,11 +361,12 @@ export class MeriV3ResearchRunner {
         'read-only',
         () => {},
       );
-      // A ledger entry or a durable read step means a tool actually executed.
-      // Other steps (context and synthesis progress) are not reads; counting
-      // them rejected every correction in T5 run 9c52022a.
+      // A tool ledger entry or a durable read step means a tool actually
+      // executed. Progress steps and the governed context records the runtime
+      // attaches to every turn (context_plane) are not reads; counting them
+      // rejected every correction in T5 runs 9c52022a and fc3b54a9.
       if (
-        (correction.ledgerEntries ?? []).length ||
+        (correction.ledgerEntries ?? []).some((entry) => entry.tool !== 'context_plane') ||
         (correction.steps ?? []).some((step) => step.durableSafeRead)
       )
         throw new ResearchChildTaskError('research_child_correction_read');
