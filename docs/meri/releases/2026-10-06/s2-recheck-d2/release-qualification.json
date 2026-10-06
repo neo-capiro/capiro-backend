@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-recheck-d2-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T22:07:20.949170+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "006eb59d2fa5fdead32a9b0e40e11ccdf17592c2",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:7286985d3b0406d1a564abcdbeae210dd94711e585e45e1f570742125ba18a2c",
+      "buildId": "capiro-build-web-dev:65026d9a-4a77-45da-8b25-60ba8c37e27f"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Source re-check executes each distinct owner read once, four at a time (#2134); D2 matches quotes against decoded tool text (#2132); the federal evidence snapshot transaction allows 180 s (#2136, for the backfill family). Follows T5 run 10 (ca7158f1).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
