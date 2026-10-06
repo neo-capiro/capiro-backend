@@ -69,11 +69,14 @@ describe('hillday route wiring', () => {
 });
 
 describe('hillday prototype parity anchors', () => {
-  it('library: studio banner, recent documents table — no duplicate template picker', () => {
+  it('library: Hill Day–only recent documents table — no studio, no duplicate template picker', () => {
     const lib = read('HillDayLibrary.tsx');
-    expect(lib).toContain('Template Studio');
+    // Workspace is Hill Day–only: Template Studio is hidden and rows are Hill Day packets.
+    expect(lib).not.toContain("navigate('/workspace/studio')");
+    expect(lib).not.toContain('hd-studio-banner');
+    expect(lib).toContain("kind: 'hillday'");
     expect(lib).toContain('Recent documents');
-    expect(lib).toContain('Client-ready documents drafted from platform evidence');
+    expect(lib).toContain('Client-ready Hill Day schedules drafted from platform evidence');
     // Template selection is the wizard's own step 1 (/workspace/documents/new)
     // — the library must not re-render the same blueprint grid.
     expect(lib).not.toContain('Start a workflow');
@@ -83,6 +86,9 @@ describe('hillday prototype parity anchors', () => {
     const wiz = read('HillDayWizard.tsx');
     expect(wiz).toContain("'Template', 'Sponsor', 'Meetings', 'Resolution', 'Context', 'Generate'");
     expect(wiz).toContain('What are you making?');
+    // Workspace is Hill Day–only: the template step offers Hill Day Schedule alone.
+    expect(wiz).toContain('.filter((t) => t.id === HILL_DAY_BLUEPRINT_ID)');
+    expect(wiz).not.toContain("navigate('/workspace/new')");
     expect(wiz).toContain('Who is the sponsor?');
     expect(wiz).toContain('Which meetings go in the packet?');
     expect(wiz).toContain('Confirm what we resolved');

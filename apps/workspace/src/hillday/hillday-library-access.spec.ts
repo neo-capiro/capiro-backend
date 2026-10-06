@@ -101,4 +101,42 @@ describe('Workspace library private drafts', () => {
     expect(next.items.map((item) => item.id)).toEqual(['older']);
     expect(next.nextCursor).toBeNull();
   });
+  it('lists Hill Day packets only, and pages over them alone, when kind=hillday', async () => {
+    const at = (iso: string) => new Date(iso);
+    const hill = (id: string, iso: string) => ({
+      id,
+      name: id,
+      clientName: null,
+      status: 'generated',
+      updatedAt: at(iso),
+      ownerId: 'actor',
+    });
+    const prisma = {
+      wsHillDayDocument: {
+        findMany: jest.fn(async () => [
+          hill('h3', '2026-09-14T12:00:00Z'),
+          hill('h2', '2026-09-14T11:00:00Z'),
+          hill('h1', '2026-09-14T10:00:00Z'),
+        ]),
+      },
+      wsCollaborator: { findMany: jest.fn(async () => []) },
+      wsDraft: { findMany: jest.fn(async () => []) },
+    };
+    const collaborators = { sourceAccess: jest.fn(async () => true) };
+    const service = new HillDayDocumentService(
+      prisma as never,
+      { userDisplays: jest.fn(async () => new Map()) } as never,
+      {} as never,
+      collaborators as never,
+    );
+    const page = await service.listDocuments('tenant', 'actor', { kind: 'hillday', limit: '2' });
+    expect(page.items.map((d) => [d.kind, d.id])).toEqual([
+      ['hillday', 'h3'],
+      ['hillday', 'h2'],
+    ]);
+    expect(decodeCursor(page.nextCursor!)).toEqual({ u: '2026-09-14T11:00:00.000Z', i: 'h2' });
+    expect(prisma.wsDraft.findMany).not.toHaveBeenCalled();
+    expect(prisma.wsCollaborator.findMany).not.toHaveBeenCalled();
+    expect(collaborators.sourceAccess).not.toHaveBeenCalled();
+  });
 });

@@ -73,10 +73,11 @@ export class HillDayController {
     @CurrentTenant() ctx: WorkspaceTenantContext,
     @Query('clientId') clientId?: string,
     @Query('status') status?: string,
+    @Query('kind') kind?: string,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.documents.listDocuments(ctx.tenantId, ctx.clerkUserId, { clientId, status, cursor, limit });
+    return this.documents.listDocuments(ctx.tenantId, ctx.clerkUserId, { clientId, status, kind, cursor, limit });
   }
 
   @Post('documents')

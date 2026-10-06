@@ -2,7 +2,8 @@
  * Exact route ownership for Workspace vNext.
  *
  * Static legacy Workspace routes must continue to fall through to the existing
- * application. Dynamic vNext draft routes are UUID-only so strings such as
+ * application, except the hidden ones below (HIDDEN_ROUTES), which are claimed
+ * only to redirect them. Dynamic vNext draft routes are UUID-only so strings such as
  * "library", "draft" and "preview" can never be mistaken for draft IDs.
  */
 import {
@@ -97,10 +98,36 @@ function normalizePath(pathname: string): string {
   return pathname;
 }
 
+/**
+ * Workspace is Hill Day–only. Template Studio, client shares, the Max draft
+ * creation flow and the legacy Max library/setup pages are hidden: their URLs
+ * land on the Hill Day library. The legacy pages are claimed here only so they
+ * can be redirected. Existing drafts (/workspace/:draftId, /run and the legacy
+ * /workspace/draft/:draftId family) still open, because Dashboard, Strategies,
+ * Meri and LegiWatch link straight to them.
+ */
+const HIDDEN_ROUTES = new Set([
+  '/workspace/new',
+  '/workspace/new/',
+  '/workspace/shares',
+  '/workspace/shares/',
+  '/workspace/studio',
+  '/workspace/studio/',
+  '/workspace/library',
+  '/workspace/library/',
+  '/workspace/setup',
+  '/workspace/setup/',
+]);
+
+function isHiddenWorkspaceRoute(path: string): boolean {
+  return HIDDEN_ROUTES.has(path) || STUDIO_EDITOR_ROUTE.test(path);
+}
+
 export function isWorkspaceVNextRoute(pathname: string): boolean {
   const path = normalizePath(pathname);
   return (
     STATIC_VNEXT_ROUTES.has(path) ||
+    isHiddenWorkspaceRoute(path) ||
     DRAFT_ROUTE.test(path) ||
     RUN_ROUTE.test(path) ||
     STUDIO_EDITOR_ROUTE.test(path) ||
@@ -222,7 +249,7 @@ function RoutedWorkspaceContent({ pathname }: { pathname: string }) {
 
   // Hill Day's document library is Workspace's home page — the legacy Max
   // draft library it used to render here has no route of its own anymore.
-  if (path === '/workspace' || path === '/workspace/') {
+  if (path === '/workspace' || path === '/workspace/' || isHiddenWorkspaceRoute(path)) {
     return <Navigate to="/workspace/documents" replace />;
   }
   if (path === '/workspace/new' || path === '/workspace/new/') {

@@ -257,9 +257,12 @@ export class HillDayDocumentService {
   async listDocuments(
     tenantId: string,
     actorId: string,
-    opts: { clientId?: string; status?: string; cursor?: string; limit?: string },
+    opts: { clientId?: string; status?: string; kind?: string; cursor?: string; limit?: string },
   ): Promise<Page<LibraryRow>> {
     const limit = clampLimit(opts.limit);
+    // `kind=hillday` lists Hill Day packets only; any other value keeps the
+    // merged library of Hill Day packets and workspace drafts.
+    const hillDayOnly = opts.kind === 'hillday';
     const cursor = decodeCursor(opts.cursor);
     const before = cursor?.u ? new Date(cursor.u) : null;
     const beforeId = cursor?.i ?? null;
@@ -292,11 +295,15 @@ export class HillDayDocumentService {
       orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
     });
-    const shared = await this.prisma.wsCollaborator.findMany({
+    const shared = hillDayOnly
+      ? []
+      : await this.prisma.wsCollaborator.findMany({
       where: { tenantId, subjectId: actorId, status: 'active' },
       select: { draftId: true },
     });
-    const drafts = await this.prisma.wsDraft.findMany({
+    const drafts = hillDayOnly
+      ? []
+      : await this.prisma.wsDraft.findMany({
       where: {
         tenantId,
         AND: [{ OR: [{ ownerId: actorId }, { id: { in: shared.map((r) => r.draftId) } }] }],

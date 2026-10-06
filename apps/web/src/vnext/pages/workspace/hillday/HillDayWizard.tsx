@@ -150,6 +150,8 @@ export function HillDayWizard() {
     queryFn: () => api.listBlueprints(),
     staleTime: 60_000,
   });
+  // Workspace is Hill Day–only: every other blueprint stays hidden.
+  const hillDayTemplates = (blueprintsQuery.data ?? []).filter((t) => t.id === HILL_DAY_BLUEPRINT_ID);
   const clientsQuery = useQuery({
     queryKey: ['hd', 'clients', clientSearch],
     queryFn: () => api.listClients(clientSearch || undefined),
@@ -722,23 +724,19 @@ export function HillDayWizard() {
               <p className="hd-step-sub">The blueprint catalog is unavailable right now. Hill Day Schedule is still available below.</p>
             )}
             <div className="hd-pick-grid">
-              {(blueprintsQuery.data ?? []).map((t) => (
+              {hillDayTemplates.map((t) => (
                 <button
                   key={t.id}
                   type="button"
-                  className={`hd-pick-card${t.implemented ? ' hd-pick-card--on' : ''}`}
-                  onClick={() => (t.implemented ? goTo(1) : navigate('/workspace/new'))}
-                  title={t.implemented ? undefined : 'Not implemented yet — opens the existing workspace flow'}
+                  className="hd-pick-card hd-pick-card--on"
+                  onClick={() => goTo(1)}
                 >
                   <span style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                    <span
-                      className={`hd-template-card__icon${t.implemented ? '' : ' hd-template-card__icon--plain'}`}
-                      style={t.implemented ? undefined : { color: 'var(--hd-gray-600)' }}
-                    >
+                    <span className="hd-template-card__icon">
                       <HdIcon name={blueprintIcon(t.icon)} size={20} />
                     </span>
-                    <span className={`hd-radio${t.implemented ? ' hd-radio--on' : ''}`}>
-                      <span className="hd-radio__dot" style={{ display: t.implemented ? 'block' : 'none' }} />
+                    <span className="hd-radio hd-radio--on">
+                      <span className="hd-radio__dot" style={{ display: 'block' }} />
                     </span>
                   </span>
                   <span style={{ display: 'block' }}>
@@ -754,7 +752,7 @@ export function HillDayWizard() {
                   </span>
                 </button>
               ))}
-              {blueprintsQuery.isError && (
+              {(blueprintsQuery.isError || (blueprintsQuery.isSuccess && hillDayTemplates.length === 0)) && (
                 <button type="button" className="hd-pick-card hd-pick-card--on" onClick={() => goTo(1)}>
                   <span style={{ display: 'block' }}>
                     <span className="hd-template-card__name">Hill Day Schedule</span>
