@@ -13,7 +13,7 @@ import type {
 export const FL_SENATE = 'https://www.flsenate.gov';
 export const FL_HOUSE = 'https://www.flhouse.gov';
 export const FL_CHANNEL = 'https://thefloridachannel.org';
-export const FL_CALENDAR_PARSER = 'fl-calendar/2026-10-06.1';
+export const FL_CALENDAR_PARSER = 'fl-calendar/2026-10-06.2';
 export const FL_ARCHIVE_PARSER = 'fl-archive/2026-09-16.1';
 
 /**
@@ -455,7 +455,7 @@ export function senateNoticeObservation(
   // Preserve their published section and source text, never synthesize a bill.
   const businessOccurrences = new Map<string, number>();
   for (const m of normalized.matchAll(
-    /^\s*((?:Senate Confirmation Hearing|Presentation|Discussion|Workshop|To set the Special Order Calendar|Other Business|Consideration of (?!the following bill))[^\n]*)/gim,
+    /^\s*((?:Senate Confirmation Hearing|Presentation|Discussion|Workshop|To conduct a public hearing|To set the Special Order Calendar|Other Business|Consideration of (?!the following bill))[^\n]*)/gim,
   )) {
     const baseKey = `business:${contentHash(clean(m[1]!)).slice(0, 24)}`;
     const occurrence = (businessOccurrences.get(baseKey) ?? 0) + 1;
@@ -492,7 +492,7 @@ export function senateNoticeObservation(
   });
   if (
     !agenda.length &&
-    !/presentation|discussion|workshop|confirmation|consideration|To set the Special Order Calendar|no bills|other business|not meeting|cancel/i.test(
+    !/presentation|discussion|workshop|confirmation|consideration|To conduct a public hearing|To set the Special Order Calendar|no bills|other business|not meeting|cancel/i.test(
       text,
     )
   )
@@ -504,15 +504,26 @@ export function senateNoticeObservation(
         `${Number(stamp[4]) % 12 || 12}:${stamp[5]} ${Number(stamp[4]) >= 12 ? 'PM' : 'AM'}`,
       ).startsAt
     : null;
+  // A Senate-hosted notice can describe a joint body. Require both the
+  // published joint-notice heading and the linked body's explicit joint name;
+  // the publisher host is not the chamber identity.
+  const joint =
+    ref.bodyCode === 'JLBC' ||
+    (/\bJOINT\s+COMMITTEE\s+MEETING\s+NOTICE\b/i.test(text) && /^joint\b/i.test(ref.bodyName));
   const o: LegislativeObservation = {
     jurisdiction: 'FL',
     session: /\b(\d{4}) Regular Session\b/.exec(text)?.[1] ?? session,
-    chamber: ref.bodyCode === 'JLBC' ? 'joint' : 'senate',
+    chamber: joint ? 'joint' : 'senate',
     officialIdentity: `fl:senate:meeting:${ref.id}`,
-    bodySourceKey: ref.bodyCode === 'JLBC' ? 'fl:joint:lbc' : `fl:senate:${ref.bodyCode}`,
+    bodySourceKey:
+      ref.bodyCode === 'JLBC'
+        ? 'fl:joint:lbc'
+        : joint
+          ? `fl:joint:${ref.bodyCode}`
+          : `fl:senate:${ref.bodyCode}`,
     bodyName: ref.bodyName,
     stateCommitteeId: null,
-    eventType: ref.bodyCode === 'JLBC' ? 'joint' : 'committee',
+    eventType: joint ? 'joint' : 'committee',
     sourceUrl: ref.sourceUrl,
     publishedAt: publishedTime,
     completeFields: ['title', 'status', 'time', 'documents', 'watchUrl'],

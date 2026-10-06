@@ -628,10 +628,37 @@ export async function resolveFloridaAgenda(
         `FL:${observation.session}:`.length,
       );
   }
+  // Joint directories span sessions. Reuse their exact published body key,
+  // which already carries qualified aliases/rosters, rather than manufacture
+  // an empty session-specific Senate committee from a Senate-hosted notice.
+  let officialJointBody: { id: string } | null = null;
+  if (
+    observation.chamber === 'joint' &&
+    observation.eventType === 'joint' &&
+    /^fl:joint:[A-Z]{2,8}$/.test(observation.bodySourceKey)
+  ) {
+    const directory = await prisma.stateCommittee.findUnique({
+      where: { officialSourceKey: `FL:directory:${observation.bodySourceKey}` },
+    });
+    if (directory) {
+      const cleanName = (value: string) => value.replace(/\s+/g, ' ').trim().toLowerCase();
+      if (
+        directory.state !== 'FL' ||
+        directory.chamber !== 'joint' ||
+        cleanName(directory.name) !== cleanName(observation.bodyName) ||
+        (directory.sourceEvidence as { directory?: { active?: boolean } } | null)?.directory
+          ?.active !== true
+      )
+        throw new Error('Official joint directory identity conflicts with notice');
+      officialJointBody = directory;
+      observation.stateCommitteeId = directory.id;
+    }
+  }
   // Register a directory body only from a first-party body identifier. These
   // identities remain separate from unresolved vendor crosswalks and never
   // acquire a roster by matching people's display names.
   if (
+    !officialJointBody &&
     observation.eventType !== 'floor' &&
     !observation.bodySourceKey.includes('unresolved-body') &&
     observation.session

@@ -101,3 +101,62 @@ describe('House notices without CommitteeId', () => {
     expect(db.stateCommittee.upsert).not.toHaveBeenCalled();
   });
 });
+
+describe('official joint committee directory identity', () => {
+  const directory = {
+    id: 'official-jscb',
+    state: 'FL',
+    chamber: 'joint',
+    name: 'Joint Select Committee on Collective Bargaining',
+    officialSourceKey: 'FL:directory:fl:joint:JSCB',
+    sourceEvidence: {
+      directory: {
+        active: true,
+        aliasIds: [
+          'FL-upper-collective-bargaining-select',
+          'FL-lower-collective-bargaining-select',
+        ],
+      },
+    },
+  };
+  const observation = () =>
+    ({
+      jurisdiction: 'FL',
+      session: '2026',
+      chamber: 'joint',
+      eventType: 'joint',
+      bodySourceKey: 'fl:joint:JSCB',
+      bodyName: directory.name,
+      stateCommitteeId: null,
+      fields: { agenda: [] },
+    }) as unknown as LegislativeObservation;
+  it('reuses the existing exact joint directory body and its verified roster aliases', async () => {
+    const db = {
+      stateCommittee: { findUnique: jest.fn(async () => directory), upsert: jest.fn() },
+    };
+    const event = observation();
+    await resolveFloridaAgenda(db as unknown as PrismaClient, event);
+    expect(event.stateCommitteeId).toBe(directory.id);
+    expect(db.stateCommittee.findUnique).toHaveBeenCalledWith({
+      where: { officialSourceKey: directory.officialSourceKey },
+    });
+    expect(db.stateCommittee.upsert).not.toHaveBeenCalled();
+  });
+  it.each([
+    { state: 'GA' },
+    { chamber: 'senate' },
+    { name: 'Different Joint Committee' },
+    { sourceEvidence: { directory: { active: false } } },
+  ])('rejects incompatible directory identity %j', async (patch) => {
+    const db = {
+      stateCommittee: {
+        findUnique: jest.fn(async () => ({ ...directory, ...patch })),
+        upsert: jest.fn(),
+      },
+    };
+    await expect(
+      resolveFloridaAgenda(db as unknown as PrismaClient, observation()),
+    ).rejects.toThrow('joint directory identity conflicts');
+    expect(db.stateCommittee.upsert).not.toHaveBeenCalled();
+  });
+});

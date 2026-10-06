@@ -488,3 +488,51 @@ describe('Florida first-party calendar contract', () => {
     expect(canceled.officialIdentity).toBe(reinstated.officialIdentity);
   });
 });
+
+describe('joint hearings published by the Senate', () => {
+  const jointRef: SenateNoticeRef = {
+    ...ref,
+    id: '6747',
+    bodyCode: 'JSCB',
+    bodyName: 'Joint Select Committee on Collective Bargaining',
+    date: '2026-01-20',
+    sourceUrl: 'https://www.flsenate.gov/Committees/Show/JSCB/MeetingNotice/6747',
+  };
+  it('preserves the explicit joint chamber and the published public-hearing agenda', () => {
+    const observation = senateNoticeObservation(jointRef, fixture('senate-jscb-6747.txt'), '2026');
+    expect(observation).toMatchObject({
+      chamber: 'joint',
+      eventType: 'joint',
+      bodySourceKey: 'fl:joint:JSCB',
+      officialIdentity: 'fl:senate:meeting:6747',
+      completeness: 'complete',
+    });
+    expect(observation.fields.time?.startsAt).toBe('2026-01-20T13:00:00.000Z');
+    expect(observation.fields.agenda).toHaveLength(1);
+    expect(observation.fields.agenda?.[0]).toMatchObject({
+      kind: 'other',
+      sourceUrl: jointRef.sourceUrl,
+    });
+    expect(observation.fields.agenda?.[0]?.evidence.publishedText).toContain('issues at impasse');
+    expect(() => validateCalendarObservation(observation)).not.toThrow();
+  });
+  it('does not infer a joint chamber from name alone or a generic heading alone', () => {
+    expect(
+      senateNoticeObservation(
+        jointRef,
+        fixture('senate-jscb-6747.txt').replace(
+          'JOINT COMMITTEE MEETING NOTICE',
+          'COMMITTEE MEETING NOTICE',
+        ),
+        '2026',
+      ).chamber,
+    ).toBe('senate');
+    expect(
+      senateNoticeObservation(
+        { ...jointRef, bodyName: 'Fiscal Policy' },
+        fixture('senate-jscb-6747.txt'),
+        '2026',
+      ).chamber,
+    ).toBe('senate');
+  });
+});
