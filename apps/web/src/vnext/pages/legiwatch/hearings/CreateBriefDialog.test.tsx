@@ -6,7 +6,7 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@clerk/clerk-react', () => ({
   useAuth: () => ({ isLoaded: true, orgId: 'org-test', userId: 'user-test' }),
@@ -104,7 +104,77 @@ beforeEach(() => {
   handlers.post.mockImplementation((url) => (url === GENERATE_URL ? BRIEF : {}));
 });
 
+afterEach(() => vi.restoreAllMocks());
+
 describe('CreateBriefDialog', () => {
+  it.each([
+    { scheduledStart: '2026-10-06T14:00:00Z' },
+    { scheduledStart: '2026-10-06T16:00:00Z' },
+    { calendarDate: '2026-10-05' },
+    { eventStatus: 'completed' },
+  ])('does not offer preparation for elapsed or completed hearings without a transcript: %j', async (schedule) => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-06T16:00:00Z'));
+    renderDialog({ hasTranscript: false, ...schedule });
+    await screen.findByRole('option', { name: 'Aperture Defense' });
+    expect(screen.getByRole('status').textContent).toContain('A recap cannot be generated yet');
+    expect(screen.queryByText(/this will be a preparation brief/)).toBeNull();
+    const button = screen.getByRole('button', { name: 'Generate brief' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(button.title).toContain('A recap cannot be generated yet');
+    fireEvent.click(button);
+    expect(calls.some((call) => call.url === GENERATE_URL)).toBe(false);
+  });
+
+  it.each([
+    { scheduledStart: '2026-10-06T18:00:00Z' },
+    { calendarDate: '2026-10-06' },
+    { calendarDate: '2026-10-07' },
+    {},
+  ])('preserves preparation for future or unknown-time notices: %j', async (schedule) => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-06T16:00:00Z'));
+    renderDialog({ hasTranscript: false, ...schedule });
+    await screen.findByRole('option', { name: 'Aperture Defense' });
+    expect(screen.getByRole('status').textContent).toContain('this will be a preparation brief');
+    expect((screen.getByRole('button', { name: 'Generate brief' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('uses the Eastern calendar day for a date-only notice, without inventing midnight', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-07T02:00:00Z'));
+    renderDialog({ hasTranscript: false, calendarDate: '2026-10-06' });
+    await screen.findByRole('option', { name: 'Aperture Defense' });
+    expect(screen.getByRole('status').textContent).toContain('this will be a preparation brief');
+    expect((screen.getByRole('button', { name: 'Generate brief' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('does not guess that an unresolved transcript lookup means no transcript', async () => {
+    renderDialog({ hasTranscript: undefined });
+    await screen.findByRole('option', { name: 'Aperture Defense' });
+    expect(screen.getByRole('status').textContent).toContain('Transcript availability has not been confirmed');
+    expect(screen.queryByText(/this will be a preparation brief/)).toBeNull();
+    const button = screen.getByRole('button', { name: 'Generate brief' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(calls.some((call) => call.url === GENERATE_URL)).toBe(false);
+  });
+
+  it('permits a transcript-grounded recap after the scheduled time', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-06T16:00:00Z'));
+    renderDialog({ hasTranscript: true, scheduledStart: '2026-10-06T14:00:00Z' });
+    expect(screen.getByRole('status').textContent).toContain('this will be a recap brief');
+    await generate();
+    expect(calls.some((call) => call.url === GENERATE_URL)).toBe(true);
+  });
+
+  it('rechecks an elapsed start at submission even before the display clock refreshes', async () => {
+    let now = Date.parse('2026-10-06T13:59:59Z');
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    renderDialog({ hasTranscript: false, scheduledStart: '2026-10-06T14:00:00Z' });
+    await screen.findByRole('option', { name: 'Aperture Defense' });
+    now = Date.parse('2026-10-06T14:00:00Z');
+    fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
+    expect(calls.some((call) => call.url === GENERATE_URL)).toBe(false);
+    expect(screen.getByRole('status').textContent).toContain('A recap cannot be generated yet');
+  });
   it('says which kind of brief Meri will draft', async () => {
     renderDialog({ hasTranscript: false });
     expect(await screen.findByText(/this will be a preparation brief/)).toBeTruthy();

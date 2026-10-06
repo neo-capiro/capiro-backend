@@ -2,6 +2,8 @@ import { briefClock, type buildBriefEvidence } from './hearing-brief-evidence.js
 
 type Evidence = ReturnType<typeof buildBriefEvidence>['evidence'];
 
+export const BRIEF_KEY_MOMENT_CHAR_LIMIT = 400;
+
 const normalizeQuote = (text: string) =>
   text.replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
 
@@ -60,13 +62,16 @@ export function resolveBriefReferences(
       : undefined;
     if (!source || typeof value?.summary !== 'string' || !value.summary.trim())
       throw new Error('Key moment requires a supplied transcript evidence reference');
+    const summary = value.summary.trim();
+    if (summary.length > BRIEF_KEY_MOMENT_CHAR_LIMIT)
+      throw new Error(`Key moment summary exceeds ${BRIEF_KEY_MOMENT_CHAR_LIMIT} characters; draft withheld`);
     if (/\[(?:E[^\]\r\n]*|\d{1,2}:\d{2}(?::\d{2})?)\]/i.test(value.summary))
       throw new Error('Key moment summary must not contain citation tokens');
     verifyQuotes(value.summary, { momentIndex }, () => ({ source, referenceId: value.evidenceRef as string }));
     return {
       startMs: source.startMs,
       speaker: source.speaker,
-      summary: value.summary.trim().slice(0, 400),
+      summary,
     };
   });
   return { sections: resolvedSections, keyMoments: resolvedMoments };

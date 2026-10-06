@@ -19,6 +19,7 @@ import {
   type WorkspaceSectionState,
 } from '../../../../pages/workspace/editor/edit-review.js';
 import { sanitizeWorkspaceBody } from '../../../../pages/workspace/editor/workspace-richtext.js';
+import { hearingHasPassed } from '../lib/hearing-presentation.js';
 import { LwModal } from '../overlays/LwModal.js';
 import { LwButton } from '../lib/primitives.js';
 import {
@@ -48,6 +49,28 @@ function generateError(err: unknown): string {
   return w1Error(err);
 }
 
+/** Unknown transcript availability must not be presented as confirmed absence. */
+function briefUnavailableReason(
+  hasTranscript: boolean | undefined,
+  scheduledStart: string | null | undefined,
+  calendarDate: string | null | undefined,
+  eventStatus: string | null | undefined,
+  now: number,
+): string | undefined {
+  if (hasTranscript === undefined) {
+    return 'Transcript availability has not been confirmed. Refresh the hearing before generating a brief.';
+  }
+  if (hasTranscript) return undefined;
+  const start = scheduledStart ? Date.parse(scheduledStart) : NaN;
+  const elapsed = Number.isFinite(start)
+    ? start <= now
+    : hearingHasPassed(undefined, calendarDate, now);
+  if (elapsed || ['completed', 'ended', 'adjourned'].includes(eventStatus?.toLowerCase() ?? '')) {
+    return 'No usable transcript is available for this hearing, and it is no longer upcoming. A recap cannot be generated yet. Check the hearing source and recording status.';
+  }
+  return undefined;
+}
+
 interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
@@ -58,6 +81,9 @@ export function CreateBriefDialog({
   hearingTitle,
   initialClientId,
   hasTranscript,
+  scheduledStart,
+  calendarDate,
+  eventStatus,
   onClose,
   onSaved,
 }: {
@@ -65,8 +91,11 @@ export function CreateBriefDialog({
   hearingTitle: string;
   /** Preselected client; '' when the lens is All Clients. */
   initialClientId: string;
-  /** Whether Meri will write a recap (transcript) or a preparation (none yet). */
-  hasTranscript: boolean;
+  /** Undefined while transcript availability is unresolved, including a failed lookup. */
+  hasTranscript: boolean | undefined;
+  scheduledStart?: string | null;
+  calendarDate?: string | null;
+  eventStatus?: string | null;
   onClose: () => void;
   onSaved: (draftId: string) => void;
 }) {
@@ -88,6 +117,13 @@ export function CreateBriefDialog({
   const saveToClient = useSaveBriefToClient(hearingId);
 
   const [phase, setPhase] = useState<'setup' | 'review'>('setup');
+  const [now, setNow] = useState(() => Date.now());
+  const unavailableReason = briefUnavailableReason(hasTranscript, scheduledStart, calendarDate, eventStatus, now);
+  useEffect(() => {
+    if (phase !== 'setup' || hasTranscript !== false) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, [phase, hasTranscript]);
   const [clientId, setClientId] = useState(initialClientId);
   const [focus, setFocus] = useState('');
   const [brief, setBrief] = useState<HearingBrief | null>(null);
@@ -116,7 +152,10 @@ export function CreateBriefDialog({
   }, [messages, assistant.isPending]);
 
   const runGenerate = () => {
-    if (!client || generate.isPending) return;
+    // Recheck the clock at submission, including when a dialog crosses its start time.
+    const currentTime = Date.now();
+    setNow(currentTime);
+    if (!client || generate.isPending || briefUnavailableReason(hasTranscript, scheduledStart, calendarDate, eventStatus, currentTime)) return;
     const trimmedFocus = focus.trim().slice(0, 600);
     generate.mutate(
       { clientId: client.id, ...(trimmedFocus ? { focus: trimmedFocus } : {}) },
@@ -275,9 +314,9 @@ export function CreateBriefDialog({
       }
       onPrimary={reviewing ? () => void save() : runGenerate}
       primaryDisabled={
-        reviewing ? create.isPending || assistant.isPending : generate.isPending || !client
+        reviewing ? create.isPending || assistant.isPending : generate.isPending || !client || Boolean(unavailableReason)
       }
-      primaryTitle={!reviewing && !client ? 'Choose the client this brief is for.' : undefined}
+      primaryTitle={!reviewing ? unavailableReason ?? (!client ? 'Choose the client this brief is for.' : undefined) : undefined}
       secondaryLabel={reviewing ? 'Back' : undefined}
       onSecondary={reviewing ? () => setPhase('setup') : undefined}
       secondaryDisabled={create.isPending}
@@ -501,10 +540,10 @@ export function CreateBriefDialog({
               onChange={(e) => setFocus(e.target.value)}
             />
           </div>
-          <p className="lw-card__meta" style={{ margin: 0 }}>
-            {hasTranscript
+          <p role="status" className="lw-card__meta" style={{ margin: 0 }}>
+            {unavailableReason ?? (hasTranscript
               ? 'A transcript is available, so this will be a recap brief: what was said, the intelligence extracted from it, and what it means for the client.'
-              : 'No transcript yet, so this will be a preparation brief from the published notice, agenda and linked bills.'}
+              : 'No transcript yet, so this will be a preparation brief from the published notice, agenda and linked bills.')}
           </p>
           {generate.isPending ? (
             <p role="status" className="lw-card__meta" style={{ margin: 0 }}>
