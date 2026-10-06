@@ -1,5 +1,7 @@
 # Meri File01 checkpoint — C0/C1 complete, C2 active
 
+**Start a new session with [HANDOVER-2026-10-06.md](HANDOVER-2026-10-06.md).**
+
 **Stage 2 progress, October 6, 2026 (early morning UTC, lead agent).** Executing [00-Meri-Deployment-Plan-Opus-5-5-2026-10-05.md](00-Meri-Deployment-Plan-Opus-5-5-2026-10-05.md) §4. Release A shipped dark; Deep Research repaired through report generation; client-scoped report publication is blocked by design (decision needed).
 
 - **Served:** API `capiro-dev-api:564` from `f39bf0476` (563 promoted from the jobs-foundation image, then 564 is an env-only configuration revision; release rollback 562), orchestrator `capiro-dev-meriv2-orchestrator:153` from `14b7deb1c` (rollback 152). Evidence: [s2-release-a](../releases/2026-10-05/s2-release-a/README.md), [s2-release-a-orch](../releases/2026-10-05/s2-release-a-orch/README.md), [s2-release-a-orch-2](../releases/2026-10-05/s2-release-a-orch-2/README.md), [s2-release-a-orch-3](../releases/2026-10-05/s2-release-a-orch-3/README.md).
