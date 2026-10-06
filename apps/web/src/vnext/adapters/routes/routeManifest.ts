@@ -1,3 +1,4 @@
+import { BUSINESS_DEVELOPMENT_TENANT_SLUG } from '../../pages/business-development/bizdev-access.js';
 import { DIRECTORY_ROUTES } from '../../pages/directory/directory-routes.js';
 
 export type VNextRouteAvailability = 'existing' | 'gap';
@@ -14,6 +15,12 @@ export interface VNextRouteDefinition {
    * path never change, so this never invents a new URL or a feature gate.
    */
   tenantLabels?: Readonly<Record<string, string>>;
+  /**
+   * Tenant slugs that can open this entry. Every other tenant still sees it,
+   * greyed out (`path: null`, rendered like a gap). With `meFeature` set, an
+   * allowed tenant without the feature gets the greyed entry, not a hidden one.
+   */
+  enabledTenantSlugs?: readonly string[];
   children?: VNextRouteDefinition[];
   note?: string;
 }
@@ -42,8 +49,9 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
         label: 'Business Development',
         path: '/clients?view=business-development',
         availability: 'existing',
-        // Navigation visibility only; the page and API independently fail closed.
+        // Navigation only; the page and API independently fail closed.
         meFeature: 'businessDevelopment',
+        enabledTenantSlugs: [BUSINESS_DEVELOPMENT_TENANT_SLUG],
       },
       {
         id: 'portfolio-research-portfolios',
@@ -207,10 +215,18 @@ export function visibleVNextRoutes(
 ): VNextRouteDefinition[] {
   return routes.flatMap((route) => {
     if (route.featureFlag && !context.featureFlags?.[route.featureFlag]) return [];
-    if (route.meFeature && !context.meFeatures?.[route.meFeature]) return [];
+    const meFeatureOn = !route.meFeature || Boolean(context.meFeatures?.[route.meFeature]);
+    if (!meFeatureOn && !route.enabledTenantSlugs) return [];
 
     const label =
       (context.tenantSlug && route.tenantLabels?.[context.tenantSlug]) || route.label;
+
+    if (route.enabledTenantSlugs) {
+      const tenantAllowed = Boolean(
+        context.tenantSlug && route.enabledTenantSlugs.includes(context.tenantSlug),
+      );
+      if (!tenantAllowed || !meFeatureOn) return [{ ...route, label, path: null }];
+    }
     const children = route.children ? visibleVNextRoutes(route.children, context) : undefined;
 
     return [{ ...route, label, ...(children ? { children } : {}) }];

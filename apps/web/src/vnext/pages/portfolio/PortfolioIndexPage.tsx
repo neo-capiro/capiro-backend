@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Bar,
   BarChart,
@@ -16,7 +16,8 @@ import { hasAtLeast } from '@capiro/shared';
 import { useCapiroToast } from '../../components/feedback/toast.js';
 import { initialsFor } from '../../adapters/legacy/useClientCrmOverviewModel.js';
 import { useApi } from '../../../lib/use-api.js';
-import type { MeResponse } from '../../../lib/me.js';
+import { useMe } from '../../../lib/me.js';
+import { businessDevelopmentAvailable } from '../business-development/bizdev-access.js';
 import type { AxiosInstance } from 'axios';
 import type { Client, ClientFormSubmit } from '../../../pages/clients/clientTypes.js';
 import { ClientFormDialogVNext } from '../client-crm/ClientFormDialogVNext.js';
@@ -408,18 +409,16 @@ export function PortfolioIndexPage() {
   const openClient = (id: string) => navigate(`/clients?clientId=${encodeURIComponent(id)}`);
 
   // Role-gate the create button (same rule as the canonical workspace).
-  const me = useQuery<MeResponse>({
-    queryKey: ['me'],
-    queryFn: async () => (await api.get<MeResponse>('/api/me')).data,
-    staleTime: 30_000,
-    retry: false,
-  });
+  const me = useMe();
   const canCreateClients = Boolean(me.data && hasAtLeast(me.data.role, 'standard_user'));
-  // Portfolio sub-navigation (Business Development Phase 1): the switcher is
-  // visible only when the tenant flag is exactly true. Missing/loading/error
-  // /me responses preserve the ordinary Portfolio surface.
-  const bizDevEnabled = me.data?.features.businessDevelopment === true;
-  const isBizDevView = searchParams.get('view') === 'business-development';
+  // Portfolio sub-navigation (Business Development Phase 1): the switcher shows
+  // once /me has loaded. Business Development is clickable only for
+  // capiro-internal with the tenant flag on; every other tenant sees it greyed
+  // out. Missing/loading/error /me responses preserve the ordinary Portfolio.
+  const bizDevEnabled = businessDevelopmentAvailable(me.data);
+  // A greyed-out tenant can still land here on ?view=business-development (the
+  // page falls back to this index), so the Clients tab must stay selected.
+  const isBizDevView = bizDevEnabled && searchParams.get('view') === 'business-development';
   const switchView = (view: 'clients' | 'business-development') => {
     const next = new URLSearchParams(searchParams);
     if (view === 'business-development') next.set('view', 'business-development');
@@ -498,10 +497,10 @@ export function PortfolioIndexPage() {
     <div className="capiro-portfolio capiro-page">
       <header className="capiro-portfolio__head">
         <div><h1 className="capiro-portfolio__title">Portfolio</h1><p className="capiro-portfolio__sub">Every client account, the work in flight, and the outside signals moving against them.</p></div>
-        {bizDevEnabled ? (
+        {me.data ? (
           <div className="capiro-portfolio__filters" role="tablist" aria-label="Portfolio views" style={{ padding: 0 }}>
             <button type="button" role="tab" aria-selected={!isBizDevView} className={`capiro-portfolio__filter${!isBizDevView ? ' is-active' : ''}`} onClick={() => switchView('clients')}>Clients</button>
-            <button type="button" role="tab" aria-selected={isBizDevView} className={`capiro-portfolio__filter${isBizDevView ? ' is-active' : ''}`} onClick={() => switchView('business-development')}>Business Development</button>
+            <button type="button" role="tab" aria-selected={isBizDevView} disabled={!bizDevEnabled} className={`capiro-portfolio__filter${isBizDevView ? ' is-active' : ''}`} onClick={() => switchView('business-development')}>Business Development</button>
           </div>
         ) : null}
         <span className="capiro-portfolio__head-spacer" />
