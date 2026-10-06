@@ -13,7 +13,7 @@ import type {
 export const FL_SENATE = 'https://www.flsenate.gov';
 export const FL_HOUSE = 'https://www.flhouse.gov';
 export const FL_CHANNEL = 'https://thefloridachannel.org';
-export const FL_CALENDAR_PARSER = 'fl-calendar/2026-09-21.2';
+export const FL_CALENDAR_PARSER = 'fl-calendar/2026-10-06.1';
 export const FL_ARCHIVE_PARSER = 'fl-archive/2026-09-16.1';
 
 /**
@@ -776,6 +776,17 @@ export function houseNoticeObservation(
   });
   const summary = $('#meeting-summary').next('div').clone();
   summary.find('br').replaceWith('\n');
+  // The committee's general closure disclaimer alone is insufficient. The
+  // specific meeting must also announce a secured briefing in its agenda.
+  const securedBriefing =
+    summary
+      .text()
+      .split(/\n+/)
+      .map(clean)
+      .some((line) => /^secured briefing\s+(?:on|regarding|concerning)\b/i.test(line)) &&
+    /\bmeeting will be closed for secured briefings and limited only to committee members and approved staff\b/i.test(
+      clean(summary.text()),
+    );
   for (const line of summary.text().split(/\n+/).map(clean).filter(Boolean)) {
     const identifier = /^((?:CS\/)*(?:HB|SB|PCB|SPB|HJR|SJR|HM|SM|HCR|SCR|HR|SR)\s+\d+)\b/i.exec(
       line,
@@ -791,6 +802,7 @@ export function houseNoticeObservation(
   }
   const fields: LegislativeObservation['fields'] = {
     title: bodyName,
+    ...(securedBriefing ? { visibility: 'private' as const } : {}),
     status: /\b(cancelled|canceled|not meeting)\b/i.test($('.cm_contents').text())
       ? 'canceled'
       : 'scheduled',
@@ -848,6 +860,7 @@ export function houseNoticeObservation(
       'time',
       'location',
       'documents',
+      ...(securedBriefing ? ['visibility' as const] : []),
       ...(!issues.length ? ['agenda' as const] : []),
       // watchUrl is complete only when the schedule-level pairing verified a
       // real player publication for THIS event; a missing watch never erases a

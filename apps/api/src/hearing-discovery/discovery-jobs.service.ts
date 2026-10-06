@@ -15,11 +15,13 @@
  */
 import type { PrismaClient } from '@prisma/client';
 import type { RunCounts } from '../ingestion/sync-run.helper.js';
+import { parseStateCommitteeFollowKey } from './florida-committee-alerts.js';
 import { contentHash } from './hearing-identity.js';
 import { CommitteeSourceRepository } from './committee-source.repository.js';
 import { CanonicalHearingRepository, insertSiteUpdates } from './canonical-hearing.repository.js';
 import { StreamCandidateRepository } from './stream-candidate.repository.js';
 import { CommitteeSiteAdapter } from './adapters/committee-site.adapter.js';
+import { CommitteeEventPageResolver, type ScopedHearingRef } from './committee-event-page.js';
 import { sleep } from './adapters/source-http.js';
 import type {
   CanonicalHearingRef,
@@ -71,8 +73,8 @@ export class DiscoveryJobsService {
   /**
    * Committee-site enrichment. Prioritizes hearings closest to their start: a
    * committee posts witnesses and testimony in the last 24-48 hours, and that is
-   * exactly when enrichment is worth an HTTP request. Past events are skipped
-   * here — they belong to archive reconciliation.
+   * exactly when enrichment is worth an HTTP request. Reserve a bounded portion
+   * for recent completed hearings: testimony may be published after adjournment.
    */
   async enrichCommitteeHearings(
     opts: JobOptions & { withinHours?: number } = {},
@@ -81,6 +83,7 @@ export class DiscoveryJobsService {
     const log = opts.log ?? (() => {});
     const withinHours = opts.withinHours ?? 24 * 7;
     const limit = opts.limit ?? 200;
+    const recentLimit = Math.min(50, Math.floor(limit / 4));
     const horizon = new Date(now.getTime() + withinHours * 3_600_000);
 
     const upcoming = await this.prisma.committeeHearing.findMany({
@@ -95,6 +98,7 @@ export class DiscoveryJobsService {
         congress: true,
         chamber: true,
         committeeSystemCode: true,
+        subcommitteeSystemCode: true,
         committeeCode: true,
         committeeName: true,
         title: true,
@@ -103,10 +107,47 @@ export class DiscoveryJobsService {
         url: true,
       },
       orderBy: [{ startsAt: 'asc' }, { date: 'asc' }],
-      take: limit,
+      take: limit - recentLimit,
     });
+    const recentWhere = {
+      geographicJurisdiction: 'US',
+      canonicalHearingId: null,
+      date: { gte: new Date(startOfDay(now).getTime() - 30 * 86_400_000), lt: startOfDay(now) },
+      eventStatus: 'completed',
+    };
+    const recentCount = recentLimit
+      ? await this.prisma.committeeHearing.count({ where: recentWhere })
+      : 0;
+    // Rotate at the scheduled 30-minute cadence; page boundaries cover every recent row.
+    const recentOffset =
+      recentCount > recentLimit
+        ? (Math.floor(now.getTime() / 1_800_000) % Math.ceil(recentCount / recentLimit)) *
+          recentLimit
+        : 0;
+    const recent = recentCount
+      ? await this.prisma.committeeHearing.findMany({
+          where: recentWhere,
+          skip: recentOffset,
+          select: {
+            id: true,
+            congress: true,
+            chamber: true,
+            committeeSystemCode: true,
+            subcommitteeSystemCode: true,
+            committeeCode: true,
+            committeeName: true,
+            title: true,
+            date: true,
+            startsAt: true,
+            url: true,
+          },
+          orderBy: [{ date: 'desc' }, { id: 'asc' }],
+          take: recentLimit,
+        })
+      : [];
 
     const adapter = new CommitteeSiteAdapter();
+    const pages = new CommitteeEventPageResolver();
     const ctx: DiscoveryContext = {
       since: null,
       daysAhead: 0,
@@ -115,7 +156,7 @@ export class DiscoveryJobsService {
     };
     const counts: RunCounts = { inserted: 0, updated: 0, skipped: 0, errors: 0 };
 
-    for (const row of upcoming) {
+    for (const row of [...upcoming, ...recent]) {
       const systemCode = row.committeeSystemCode ?? row.committeeCode;
       if (!systemCode || !row.url) {
         counts.skipped += 1;
@@ -129,11 +170,12 @@ export class DiscoveryJobsService {
         counts.skipped += 1;
         continue;
       }
-      const ref: CanonicalHearingRef = {
+      const ref: ScopedHearingRef = {
         id: row.id,
         congress: row.congress,
         chamber: row.chamber,
         committeeSystemCode: systemCode,
+        subcommitteeSystemCode: row.subcommitteeSystemCode,
         committeeName: row.committeeName,
         title: row.title,
         calendarDate: row.date,
@@ -143,6 +185,21 @@ export class DiscoveryJobsService {
       };
       await sleep(ctx.delayMs);
       try {
+        const observations = await this.prisma.hearingSourceObservation.findMany({
+          where: { hearingId: row.id },
+          select: {
+            sourceMetadata: true,
+            source: { select: { adapterKey: true, sourceUrl: true } },
+          },
+          orderBy: { lastSeenAt: 'desc' },
+          take: 30,
+        });
+        ref.officialPageUrl = await pages.resolve(source, ref, observations);
+        if (!ref.officialPageUrl) {
+          counts.skipped += 1;
+          log(`[enrich] ${row.id}: no uniquely qualified committee event page`);
+          continue;
+        }
         const enrichment = await adapter.enrichEvent(source, ref, ctx);
         await this.sources.recordOutcome(source.id, { ok: true }, now, adapter.parserVersion);
         if (!enrichment) {
@@ -186,7 +243,9 @@ export class DiscoveryJobsService {
               enrichment.documents!.slice(0, 25).map((doc) => ({
                 committeeSystemCode: systemCode,
                 hearingId: row.id,
-                updateType: 'committee_memo_published' as const,
+                updateType: /\/download\/testimony\//i.test(new URL(doc.url).pathname)
+                  ? ('witness_testimony_published' as const)
+                  : ('committee_memo_published' as const),
                 normalizedTitle: doc.title.slice(0, 500),
                 normalizedSummary: null,
                 sourceUrl: doc.url,
@@ -210,7 +269,7 @@ export class DiscoveryJobsService {
       }
     }
     log(
-      `[enrich] ${upcoming.length} candidate hearings | inserted=${counts.inserted} ` +
+      `[enrich] ${upcoming.length} upcoming + ${recent.length} recent hearings | inserted=${counts.inserted} ` +
         `updated=${counts.updated} skipped=${counts.skipped} errors=${counts.errors}`,
     );
     return counts;
@@ -224,7 +283,10 @@ export class DiscoveryJobsService {
   async detectCommitteeUpdates(opts: JobOptions = {}): Promise<RunCounts> {
     const now = opts.now ?? new Date();
     const log = opts.log ?? (() => {});
-    const sources = await this.sources.listEnabled({ adapterKey: 'committee-site' });
+    const sources = await this.sources.listEnabled({
+      adapterKey: 'committee-site',
+      oldestCheckedFirst: true,
+    });
     const slice = opts.limit ? sources.slice(0, opts.limit) : sources;
     const counts: RunCounts = { inserted: 0, updated: 0, skipped: 0, errors: 0 };
 
@@ -236,7 +298,28 @@ export class DiscoveryJobsService {
       string,
       { etag?: string | null; lastModified?: string | null; contentHash?: string | null }
     >();
+    const stateIds = sources.flatMap((source) => {
+      const ref = parseStateCommitteeFollowKey(source.committeeSystemCode ?? '');
+      return ref?.jurisdiction === 'FL' ? [ref.stateCommitteeId] : [];
+    });
+    const stateBodies = stateIds.length
+      ? await this.prisma.stateCommittee.findMany({
+          where: { state: 'FL', id: { in: stateIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const stateNames = new Map(stateBodies.map((body) => [body.id, body.name]));
+    const federalBodies = await this.prisma.congressCommittee.findMany({
+      where: { isCurrent: true, parentSystemCode: null },
+      select: { systemCode: true, name: true },
+    });
+    const federalNames = new Map(federalBodies.map((body) => [body.systemCode, body.name]));
     const adapter = new CommitteeSiteAdapter({
+      committeeName: (key) => federalNames.get(key),
+      stateCommitteeName: (key) => {
+        const ref = parseStateCommitteeFollowKey(key);
+        return ref?.jurisdiction === 'FL' ? stateNames.get(ref.stateCommitteeId) : undefined;
+      },
       priorState: (url) => state.get(url),
       saveState: (url, s) => state.set(url, s),
     });
@@ -249,10 +332,18 @@ export class DiscoveryJobsService {
         const updates = (await adapter.discoverUpdates?.(source, ctx)) ?? [];
         await this.sources.recordOutcome(
           source.id,
-          { ok: true, observedEvents: updates.length },
+          {
+            ok: adapter.updateErrors.length === 0,
+            observedEvents: updates.length,
+            error: adapter.updateErrors.length ? adapter.updateErrors.join('; ') : undefined,
+          },
           now,
           adapter.parserVersion,
         );
+        if (adapter.updateErrors.length) {
+          counts.errors += 1;
+          for (const error of adapter.updateErrors) log(`[site-updates] partial: ${error}`);
+        }
         if (!updates.length || opts.dryRun) {
           counts.skipped += 1;
           continue;

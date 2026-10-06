@@ -898,9 +898,9 @@ export interface HearingBrief {
 }
 
 /**
- * Meri drafts the brief server-side from the grounded hearing context. Takes
- * 10–60 s; the api client's generation timeout already covers `/generate` URLs.
- * 503 means the tenant has no AI credential configured.
+ * Meri drafts the brief server-side from the grounded hearing context.
+ * Long hearings can take several minutes. The request budget covers source
+ * preparation and the provider's five-minute generation budget.
  */
 export function useGenerateBrief(hearingId: string) {
   const api = useApi();
@@ -910,6 +910,7 @@ export function useGenerateBrief(hearingId: string) {
         await api.post<HearingBrief>(
           `${BASE}/events/${enc(hearingId)}/actions/brief/generate`,
           input,
+          { timeout: 420_000 },
         )
       ).data,
   });

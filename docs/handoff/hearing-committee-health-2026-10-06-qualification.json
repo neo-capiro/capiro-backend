@@ -1,0 +1,258 @@
+{
+  "schemaVersion": 1,
+  "collectedAt": "2026-10-06T02:43:35.025425+00:00",
+  "scope": "Federal and Florida hearing and committee release qualification",
+  "qualificationNote": "Full-suite baseline plus exact-source focused delta; this receipt alone does not attest final deployment or live UI acceptance.",
+  "fullSuiteBaseline": {
+    "id": "capiro-build-web-dev:a9062051-42f8-4777-8cbb-7a34831121f3",
+    "sourceSha": "def8e259cece48f8493d2c79b65c65f9fdfb0cb7",
+    "status": "SUCCEEDED",
+    "startedAt": "2026-10-05T22:19:22.522000-04:00",
+    "finishedAt": "2026-10-05T22:43:13.045000-04:00",
+    "passedSteps": [
+      "Generate Prisma clients",
+      "Typecheck (apps/api, apps/intel-api, apps/web)",
+      "Tests \u2014 state bill supporting document records",
+      "Tests \u2014 automatic public recording policy",
+      "Tests \u2014 saved hearing association SQL",
+      "Bootstrap restricted worker in the owned LegiWatch service",
+      "LegiWatch additive migrations and PostgreSQL recovery",
+      "Prepare isolated committee alert test database",
+      "Committee news fresh and retired-upgrade migration rehearsal",
+      "Phase 2 report, source and delivery qualification",
+      "Assert Phase 2 qualification is clean",
+      "Phase 3 calendar, preparation and agenda delivery qualification",
+      "Assert Phase 3 qualification is clean",
+      "Assert Phase 1 PostgreSQL suites are clean",
+      "Assert saved hearing association SQL is clean",
+      "Tests \u2014 apps/api LegiWatch scope",
+      "Assert apps/api scope is clean",
+      "Tests \u2014 apps/intel-api LegiWatch scope",
+      "Assert apps/intel-api scope is clean",
+      "Tests \u2014 apps/web LegiWatch scope",
+      "Assert apps/web scope is clean",
+      "Phase 4 recording, review, delivery and document qualification",
+      "Phase 5 source revisions, private briefs and delivery qualification"
+    ],
+    "suiteAssertions": [
+      "[phase2-reports] OK \u2014 2 suites / 35 tests, 0 failed, 0 skipped, 0 todo.",
+      "[phase2-source] OK \u2014 2 suites / 7 tests, 0 failed, 0 skipped, 0 todo.",
+      "[phase2-web] OK \u2014 1 suites / 8 tests, 0 failed, 0 skipped, 0 todo.",
+      "[phase3-private] OK \u2014 1 suites / 7 tests, 0 failed, 0 skipped, 0 todo.",
+      "[phase3-calendar] OK \u2014 4 suites / 19 tests, 0 failed, 0 skipped, 0 todo.",
+      "[phase3-web] OK \u2014 2 suites / 6 tests, 0 failed, 0 skipped, 0 todo.",
+      "[phase1-folders] OK \u2014 3 suites / 34 tests, 0 failed, 0 skipped, 0 todo.",
+      "[phase1-source] OK \u2014 1 suites / 2 tests, 0 failed, 0 skipped, 0 todo.",
+      "[saved-session-sql] OK \u2014 1 suites / 27 tests, 0 failed, 0 skipped, 0 todo.",
+      "[apps/api] OK \u2014 124 suites / 1484 tests, 0 failed, 0 skipped, 0 todo.",
+      "[apps/intel-api] OK \u2014 85 suites / 1134 tests, 0 failed, 0 skipped, 0 todo.",
+      "[apps/web] OK \u2014 323 suites / 1112 tests, 0 failed, 0 skipped, 0 todo.",
+      "[api] OK \u2014 7 suites / 91 tests, 0 failed, 0 skipped, 0 todo.",
+      "[intel-api] OK \u2014 15 suites / 112 tests, 0 failed, 0 skipped, 0 todo.",
+      "[web] OK \u2014 28 suites / 116 tests, 0 failed, 0 skipped, 0 todo.",
+      "[api] OK \u2014 15 suites / 222 tests, 0 failed, 0 skipped, 0 todo.",
+      "[intel] OK \u2014 4 suites / 26 tests, 0 failed, 0 skipped, 0 todo.",
+      "[core] OK \u2014 3 suites / 119 tests, 0 failed, 0 skipped, 0 todo.",
+      "[orchestrator] OK \u2014 3 suites / 70 tests, 0 failed, 0 skipped, 0 todo.",
+      "[web] OK \u2014 12 suites / 69 tests, 0 failed, 0 skipped, 0 todo."
+    ],
+    "completionMarker": [
+      "LEGIWATCH_COMPLETE_CI_QUALIFICATION_PASS"
+    ]
+  },
+  "migrationAndNotificationDelta": {
+    "id": "capiro-build-web-dev:06926826-a2ee-4c06-9152-610ff314f4f0",
+    "sourceSha": "718361f129a377ddae0af177bfa3c2ea49912308",
+    "status": "SUCCEEDED",
+    "startedAt": "2026-10-05T22:30:58.363000-04:00",
+    "finishedAt": "2026-10-05T22:35:24.480000-04:00",
+    "passedSteps": [
+      "Generate Prisma clients",
+      "Bootstrap restricted worker in the owned LegiWatch service",
+      "Prepare isolated committee alert test database",
+      "Committee news fresh and retired-upgrade migration rehearsal"
+    ],
+    "suiteAssertions": [
+      "[committee-news-notifications] OK \u2014 1 suites / 4 tests, 0 failed, 0 skipped, 0 todo."
+    ],
+    "completionMarker": [
+      "COMMITTEE_NEWS_MIGRATION_DELTA_QUALIFICATION_PASS"
+    ],
+    "migrationReceipt": [
+      {
+        "status": "passed",
+        "migration": "20281008020000_legiwatch_committee_news_update_type",
+        "checksum": "faf5ff39d72bf15445d4aa593724d8aa81ea4dcef3e1bef3f6bf06c6bc18f46a",
+        "checks": [
+          "freshDatabase",
+          "retiredUpgrade",
+          "legacyWriterCompatibility",
+          "unknownTypeRejected",
+          "grantsRlsOwnershipPreserved"
+        ]
+      }
+    ]
+  },
+  "migrationProductionPreflight": {
+    "readOnly": true,
+    "executedAt": "2026-10-06T02:25:24.632Z",
+    "ledgerRows": 612,
+    "finishedActiveRows": 512,
+    "rolledBackRows": 100,
+    "unfinishedRows": 0,
+    "duplicateSuccessfulRows": 0,
+    "pending": [
+      "20281008020000_legiwatch_committee_news_update_type"
+    ],
+    "priorLedgerSha256": "7b541b01567ae2d568b742e35ed4be644024bc44c0b79d7f4e936befb993b374",
+    "inheritedChecksumDifferences": 61,
+    "acceptedHistoryEvidence": "docs/meri/releases/2026-10-02/closeout-c0-completion/schema-result.json",
+    "newHistoricalDrift": 0,
+    "existingTypeCount": 16,
+    "reviewedPreservation": [
+      "table identity",
+      "owner",
+      "ACL",
+      "RLS",
+      "other constraints",
+      "retired runtime absence"
+    ]
+  },
+  "recordingBeforeFinalPromotion": {
+    "checkedAt": "2026-10-06T02:37:54.405158+00:00",
+    "serviceTaskDefinitionRevision": 64,
+    "serviceHealth": "HEALTHY",
+    "targetHealth": "healthy",
+    "scheduledWorkerRuns": {
+      "32": [
+        {
+          "id": "aa8a4e0a7fe446199cefb68e4cad4793",
+          "started": "2026-10-05T22:37:23.531000-04:00",
+          "stopped": "2026-10-05T22:37:49.238000-04:00",
+          "startedBy": "events-rule/capiro-dev-legiwatch-capture-worker",
+          "exitCodes": [
+            0
+          ],
+          "digests": [
+            "sha256:86ca8cd3c07ab888415e9ad094d354e0a2c33a242dd696ca0a08069a4140d5e1"
+          ]
+        },
+        {
+          "id": "f3547bdac46444ea801b5b15153ab7d2",
+          "started": "2026-10-05T22:36:17.841000-04:00",
+          "stopped": "2026-10-05T22:36:48.391000-04:00",
+          "startedBy": "events-rule/capiro-dev-legiwatch-capture-worker",
+          "exitCodes": [
+            0
+          ],
+          "digests": [
+            "sha256:86ca8cd3c07ab888415e9ad094d354e0a2c33a242dd696ca0a08069a4140d5e1"
+          ]
+        },
+        {
+          "id": "8ac9ed482618421180ec04af757db69f",
+          "started": "2026-10-05T22:35:30.336000-04:00",
+          "stopped": "2026-10-05T22:35:56.166000-04:00",
+          "startedBy": "events-rule/capiro-dev-legiwatch-capture-worker",
+          "exitCodes": [
+            0
+          ],
+          "digests": [
+            "sha256:86ca8cd3c07ab888415e9ad094d354e0a2c33a242dd696ca0a08069a4140d5e1"
+          ]
+        },
+        {
+          "id": "dc2dcd111fca4da4a6a818a65de3a710",
+          "started": "2026-10-05T22:34:25.771000-04:00",
+          "stopped": "2026-10-05T22:34:54.171000-04:00",
+          "startedBy": "events-rule/capiro-dev-legiwatch-capture-worker",
+          "exitCodes": [
+            0
+          ],
+          "digests": [
+            "sha256:86ca8cd3c07ab888415e9ad094d354e0a2c33a242dd696ca0a08069a4140d5e1"
+          ]
+        }
+      ],
+      "33": [
+        {
+          "id": "10702c39e10248ec8fde9e257183c354",
+          "started": "2026-10-05T22:37:09.499000-04:00",
+          "stopped": "2026-10-05T22:37:40.232000-04:00",
+          "startedBy": "events-rule/capiro-dev-legiwatch-hearing-media-worker",
+          "exitCodes": [
+            0
+          ],
+          "digests": [
+            "sha256:86ca8cd3c07ab888415e9ad094d354e0a2c33a242dd696ca0a08069a4140d5e1"
+          ]
+        },
+        {
+          "id": "58a14e9c416c4cd0914a06e0981e6ddf",
+          "started": "2026-10-05T22:35:08.241000-04:00",
+          "stopped": "2026-10-05T22:35:36.211000-04:00",
+          "startedBy": "events-rule/capiro-dev-legiwatch-hearing-media-worker",
+          "exitCodes": [
+            0
+          ],
+          "digests": [
+            "sha256:86ca8cd3c07ab888415e9ad094d354e0a2c33a242dd696ca0a08069a4140d5e1"
+          ]
+        },
+        {
+          "id": "ed29f29fde034b059c2de36527a62ef6",
+          "started": "2026-10-05T22:33:05.562000-04:00",
+          "stopped": "2026-10-05T22:33:31.173000-04:00",
+          "startedBy": "events-rule/capiro-dev-legiwatch-hearing-media-worker",
+          "exitCodes": [
+            0
+          ],
+          "digests": [
+            "sha256:86ca8cd3c07ab888415e9ad094d354e0a2c33a242dd696ca0a08069a4140d5e1"
+          ]
+        },
+        {
+          "id": "258322f5ea244d969186e5944f875941",
+          "started": "2026-10-05T22:31:08.583000-04:00",
+          "stopped": "2026-10-05T22:31:36.195000-04:00",
+          "startedBy": "events-rule/capiro-dev-legiwatch-hearing-media-worker",
+          "exitCodes": [
+            0
+          ],
+          "digests": [
+            "sha256:86ca8cd3c07ab888415e9ad094d354e0a2c33a242dd696ca0a08069a4140d5e1"
+          ]
+        }
+      ]
+    },
+    "note": "Actual EventBridge runs and image digests; not a guarantee that every official source permits server recording."
+  },
+  "finalCombinedDelta": {
+    "id": "capiro-build-web-dev:32e0aa57-d644-4c9f-89d6-affa01abe3a4",
+    "sourceSha": "c91bbe29f971630d584768a91de47623d1bb5098",
+    "status": "SUCCEEDED",
+    "startedAt": "2026-10-05T22:52:25.960000-04:00",
+    "finishedAt": "2026-10-05T22:56:38.549000-04:00",
+    "assertions": [
+      "[hearing-committee-final-delta] OK \u2014 5 suites / 77 tests, 0 failed, 0 skipped, 0 todo."
+    ],
+    "completionMarker": [
+      "HEARING_COMMITTEE_FINAL_DELTA_QUALIFICATION_PASS"
+    ],
+    "coveredFiles": [
+      "src/hearing-discovery/legislative-calendar-postgres.spec.ts",
+      "src/hearing-discovery/adapters/florida-calendar.adapter.spec.ts",
+      "src/hearing-discovery/legislative-calendar.spec.ts",
+      "src/live-hearings/legiwatch-committee-alerts-pg.integration.spec.ts",
+      "src/meri/meri-research-producer-inputs.spec.ts"
+    ],
+    "previousFailure": {
+      "buildId": "capiro-build-web-dev:2cea46fd-0ed6-49cc-b29c-e5d11eca1a4b",
+      "sourceSha": "62e667a8d86319e5776e39e24658e3f646e2a9a6",
+      "passedTests": 40,
+      "failedTests": 1,
+      "reason": "Explicit closed visibility violated existing public/private database constraint. Corrected classifier/projection to existing private value, which capture permission maps to CLOSED."
+    },
+    "migrationUnchangedFrom": "718361f129a377ddae0af177bfa3c2ea49912308"
+  }
+}

@@ -62,6 +62,7 @@ export type CapturePolicy =
 
 /** committee_site_update.update_type — the enumerated set from the Phase 2 doc comment. */
 export type SiteUpdateType =
+  | 'committee_news_published'
   | 'hearing_announced'
   | 'date_changed'
   | 'time_changed'

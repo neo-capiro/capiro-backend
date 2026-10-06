@@ -242,6 +242,8 @@ export class LegislativeCalendarRepository {
           scheduledEnd: facts.time.endsAt ? new Date(facts.time.endsAt) : null,
           location: facts.location ?? null,
           eventStatus: facts.status ?? 'unknown',
+          // An incomplete refresh cannot reopen an explicitly closed proceeding.
+          ...(facts.visibility !== undefined ? { visibility: facts.visibility } : {}),
           url:
             facts.documents?.find((d) => d.kind === 'notice')?.url ??
             existing?.url ??

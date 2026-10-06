@@ -224,6 +224,12 @@ describe('HearingBriefGenerationService.generate', () => {
     );
     expect(request.userVolatile).toContain('[00:05] Speaker 2: Thank you, Chair.');
     expect(request.userVolatile).toContain('"speakerName":"Jane Q. Smith"');
+    expect(request).toMatchObject({
+      provider: 'anthropic',
+      timeoutMs: 300_000,
+      maxTokens: 6000,
+      system: expect.stringContaining('1,000–1,400 words'),
+    });
     expect(brief.title).toBe('Acme Aerospace — Defense posture hearing recap');
     expect(brief.keyMoments).toEqual([
       { startMs: 5000, speaker: 'Speaker 2', summary: 'Opened the hearing' },

@@ -25,6 +25,7 @@ import { CommitteeSourceRepository } from './committee-source.repository.js';
 import { SENATE_SCHEDULE_URL } from './adapters/senate-schedule.adapter.js';
 import { HOUSE_DOCS_BASE } from './adapters/house-docs-parse.js';
 import { CONGRESS_BASE } from './adapters/congress-gov.adapter.js';
+import { stateCommitteeFollowKey } from './florida-committee-alerts.js';
 import type { Chamber, SourceDescriptor } from './hearing-discovery.types.js';
 
 export const PRIORITY_CONGRESS_GOV = 10;
@@ -182,6 +183,40 @@ export class SourceRegistryService {
       });
       registered += 1;
     }
+    // Florida uses an explicit state namespace. Prefer the verified directory
+    // URL: sourceUrl may be the latest calendar meeting notice rather than the
+    // committee's page. Retired aliases never create a second source identity.
+    const stateRows = await this.prisma.stateCommittee.findMany({
+      where: { state: 'FL', officialSourceKey: { not: null } },
+      select: { id: true, name: true, chamber: true, sourceUrl: true, sourceEvidence: true },
+    });
+    for (const body of stateRows) {
+      const directory =
+        body.sourceEvidence &&
+        typeof body.sourceEvidence === 'object' &&
+        !Array.isArray(body.sourceEvidence)
+          ? (body.sourceEvidence as { directory?: { active?: boolean; sourceUrl?: string } })
+              .directory
+          : undefined;
+      if (directory?.active === false) continue;
+      const url = normalizeSiteUrl(directory?.sourceUrl ?? body.sourceUrl);
+      if (!url || !isFloridaOfficialCommitteeUrl(url)) continue;
+      await this.sources.ensureSource({
+        committeeSystemCode: stateCommitteeFollowKey('FL', body.id),
+        chamber:
+          body.chamber === 'upper' || body.chamber === 'senate'
+            ? 'senate'
+            : body.chamber === 'lower' || body.chamber === 'house'
+              ? 'house'
+              : 'joint',
+        sourceType: 'COMMITTEE_SITE',
+        sourceUrl: url,
+        adapterKey: 'committee-site',
+        priority: PRIORITY_COMMITTEE_SITE,
+        parserVersion: 'committee-site/2026-10-06',
+      });
+      registered += 1;
+    }
     return { registered, skippedNoUrl };
   }
 }
@@ -215,4 +250,11 @@ export function normalizeSiteUrl(url: string | null): string | null {
   } catch {
     return null;
   }
+}
+
+export function isFloridaOfficialCommitteeUrl(value: string): boolean {
+  const url = new URL(value);
+  return ['flsenate.gov', 'flhouse.gov', 'leg.state.fl.us'].includes(
+    url.hostname.toLowerCase().replace(/^www\./, ''),
+  );
 }

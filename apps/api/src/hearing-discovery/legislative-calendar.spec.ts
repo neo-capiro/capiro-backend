@@ -53,6 +53,36 @@ function notice(): LegislativeObservation {
 }
 
 describe('Legislative calendar source contract', () => {
+  it('retains closed visibility through incomplete and lower-authority calendar refreshes', () => {
+    const closed = notice();
+    closed.fields.visibility = 'private';
+    closed.completeFields.push('visibility');
+    const projected = projectLegislativeObservation({}, {}, closed, source, now);
+    expect(projected.facts.visibility).toBe('private');
+    const partial = projectLegislativeObservation(
+      projected.facts,
+      projected.provenance,
+      notice(),
+      source,
+      now,
+    );
+    expect(partial.facts.visibility).toBe('private');
+    expect(partial.changedFields).not.toContain('visibility');
+    const weak = { ...closed, fields: { ...closed.fields, visibility: 'public' as const } };
+    expect(
+      projectLegislativeObservation(
+        projected.facts,
+        projected.provenance,
+        weak,
+        { id: 'secondary', priority: 100 },
+        now,
+      ).facts.visibility,
+    ).toBe('private');
+    expect(() =>
+      validateCalendarObservation({ ...closed, fields: { visibility: 'invalid' as 'private' } }),
+    ).toThrow('visibility');
+  });
+
   it('keeps identity through reschedule and separates jurisdiction, session, body and notice', () => {
     const n = notice(),
       id = legislativeEventId(n);

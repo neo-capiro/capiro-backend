@@ -104,8 +104,16 @@ function matches(row: Row, where: Row | undefined): boolean {
         return false;
       if ('in' in c && !(c.in as unknown[]).includes(value)) return false;
       if ('notIn' in c && (c.notIn as unknown[]).includes(value)) return false;
-      if ('gte' in c && !(value instanceof Date && value >= (c.gte as Date))) return false;
+      if (
+        'gte' in c &&
+        !(
+          (value instanceof Date && value >= (c.gte as Date)) ||
+          (typeof value === 'string' && value >= String(c.gte))
+        )
+      )
+        return false;
       if ('lte' in c && !(value instanceof Date && value <= (c.lte as Date))) return false;
+      if ('lt' in c && !(typeof value === 'string' && value < String(c.lt))) return false;
       if ('contains' in c) {
         const hay = String(value ?? '').toLowerCase();
         if (!hay.includes(String(c.contains).toLowerCase())) return false;
@@ -127,6 +135,7 @@ function makePrisma(seed: {
   updates?: Row[];
   sources?: Row[];
   committees?: Row[];
+  stateCommittees?: Row[];
   follows?: Row[];
 }) {
   const store = {
@@ -138,6 +147,7 @@ function makePrisma(seed: {
     updates: seed.updates ?? [],
     sources: seed.sources ?? [],
     committees: seed.committees ?? [],
+    stateCommittees: seed.stateCommittees ?? [],
     follows: seed.follows ?? [],
   };
   const calls = { bareSubscriptionReads: 0, orderBys: [] as unknown[] };
@@ -228,6 +238,10 @@ function makePrisma(seed: {
       findMany: async (args: { orderBy?: unknown; take?: number } = {}) =>
         store.sources.slice(0, args.take ?? undefined),
     },
+    stateCommittee: {
+      findMany: async (args: { where?: Row } = {}) =>
+        store.stateCommittees.filter((row) => matches(row, args.where)),
+    },
     congressCommittee: {
       findMany: async (args: { where?: Row } = {}) =>
         store.committees.filter((c) => matches(c, args.where)),
@@ -254,21 +268,44 @@ function makeService(seed: Parameters<typeof makePrisma>[0]) {
 describe('QA committee identity and referrals', () => {
   it('keeps parent and subcommittee names attached to their own codes', async () => {
     const { service } = makeService({
-      hearings: [hearing({ committeeName: '', committeeCode: 'ssas17', committeeSystemCode: null, chamber: 'Senate' })],
+      hearings: [
+        hearing({
+          committeeName: '',
+          committeeCode: 'ssas17',
+          committeeSystemCode: null,
+          chamber: 'Senate',
+        }),
+      ],
       committees: [
         { systemCode: 'ssas00', name: 'Armed Services', chamber: 'senate', parentSystemCode: null },
-        { systemCode: 'ssas17', name: 'Strategic Forces', chamber: 'senate', parentSystemCode: 'ssas00' },
+        {
+          systemCode: 'ssas17',
+          name: 'Strategic Forces',
+          chamber: 'senate',
+          parentSystemCode: 'ssas00',
+        },
       ],
     });
     expect(await service.event(ctxA, 'cm-119-119504')).toMatchObject({
-      committeeName: 'Armed Services', committeeSystemCode: 'ssas00',
-      subcommitteeName: 'Strategic Forces', subcommitteeSystemCode: 'ssas17',
+      committeeName: 'Armed Services',
+      committeeSystemCode: 'ssas00',
+      subcommitteeName: 'Strategic Forces',
+      subcommitteeSystemCode: 'ssas17',
     });
   });
   it('keeps legacy committee-name variants in a code-filtered calendar', async () => {
     const { service } = makeService({
-      hearings: [hearing({ committeeName: 'Senate Committee on the Judiciary', committeeCode: null, committeeSystemCode: null, chamber: 'Senate' })],
-      committees: [{ systemCode: 'ssju00', name: 'Judiciary', chamber: 'senate', parentSystemCode: null }],
+      hearings: [
+        hearing({
+          committeeName: 'Senate Committee on the Judiciary',
+          committeeCode: null,
+          committeeSystemCode: null,
+          chamber: 'Senate',
+        }),
+      ],
+      committees: [
+        { systemCode: 'ssju00', name: 'Judiciary', chamber: 'senate', parentSystemCode: null },
+      ],
     });
     const result = await service.calendar(ctxA, { committee: 'ssju00' });
     expect(result.total).toBe(1);
@@ -277,18 +314,33 @@ describe('QA committee identity and referrals', () => {
   });
   it('hydrates a missing display name from the exact official code', async () => {
     const { service } = makeService({
-      hearings: [hearing({ committeeName: '', committeeCode: 'ssas00', committeeSystemCode: null, chamber: 'Senate' })],
-      committees: [{ systemCode: 'ssas00', name: 'Armed Services', chamber: 'senate', parentSystemCode: null }],
+      hearings: [
+        hearing({
+          committeeName: '',
+          committeeCode: 'ssas00',
+          committeeSystemCode: null,
+          chamber: 'Senate',
+        }),
+      ],
+      committees: [
+        { systemCode: 'ssas00', name: 'Armed Services', chamber: 'senate', parentSystemCode: null },
+      ],
     });
     expect((await service.event(ctxA, 'cm-119-119504'))?.committeeName).toBe('Armed Services');
   });
   it('includes historical referrals in the same session and chamber without substring matches', () => {
-    const where = stateCommitteeReferralWhere({ chamber: 'house', legislativeSession: '2026' }, [{ id: 'FL-lower-commerce', name: 'Commerce Committee' }]);
+    const where = stateCommitteeReferralWhere({ chamber: 'house', legislativeSession: '2026' }, [
+      { id: 'FL-lower-commerce', name: 'Commerce Committee' },
+    ]);
     expect(where.sessionKey).toBe('2026');
-    const historical = (where.OR?.[1]?.actions?.some) as any;
+    const historical = where.OR?.[1]?.actions?.some as any;
     expect(historical.chamber.in).toContain('H');
-    expect(historical.OR).toContainEqual({ text: { equals: 'Referred to Commerce', mode: 'insensitive' } });
-    expect(historical.OR).not.toContainEqual({ text: { contains: 'Commerce', mode: 'insensitive' } });
+    expect(historical.OR).toContainEqual({
+      text: { equals: 'Referred to Commerce', mode: 'insensitive' },
+    });
+    expect(historical.OR).not.toContainEqual({
+      text: { contains: 'Commerce', mode: 'insensitive' },
+    });
   });
 });
 
@@ -1145,6 +1197,110 @@ describe('state committee directory aliases', () => {
     expect(members[0]).toMatchObject({
       email: 'fallback@flhouse.gov',
       image: '/florida-directory/portraits/house-district-012-pdf-fallback.jpg',
+    });
+  });
+});
+describe('coverage scope and active source health', () => {
+  it('keeps newer unavailable 2027 coverage from replacing the completed 2026 calendar check', async () => {
+    const base = {
+      jurisdiction: 'FL',
+      chamber: 'senate',
+      fromDate: day('2026-09-01'),
+      toDate: day('2026-12-01'),
+      items: 0,
+    };
+    const { service } = makeService({
+      coverage: [
+        {
+          ...base,
+          id: 'current',
+          session: '2026',
+          status: 'complete',
+          attemptedAt: new Date('2026-10-06T01:43:19Z'),
+          details: { availability: 'available' },
+        },
+        {
+          ...base,
+          id: 'future',
+          session: '2027',
+          status: 'failed',
+          attemptedAt: new Date('2026-10-06T01:44:46Z'),
+          details: { availability: 'unavailable' },
+        },
+      ],
+    });
+    const current = await service.calendarCoverage(ctxA, { from: '2026-10-05', to: '2026-10-11' });
+    expect(current.rows).toHaveLength(1);
+    expect(current.rows[0]).toMatchObject({ session: '2026', status: 'complete' });
+    const requested = await service.calendarCoverage(ctxA, {
+      session: '2027',
+      from: '2026-10-05',
+      to: '2026-10-11',
+    });
+    expect(requested.rows[0]).toMatchObject({
+      session: '2027',
+      status: 'failed',
+      details: { availability: 'unavailable' },
+    });
+  });
+  it('retains an actual current-session failure instead of falling back to an older healthy check', async () => {
+    const base = {
+      jurisdiction: 'FL',
+      chamber: 'senate',
+      session: '2026F',
+      fromDate: day('2026-09-01'),
+      toDate: day('2026-12-01'),
+      items: 0,
+      details: {},
+    };
+    const { service } = makeService({
+      coverage: [
+        { ...base, status: 'complete', attemptedAt: new Date('2026-10-06T01:43:19Z') },
+        { ...base, status: 'failed', attemptedAt: new Date('2026-10-06T01:44:46Z') },
+      ],
+    });
+    const result = await service.calendarCoverage(ctxA, { from: '2026-10-05', to: '2026-10-11' });
+    expect(result.rows[0]).toMatchObject({ session: '2026F', status: 'failed' });
+  });
+  it('counts and lists active sources, preserves disabled history, and resolves Florida committee names', async () => {
+    const base = {
+      chamber: 'house',
+      sourceType: 'COMMITTEE_SITE',
+      sourceUrl: 'https://www.flhouse.gov/',
+      adapterKey: 'committee-site',
+      priority: 50,
+    };
+    const { service } = makeService({
+      sources: [
+        {
+          ...base,
+          id: 'active-fl',
+          committeeSystemCode: 'state:FL:fl-commerce',
+          enabled: true,
+          sourceHealth: 'healthy',
+        },
+        {
+          ...base,
+          id: 'disabled-old',
+          committeeSystemCode: null,
+          enabled: false,
+          sourceHealth: 'failing',
+        },
+      ],
+      stateCommittees: [{ id: 'fl-commerce', state: 'FL', name: 'Commerce Committee' }],
+    });
+    const result = await service.coverage();
+    expect(result.summary).toEqual({ total: 1, healthy: 1, degraded: 0, failing: 0, unknown: 0 });
+    expect(result.sources).toHaveLength(1);
+    expect(result.sources[0]).toMatchObject({
+      id: 'active-fl',
+      committeeName: 'Commerce Committee',
+    });
+    expect(result.disabledSources).toHaveLength(1);
+    expect(result.disabledSources[0]).toMatchObject({
+      id: 'disabled-old',
+      enabled: false,
+      sourceHealth: 'failing',
     });
   });
 });

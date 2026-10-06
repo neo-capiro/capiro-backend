@@ -80,6 +80,7 @@ export class CommitteeSourceRepository {
     chamber?: Chamber;
     sourceType?: SourceType;
     committeeSystemCode?: string;
+    oldestCheckedFirst?: boolean;
   }): Promise<SourceDescriptor[]> {
     const rows = await this.prisma.committeeSource.findMany({
       where: {
@@ -89,7 +90,9 @@ export class CommitteeSourceRepository {
         ...(filter?.sourceType ? { sourceType: filter.sourceType } : {}),
         ...(filter?.committeeSystemCode ? { committeeSystemCode: filter.committeeSystemCode } : {}),
       },
-      orderBy: [{ priority: 'asc' }, { sourceUrl: 'asc' }],
+      orderBy: filter?.oldestCheckedFirst
+        ? [{ lastCheckedAt: { sort: 'asc', nulls: 'first' } }, { sourceUrl: 'asc' }]
+        : [{ priority: 'asc' }, { sourceUrl: 'asc' }],
     });
     return rows.map(toDescriptor);
   }

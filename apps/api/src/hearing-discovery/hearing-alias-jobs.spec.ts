@@ -23,7 +23,9 @@ describe('canonical-only discovery after reviewed reconciliation', () => {
   });
   it('does not select retained aliases for enrichment or archive mutation', async () => {
     const findMany = jest.fn(async () => []);
-    const db = { committeeHearing: { findMany } } as unknown as PrismaClient;
+    const db = {
+      committeeHearing: { findMany, count: jest.fn(async () => 0) },
+    } as unknown as PrismaClient;
     const jobs = new DiscoveryJobsService(db);
     await jobs.enrichCommitteeHearings({ dryRun: true, now: new Date('2026-09-14') });
     await jobs.reconcileArchives({ dryRun: true, now: new Date('2026-09-14') });

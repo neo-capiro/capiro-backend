@@ -39,7 +39,10 @@ import {
   preferNonBlank,
 } from '../hearing-discovery/florida-directory-profile.js';
 import { loadFloridaDirectoryResources } from '../hearing-discovery/florida-directory-resources.js';
-import { stateCommitteeFollowKey } from '../hearing-discovery/florida-committee-alerts.js';
+import {
+  parseStateCommitteeFollowKey,
+  stateCommitteeFollowKey,
+} from '../hearing-discovery/florida-committee-alerts.js';
 import { requireStateCalendar } from './legiwatch-calendar-access.js';
 import {
   selectOfficialPlaybackSource,
@@ -398,6 +401,8 @@ export class LiveHearingsService {
   async calendarCoverage(ctx: TenantContext, query: CalendarQuery) {
     await requireStateCalendar(this.prisma, ctx.tenantId);
     buildWhere({ ...query, jurisdiction: 'FL' });
+    const fromYear = Number((query.from ?? query.to ?? new Date().toISOString()).slice(0, 4));
+    const toYear = Number((query.to ?? query.from ?? new Date().toISOString()).slice(0, 4));
     const rows = await this.prisma.legislativeCalendarCoverage.findMany({
       where: {
         jurisdiction: 'FL',
@@ -406,7 +411,16 @@ export class LiveHearingsService {
         // this constraint the chamber-ordered `take: 2` can return house +
         // joint and silently displace senate.
         chamber: { in: ['house', 'senate'] },
-        ...(query.session ? { session: query.session } : {}),
+        // A future optional session can share this date window but has not
+        // been published yet. It must not replace the current year's receipt.
+        ...(query.session
+          ? { session: query.session }
+          : {
+              OR: [
+                { session: null },
+                { session: { gte: String(fromYear), lt: String(toYear + 1) } },
+              ],
+            }),
         ...(query.from ? { fromDate: { lte: new Date(`${query.from}T00:00:00Z`) } } : {}),
         ...(query.to ? { toDate: { gte: new Date(`${query.to}T00:00:00Z`) } } : {}),
       },
@@ -417,6 +431,7 @@ export class LiveHearingsService {
     return {
       rows: rows.map((row) => ({
         chamber: row.chamber,
+        session: row.session,
         status: row.status,
         from: row.fromDate.toISOString().slice(0, 10),
         to: row.toDate.toISOString().slice(0, 10),
@@ -581,7 +596,17 @@ export class LiveHearingsService {
           chamber: { in: coverageChambers },
           ...(body.legislativeSession
             ? { OR: [{ session: body.legislativeSession }, { session: null }] }
-            : {}),
+            : {
+                OR: [
+                  { session: null },
+                  {
+                    session: {
+                      gte: String(today.getUTCFullYear()),
+                      lt: String(today.getUTCFullYear() + 1),
+                    },
+                  },
+                ],
+              }),
         },
         orderBy: [{ attemptedAt: 'desc' }],
         // Keep the latest receipt for EACH provider/chamber pair. A
@@ -636,9 +661,14 @@ export class LiveHearingsService {
     ]);
 
     const sourceIds = [...new Set(coverageRows.map((row) => row.sourceId))];
-    const committeeSources = sourceIds.length
-      ? await this.prisma.committeeSource.findMany({ where: { id: { in: sourceIds } } })
-      : [];
+    const committeeSources = await this.prisma.committeeSource.findMany({
+      where: {
+        OR: [
+          { id: { in: sourceIds } },
+          { enabled: true, committeeSystemCode: { in: stateCommitteeKeys } },
+        ],
+      },
+    });
     const sourceById = new Map(committeeSources.map((source) => [source.id, source]));
     const sourceCoverage = coverageRows.map((coverage) => {
       const source = sourceById.get(coverage.sourceId);
@@ -680,6 +710,22 @@ export class LiveHearingsService {
         pageSize: 400,
       },
       sourceCoverage,
+      publicationSources: committeeSources
+        .filter(
+          (source) =>
+            source.enabled &&
+            source.committeeSystemCode &&
+            stateCommitteeKeys.includes(source.committeeSystemCode),
+        )
+        .map((source) => ({
+          sourceUrl: source.sourceUrl,
+          sourceHealth: source.sourceHealth,
+          lastCheckedAt: source.lastCheckedAt?.toISOString() ?? null,
+          lastSuccessAt: source.lastSuccessAt?.toISOString() ?? null,
+          lastError: source.lastError,
+          scope: 'committee',
+          note: 'Official committee page checked for publications. Shared chamber news is included only when its headline names this committee.',
+        })),
       updates: {
         rows: committeeUpdates.map((update) => ({
           id: update.id,
@@ -734,6 +780,7 @@ export class LiveHearingsService {
   async coverage(): Promise<{
     summary: CommitteeSourceCoverageSummary;
     sources: CommitteeSourceCoverage[];
+    disabledSources: CommitteeSourceCoverage[];
   }> {
     const sources = await this.prisma.committeeSource.findMany({
       orderBy: [{ chamber: 'asc' }, { sourceUrl: 'asc' }],
@@ -750,6 +797,18 @@ export class LiveHearingsService {
         })
       : [];
     const nameBySystemCode = new Map(committees.map((c) => [c.systemCode, c.name]));
+    const stateIds = systemCodes.flatMap((code) => {
+      const ref = parseStateCommitteeFollowKey(code);
+      return ref?.jurisdiction === 'FL' ? [ref.stateCommitteeId] : [];
+    });
+    const stateCommittees = stateIds.length
+      ? await this.prisma.stateCommittee.findMany({
+          where: { state: 'FL', id: { in: stateIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    for (const committee of stateCommittees)
+      nameBySystemCode.set(stateCommitteeFollowKey('FL', committee.id), committee.name);
 
     const sourceIds = sources.map((s) => s.id);
     const candidates = sourceIds.length
@@ -782,13 +841,13 @@ export class LiveHearingsService {
     }
 
     const summary: CommitteeSourceCoverageSummary = {
-      total: sources.length,
+      total: sources.filter((source) => source.enabled).length,
       healthy: 0,
       degraded: 0,
       failing: 0,
       unknown: 0,
     };
-    for (const s of sources) {
+    for (const s of sources.filter((source) => source.enabled)) {
       const key = s.sourceHealth as keyof CommitteeSourceCoverageSummary;
       if (key === 'healthy' || key === 'degraded' || key === 'failing' || key === 'unknown') {
         summary[key] += 1;
@@ -797,31 +856,33 @@ export class LiveHearingsService {
       }
     }
 
+    const projectedSources = sources.map((s) => {
+      const latest = latestCandidateBySource.get(s.id) ?? null;
+      return {
+        id: s.id,
+        committeeSystemCode: s.committeeSystemCode,
+        committeeName: s.committeeSystemCode
+          ? (nameBySystemCode.get(s.committeeSystemCode) ?? null)
+          : null,
+        chamber: s.chamber,
+        sourceType: s.sourceType,
+        sourceUrl: s.sourceUrl,
+        adapterKey: s.adapterKey,
+        enabled: s.enabled,
+        priority: s.priority,
+        sourceHealth: s.sourceHealth,
+        lastCheckedAt: s.lastCheckedAt?.toISOString() ?? null,
+        lastSuccessAt: s.lastSuccessAt?.toISOString() ?? null,
+        lastErrorAt: s.lastErrorAt?.toISOString() ?? null,
+        lastError: s.lastError,
+        recentCapturePolicy: latest?.capturePolicy ?? null,
+        recentResolutionState: latest?.resolutionState ?? null,
+      };
+    });
     return {
       summary,
-      sources: sources.map((s) => {
-        const latest = latestCandidateBySource.get(s.id) ?? null;
-        return {
-          id: s.id,
-          committeeSystemCode: s.committeeSystemCode,
-          committeeName: s.committeeSystemCode
-            ? (nameBySystemCode.get(s.committeeSystemCode) ?? null)
-            : null,
-          chamber: s.chamber,
-          sourceType: s.sourceType,
-          sourceUrl: s.sourceUrl,
-          adapterKey: s.adapterKey,
-          enabled: s.enabled,
-          priority: s.priority,
-          sourceHealth: s.sourceHealth,
-          lastCheckedAt: s.lastCheckedAt?.toISOString() ?? null,
-          lastSuccessAt: s.lastSuccessAt?.toISOString() ?? null,
-          lastErrorAt: s.lastErrorAt?.toISOString() ?? null,
-          lastError: s.lastError,
-          recentCapturePolicy: latest?.capturePolicy ?? null,
-          recentResolutionState: latest?.resolutionState ?? null,
-        };
-      }),
+      sources: projectedSources.filter((source) => source.enabled),
+      disabledSources: projectedSources.filter((source) => !source.enabled),
     };
   }
 

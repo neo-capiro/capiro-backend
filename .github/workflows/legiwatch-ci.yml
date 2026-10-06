@@ -208,6 +208,13 @@ jobs:
           DATABASE_URL="$LEGIWATCH_COMMITTEE_TEST_DATABASE_URL" pnpm --filter @capiro/api exec prisma migrate deploy
           DATABASE_URL="$LEGIWATCH_COMMITTEE_TEST_DATABASE_URL" pnpm --filter @capiro/intel-api exec prisma migrate deploy
 
+      - name: Committee news fresh and retired-upgrade migration rehearsal
+        env:
+          LEGIWATCH_MIGRATION_REHEARSAL_DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+        run: |
+          pnpm --filter @capiro/api exec node --test scripts/verify-committee-news-migration.spec.cjs
+          pnpm --filter @capiro/api exec node scripts/verify-committee-news-migration.cjs
+
       - name: Phase 2 report, source and delivery qualification
         env:
           DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
