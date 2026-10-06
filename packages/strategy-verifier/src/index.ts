@@ -1,4 +1,5 @@
 export * from './types.js';
+export * from './planner.js';
 export { verifyPlan, validIso, fyOfIso, depEnd, findDependencyCycle, checkPlanDependencies, checkPastDates } from './verify.js';
 export { repairDependencyOrder, type DependencyRepairResult } from './repair.js';
 

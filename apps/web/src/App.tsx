@@ -166,6 +166,9 @@ const FundingOpportunitiesPage = lazy(async () =>
 const VNextApp = lazy(async () =>
   import('./vnext/app/VNextApp.js').then((m) => ({ default: m.VNextApp })),
 );
+const PlannerPublicFormPage = lazy(async () => ({ default:
+  (await import('./vnext/pages/planner/PlannerPublicFormPage.js')).PlannerPublicFormPage,
+}));
 
 const FundingOpportunitiesClassicShell = lazy(async () =>
   import('./vnext/pages/funding-opportunities/FundingOpportunitiesClassicShell.js').then((m) => ({
@@ -194,6 +197,7 @@ export function App() {
           session-wide — /settings/integrations is an Engagement consumer too. */}
       <EngagementPreviewBoundary />
       <Routes>
+        <Route path="/planner/forms/:token" element={<Suspense fallback={<p>Loading form…</p>}><PlannerPublicFormPage /></Suspense>} />
         <Route path="/sign-in/*" element={<AuthPage mode="sign-in" />} />
         <Route path="/sign-up/*" element={<AuthPage mode="sign-up" />} />
         {/* Welcome / paywall. Signed-in but standalone (outside AppShell + the
@@ -224,6 +228,7 @@ export function App() {
             element={<PlaceholderPage title="Research Portfolio" description="Loading..." />}
           />
           <Route path="/engagement/*" element={<EngagementPage />} />
+          <Route path="/planner" element={<PlaceholderPage title="Planner" description="Planner is available on os.capiro.ai." />} />
           {/* Workspace — standalone document-builder engine (own ECR/Fargate
             service at /workspace-api/*; this is the SPA UI). */}
           <Route

@@ -57,6 +57,7 @@ docker-compose.override.yml
 # Local-only deploy logs and release evidence
 .deploy-logs/
 .artifacts/
+artifacts/planner/
 
 # Transient build/extraction artifacts (not source)
 .cache/gap/
