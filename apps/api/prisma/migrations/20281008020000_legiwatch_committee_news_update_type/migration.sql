@@ -2,6 +2,10 @@
 -- constraint; keep every existing type and all table ownership/grants/RLS.
 -- One ALTER statement makes constraint replacement atomic under Prisma's
 -- normal PostgreSQL migrate-deploy runner (no interval without validation).
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SET LOCAL statement_timeout = '30s';
+
 ALTER TABLE "committee_site_update"
   DROP CONSTRAINT "committee_site_update_update_type_chk",
   ADD CONSTRAINT "committee_site_update_update_type_chk" CHECK ("update_type" IN (
@@ -10,3 +14,5 @@ ALTER TABLE "committee_site_update"
     'bill_added', 'amendment_added', 'livestream_posted', 'livestream_changed', 'archive_posted',
     'official_transcript_posted', 'committee_news_published'
   ));
+
+COMMIT;
