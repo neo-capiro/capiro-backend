@@ -180,6 +180,11 @@ describe('MeriV3 runtime env (Stage 1 §4.2)', () => {
     expect(orchestrator.MERIV3_ENABLED).toBe('true');
   });
 
+  test('the API carries the Deep Research per-run budget applied in capiro-dev-api:564', () => {
+    expect(api.CLIO_RESEARCH_MAX_TOTAL_TOKENS).toBe('4000000');
+    expect(api.CLIO_RESEARCH_MAX_COST_USD).toBe('25');
+  });
+
   test('the retired slug allow-list is not codified on either service', () => {
     expect(api).not.toHaveProperty('MERIV3_CANARY_TENANT_SLUGS');
     expect(orchestrator).not.toHaveProperty('MERIV3_CANARY_TENANT_SLUGS');
