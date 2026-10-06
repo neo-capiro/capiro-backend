@@ -278,5 +278,252 @@
       "prior migration ledger",
       "retired runtime absence"
     ]
+  },
+  "urlProvenanceMigrationQualification": {
+    "id": "capiro-build-web-dev:865514bd-09a7-4759-bfc3-22b6a95a1c83",
+    "sourceSha": "7cb6ce5602f331e110bb317640501c0a9d21db63",
+    "status": "SUCCEEDED",
+    "finishedAt": "2026-10-05T23:15:51.237000-04:00",
+    "localSafetyTests": 10,
+    "actualPrismaRehearsals": [
+      {
+        "status": "passed",
+        "migration": "20281008020000_legiwatch_committee_news_update_type",
+        "checksum": "faf5ff39d72bf15445d4aa593724d8aa81ea4dcef3e1bef3f6bf06c6bc18f46a",
+        "checks": [
+          "freshDatabase",
+          "retiredUpgrade",
+          "legacyWriterCompatibility",
+          "unknownTypeRejected",
+          "grantsRlsOwnershipPreserved"
+        ]
+      },
+      {
+        "status": "passed",
+        "migration": "20281008030000_committee_url_official_review",
+        "checksum": "be50c86b8bbe6d4b2cc2969c3bba2ae264b53025f36d89dd3e45f1b28376c22b",
+        "checks": [
+          "freshDatabase",
+          "retiredUpgrade",
+          "legacyWriterCompatibility",
+          "unknownTypeRejected",
+          "grantsRlsOwnershipPreserved"
+        ]
+      }
+    ],
+    "notificationPg": {
+      "suites": 1,
+      "tests": 4,
+      "failed": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "completionMarker": "COMMITTEE_URL_PROVENANCE_QUALIFICATION_PASS",
+    "migrationInventoryUnchangedThrough": "112cfd68122510a1f9fbce675d3c07664f5aff05"
+  },
+  "urlProvenanceProductionPreflight": {
+    "sourceSha": "7cb6ce5602f331e110bb317640501c0a9d21db63",
+    "migration": "20281008030000_committee_url_official_review",
+    "expectedApiMigrations": 457,
+    "ledgerRows": 613,
+    "successfulLedgerRows": 513,
+    "ledgerSha256": "dc9cdadc439652af1cfb5ba72e01d71d12cab0ef817b372e68fe56c19057801c",
+    "acceptedHistoricalDifferences": 61,
+    "pending": [
+      "20281008030000_committee_url_official_review"
+    ],
+    "values": [
+      {
+        "url_source": null,
+        "count": 2
+      },
+      {
+        "url_source": "congress_gov",
+        "count": 228
+      }
+    ],
+    "readOnly": true
+  },
+  "recordingAfterPromotion": {
+    "checkedAt": "2026-10-06T03:11:23.554286+00:00",
+    "serviceTaskDefinition": "capiro-dev-intel-api:66",
+    "running": 1,
+    "pending": 0,
+    "health": "HEALTHY",
+    "targetHealth": "healthy",
+    "imageDigest": "sha256:4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d",
+    "rules": [
+      {
+        "name": "capiro-dev-legiwatch-capture-worker",
+        "state": "ENABLED",
+        "schedule": "rate(1 minute)",
+        "taskDefinition": "capiro-dev-legiwatch-phase9-intel:34",
+        "command": [
+          "legiwatch-phase9-capture",
+          "both",
+          "--limit=10"
+        ],
+        "flags": [
+          {
+            "name": "HEARING_PUBLIC_AUDIO_CAPTURE_ALL_ENABLED",
+            "value": "true"
+          },
+          {
+            "name": "HEARING_AUDIO_MAINTENANCE_ENABLED",
+            "value": "false"
+          },
+          {
+            "name": "LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED",
+            "value": "true"
+          },
+          {
+            "name": "HEARING_AUDIO_STORAGE_ENABLED",
+            "value": "true"
+          },
+          {
+            "name": "HEARING_PUBLIC_AUDIO_RETENTION_DAYS",
+            "value": "30"
+          },
+          {
+            "name": "HEARING_PUBLIC_AUDIO_STORAGE_ENABLED",
+            "value": "true"
+          }
+        ],
+        "actualScheduledRuns": [
+          {
+            "id": "3ad7d0828caa4a72a28c567524d1ad1f",
+            "taskDefinition": "capiro-dev-legiwatch-phase9-intel:34",
+            "startedAt": "2026-10-05T23:10:21.191000-04:00",
+            "stoppedAt": "2026-10-05T23:10:50.235000-04:00",
+            "startedBy": "events-rule/capiro-dev-legiwatch-capture-worker",
+            "exitCodes": [
+              0
+            ],
+            "digests": [
+              "sha256:4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d"
+            ]
+          },
+          {
+            "id": "72cc4d52b09e40a5a2eaa6174ba6f356",
+            "taskDefinition": "capiro-dev-legiwatch-phase9-intel:34",
+            "startedAt": "2026-10-05T23:09:21.745000-04:00",
+            "stoppedAt": "2026-10-05T23:09:50.912000-04:00",
+            "startedBy": "events-rule/capiro-dev-legiwatch-capture-worker",
+            "exitCodes": [
+              0
+            ],
+            "digests": [
+              "sha256:4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d"
+            ]
+          },
+          {
+            "id": "9f05f1ccdb8e4f4c9e157c34a0447c8d",
+            "taskDefinition": "capiro-dev-legiwatch-phase9-intel:34",
+            "startedAt": "2026-10-05T23:08:20.757000-04:00",
+            "stoppedAt": "2026-10-05T23:08:45.685000-04:00",
+            "startedBy": "events-rule/capiro-dev-legiwatch-capture-worker",
+            "exitCodes": [
+              0
+            ],
+            "digests": [
+              "sha256:4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d"
+            ]
+          }
+        ]
+      },
+      {
+        "name": "capiro-dev-legiwatch-hearing-media-worker",
+        "state": "ENABLED",
+        "schedule": "rate(2 minutes)",
+        "taskDefinition": "capiro-dev-legiwatch-phase9-intel:35",
+        "command": [
+          "hearing-media",
+          "--limit=2"
+        ],
+        "flags": [
+          {
+            "name": "HEARING_AUDIO_STORAGE_ENABLED",
+            "value": "true"
+          },
+          {
+            "name": "HEARING_PUBLIC_AUDIO_CAPTURE_ALL_ENABLED",
+            "value": "true"
+          },
+          {
+            "name": "HEARING_AUDIO_MAINTENANCE_ENABLED",
+            "value": "true"
+          },
+          {
+            "name": "HEARING_PUBLIC_AUDIO_RETENTION_DAYS",
+            "value": "30"
+          },
+          {
+            "name": "LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED",
+            "value": "true"
+          },
+          {
+            "name": "HEARING_PUBLIC_AUDIO_STORAGE_ENABLED",
+            "value": "true"
+          }
+        ],
+        "actualScheduledRuns": [
+          {
+            "id": "525d4976c6634054a55a73908c4eb6dd",
+            "taskDefinition": "capiro-dev-legiwatch-phase9-intel:35",
+            "startedAt": "2026-10-05T23:11:10.612000-04:00",
+            "stoppedAt": null,
+            "startedBy": "events-rule/capiro-dev-legiwatch-hearing-media-worker",
+            "exitCodes": [
+              0
+            ],
+            "digests": [
+              "sha256:4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d"
+            ]
+          },
+          {
+            "id": "d5223fedc97b4ae1b0eb78ddecd5a3a2",
+            "taskDefinition": "capiro-dev-legiwatch-phase9-intel:35",
+            "startedAt": "2026-10-05T23:09:06.128000-04:00",
+            "stoppedAt": "2026-10-05T23:09:34.939000-04:00",
+            "startedBy": "events-rule/capiro-dev-legiwatch-hearing-media-worker",
+            "exitCodes": [
+              0
+            ],
+            "digests": [
+              "sha256:4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "goldenDomeOfficialProvenanceApply": {
+    "hearingId": "sen-119-338758",
+    "beforeHash": "37216073deb787c2e8584a9e43dd83ef221815b5dc2111efee664dd28bac2c50",
+    "evidenceHash": "4bb3b3c8ee09c90de7b0bdea2f5a5c90dac8fb5aaccfb364375cf210d429ffa7",
+    "observationId": "545a6476-e10c-4234-b3c5-bbfe336ded08",
+    "sourceId": "0620cd3c-1a98-45a7-b44c-a4283f01e797",
+    "observationCount": 1,
+    "sourceDisabled": true,
+    "immutableBeforeSha256": "e36dbd7974609bb00fde2c5f8ac1ecd827b2801f0b1fef70ff0079799398ca5e",
+    "immutableAfterSha256": "e36dbd7974609bb00fde2c5f8ac1ecd827b2801f0b1fef70ff0079799398ca5e",
+    "reconcilerCalled": false,
+    "status": "committed",
+    "taskId": "209f47160a2f47e39e372e025b83e394",
+    "exitCode": 0,
+    "freshFinalImagePreviewPassed": true
+  },
+  "knownUpcomingRecordingException": {
+    "hearingId": "cm-119-119575",
+    "officialScheduledStart": "2026-10-06T14:00:00Z",
+    "preflightDueAt": "2026-10-06T13:00:00Z",
+    "advertisedSource": "https://www.youtube.com/watch?v=R2JXs4FXjHw",
+    "dispositionStatus": "unresolvable",
+    "reason": "YouTube-live extraction is disabled by the existing server policy; the advertised browser video does not prove an authorized server-recordable stream. No permission override was applied.",
+    "taskId": "5c698298007d487a8151f3bf830c5dca",
+    "taskDefinition": "capiro-dev-legiwatch-phase9-intel:34",
+    "exitCode": 0,
+    "imageDigest": "sha256:4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d",
+    "acceptance": "Automatic scheduling is verified; server recording for this hearing remains source-limited."
   }
 }
