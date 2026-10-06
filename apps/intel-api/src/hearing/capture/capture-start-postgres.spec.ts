@@ -81,7 +81,7 @@ describeDb('capture scheduling on native PostgreSQL', () => {
       await queue.enqueue({ ...input, dueAt: now });
       const job = (await read(tx, input.hearingId))[0];
       await tx.$executeRawUnsafe(
-        `UPDATE public_hearing_capture_job SET status='leased',lease_owner='timing-worker',lease_expires_at=now()+interval '5 minutes',attempts=2 WHERE id=$1`,
+        `UPDATE public_hearing_capture_job SET status='leased',lease_owner='timing-worker',lease_expires_at=now()+interval '5 minutes',attempts=2 WHERE id=$1::uuid`,
         job.id,
       );
       const leased = await read(tx, input.hearingId);
@@ -100,7 +100,7 @@ describeDb('capture scheduling on native PostgreSQL', () => {
       await queue.enqueue({ ...input, dueAt: now });
       const job = (await read(tx, input.hearingId))[0];
       await tx.$executeRawUnsafe(
-        `UPDATE public_hearing_capture_job SET status='leased',lease_owner='timing-worker',lease_expires_at=now()+interval '5 minutes',attempts=3,last_error='prior media failure' WHERE id=$1`,
+        `UPDATE public_hearing_capture_job SET status='leased',lease_owner='timing-worker',lease_expires_at=now()+interval '5 minutes',attempts=3,last_error='prior media failure' WHERE id=$1::uuid`,
         job.id,
       );
       const dueAt = new Date(now.getTime() + 3_600_000);
@@ -130,7 +130,7 @@ describeDb('capture scheduling on native PostgreSQL', () => {
       await queue.enqueue({ ...input, dueAt: now });
       const job = (await read(tx, input.hearingId))[0];
       await tx.$executeRawUnsafe(
-        `UPDATE public_hearing_capture_job SET status='leased',lease_owner='timing-worker',lease_expires_at=now()+interval '5 minutes',attempts=3 WHERE id=$1`,
+        `UPDATE public_hearing_capture_job SET status='leased',lease_owner='timing-worker',lease_expires_at=now()+interval '5 minutes',attempts=3 WHERE id=$1::uuid`,
         job.id,
       );
       const claim = {
@@ -154,7 +154,7 @@ describeDb('capture scheduling on native PostgreSQL', () => {
         );
       expect(await read(tx, input.hearingId)).toEqual(before);
       await tx.$executeRawUnsafe(
-        `UPDATE public_hearing_capture_job SET lease_expires_at=now()-interval '1 second' WHERE id=$1`,
+        `UPDATE public_hearing_capture_job SET lease_expires_at=now()-interval '1 second' WHERE id=$1::uuid`,
         job.id,
       );
       await expect(queue.deferUntilStart(claim)).rejects.toThrow('deferral lost lease');
