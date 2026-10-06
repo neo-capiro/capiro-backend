@@ -137,6 +137,77 @@ async function evaluate(value: any, mode: 'READINESS' | 'CUTOVER_VERIFICATION' =
 }
 
 describe('LegiWatchPhase9ReadinessService', () => {
+  it('audits federal provenance without counting linked or pending Florida ledger rows', async () => {
+    const mixed = snapshot();
+    mixed.observations[0].jurisdiction = 'US';
+    mixed.observations.push(
+      {
+        ...mixed.observations[0],
+        id: 'fl-linked',
+        jurisdiction: 'FL',
+        hearingId: 'state-fl-linked',
+        bodyCode: null,
+      },
+      {
+        ...mixed.observations[0],
+        id: 'fl-pending',
+        jurisdiction: 'FL',
+        hearingId: null,
+        bodyCode: null,
+        reconciliationStatus: 'PENDING',
+      },
+    );
+    const report = await evaluate(mixed);
+    expect(report.status).toBe('PASS');
+    expect(report.counts).toMatchObject({
+      officialObservations: 1,
+      representedObservations: 1,
+      pendingObservations: 0,
+      canonicalEventsWithObservation: 1,
+    });
+    expect(report.exceptions.some((row) => row.observationId?.startsWith('fl-'))).toBe(false);
+    expect(mixed.observations).toHaveLength(3);
+
+    // Unknown/federal pending records remain visible: scope must not hide a
+    // genuine missing federal identity while removing state-only false alarms.
+    mixed.observations.push({
+      ...mixed.observations[0],
+      id: 'us-pending',
+      jurisdiction: 'US',
+      hearingId: null,
+      bodyCode: null,
+      reconciliationStatus: 'PENDING',
+    });
+    const pending = await evaluate(mixed);
+    expect(pending.counts).toMatchObject({ officialObservations: 2, pendingObservations: 1 });
+    expect(pending.exceptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          observationId: 'us-pending',
+          reasonCode: 'OFFICIAL_OBSERVATION_PENDING',
+        }),
+      ]),
+    );
+  });
+
+  it('cannot use a healthy Florida central source to cover a failed federal source', async () => {
+    const mixed = snapshot();
+    mixed.sources[0].committeeSystemCode = null;
+    mixed.sources[0].jurisdiction = 'US';
+    mixed.sources[0].sourceHealth = 'failing';
+    mixed.sources.push({
+      ...mixed.sources[0],
+      id: 'florida-central',
+      jurisdiction: 'FL',
+      sourceHealth: 'healthy',
+    });
+    const report = await evaluate(mixed);
+    expect(findGate(report, 'SOURCE_COVERAGE_READY').status).toBe('FAIL');
+    expect(
+      report.bodies.every((body) => body.sourcesRegistered === 1 && body.sourcesHealthy === 0),
+    ).toBe(true);
+  });
+
   it('passes the complete readiness contract with explicit fixture evidence', async () => {
     const report = await evaluate(snapshot());
     expect(report.status).toBe('PASS');
