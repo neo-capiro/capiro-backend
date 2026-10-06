@@ -38,6 +38,7 @@ import {
   ASSISTANT_TOOLS,
   PROPOSE_EDITS_TOOL,
   composeInEditorSystemPrompt,
+  EditorInputTooLargeError,
   resolveInEditorAssurance,
   sanitizeEdits,
   toolLabel,
@@ -112,6 +113,7 @@ export class InEditorAssistantService {
     try {
       return await withinEditorBudget(this.runWithinBudget(ctx, dto, control), control.signal);
     } catch (error) {
+      if (error instanceof EditorInputTooLargeError) return { reply: error.message, edits: [] };
       if (!control.signal.aborted) throw error;
       this.logger.warn('in-editor total request deadline reached; edits withheld');
       return { reply: 'I could not finish this edit in time. No changes were applied. Please try a smaller edit.', edits: [] };
@@ -127,7 +129,6 @@ export class InEditorAssistantService {
       .filter(
         (m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string',
       )
-      .slice(-20)
       .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.text as string }));
     if (!messages.length || messages[messages.length - 1]?.role !== 'user') {
       return { reply: 'What would you like me to do with this document?', edits: [] };
