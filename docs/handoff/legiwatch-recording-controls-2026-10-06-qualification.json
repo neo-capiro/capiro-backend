@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "f6f9f696b1f3418cdd354778a98ea5ea61cc7ce8",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:518051ad2de91efccc872da22636d112d91e7c4c21d5b068813c6cf647a56ed5",
+  "reviewedAt": "2026-10-06T23:30:20.830928+00:00",
+  "schemaChange": false,
+  "build": {
+    "status": "passed",
+    "id": "capiro-build-web-dev:986c997b-bae3-4c20-84f2-51d9b3c5ff4d",
+    "architecture": "linux/arm64",
+    "nginxSmoke": "passed",
+    "recordingLabelAndApiRouteBundleChecks": "passed",
+    "immutableEcrDigest": "passed",
+    "isolationGuard": "passed"
+  },
+  "automatedTests": {
+    "status": "passed",
+    "id": "capiro-build-web-dev:47d3a18c-c8c9-4566-ac5a-7eccadb4b842",
+    "web": {
+      "success": true,
+      "numTotalTests": 1186,
+      "numPassedTests": 1186,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 335
+    },
+    "fullWebTypecheck": "passed",
+    "operatorRuntimeChecks": "passed"
+  },
+  "retirementCompatibility": {
+    "status": "passed",
+    "reviewer": "Codex root",
+    "scope": "One web component and its scoped stylesheet identify mixed browser/server saved attempts accurately and use the shared LegiWatch search/select styling. Existing filtering handlers, processing, history, permissions, API and worker configuration are unchanged. Native web and operator/runtime gates pass."
+  },
+  "observedDefect": {
+    "liveView": "Recordings",
+    "oldHeading": "Saved browser sessions",
+    "includedAttemptKinds": [
+      "Browser recording",
+      "Server session"
+    ]
+  },
+  "manualAcceptance": "Guarded web promotion, desktop/mobile filter behavior and visible mixed-recording label acceptance are recorded separately; no universal audio or discovery certification."
+}
