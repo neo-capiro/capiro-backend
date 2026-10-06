@@ -40,4 +40,6 @@ The final focused API run passes 111 checks across nine suites, including real d
 
 The Assets CDK diff contains the intended attachment policy and an unrelated auto-delete-provider runtime change (Node 22 to 24). Release only the policy using the existing stack template; preserve the rest of the live template.
 
+The existing serve task references the application database credential; migration tasks reference the DDL credential. A fourth additive migration grants only SELECT/INSERT/UPDATE on Planner mutable tables to `capiro_app`, and SELECT/INSERT on append-only activity. Runtime-role and RLS validation must precede promotion.
+
 Research references: [Asana features](https://asana.com/features), [approvals](https://help.asana.com/s/article/approvals), [My Tasks rules](https://help.asana.com/s/article/rules-in-my-tasks). Approval outcomes complete the task; reopening clears its outcome. No live Asana records are copied or modified.
