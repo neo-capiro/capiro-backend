@@ -3734,9 +3734,13 @@ export class MeriV3AssistantService {
           dispatchedReservationId = reservation.reservationId;
           result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
           const classification = classifyApiToolReadOutcome(args.name, result);
+          // Complete, empty and partial reads are receipted; the API keeps
+          // partial ones out of the qualified sources but re-checks them.
           if (
             !classification ||
-            (classification.kind !== 'complete' && classification.kind !== 'empty')
+            (classification.kind !== 'complete' &&
+              classification.kind !== 'empty' &&
+              classification.kind !== 'partial')
           ) {
             dispatchedReservationId = undefined;
             await this.researchSafeReadRequest(
@@ -4235,7 +4239,9 @@ export class MeriV3AssistantService {
       typeof receipt.providerCallId !== 'string' ||
       typeof receipt.tool !== 'string' ||
       typeof receipt.toolVersion !== 'string' ||
-      (receipt.classifier !== 'complete' && receipt.classifier !== 'empty') ||
+      (receipt.classifier !== 'complete' &&
+        receipt.classifier !== 'empty' &&
+        receipt.classifier !== 'partial') ||
       typeof receipt.sequence !== 'number' ||
       typeof receipt.receiptId !== 'string'
     )

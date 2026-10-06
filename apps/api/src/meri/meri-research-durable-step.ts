@@ -3,6 +3,10 @@ import {
   researchMetadata,
   type ResearchRunState,
 } from './meri-research-run-state.js';
+import {
+  DURABLE_READ_CLASSIFIERS,
+  type DurableReadClassifier,
+} from './meri-research-durable-result.js';
 
 const MAX_DURABLE_STEP_RECEIPTS = 100;
 const MAX_RECEIPT_TEXT = 500;
@@ -33,7 +37,7 @@ export interface DurableResearchStepReceipt {
   resultBodySha256?: string;
   resultRef?: string;
   resultByteSize?: number;
-  classifier?: 'complete' | 'empty';
+  classifier?: DurableReadClassifier;
 }
 
 export interface DurableResearchStepInput {
@@ -56,7 +60,7 @@ export interface DurableResearchResultReceiptInput extends DurableResearchStepIn
   resultBodySha256: string;
   resultRef: string;
   resultByteSize: number;
-  classifier: 'complete' | 'empty';
+  classifier: DurableReadClassifier;
 }
 
 function boundedText(value: unknown): string {
@@ -95,7 +99,7 @@ export function readDurableResearchStepReceipts(value: unknown): DurableResearch
           typeof row.resultBodySha256 !== 'string' ||
           typeof row.resultRef !== 'string' ||
           !nonNegativeInteger(row.resultByteSize) ||
-          !['complete', 'empty'].includes(String(row.classifier))))
+          !DURABLE_READ_CLASSIFIERS.includes(String(row.classifier))))
     )
       return [];
     return [row as unknown as DurableResearchStepReceipt];
