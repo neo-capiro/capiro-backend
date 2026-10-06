@@ -1536,6 +1536,53 @@ describe('MeriResearchService — forced synthesis', () => {
     }
   });
 
+  it('records each held finding with its flagged sentence on the review request', async () => {
+    const prevMode = process.env.MERI_AUDITOR_MODE;
+    process.env.MERI_AUDITOR_MODE = 'enforce';
+    try {
+      const REPORT = '# Executive Summary\n\nThe NDAA appropriates $5 billion for hypersonic research.';
+      fetchMock = jest.fn(async (_url: string, init?: RequestInit) => {
+        captureBody(init);
+        const body = JSON.parse(String(init?.body ?? '{}'));
+        if (body.tools) return okResponse(sseBody(toolOnlyRound('searchBills')));
+        return okResponse(sseBody(proseRound(REPORT)));
+      }) as unknown as jest.Mock;
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const reviews = makeReviews();
+      const svc = new MeriResearchService(
+        makePrisma(),
+        makeConfig(),
+        makeTools(),
+        makeAiCredentials(),
+        reviews,
+      );
+      const { events, sse } = collectSse();
+
+      await svc.streamResearch(CTX, 'sess-1', sse);
+
+      expect(JSON.stringify(events)).not.toContain('appropriates $5 billion');
+      expect(reviews.createSystem).toHaveBeenCalledWith(
+        CTX.tenantId,
+        expect.objectContaining({
+          subjectType: 'research_artifact',
+          payload: expect.objectContaining({
+            findings: [
+              expect.objectContaining({
+                check: 'D4b',
+                severity: 'high',
+                span: expect.stringContaining('The NDAA appropriates $5 billion'),
+              }),
+            ],
+          }),
+        }),
+      );
+    } finally {
+      if (prevMode === undefined) delete process.env.MERI_AUDITOR_MODE;
+      else process.env.MERI_AUDITOR_MODE = prevMode;
+    }
+  });
+
   it('delays report text until durable save even when grounding enforcement is off', async () => {
     const prevMode = process.env.MERI_AUDITOR_MODE;
     delete process.env.MERI_AUDITOR_MODE;
