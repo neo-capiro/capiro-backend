@@ -764,6 +764,31 @@ function classifyCanonicalFiniteRead(toolName: string, payload: unknown): ApiToo
   return invalidResult(toolName);
 }
 
+/**
+ * Capiro's program-element reads (global budget data, no tenant content). A
+ * missing program element is an owner error, never an empty result.
+ */
+function classifyProgramElementRead(toolName: string, payload: unknown): ApiToolReadOutcome {
+  const failure = ownerFailure(payload);
+  if (failure) return failure;
+  const value = record(payload);
+  if (!value || value.tool !== toolName || typeof value.generatedAt !== 'string')
+    return invalidResult(toolName);
+  if (toolName === 'get_program_element') {
+    const programElement = record(value.programElement);
+    return programElement && Array.isArray(programElement.years)
+      ? { kind: 'complete' }
+      : invalidResult(toolName);
+  }
+  if (toolName === 'get_pe_budget_timeline') {
+    if (!Array.isArray(value.years)) return invalidResult(toolName);
+    return value.years.length ? { kind: 'complete' } : { kind: 'empty' };
+  }
+  if (typeof value.peCode !== 'string' || !Array.isArray(value.provisions))
+    return invalidResult(toolName);
+  return value.provisions.length ? { kind: 'complete' } : { kind: 'empty' };
+}
+
 function classifyBillStatus(payload: unknown): ApiToolReadOutcome {
   const failure = ownerFailure(payload);
   if (failure) return { kind: 'failed', reason: 'get_bill_status_read_failed' };
@@ -825,6 +850,10 @@ export function classifyApiToolReadOutcome(
     }
     case 'get_bill_status':
       return classifyBillStatus(payload);
+    case 'get_program_element':
+    case 'get_pe_budget_timeline':
+    case 'get_pe_report_language':
+      return classifyProgramElementRead(toolName, payload);
     case 'read_monday_client_boards':
     case 'read_bill_text':
     case 'scrape_web_page':
