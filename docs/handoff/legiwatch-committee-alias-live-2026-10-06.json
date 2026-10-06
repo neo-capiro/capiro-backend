@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-10-06T22:17:41.143500+00:00",
+  "scope": "Live China Select committee room and retained hearing binding; read-only verification",
+  "liveRoute": "https://os.capiro.ai/legiwatch/committees/hszs00",
+  "room": {
+    "recentProceedings": 10,
+    "upcomingProceedings": 0,
+    "members": 24,
+    "updates": 21
+  },
+  "matchedHomepageDates": [
+    "2026-09-16",
+    "2026-07-15",
+    "2026-06-25"
+  ],
+  "openedHearing": {
+    "id": "cm-119-119538",
+    "officialSource": "https://www.congress.gov/event/119th-congress/house-event/119538",
+    "committeeRoute": "hszs00",
+    "captureOutcome": "BLOCKED",
+    "captureNotCertified": true
+  },
+  "reviewedAlias": {
+    "publisherCode": "hlzs00",
+    "catalogCode": "hszs00",
+    "source": "apps/api/src/hearing-discovery/committee-catalog-alias.ts"
+  },
+  "auditCorrection": "The earlier exact-code SELECT counted zero under hszs00; it omitted the reviewed hlzs00 alias and is not evidence those ten hearings are absent. Subsequent audit keeps literal and alias-expanded counts separately.",
+  "limitations": [
+    "No exhaustive historical archive certification",
+    "The official hearing archive request returned HTTP403",
+    "These retained rows do not establish playable or recorded audio",
+    "No data was inserted or rebound during this live check"
+  ],
+  "privateEvidence": [
+    "browser-live/china-committee-alias-live-dom.txt",
+    "browser-live/china-committee-alias-live.jpg"
+  ]
+}

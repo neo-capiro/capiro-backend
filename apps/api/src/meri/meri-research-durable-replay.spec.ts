@@ -389,12 +389,23 @@ async function mappedMailSearch(
     .mockResolvedValueOnce(coverage);
   const engagement = Object.create(EngagementService.prototype) as any;
   engagement.prisma = {
-    withTenant: async (_tenantId: string, callback: any) => callback({ $queryRaw: queries }),
+    withTenant: async (_tenantId: string, callback: any) =>
+      callback({ $queryRaw: queries, $executeRaw: jest.fn().mockResolvedValue(0) }),
   };
   const tools = Object.create(MeriToolsService.prototype) as any;
   tools.engagement = engagement;
   const input = { query: 'Report', asOf: MAPPED_AS_OF.toISOString() };
-  return tool === 'list_emails' ? tools.listEmails(ctx, input) : tools.searchEmails(ctx, input);
+  // This positive fixture models a freshly synced mailbox. Keep its clock at
+  // the stored sync time so wall-clock aging does not turn an authorization
+  // regression into an unrelated stale-mail rejection.
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(MAPPED_AS_OF.getTime());
+  try {
+    return await (tool === 'list_emails'
+      ? tools.listEmails(ctx, input)
+      : tools.searchEmails(ctx, input));
+  } finally {
+    clock.mockRestore();
+  }
 }
 
 function harness(

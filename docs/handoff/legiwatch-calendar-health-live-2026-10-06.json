@@ -1,0 +1,4794 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-10-06T23:38:16.811865+00:00",
+  "databaseAsOf": "2026-10-06T23:37:37.430Z",
+  "sourceSha": "41aead03cd5ad9fec8abecb45e6c12569b0ea08e",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+  "originalCalendarPromotionTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:625",
+  "apiServingTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:627",
+  "apiServingSource": "cff810c23b58ce177e7ece04cfee56ec1bace24a",
+  "apiServingImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:a67c4f94f37072d559a65fe1612da371fc58feb8e11ee13721a089b75563de4c",
+  "newerServingReleasePreservesQualifiedCalendarCode": true,
+  "promotionManifestHash": "05919ac545c7a472687c3d68a3df637562e742d95ea515b86cd7a64243b6ed19",
+  "nativeScopeTests": 4228,
+  "nativeFailedOrSkippedTests": 0,
+  "providerCurrentnessObservationsReusedAtOriginalTimestamps": true,
+  "audit": {
+    "records": 17,
+    "queryErrors": 0,
+    "databaseWrites": 0,
+    "task": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/292e65de51114ce6846cc1784f4de743"
+  },
+  "sixScheduledOwnerPins": [
+    {
+      "owner": "capiro-dev-legiwatch-florida-calendar",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:104",
+      "completedAt": "2026-10-06T22:52:08.321Z",
+      "latestConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e6c1374c30814ed48d37fa93ea3b9a18",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:104",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:27:13.276000-04:00",
+        "startedAt": "2026-10-06T19:28:23.261000-04:00",
+        "stoppedAt": "2026-10-06T19:30:14.486000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 1
+          }
+        ]
+      },
+      "latestCompletedConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/e6c1374c30814ed48d37fa93ea3b9a18",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:104",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:27:13.276000-04:00",
+        "startedAt": "2026-10-06T19:28:23.261000-04:00",
+        "stoppedAt": "2026-10-06T19:30:14.486000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 1
+          }
+        ]
+      },
+      "onlyImageAndSourceChanged": true
+    },
+    {
+      "owner": "capiro-dev-legiwatch-central-discovery",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:105",
+      "completedAt": "2026-10-06T22:53:30.131Z",
+      "latestConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/ee366a5bbb1e4551a55384afa389e18b",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:105",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:25:10.723000-04:00",
+        "startedAt": "2026-10-06T19:26:22.943000-04:00",
+        "stoppedAt": "2026-10-06T19:27:28.193000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 0
+          }
+        ]
+      },
+      "latestCompletedConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/ee366a5bbb1e4551a55384afa389e18b",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:105",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:25:10.723000-04:00",
+        "startedAt": "2026-10-06T19:26:22.943000-04:00",
+        "stoppedAt": "2026-10-06T19:27:28.193000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 0
+          }
+        ]
+      },
+      "onlyImageAndSourceChanged": true
+    },
+    {
+      "owner": "capiro-dev-legiwatch-committee-enrichment",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:106",
+      "completedAt": "2026-10-06T22:54:32.513Z",
+      "latestConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/42b4ac2a2fb64bd7a4605e14aafd407c",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:106",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:25:11.128000-04:00",
+        "startedAt": "2026-10-06T19:26:25.659000-04:00",
+        "stoppedAt": "2026-10-06T19:27:21.767000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 0
+          }
+        ]
+      },
+      "latestCompletedConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/42b4ac2a2fb64bd7a4605e14aafd407c",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:106",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:25:11.128000-04:00",
+        "startedAt": "2026-10-06T19:26:25.659000-04:00",
+        "stoppedAt": "2026-10-06T19:27:21.767000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 0
+          }
+        ]
+      },
+      "onlyImageAndSourceChanged": true
+    },
+    {
+      "owner": "capiro-dev-legiwatch-committee-updates",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:107",
+      "completedAt": "2026-10-06T22:55:51.823Z",
+      "latestConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3c9d84a3e85a47229e3093db2a432927",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:107",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:25:32.835000-04:00",
+        "startedAt": "2026-10-06T19:26:38.835000-04:00",
+        "stoppedAt": "2026-10-06T19:30:21.792000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 1
+          }
+        ]
+      },
+      "latestCompletedConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/3c9d84a3e85a47229e3093db2a432927",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:107",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:25:32.835000-04:00",
+        "startedAt": "2026-10-06T19:26:38.835000-04:00",
+        "stoppedAt": "2026-10-06T19:30:21.792000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 1
+          }
+        ]
+      },
+      "onlyImageAndSourceChanged": true
+    },
+    {
+      "owner": "capiro-dev-legiwatch-source-probe",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:108",
+      "completedAt": "2026-10-06T22:56:57.485Z",
+      "latestConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/815610c589cc404293f7ce057a931186",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:108",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:26:13.349000-04:00",
+        "startedAt": "2026-10-06T19:27:15.445000-04:00",
+        "stoppedAt": "2026-10-06T19:30:03.202000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 1
+          }
+        ]
+      },
+      "latestCompletedConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/815610c589cc404293f7ce057a931186",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:108",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:26:13.349000-04:00",
+        "startedAt": "2026-10-06T19:27:15.445000-04:00",
+        "stoppedAt": "2026-10-06T19:30:03.202000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 1
+          }
+        ]
+      },
+      "onlyImageAndSourceChanged": true
+    },
+    {
+      "owner": "capiro-dev-legiwatch-archive-reconciliation",
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:109",
+      "completedAt": "2026-10-06T22:58:01.179Z",
+      "latestConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/4859d373ecd04243ad0e87cb9c8f133e",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:109",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:25:37.981000-04:00",
+        "startedAt": "2026-10-06T19:26:50.538000-04:00",
+        "stoppedAt": "2026-10-06T19:27:31.925000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 0
+          }
+        ]
+      },
+      "latestCompletedConfiguredRun": {
+        "taskArn": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/4859d373ecd04243ad0e87cb9c8f133e",
+        "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:109",
+        "status": "STOPPED",
+        "createdAt": "2026-10-06T19:25:37.981000-04:00",
+        "startedAt": "2026-10-06T19:26:50.538000-04:00",
+        "stoppedAt": "2026-10-06T19:27:31.925000-04:00",
+        "containers": [
+          {
+            "name": "api",
+            "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "imageDigest": "sha256:2b81e0af0cb38cf55eb2db9cf0acc82d83a9d545453b3714b2cfdfeee6704729",
+            "exitCode": 0
+          }
+        ]
+      },
+      "onlyImageAndSourceChanged": true
+    }
+  ],
+  "committeeSourceHealth": {
+    "degraded": 8,
+    "healthy": 143,
+    "failing": 1
+  },
+  "federalInventory": [
+    {
+      "system_code": "hsag00",
+      "name": "House Committee on Agriculture",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://agriculture.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.769Z",
+      "members": 53,
+      "exact_code_proceedings": 78,
+      "catalog_code_proceedings": 78,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap00",
+      "name": "House Committee on Appropriations",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.792Z",
+      "members": 63,
+      "exact_code_proceedings": 308,
+      "catalog_code_proceedings": 308,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsas00",
+      "name": "House Committee on Armed Services",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://armedservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.891Z",
+      "members": 57,
+      "exact_code_proceedings": 160,
+      "catalog_code_proceedings": 160,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsed00",
+      "name": "House Committee on Education and Workforce",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://edworkforce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.007Z",
+      "members": 37,
+      "exact_code_proceedings": 184,
+      "catalog_code_proceedings": 184,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsif00",
+      "name": "House Committee on Energy and Commerce",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://energycommerce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.146Z",
+      "members": 54,
+      "exact_code_proceedings": 235,
+      "catalog_code_proceedings": 235,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsso00",
+      "name": "House Committee on Ethics",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://ethics.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.296Z",
+      "members": 10,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsba00",
+      "name": "House Committee on Financial Services",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://financialservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.982Z",
+      "members": 53,
+      "exact_code_proceedings": 264,
+      "catalog_code_proceedings": 264,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsfa00",
+      "name": "House Committee on Foreign Affairs",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://foreignaffairs.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.077Z",
+      "members": 53,
+      "exact_code_proceedings": 249,
+      "catalog_code_proceedings": 249,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hshm00",
+      "name": "House Committee on Homeland Security",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://homeland.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.128Z",
+      "members": 33,
+      "exact_code_proceedings": 178,
+      "catalog_code_proceedings": 178,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsha00",
+      "name": "House Committee on House Administration",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://cha.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.121Z",
+      "members": 12,
+      "exact_code_proceedings": 109,
+      "catalog_code_proceedings": 109,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsii00",
+      "name": "House Committee on Natural Resources",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://naturalresources.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.163Z",
+      "members": 45,
+      "exact_code_proceedings": 304,
+      "catalog_code_proceedings": 304,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsgo00",
+      "name": "House Committee on Oversight and Government Reform",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://oversight.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.101Z",
+      "members": 47,
+      "exact_code_proceedings": 305,
+      "catalog_code_proceedings": 305,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsru00",
+      "name": "House Committee on Rules",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://rules.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.267Z",
+      "members": 13,
+      "exact_code_proceedings": 68,
+      "catalog_code_proceedings": 68,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssy00",
+      "name": "House Committee on Science, Space, and Technology",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://science.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.299Z",
+      "members": 40,
+      "exact_code_proceedings": 91,
+      "catalog_code_proceedings": 91,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssm00",
+      "name": "House Committee on Small Business",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://smallbusiness.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.276Z",
+      "members": 26,
+      "exact_code_proceedings": 142,
+      "catalog_code_proceedings": 142,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsbu00",
+      "name": "House Committee on the Budget",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "http://budget.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.002Z",
+      "members": 37,
+      "exact_code_proceedings": 27,
+      "catalog_code_proceedings": 27,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsju00",
+      "name": "House Committee on the Judiciary",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://judiciary.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.215Z",
+      "members": 44,
+      "exact_code_proceedings": 285,
+      "catalog_code_proceedings": 285,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hspw00",
+      "name": "House Committee on Transportation and Infrastructure",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://transportation.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.243Z",
+      "members": 67,
+      "exact_code_proceedings": 162,
+      "catalog_code_proceedings": 162,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsvr00",
+      "name": "House Committee on Veterans' Affairs",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://veterans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.315Z",
+      "members": 25,
+      "exact_code_proceedings": 223,
+      "catalog_code_proceedings": 223,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hswm00",
+      "name": "House Committee on Ways and Means",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://waysandmeans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.330Z",
+      "members": 45,
+      "exact_code_proceedings": 129,
+      "catalog_code_proceedings": 129,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hlig00",
+      "name": "House Permanent Select Committee on Intelligence",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://intelligence.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.185Z",
+      "members": 27,
+      "exact_code_proceedings": 36,
+      "catalog_code_proceedings": 36,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hszs00",
+      "name": "House Select Committee on the Strategic Competition Between the United States and the Chinese Communist Party",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://chinaselectcommittee.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.665Z",
+      "members": 24,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 16,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsqj00",
+      "name": "House Select Subcommittee to Investigate the Remaining Questions Surrounding January 6, 2021",
+      "chamber": "house",
+      "parent_system_code": null,
+      "url": "https://clerk.house.gov/committees/QJ00",
+      "last_synced_at": "2026-10-06T04:03:05.668Z",
+      "members": 7,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hlig01",
+      "name": "Central Intelligence Agency",
+      "chamber": "house",
+      "parent_system_code": "hlig00",
+      "url": "https://intelligence.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.196Z",
+      "members": 10,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hlig04",
+      "name": "Defense Intelligence and Overhead Architecture",
+      "chamber": "house",
+      "parent_system_code": "hlig00",
+      "url": "https://intelligence.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.207Z",
+      "members": 10,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hlig06",
+      "name": "National Intelligence Enterprise",
+      "chamber": "house",
+      "parent_system_code": "hlig00",
+      "url": "https://intelligence.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.209Z",
+      "members": 10,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hlig02",
+      "name": "National Security Agency and Cyber",
+      "chamber": "house",
+      "parent_system_code": "hlig00",
+      "url": "https://intelligence.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.204Z",
+      "members": 10,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hlig11",
+      "name": "Open Source Intelligence",
+      "chamber": "house",
+      "parent_system_code": "hlig00",
+      "url": "https://intelligence.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.212Z",
+      "members": 10,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hlig09",
+      "name": "Oversight and Investigations",
+      "chamber": "house",
+      "parent_system_code": "hlig00",
+      "url": "https://intelligence.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.193Z",
+      "members": 2,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsag22",
+      "name": "Commodity Markets, Digital Assets, and Rural Development",
+      "chamber": "house",
+      "parent_system_code": "hsag00",
+      "url": "https://agriculture.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.776Z",
+      "members": 22,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsag14",
+      "name": "Conservation, Research, and Biotechnology",
+      "chamber": "house",
+      "parent_system_code": "hsag00",
+      "url": "https://agriculture.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.786Z",
+      "members": 19,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsag15",
+      "name": "Forestry and Horticulture",
+      "chamber": "house",
+      "parent_system_code": "hsag00",
+      "url": "https://agriculture.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.773Z",
+      "members": 13,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsag16",
+      "name": "General Farm Commodities, Risk Management, and Credit",
+      "chamber": "house",
+      "parent_system_code": "hsag00",
+      "url": "https://agriculture.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.779Z",
+      "members": 20,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsag29",
+      "name": "Livestock, Dairy, and Poultry",
+      "chamber": "house",
+      "parent_system_code": "hsag00",
+      "url": "https://agriculture.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.782Z",
+      "members": 19,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsag03",
+      "name": "Nutrition and Foreign Agriculture",
+      "chamber": "house",
+      "parent_system_code": "hsag00",
+      "url": "https://agriculture.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.789Z",
+      "members": 19,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap01",
+      "name": "Agriculture, Rural Development, Food and Drug Administration, and Related Agencies",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.795Z",
+      "members": 15,
+      "exact_code_proceedings": 9,
+      "catalog_code_proceedings": 9,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap19",
+      "name": "Commerce, Justice, Science, and Related Agencies",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.865Z",
+      "members": 13,
+      "exact_code_proceedings": 13,
+      "catalog_code_proceedings": 13,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap02",
+      "name": "Defense",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.868Z",
+      "members": 17,
+      "exact_code_proceedings": 15,
+      "catalog_code_proceedings": 15,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsap10",
+      "name": "Energy and Water Development and Related Agencies",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.870Z",
+      "members": 15,
+      "exact_code_proceedings": 9,
+      "catalog_code_proceedings": 9,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap23",
+      "name": "Financial Services and General Government",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.873Z",
+      "members": 13,
+      "exact_code_proceedings": 17,
+      "catalog_code_proceedings": 17,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap15",
+      "name": "Homeland Security",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.875Z",
+      "members": 11,
+      "exact_code_proceedings": 16,
+      "catalog_code_proceedings": 16,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap06",
+      "name": "Interior, Environment, and Related Agencies",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.878Z",
+      "members": 11,
+      "exact_code_proceedings": 20,
+      "catalog_code_proceedings": 20,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap07",
+      "name": "Labor, Health and Human Services, Education, and Related Agencies",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.880Z",
+      "members": 17,
+      "exact_code_proceedings": 16,
+      "catalog_code_proceedings": 16,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap24",
+      "name": "Legislative Branch",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.882Z",
+      "members": 8,
+      "exact_code_proceedings": 15,
+      "catalog_code_proceedings": 15,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap18",
+      "name": "Military Construction, Veterans Affairs, and Related Agencies",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.885Z",
+      "members": 13,
+      "exact_code_proceedings": 9,
+      "catalog_code_proceedings": 9,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap04",
+      "name": "National Security, Department of State, and Related Programs",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.887Z",
+      "members": 11,
+      "exact_code_proceedings": 12,
+      "catalog_code_proceedings": 12,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsap20",
+      "name": "Transportation, Housing and Urban Development, and Related Agencies",
+      "chamber": "house",
+      "parent_system_code": "hsap00",
+      "url": "https://appropriations.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.889Z",
+      "members": 15,
+      "exact_code_proceedings": 12,
+      "catalog_code_proceedings": 12,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsas35",
+      "name": "Cyber, Information Technologies, and Innovation",
+      "chamber": "house",
+      "parent_system_code": "hsas00",
+      "url": "https://armedservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.980Z",
+      "members": 19,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsas26",
+      "name": "Intelligence and Special Operations",
+      "chamber": "house",
+      "parent_system_code": "hsas00",
+      "url": "https://armedservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.977Z",
+      "members": 16,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsas02",
+      "name": "Military Personnel",
+      "chamber": "house",
+      "parent_system_code": "hsas00",
+      "url": "https://armedservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.967Z",
+      "members": 14,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsas03",
+      "name": "Readiness",
+      "chamber": "house",
+      "parent_system_code": "hsas00",
+      "url": "https://armedservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.970Z",
+      "members": 19,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsas28",
+      "name": "Seapower and Projection Forces",
+      "chamber": "house",
+      "parent_system_code": "hsas00",
+      "url": "https://armedservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.972Z",
+      "members": 18,
+      "exact_code_proceedings": 8,
+      "catalog_code_proceedings": 8,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsas29",
+      "name": "Strategic Forces",
+      "chamber": "house",
+      "parent_system_code": "hsas00",
+      "url": "https://armedservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.975Z",
+      "members": 16,
+      "exact_code_proceedings": 9,
+      "catalog_code_proceedings": 9,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsas25",
+      "name": "Tactical Air and Land Forces",
+      "chamber": "house",
+      "parent_system_code": "hsas00",
+      "url": "https://armedservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.894Z",
+      "members": 18,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsba16",
+      "name": "Capital Markets",
+      "chamber": "house",
+      "parent_system_code": "hsba00",
+      "url": "https://financialservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.986Z",
+      "members": 24,
+      "exact_code_proceedings": 9,
+      "catalog_code_proceedings": 9,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsba21",
+      "name": "Digital Assets, Financial Technology, and Artificial Intelligence",
+      "chamber": "house",
+      "parent_system_code": "hsba00",
+      "url": "https://financialservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.996Z",
+      "members": 21,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsba20",
+      "name": "Financial Institutions",
+      "chamber": "house",
+      "parent_system_code": "hsba00",
+      "url": "https://financialservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.994Z",
+      "members": 24,
+      "exact_code_proceedings": 10,
+      "catalog_code_proceedings": 10,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsba04",
+      "name": "Housing and Insurance",
+      "chamber": "house",
+      "parent_system_code": "hsba00",
+      "url": "https://financialservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.989Z",
+      "members": 19,
+      "exact_code_proceedings": 10,
+      "catalog_code_proceedings": 10,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsba10",
+      "name": "National Security, Illicit Finance, and International Financial Institutions",
+      "chamber": "house",
+      "parent_system_code": "hsba00",
+      "url": "https://financialservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.999Z",
+      "members": 18,
+      "exact_code_proceedings": 10,
+      "catalog_code_proceedings": 10,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsba09",
+      "name": "Oversight and Investigations",
+      "chamber": "house",
+      "parent_system_code": "hsba00",
+      "url": "https://financialservices.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:04.991Z",
+      "members": 12,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsed14",
+      "name": "Early Childhood, Elementary, and Secondary Education",
+      "chamber": "house",
+      "parent_system_code": "hsed00",
+      "url": "https://edworkforce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.065Z",
+      "members": 16,
+      "exact_code_proceedings": 16,
+      "catalog_code_proceedings": 16,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsed02",
+      "name": "Health, Employment, Labor, and Pensions",
+      "chamber": "house",
+      "parent_system_code": "hsed00",
+      "url": "https://edworkforce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.068Z",
+      "members": 20,
+      "exact_code_proceedings": 16,
+      "catalog_code_proceedings": 16,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsed13",
+      "name": "Higher Education and Workforce Development",
+      "chamber": "house",
+      "parent_system_code": "hsed00",
+      "url": "https://edworkforce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.071Z",
+      "members": 22,
+      "exact_code_proceedings": 12,
+      "catalog_code_proceedings": 12,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsed10",
+      "name": "Workforce Protections",
+      "chamber": "house",
+      "parent_system_code": "hsed00",
+      "url": "https://edworkforce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.074Z",
+      "members": 10,
+      "exact_code_proceedings": 16,
+      "catalog_code_proceedings": 16,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsfa16",
+      "name": "Africa",
+      "chamber": "house",
+      "parent_system_code": "hsfa00",
+      "url": "https://foreignaffairs.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.080Z",
+      "members": 11,
+      "exact_code_proceedings": 8,
+      "catalog_code_proceedings": 8,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsfa05",
+      "name": "East Asia and Pacific",
+      "chamber": "house",
+      "parent_system_code": "hsfa00",
+      "url": "https://foreignaffairs.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.083Z",
+      "members": 14,
+      "exact_code_proceedings": 13,
+      "catalog_code_proceedings": 13,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsfa14",
+      "name": "Europe",
+      "chamber": "house",
+      "parent_system_code": "hsfa00",
+      "url": "https://foreignaffairs.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.086Z",
+      "members": 13,
+      "exact_code_proceedings": 11,
+      "catalog_code_proceedings": 11,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsfa13",
+      "name": "Middle East and North Africa",
+      "chamber": "house",
+      "parent_system_code": "hsfa00",
+      "url": "https://foreignaffairs.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.089Z",
+      "members": 12,
+      "exact_code_proceedings": 11,
+      "catalog_code_proceedings": 11,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsfa17",
+      "name": "Oversight and Intelligence",
+      "chamber": "house",
+      "parent_system_code": "hsfa00",
+      "url": "https://foreignaffairs.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.096Z",
+      "members": 12,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsfa19",
+      "name": "South and Central Asia",
+      "chamber": "house",
+      "parent_system_code": "hsfa00",
+      "url": "https://foreignaffairs.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.098Z",
+      "members": 13,
+      "exact_code_proceedings": 8,
+      "catalog_code_proceedings": 8,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsfa07",
+      "name": "Western Hemisphere",
+      "chamber": "house",
+      "parent_system_code": "hsfa00",
+      "url": "https://foreignaffairs.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.093Z",
+      "members": 13,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "hsgo12",
+      "name": "Cybersecurity, Information Technology, and Government Innovation",
+      "chamber": "house",
+      "parent_system_code": "hsgo00",
+      "url": "https://oversight.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.113Z",
+      "members": 10,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsgo16",
+      "name": "Delivering on Government Efficiency",
+      "chamber": "house",
+      "parent_system_code": "hsgo00",
+      "url": "https://oversight.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.116Z",
+      "members": 18,
+      "exact_code_proceedings": 12,
+      "catalog_code_proceedings": 12,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsgo05",
+      "name": "Economic Growth, Energy Policy, and Regulatory Affairs",
+      "chamber": "house",
+      "parent_system_code": "hsgo00",
+      "url": "https://oversight.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.111Z",
+      "members": 10,
+      "exact_code_proceedings": 9,
+      "catalog_code_proceedings": 9,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsgo33",
+      "name": "Federal Law Enforcement",
+      "chamber": "house",
+      "parent_system_code": "hsgo00",
+      "url": "https://oversight.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.118Z",
+      "members": 12,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsgo24",
+      "name": "Government Operations",
+      "chamber": "house",
+      "parent_system_code": "hsgo00",
+      "url": "https://oversight.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.104Z",
+      "members": 10,
+      "exact_code_proceedings": 15,
+      "catalog_code_proceedings": 15,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsgo27",
+      "name": "Health Care and Financial Services",
+      "chamber": "house",
+      "parent_system_code": "hsgo00",
+      "url": "https://oversight.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.109Z",
+      "members": 10,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsgo06",
+      "name": "Military and Foreign Affairs",
+      "chamber": "house",
+      "parent_system_code": "hsgo00",
+      "url": "https://oversight.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.106Z",
+      "members": 14,
+      "exact_code_proceedings": 6,
+      "catalog_code_proceedings": 6,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsha08",
+      "name": "Elections",
+      "chamber": "house",
+      "parent_system_code": "hsha00",
+      "url": "https://cha.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.123Z",
+      "members": 6,
+      "exact_code_proceedings": 6,
+      "catalog_code_proceedings": 6,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsha27",
+      "name": "Modernization and Innovation",
+      "chamber": "house",
+      "parent_system_code": "hsha00",
+      "url": "https://cha.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.126Z",
+      "members": 4,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hshm11",
+      "name": "Border Security and Enforcement",
+      "chamber": "house",
+      "parent_system_code": "hshm00",
+      "url": "https://homeland.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.131Z",
+      "members": 11,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hshm05",
+      "name": "Counterterrorism and Intelligence",
+      "chamber": "house",
+      "parent_system_code": "hshm00",
+      "url": "https://homeland.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.139Z",
+      "members": 11,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hshm08",
+      "name": "Cybersecurity and Infrastructure Protection",
+      "chamber": "house",
+      "parent_system_code": "hshm00",
+      "url": "https://homeland.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.136Z",
+      "members": 9,
+      "exact_code_proceedings": 11,
+      "catalog_code_proceedings": 11,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hshm12",
+      "name": "Emergency Management and Technology",
+      "chamber": "house",
+      "parent_system_code": "hshm00",
+      "url": "https://homeland.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.133Z",
+      "members": 7,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hshm09",
+      "name": "Oversight, Investigations, and Accountability",
+      "chamber": "house",
+      "parent_system_code": "hshm00",
+      "url": "https://homeland.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.141Z",
+      "members": 9,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hshm07",
+      "name": "Transportation and Maritime Security",
+      "chamber": "house",
+      "parent_system_code": "hshm00",
+      "url": "https://homeland.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.144Z",
+      "members": 7,
+      "exact_code_proceedings": 8,
+      "catalog_code_proceedings": 8,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsif17",
+      "name": "Commerce, Manufacturing, and Trade",
+      "chamber": "house",
+      "parent_system_code": "hsif00",
+      "url": "https://energycommerce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.149Z",
+      "members": 23,
+      "exact_code_proceedings": 17,
+      "catalog_code_proceedings": 17,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsif16",
+      "name": "Communications and Technology",
+      "chamber": "house",
+      "parent_system_code": "hsif00",
+      "url": "https://energycommerce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.151Z",
+      "members": 29,
+      "exact_code_proceedings": 19,
+      "catalog_code_proceedings": 19,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsif03",
+      "name": "Energy",
+      "chamber": "house",
+      "parent_system_code": "hsif00",
+      "url": "https://energycommerce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.154Z",
+      "members": 30,
+      "exact_code_proceedings": 26,
+      "catalog_code_proceedings": 26,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsif18",
+      "name": "Environment",
+      "chamber": "house",
+      "parent_system_code": "hsif00",
+      "url": "https://energycommerce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.161Z",
+      "members": 23,
+      "exact_code_proceedings": 19,
+      "catalog_code_proceedings": 19,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsif14",
+      "name": "Health",
+      "chamber": "house",
+      "parent_system_code": "hsif00",
+      "url": "https://energycommerce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.156Z",
+      "members": 30,
+      "exact_code_proceedings": 25,
+      "catalog_code_proceedings": 25,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsif02",
+      "name": "Oversight and Investigations",
+      "chamber": "house",
+      "parent_system_code": "hsif00",
+      "url": "https://energycommerce.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.158Z",
+      "members": 16,
+      "exact_code_proceedings": 11,
+      "catalog_code_proceedings": 11,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsii06",
+      "name": "Energy and Mineral Resources",
+      "chamber": "house",
+      "parent_system_code": "hsii00",
+      "url": "https://naturalresources.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.167Z",
+      "members": 24,
+      "exact_code_proceedings": 14,
+      "catalog_code_proceedings": 14,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsii10",
+      "name": "Federal Lands",
+      "chamber": "house",
+      "parent_system_code": "hsii00",
+      "url": "https://naturalresources.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.171Z",
+      "members": 16,
+      "exact_code_proceedings": 24,
+      "catalog_code_proceedings": 24,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsii24",
+      "name": "Indian and Insular Affairs",
+      "chamber": "house",
+      "parent_system_code": "hsii00",
+      "url": "https://naturalresources.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.176Z",
+      "members": 11,
+      "exact_code_proceedings": 17,
+      "catalog_code_proceedings": 17,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsii15",
+      "name": "Oversight and Investigations",
+      "chamber": "house",
+      "parent_system_code": "hsii00",
+      "url": "https://naturalresources.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.182Z",
+      "members": 8,
+      "exact_code_proceedings": 18,
+      "catalog_code_proceedings": 18,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsii13",
+      "name": "Water, Wildlife and Fisheries",
+      "chamber": "house",
+      "parent_system_code": "hsii00",
+      "url": "https://naturalresources.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.173Z",
+      "members": 26,
+      "exact_code_proceedings": 24,
+      "catalog_code_proceedings": 24,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsju03",
+      "name": "Courts, Intellectual Property, Artificial Intelligence, and the Internet",
+      "chamber": "house",
+      "parent_system_code": "hsju00",
+      "url": "https://judiciary.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.220Z",
+      "members": 16,
+      "exact_code_proceedings": 14,
+      "catalog_code_proceedings": 14,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsju08",
+      "name": "Crime and Federal Government Surveillance",
+      "chamber": "house",
+      "parent_system_code": "hsju00",
+      "url": "https://judiciary.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.226Z",
+      "members": 12,
+      "exact_code_proceedings": 14,
+      "catalog_code_proceedings": 14,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsju01",
+      "name": "Immigration Integrity, Security, and Enforcement",
+      "chamber": "house",
+      "parent_system_code": "hsju00",
+      "url": "https://judiciary.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.229Z",
+      "members": 24,
+      "exact_code_proceedings": 8,
+      "catalog_code_proceedings": 8,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsju13",
+      "name": "Oversight",
+      "chamber": "house",
+      "parent_system_code": "hsju00",
+      "url": "https://judiciary.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.235Z",
+      "members": 7,
+      "exact_code_proceedings": 13,
+      "catalog_code_proceedings": 13,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsju05",
+      "name": "The Administrative State, Regulatory Reform, and Antitrust",
+      "chamber": "house",
+      "parent_system_code": "hsju00",
+      "url": "https://judiciary.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.231Z",
+      "members": 14,
+      "exact_code_proceedings": 14,
+      "catalog_code_proceedings": 14,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsju10",
+      "name": "The Constitution and Limited Government",
+      "chamber": "house",
+      "parent_system_code": "hsju00",
+      "url": "https://judiciary.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.218Z",
+      "members": 16,
+      "exact_code_proceedings": 11,
+      "catalog_code_proceedings": 11,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hspw05",
+      "name": "Aviation",
+      "chamber": "house",
+      "parent_system_code": "hspw00",
+      "url": "https://transportation.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.249Z",
+      "members": 38,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hspw07",
+      "name": "Coast Guard and Maritime Transportation",
+      "chamber": "house",
+      "parent_system_code": "hspw00",
+      "url": "https://transportation.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.252Z",
+      "members": 13,
+      "exact_code_proceedings": 11,
+      "catalog_code_proceedings": 11,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hspw13",
+      "name": "Economic Development, Public Buildings, and Emergency Management",
+      "chamber": "house",
+      "parent_system_code": "hspw00",
+      "url": "https://transportation.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.255Z",
+      "members": 14,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hspw12",
+      "name": "Highways and Transit",
+      "chamber": "house",
+      "parent_system_code": "hspw00",
+      "url": "https://transportation.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.258Z",
+      "members": 50,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hspw14",
+      "name": "Railroads, Pipelines, and Hazardous Materials",
+      "chamber": "house",
+      "parent_system_code": "hspw00",
+      "url": "https://transportation.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.261Z",
+      "members": 29,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hspw02",
+      "name": "Water Resources and Environment",
+      "chamber": "house",
+      "parent_system_code": "hspw00",
+      "url": "https://transportation.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.264Z",
+      "members": 31,
+      "exact_code_proceedings": 6,
+      "catalog_code_proceedings": 6,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsru02",
+      "name": "Legislative and Budget Process",
+      "chamber": "house",
+      "parent_system_code": "hsru00",
+      "url": "https://rules.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.270Z",
+      "members": 6,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsru04",
+      "name": "Rules and Organization of the House",
+      "chamber": "house",
+      "parent_system_code": "hsru00",
+      "url": "https://rules.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.273Z",
+      "members": 6,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssm23",
+      "name": "Contracting and Infrastructure",
+      "chamber": "house",
+      "parent_system_code": "hssm00",
+      "url": "https://smallbusiness.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.279Z",
+      "members": 11,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssm27",
+      "name": "Economic Growth, Tax, and Capital Access",
+      "chamber": "house",
+      "parent_system_code": "hssm00",
+      "url": "https://smallbusiness.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.284Z",
+      "members": 8,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssm22",
+      "name": "Innovation, Entrepreneurship, and Workforce Development",
+      "chamber": "house",
+      "parent_system_code": "hssm00",
+      "url": "https://smallbusiness.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.293Z",
+      "members": 11,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssm24",
+      "name": "Oversight, Investigations, and Regulations",
+      "chamber": "house",
+      "parent_system_code": "hssm00",
+      "url": "https://smallbusiness.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.281Z",
+      "members": 10,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssm21",
+      "name": "Rural Development, Energy, and Supply Chains",
+      "chamber": "house",
+      "parent_system_code": "hssm00",
+      "url": "https://smallbusiness.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.286Z",
+      "members": 10,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssy20",
+      "name": "Energy",
+      "chamber": "house",
+      "parent_system_code": "hssy00",
+      "url": "https://science.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.302Z",
+      "members": 14,
+      "exact_code_proceedings": 6,
+      "catalog_code_proceedings": 6,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssy18",
+      "name": "Environment",
+      "chamber": "house",
+      "parent_system_code": "hssy00",
+      "url": "https://science.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.310Z",
+      "members": 8,
+      "exact_code_proceedings": 8,
+      "catalog_code_proceedings": 8,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssy21",
+      "name": "Investigations and Oversight",
+      "chamber": "house",
+      "parent_system_code": "hssy00",
+      "url": "https://science.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.305Z",
+      "members": 8,
+      "exact_code_proceedings": 8,
+      "catalog_code_proceedings": 8,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssy15",
+      "name": "Research and Technology",
+      "chamber": "house",
+      "parent_system_code": "hssy00",
+      "url": "https://science.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.313Z",
+      "members": 12,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hssy16",
+      "name": "Space and Aeronautics",
+      "chamber": "house",
+      "parent_system_code": "hssy00",
+      "url": "https://science.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.308Z",
+      "members": 12,
+      "exact_code_proceedings": 6,
+      "catalog_code_proceedings": 6,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsvr09",
+      "name": "Disability Assistance and Memorial Affairs",
+      "chamber": "house",
+      "parent_system_code": "hsvr00",
+      "url": "https://veterans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.318Z",
+      "members": 9,
+      "exact_code_proceedings": 16,
+      "catalog_code_proceedings": 16,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsvr10",
+      "name": "Economic Opportunity",
+      "chamber": "house",
+      "parent_system_code": "hsvr00",
+      "url": "https://veterans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.321Z",
+      "members": 9,
+      "exact_code_proceedings": 15,
+      "catalog_code_proceedings": 15,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsvr03",
+      "name": "Health",
+      "chamber": "house",
+      "parent_system_code": "hsvr00",
+      "url": "https://veterans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.323Z",
+      "members": 11,
+      "exact_code_proceedings": 13,
+      "catalog_code_proceedings": 13,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsvr08",
+      "name": "Oversight and Investigations",
+      "chamber": "house",
+      "parent_system_code": "hsvr00",
+      "url": "https://veterans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.325Z",
+      "members": 7,
+      "exact_code_proceedings": 9,
+      "catalog_code_proceedings": 9,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hsvr11",
+      "name": "Technology Modernization",
+      "chamber": "house",
+      "parent_system_code": "hsvr00",
+      "url": "https://veterans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.327Z",
+      "members": 4,
+      "exact_code_proceedings": 12,
+      "catalog_code_proceedings": 12,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hswm02",
+      "name": "Health",
+      "chamber": "house",
+      "parent_system_code": "hswm00",
+      "url": "https://waysandmeans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.333Z",
+      "members": 19,
+      "exact_code_proceedings": 9,
+      "catalog_code_proceedings": 9,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hswm06",
+      "name": "Oversight",
+      "chamber": "house",
+      "parent_system_code": "hswm00",
+      "url": "https://waysandmeans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.338Z",
+      "members": 13,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hswm01",
+      "name": "Social Security",
+      "chamber": "house",
+      "parent_system_code": "hswm00",
+      "url": "https://waysandmeans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.343Z",
+      "members": 13,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hswm05",
+      "name": "Tax",
+      "chamber": "house",
+      "parent_system_code": "hswm00",
+      "url": "https://waysandmeans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.340Z",
+      "members": 19,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hswm04",
+      "name": "Trade",
+      "chamber": "house",
+      "parent_system_code": "hswm00",
+      "url": "https://waysandmeans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.345Z",
+      "members": 21,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "hswm03",
+      "name": "Work and Welfare",
+      "chamber": "house",
+      "parent_system_code": "hswm00",
+      "url": "https://waysandmeans.house.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.335Z",
+      "members": 13,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "jcse00",
+      "name": "Commission on Security and Cooperation in Europe",
+      "chamber": "joint",
+      "parent_system_code": null,
+      "url": "https://www.csce.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.348Z",
+      "members": 9,
+      "exact_code_proceedings": 61,
+      "catalog_code_proceedings": 61,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "jslc00",
+      "name": "Joint Committee of Congress on the Library",
+      "chamber": "joint",
+      "parent_system_code": null,
+      "url": "https://cha.house.gov/joint-committees",
+      "last_synced_at": "2026-10-06T04:03:05.354Z",
+      "members": 10,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "jspr00",
+      "name": "Joint Committee on Printing",
+      "chamber": "joint",
+      "parent_system_code": null,
+      "url": "https://cha.house.gov/joint-committee-on-printing",
+      "last_synced_at": "2026-10-06T04:03:05.357Z",
+      "members": 10,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "jstx00",
+      "name": "Joint Committee on Taxation",
+      "chamber": "joint",
+      "parent_system_code": null,
+      "url": "https://www.jct.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.360Z",
+      "members": 10,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "jsec00",
+      "name": "Joint Economic Committee",
+      "chamber": "joint",
+      "parent_system_code": null,
+      "url": "https://www.jec.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.351Z",
+      "members": 20,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssaf00",
+      "name": "Senate Committee on Agriculture, Nutrition, and Forestry",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.agriculture.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.380Z",
+      "members": 23,
+      "exact_code_proceedings": 82,
+      "catalog_code_proceedings": 82,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap00",
+      "name": "Senate Committee on Appropriations",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.397Z",
+      "members": 28,
+      "exact_code_proceedings": 201,
+      "catalog_code_proceedings": 201,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssas00",
+      "name": "Senate Committee on Armed Services",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.armed-services.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.433Z",
+      "members": 27,
+      "exact_code_proceedings": 225,
+      "catalog_code_proceedings": 225,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssbk00",
+      "name": "Senate Committee on Banking, Housing, and Urban Affairs",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.banking.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.454Z",
+      "members": 24,
+      "exact_code_proceedings": 104,
+      "catalog_code_proceedings": 104,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "sscm00",
+      "name": "Senate Committee on Commerce, Science, and Transportation",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://commerce.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.478Z",
+      "members": 28,
+      "exact_code_proceedings": 201,
+      "catalog_code_proceedings": 201,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "sseg00",
+      "name": "Senate Committee on Energy and Natural Resources",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.energy.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.499Z",
+      "members": 20,
+      "exact_code_proceedings": 119,
+      "catalog_code_proceedings": 119,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssev00",
+      "name": "Senate Committee on Environment and Public Works",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://epw.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.513Z",
+      "members": 18,
+      "exact_code_proceedings": 138,
+      "catalog_code_proceedings": 138,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfi00",
+      "name": "Senate Committee on Finance",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.finance.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.527Z",
+      "members": 27,
+      "exact_code_proceedings": 88,
+      "catalog_code_proceedings": 88,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfr00",
+      "name": "Senate Committee on Foreign Relations",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.foreign.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.547Z",
+      "members": 22,
+      "exact_code_proceedings": 165,
+      "catalog_code_proceedings": 165,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "sshr00",
+      "name": "Senate Committee on Health, Education, Labor, and Pensions",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.help.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.582Z",
+      "members": 23,
+      "exact_code_proceedings": 131,
+      "catalog_code_proceedings": 131,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssga00",
+      "name": "Senate Committee on Homeland Security and Governmental Affairs",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.hsgac.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.567Z",
+      "members": 15,
+      "exact_code_proceedings": 116,
+      "catalog_code_proceedings": 116,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "slia00",
+      "name": "Senate Committee on Indian Affairs",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.indian.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.369Z",
+      "members": 11,
+      "exact_code_proceedings": 50,
+      "catalog_code_proceedings": 50,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssra00",
+      "name": "Senate Committee on Rules and Administration",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.rules.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.617Z",
+      "members": 17,
+      "exact_code_proceedings": 13,
+      "catalog_code_proceedings": 13,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "sssb00",
+      "name": "Senate Committee on Small Business and Entrepreneurship",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.sbc.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.619Z",
+      "members": 19,
+      "exact_code_proceedings": 65,
+      "catalog_code_proceedings": 65,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssbu00",
+      "name": "Senate Committee on the Budget",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.budget.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.476Z",
+      "members": 20,
+      "exact_code_proceedings": 59,
+      "catalog_code_proceedings": 59,
+      "exact_or_parent_sources": 3
+    },
+    {
+      "system_code": "ssju00",
+      "name": "Senate Committee on the Judiciary",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.judiciary.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.593Z",
+      "members": 21,
+      "exact_code_proceedings": 264,
+      "catalog_code_proceedings": 264,
+      "exact_or_parent_sources": 3
+    },
+    {
+      "system_code": "ssva00",
+      "name": "Senate Committee on Veterans' Affairs",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.veterans.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.622Z",
+      "members": 19,
+      "exact_code_proceedings": 93,
+      "catalog_code_proceedings": 93,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "slet00",
+      "name": "Senate Select Committee on Ethics",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.ethics.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.367Z",
+      "members": 6,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "slin00",
+      "name": "Senate Select Committee on Intelligence",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.intelligence.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.372Z",
+      "members": 21,
+      "exact_code_proceedings": 111,
+      "catalog_code_proceedings": 111,
+      "exact_or_parent_sources": 3
+    },
+    {
+      "system_code": "spag00",
+      "name": "Senate Special Committee on Aging",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.aging.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.376Z",
+      "members": 13,
+      "exact_code_proceedings": 90,
+      "catalog_code_proceedings": 90,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "scnc00",
+      "name": "United States Senate Caucus on International Narcotics Control",
+      "chamber": "senate",
+      "parent_system_code": null,
+      "url": "https://www.drugcaucus.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.363Z",
+      "members": 7,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssaf13",
+      "name": "Commodities, Derivatives, Risk Management, and Trade",
+      "chamber": "senate",
+      "parent_system_code": "ssaf00",
+      "url": "https://www.agriculture.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.383Z",
+      "members": 13,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssaf14",
+      "name": "Conservation, Forestry, Natural Resources, and Biotechnology",
+      "chamber": "senate",
+      "parent_system_code": "ssaf00",
+      "url": "https://www.agriculture.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.386Z",
+      "members": 13,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssaf16",
+      "name": "Food and Nutrition, Specialty Crops, Organics, and Research",
+      "chamber": "senate",
+      "parent_system_code": "ssaf00",
+      "url": "https://www.agriculture.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.391Z",
+      "members": 13,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssaf17",
+      "name": "Livestock, Dairy, Poultry, and Food Safety",
+      "chamber": "senate",
+      "parent_system_code": "ssaf00",
+      "url": "https://www.agriculture.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.394Z",
+      "members": 13,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssaf15",
+      "name": "Rural Development, Energy, and Credit",
+      "chamber": "senate",
+      "parent_system_code": "ssaf00",
+      "url": "https://www.agriculture.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.388Z",
+      "members": 13,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap01",
+      "name": "Agriculture, Rural Development, Food and Drug Administration, and Related Agencies",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.425Z",
+      "members": 16,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap16",
+      "name": "Commerce, Justice, Science, and Related Agencies",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.400Z",
+      "members": 17,
+      "exact_code_proceedings": 10,
+      "catalog_code_proceedings": 10,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap02",
+      "name": "Department of Defense",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.428Z",
+      "members": 17,
+      "exact_code_proceedings": 12,
+      "catalog_code_proceedings": 12,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap14",
+      "name": "Department of Homeland Security",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.408Z",
+      "members": 12,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap17",
+      "name": "Department of Interior, Environment, and Related Agencies",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.411Z",
+      "members": 15,
+      "exact_code_proceedings": 6,
+      "catalog_code_proceedings": 6,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap18",
+      "name": "Departments of Labor, Health and Human Services, and Education, and Related Agencies",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.414Z",
+      "members": 17,
+      "exact_code_proceedings": 8,
+      "catalog_code_proceedings": 8,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap22",
+      "name": "Energy and Water Development",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.403Z",
+      "members": 17,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap23",
+      "name": "Financial Services and General Government",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.405Z",
+      "members": 10,
+      "exact_code_proceedings": 6,
+      "catalog_code_proceedings": 6,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap08",
+      "name": "Legislative Branch",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.430Z",
+      "members": 7,
+      "exact_code_proceedings": 6,
+      "catalog_code_proceedings": 6,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap19",
+      "name": "Military Construction, Veterans Affairs, and Related Agencies",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.417Z",
+      "members": 16,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap20",
+      "name": "State, Foreign Operations, and Related Programs",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.420Z",
+      "members": 14,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssap24",
+      "name": "Transportation, Housing and Urban Development, and Related Agencies",
+      "chamber": "senate",
+      "parent_system_code": "ssap00",
+      "url": "https://www.appropriations.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.422Z",
+      "members": 16,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssas14",
+      "name": "Airland",
+      "chamber": "senate",
+      "parent_system_code": "ssas00",
+      "url": "https://www.armed-services.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.436Z",
+      "members": 15,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssas21",
+      "name": "Cybersecurity",
+      "chamber": "senate",
+      "parent_system_code": "ssas00",
+      "url": "https://www.armed-services.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.452Z",
+      "members": 11,
+      "exact_code_proceedings": 11,
+      "catalog_code_proceedings": 11,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssas20",
+      "name": "Emerging Threats and Capabilities",
+      "chamber": "senate",
+      "parent_system_code": "ssas00",
+      "url": "https://www.armed-services.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.438Z",
+      "members": 17,
+      "exact_code_proceedings": 6,
+      "catalog_code_proceedings": 6,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssas17",
+      "name": "Personnel",
+      "chamber": "senate",
+      "parent_system_code": "ssas00",
+      "url": "https://www.armed-services.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.441Z",
+      "members": 11,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssas15",
+      "name": "Readiness and Management Support",
+      "chamber": "senate",
+      "parent_system_code": "ssas00",
+      "url": "https://www.armed-services.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.443Z",
+      "members": 13,
+      "exact_code_proceedings": 6,
+      "catalog_code_proceedings": 6,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssas13",
+      "name": "Seapower",
+      "chamber": "senate",
+      "parent_system_code": "ssas00",
+      "url": "https://www.armed-services.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.446Z",
+      "members": 13,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssas16",
+      "name": "Strategic Forces",
+      "chamber": "senate",
+      "parent_system_code": "ssas00",
+      "url": "https://www.armed-services.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.449Z",
+      "members": 13,
+      "exact_code_proceedings": 11,
+      "catalog_code_proceedings": 11,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssbk13",
+      "name": "Digital Assets",
+      "chamber": "senate",
+      "parent_system_code": "ssbk00",
+      "url": "https://www.banking.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.472Z",
+      "members": 11,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssbk12",
+      "name": "Economic Policy",
+      "chamber": "senate",
+      "parent_system_code": "ssbk00",
+      "url": "https://www.banking.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.457Z",
+      "members": 11,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssbk08",
+      "name": "Financial Institutions and Consumer Protection",
+      "chamber": "senate",
+      "parent_system_code": "ssbk00",
+      "url": "https://www.banking.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.469Z",
+      "members": 17,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssbk09",
+      "name": "Housing, Transportation, and Community Development",
+      "chamber": "senate",
+      "parent_system_code": "ssbk00",
+      "url": "https://www.banking.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.466Z",
+      "members": 13,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssbk05",
+      "name": "National Security and International Trade and Finance",
+      "chamber": "senate",
+      "parent_system_code": "ssbk00",
+      "url": "https://www.banking.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.460Z",
+      "members": 9,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssbk04",
+      "name": "Securities, Insurance, and Investment",
+      "chamber": "senate",
+      "parent_system_code": "ssbk00",
+      "url": "https://www.banking.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.463Z",
+      "members": 17,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "sscm33",
+      "name": "Aviation, Space, and Innovation",
+      "chamber": "senate",
+      "parent_system_code": "sscm00",
+      "url": "https://commerce.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.481Z",
+      "members": 13,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "sscm36",
+      "name": "Coast Guard, Maritime, and Fisheries",
+      "chamber": "senate",
+      "parent_system_code": "sscm00",
+      "url": "https://commerce.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.489Z",
+      "members": 11,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "sscm35",
+      "name": "Consumer Protection, Technology, and Data Privacy",
+      "chamber": "senate",
+      "parent_system_code": "sscm00",
+      "url": "https://commerce.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.486Z",
+      "members": 17,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "sscm37",
+      "name": "Science, Manufacturing, and Competitiveness",
+      "chamber": "senate",
+      "parent_system_code": "sscm00",
+      "url": "https://commerce.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.492Z",
+      "members": 13,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "sscm38",
+      "name": "Surface Transportation, Freight, Pipelines, and Safety",
+      "chamber": "senate",
+      "parent_system_code": "sscm00",
+      "url": "https://commerce.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.494Z",
+      "members": 17,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "sscm34",
+      "name": "Telecommunications and Media",
+      "chamber": "senate",
+      "parent_system_code": "sscm00",
+      "url": "https://commerce.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.484Z",
+      "members": 28,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "sscm39",
+      "name": "Tourism, Trade, and Export Promotion",
+      "chamber": "senate",
+      "parent_system_code": "sscm00",
+      "url": "https://commerce.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.496Z",
+      "members": 0,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 1
+    },
+    {
+      "system_code": "sseg01",
+      "name": "Energy",
+      "chamber": "senate",
+      "parent_system_code": "sseg00",
+      "url": "https://www.energy.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.508Z",
+      "members": 17,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "sseg04",
+      "name": "National Parks",
+      "chamber": "senate",
+      "parent_system_code": "sseg00",
+      "url": "https://www.energy.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.505Z",
+      "members": 9,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "sseg03",
+      "name": "Public Lands, Forests, and Mining",
+      "chamber": "senate",
+      "parent_system_code": "sseg00",
+      "url": "https://www.energy.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.510Z",
+      "members": 15,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "sseg07",
+      "name": "Water and Power",
+      "chamber": "senate",
+      "parent_system_code": "sseg00",
+      "url": "https://www.energy.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.503Z",
+      "members": 13,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssev09",
+      "name": "Chemical Safety, Waste Management, Environmental Justice, and Regulatory Oversight",
+      "chamber": "senate",
+      "parent_system_code": "ssev00",
+      "url": "https://epw.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.519Z",
+      "members": 10,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssev10",
+      "name": "Clean Air, Climate, and Nuclear Innovation and Safety",
+      "chamber": "senate",
+      "parent_system_code": "ssev00",
+      "url": "https://epw.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.515Z",
+      "members": 16,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssev15",
+      "name": "Fisheries, Water, and Wildlife",
+      "chamber": "senate",
+      "parent_system_code": "ssev00",
+      "url": "https://epw.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.524Z",
+      "members": 13,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssev08",
+      "name": "Transportation and Infrastructure",
+      "chamber": "senate",
+      "parent_system_code": "ssev00",
+      "url": "https://epw.senate.gov/public/",
+      "last_synced_at": "2026-10-06T04:03:05.522Z",
+      "members": 16,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfi12",
+      "name": "Energy, Natural Resources, and Infrastructure",
+      "chamber": "senate",
+      "parent_system_code": "ssfi00",
+      "url": "https://www.finance.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.529Z",
+      "members": 13,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfi14",
+      "name": "Fiscal Responsibility and Economic Growth",
+      "chamber": "senate",
+      "parent_system_code": "ssfi00",
+      "url": "https://www.finance.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.537Z",
+      "members": 5,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfi10",
+      "name": "Health Care",
+      "chamber": "senate",
+      "parent_system_code": "ssfi00",
+      "url": "https://www.finance.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.532Z",
+      "members": 23,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfi13",
+      "name": "International Trade, Customs, and Global Competitiveness",
+      "chamber": "senate",
+      "parent_system_code": "ssfi00",
+      "url": "https://www.finance.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.535Z",
+      "members": 17,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfi02",
+      "name": "Social Security, Pensions, and Family Policy",
+      "chamber": "senate",
+      "parent_system_code": "ssfi00",
+      "url": "https://www.finance.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.545Z",
+      "members": 7,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfi11",
+      "name": "Taxation and IRS Oversight",
+      "chamber": "senate",
+      "parent_system_code": "ssfi00",
+      "url": "https://www.finance.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.542Z",
+      "members": 19,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfr09",
+      "name": "Africa and Global Health Policy",
+      "chamber": "senate",
+      "parent_system_code": "ssfr00",
+      "url": "https://www.foreign.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.552Z",
+      "members": 11,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfr02",
+      "name": "East Asia, the Pacific, and International Cybersecurity Policy",
+      "chamber": "senate",
+      "parent_system_code": "ssfr00",
+      "url": "https://www.foreign.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.555Z",
+      "members": 11,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfr01",
+      "name": "Europe and Regional Security Cooperation",
+      "chamber": "senate",
+      "parent_system_code": "ssfr00",
+      "url": "https://www.foreign.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.550Z",
+      "members": 11,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfr15",
+      "name": "Multilateral International Development, Multilateral Institutions, and International Economic, Energy, and Environmental Policy",
+      "chamber": "senate",
+      "parent_system_code": "ssfr00",
+      "url": "https://www.foreign.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.562Z",
+      "members": 11,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfr07",
+      "name": "Near East, South Asia, Central Asia, and Counterterrorism",
+      "chamber": "senate",
+      "parent_system_code": "ssfr00",
+      "url": "https://www.foreign.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.557Z",
+      "members": 11,
+      "exact_code_proceedings": 2,
+      "catalog_code_proceedings": 2,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfr14",
+      "name": "State Department and USAID Management, International Operations, and Bilateral International Development",
+      "chamber": "senate",
+      "parent_system_code": "ssfr00",
+      "url": "https://www.foreign.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.565Z",
+      "members": 11,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssfr06",
+      "name": "Western Hemisphere, Transnational Crime, Civilian Security, Democracy, Human Rights, and Global Women's Issues",
+      "chamber": "senate",
+      "parent_system_code": "ssfr00",
+      "url": "https://www.foreign.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.560Z",
+      "members": 11,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssga22",
+      "name": "Border Management, Federal Workforce, and Regulatory Affairs",
+      "chamber": "senate",
+      "parent_system_code": "ssga00",
+      "url": "https://www.hsgac.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.579Z",
+      "members": 11,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssga20",
+      "name": "Disaster Management, District of Columbia, and Census",
+      "chamber": "senate",
+      "parent_system_code": "ssga00",
+      "url": "https://www.hsgac.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.575Z",
+      "members": 9,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssga01",
+      "name": "Permanent Subcommittee on Investigations",
+      "chamber": "senate",
+      "parent_system_code": "ssga00",
+      "url": "https://www.hsgac.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.571Z",
+      "members": 11,
+      "exact_code_proceedings": 8,
+      "catalog_code_proceedings": 8,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "sshr09",
+      "name": "Education and the American Family",
+      "chamber": "senate",
+      "parent_system_code": "sshr00",
+      "url": "https://www.help.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.591Z",
+      "members": 15,
+      "exact_code_proceedings": 3,
+      "catalog_code_proceedings": 3,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "sshr11",
+      "name": "Employment and Workplace Safety",
+      "chamber": "senate",
+      "parent_system_code": "sshr00",
+      "url": "https://www.help.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.586Z",
+      "members": 15,
+      "exact_code_proceedings": 1,
+      "catalog_code_proceedings": 1,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "sshr12",
+      "name": "Primary Health and Retirement Security",
+      "chamber": "senate",
+      "parent_system_code": "sshr00",
+      "url": "https://www.help.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.588Z",
+      "members": 19,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 2
+    },
+    {
+      "system_code": "ssju01",
+      "name": "Antitrust, Competition Policy, and Consumer Rights",
+      "chamber": "senate",
+      "parent_system_code": "ssju00",
+      "url": "https://www.judiciary.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.601Z",
+      "members": 11,
+      "exact_code_proceedings": 4,
+      "catalog_code_proceedings": 4,
+      "exact_or_parent_sources": 3
+    },
+    {
+      "system_code": "ssju04",
+      "name": "Border Security and Immigration",
+      "chamber": "senate",
+      "parent_system_code": "ssju00",
+      "url": "https://www.judiciary.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.603Z",
+      "members": 12,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 3
+    },
+    {
+      "system_code": "ssju22",
+      "name": "Crime and Counterterrorism",
+      "chamber": "senate",
+      "parent_system_code": "ssju00",
+      "url": "https://www.judiciary.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.598Z",
+      "members": 10,
+      "exact_code_proceedings": 7,
+      "catalog_code_proceedings": 7,
+      "exact_or_parent_sources": 3
+    },
+    {
+      "system_code": "ssju25",
+      "name": "Federal Courts, Oversight, Agency Action, and Federal Rights",
+      "chamber": "senate",
+      "parent_system_code": "ssju00",
+      "url": "https://www.judiciary.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.607Z",
+      "members": 10,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 3
+    },
+    {
+      "system_code": "ssju27",
+      "name": "Human Rights and the Law",
+      "chamber": "senate",
+      "parent_system_code": "ssju00",
+      "url": "https://www.judiciary.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.612Z",
+      "members": 0,
+      "exact_code_proceedings": 0,
+      "catalog_code_proceedings": 0,
+      "exact_or_parent_sources": 3
+    },
+    {
+      "system_code": "ssju26",
+      "name": "Intellectual Property",
+      "chamber": "senate",
+      "parent_system_code": "ssju00",
+      "url": "https://www.judiciary.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.609Z",
+      "members": 11,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 3
+    },
+    {
+      "system_code": "ssju28",
+      "name": "Privacy, Technology, and the Law",
+      "chamber": "senate",
+      "parent_system_code": "ssju00",
+      "url": "https://www.judiciary.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.614Z",
+      "members": 10,
+      "exact_code_proceedings": 5,
+      "catalog_code_proceedings": 5,
+      "exact_or_parent_sources": 3
+    },
+    {
+      "system_code": "ssju21",
+      "name": "the Constitution",
+      "chamber": "senate",
+      "parent_system_code": "ssju00",
+      "url": "https://www.judiciary.senate.gov/",
+      "last_synced_at": "2026-10-06T04:03:05.596Z",
+      "members": 13,
+      "exact_code_proceedings": 10,
+      "catalog_code_proceedings": 10,
+      "exact_or_parent_sources": 3
+    }
+  ],
+  "federalInventoryInterpretation": "230 database-current entries; catalog_code_proceedings expands ONLY reviewed hlzs00/hlqj00 aliases. 211 entries have retained proceedings; nineteen zero counts do not establish nineteen failed calendars. Currentness of two empty-roster bodies remains disputed by upstream sources.",
+  "floridaInventory": [
+    {
+      "id": "official-62656e9b7690c56b3db63919db5de992",
+      "name": "Joint Administrative Procedures Committee",
+      "chamber": "joint",
+      "official_source_key": "FL:directory:fl:joint:JAPC",
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?Directory=committees/joint/JAPC/&File=index_css.html&Tab=committees",
+      "last_synced_at": "2026-09-19T06:11:43.888Z",
+      "ids": [
+        "official-62656e9b7690c56b3db63919db5de992",
+        "FL-lower-administrative-procedures",
+        "FL-upper-administrative-procedures"
+      ],
+      "retained_roster_members": 14,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-3226eb5eaa2661b29fee4b16ec36d50c",
+      "name": "Joint Committee on Public Counsel Oversight",
+      "chamber": "joint",
+      "official_source_key": "FL:directory:fl:joint:JCPO",
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?Directory=committees/joint/JCPO/&File=index_css.html&Tab=committees",
+      "last_synced_at": "2026-09-19T06:11:43.894Z",
+      "ids": [
+        "official-3226eb5eaa2661b29fee4b16ec36d50c",
+        "FL-lower-public-counsel-oversight",
+        "FL-upper-public-counsel-oversight"
+      ],
+      "retained_roster_members": 14,
+      "alias_expanded_proceedings": 1,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-5f396242e5898f891718651edd110963",
+      "name": "Joint Legislative Auditing Committee",
+      "chamber": "joint",
+      "official_source_key": "FL:directory:fl:joint:JLAC",
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?Directory=committees/joint/JCLA/&File=index_css.html&Tab=committees",
+      "last_synced_at": "2026-09-19T06:11:43.899Z",
+      "ids": [
+        "official-5f396242e5898f891718651edd110963",
+        "FL-lower-legislative-auditing",
+        "FL-upper-legislative-auditing"
+      ],
+      "retained_roster_members": 14,
+      "alias_expanded_proceedings": 3,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-203133a6dd941346b3a08cfec2a92ccc",
+      "name": "Joint Legislative Budget Commission",
+      "chamber": "joint",
+      "official_source_key": "FL:directory:fl:joint:JLBC",
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?Directory=committees/joint/JLBC/&File=index_css.html&Tab=committees",
+      "last_synced_at": "2026-09-19T06:11:43.907Z",
+      "ids": [
+        "official-203133a6dd941346b3a08cfec2a92ccc",
+        "FL-lower-legislative-budget-commission",
+        "FL-upper-legislative-budget-commission"
+      ],
+      "retained_roster_members": 14,
+      "alias_expanded_proceedings": 2,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-ca4b3cebb28c0902685d6ff220ae1a3e",
+      "name": "Joint Select Committee on Collective Bargaining",
+      "chamber": "joint",
+      "official_source_key": "FL:directory:fl:joint:JSCB",
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?Directory=committees/joint/JSCB/&File=index_css.html&Tab=committees",
+      "last_synced_at": "2026-09-19T06:11:43.903Z",
+      "ids": [
+        "official-ca4b3cebb28c0902685d6ff220ae1a3e",
+        "FL-lower-collective-bargaining-select",
+        "FL-upper-collective-bargaining-select",
+        "official-5f6d7dca8411d411f4d940c121375859"
+      ],
+      "retained_roster_members": 16,
+      "alias_expanded_proceedings": 1,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-lower-administrative-procedures",
+      "name": "Administrative Procedures",
+      "chamber": "lower",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?File=index_css.html&Tab=committees&Directory=committees/joint/JAPC",
+      "last_synced_at": "2026-10-05T08:31:10.028Z",
+      "ids": [
+        "FL-lower-administrative-procedures"
+      ],
+      "retained_roster_members": 7,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-52d35b5a9c527fb1bbaaea9b7db366d1",
+      "name": "Agriculture & Natural Resources Budget Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3277",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15187",
+      "last_synced_at": "2026-10-06T03:56:25.410Z",
+      "ids": [
+        "official-52d35b5a9c527fb1bbaaea9b7db366d1"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 16
+    },
+    {
+      "id": "FL-lower-budget",
+      "name": "Budget Committee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3276",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15197",
+      "last_synced_at": "2026-10-05T19:05:08.849Z",
+      "ids": [
+        "FL-lower-budget"
+      ],
+      "retained_roster_members": 29,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 82
+    },
+    {
+      "id": "official-4935b3f27c321ae6116c21efc8703dcd",
+      "name": "Careers & Workforce Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3291",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15003",
+      "last_synced_at": "2026-10-05T19:05:08.072Z",
+      "ids": [
+        "official-4935b3f27c321ae6116c21efc8703dcd"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 20
+    },
+    {
+      "id": "official-3adf2179b3e4a3dbefba44320959802f",
+      "name": "Civil Justice & Claims Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3299",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15008",
+      "last_synced_at": "2026-10-05T19:05:08.115Z",
+      "ids": [
+        "official-3adf2179b3e4a3dbefba44320959802f"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 112
+    },
+    {
+      "id": "FL-lower-collective-bargaining-select",
+      "name": "Collective Bargaining Select",
+      "chamber": "lower",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?File=index_css.html&Tab=committees&Directory=committees/joint/JSCB",
+      "last_synced_at": "2026-10-05T08:31:10.366Z",
+      "ids": [
+        "FL-lower-collective-bargaining-select"
+      ],
+      "retained_roster_members": 7,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-lower-commerce",
+      "name": "Commerce Committee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3285",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15048",
+      "last_synced_at": "2026-10-05T19:05:07.121Z",
+      "ids": [
+        "FL-lower-commerce"
+      ],
+      "retained_roster_members": 26,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 198
+    },
+    {
+      "id": "FL-lower-congressional-redistricting-select",
+      "name": "Congressional Redistricting Select",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3364",
+      "legislative_session": "2026",
+      "source_url": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3364",
+      "last_synced_at": "2026-10-05T08:31:10.505Z",
+      "ids": [
+        "FL-lower-congressional-redistricting-select"
+      ],
+      "retained_roster_members": 11,
+      "alias_expanded_proceedings": 3,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-23f081e554e2e5c9b9d26604d37e7fee",
+      "name": "Criminal Justice Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3300",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15019",
+      "last_synced_at": "2026-10-05T19:05:08.660Z",
+      "ids": [
+        "official-23f081e554e2e5c9b9d26604d37e7fee"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 111
+    },
+    {
+      "id": "official-d48684f6d4a3d8d0190ff071ca7dd136",
+      "name": "Economic Infrastructure Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3286",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15014",
+      "last_synced_at": "2026-10-05T19:05:09.055Z",
+      "ids": [
+        "official-d48684f6d4a3d8d0190ff071ca7dd136"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 32
+    },
+    {
+      "id": "official-f03a5158862debd6a5f08cc59199c5a2",
+      "name": "Education Administration Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3292",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15132",
+      "last_synced_at": "2026-10-05T19:05:08.596Z",
+      "ids": [
+        "official-f03a5158862debd6a5f08cc59199c5a2"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 52
+    },
+    {
+      "id": "FL-lower-education-and-employment",
+      "name": "Education & Employment Committee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3290",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15167",
+      "last_synced_at": "2026-10-06T03:09:48.130Z",
+      "ids": [
+        "FL-lower-education-and-employment"
+      ],
+      "retained_roster_members": 21,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 82
+    },
+    {
+      "id": "official-101c1e0aa436a973880ff51d616cfa7d",
+      "name": "Government Operations Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3303",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15060",
+      "last_synced_at": "2026-10-05T19:05:07.439Z",
+      "ids": [
+        "official-101c1e0aa436a973880ff51d616cfa7d"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 134
+    },
+    {
+      "id": "official-cf1d997fbf05cd21ef68a744f9be3ff9",
+      "name": "Health Care Budget Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3278",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15191",
+      "last_synced_at": "2026-10-06T03:56:25.437Z",
+      "ids": [
+        "official-cf1d997fbf05cd21ef68a744f9be3ff9"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 72
+    },
+    {
+      "id": "official-ddfd8e5bdce766ca125b1ae409b57be0",
+      "name": "Health Care Facilities & Systems Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3295",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15118",
+      "last_synced_at": "2026-10-05T19:05:08.302Z",
+      "ids": [
+        "official-ddfd8e5bdce766ca125b1ae409b57be0"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 56
+    },
+    {
+      "id": "FL-lower-health-and-human-services",
+      "name": "Health & Human Services Committee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3294",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15091",
+      "last_synced_at": "2026-10-06T03:09:49.264Z",
+      "ids": [
+        "FL-lower-health-and-human-services"
+      ],
+      "retained_roster_members": 25,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 155
+    },
+    {
+      "id": "official-4b99e813c000545803ed3e8c5d3ed115",
+      "name": "Health Professions & Programs Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3296",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15096",
+      "last_synced_at": "2026-10-05T19:05:06.851Z",
+      "ids": [
+        "official-4b99e813c000545803ed3e8c5d3ed115"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 80
+    },
+    {
+      "id": "official-d2a7fac11117efae5b146389642a6e78",
+      "name": "Higher Education Budget Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3279",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15002",
+      "last_synced_at": "2026-10-05T19:05:08.608Z",
+      "ids": [
+        "official-d2a7fac11117efae5b146389642a6e78"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 7
+    },
+    {
+      "id": "official-56ab8c1454cf175100ac6f5026ab9e46",
+      "name": "Housing, Agriculture & Tourism Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3287",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15080",
+      "last_synced_at": "2026-10-05T19:05:08.964Z",
+      "ids": [
+        "official-56ab8c1454cf175100ac6f5026ab9e46"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 48
+    },
+    {
+      "id": "official-64c71138eaf38554bdb50cb776538466",
+      "name": "Human Services Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3297",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15139",
+      "last_synced_at": "2026-10-05T19:05:08.202Z",
+      "ids": [
+        "official-64c71138eaf38554bdb50cb776538466"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 40
+    },
+    {
+      "id": "official-1863ce8bcafbb10c074028e8bcd41a0f",
+      "name": "Industries & Professional Activities Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3288",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15111",
+      "last_synced_at": "2026-10-05T19:05:08.826Z",
+      "ids": [
+        "official-1863ce8bcafbb10c074028e8bcd41a0f"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 77
+    },
+    {
+      "id": "official-a4163fa6b7344b935b2f312a2fe1ef25",
+      "name": "Information Technology Budget & Policy Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3280",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15123",
+      "last_synced_at": "2026-10-05T19:05:09.239Z",
+      "ids": [
+        "official-a4163fa6b7344b935b2f312a2fe1ef25"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 13
+    },
+    {
+      "id": "official-883e0b00fa2b8248896b7e059814db0a",
+      "name": "Insurance & Banking Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3289",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15084",
+      "last_synced_at": "2026-10-05T19:05:05.246Z",
+      "ids": [
+        "official-883e0b00fa2b8248896b7e059814db0a"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 73
+    },
+    {
+      "id": "official-c46c9d02ea54f985a2c2759bec42c7b2",
+      "name": "Intergovernmental Affairs Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3304",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15175",
+      "last_synced_at": "2026-10-05T19:05:07.764Z",
+      "ids": [
+        "official-c46c9d02ea54f985a2c2759bec42c7b2"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 166
+    },
+    {
+      "id": "FL-lower-judiciary",
+      "name": "Judiciary Committee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3298",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15195",
+      "last_synced_at": "2026-10-05T19:05:09.161Z",
+      "ids": [
+        "FL-lower-judiciary"
+      ],
+      "retained_roster_members": 21,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 199
+    },
+    {
+      "id": "official-c9fb5da5ae5d394817b078e3afd07554",
+      "name": "Justice Budget Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3281",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15190",
+      "last_synced_at": "2026-10-06T03:56:21.780Z",
+      "ids": [
+        "official-c9fb5da5ae5d394817b078e3afd07554"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 45
+    },
+    {
+      "id": "FL-lower-legislative-auditing",
+      "name": "Legislative Auditing",
+      "chamber": "lower",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?File=index_css.html&Tab=committees&Directory=committees/joint/JCLA",
+      "last_synced_at": "2026-10-05T08:31:10.828Z",
+      "ids": [
+        "FL-lower-legislative-auditing"
+      ],
+      "retained_roster_members": 7,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-lower-legislative-budget-commission",
+      "name": "Legislative Budget Commission",
+      "chamber": "lower",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?File=index_css.html&Tab=committees&Directory=committees/joint/JLBC",
+      "last_synced_at": "2026-10-05T08:31:10.270Z",
+      "ids": [
+        "FL-lower-legislative-budget-commission"
+      ],
+      "retained_roster_members": 7,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-85cc3e41f308fb4e76cbe298edf736f6",
+      "name": "Natural Resources & Disasters Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3305",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15103",
+      "last_synced_at": "2026-10-05T19:05:08.748Z",
+      "ids": [
+        "official-85cc3e41f308fb4e76cbe298edf736f6"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 51
+    },
+    {
+      "id": "official-4a563b428e36b75fb99049f13caa82d1",
+      "name": "PreK-12 Budget Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3282",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15135",
+      "last_synced_at": "2026-10-05T19:05:07.920Z",
+      "ids": [
+        "official-4a563b428e36b75fb99049f13caa82d1"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 22
+    },
+    {
+      "id": "FL-lower-property-taxes-select",
+      "name": "Property Taxes Select",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3355",
+      "legislative_session": "2026",
+      "source_url": "https://flhouse.gov/Sections/Committees/committeesdetail.aspx?CommitteeId=3355",
+      "last_synced_at": "2026-10-05T08:31:10.049Z",
+      "ids": [
+        "FL-lower-property-taxes-select"
+      ],
+      "retained_roster_members": 36,
+      "alias_expanded_proceedings": 3,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-lower-public-counsel-oversight",
+      "name": "Public Counsel Oversight",
+      "chamber": "lower",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?File=index_css.html&Tab=committees&Directory=committees/joint/JCPO",
+      "last_synced_at": "2026-10-05T08:31:10.261Z",
+      "ids": [
+        "FL-lower-public-counsel-oversight"
+      ],
+      "retained_roster_members": 7,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-lower-rules-and-ethics",
+      "name": "Rules & Ethics Committee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3301",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15205",
+      "last_synced_at": "2026-10-06T03:56:30.866Z",
+      "ids": [
+        "FL-lower-rules-and-ethics"
+      ],
+      "retained_roster_members": 17,
+      "alias_expanded_proceedings": 17,
+      "referred_bills": 7
+    },
+    {
+      "id": "FL-lower-security-and-threat-assessment",
+      "name": "Security & Threat Assessment Committee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3307",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15204",
+      "last_synced_at": "2026-10-06T03:56:30.833Z",
+      "ids": [
+        "FL-lower-security-and-threat-assessment"
+      ],
+      "retained_roster_members": 20,
+      "alias_expanded_proceedings": 3,
+      "referred_bills": 1
+    },
+    {
+      "id": "official-758b5d6570ccab2d5959e87e207b504e",
+      "name": "State Administration Budget Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3283",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15053",
+      "last_synced_at": "2026-10-05T19:05:08.736Z",
+      "ids": [
+        "official-758b5d6570ccab2d5959e87e207b504e"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 33
+    },
+    {
+      "id": "FL-lower-state-affairs",
+      "name": "State Affairs Committee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3302",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15058",
+      "last_synced_at": "2026-10-05T19:05:08.315Z",
+      "ids": [
+        "FL-lower-state-affairs"
+      ],
+      "retained_roster_members": 26,
+      "alias_expanded_proceedings": 8,
+      "referred_bills": 293
+    },
+    {
+      "id": "official-bad617c6260b11bc5d4be6d9ad8d56e9",
+      "name": "Student Academic Success Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3293",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15138",
+      "last_synced_at": "2026-10-05T19:05:07.691Z",
+      "ids": [
+        "official-bad617c6260b11bc5d4be6d9ad8d56e9"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 30
+    },
+    {
+      "id": "official-4a1772fb435ba374d7ffcded69a3941b",
+      "name": "Transportation & Economic Development Budget Subcommittee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3284",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15074",
+      "last_synced_at": "2026-10-05T19:05:08.525Z",
+      "ids": [
+        "official-4a1772fb435ba374d7ffcded69a3941b"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 31
+    },
+    {
+      "id": "FL-lower-ways-and-means",
+      "name": "Ways & Means Committee",
+      "chamber": "lower",
+      "official_source_key": "FL:2026:fl:house:committee:3306",
+      "legislative_session": "2026",
+      "source_url": "https://www.flhouse.gov/Sections/Committees/meetingnotice.aspx?MeetingId=15085",
+      "last_synced_at": "2026-10-06T03:56:11.094Z",
+      "ids": [
+        "FL-lower-ways-and-means"
+      ],
+      "retained_roster_members": 19,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 77
+    },
+    {
+      "id": "official-5f6d7dca8411d411f4d940c121375859",
+      "name": "Joint Select Committee on Collective Bargaining",
+      "chamber": "senate",
+      "official_source_key": null,
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/JSCB/MeetingNotice/6747",
+      "last_synced_at": "2026-09-21T11:45:13.928Z",
+      "ids": [
+        "official-5f6d7dca8411d411f4d940c121375859"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-b47e5962b842e8ed8a6dfde092343518",
+      "name": "Special Order Calendar Group",
+      "chamber": "senate",
+      "official_source_key": "FL:2026:fl:senate:SOCG",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/SOCG/MeetingNotice/6760",
+      "last_synced_at": "2026-10-06T04:47:47.034Z",
+      "ids": [
+        "official-b47e5962b842e8ed8a6dfde092343518"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 19,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-upper-administrative-procedures",
+      "name": "Administrative Procedures",
+      "chamber": "upper",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?File=index_css.html&Tab=committees&Directory=committees/joint/JAPC",
+      "last_synced_at": "2026-10-05T08:31:10.821Z",
+      "ids": [
+        "FL-upper-administrative-procedures"
+      ],
+      "retained_roster_members": 7,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-upper-agriculture",
+      "name": "Agriculture",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:AG",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/AG/MeetingNotice/6811",
+      "last_synced_at": "2026-10-05T08:31:10.509Z",
+      "ids": [
+        "FL-upper-agriculture"
+      ],
+      "retained_roster_members": 6,
+      "alias_expanded_proceedings": 3,
+      "referred_bills": 12
+    },
+    {
+      "id": "FL-upper-appropriations",
+      "name": "Appropriations",
+      "chamber": "upper",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.flsenate.gov/Committees/Show/AP",
+      "last_synced_at": "2026-10-05T08:31:10.131Z",
+      "ids": [
+        "FL-upper-appropriations"
+      ],
+      "retained_roster_members": 18,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-f1157b6e19f54bcf1841213c11bb058d",
+      "name": "Appropriations",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:AP",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/AP/MeetingNotice/6895",
+      "last_synced_at": "2026-09-21T12:10:12.210Z",
+      "ids": [
+        "official-f1157b6e19f54bcf1841213c11bb058d",
+        "FL-upper-appropriations"
+      ],
+      "retained_roster_members": 18,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 190
+    },
+    {
+      "id": "official-9b3e2ba689ae8c0943c28c7876191eeb",
+      "name": "Appropriations Committee on Agriculture, Environment, and General Government",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:AEG",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/AEG/MeetingNotice/6829",
+      "last_synced_at": "2026-09-21T11:58:26.541Z",
+      "ids": [
+        "official-9b3e2ba689ae8c0943c28c7876191eeb"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 151
+    },
+    {
+      "id": "official-68cc73c356d75a4156bbdfe51c06e95d",
+      "name": "Appropriations Committee on Criminal and Civil Justice",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:ACJ",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/ACJ/MeetingNotice/6820",
+      "last_synced_at": "2026-09-21T11:58:33.506Z",
+      "ids": [
+        "official-68cc73c356d75a4156bbdfe51c06e95d"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 89
+    },
+    {
+      "id": "official-b5e734dbe478a07bb9d610427071ca0d",
+      "name": "Appropriations Committee on Health and Human Services",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:AHS",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/AHS/MeetingNotice/6825",
+      "last_synced_at": "2026-09-21T11:58:35.765Z",
+      "ids": [
+        "official-b5e734dbe478a07bb9d610427071ca0d"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 124
+    },
+    {
+      "id": "official-4025a290bc8c251bbe041c914ce9234b",
+      "name": "Appropriations Committee on Higher Education",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:AHE",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/AHE/MeetingNotice/6828",
+      "last_synced_at": "2026-09-21T11:58:37.267Z",
+      "ids": [
+        "official-4025a290bc8c251bbe041c914ce9234b"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 12
+    },
+    {
+      "id": "official-bc81e590b75472ad0d1a1902c4875252",
+      "name": "Appropriations Committee on Pre-K - 12 Education",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:AED",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/AED/MeetingNotice/6826",
+      "last_synced_at": "2026-09-21T11:58:38.571Z",
+      "ids": [
+        "official-bc81e590b75472ad0d1a1902c4875252"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 41
+    },
+    {
+      "id": "official-c3865e9a39b5bdb11abdbcfc9f1db260",
+      "name": "Appropriations Committee on Transportation, Tourism, and Economic Development",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:ATD",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/ATD/MeetingNotice/6823",
+      "last_synced_at": "2026-09-21T11:58:40.083Z",
+      "ids": [
+        "official-c3865e9a39b5bdb11abdbcfc9f1db260"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 6,
+      "referred_bills": 59
+    },
+    {
+      "id": "FL-upper-banking-and-insurance",
+      "name": "Banking and Insurance",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:BI",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/BI/MeetingNotice/6821",
+      "last_synced_at": "2026-10-05T08:31:10.133Z",
+      "ids": [
+        "FL-upper-banking-and-insurance"
+      ],
+      "retained_roster_members": 10,
+      "alias_expanded_proceedings": 4,
+      "referred_bills": 90
+    },
+    {
+      "id": "FL-upper-children-families-and-elder-affairs",
+      "name": "Children, Families, and Elder Affairs",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:CF",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/CF/MeetingNotice/6751",
+      "last_synced_at": "2026-10-06T04:47:24.450Z",
+      "ids": [
+        "FL-upper-children-families-and-elder-affairs"
+      ],
+      "retained_roster_members": 6,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 57
+    },
+    {
+      "id": "FL-upper-collective-bargaining-select",
+      "name": "Collective Bargaining Select",
+      "chamber": "upper",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?File=index_css.html&Tab=committees&Directory=committees/joint/JSCB",
+      "last_synced_at": "2026-10-05T08:31:10.149Z",
+      "ids": [
+        "FL-upper-collective-bargaining-select"
+      ],
+      "retained_roster_members": 9,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-upper-commerce-and-tourism",
+      "name": "Commerce and Tourism",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:CM",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/CM/MeetingNotice/6822",
+      "last_synced_at": "2026-10-05T08:31:10.263Z",
+      "ids": [
+        "FL-upper-commerce-and-tourism"
+      ],
+      "retained_roster_members": 10,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 70
+    },
+    {
+      "id": "FL-upper-community-affairs",
+      "name": "Community Affairs",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:CA",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/CA/MeetingNotice/6756",
+      "last_synced_at": "2026-10-06T04:47:35.288Z",
+      "ids": [
+        "FL-upper-community-affairs"
+      ],
+      "retained_roster_members": 8,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 115
+    },
+    {
+      "id": "FL-upper-criminal-justice",
+      "name": "Criminal Justice",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:CJ",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/CJ/MeetingNotice/6750",
+      "last_synced_at": "2026-10-06T04:47:35.561Z",
+      "ids": [
+        "FL-upper-criminal-justice"
+      ],
+      "retained_roster_members": 9,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 112
+    },
+    {
+      "id": "FL-upper-education-postsecondary",
+      "name": "Education Postsecondary",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:HE",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/HE/MeetingNotice/6830",
+      "last_synced_at": "2026-10-05T08:31:10.151Z",
+      "ids": [
+        "FL-upper-education-postsecondary"
+      ],
+      "retained_roster_members": 6,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 19
+    },
+    {
+      "id": "FL-upper-education-pre-k-12",
+      "name": "Education Pre-K - 12",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:ED",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/ED/MeetingNotice/6758",
+      "last_synced_at": "2026-10-06T04:47:35.720Z",
+      "ids": [
+        "FL-upper-education-pre-k-12"
+      ],
+      "retained_roster_members": 8,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 71
+    },
+    {
+      "id": "FL-upper-environment-and-natural-resources",
+      "name": "Environment and Natural Resources",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:EN",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/EN/MeetingNotice/6753",
+      "last_synced_at": "2026-10-06T04:47:35.843Z",
+      "ids": [
+        "FL-upper-environment-and-natural-resources"
+      ],
+      "retained_roster_members": 8,
+      "alias_expanded_proceedings": 4,
+      "referred_bills": 33
+    },
+    {
+      "id": "FL-upper-ethics-and-elections",
+      "name": "Ethics and Elections",
+      "chamber": "upper",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.flsenate.gov/Committees/Show/EE",
+      "last_synced_at": "2026-10-05T08:31:10.362Z",
+      "ids": [
+        "FL-upper-ethics-and-elections"
+      ],
+      "retained_roster_members": 8,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-f4034bed0dd768dc5921e455699787f1",
+      "name": "Ethics and Elections",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:EE",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/EE/MeetingNotice/6893",
+      "last_synced_at": "2026-09-21T12:10:14.504Z",
+      "ids": [
+        "official-f4034bed0dd768dc5921e455699787f1",
+        "FL-upper-ethics-and-elections"
+      ],
+      "retained_roster_members": 8,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 24
+    },
+    {
+      "id": "FL-upper-finance-and-tax",
+      "name": "Finance and Tax",
+      "chamber": "upper",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.flsenate.gov/Committees/Show/FT",
+      "last_synced_at": "2026-10-05T08:31:10.515Z",
+      "ids": [
+        "FL-upper-finance-and-tax"
+      ],
+      "retained_roster_members": 8,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-61b86179a3b0dbd0da6c468079e5a978",
+      "name": "Finance and Tax",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:FT",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/FT/MeetingNotice/6857",
+      "last_synced_at": "2026-09-21T11:59:01.778Z",
+      "ids": [
+        "official-61b86179a3b0dbd0da6c468079e5a978",
+        "FL-upper-finance-and-tax"
+      ],
+      "retained_roster_members": 8,
+      "alias_expanded_proceedings": 3,
+      "referred_bills": 52
+    },
+    {
+      "id": "FL-upper-fiscal-policy",
+      "name": "Fiscal Policy",
+      "chamber": "upper",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.flsenate.gov/Committees/Show/FP",
+      "last_synced_at": "2026-10-05T08:31:10.157Z",
+      "ids": [
+        "FL-upper-fiscal-policy"
+      ],
+      "retained_roster_members": 19,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-3934dc810cc0f7eba7e868453043ab61",
+      "name": "Fiscal Policy",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:FP",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/FP/MeetingNotice/6894",
+      "last_synced_at": "2026-09-21T12:10:15.057Z",
+      "ids": [
+        "official-3934dc810cc0f7eba7e868453043ab61",
+        "FL-upper-fiscal-policy"
+      ],
+      "retained_roster_members": 19,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 256
+    },
+    {
+      "id": "FL-upper-governmental-oversight-and-accountability",
+      "name": "Governmental Oversight and Accountability",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:GO",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/GO/MeetingNotice/6759",
+      "last_synced_at": "2026-10-06T04:47:35.925Z",
+      "ids": [
+        "FL-upper-governmental-oversight-and-accountability"
+      ],
+      "retained_roster_members": 9,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 99
+    },
+    {
+      "id": "FL-upper-health-policy",
+      "name": "Health Policy",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:HP",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/HP/MeetingNotice/6757",
+      "last_synced_at": "2026-10-06T04:47:36.000Z",
+      "ids": [
+        "FL-upper-health-policy"
+      ],
+      "retained_roster_members": 11,
+      "alias_expanded_proceedings": 4,
+      "referred_bills": 129
+    },
+    {
+      "id": "FL-upper-judiciary",
+      "name": "Judiciary",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:JU",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/JU/MeetingNotice/6752",
+      "last_synced_at": "2026-10-06T04:47:36.089Z",
+      "ids": [
+        "FL-upper-judiciary"
+      ],
+      "retained_roster_members": 11,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 177
+    },
+    {
+      "id": "FL-upper-legislative-auditing",
+      "name": "Legislative Auditing",
+      "chamber": "upper",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?File=index_css.html&Tab=committees&Directory=committees/joint/JCLA",
+      "last_synced_at": "2026-10-05T08:31:10.140Z",
+      "ids": [
+        "FL-upper-legislative-auditing"
+      ],
+      "retained_roster_members": 7,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-upper-legislative-budget-commission",
+      "name": "Legislative Budget Commission",
+      "chamber": "upper",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?File=index_css.html&Tab=committees&Directory=committees/joint/JLBC",
+      "last_synced_at": "2026-10-05T08:31:16.719Z",
+      "ids": [
+        "FL-upper-legislative-budget-commission"
+      ],
+      "retained_roster_members": 7,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-upper-military-and-veterans-affairs-space-and-domestic-security",
+      "name": "Military and Veterans Affairs, Space and Domestic Security",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:MS",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/MS/MeetingNotice/6807",
+      "last_synced_at": "2026-10-05T08:31:10.512Z",
+      "ids": [
+        "FL-upper-military-and-veterans-affairs-space-and-domestic-security"
+      ],
+      "retained_roster_members": 5,
+      "alias_expanded_proceedings": 4,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-upper-public-counsel-oversight",
+      "name": "Public Counsel Oversight",
+      "chamber": "upper",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.leg.state.fl.us/cgi-bin/View_Page.pl?File=index_css.html&Tab=committees&Directory=committees/joint/JCPO",
+      "last_synced_at": "2026-10-05T08:31:10.163Z",
+      "ids": [
+        "FL-upper-public-counsel-oversight"
+      ],
+      "retained_roster_members": 7,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-795120a895a86994575d622c1777d378",
+      "name": "Reapportionment",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:RE",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/",
+      "last_synced_at": "2026-09-19T06:11:43.866Z",
+      "ids": [
+        "official-795120a895a86994575d622c1777d378"
+      ],
+      "retained_roster_members": 0,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "FL-upper-regulated-industries",
+      "name": "Regulated Industries",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:RI",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/RI/MeetingNotice/6754",
+      "last_synced_at": "2026-10-06T04:47:36.189Z",
+      "ids": [
+        "FL-upper-regulated-industries"
+      ],
+      "retained_roster_members": 9,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 77
+    },
+    {
+      "id": "FL-upper-rules",
+      "name": "Rules",
+      "chamber": "upper",
+      "official_source_key": null,
+      "legislative_session": null,
+      "source_url": "https://www.flsenate.gov/Committees/Show/RC",
+      "last_synced_at": "2026-10-05T08:31:10.146Z",
+      "ids": [
+        "FL-upper-rules"
+      ],
+      "retained_roster_members": 23,
+      "alias_expanded_proceedings": 0,
+      "referred_bills": 0
+    },
+    {
+      "id": "official-abffb299b6b09660f0ade25419756047",
+      "name": "Rules",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:RC",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/RC/MeetingNotice/6897",
+      "last_synced_at": "2026-09-21T12:10:15.764Z",
+      "ids": [
+        "official-abffb299b6b09660f0ade25419756047",
+        "FL-upper-rules"
+      ],
+      "retained_roster_members": 23,
+      "alias_expanded_proceedings": 7,
+      "referred_bills": 739
+    },
+    {
+      "id": "FL-upper-transportation",
+      "name": "Transportation",
+      "chamber": "upper",
+      "official_source_key": "FL:2026:fl:senate:TR",
+      "legislative_session": "2026",
+      "source_url": "https://www.flsenate.gov/Committees/Show/TR/MeetingNotice/6749",
+      "last_synced_at": "2026-10-06T04:47:36.310Z",
+      "ids": [
+        "FL-upper-transportation"
+      ],
+      "retained_roster_members": 9,
+      "alias_expanded_proceedings": 5,
+      "referred_bills": 61
+    }
+  ],
+  "floridaInventoryInterpretation": "Retained identities include aliases/historical rows; alias-expanded counts are not unique current official committees, people, or bills.",
+  "selectedOfficialCommitteeCurrentness": [
+    {
+      "code": "sscm39",
+      "source": "https://api.congress.gov/v3/committee/senate/sscm39",
+      "at": "2026-10-06T23:08:09.509Z",
+      "httpStatus": 200,
+      "status": "VERIFIED_DETAIL",
+      "isCurrent": true,
+      "history": [
+        {
+          "officialName": "Subcommittee on Tourism, Trade, and Export Promotion",
+          "startDate": "2024-11-27T19:35:19Z",
+          "endDate": "2025-01-03T16:59:00Z",
+          "committeeTypeCode": "Subcommittee"
+        },
+        {
+          "officialName": "Senate Subcommittee on Tourism, Trade, and Export Promotion",
+          "startDate": "2024-05-13T14:50:22Z",
+          "endDate": "2024-11-27T19:35:18Z",
+          "committeeTypeCode": "Subcommittee"
+        },
+        {
+          "officialName": "Subcommittee on Tourism, Trade, and Export",
+          "startDate": "2021-01-03T17:00:00Z",
+          "endDate": "2024-05-13T14:50:21Z",
+          "committeeTypeCode": "Subcommittee"
+        }
+      ]
+    },
+    {
+      "code": "ssju27",
+      "source": "https://api.congress.gov/v3/committee/senate/ssju27",
+      "at": "2026-10-06T23:08:10.026Z",
+      "httpStatus": 200,
+      "status": "VERIFIED_DETAIL",
+      "isCurrent": true,
+      "history": [
+        {
+          "officialName": "Subcommittee on Human Rights and the Law",
+          "startDate": "2024-11-27T19:50:25Z",
+          "endDate": "2025-01-03T16:59:00Z",
+          "committeeTypeCode": "Subcommittee"
+        },
+        {
+          "officialName": "Senate Subcommittee on Human Rights and the Law",
+          "startDate": "2021-01-03T17:00:00Z",
+          "endDate": "2024-11-27T19:50:24Z",
+          "committeeTypeCode": "Subcommittee"
+        },
+        {
+          "startDate": "1981-01-01T05:00:00Z",
+          "endDate": "1986-12-31T05:00:00Z"
+        }
+      ]
+    }
+  ],
+  "calendarReceipts": [
+    {
+      "chamber": "house",
+      "session": "2026",
+      "from_date": "2026-09-29T00:00:00.000Z",
+      "to_date": "2026-10-20T00:00:00.000Z",
+      "status": "complete",
+      "pages": 22,
+      "items": 0,
+      "details": {
+        "found": 0,
+        "pages": 22,
+        "events": [],
+        "issues": [],
+        "chamber": "house",
+        "session": "2026",
+        "updated": 0,
+        "expected": 0,
+        "inserted": 0,
+        "unchanged": 0,
+        "availability": "available",
+        "sourceIssues": [],
+        "skippedOutsideWindow": 0
+      },
+      "attempted_at": "2026-10-06T23:29:13.676Z",
+      "receipt_rank": "1"
+    },
+    {
+      "chamber": "house",
+      "session": "2026",
+      "from_date": "2026-09-29T00:00:00.000Z",
+      "to_date": "2026-10-20T00:00:00.000Z",
+      "status": "complete",
+      "pages": 22,
+      "items": 0,
+      "details": {
+        "found": 0,
+        "pages": 22,
+        "events": [],
+        "issues": [],
+        "chamber": "house",
+        "session": "2026",
+        "updated": 0,
+        "expected": 0,
+        "inserted": 0,
+        "unchanged": 0,
+        "availability": "available",
+        "sourceIssues": [],
+        "skippedOutsideWindow": 0
+      },
+      "attempted_at": "2026-10-06T23:14:59.452Z",
+      "receipt_rank": "2"
+    },
+    {
+      "chamber": "house",
+      "session": "2026",
+      "from_date": "2026-09-29T00:00:00.000Z",
+      "to_date": "2026-10-20T00:00:00.000Z",
+      "status": "complete",
+      "pages": 22,
+      "items": 0,
+      "details": {
+        "found": 0,
+        "pages": 22,
+        "events": [],
+        "issues": [],
+        "chamber": "house",
+        "session": "2026",
+        "updated": 0,
+        "expected": 0,
+        "inserted": 0,
+        "unchanged": 0,
+        "availability": "available",
+        "sourceIssues": [],
+        "skippedOutsideWindow": 0
+      },
+      "attempted_at": "2026-10-06T23:00:18.485Z",
+      "receipt_rank": "3"
+    },
+    {
+      "chamber": "joint",
+      "session": "2026",
+      "from_date": "2026-01-01T00:00:00.000Z",
+      "to_date": "2026-12-31T00:00:00.000Z",
+      "status": "complete",
+      "pages": 7,
+      "items": 0,
+      "details": {
+        "errors": 0,
+        "fetched": 136,
+        "complete": true,
+        "qualified": 136,
+        "identityRepairs": 0,
+        "linkedCommittees": 31,
+        "ledgerLinkedEvents": 136,
+        "linkedOfficialCommittees": 62
+      },
+      "attempted_at": "2026-10-06T09:02:17.608Z",
+      "receipt_rank": "1"
+    },
+    {
+      "chamber": "joint",
+      "session": "2026",
+      "from_date": "2026-01-01T00:00:00.000Z",
+      "to_date": "2026-12-31T00:00:00.000Z",
+      "status": "complete",
+      "pages": 7,
+      "items": 0,
+      "details": {
+        "errors": 0,
+        "fetched": 136,
+        "complete": true,
+        "qualified": 136,
+        "identityRepairs": 0,
+        "linkedCommittees": 26,
+        "ledgerLinkedEvents": 136,
+        "linkedOfficialCommittees": 63
+      },
+      "attempted_at": "2026-10-05T09:01:12.809Z",
+      "receipt_rank": "2"
+    },
+    {
+      "chamber": "joint",
+      "session": "2026",
+      "from_date": "2026-01-01T00:00:00.000Z",
+      "to_date": "2026-12-31T00:00:00.000Z",
+      "status": "complete",
+      "pages": 7,
+      "items": 0,
+      "details": {
+        "errors": 0,
+        "fetched": 136,
+        "complete": true,
+        "qualified": 136,
+        "identityRepairs": 0,
+        "linkedCommittees": 26,
+        "ledgerLinkedEvents": 136,
+        "linkedOfficialCommittees": 63
+      },
+      "attempted_at": "2026-10-04T09:01:14.680Z",
+      "receipt_rank": "3"
+    },
+    {
+      "chamber": "senate",
+      "session": "2026",
+      "from_date": "2026-09-29T00:00:00.000Z",
+      "to_date": "2026-10-20T00:00:00.000Z",
+      "status": "failed",
+      "pages": 19,
+      "items": 0,
+      "details": {
+        "found": 0,
+        "pages": 19,
+        "events": [],
+        "issues": [
+          "https://www.flsenate.gov/Committees/Show/FP/2026: Florida source HTTP 429; publisher throttled; retry after 300 seconds; remaining host requests deferred"
+        ],
+        "chamber": "senate",
+        "session": "2026",
+        "updated": 0,
+        "expected": 0,
+        "inserted": 0,
+        "unchanged": 0,
+        "availability": "available",
+        "sourceIssues": [
+          "https://www.flsenate.gov/Committees/Show/FP/2026: Florida source HTTP 429; publisher throttled; retry after 300 seconds; remaining host requests deferred"
+        ],
+        "skippedOutsideWindow": 0
+      },
+      "attempted_at": "2026-10-06T23:28:29.917Z",
+      "receipt_rank": "1"
+    },
+    {
+      "chamber": "senate",
+      "session": "2026",
+      "from_date": "2026-09-29T00:00:00.000Z",
+      "to_date": "2026-10-20T00:00:00.000Z",
+      "status": "complete",
+      "pages": 49,
+      "items": 0,
+      "details": {
+        "found": 0,
+        "pages": 49,
+        "events": [],
+        "issues": [],
+        "chamber": "senate",
+        "session": "2026",
+        "updated": 0,
+        "expected": 0,
+        "inserted": 0,
+        "unchanged": 0,
+        "availability": "available",
+        "sourceIssues": [],
+        "skippedOutsideWindow": 0
+      },
+      "attempted_at": "2026-10-06T23:13:29.853Z",
+      "receipt_rank": "2"
+    },
+    {
+      "chamber": "senate",
+      "session": "2026",
+      "from_date": "2026-09-29T00:00:00.000Z",
+      "to_date": "2026-10-20T00:00:00.000Z",
+      "status": "complete",
+      "pages": 49,
+      "items": 0,
+      "details": {
+        "found": 0,
+        "pages": 49,
+        "events": [],
+        "issues": [],
+        "chamber": "senate",
+        "session": "2026",
+        "updated": 0,
+        "expected": 0,
+        "inserted": 0,
+        "unchanged": 0,
+        "availability": "available",
+        "sourceIssues": [],
+        "skippedOutsideWindow": 0
+      },
+      "attempted_at": "2026-10-06T22:58:39.508Z",
+      "receipt_rank": "3"
+    },
+    {
+      "chamber": "senate",
+      "session": "2027",
+      "from_date": "2026-09-29T00:00:00.000Z",
+      "to_date": "2026-10-20T00:00:00.000Z",
+      "status": "failed",
+      "pages": 0,
+      "items": 0,
+      "details": {
+        "found": 0,
+        "pages": 0,
+        "events": [],
+        "issues": [
+          "Florida senate calendar: Florida source HTTP 429; publisher throttled; retry after 300 seconds; remaining host requests deferred"
+        ],
+        "chamber": "senate",
+        "session": "2027",
+        "updated": 0,
+        "expected": 0,
+        "inserted": 0,
+        "unchanged": 0,
+        "availability": "available",
+        "sourceIssues": [
+          "Florida senate calendar: Florida source HTTP 429; publisher throttled; retry after 300 seconds; remaining host requests deferred"
+        ],
+        "skippedOutsideWindow": 0
+      },
+      "attempted_at": "2026-10-06T23:29:49.371Z",
+      "receipt_rank": "1"
+    },
+    {
+      "chamber": "senate",
+      "session": "2027",
+      "from_date": "2026-09-29T00:00:00.000Z",
+      "to_date": "2026-10-20T00:00:00.000Z",
+      "status": "failed",
+      "pages": 2,
+      "items": 0,
+      "details": {
+        "found": 0,
+        "pages": 2,
+        "events": [],
+        "issues": [],
+        "chamber": "senate",
+        "session": "2027",
+        "updated": 0,
+        "expected": 0,
+        "inserted": 0,
+        "unchanged": 0,
+        "availability": "unavailable",
+        "sourceIssues": [
+          "https://www.flsenate.gov/Committees/Show/AG/2027: requested Senate session 2027, publisher served 2026F"
+        ],
+        "skippedOutsideWindow": 0
+      },
+      "attempted_at": "2026-10-06T23:15:34.870Z",
+      "receipt_rank": "2"
+    },
+    {
+      "chamber": "senate",
+      "session": "2027",
+      "from_date": "2026-09-29T00:00:00.000Z",
+      "to_date": "2026-10-20T00:00:00.000Z",
+      "status": "failed",
+      "pages": 2,
+      "items": 0,
+      "details": {
+        "found": 0,
+        "pages": 2,
+        "events": [],
+        "issues": [],
+        "chamber": "senate",
+        "session": "2027",
+        "updated": 0,
+        "expected": 0,
+        "inserted": 0,
+        "unchanged": 0,
+        "availability": "unavailable",
+        "sourceIssues": [
+          "https://www.flsenate.gov/Committees/Show/AG/2027: requested Senate session 2027, publisher served 2026F"
+        ],
+        "skippedOutsideWindow": 0
+      },
+      "attempted_at": "2026-10-06T23:00:54.132Z",
+      "receipt_rank": "3"
+    }
+  ],
+  "automaticCapture": {
+    "captureAllPublicEvents": true,
+    "stateServerCaptureEnabled": true,
+    "futureCanonicalRows": 0,
+    "approvedFuturePublic": 0,
+    "approvedFuturePublicMissingSchedule": 0,
+    "scope": "All canonical US and Florida rows with future starts_at or undated-time rows on/after current Eastern date; no upper date limit or status/visibility exclusion"
+  },
+  "automaticCaptureInterpretation": "All-public policy and effective scheduled-owner Florida flags are enabled. No future canonical rows were retained at this readback; zero missing schedules cannot establish complete discovery or universal recording. Explicit browser-only media remains blocked for server capture.",
+  "hb1211Dataset": {
+    "previewTask": "18184997a76045eb841d87f15948d23e",
+    "retrieveTask": "284e444733ee42049c18ef6c4f26cfeb",
+    "verifyTask": "932f0596e5f14ba1bb3af376bffece5e",
+    "retrieveExitCode": 1,
+    "failureStage": "DATASET_LIST",
+    "failureCategory": "PROVIDER_REJECTED",
+    "applied": false,
+    "protectedBillAndFourVersionsUnchanged": true,
+    "inventoryPresent": false,
+    "reservedMaximum": 8,
+    "usageAfter": {
+      "month": "2026-10",
+      "used": 28019
+    },
+    "failedReservationRetained": true,
+    "automaticReplay": false
+  },
+  "remainingBoundaries": [
+    "All six pinned owners produced completed configured tasks. Latest discovery/enrichment/archive runs exited 0; latest Florida calendar/updates/source-probe runs exited 1 with retained publisher throttle/access failures. Earlier current-session calendar run succeeded on all 71 pages.",
+    "JCT source HTTP403; Florida Senate HTTP429 with publisher Retry-After respected; Foreign Affairs stale press-index HTTP404 retained even with verified current fallback.",
+    "Two federal committee currentness/roster sources disagree.",
+    "Optional 2027 Florida Senate session remains unavailable.",
+    "Unavailable original news feeds require qualified replacements.",
+    "No complete historical discovery or universal captured audio certification.",
+    "One reviewed debrief is not universal model-quality certification."
+  ],
+  "privateEvidenceDirectories": [
+    "calendar-health-release-v5",
+    "calendar-health-promotion",
+    "calendar-worker-pin",
+    "discovery-worker-pins",
+    "calendar-post-release-audit-v4",
+    "hb1211-calendar-execution",
+    "browser-live"
+  ],
+  "sixDatabaseOwnerHeartbeats": [
+    {
+      "job_key": "archive-reconciliation",
+      "enabled": true,
+      "schedule_enabled": true,
+      "status": "succeeded",
+      "last_started_at": "2026-10-06T23:27:02.778Z",
+      "last_success_at": "2026-10-06T23:27:02.871Z",
+      "last_failure_at": null,
+      "last_error": null,
+      "metrics": {
+        "errors": 0,
+        "skipped": 0,
+        "updated": 0,
+        "inserted": 0
+      }
+    },
+    {
+      "job_key": "central-discovery",
+      "enabled": true,
+      "schedule_enabled": true,
+      "status": "succeeded",
+      "last_started_at": "2026-10-06T23:36:17.525Z",
+      "last_success_at": "2026-10-06T23:36:38.183Z",
+      "last_failure_at": null,
+      "last_error": null,
+      "metrics": {
+        "sourcesFailed": 0,
+        "sourcesAttempted": 3,
+        "sourcesSucceeded": 3
+      }
+    },
+    {
+      "job_key": "committee-enrichment",
+      "enabled": true,
+      "schedule_enabled": true,
+      "status": "succeeded",
+      "last_started_at": "2026-10-06T23:26:37.380Z",
+      "last_success_at": "2026-10-06T23:26:57.327Z",
+      "last_failure_at": "2026-10-06T21:56:43.767Z",
+      "last_error": null,
+      "metrics": {
+        "errors": 0,
+        "skipped": 49,
+        "updated": 0,
+        "inserted": 0
+      }
+    },
+    {
+      "job_key": "committee-updates",
+      "enabled": true,
+      "schedule_enabled": true,
+      "status": "failed",
+      "last_started_at": "2026-10-06T23:26:50.458Z",
+      "last_success_at": "2026-10-06T17:00:02.784Z",
+      "last_failure_at": "2026-10-06T23:29:57.909Z",
+      "last_error": "Committee updates incomplete: 8 error(s)",
+      "metrics": {
+        "errors": 8,
+        "skipped": 65,
+        "updated": 0,
+        "inserted": 0
+      }
+    },
+    {
+      "job_key": "florida-calendar",
+      "enabled": true,
+      "schedule_enabled": true,
+      "status": "failed",
+      "last_started_at": "2026-10-06T23:28:29.903Z",
+      "last_success_at": "2026-10-06T23:15:36.447Z",
+      "last_failure_at": "2026-10-06T23:29:49.389Z",
+      "last_error": "Florida calendar incomplete: 2 issue(s)",
+      "metrics": {
+        "errors": 2,
+        "complete": false,
+        "skipped": 0,
+        "updated": 0,
+        "inserted": 0
+      }
+    },
+    {
+      "job_key": "source-probe",
+      "enabled": true,
+      "schedule_enabled": true,
+      "status": "failed",
+      "last_started_at": "2026-10-06T23:27:21.934Z",
+      "last_success_at": "2026-10-06T17:10:05.021Z",
+      "last_failure_at": "2026-10-06T23:29:39.620Z",
+      "last_error": "Source probe incomplete: 9 error(s)",
+      "metrics": {
+        "errors": 9,
+        "skipped": 4,
+        "updated": 148,
+        "inserted": 0
+      }
+    }
+  ]
+}

@@ -97,12 +97,24 @@ export class LegiWatchPhase9JobsService {
         if (input.job === 'florida-calendar') {
           const now = new Date();
           const window = defaultFloridaCalendarWindow(now);
-          return discoverFloridaCalendarSessions(this.prisma, {
+          const metrics = await discoverFloridaCalendarSessions(this.prisma, {
             ...window,
             sessions: floridaCalendarSessions([], process.env, now),
             includeArchive: false,
             log: console.log,
           });
+          if (!metrics.complete || metrics.errors > 0) {
+            throw new LegiWatchPhase9PartialFailure(
+              `Florida calendar incomplete: ${metrics.errors} issue(s)`,
+              {
+                ...metrics,
+                ...(metrics.unavailableSessions?.length
+                  ? { unavailableSessionCodes: metrics.unavailableSessions.join(',') }
+                  : {}),
+              },
+            );
+          }
+          return metrics;
         }
         if (input.job === 'florida-archive') {
           const now = new Date();
