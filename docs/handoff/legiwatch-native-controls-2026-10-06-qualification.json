@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-06T15:53:40.561230+00:00",
+  "pullRequest": "https://github.com/neo-capiro/capirov2/pull/2110",
+  "previousReleases": [
+    "https://github.com/neo-capiro/capirov2/pull/2096",
+    "https://github.com/neo-capiro/capirov2/pull/2102"
+  ],
+  "sourceSha": "b0e00b722a7cf3eb9050d62981a9fc7a8edf3c73",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:00468bfc9f8ba5e7b909b8ad28c211094fa87b646e20a5f5e320e87494c3dea9",
+  "service": "web-vnext",
+  "schemaChange": false,
+  "build": {
+    "id": "capiro-build-web-dev:a00e0766-5cd6-4bb4-bbdc-90f8aaba2fb2",
+    "status": "SUCCEEDED",
+    "architecture": "arm64",
+    "exactSourceAndImageLabel": true,
+    "runtimeNginxConfigAndAssets": true,
+    "pushedDigestMatched": true
+  },
+  "checks": {
+    "webTypecheck": "passed",
+    "packagesBuild": "passed",
+    "fullLegiWatchWebScope": {
+      "success": true,
+      "suites": 334,
+      "passed": 1156,
+      "failed": 0,
+      "pending": 0
+    },
+    "minimumSuiteAndTestFloors": "passed",
+    "trackedSourceCleanAfterTests": true
+  },
+  "githubActions": {
+    "status": "startup_failure before jobs executed",
+    "sourceSha": "b0e00b722a7cf3eb9050d62981a9fc7a8edf3c73",
+    "runs": [
+      37490248876,
+      37489901098
+    ],
+    "countedAsPassed": false,
+    "equivalentWebJobScope": "Executed in the exact-source native ARM64 CodeBuild above; GitHub checks are not substituted with assumed results."
+  },
+  "review": {
+    "reviewer": "Codex under owner instruction to fix, merge and ship; independent debrief_review review of exact two-line CSS diff",
+    "status": "no blockers",
+    "baseSha": "006cbc6ee095be48968ffee00aade83f12ee9248",
+    "files": [
+      "apps/web/src/vnext/pages/legiwatch/legiwatch.css"
+    ]
+  },
+  "behavior": [
+    "Unclassified native text inputs, selects and textareas have a 36px desktop minimum so labels fit shared padding.",
+    "The inherited minimum becomes 44px below 1180px to preserve touch targets.",
+    "Checkbox, radio and range inputs are excluded; classed design-system controls retain their sizing."
+  ],
+  "compatibility": {
+    "backendApiChanges": false,
+    "databaseChanges": false,
+    "configOrPermissionChanges": false,
+    "observedProductionSource": "6db96857068b52ec2993af33267f14a45efcf2e6",
+    "observedProductionSourceIsAncestor": true,
+    "previousBackendAndRecordingQualification": "docs/handoff/legiwatch-ui-audit-2026-10-06-qualification.json"
+  },
+  "browserAcceptance": {
+    "reproduction": "Production desktop alert work-state select was 24px high with 16px vertical padding and an 11px font; label clipped.",
+    "followUp": "Requires post-promotion live label and desktop/mobile sizing acceptance."
+  },
+  "notClaimed": [
+    "All upstream sources healthy",
+    "Complete publisher inventory",
+    "Recording every future hearing regardless of source access",
+    "Missing bill analysis or media fabricated"
+  ]
+}
