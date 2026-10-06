@@ -688,6 +688,21 @@ export function resetMeriV3RolloutDiagnosticsForTest(): void {
  * budget-amount claim with an unrelated limitation (Stage 1 T4). The model
  * still receives the full turn, attachments included.
  */
+/**
+ * Client-file read coordination applies to ordinary client chat turns only. A
+ * Deep Research run turn owns its evidence through the research receipts, and a
+ * research plan turn runs with no tools at all (toolPolicy 'none'), so holding
+ * either to a client-file read can only fail: planning was released as
+ * "partial" whenever its prompt mentioned files (Stage 2 Release A check).
+ */
+export function meriDocumentRequestFor(
+  dto: Pick<MeriV3ChatInput, 'clientId' | 'researchRun' | 'toolPolicy' | 'messages'>,
+) {
+  return dto.clientId && !dto.researchRun && dto.toolPolicy !== 'none'
+    ? resolveMeriDocumentRequest(dto.messages ?? [])
+    : null;
+}
+
 export function userRequestText(text: string): string {
   return stripAppendedAttachmentText(text);
 }
@@ -948,8 +963,7 @@ export class MeriV3AssistantService {
       };
     }
 
-    const documentRequest =
-      dto.clientId && !dto.researchRun ? resolveMeriDocumentRequest(dto.messages ?? []) : null;
+    const documentRequest = meriDocumentRequestFor(dto);
     const lastUserText = documentRequest?.request ?? this.lastUserText(dto);
     const literalAudit = buildLiteralAuditContext(dto.messages ?? []);
     const documentCompletion =
