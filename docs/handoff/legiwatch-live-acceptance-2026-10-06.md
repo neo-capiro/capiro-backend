@@ -6,7 +6,16 @@ Scope: 230 federal and 66 active Florida committee rooms, plus one retained reti
 
 PR #2070 merged at `1d39459a3d6a2fdf009539781807e5db5258325f`. Its exact source passed 591 API and 91 web tests and an ARM64 image build. The first promotion detected a simultaneous API release and stopped without rollback. The combined source `d6fef85b726e6c7f4c5c674f82a47602894a64f9` preserves both releases, passed 656 API and 91 web tests, and became healthy on API revision 592. Its qualified digest `045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c` also runs the ten API ingestion owners and notification consumer.
 
-The count/paraphrase follow-up at `6e9d23232f4f9a45e6b34ccffdbf8ff265b723ef` passed 660 API and 1,125 web tests, with zero failures, skips or todos. Web revision 410 is healthy on digest `c662009020227ae02bb0e0a3e4044eb5363d545f0d8dc3cb64b8524a3a3c8fbf`. Live browser acceptance confirms Proceedings 1 for January 6 and Proceedings 10 for China Select, matching the recent rows. Final API/orchestrator editor-budget qualification and debrief acceptance are still in progress.
+PR #2075 merged at `988442784332cd6281bfa79048fab42fd762ae94`. Its final source `c83a0f44a7fb8bc713bb6fc02bdb7b14ea0da59d` passed 662 API tests and 1,512 runnable orchestrator tests; two unchanged live tenant-fixture placeholders remain explicitly unexercised. The byte-identical web runtime previously passed 1,125 tests with no failures, skips or todos. Final ARM64 builds, runtime imports, digest checks and guarded promotions passed with no migration or permission changes. Independent readback at 06:31:22Z confirmed every service healthy, with no pending tasks:
+
+| Service | Revision / healthy tasks | Immutable digest |
+| --- | --- | --- |
+| API | 594 / 2 | `249c7a801cebff94c824b3673aef20218e77ccfb7398d9ffe127a6d01fb12487` |
+| Editor orchestrator | 157 / 1 | `d1b104a6368c43f3f418b82de37c42df8fe60c0fed30c652ce539ae8dd361b08` |
+| Web | 410 / 1 | `c662009020227ae02bb0e0a3e4044eb5363d545f0d8dc3cb64b8524a3a3c8fbf` |
+| Intelligence / capture | 66 / 1 | `4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d` |
+
+Live browser acceptance confirms Proceedings 1 for January 6 and Proceedings 10 for China Select, matching the recent rows. The ingestion owners retain their proven `045ee466` digest because the final runtime delta affects debrief generation/editor requests only.
 
 ## Verified repairs
 
@@ -33,4 +42,6 @@ The readiness and recording counts use the August 7–November 5 window, distinc
 
 The incorrect Golden Dome speaker label was corrected through the live UI to Senator Tim Kaine. Independent readback confirms manual confidence 1, stale role/person reference cleared, and unchanged transcript/capture/other speaker rows. The first complete drafts were left unsaved after review found factual qualification errors. Quotation validation correctly withheld two later drafts with unsupported quotation marks. The paraphrase prompt and safe rejection diagnostics address this without weakening quotation checks.
 
-Live Meri refinement reached the authenticated orchestrator but exceeded the browser deadline after unnecessary research and a truncated final response. The bounded editor repair must pass qualification and live acceptance before closure. Final acceptance still requires a new seven-section draft with evidence-linked moments, review of its factual distinctions and conditional deadlines, successful refinement, and saving/reopening the document.
+The bounded editor repair passed qualification and deployment. Fresh live generation then produced all seven sections and 12 evidence-linked moments without a quotation error. Independent review confirmed the key moments and identified section wording requiring correction: speaker attribution within an exchange, estimates versus appropriations, separate allied munitions discussions, development epochs versus full capability, analyst implications and transcript coverage.
+
+Live refinement returned and applied edits without the former timeout, but acceptance caught a second defect: the editor prompt supplied only the first 1,500 characters of each section, so full-section replacements copied ellipses and omitted unseen tails. The draft was not saved. The live Undo action restored the full original sections, including their endings. A follow-up must supply complete section/context content and reject an oversized request explicitly before replacement edits are permitted. Final acceptance still requires that repair, reviewed refinement and save/reopen verification.
