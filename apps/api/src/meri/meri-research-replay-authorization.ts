@@ -590,6 +590,28 @@ function canonicalClientContext(value: {
   return parts.join('\n');
 }
 
+/** Distinct owner re-reads run at most this many at a time (database and provider load). */
+const OWNER_RECHECK_CONCURRENCY = 4;
+
+type OwnerReadOutcome = { ok: true; result: unknown } | { ok: false; failure: string };
+
+/** Run keyed tasks at most `limit` at a time; resolves every task's result by key. */
+async function runKeyedWithConcurrency<T>(
+  tasks: Map<string, () => Promise<T>>,
+  limit: number,
+): Promise<Map<string, T>> {
+  const queue = [...tasks];
+  const results = new Map<string, T>();
+  const worker = async () => {
+    for (let item = queue.shift(); item; item = queue.shift()) {
+      const [key, task] = item;
+      results.set(key, await task());
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, queue.length) }, worker));
+  return results;
+}
+
 /**
  * Reauthorize every durable owner read inherited by a report before releasing
  * its body. This seam is shared by research publication/export and ordinary
@@ -873,40 +895,58 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
     });
 
   const loaded = await load();
-  for (const authorized of loaded.envelopes) {
-    const { envelope, sourceAuthorization } = authorized;
-    let currentResult: unknown;
-    try {
-      const executeInput =
-        envelope.tool === 'read_chat_attachments'
-          ? { ...envelope.input, conversationId: loaded.conversationId }
-          : (sourceAuthorization?.executeInput ?? envelope.input);
-      const executeCurrentOwner = () => tools.execute(ctx, envelope.tool as never, executeInput);
-      currentResult =
-        envelope.tool === 'read_chat_attachments'
-          ? await withMeriChatAttachmentReadScope(
-              {
-                tenantId: ctx.tenantId,
-                userId: ctx.userId,
-                conversationId: loaded.conversationId,
-                selectedClientId: loaded.clientId,
-              },
-              executeCurrentOwner,
-            )
-          : await executeCurrentOwner();
-    } catch (error) {
-      const failure = error instanceof Error ? error.name : 'unknown';
+  // A report can rest on dozens of receipts, and the same owner read (same
+  // tool, same exact input) recurs across the parent, its children and
+  // re-reads. Execute each distinct read once, a few at a time, then compare
+  // every receipt in order (T5 ca7158f1: 40+ serial re-reads took six minutes,
+  // twice per publication and again on every read of the report).
+  const reads = new Map<string, () => Promise<OwnerReadOutcome>>();
+  const readKeys = loaded.envelopes.map(({ envelope, sourceAuthorization }) => {
+    const executeInput =
+      envelope.tool === 'read_chat_attachments'
+        ? { ...envelope.input, conversationId: loaded.conversationId }
+        : (sourceAuthorization?.executeInput ?? envelope.input);
+    const key = `${envelope.tool}:${researchJsonSha256(executeInput)}`;
+    if (!reads.has(key))
+      reads.set(key, async () => {
+        const executeCurrentOwner = () => tools.execute(ctx, envelope.tool as never, executeInput);
+        try {
+          return {
+            ok: true,
+            result:
+              envelope.tool === 'read_chat_attachments'
+                ? await withMeriChatAttachmentReadScope(
+                    {
+                      tenantId: ctx.tenantId,
+                      userId: ctx.userId,
+                      conversationId: loaded.conversationId,
+                      selectedClientId: loaded.clientId,
+                    },
+                    executeCurrentOwner,
+                  )
+                : await executeCurrentOwner(),
+          };
+        } catch (error) {
+          return { ok: false, failure: error instanceof Error ? error.name : 'unknown' };
+        }
+      });
+    return key;
+  });
+  const outcomes = await runKeyedWithConcurrency(reads, OWNER_RECHECK_CONCURRENCY);
+  for (const [index, { envelope }] of loaded.envelopes.entries()) {
+    const outcome = outcomes.get(readKeys[index]!)!;
+    if (!outcome.ok) {
       logger.warn(
         `Research source re-check refused: session=${loaded.sessionId} tool=${envelope.tool} ` +
-          `execution=${envelope.executionId} reason=owner_read_failed:${failure}`,
+          `execution=${envelope.executionId} reason=owner_read_failed:${outcome.failure}`,
       );
       throw new ConflictException('A research source is no longer authorized.');
     }
-    if (!currentOwnerResultAuthorizesReplay(envelope.tool, envelope.result, currentResult)) {
+    if (!currentOwnerResultAuthorizesReplay(envelope.tool, envelope.result, outcome.result)) {
       logger.warn(
         `Research source re-check refused: session=${loaded.sessionId} tool=${envelope.tool} ` +
           `execution=${envelope.executionId} reason=version_changed ` +
-          `changed=${JSON.stringify(changedResultFields(envelope.result, currentResult))}`,
+          `changed=${JSON.stringify(changedResultFields(envelope.result, outcome.result))}`,
       );
       throw new ConflictException('A research source version changed.');
     }

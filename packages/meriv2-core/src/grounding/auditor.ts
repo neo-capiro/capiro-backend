@@ -216,6 +216,27 @@ function normalizeQuoteSpan(s: string): string {
   return s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+/**
+ * Tool results are serialized JSON, where a line break or quote mark in the
+ * source is an escape sequence (`\n`, `\"`), so a quote spanning one could never
+ * match. Match against each decoded string value as well. A NUL joins the
+ * values, so a quote cannot straddle two unrelated fields.
+ */
+function quoteCorpusText(serialized: string): string {
+  const strings: string[] = [];
+  const collect = (value: unknown): void => {
+    if (typeof value === 'string') strings.push(value);
+    else if (Array.isArray(value)) value.forEach(collect);
+    else if (value && typeof value === 'object') Object.values(value).forEach(collect);
+  };
+  try {
+    collect(JSON.parse(serialized) as unknown);
+  } catch {
+    return serialized;
+  }
+  return [serialized, ...strings].join('\u0000');
+}
+
 // A double-quoted span long enough to be a real source quote, not an idiom.
 // 40–600 chars: below 40 is coined-term territory; above 600 is a block quote
 // the model would have paraphrased anyway.
@@ -230,13 +251,22 @@ const QUOTED_SPAN_RE = /[“"]([^“”"]{40,600})[”"]/g;
  */
 export function checkQuoteSpans(output: string, ledger: ToolResultLedger): AuditFinding[] {
   if (ledger.entries.length === 0) return [];
-  const corpus = normalizeQuoteSpan(ledger.entries.map((e) => e.serialized).join('\n'));
+  const corpus = normalizeQuoteSpan(
+    ledger.entries.map((e) => quoteCorpusText(e.serialized)).join('\n'),
+  );
   if (corpus.length === 0) return [];
   const findings: AuditFinding[] = [];
   for (const line of toLines(output)) {
     if (!QUOTE_ATTRIBUTION_CUE.test(line)) continue;
     for (const m of line.matchAll(QUOTED_SPAN_RE)) {
-      const span = m[1]!.trim();
+      // Writers put a sentence's comma or period inside the closing quote, and
+      // mark a cut with an ellipsis; neither is part of the source text.
+      const span = m[1]!
+        .trim()
+        .replace(/^(?:\.{3}|…)\s*/, '')
+        .replace(/\s*(?:\.{3}|…)$/, '')
+        .replace(/[,.;:]+$/, '')
+        .trim();
       // A span carrying a FORM-B token is D1's jurisdiction, not a quote.
       if (!span || span.includes('[S:')) continue;
       if (!corpus.includes(normalizeQuoteSpan(span))) {
