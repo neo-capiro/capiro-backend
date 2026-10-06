@@ -526,6 +526,7 @@ export class MeriMcpService {
     const servers = await this.visibleServers(ctx, { where: { enabled: true } });
     const schemas: BridgedTool[] = [];
     const byBridgedName = new Map<string, RegisteredMcpTool>();
+    let retryKrispRateLimit = false;
     for (const server of servers) {
       const managed = managedAppDefinition(server.catalogId);
       if (
@@ -578,6 +579,11 @@ export class MeriMcpService {
           server.authType === 'oauth' &&
           err instanceof Error &&
           ['UnauthorizedError', 'InvalidGrantError', 'InvalidTokenError'].includes(err.name);
+        // A provider throttle does not revoke a previously authorized connection.
+        const krispRateLimit =
+          managed?.id === 'krisp' && !needsReauth &&
+          Number((err as { code?: unknown } | null)?.code) === 429;
+        retryKrispRateLimit ||= krispRateLimit;
         await this.prisma
           .withTenant(ctx.tenantId, (tx) =>
             tx.clioMcpServer.updateMany({
@@ -588,7 +594,7 @@ export class MeriMcpService {
                   : message.slice(0, 500),
                 ...(needsReauth
                   ? { connectionStatus: 'needs_reauth' }
-                  : managed
+                  : managed && !krispRateLimit
                     ? { connectionStatus: 'error' }
                     : {}),
               },
@@ -597,7 +603,11 @@ export class MeriMcpService {
           .catch(() => {});
       }
     }
-    const registry: UserMcpRegistry = { fetchedAt: Date.now(), schemas, byBridgedName };
+    const registry: UserMcpRegistry = {
+      fetchedAt: Date.now() - (retryKrispRateLimit ? REGISTRY_TTL_MS - 60_000 : 0),
+      schemas,
+      byBridgedName,
+    };
     this.registry.set(key, registry);
     return registry;
   }
