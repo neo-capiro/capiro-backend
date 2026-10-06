@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-partial-receipts-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T15:59:00.217905+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "006cbc6ee095be48968ffee00aade83f12ee9248",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:41655e1fb962c33cb9d1d2c0e39dd16ce409f992373803e03ba809f50817c2be",
+      "buildId": "capiro-build-web-dev:e2b3a8fd-deed-48f5-a8e7-adf09b0744ab"
+    }
+  ],
+  "schemaChange": false,
+  "change": "#2103 correction guard counts executed reads only; #2106 partial research reads receipted and re-checked",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
