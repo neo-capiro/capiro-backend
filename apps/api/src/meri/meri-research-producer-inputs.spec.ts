@@ -8,6 +8,7 @@ import {
   contentFreeToolFailure,
   joinResearchProducerInputs,
   pinResearchProducerInputs,
+  researchProducerInputCoverableTool,
   ResearchProducerInputNotCurrent,
   type ResearchProducerInputDraftV1,
 } from './meri-research-producer-inputs';
@@ -202,6 +203,15 @@ describe('research producer input classification', () => {
         contentSha256: createHash('sha256').update('brief text').digest('hex'),
       },
     ]);
+  });
+
+  it('admits to research only tools whose results are receipted or public', () => {
+    for (const tool of ['search_memory', 'read_client_meetings', 'scrape_web_page', 'get_pe_budget_timeline']) {
+      expect(researchProducerInputCoverableTool(tool)).toBe(true);
+    }
+    for (const tool of ['search_research_sources', 'get_client_context', 'search_client_knowledge', 'search_capiro_data', 'get_representation', 'send_email']) {
+      expect(researchProducerInputCoverableTool(tool)).toBe(false);
+    }
   });
 
   it('treats only content-free failures as carrying no source content', () => {
