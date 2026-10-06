@@ -2,8 +2,8 @@
 
 Krisp is a personal OAuth connection in Meri integrations. A user explicitly enables
 automatic imports and may select a Krisp folder. The Engagement background owner polls
-every three minutes, reads transcripts, and uses the existing governed Meri debrief
-generator and shared formatter. Notes and debriefs are encrypted, approved, private,
+every three minutes and copies Krisp's existing notes verbatim into both Meeting Notes
+and Debrief. No Meri model or debrief generator is invoked. Notes and debriefs are encrypted, approved, private,
 and committed together with import completion. This integration does not store an additional
 raw transcript or change/delete the user's originals in Krisp.
 
@@ -17,8 +17,8 @@ raw transcript or change/delete the user's originals in Krisp.
   `notetaker.krisp.enabled=true` can use the connector, OAuth callback, tools,
   settings routes, and worker. The October 5 expansion enables this flag for all
   existing tenants; missing/false flags still disable access.
-- The existing MCP OAuth callback, token encryption, notes encryption, and Meri
-  generation configuration must already work. `CLIO_MCP_ENABLED=false` disables
+- The existing MCP OAuth callback, token encryption, notes encryption
+  configuration must already work. `CLIO_MCP_ENABLED=false` disables
   MCP access. `MERI_MCP_KRISP_ENABLED=false` additionally disables Krisp provider access.
 - The existing Engagement runtime policy selects the sole background owner and
   disables polling/provider calls in a shadow process. No second scheduler is needed.
@@ -36,7 +36,7 @@ Only meetings owned by the connected user are candidates. Match by a unique cale
 identifier within ten minutes, otherwise a unique join URL or matching organizer,
 subject, and time. Ambiguous/unmatched records appear in Meri integrations for explicit
 selection from the user's meetings near that date. A deleted/inaccessible/reassigned
-meeting cannot receive an in-flight generated artifact.
+meeting cannot receive an in-flight imported artifact.
 
 Durable imports are unique per tenant, user, and Krisp document ID. Compare-and-set
 leases fence competing workers. Notes, debrief, and completion are one transaction;
@@ -44,7 +44,7 @@ partial failures roll back. A disconnected account, disabled preference/flag, in
 membership, or changed meeting is rechecked before save. Completed import tombstones
 prevent retries from recreating manually deleted artifacts. Provider/write failures
 retry up to ten times, with manual retry by selecting a meeting again. Waiting for a
-transcript does not consume that failure budget.
+Krisp notes does not consume that failure budget.
 
 ## Provider verification and limits
 
@@ -60,17 +60,32 @@ The live unauthenticated endpoint was checked on October 5, 2026:
   and meeting listing are requested. Only `search_meetings`, `get_multiple_documents`,
   and `list_folders` are permitted by the managed tool allowlist.
 
-No authenticated Krisp account was available during implementation. Live `tools/list`
-schemas and response payloads still require qualification with the first pilot account.
-The adapter maps supported advertised fields and fails closed on unsupported required
-parameters, folder filters, pagination, invalid IDs, or response shapes. It never treats
-a summary as a transcript. The fixtures are representative contracts, not captured
-Krisp responses. Do not report the live sign-in/import acceptance test as passed until
-an authorized user completes it.
+Authenticated tool schemas and JSON response shapes were verified on October 6, 2026.
+Search uses `after`/`before`, `folder_ids`, `limit=50`, and `offset`. Its `count` is
+only the page count, so a full page requires fetching the next page. Documents use
+`get_multiple_documents({ ids, include: ['notes'], format: 'json' })`; the returned
+`results[].document.notes` string is preserved exactly. A missing notes body waits
+for Krisp and never falls back to transcript, summary, or Meri generation. The
+requested document ID is checked at both envelope and document level.
 
-The MCP API does not document starting a live meeting recorder. Krisp must capture the
-meeting separately. Documents beyond the transcript size limit (500,000 characters)
-and searches beyond 20 pages need a narrower scope or later adapter expansion.
+The MCP API does not document starting a live meeting recorder. Krisp must capture
+the meeting separately. Notes above 100,000 characters or explicitly truncated
+responses fail closed, below the provider's 120,000-character response limit.
+Automatic searches beyond 20 pages require a narrower scope.
+
+## Operator backfill
+
+`apps/api/scripts/lib/krisp-backfill.cjs` is an operator-only library with a dry-run
+default. It takes an exact tenant/user context, active personal connection and
+preference, bounded dates, and an explicit historical-meeting option. It reuses
+the worker's authorization, ownership, lease, encryption, and atomic paired-save
+path; it never bootstraps the application or calls a model. Completed/skipped
+imports and active leases are preserved. Historical meetings have a deterministic
+per-user Krisp ID, original timestamps, private visibility, and no guessed client.
+Existing manual notes are never replaced. Readback decrypts both saved artifacts
+and verifies equal text without logging their contents. A rerun skips completed
+imports. Only run apply after the direct-notes worker is deployed, so an old
+worker cannot claim a backfill record and generate text.
 
 References:
 
@@ -81,7 +96,7 @@ References:
 
 - API and web TypeScript checks.
 - Focused backend tests: tenant/OAuth/tool gates, revoked access, lease fencing,
-  atomic rollback/retry, transcript readiness, and unchanged Recall behavior.
+  atomic rollback/retry, notes readiness, and unchanged Recall behavior.
 - UI tests: explicit opt-in, folder selection, disconnected state, ambiguous meeting
   selection, and existing managed OAuth interactions.
 - `pnpm --filter @capiro/api exec tsx scripts/verify-krisp-notetaker-db.ts` uses an

@@ -99,8 +99,8 @@ export function KrispNotetakerSettings({ connected }: { connected: boolean }) {
     <section className="krisp-notetaker-settings" aria-label="Krisp automatic notes">
       <h2>Automatic meeting notes</h2>
       <p>
-        Let Krisp capture your meetings. Meri checks every few minutes and saves notes and a debrief
-        when the transcript is ready.
+        Let Krisp capture your meetings. Meri checks every few minutes and copies Krisp’s notes
+        directly into Meeting Notes and Debrief when they are ready.
       </p>
       <label className="krisp-notetaker-settings__toggle">
         <input
@@ -136,9 +136,9 @@ export function KrispNotetakerSettings({ connected }: { connected: boolean }) {
         </select>
       </label>
       <p className="krisp-notetaker-settings__detail">
-        Starts with meetings held after you enable this setting. Meri saves generated notes and
-        debriefs to meetings you own, without automatically sharing them or retaining a raw
-        transcript copy. Your originals remain in Krisp.
+        Starts with meetings held after you enable this setting. Meri saves the same Krisp notes
+        in both places on meetings you own, without generating new text or automatically sharing
+        them. Your originals remain in Krisp.
       </p>
       <button
         type="button"

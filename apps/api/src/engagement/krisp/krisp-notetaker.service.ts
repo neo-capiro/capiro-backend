@@ -12,20 +12,18 @@ import { krispNotetakerEnabled, krispTenantEnabled } from '../../common/krisp-no
 import { MeriManagedMcpService } from '../../meri/meri-managed-mcp.service.js';
 import { managedAppAvailable } from '../../meri/meri-managed-mcp.helpers.js';
 import { ownMeetingWhere } from '../engagement-access.helpers.js';
-import { MeetingCapturePersistenceService } from '../../meeting-capture/meeting-capture-persistence.service.js';
 import { MeetingNotesCryptoService } from '../meeting-notes-crypto.service.js';
 import { EngagementRuntimePolicyService } from '../runtime/engagement-runtime-policy.service.js';
-import { formatDebriefBody } from '../notetaker/meeting-debrief-format.js';
 import {
   KRISP_CATALOG_ID,
   KRISP_LEASE_MS,
   krispArguments,
   krispPayload,
   krispRows,
-  krispTranscript,
+  krispNotes,
+  krispNextPage,
   matchKrispMeeting,
   normalizeKrispMeeting,
-  object,
 } from './krisp.helpers.js';
 
 const scope = (ctx: TenantContext) => ({ tenantId: ctx.tenantId, userId: ctx.userId });
@@ -47,7 +45,6 @@ export class KrispNotetakerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly managed: MeriManagedMcpService,
-    private readonly persistence: MeetingCapturePersistenceService,
     private readonly crypto: MeetingNotesCryptoService,
     private readonly runtime: EngagementRuntimePolicyService,
   ) {}
@@ -169,7 +166,7 @@ export class KrispNotetakerService {
     values: Parameters<typeof krispArguments>[1],
   ) {
     await this.assertEnabled(ctx);
-    this.runtime.assertExternalAction('meeting_debrief_generate');
+    this.runtime.assertExternalAction('integration_sync');
     const schema = (await this.managed.schemasForMeriV3(ctx)).find(
       (tool) => tool.appId === 'krisp' && tool.name.endsWith('__' + name),
     );
@@ -291,7 +288,7 @@ export class KrispNotetakerService {
   }
 
   private async discover(ctx: TenantContext, preference: KrispNotetakerPreference) {
-    // A rolling overlap catches delayed transcripts; existing pending imports retry independently.
+    // A rolling overlap catches delayed notes; existing pending imports retry independently.
     const since = new Date(Math.max(preference.enabledAt.getTime(), Date.now() - 7 * 86_400_000));
     let cursor: string | undefined;
     let offset = 0;
@@ -351,25 +348,15 @@ export class KrispNotetakerService {
           });
         });
       }
-      const envelope = object(object(payload).data ?? payload);
-      const pagination = object(envelope.pagination);
-      const next = envelope.next_cursor ?? envelope.nextCursor ?? pagination.next_cursor;
-      if (typeof next !== 'string' || !next) {
-        const total = envelope.total_count ?? envelope.total ?? pagination.total;
-        if (
-          envelope.has_more === true ||
-          pagination.has_more === true ||
-          (typeof total === 'number' && total > offset + rows.length)
-        ) {
-          if (!rows.length) throw new Error('Empty Krisp pagination page.');
-          offset += rows.length;
-          continue;
-        }
-        return;
+      const next = krispNextPage(payload, rows.length, offset);
+      if (!next.more) return;
+      if (!rows.length) throw new Error('Empty Krisp pagination page.');
+      offset += rows.length;
+      if (next.cursor) {
+        if (cursors.has(next.cursor)) throw new Error('Krisp pagination repeated.');
+        cursors.add(next.cursor);
       }
-      if (cursors.has(next)) throw new Error('Krisp pagination repeated.');
-      cursors.add(next);
-      cursor = next;
+      cursor = next.cursor;
     }
     throw new Error('Krisp import window exceeds the page limit. Select a smaller folder.');
   }
@@ -409,11 +396,11 @@ export class KrispNotetakerService {
         }),
       );
       if (!meeting) throw new Error('Meeting is no longer available.');
-      const transcript = krispTranscript(
+      const body = krispNotes(
         await this.read(ctx, 'get_multiple_documents', { ids: [item.documentId] }),
         item.documentId,
       );
-      if (!transcript) {
+      if (!body) {
         await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
           tx.krispMeetingImport.updateMany({
             where: { id, ...scope(ctx), leaseToken },
@@ -422,19 +409,14 @@ export class KrispNotetakerService {
               leaseToken: null,
               leaseUntil: null,
               attempts: { decrement: 1 },
-              error: 'Waiting for Krisp to finish the transcript.',
+              error: 'Waiting for Krisp to finish the notes.',
             },
           }),
         );
         return;
       }
       await this.assertActive(ctx, preference);
-      this.runtime.assertExternalAction('meeting_debrief_generate');
-      const draft = await this.persistence.generateMeetingDebriefDraft(ctx, meeting.id, {
-        method: 'upload',
-        sourceText: transcript,
-      });
-      const body = formatDebriefBody(draft);
+      // Preserve Krisp's authored notes verbatim in both artifacts; never regenerate them.
       const encrypted = this.crypto.encrypt(body);
       await this.assertActive(ctx, preference);
       await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
