@@ -3758,6 +3758,9 @@ export class MeriResearchService {
     // annotate (decision is never 'hold' there), so the default flow is unchanged.
     let held = false;
     let heldReason = '';
+    // What the reviewer must see to decide a hold: each finding with the exact
+    // flagged sentence. Stored on the review request, never logged.
+    let heldFindings: Array<{ check: string; severity: string; detail: string; span: string }> = [];
     if (auditorMode !== 'off' && reportBody.trim().length > 0) {
       progress.set(RESEARCH_OBSERVER_STATUS.checkingReport);
       try {
@@ -3804,6 +3807,12 @@ export class MeriResearchService {
           // inert under shadow/annotate.
           held = verdict.decision === 'hold';
           if (held) {
+            heldFindings = verdict.findings.slice(0, 10).map((finding) => ({
+              check: finding.check,
+              severity: finding.severity,
+              detail: finding.detail.slice(0, 500),
+              span: finding.span.slice(0, 500),
+            }));
             heldReason = `Grounding auditor: ${verdict.findings
               .map((f) => `${f.check} (${f.severity}): ${f.detail}`)
               .join('; ')}`.slice(0, 2000);
@@ -4156,7 +4165,7 @@ export class MeriResearchService {
         clientId: session.clientId ?? null,
         title: session.title,
         reason: heldReason || 'Grounding auditor held this research report for review.',
-        payload: { artifactId },
+        payload: { artifactId, findings: heldFindings },
         requestedBy: ctx.userId,
       });
     }
