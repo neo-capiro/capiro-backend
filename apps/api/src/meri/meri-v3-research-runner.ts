@@ -20,10 +20,13 @@ import {
 import type { MeriResearchHandoff } from './meri-research-handoff.js';
 import type { ResearchRunState } from './meri-research-run-state.js';
 import type { SourceAttribution } from './meri-research.service.js';
+import { publicResearchSourceTool } from './meri-report-provenance.js';
 import {
-  certifyResearchProducerInputs,
-  publicResearchSourceTool,
-} from './meri-report-provenance.js';
+  classifyResearchProducerInputs,
+  type ResearchProducerInputCategories,
+  type ResearchProducerInputDraftV1,
+  type ResearchProducerInputMode,
+} from './meri-research-producer-inputs.js';
 import {
   projectResearchObserverEvent,
   ResearchTerminalError,
@@ -71,8 +74,10 @@ type DoneFrame = Extract<MeriV3ChatStreamEvent, { type: 'done' }>;
 type ResearchDoneFrame = DoneFrame & {
   producerInputEvaluated?: true;
   producerInputSha256?: string;
-  producerInputMode?: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+  producerInputMode?: ResearchProducerInputMode;
   clientContextSha256?: string | null;
+  producerInputDraft?: ResearchProducerInputDraftV1 | null;
+  producerInputCategories?: ResearchProducerInputCategories;
 };
 
 export interface ResearchChildRuntimeResult {
@@ -84,8 +89,10 @@ export interface ResearchChildRuntimeResult {
   ledgerEntries: LedgerEntry[];
   citations: NonNullable<DoneFrame['citations']>;
   producerInputSha256: string;
-  producerInputMode: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+  producerInputMode: ResearchProducerInputMode;
   clientContextSha256: string | null;
+  producerInputDraft: ResearchProducerInputDraftV1 | null;
+  producerInputCategories: ResearchProducerInputCategories;
   schemaCorrections: 0 | 1;
 }
 
@@ -140,8 +147,10 @@ export class MeriV3ResearchRunner {
     retrieval?: DoneFrame['retrieval'];
     producerInputEvaluated: true;
     producerInputSha256: string;
-    producerInputMode: 'source_free' | 'covered_inputs' | 'unsupported_private_inputs';
+    producerInputMode: ResearchProducerInputMode;
     clientContextSha256: string | null;
+    producerInputDraft: ResearchProducerInputDraftV1 | null;
+    producerInputCategories: ResearchProducerInputCategories;
   }> {
     const result = await this.complete(ctx, input, auth, 'read-only', onEvent);
     const ledgerEntries = result.ledgerEntries ?? [];
@@ -215,6 +224,8 @@ export class MeriV3ResearchRunner {
       producerInputSha256: result.producerInputSha256!,
       producerInputMode: result.producerInputMode!,
       clientContextSha256: result.clientContextSha256 ?? null,
+      producerInputDraft: result.producerInputDraft ?? null,
+      producerInputCategories: result.producerInputCategories!,
     };
   }
 
@@ -375,6 +386,8 @@ export class MeriV3ResearchRunner {
       producerInputSha256: frame.producerInputSha256!,
       producerInputMode: frame.producerInputMode!,
       clientContextSha256: frame.clientContextSha256 ?? null,
+      producerInputDraft: frame.producerInputDraft ?? null,
+      producerInputCategories: frame.producerInputCategories!,
       schemaCorrections,
     };
   }
@@ -483,7 +496,7 @@ export class MeriV3ResearchRunner {
     const durableTools = ledgerEntries.flatMap((entry) =>
       entry.durableSafeRead ? [entry.durableSafeRead.tool] : [],
     );
-    const producerInput = certifyResearchProducerInputs({
+    const producerInput = classifyResearchProducerInputs({
       hashMaterial: {
         systemSha256: createHash('sha256').update(input.system).digest('hex'),
         userSha256: createHash('sha256').update(input.user).digest('hex'),
@@ -495,17 +508,16 @@ export class MeriV3ResearchRunner {
         assistantHistoryTurns:
           input.handoff?.messages.filter((message) => message.role === 'assistant').length ?? 0,
       },
-      toolsUsed: durableTools,
+      durableTools,
       clientContext: input.clientContext,
-      handoffSummaryPresent: Boolean(input.handoff?.summary),
-      handoffAttachmentCount: input.handoff?.attachments.length ?? 0,
-      assistantHandoffTurns:
-        input.handoff?.messages.filter((message) => message.role === 'assistant').length ?? 0,
-      inheritedCitationCount: inherited.citations.length,
-      inheritedUnavailableCount: inherited.unavailable,
-      inheritedOmittedCount: inherited.omitted,
-      contextPacketItemCount: auth.governedContext.contextPacket?.items.length ?? 0,
-      unreceiptedLedgerEntryCount: ledgerEntries.filter((entry) => !entry.durableSafeRead).length,
+      governedContext: auth.governedContext,
+      handoff: input.handoff,
+      inherited: {
+        citations: inherited.citations.length,
+        unavailable: inherited.unavailable,
+        omitted: inherited.omitted,
+      },
+      ledgerEntries,
     });
     return {
       ...result,

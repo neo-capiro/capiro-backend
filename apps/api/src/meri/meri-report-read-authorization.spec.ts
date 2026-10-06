@@ -4,7 +4,11 @@ import {
   RESEARCH_REPORT_BODY_WITHHELD,
   assertCurrentResearchReportSourcesAuthorized,
 } from './meri-research-replay-authorization';
-import { researchToolVersion, sealDurableResearchResult } from './meri-research-durable-result';
+import {
+  researchJsonSha256,
+  researchToolVersion,
+  sealDurableResearchResult,
+} from './meri-research-durable-result';
 import {
   buildResearchReportProvenance,
   certifyResearchProducerInputs,
@@ -12,6 +16,7 @@ import {
 
 const ctx = { tenantId: 'tenant-1', userId: 'user-1', tenantSlug: 'tenant' } as TenantContext;
 const marker = 'REVOKED_MEMORY_REPORT_BODY';
+const GOVERNED_CONTACT_ID = '88888888-8888-4888-8888-888888888888';
 const schema = {
   type: 'object',
   properties: { query: { type: 'string' } },
@@ -42,6 +47,7 @@ function harness(options: {
   toolsUsed?: readonly string[];
   summary?: string | null;
   reportArtifactInSummary?: boolean;
+  governed?: { contactChanged?: boolean; manifestTampered?: boolean };
 } = {}) {
   const savedResult = memory();
   const sealed = sealDurableResearchResult({
@@ -192,6 +198,21 @@ function harness(options: {
       contextPacketItemCount: 0,
       unreceiptedLedgerEntryCount: 0,
     });
+    const governedManifest = {
+      version: 1,
+      packet: null,
+      records: [
+        {
+          domain: 'contacts',
+          id: GOVERNED_CONTACT_ID,
+          updatedAt: '2026-09-28T00:00:00.000Z',
+          versionSha256: null,
+        },
+      ],
+      attachments: [],
+      publicToolResults: [],
+      failedToolResults: 0,
+    };
     const reportProvenance = buildResearchReportProvenance({
       artifactId: report.id,
       messageId: report.messageId,
@@ -206,11 +227,25 @@ function harness(options: {
       receipts: [receipt as never],
       toolsUsed: [...(options.toolsUsed ?? ['search_memory'])],
       producerInputSha256: producerInput.producerInputSha256,
-      producerInputMode: producerInput.producerInputMode as 'covered_inputs',
+      producerInputMode: options.governed
+        ? 'governed_inputs'
+        : (producerInput.producerInputMode as 'covered_inputs'),
       clientContextSha256: producerInput.clientContextSha256,
+      ...(options.governed
+        ? { producerInputManifestSha256: researchJsonSha256(governedManifest) }
+        : {}),
     });
     Object.assign(report.metadata, { reportProvenance });
-    Object.assign(session.metadata, { reportProvenance });
+    Object.assign(session.metadata, {
+      reportProvenance,
+      ...(options.governed
+        ? {
+            producerInputManifest: options.governed.manifestTampered
+              ? { ...governedManifest, failedToolResults: 1 }
+              : governedManifest,
+          }
+        : {}),
+    });
   }
   const tx = {
     clioResearchSession: { findFirst: jest.fn(async () => session) },
@@ -219,6 +254,16 @@ function harness(options: {
       findMany: jest.fn(async () => [conversation]),
     },
     clioMessage: { findMany: jest.fn(async () => [reportMessage]) },
+    engagementContact: {
+      findFirst: jest.fn(async () => ({
+        clientId: null,
+        updatedAt: new Date(
+          options.governed?.contactChanged
+            ? '2026-09-29T00:00:00.000Z'
+            : '2026-09-28T00:00:00.000Z',
+        ),
+      })),
+    },
     clioArtifact: {
       findFirst: jest.fn(async ({ where }: { where: { id: string } }) => artifacts.get(where.id) ?? null),
       findMany: jest.fn(async () => options.reportArtifactInSummary === false ? [] : [report]),
@@ -260,6 +305,27 @@ describe('ordinary research report read authorization', () => {
       },
     });
     expect(h.execute.mock.calls.length).toBeGreaterThan(0);
+  });
+
+  it('releases a governed report while every pinned producer input is current', async () => {
+    const h = harness({ governed: {} });
+
+    const messages = await h.service.listMessages(ctx, 'conversation-1');
+
+    expect(messages[0]!.body).toBe(marker);
+    expect(h.tx.engagementContact.findFirst).toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a pinned producer input changed', { contactChanged: true }],
+    ['the private manifest no longer matches the report provenance', { manifestTampered: true }],
+  ] as const)('withholds a governed report when %s', async (_label, governed) => {
+    const h = harness({ governed });
+
+    const messages = await h.service.listMessages(ctx, 'conversation-1');
+
+    expect(JSON.stringify(messages)).not.toContain(marker);
+    expect(messages[0]!.body).toBe(RESEARCH_REPORT_BODY_WITHHELD);
   });
 
   it('preserves an authorized ordinary transcript and unrelated artifacts', async () => {
