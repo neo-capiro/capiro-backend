@@ -946,6 +946,7 @@ export class LegiWatchWave1Service {
                FROM public_hearing_transcript_segment s4
                LEFT JOIN public_hearing_speaker sp4
                  ON sp4.capture_id = s4.capture_id AND sp4.speaker_label = s4.speaker_label
+                 AND sp4.source = 'manual'
                WHERE s4.capture_id = c.id
                  AND to_tsvector('english', s4.text) @@ websearch_to_tsquery('english', $1)
                ORDER BY ts_rank(to_tsvector('english', s4.text), websearch_to_tsquery('english', $1)) DESC, s4.sequence ASC

@@ -117,6 +117,7 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
     );
       CREATE TEMP TABLE public_hearing_speaker (
         capture_id text NOT NULL, speaker_label text NOT NULL, display_name text NOT NULL,
+        source text NOT NULL DEFAULT 'llm',
         UNIQUE(capture_id, speaker_label)
       );
       CREATE TEMP TABLE public_hearing_insight (
@@ -425,6 +426,20 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
       { hasTranscript: true },
     );
     expect(foreign.total).toBe(0);
+  });
+
+  it('archive transcript snippets withhold automatic identities but retain reviewed and original named labels', async () => {
+    await client.query(`INSERT INTO public_hearing_capture (id, hearing_id, domain_status) VALUES ('capture-speaker','fauci','COMPLETE')`);
+    await client.query(`INSERT INTO public_hearing_transcript_segment (id,capture_id,start_ms,speaker_label,text,sequence)
+      VALUES ('speaker-segment','capture-speaker',1000,'8','Quantum sensing discussion',1)`);
+    await client.query(`INSERT INTO public_hearing_speaker (capture_id,speaker_label,display_name,source)
+      VALUES ('capture-speaker','8','Shaheen, Jeanne','llm')`);
+    const search = async () => (await service.searchArchive(ctx, { q: 'Quantum' })).rows[0]?.transcriptHit;
+    expect(await search()).toMatchObject({ speakerName: null });
+    await client.query(`UPDATE public_hearing_speaker SET display_name='Tim Kaine',source='manual' WHERE capture_id='capture-speaker'`);
+    expect(await search()).toMatchObject({ speakerName: 'Tim Kaine' });
+    await client.query(`UPDATE public_hearing_transcript_segment SET speaker_label='Official source speaker' WHERE id='speaker-segment'`);
+    expect(await search()).toMatchObject({ speakerName: 'Official source speaker' });
   });
 
   it('archive playback uses the scoped candidate projection and deterministic priority', async () => {

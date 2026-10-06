@@ -207,6 +207,23 @@ describe('candidate-specific speaker evidence', () => {
       segment(1, '8', 'My name is Jeanne Shaheen.'),
     ]))).toBe(true);
   });
+  it.each([
+    '“I am Senator Shaheen,” he said.',
+    '"I am Senator Shaheen," she said.',
+    "'I am Senator Shaheen,' she said.",
+  ])('does not treat a quoted introduction as the current speaker identity: %s', (text) => {
+    expect(hasExplicitSpeakerName('8', 'Shaheen, Jeanne', groupTurns([segment(1, '8', text)]))).toBe(false);
+  });
+  it.each([
+    'We welcome Senator Shaheen to the gallery.',
+    'Welcome Senator Shaheen.',
+    'I recognize Senator Shaheen for her prior work.',
+    'Senator Shaheen said you are recognized.',
+  ])('does not infer a handoff from a third-person welcome or description: %s', (text) => {
+    expect(hasExplicitSpeakerName('8', 'Shaheen, Jeanne', groupTurns([
+      segment(1, '0', text), segment(2, '8', 'Thank you.'),
+    ]))).toBe(false);
+  });
 });
 
 describe('labelsWithNamingCue', () => {

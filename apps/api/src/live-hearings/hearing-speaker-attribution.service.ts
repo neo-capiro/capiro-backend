@@ -257,16 +257,20 @@ export function hasExplicitSpeakerName(label: string, name: string, turns: Speak
   const names = [...new Set([normalized, spoken, surname])].map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   const named = `(?:${names})\\b`;
   const self = new RegExp(`^(?:my name is|i am|i m)\\s+${named}`);
-  const introduction = new RegExp(`\\b(?:recognize|recognise|next we have|welcome)\\s+(?:the\\s+)?${named}`);
-  const recognition = new RegExp(`\\b${named}[^.!?]{0,120}\\b(?:you are recognized|you are recognised|you may begin|your opening statement)\\b`);
+  const introduction = new RegExp(`^(?:i (?:now )?recogni[sz]e|next we have)\\s+(?:the\\s+)?${named}(?:\\s+for\\s+(?:one|two|three|four|five|six|ten)\\s+minutes|\\s+to\\s+(?:speak|testify))?$`);
+  const recognition = new RegExp(`^${named}\\s+(?:you are recognized|you are recognised|you may begin)\\b`);
+  const unquoted = (sentence: string) => !/^[\s"'“‘«]/.test(sentence.trimStart()) &&
+    !/[”»]/.test(sentence);
   return turns.some((turn, index) => {
     if (turn.label !== label) return false;
-    if (turn.text.split(/(?<=[.!?])\s+/).some((sentence) => self.test(normalizeName(sentence)))) return true;
+    if (turn.text.split(/(?<=[.!?])\s+/).some((sentence) => unquoted(sentence) && self.test(normalizeName(sentence)))) return true;
     const previous = turns[index - 1];
     if (!previous || previous.label === label) return false;
     // Keep sentence boundaries for the recognition pattern; normalizeName is
     // otherwise shared with official names so titles do not manufacture matches.
-    const tail = previous.text.slice(-600).split(/(?<=[.!?])\s+/).map(normalizeName).filter(Boolean).at(-1) ?? '';
+    const sentence = previous.text.slice(-600).split(/(?<=[.!?])\s+/).filter((part) => part.trim()).at(-1) ?? '';
+    if (!unquoted(sentence)) return false;
+    const tail = normalizeName(sentence);
     return tail === surname || tail === normalized || introduction.test(tail) || recognition.test(tail);
   });
 }
