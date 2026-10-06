@@ -2,8 +2,10 @@
 -- supply the canonical membership reads; no production schema is modified.
 CREATE FUNCTION current_tenant_id() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULLIF(current_setting('app.current_tenant', true), '')::uuid $$;
 CREATE FUNCTION rls_bypass() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT COALESCE(current_setting('app.bypass_rls', true), '') = 'true' $$;
+CREATE ROLE capiro_app;
 CREATE TABLE users (id uuid PRIMARY KEY, clerk_user_id text UNIQUE, first_name text, last_name text, email text);
 CREATE TABLE tenant_memberships (tenant_id uuid, user_id uuid, status text);
+GRANT SELECT ON users, tenant_memberships TO capiro_app;
 INSERT INTO users VALUES
 ('90000000-0000-4000-8000-000000000001','user_owner','Owner','QA','owner@example.test'),
 ('90000000-0000-4000-8000-000000000002','user_viewer','Viewer','QA','viewer@example.test'),

@@ -64,6 +64,75 @@ describeDb('Planner real PostgreSQL integration', () => {
     await expect(service.events(viewer, { taskId: t.id })).rejects.toMatchObject({ status: 404 });
     expect((await service.tasks(outsider, {})).items.some((row) => row.id === t.id)).toBe(false);
   });
+  it('supports the production application role while RLS filters raw reads and activity stays append-only', async () => {
+    await prisma.withTenant(owner.tenantId, async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+      const p = await tx.spPlannerProject.create({
+        data: {
+          tenantId: owner.tenantId,
+          ownerId: owner.clerkUserId,
+          data: JSON.parse(
+            JSON.stringify({ ...PLANNER_DEFAULT_PROJECT, name: 'Runtime role project' }),
+          ) as Prisma.InputJsonValue,
+        },
+      });
+      const t = await tx.spPlannerTask.create({
+        data: {
+          tenantId: owner.tenantId,
+          ownerId: owner.clerkUserId,
+          projectIds: [p.id],
+          data: {
+            ...PLANNER_DEFAULT_TASK,
+            name: 'Runtime role task',
+            memberships: [{ projectId: p.id, sectionId: null, position: 0 }],
+          },
+        },
+      });
+      const e = await tx.spPlannerEvent.create({
+        data: {
+          tenantId: owner.tenantId,
+          actorId: owner.clerkUserId,
+          taskId: t.id,
+          kind: 'comment',
+          text: 'Runtime role comment',
+        },
+      });
+      await tx.spPlannerInbox.create({
+        data: { tenantId: owner.tenantId, userId: viewer.clerkUserId, eventId: e.id },
+      });
+      await tx.spPlannerResource.create({
+        data: {
+          tenantId: owner.tenantId,
+          ownerId: owner.clerkUserId,
+          kind: 'capacity',
+          name: 'Capacity',
+          data: { userId: owner.clerkUserId, weeklyMinutes: 2400 },
+        },
+      });
+      await tx.spPlannerAttachment.create({
+        data: {
+          tenantId: owner.tenantId,
+          taskId: t.id,
+          uploadedBy: owner.clerkUserId,
+          fileName: 'QA.txt',
+          sizeBytes: 1,
+          objectKey: `tenants/${owner.tenantId}/planner/tasks/${t.id}/qa`,
+        },
+      });
+      await tx.spPlannerTask.update({
+        where: { tenantId: owner.tenantId, id: t.id },
+        data: { archived: true },
+      });
+      const tenants = await tx.$queryRaw<
+        { tenant_id: string }[]
+      >`SELECT DISTINCT tenant_id FROM sp_planner_projects`;
+      expect(tenants.every((row) => row.tenant_id === owner.tenantId)).toBe(true);
+      const rights = await tx.$queryRaw<
+        { can_update: boolean; can_delete: boolean }[]
+      >`SELECT has_table_privilege('capiro_app', 'sp_planner_events', 'UPDATE') AS can_update, has_table_privilege('capiro_app', 'sp_planner_events', 'DELETE') AS can_delete`;
+      expect(rights[0]).toEqual({ can_update: false, can_delete: false });
+    });
+  });
   it('shares only form questions and a receipt, enforces tenant scope, quotas and revocation', async () => {
     const p = await service.saveProject(owner, null, { data: { name: 'Secret intake project' } });
     const fieldId = crypto.randomUUID();
