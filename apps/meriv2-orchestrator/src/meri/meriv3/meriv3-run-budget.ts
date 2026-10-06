@@ -101,6 +101,8 @@ export class MeriRunBudget {
   private retryCalls = 0;
   private stopReason: MeriRunBudgetStopReason | null = null;
   private readonly toolAttempts = new Map<string, number>();
+  /** Successful, non-polling reads of this turn, by signature: the provider call that produced each. */
+  private readonly settledReads = new Map<string, string>();
   private readonly failureHistory: FailureObservation[] = [];
 
   constructor(
@@ -365,6 +367,20 @@ export class MeriRunBudget {
       this.failureHistory.splice(0, this.failureHistory.length - maxHistory);
     }
     if (this.detectFailureCycle()) this.close('no_progress');
+  }
+
+  /**
+   * The earlier provider call of this turn that already returned this exact
+   * read, if any. Its result is in the model's context, so repeating the call
+   * would only resend the same evidence.
+   */
+  settledRead(signature: string): string | null {
+    return this.settledReads.get(signature) ?? null;
+  }
+
+  /** Remember a successful read so an identical call later in the turn is not re-dispatched. */
+  rememberSettledRead(signature: string, providerCallId: string): void {
+    if (!this.settledReads.has(signature)) this.settledReads.set(signature, providerCallId);
   }
 
   toolSignature(

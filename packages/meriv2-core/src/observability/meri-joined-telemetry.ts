@@ -92,6 +92,8 @@ export interface MeriTelemetryEventInput {
   readonly runtime?: string | null;
   readonly provider?: string | null;
   readonly configIdentity?: string | null;
+  /** Opaque digest of a tool call's scoped tool and arguments; equal digests in one turn are repeats. */
+  readonly callSignature?: string | null;
   readonly requestedModel?: string | null;
   readonly effectiveModel?: string | null;
   readonly selectedTools?: readonly string[];
@@ -430,6 +432,7 @@ export function buildMeriTelemetryEvent(
     ...(enumValue(input.runtime) ? { runtime: enumValue(input.runtime) } : {}),
     ...(enumValue(input.provider) ? { provider: enumValue(input.provider) } : {}),
     ...(opaque(input.configIdentity) ? { configIdentity: opaque(input.configIdentity) } : {}),
+    ...(opaque(input.callSignature) ? { callSignature: opaque(input.callSignature) } : {}),
     ...(enumValue(input.requestedModel) ? { requestedModel: enumValue(input.requestedModel) } : {}),
     ...(enumValue(input.effectiveModel) ? { effectiveModel: enumValue(input.effectiveModel) } : {}),
     ...(tools(input.selectedTools) ? { selectedTools: tools(input.selectedTools) } : {}),

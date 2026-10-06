@@ -1610,6 +1610,21 @@ export class MeriResearchService {
               stored.leaseEpoch !== run.leaseEpoch ||
               stored.status !== 'running'
             ) {
+              const raw = researchMetadata(researchMetadata(current?.metadata).run);
+              this.logger.warn(
+                `Research heartbeat found the lease inactive: session=${id} run=${run.id} ` +
+                  `epoch=${run.leaseEpoch} stored=${JSON.stringify({
+                    present: Boolean(current),
+                    sameRun: stored?.id === run.id,
+                    epoch: stored?.leaseEpoch ?? null,
+                    status: stored?.status ?? null,
+                    rawStatus: typeof raw.status === 'string' ? raw.status : null,
+                    heartbeatAgeMs:
+                      typeof raw.heartbeatAt === 'string'
+                        ? Date.now() - Date.parse(raw.heartbeatAt)
+                        : null,
+                  })}`,
+              );
               controller.abort(researchLeaseError('Research lease is no longer active.'));
               return;
             }

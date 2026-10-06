@@ -536,6 +536,63 @@ describe('MeriV3AssistantService', () => {
     expect(result.telemetry).toMatchObject({ partial: true, finishReason: 'runtime_no_progress' });
   });
 
+  test('answers an identical successful read later in the turn with a pointer instead of re-dispatching it', async () => {
+    const call = (id: string, query: string) => ({
+      type: 'function_call' as const,
+      call_id: id,
+      name: 'search_memory',
+      arguments: JSON.stringify({ query }),
+      status: 'completed',
+    });
+    const first = call('round-1', 'kestrel commitments');
+    const repeat = call('round-2-repeat', 'kestrel commitments');
+    const fresh = call('round-2-fresh', 'kestrel deliverables');
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(response({ output: [first], outputText: '', functionCalls: [first] }))
+      .mockResolvedValueOnce(
+        response({ output: [repeat, fresh], outputText: '', functionCalls: [repeat, fresh] }),
+      )
+      .mockResolvedValueOnce(response({ outputText: 'Answer from the two reads.' }));
+    const invoke = jest.fn(async (_name: string, input: Record<string, unknown>) => ({
+      results: [{ id: `memory-${String(input.query)}`, text: 'Kestrel note.' }],
+    }));
+    const assistant = build(registry([{ name: 'search_memory', readOnly: true }], invoke), complete);
+    global.fetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            schemas: [
+              {
+                name: 'search_memory',
+                description: 'search_memory',
+                input_schema: { type: 'object', properties: { query: {} } },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    ) as typeof fetch;
+
+    const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      assistant.run(context, {
+        conversationId: 'repeat-thread',
+        reasoningMode: 'fast',
+        messages: [{ role: 'user', text: 'What do we owe Kestrel?' }],
+      }),
+    );
+
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(invoke.mock.calls.map(([, input]) => input.query)).toEqual([
+      'kestrel commitments',
+      'kestrel deliverables',
+    ]);
+    const thirdRequest = JSON.stringify(complete.mock.calls[2]?.[0].input);
+    expect(thirdRequest).toContain('round-2-repeat');
+    expect(thirdRequest).toContain('\\"repeatOf\\":\\"round-1\\"');
+    expect(result.reply).toContain('Answer from the two reads.');
+  });
+
   test('rejects an oversized parallel tool batch before dispatch and performs only terminal synthesis', async () => {
     const calls = Array.from({ length: 60 }, (_, index) => ({
       type: 'function_call' as const,

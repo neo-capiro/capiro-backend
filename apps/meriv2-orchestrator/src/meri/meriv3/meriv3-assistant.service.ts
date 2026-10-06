@@ -3270,6 +3270,20 @@ export class MeriV3AssistantService {
         call.name,
         augmented.input,
       );
+      // An identical read already returned in this turn: its result is in the
+      // model's context, so answer with a pointer instead of re-dispatching it
+      // and resending the same evidence.
+      const settledBy =
+        currentDefinition.readOnly === true ? args.runtimeBudget.settledRead(signature) : null;
+      if (settledBy) {
+        const result = {
+          repeatOf: settledBy,
+          note: 'Identical to an earlier call in this turn (same tool and arguments). Its result is already above; use it instead of repeating the call.',
+        };
+        executions.push({ call, result, serialized: JSON.stringify(result) });
+        logDispatch(call, 'deduplicated', false);
+        continue;
+      }
       if (!args.runtimeBudget.beginTool(signature)) {
         stopWithoutDispatch(call);
         continue;
@@ -3302,6 +3316,7 @@ export class MeriV3AssistantService {
         boundary: 'orchestrator_tool',
         spanId: stepId,
         stepId,
+        callSignature: signature,
         invokedTools: [call.name],
         outcome: 'started',
       });
@@ -3337,6 +3352,7 @@ export class MeriV3AssistantService {
           boundary: 'orchestrator_tool',
           spanId: stepId,
           stepId,
+          callSignature: signature,
           invokedTools: [call.name],
           outcome: args.control?.signal?.aborted ? 'aborted' : 'error',
           durationMs: Date.now() - stepStartedAt,
@@ -3351,12 +3367,15 @@ export class MeriV3AssistantService {
         inputProperties: schema.input_schema.properties as Record<string, unknown> | undefined,
       });
       if (definition?.readOnly === true) {
+        const failed = isLogicalToolFailure(visibleResult);
+        const repeatable = isLegitimatePollingObservation(augmented.input, visibleResult);
         args.runtimeBudget.observeToolResult({
           signature,
           result: visibleResult,
-          failed: isLogicalToolFailure(visibleResult),
-          repeatable: isLegitimatePollingObservation(augmented.input, visibleResult),
+          failed,
+          repeatable,
         });
+        if (!failed && !repeatable) args.runtimeBudget.rememberSettledRead(signature, call.call_id);
       }
       if (this.registry.get(call.name)?.readOnly === true) {
         const routeKeys = new Set([
@@ -3431,6 +3450,7 @@ export class MeriV3AssistantService {
         boundary: 'orchestrator_tool',
         spanId: stepId,
         stepId,
+        callSignature: signature,
         invokedTools: [call.name],
         sourceRefs: args.citations.slice(citationStart).map((citation) => ({
           sourceId: citation.stableId ?? citation.id,

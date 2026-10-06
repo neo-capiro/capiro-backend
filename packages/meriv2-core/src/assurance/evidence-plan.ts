@@ -423,7 +423,15 @@ export function inferClaimCategories(request: string): ClaimCategory[] {
   if (isClosedPremiseRequest(text)) return ['general_background'];
   const categories: ClaimCategory[] = [];
   const legislativeSubject =
-    /\b(?:bills?|measures?|legislation|legislative|rulemaking|dockets?|ordinances?|resolutions?)\b|\b(?:H\.?\s*R\.?|H\.?B\.?|S\.?B\.?|S\.?)\s*\d+\b/i.test(
+    /\b(?:bills?|measures?|legislation|legislative|rulemaking|dockets?|ordinances?|resolutions?|ndaa)\b|\b(?:H\.?\s*R\.?|H\.?B\.?|S\.?B\.?|S\.?)\s*\d+\b/i.test(
+      text,
+    ) || /\b(?:[A-Z][\w'’-]*\s+){1,8}Act\b/.test(text);
+  // Status words about the firm's own work are not legislative status: "List each
+  // commitment with … current status (completed, in progress, …)" scheduled bill
+  // status evidence, and the coverage pass then ran floor-vote and member-roster
+  // lookups on a client commitments audit.
+  const workTrackingStatus =
+    /\b(?:commitments?|deliverables?|action\s+items?|to-?dos?|follow[- ]?ups?|tasks?|tickets?|milestones?|in\s+progress|monday(?:\.com)?)\b/i.test(
       text,
     );
   const operationalStatus =
@@ -435,7 +443,7 @@ export function inferClaimCategories(request: string): ClaimCategory[] {
     );
   addIf(
     categories,
-    (legislativeSubject || !operationalStatus) &&
+    (legislativeSubject || (!operationalStatus && !workTrackingStatus)) &&
       /\b(?:status|where\s+(?:is|does).*(?:bill|measure)|advance[sd]?|pass(?:ed|es)?|fail(?:ed|s)?|dead|alive)\b/i.test(
         text,
       ),
