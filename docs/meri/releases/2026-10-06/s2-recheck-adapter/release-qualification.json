@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-recheck-adapter-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T02:01:22.124881+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "fd6a8b557e349404ca7fae3847a80ae84bc5f202",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:3071831dea9784b1e4c4f8c934f6d2b02cb3614ddb098956cac41f9218bbf817",
+      "buildId": "capiro-build-web-dev:a35a89a7-8d1b-43ca-bb2e-d8eb93023af1"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Research producer-input re-check adapter (#2051): governed Context Plane inputs and handoff attachments are pinned at publication and re-checked against their canonical owners on every report read; unsupported input classes stay refused and are logged by category. Also carries #2047 (hearing capture debrief fix, merged by another workstream). No migration.",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
