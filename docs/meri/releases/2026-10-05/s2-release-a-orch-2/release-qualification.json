@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-release-a-orch-2-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T00:34:27.668247+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "dce0307c2bfdff52010fc10ac1fa973b176ee099",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:e628c75b40e0fca5e77da90ade453171f27842bc41164a061faa641e3ad883fc",
+      "buildId": "capiro-build-web-dev:0ecee6ae-9944-418a-92ab-1a4b8942063f"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Stage 2 Release A follow-up 2, orchestrator only: Deep Research planning runs as the research surface, so chat-enrolled evidence stages no longer rewrite the plan JSON (#2042). Found by the Release A live research check.",
+  "reviewer": "Lead agent (Stage 1): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo: \"implement stage 1\" (2026-10-05); program plan \u00a710 release path."
+}
