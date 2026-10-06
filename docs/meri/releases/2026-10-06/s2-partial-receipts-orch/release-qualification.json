@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-partial-receipts-orch-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T15:54:02.235970+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "006cbc6ee095be48968ffee00aade83f12ee9248",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:5ef19ff528467e9a0bcabca0b39c54f9b1339889d3389e1cbb5b5f7d5e290d53",
+      "buildId": "capiro-build-web-dev:a323724c-2bce-42ca-9b00-72a29882e2b7"
+    }
+  ],
+  "schemaChange": false,
+  "change": "#2106 partial owner reads committed as partial receipts",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
