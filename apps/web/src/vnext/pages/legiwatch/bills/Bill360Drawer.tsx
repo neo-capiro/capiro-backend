@@ -196,7 +196,7 @@ export function Bill360Drawer({
             </div>
 
             {/* tabs */}
-            <div className="lw-tabs" style={{ padding: '0 20px', marginTop: 12 }}>
+            <div className="lw-tabs" role="tablist" aria-label="Bill sections" style={{ padding: '0 20px', marginTop: 12 }}>
               {TABS.map((t) => (
                 <button
                   key={t}
