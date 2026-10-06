@@ -2,9 +2,6 @@ import type { TenantContext } from '@capiro/shared';
 import { KrispNotetakerService } from './krisp-notetaker.service.js';
 
 jest.mock('../../meri/meri-managed-mcp.service.js', () => ({ MeriManagedMcpService: class {} }));
-jest.mock('../../meeting-capture/meeting-capture-persistence.service.js', () => ({
-  MeetingCapturePersistenceService: class {},
-}));
 
 const ctx = {
   tenantId: 'tenant',
@@ -120,21 +117,16 @@ function fixture() {
         appId: 'krisp',
         name: 'mcp__meriv3_krisp__get_multiple_documents',
         input_schema: {
-          properties: { document_ids: { type: 'array' }, include_transcript: { type: 'boolean' } },
+          properties: { document_ids: { type: 'array' }, include_notes: { type: 'boolean' } },
         },
       },
     ]),
-    executeRead: jest.fn(async () => ({
+    executeRead: jest.fn(async (..._args: any[]) => ({
       structuredResult: {
-        structuredContent: { documents: [{ id: doc, transcript: 'Alice: Follow up tomorrow.' }] },
+        structuredContent: {
+          documents: [{ id: doc, notes: '  # Krisp notes\n\nFollow up tomorrow.\n' }],
+        },
       },
-    })),
-  };
-  const persistence = {
-    generateMeetingDebriefDraft: jest.fn(async () => ({
-      recap: 'Discussed plan',
-      actionItems: ['Follow up'],
-      notes: 'Agreed next steps',
     })),
   };
   const crypto = {
@@ -149,7 +141,6 @@ function fixture() {
   const service = new KrispNotetakerService(
     prisma as never,
     managed as never,
-    persistence as never,
     crypto as never,
     runtime as never,
   );
@@ -161,7 +152,6 @@ function fixture() {
     tenant,
     prisma,
     managed,
-    persistence,
     crypto,
     runtime,
     notes,
@@ -174,7 +164,8 @@ describe('automatic Krisp notes and debriefs', () => {
   test('the sweep selects opted-in users across tenants and still enforces each tenant flag', async () => {
     const f = fixture();
     const findMany = jest.fn(async (_args: any) => [preference]);
-    (f.prisma as any).withSystem = async (fn: any) => fn({ krispNotetakerPreference: { findMany } });
+    (f.prisma as any).withSystem = async (fn: any) =>
+      fn({ krispNotetakerPreference: { findMany } });
     jest.spyOn(f.service as any, 'context').mockResolvedValue(ctx);
     jest.spyOn(f.service as any, 'assertActive').mockResolvedValue(undefined);
     const discover = jest.spyOn(f.service as any, 'discover').mockResolvedValue(undefined);
@@ -192,10 +183,12 @@ describe('automatic Krisp notes and debriefs', () => {
     const f = fixture();
     await f.run();
     await f.run();
-    expect(f.persistence.generateMeetingDebriefDraft).toHaveBeenCalledTimes(1);
-    expect(f.persistence.generateMeetingDebriefDraft).toHaveBeenCalledWith(ctx, 'meeting', {
-      method: 'upload',
-      sourceText: 'Alice: Follow up tomorrow.',
+    expect(f.crypto.encrypt).toHaveBeenCalledTimes(1);
+    expect(f.runtime.assertExternalAction).toHaveBeenCalledWith('integration_sync');
+    expect(f.crypto.encrypt).toHaveBeenCalledWith('  # Krisp notes\n\nFollow up tomorrow.\n');
+    expect(f.managed.executeRead.mock.calls[0]?.[2]).toEqual({
+      document_ids: [doc],
+      include_notes: true,
     });
     expect(f.notes).toHaveLength(1);
     expect(f.debriefs).toHaveLength(1);
@@ -224,27 +217,42 @@ describe('automatic Krisp notes and debriefs', () => {
     expect(f.debriefs).toHaveLength(1);
     expect(f.item().status).toBe('done');
   });
-  test('not-ready transcripts retry without using the error budget or calling the model', async () => {
+  test('not-ready notes retry without using the error budget or falling back to transcript/summary', async () => {
     const f = fixture();
     f.managed.executeRead.mockResolvedValue({
-      structuredResult: { structuredContent: { documents: [{ id: doc, transcript: '' }] } },
+      structuredResult: {
+        structuredContent: {
+          documents: [
+            {
+              id: doc,
+              notes: '',
+              transcript: 'Do not use this',
+              summary: 'Do not use this either',
+            },
+          ],
+        },
+      },
     });
     await f.run();
     expect(f.item()).toMatchObject({ status: 'pending', attempts: 0 });
-    expect(f.persistence.generateMeetingDebriefDraft).not.toHaveBeenCalled();
+    expect(f.crypto.encrypt).not.toHaveBeenCalled();
   });
   test.each(['tenant', 'preference', 'membership', 'connection'])(
-    'revoking %s during generation prevents any artifact save',
+    'revoking %s during provider read prevents any artifact save',
     async (boundary) => {
       const f = fixture();
-      f.persistence.generateMeetingDebriefDraft.mockImplementation(async () => {
+      f.managed.executeRead.mockImplementation(async () => {
         if (boundary === 'tenant')
           f.tenant.settings.clioFeatureFlags['notetaker.krisp.enabled'] = false;
         if (boundary === 'preference')
           f.tx.krispNotetakerPreference.findFirst.mockResolvedValue(null);
         if (boundary === 'membership') f.tx.tenantMembership.findFirst.mockResolvedValue(null);
         if (boundary === 'connection') f.tx.clioMcpServer.findFirst.mockResolvedValue(null);
-        return { recap: 'recap', actionItems: [], notes: 'notes' };
+        return {
+          structuredResult: {
+            structuredContent: { documents: [{ id: doc, notes: 'Krisp notes' }] },
+          },
+        };
       });
       await f.run();
       expect(f.notes).toHaveLength(0);
@@ -261,7 +269,7 @@ describe('automatic Krisp notes and debriefs', () => {
     await f.run();
     expect(f.managed.executeRead).not.toHaveBeenCalled();
   });
-  test('meeting ownership is checked before reading private transcripts', async () => {
+  test('meeting ownership is checked before reading private notes', async () => {
     const f = fixture();
     f.tx.meeting.findFirst.mockResolvedValue(null);
     await f.run();

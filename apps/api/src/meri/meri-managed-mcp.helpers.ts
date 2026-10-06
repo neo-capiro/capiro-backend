@@ -85,7 +85,7 @@ export interface ManagedMcpDefinition {
 export const MANAGED_MCP_APPS: Record<MeriV3ManagedAppId, ManagedMcpDefinition> = {
   krisp: {
     id: 'krisp', catalogId: 'meriv3-krisp', name: 'Krisp',
-    description: 'Automatically create Meri meeting notes and debriefs from your Krisp transcripts.',
+    description: 'Automatically save your Krisp notes directly into Meeting Notes and Debrief.',
     endpoint: 'https://mcp.krisp.ai/mcp',
     oauthScopes: ['user::me::read', 'user::meetings:metadata::read', 'user::meetings:notes::read', 'user::meetings:transcripts::read', 'user::meetings::list'],
     readOnlyTools: new Set(['search_meetings', 'get_multiple_documents', 'list_folders']),

@@ -2,7 +2,8 @@ import { krispNotetakerEnabled } from '../../common/krisp-notetaker-flags.js';
 import {
   krispArguments,
   krispPayload,
-  krispTranscript,
+  krispNotes,
+  krispNextPage,
   matchKrispMeeting,
   normalizeKrispMeeting,
 } from './krisp.helpers.js';
@@ -14,44 +15,73 @@ describe('Krisp tenant flag and provider contract', () => {
     expect(krispNotetakerEnabled(yes)).toBe(true);
     for (const value of [undefined, false, 'true', 1]) {
       expect(
-        krispNotetakerEnabled(
-          { clioFeatureFlags: { 'notetaker.krisp.enabled': value } },
-        ),
+        krispNotetakerEnabled({ clioFeatureFlags: { 'notetaker.krisp.enabled': value } }),
       ).toBe(false);
     }
   });
-  test('MCP structured and JSON-text results retain full transcript and reject provider errors', () => {
-    const data = {
-      documents: [{ id, transcript: [{ speaker: 'Alice', text: 'Follow up tomorrow.' }] }],
-    };
+  test('live JSON document envelope preserves notes verbatim and never uses other content', () => {
+    const notes = '  # Notes\n\n**Decision:** Proceed.\n';
+    const data = { results: [{ id, document: { id, name: 'Meeting', notes } }] };
+    expect(krispNotes(krispPayload({ structuredResult: { structuredContent: data } }), id)).toBe(
+      notes,
+    );
     expect(
-      krispTranscript(krispPayload({ structuredResult: { structuredContent: data } }), id),
-    ).toBe('Alice: Follow up tomorrow.');
-    expect(
-      krispTranscript(
-        krispPayload({ content: [{ type: 'text', text: JSON.stringify(data) }] }),
-        id,
-      ),
-    ).toBe('Alice: Follow up tomorrow.');
+      krispNotes(krispPayload({ content: [{ type: 'text', text: JSON.stringify(data) }] }), id),
+    ).toBe(notes);
     expect(() => krispPayload({ isError: true, content: [] })).toThrow();
+    expect(krispNotes(data, 'f'.repeat(32))).toBeNull();
+    expect(krispNotes({ results: [{ id, document: null }] }, id)).toBeNull();
     expect(
-      krispTranscript(
-        { documents: [{ id: 'f'.repeat(32), transcript: 'Private other meeting' }] },
-        id,
-      ),
+      krispNotes({ documents: [{ id, transcript: 'raw', summary: 'summary' }] }, id),
     ).toBeNull();
-    expect(krispTranscript({ documents: [{ id, summary: 'Not a transcript' }] }, id)).toBeNull();
+    expect(() =>
+      krispNotes({ results: [{ id, document: { id: 'f'.repeat(32), notes } }] }, id),
+    ).toThrow('different document');
+    expect(() => krispNotes({ documents: [{ id, notes: { unknown: 'shape' } }] }, id)).toThrow(
+      'format',
+    );
+    expect(() => krispNotes({ documents: [{ id, notes: 'x'.repeat(100001) }] }, id)).toThrow(
+      'limit',
+    );
+    expect(() => krispNotes({ documents: [{ id, notes, truncated: true }] }, id)).toThrow('limit');
+  });
+  test('live notes, date and folder parameters and count-only pagination', () => {
+    expect(
+      krispArguments(
+        {
+          properties: {
+            ids: {},
+            include: { type: 'array', items: { enum: ['notes', 'transcript'] } },
+            format: { enum: ['markdown', 'json'] },
+          },
+        },
+        { ids: [id] },
+      ),
+    ).toEqual({ ids: [id], include: ['notes'], format: 'json' });
+    expect(
+      krispArguments(
+        { properties: { after: {}, before: {}, folder_ids: {}, limit: {}, offset: {} } },
+        { since: 'start', until: 'end', folderId: id, offset: 50 },
+      ),
+    ).toEqual({ after: 'start', before: 'end', folder_ids: [id], limit: 50, offset: 50 });
+    expect(krispNextPage({ count: 50 }, 50, 0).more).toBe(true);
+    expect(krispNextPage({ count: 3 }, 3, 50).more).toBe(false);
+    expect(krispNextPage({ total: 50 }, 50, 0).more).toBe(false);
   });
   test('only uses live advertised arguments; unsupported folder and document schemas fail closed', () => {
     expect(
       krispArguments(
         {
-          properties: { document_ids: { type: 'array' }, include_transcript: { type: 'boolean' } },
+          properties: {
+            document_ids: { type: 'array' },
+            include_transcript: { type: 'boolean' },
+            include_notes: { type: 'boolean' },
+          },
           required: ['document_ids'],
         },
         { ids: [id] },
       ),
-    ).toEqual({ document_ids: [id], include_transcript: true });
+    ).toEqual({ document_ids: [id], include_transcript: false, include_notes: true });
     expect(() => krispArguments({ properties: {} }, { ids: [id] })).toThrow('lookup schema');
     expect(() => krispArguments({ properties: {} }, { folderId: 'private-folder' })).toThrow(
       'folder filtering',
