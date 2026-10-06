@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { blockedRecoveryCaptureSql, blockedRecoveryCandidateSql, blockedRecoveryProbeDueSql, type BlockedRecoveryCandidate, type BlockedRecoveryProbe } from './blocked-source-recovery.js';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { approvedPublicCapture, publicAudioEnabled } from './public-capture-permission.js';
 import type {
@@ -104,6 +105,7 @@ export class StaleCaptureFencingTokenError extends Error {
 
 @Injectable()
 export class PublicHearingCaptureStore implements PublicCaptureStorePort {
+  private readonly logger = new Logger(PublicHearingCaptureStore.name);
   private captureAllCache?: { value: boolean; expiresAt: number };
 
   constructor(private readonly prisma: PrismaService) {}
@@ -190,7 +192,12 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
            )
            AND (
              c.id IS NULL OR
-             c.domain_status NOT IN ('COMPLETE','COMPLETE_WITH_GAPS','FAILED','CANCELED','BLOCKED')
+             c.domain_status NOT IN ('COMPLETE','COMPLETE_WITH_GAPS','FAILED','CANCELED','BLOCKED') OR
+             (${blockedRecoveryCaptureSql('$1')} AND EXISTS (
+               SELECT 1 FROM hearing_stream_candidate sc JOIN committee_source src ON src.id=sc.source_id
+               WHERE ${blockedRecoveryCandidateSql('$1')}
+                 AND ${blockedRecoveryProbeDueSql('$1')}
+             ))
            )
            -- An active worker owns reconciliation until its lease expires.
            -- Do not let these oldest rows occupy every bounded discovery slot.
@@ -203,6 +210,80 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
       ),
     );
     return rows.map((row) => row.hearingId);
+  }
+
+  async getBlockedRecoveryCandidate(captureId: string, now: Date): Promise<BlockedRecoveryCandidate | null> {
+    const rows = await this.prisma.withSystem((tx) => tx.$queryRawUnsafe<BlockedRecoveryCandidate[]>(
+      `SELECT sc.id,sc.hearing_id AS "hearingId",sc.source_id AS "sourceId",
+        sc.official_page_url AS "officialPageUrl",sc.media_url AS "mediaUrl",sc.first_seen_at::text AS "firstSeenAt",sc.updated_at::text AS "updatedAt"
+       FROM public_hearing_capture c JOIN ${capturableHearingView()} h ON h.id=c.hearing_id
+       JOIN hearing_stream_candidate sc ON sc.hearing_id=h.id
+       JOIN committee_source src ON src.id=sc.source_id
+       WHERE c.id=$1 AND ${blockedRecoveryCaptureSql('$2')}
+         AND ${blockedRecoveryCandidateSql('$2')}
+         AND LOWER(COALESCE(h.type,''))=ANY($3::text[])
+         AND ${blockedRecoveryProbeDueSql('$2')}
+       ORDER BY sc.first_seen_at ASC,sc.id ASC LIMIT 1`,
+      captureId, now, [...ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES],
+    ));
+    return rows[0] ?? null;
+  }
+
+  async reopenBlockedCapture(input: {
+    captureId: string; expectedVersion: number; probe: BlockedRecoveryProbe; now: Date;
+  }): Promise<PublicCaptureRecord | null> {
+    const { candidate, classified, attemptedAt } = input.probe;
+    if (classified.state !== 'READY_FOR_SERVER_CAPTURE' ||
+      classified.capturePolicy !== 'SERVER_CAPTURE_ALLOWED' ||
+      classified.reasonCode !== 'FIRST_PARTY_STREAM_READY' || !classified.media ||
+      !Number.isFinite(attemptedAt.getTime()) || attemptedAt > input.now ||
+      input.now.getTime() - attemptedAt.getTime() > 60_000) return null;
+    const captureAll = captureAllPublicEventsEnabled();
+    let priorResolution: { reason: string; state: string } | undefined;
+    const recovered = await this.prisma.withSystem(async (tx) => {
+      // Lock the capture, canonical event, candidate and provenance owner before
+      // repeating every predicate. Ordinary manual-stop/lease writes serialize here.
+      const eligible = await tx.$queryRawUnsafe<Array<{ id: string; reason: string; state: string }>>(
+        `SELECT c.id,c.resolution_reason_code AS reason,c.resolution_state AS state FROM public_hearing_capture c
+         JOIN committee_hearing h ON h.id=c.hearing_id
+         JOIN hearing_stream_candidate sc ON sc.hearing_id=h.id
+         JOIN committee_source src ON src.id=sc.source_id
+         WHERE c.id=$1 AND c.version=$2 AND sc.id=$3
+           AND sc.official_page_url=$4 AND sc.media_url IS NOT DISTINCT FROM $5::text
+           AND sc.source_id=$6 AND sc.first_seen_at=$7::timestamptz
+           AND ${blockedRecoveryCaptureSql('GREATEST($8,clock_timestamp())')} AND ${blockedRecoveryCandidateSql('GREATEST($8,clock_timestamp())')}
+           AND sc.last_probe_at=$9 AND sc.updated_at=$9 AND sc.last_probe_at > c.last_resolution_at
+           AND sc.last_probe_at >= clock_timestamp()-interval '1 minute'
+           AND sc.capture_policy='SERVER_CAPTURE_ALLOWED' AND sc.resolution_state='READY'
+           AND EXISTS(SELECT 1 FROM ${capturableHearingView()} v WHERE v.id=h.id)
+           AND LOWER(COALESCE(h.type,''))=ANY($11::text[])
+           AND ($10::boolean OR EXISTS (SELECT 1 FROM legiwatch_cutover_state WHERE id='global' AND capture_all_public_events)
+             OR EXISTS (SELECT 1 FROM hearing_subscription s
+             WHERE s.hearing_id=h.id AND ${AUTOMATIC_DEMAND_SQL}))
+         FOR UPDATE OF c,h,sc,src`,
+        input.captureId, input.expectedVersion, candidate.id, candidate.officialPageUrl,
+        candidate.mediaUrl, candidate.sourceId, candidate.firstSeenAt, input.now, attemptedAt,
+        captureAll, [...ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES],
+      );
+      if (!eligible.length) return null;
+      priorResolution = eligible[0];
+      const rows = await tx.$queryRawUnsafe<CaptureRow[]>(
+        `UPDATE public_hearing_capture SET status='leased',domain_status='READY',terminal_reason_code=NULL,
+          selected_stream_candidate_id=$3,resolution_state='READY_FOR_SERVER_CAPTURE',
+          resolution_capture_policy='SERVER_CAPTURE_ALLOWED',resolution_reason_code='FIRST_PARTY_STREAM_READY',
+          resolution_provider=$4,resolution_reference=$5,last_resolution_at=$6,last_outcome_at=$6,
+          next_preflight_at=NULL,consecutive_source_errors=0,version=version+1,updated_at=$6
+         WHERE id=$1 AND version=$2 AND domain_status='BLOCKED'
+         RETURNING ${CAPTURE_COLUMNS}`,
+        input.captureId, input.expectedVersion, candidate.id, boundedNullable(classified.provider,200),
+        candidate.officialPageUrl, attemptedAt,
+      );
+      return rows[0] ? mapCapture(rows[0]) : null;
+    });
+    if (recovered) this.logger.log({ event: 'late_first_party_source_capture_recovered',
+      hearingId: candidate.hearingId, captureId: input.captureId, candidateId: candidate.id,
+      priorVersion: input.expectedVersion, priorResolution, priorTerminalReason: 'CAPTURE_BLOCKED' });
+    return recovered;
   }
 
   async assertCaptureAllowed(hearingId: string): Promise<void> {

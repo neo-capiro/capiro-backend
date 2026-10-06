@@ -62,27 +62,29 @@ describe('Phase 8 public observations, private selections and actual database re
     beforeEnv = { ...process.env };
   const scope = () => ({ jurisdiction: 'FL', sessionKey: session, clientId: null, folderId });
   it('reads latest exact publisher receipts under the real application role, preserving endpoint failures', async () => {
-    await p.$transaction(async (tx) => {
-      const hill = publisherIntakeEndpoints.find((e) => e.slug === 'the_hill')!;
-      const politics = publisherIntakeEndpoints.find((e) => e.slug === 'politico')!;
-      const congress = publisherIntakeEndpoints.find((e) => e.slug === 'politico_congress')!;
-      const ids: string[] = [];
-      const insert = async (
-        slug: string,
-        url: string,
-        at: string,
-        status: string,
-        source = 'rss',
-      ) => {
-        const id = randomUUID();
-        ids.push(id);
-        const scope = JSON.stringify({ publisher: slug });
-        const manifest = JSON.stringify({
-          status,
-          coverage: 'current_feed_only',
-          retained: 0,
-          rejected: 0,
-          ...(status === 'failed' ? { reason: 'HTTP 403' } : {}),
+    const rollback = new Error('Rollback immutable receipt fixtures');
+    const fixtureIds: string[] = [];
+    try {
+      await p.$transaction(async (tx) => {
+        const hill = publisherIntakeEndpoints.find((e) => e.slug === 'the_hill')!;
+        const politics = publisherIntakeEndpoints.find((e) => e.slug === 'politico')!;
+        const congress = publisherIntakeEndpoints.find((e) => e.slug === 'politico_congress')!;
+        const insert = async (
+          slug: string,
+          url: string,
+          at: string,
+          status: string,
+          source = 'rss',
+        ) => {
+          const id = randomUUID();
+          fixtureIds.push(id);
+          const scope = JSON.stringify({ publisher: slug });
+          const manifest = JSON.stringify({
+            status,
+            coverage: 'current_feed_only',
+            retained: 0,
+            rejected: 0,
+            ...(status === 'failed' ? { reason: 'HTTP 403' } : {}),
         });
         await tx.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,observed_at,content_hash,scope,manifest,complete) VALUES(${id},${source},${url},${at}::timestamptz,'fixture',${scope}::jsonb,${manifest}::jsonb,false)`;
         return id;
@@ -123,9 +125,15 @@ describe('Phase 8 public observations, private selections and actual database re
       expect(coverage[0]).toMatchObject({ status: 'unavailable', intake: { status: 'failed' } });
       expect(coverage[1]).toMatchObject({ status: 'unavailable', intake: { status: 'partial' } });
       expect(coverage[1]!.intake.feeds.map((f) => f.status)).toEqual(['succeeded', 'failed']);
-      await tx.$executeRawUnsafe('RESET ROLE');
-      await tx.$executeRaw`DELETE FROM legiwatch_source_receipt WHERE id=ANY(${ids}::text[])`;
-    });
+      // Receipts are immutable, including in the fully migrated test database.
+      // Roll back the whole fixture transaction instead of deleting evidence.
+      throw rollback;
+      });
+    } catch (error) {
+      if (error !== rollback) throw error;
+    }
+    const remaining = await p.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*) AS count FROM legiwatch_source_receipt WHERE id=ANY(${fixtureIds}::text[])`;
+    expect(remaining[0].count).toBe(0n);
   });
   it('reads current public bill status in a bounded batch without changing retained evidence', async () => {
     const id = `119-hr-${Date.now()}`;

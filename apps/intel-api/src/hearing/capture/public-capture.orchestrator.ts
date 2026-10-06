@@ -1,3 +1,4 @@
+import type { BlockedRecoveryCandidate, BlockedRecoveryProbe } from './blocked-source-recovery.js';
 import {
   completionStatusForCapture,
   mergeCaptureGaps,
@@ -56,6 +57,8 @@ export interface CaptureLeaseAcquireResult {
  */
 export interface PublicCaptureStorePort {
   assertCaptureAllowed?(hearingId: string): Promise<void>;
+  getBlockedRecoveryCandidate?(captureId: string, now: Date): Promise<BlockedRecoveryCandidate | null>;
+  reopenBlockedCapture?(input: { captureId: string; expectedVersion: number; probe: BlockedRecoveryProbe; now: Date }): Promise<PublicCaptureRecord | null>;
   getHearing(hearingId: string): Promise<PublicHearingCaptureEvent | null>;
   getDemand(hearingId: string): Promise<PublicCaptureDemand>;
   ensureCapture(input: {
@@ -117,6 +120,7 @@ export interface PublicCaptureStorePort {
 }
 
 export interface PublicStreamResolverPort {
+  probeBlockedRecoveryCandidate?(candidate: BlockedRecoveryCandidate): Promise<BlockedRecoveryProbe | null>;
   resolve(input: { pageUrl?: string; hearingId?: string }): Promise<ResolverResultLike>;
 }
 
@@ -236,6 +240,27 @@ export class PublicCaptureOrchestrator {
       scheduledStart: hearing.scheduledStart,
       now,
     });
+    if (capture.status === 'BLOCKED' && this.store.getBlockedRecoveryCandidate &&
+      this.store.reopenBlockedCapture && this.resolver.probeBlockedRecoveryCandidate) {
+      const candidate = await this.store.getBlockedRecoveryCandidate(capture.id, now);
+      if (candidate) {
+        // The capture remains BLOCKED throughout the ordinary, exact-source probe.
+        const probe = await this.resolver.probeBlockedRecoveryCandidate(candidate);
+        if (probe?.classified.state === 'READY_FOR_SERVER_CAPTURE' &&
+          probe.classified.capturePolicy === 'SERVER_CAPTURE_ALLOWED' && probe.classified.media) {
+          const recovered = await this.store.reopenBlockedCapture({
+            captureId: capture.id, expectedVersion: capture.version, probe, now: this.now(),
+          });
+          if (recovered) {
+            const queued = await this.queue.enqueue({
+              dedupeKey: publicCaptureIdempotencyKey(hearingId), captureId: recovered.id,
+              hearingId, mustReresolve: true,
+            });
+            return { action: 'CAPTURE_JOB_ENQUEUED', captureId: recovered.id, ...queued };
+          }
+        }
+      }
+    }
     if (isTerminal(capture.status)) {
       return { action: 'TERMINAL', captureId: capture.id, status: capture.status };
     }
