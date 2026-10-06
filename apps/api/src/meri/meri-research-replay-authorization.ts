@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
@@ -64,6 +64,24 @@ const SUPPORTED_OWNER_TOOLS = new Set([
   'get_research_evidence',
   ...PROGRAM_ELEMENT_READ_TOOLS,
 ]);
+
+const logger = new Logger('MeriResearchReplayAuthorization');
+
+/**
+ * The refusal stays generic for the caller; the log names the failed clause so
+ * a refused publication or withheld read is diagnosable (T5 cab91bd9).
+ */
+export function researchProducerProofUnavailable(
+  sessionId: string,
+  clause: string,
+  toolsUsed: unknown,
+): ConflictException {
+  logger.warn(
+    `Research producer proof unavailable: session=${sessionId} clause=${clause} ` +
+      `toolsUsed=${JSON.stringify(Array.isArray(toolsUsed) ? toolsUsed : null)}`,
+  );
+  return new ConflictException('The research report producer proof is unavailable.');
+}
 
 function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -418,6 +436,80 @@ function sameStringSet(left: string[], right: string[]): boolean {
   );
 }
 
+/** The first publication-proof clause that fails, or null when the proof holds. */
+function publicationProofFailure(
+  publication: NonNullable<ResearchReportReadScope['publication']>,
+  declared: string[] | null,
+  storedRun: ReturnType<typeof readResearchRun>,
+  reportArtifactId: string | null,
+): string | null {
+  if (!declared) return 'tools_used_not_unique_strings';
+  if (declared.some((tool) => !publicResearchSourceTool(tool))) return 'tool_not_public_source';
+  if (!/^[a-f0-9]{64}$/.test(publication.producerInputSha256)) return 'producer_input_sha256';
+  if (
+    !['source_free', 'covered_inputs', 'governed_inputs'].includes(publication.producerInputMode)
+  )
+    return `producer_input_mode:${publication.producerInputMode}`;
+  if (
+    (publication.producerInputMode === 'governed_inputs') !==
+    Boolean(publication.producerInputManifest)
+  )
+    return 'governed_manifest_mismatch';
+  if (
+    !(
+      publication.clientContextSha256 === null ||
+      /^[a-f0-9]{64}$/.test(publication.clientContextSha256)
+    )
+  )
+    return 'client_context_sha256';
+  if (
+    publication.producerInputMode === 'source_free' &&
+    (declared.length > 0 || publication.clientContextSha256 !== null)
+  )
+    return 'source_free_with_inputs';
+  if (!storedRun) return 'run_missing';
+  if (storedRun.status !== 'running') return `run_status:${storedRun.status}`;
+  if (storedRun.id !== publication.runId) return 'run_id';
+  if (storedRun.leaseEpoch !== publication.leaseEpoch) return 'lease_epoch';
+  if (reportArtifactId) return 'report_already_published';
+  return null;
+}
+
+/** The first saved-report proof clause that fails, or null when the proof holds. */
+function savedReportProofFailure(input: {
+  report: { id: string; messageId: string | null; bodyText: string | null } | null;
+  artifactProof: ReturnType<typeof readResearchReportProvenance>;
+  sessionProof: ReturnType<typeof readResearchReportProvenance>;
+  reportMetadata: Record<string, unknown>;
+  declaredTools: string[] | null;
+  session: { id: string; clientId: string | null };
+  ctx: TenantContext;
+  conversationId: string;
+  storedRun: ReturnType<typeof readResearchRun>;
+}): string | null {
+  const { report, artifactProof, sessionProof, declaredTools, session, ctx, storedRun } = input;
+  if (!report) return 'report_missing';
+  if (!artifactProof) return 'artifact_provenance_missing';
+  if (!sessionProof) return 'session_provenance_missing';
+  if (!sameResearchReportProvenance(artifactProof, sessionProof)) return 'provenance_mismatch';
+  if (artifactProof.artifactId !== report.id) return 'artifact_id';
+  if (artifactProof.messageId !== (report.messageId ?? null)) return 'message_id';
+  if (artifactProof.sessionId !== session.id) return 'session_id';
+  if (artifactProof.tenantId !== ctx.tenantId) return 'tenant_id';
+  if (artifactProof.userId !== ctx.userId) return 'user_id';
+  if (artifactProof.clientId !== session.clientId) return 'client_id';
+  if (artifactProof.conversationId !== input.conversationId) return 'conversation_id';
+  if (input.reportMetadata.researchSessionId !== session.id) return 'report_session_id';
+  if (!declaredTools) return 'tools_used_not_unique_strings';
+  if (!sameStringSet(declaredTools, artifactProof.toolsUsed)) return 'tools_used_mismatch';
+  if (reportBodySha256(report.bodyText ?? '') !== artifactProof.bodySha256) return 'body_sha256';
+  if (!storedRun) return 'run_missing';
+  if (storedRun.status !== 'complete') return `run_status:${storedRun.status}`;
+  if (storedRun.id !== artifactProof.runId) return 'run_id';
+  if (storedRun.leaseEpoch !== artifactProof.leaseEpoch) return 'lease_epoch';
+  return null;
+}
+
 function canonicalClientContext(value: {
   name: string;
   description: string | null;
@@ -499,28 +591,18 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
       let producerInputManifest: ResearchProducerInputManifestV1 | null = null;
       if (scope.publication) {
         const declared = stringArray(scope.publication.toolsUsed);
-        if (
-          !declared ||
-          declared.some((tool) => !publicResearchSourceTool(tool)) ||
-          !/^[a-f0-9]{64}$/.test(scope.publication.producerInputSha256) ||
-          !['source_free', 'covered_inputs', 'governed_inputs'].includes(
-            scope.publication.producerInputMode,
-          ) ||
-          (scope.publication.producerInputMode === 'governed_inputs') !==
-            Boolean(scope.publication.producerInputManifest) ||
-          !(
-            scope.publication.clientContextSha256 === null ||
-            /^[a-f0-9]{64}$/.test(scope.publication.clientContextSha256)
-          ) ||
-          (scope.publication.producerInputMode === 'source_free' &&
-            (declared.length > 0 || scope.publication.clientContextSha256 !== null)) ||
-          !storedRun ||
-          storedRun.status !== 'running' ||
-          storedRun.id !== scope.publication.runId ||
-          storedRun.leaseEpoch !== scope.publication.leaseEpoch ||
-          session.reportArtifactId
-        ) {
-          throw new ConflictException('The research report producer proof is unavailable.');
+        const failure = publicationProofFailure(
+          scope.publication,
+          declared,
+          storedRun,
+          session.reportArtifactId,
+        );
+        if (failure || !declared) {
+          throw researchProducerProofUnavailable(
+            session.id,
+            `publication:${failure}`,
+            scope.publication.toolsUsed,
+          );
         }
         toolsUsed = declared;
         runId = scope.publication.runId;
@@ -546,28 +628,23 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
         const sessionProof = readResearchReportProvenance(session.metadata);
         const reportMetadata = researchMetadata(report?.metadata);
         const declaredTools = stringArray(reportMetadata.toolsUsed);
-        if (
-          !report ||
-          !artifactProof ||
-          !sessionProof ||
-          !sameResearchReportProvenance(artifactProof, sessionProof) ||
-          artifactProof.artifactId !== report.id ||
-          artifactProof.messageId !== (report.messageId ?? null) ||
-          artifactProof.sessionId !== session.id ||
-          artifactProof.tenantId !== ctx.tenantId ||
-          artifactProof.userId !== ctx.userId ||
-          artifactProof.clientId !== session.clientId ||
-          artifactProof.conversationId !== conversationId ||
-          reportMetadata.researchSessionId !== session.id ||
-          !declaredTools ||
-          !sameStringSet(declaredTools, artifactProof.toolsUsed) ||
-          reportBodySha256(report.bodyText ?? '') !== artifactProof.bodySha256 ||
-          !storedRun ||
-          storedRun.status !== 'complete' ||
-          storedRun.id !== artifactProof.runId ||
-          storedRun.leaseEpoch !== artifactProof.leaseEpoch
-        ) {
-          throw new ConflictException('The research report producer proof is unavailable.');
+        const failure = savedReportProofFailure({
+          report,
+          artifactProof,
+          sessionProof,
+          reportMetadata,
+          declaredTools,
+          session,
+          ctx,
+          conversationId,
+          storedRun,
+        });
+        if (failure || !artifactProof) {
+          throw researchProducerProofUnavailable(
+            session.id,
+            `saved_report:${failure}`,
+            reportMetadata.toolsUsed,
+          );
         }
         toolsUsed = artifactProof.toolsUsed;
         runId = artifactProof.runId;
@@ -580,7 +657,13 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
             researchJsonSha256(producerInputManifest) !==
               artifactProof.producerInputManifestSha256
           )
-            throw new ConflictException('The research report producer proof is unavailable.');
+            throw researchProducerProofUnavailable(
+              session.id,
+              producerInputManifest
+                ? 'saved_report:manifest_changed'
+                : 'saved_report:manifest_missing',
+              artifactProof.toolsUsed,
+            );
         }
         if (
           reportReceiptManifestSha256(allReceipts, { id: runId, leaseEpoch }, toolsUsed) !==
@@ -742,11 +825,21 @@ export async function assertCurrentResearchReportSourcesAuthorized(input: {
               executeCurrentOwner,
             )
           : await executeCurrentOwner();
-    } catch {
+    } catch (error) {
+      const failure = error instanceof Error ? error.name : 'unknown';
+      logger.warn(
+        `Research source re-check refused: session=${loaded.sessionId} tool=${envelope.tool} ` +
+          `execution=${envelope.executionId} reason=owner_read_failed:${failure}`,
+      );
       throw new ConflictException('A research source is no longer authorized.');
     }
-    if (!currentOwnerResultAuthorizesReplay(envelope.tool, envelope.result, currentResult))
+    if (!currentOwnerResultAuthorizesReplay(envelope.tool, envelope.result, currentResult)) {
+      logger.warn(
+        `Research source re-check refused: session=${loaded.sessionId} tool=${envelope.tool} ` +
+          `execution=${envelope.executionId} reason=version_changed`,
+      );
       throw new ConflictException('A research source version changed.');
+    }
   }
   // Close the owner-read race: scope, report identity, and current client /
   // conversation authorization must still hold after the owner calls complete.
