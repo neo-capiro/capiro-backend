@@ -74,3 +74,13 @@ Federal readiness now excludes Florida observations from its federal directory c
 The full federal synchronization completed with 3,835 updated records, including 2,766 meeting records and 1,068 hearing/transcript records; it processed 2,731 agenda-to-bill links. Detail-fetch and House-day failures were zero; two transcript source entries lacked dates and were skipped. The news audit retained 774 official articles with zero source-identity mismatches and zero undated-news notifications. Foreign Affairs has all ten verified current articles despite a broken secondary category link. The subsequent RSS run succeeded for 20 of 25 feeds and retained 401 articles; all four Florida feeds succeeded, and Brookings recovered. Reuters, DHS, State, Commerce and Cato remain explicit publisher exceptions.
 
 The URL-provenance migration's fresh-database, retired-upgrade and replay qualification passed in `865514bd-09a7-4759-bfc3-22b6a95a1c83`. The final source's complete 457-file migration inventory is byte-identical to that qualified inventory. Its production wrapper binds the existing 613-row ledger and permits exactly the new official-review allowance, without rewriting historical migration evidence. Production application, new API/web deployment, Florida joint-committee refresh/retirement and final live debrief acceptance are still pending at this entry.
+
+
+Both final ARM64 images passed compilation, runtime checks, source-label validation and immutable ECR readback:
+
+| Service | Final immutable digest | Successful build |
+| --- | --- | --- |
+| API | `sha256:0eaa3d78e07254af7351298bbb03573b819ee1096956230071dae1dda1d0d19a` | `02d83e20-8d24-4941-8b36-762200048db3` |
+| Web | `sha256:671bcd1586b01327df9e9fcde60525d89679920ba51c18d77f01ce79a807822f` | `35c3d83e-c45c-486d-920e-18404542a77c` |
+
+Independent readback after the full federal synchronization confirmed all four Senate aliases, both closed visibility restrictions, retained canonical observations and unchanged protected history. The final images are qualified for guarded promotion; this statement does not yet assert deployment or successful live debrief generation.
