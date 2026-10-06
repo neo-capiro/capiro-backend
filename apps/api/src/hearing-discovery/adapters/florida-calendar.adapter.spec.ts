@@ -586,3 +586,41 @@ describe('Florida publisher rate-limit backoff', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('explicit Senate non-meeting placeholders', () => {
+  it('does not demand a notice for Not meeting while retaining canceled official identities and unknown rows', () => {
+    const result = senateNoticeRefs(
+      `<table id="meetingsTbl"><tbody>
+      <tr><td>1/20/2026</td><td>1:00 PM</td><td>Not meeting</td></tr>
+      <tr><td>1/21/2026</td><td>1:00 PM</td><td>Not meeting
+        <a class="mtgrecord_notice" href="/Committees/Show/AG/MeetingNotice/6751">Notice</a></td></tr>
+      <tr><td>1/22/2026</td><td>1:00 PM</td><td>Awaiting notice</td></tr>
+      </tbody></table>`,
+      'AG',
+      'Agriculture',
+    );
+    expect(result.notices).toEqual([expect.objectContaining({ id: '6751', canceled: true })]);
+    expect(result.issues).toEqual(['Unresolved Senate notice row: 1/22/2026']);
+  });
+
+  it('qualifies the official Jan20 Not meeting slots without inventing proceedings', () => {
+    const result = senateDailyCalendar(
+      `<div class="calHeader"><h2>Tuesday, January 20, 2026 Open Calendar</h2></div>
+      <div id="CalendarContents"><div class="eventGroupContainer"><h4>1:00 PM</h4>
+      <div class="event"><span class="eventtitle"><a href="/Committees/show/AG">Agriculture</a></span>
+        <div class="location"><strong class="redtext">Not meeting</strong></div></div>
+      <div class="event"><span class="eventtitle">Military and Veterans Affairs, Space, and Domestic Security</span>
+        <div class="location"><strong class="redtext">Not meeting</strong></div></div>
+      <div class="event"><span class="eventtitle">Canceled real hearing</span><div class="location">Canceled</div>
+        <a href="/Committees/Show/FP/MeetingNotice/6752">Notice</a></div>
+      <div class="event"><span class="eventtitle">Unqualified event</span></div>
+      </div></div>`,
+      '2026-01-20',
+      '2026',
+    );
+    expect(result.notices).toEqual([expect.objectContaining({ id: '6752', canceled: true })]);
+    expect(result.floors).toEqual([]);
+    expect(result.unresolved).toBe(1);
+    expect(result.issues).toEqual(['2026-01-20: unresolved calendar entry: Unqualified event']);
+  });
+});
