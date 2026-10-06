@@ -884,9 +884,11 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
     });
 
     it('reports a no-transcript hearing honestly rather than omitting it', async () => {
-      // A cancelled proceeding is durable history with no transcript.
+      // A cancelled past proceeding is durable history with no transcript.
+      // H_NOSTREAM starts in the future in the shared calendar fixture.
       await prisma.$executeRawUnsafe(
-        `UPDATE committee_hearing SET event_status = 'canceled' WHERE id = $1`,
+        `UPDATE committee_hearing SET event_status = 'canceled',
+           starts_at = now() - interval '1 day', date = CURRENT_DATE - 1 WHERE id = $1`,
         H_NOSTREAM,
       );
       const result = (await wave1.searchArchive(ctxA, {})) as {

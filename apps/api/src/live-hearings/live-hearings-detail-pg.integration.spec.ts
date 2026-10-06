@@ -301,7 +301,9 @@ describeDb('Live Hearings canonical detail stack (Postgres integration, PR B §4
     expect(event!.visibility).toBe('public');
     expect(event!.officialPageUrl).toContain('armedservices.house.gov');
     expect(event!.eventStatus).toBe('completed');
-    expect(event!.capture).toMatchObject({ status: 'ended' }); // hydrate wire = raw storage status; domain status lives on the transcript route
+    // Hydration prefers the canonical domain outcome over the legacy storage
+    // status ('ended'); transcript and event detail share that lifecycle.
+    expect(event!.capture).toMatchObject({ status: 'COMPLETE' });
   });
 
   it('§4-A detail resolves the correct hearing in every lifecycle state', async () => {
@@ -316,7 +318,7 @@ describeDb('Live Hearings canonical detail stack (Postgres integration, PR B §4
     expect(closed!.visibility).toBe('private');
 
     const failed = await hearings.event(ctxA, H_FAILED);
-    expect(failed!.capture).toMatchObject({ status: 'failed', failureCode: 'NO_PUBLIC_STREAM' });
+    expect(failed!.capture).toMatchObject({ status: 'FAILED', failureCode: 'NO_PUBLIC_STREAM' });
     expect(failed!.timezone).toBe('America/Los_Angeles');
 
     const noCap = await hearings.event(ctxA, H_NOCAP);
@@ -325,7 +327,7 @@ describeDb('Live Hearings canonical detail stack (Postgres integration, PR B §4
 
     const live = await hearings.event(ctxA, H_LIVE);
     expect(live!.eventStatus).toBe('in_progress');
-    expect(live!.capture!.status).toBe('capturing');
+    expect(live!.capture!.status).toBe('CAPTURING');
 
     await expect(hearings.event(ctxA, 'lw-detail-missing')).resolves.toBeNull();
   });
