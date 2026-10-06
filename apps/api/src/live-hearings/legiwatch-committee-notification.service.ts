@@ -61,7 +61,14 @@ interface Claim {
 
 // These are the same observations shown in a committee's publications feed.
 // Flags apply to their source category even when no canonical hearing exists yet.
+// Undated documents discovered after completion are historical metadata, not
+// evidence of a new publication. Upcoming testimony keeps its existing policy.
 const categoryEnabled = Prisma.sql`CASE
+  WHEN u.update_type IN ('witness_testimony_published','committee_memo_published')
+    AND u.official_published_at IS NULL
+    AND EXISTS (SELECT 1 FROM committee_hearing publication_hearing
+      WHERE publication_hearing.id=u.hearing_id AND publication_hearing.event_status='completed')
+    THEN false
   WHEN u.update_type='committee_news_published'
     THEN (f.notify_on_publication AND u.official_published_at IS NOT NULL
       AND u.official_published_at>=f.alert_started_at)

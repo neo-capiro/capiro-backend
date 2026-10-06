@@ -160,6 +160,58 @@ describeDatabase('committee alerts through production PrismaService and Postgres
       checks.push(
         'undated committee news backfill stays in the feed without creating false fresh alerts',
       );
+      const completedHearing = run + ':completed',
+        upcomingHearing = run + ':upcoming';
+      for (const [hearingId, status] of [
+        [completedHearing, 'completed'],
+        [upcomingHearing, 'scheduled'],
+      ]) {
+        await db.$executeRawUnsafe(
+          "INSERT INTO committee_hearing(id,chamber,committee_name,title,date,event_status) VALUES($1,'Senate','Publication proof','Publication proof',CURRENT_DATE,$2)",
+          hearingId,
+          status,
+        );
+      }
+      const documentCases: Array<[string, string, string, boolean]> = [
+        ['completed testimony', 'witness_testimony_published', completedHearing, false],
+        ['completed memo', 'committee_memo_published', completedHearing, false],
+        ['upcoming testimony', 'witness_testimony_published', upcomingHearing, false],
+        ['dated completed testimony', 'witness_testimony_published', completedHearing, true],
+      ];
+      const documentKeys: string[] = [];
+      for (const [label, type, hearingId, dated] of documentCases) {
+        const key = await publication(label, { type });
+        documentKeys.push(key);
+        await db.$executeRawUnsafe(
+          'UPDATE committee_site_update SET hearing_id=$1,official_published_at=CASE WHEN $2 THEN clock_timestamp() ELSE NULL END WHERE content_hash=$3',
+          hearingId,
+          dated,
+          key.replace('committee_update:', ''),
+        );
+      }
+      assert.equal((await service.syncFollow({ committeeSystemCode: child })).inserted, 2);
+      const documentAlerts = (await rows())
+        .filter((row) => documentKeys.includes(row.key))
+        .map((row) => row.key)
+        .sort();
+      assert.deepEqual(documentAlerts, documentKeys.slice(2).sort());
+      // Remove only this test's fixtures before the existing batch-size assertions.
+      await db.$executeRawUnsafe(
+        'DELETE FROM legiwatch_notification_event WHERE tenant_id=$1::uuid AND dedup_key=ANY($2::text[])',
+        ta,
+        documentKeys,
+      );
+      await db.$executeRawUnsafe(
+        'DELETE FROM committee_site_update WHERE hearing_id=ANY($1::text[])',
+        [completedHearing, upcomingHearing],
+      );
+      await db.$executeRawUnsafe('DELETE FROM committee_hearing WHERE id=ANY($1::text[])', [
+        completedHearing,
+        upcomingHearing,
+      ]);
+      checks.push(
+        'completed undated testimony/memo backfill is silent; upcoming undated and dated completed testimony remain eligible',
+      );
       await db.$executeRawUnsafe(
         "INSERT INTO committee_site_update(id,committee_system_code,update_type,normalized_title,source_url,content_hash,first_seen_at,last_seen_at,created_at,updated_at) SELECT $1||':'||n,$2,'committee_memo_published','Burst '||n,'https://www.house.gov/',$1||':'||n,now(),now(),now(),now() FROM generate_series(1,425)n",
         run + ':burst',
