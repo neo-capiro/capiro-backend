@@ -22,11 +22,44 @@ jest.mock('../prisma/prisma.service.js', () => ({ PrismaService: class {} }));
 jest.mock('./meri-feature-flags.service.js', () => ({ MeriFeatureFlagsService: class {} }));
 
 const ctx = { tenantId: 'tenant-a', userId: 'user-a', tenantSlug: 'internal' } as TenantContext;
-const governedContext = {
+const governedContext: MeriGovernedTurnContext = {
   version: 1,
   prompt: 'Authorized client evidence',
   operationId: 'research.generate-report',
-} as MeriGovernedTurnContext;
+  // The server contract always supplies these projections, even when empty.
+  // Keep this fixture typed so new producer-input checks cannot be hidden by a cast.
+  contextPacket: { items: [], exclusions: [], unauthorizedCount: 0, degraded: false },
+  retrieval: {
+    plan: {
+      version: 1,
+      queryClass: 'research',
+      subjectScope: 'client',
+      targetHint: null,
+      recipeTool: null,
+      requireCompleteCoverage: false,
+      requiredDomains: [],
+      timeWindow: null,
+    },
+    coverage: {
+      version: 1,
+      complete: true,
+      requestedDomains: [],
+      searchedDomains: [],
+      missingDomains: [],
+      partialDomains: [],
+      requestedEntityCount: null,
+      searchedEntityCount: null,
+      recordsEvaluated: 0,
+      recordsReturned: 0,
+      paginationComplete: true,
+      truncated: false,
+      sourceHealth: [],
+      unavailableSources: [],
+      toolsInvoked: [],
+      stopReason: 'complete',
+    },
+  },
+};
 const auth = {
   bearerToken: 'caller-token',
   impersonateTenantId: 'tenant-a',
@@ -438,6 +471,8 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     expect(JSON.stringify(client.streamChat.mock.calls[0]?.[0].input)).not.toContain(
       'completionCondition',
     );
+    expect(result.producerInputEvaluated).toBe(true);
+    expect(result.producerInputSha256).toMatch(/^[a-f0-9]{64}$/);
     expect(result.model).toBe('configured-chat-model');
     expect(result.ledgerEntries).toHaveLength(1);
   });
