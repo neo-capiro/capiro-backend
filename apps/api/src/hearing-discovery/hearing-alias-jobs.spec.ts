@@ -3,6 +3,24 @@ import { DiscoveryJobsService } from './discovery-jobs.service.js';
 import { CanonicalHearingRepository } from './canonical-hearing.repository.js';
 
 describe('canonical-only discovery after reviewed reconciliation', () => {
+  it('reuses a legacy NoChamber row for the same official joint event', async () => {
+    const db = {
+      committeeHearing: {
+        findUnique: jest.fn(async () => ({
+          id: 'cm-119-338796',
+          chamber: 'NoChamber',
+          geographicJurisdiction: 'US',
+          canonicalHearingId: null,
+        })),
+      },
+    } as unknown as PrismaClient;
+    await expect(
+      new CanonicalHearingRepository(db).resolveHearingId(
+        { chamber: 'joint', congress: 119, externalEventId: '338796' },
+        'congress-gov',
+      ),
+    ).resolves.toEqual({ kind: 'id', hearingId: 'cm-119-338796' });
+  });
   it('does not select retained aliases for enrichment or archive mutation', async () => {
     const findMany = jest.fn(async () => []);
     const db = { committeeHearing: { findMany } } as unknown as PrismaClient;

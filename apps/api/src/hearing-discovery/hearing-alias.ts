@@ -2,6 +2,16 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 
 type HearingClient = Pick<PrismaClient, 'committeeHearing'>;
 
+/** Congress.gov labels joint proceedings NoChamber. It is a publisher value,
+ * not a separate jurisdiction, and must agree across the legacy and canonical writers. */
+export function officialHearingChamber(value: string): string {
+  const chamber = value.trim().toLowerCase();
+  if (chamber === 'house') return 'House';
+  if (chamber === 'senate') return 'Senate';
+  if (chamber === 'joint' || chamber === 'nochamber') return 'Joint';
+  return value;
+}
+
 /** Resolve retained IDs without guessing from titles, dates or committee names. */
 export async function resolveCanonicalHearingId(db: HearingClient, id: string): Promise<string> {
   const seen = new Set<string>();
@@ -42,9 +52,10 @@ export async function resolveOfficialMeetingId(
   db: HearingClient,
   input: { congress: number; eventId: string; chamber: string },
 ): Promise<string> {
+  const chamber = officialHearingChamber(input.chamber).toLowerCase();
   const id = `cm-${input.congress}-${input.eventId}`;
   const candidates = [id];
-  if (input.chamber.toLowerCase() === 'senate' && /^\d+$/.test(input.eventId))
+  if (chamber === 'senate' && /^\d+$/.test(input.eventId))
     candidates.push(`sen-${input.congress}-${input.eventId}`);
   for (const candidate of candidates) {
     const row = await db.committeeHearing.findUnique({
@@ -53,18 +64,18 @@ export async function resolveOfficialMeetingId(
     });
     if (
       row &&
-      (row.chamber.toLowerCase() !== input.chamber.toLowerCase() ||
+      (officialHearingChamber(row.chamber).toLowerCase() !== chamber ||
         (row.geographicJurisdiction && row.geographicJurisdiction !== 'US'))
     )
       throw new Error('Official hearing ID is occupied by a different scope');
     if (
       row &&
-      row.chamber.toLowerCase() === input.chamber.toLowerCase() &&
+      officialHearingChamber(row.chamber).toLowerCase() === chamber &&
       (!row.geographicJurisdiction || row.geographicJurisdiction === 'US')
     )
       return resolveCanonicalHearingId(db, row.id);
   }
-  return input.chamber.toLowerCase() === 'senate' ? `sen-${input.congress}-${input.eventId}` : id;
+  return chamber === 'senate' ? `sen-${input.congress}-${input.eventId}` : id;
 }
 
 /** Canonical Senate projections own populated schedule/display fields. The

@@ -11,6 +11,16 @@ import {
 } from './sync-committees';
 
 describe('systemCode derivation', () => {
+  it('preserves a reviewed official replacement when a publisher catalog still carries a stale URL', () => {
+    expect(
+      resolveCommitteeUrl({
+        existingUrl: 'https://cha.house.gov/joint-committees',
+        existingUrlSource: 'official_review',
+        communityUrl: 'https://cha.house.gov/old',
+        congressGovUrl: 'https://cha.house.gov/stale',
+      }),
+    ).toEqual({ url: 'https://cha.house.gov/joint-committees', urlSource: 'official_review' });
+  });
   it('full committees: lowercase + "00"', () => {
     expect(systemCodeForCommittee('HSAG')).toBe('hsag00');
     expect(systemCodeForCommittee('SSAF')).toBe('ssaf00');

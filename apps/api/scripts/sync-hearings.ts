@@ -31,6 +31,7 @@ import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import {
   resolveOfficialMeetingId,
+  officialHearingChamber,
   supplementCanonicalHearing,
 } from '../src/hearing-discovery/hearing-alias.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
@@ -173,10 +174,7 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 }
 
 function normalizeChamber(raw: string | null | undefined, fallback?: string | null): string {
-  const c = (raw || fallback || 'Joint').toLowerCase();
-  if (c === 'senate') return 'Senate';
-  if (c === 'house') return 'House';
-  return raw || fallback || 'Joint';
+  return officialHearingChamber(raw || fallback || 'Joint');
 }
 
 /** Public transcript link for a hearing: prefer Formatted Text (HTM), fall

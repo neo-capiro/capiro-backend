@@ -131,7 +131,12 @@ export function resolveCommitteeUrl(input: {
   existingUrl: string | null;
   existingUrlSource: string | null;
   congressGovUrl: string | null;
-}): { url: string | null; urlSource: 'congress_gov' | 'community' | null } {
+}): { url: string | null; urlSource: 'congress_gov' | 'official_review' | 'community' | null } {
+  // A reviewed first-party replacement fixes a stale upstream URL until the
+  // operator reviews it again. Routine registry refreshes must not undo it.
+  if (input.existingUrlSource === 'official_review' && input.existingUrl) {
+    return { url: input.existingUrl, urlSource: 'official_review' };
+  }
   if (input.congressGovUrl) {
     return { url: input.congressGovUrl, urlSource: 'congress_gov' };
   }
@@ -223,7 +228,7 @@ export async function main() {
     for (const row of allRows) {
       if (verifyCallsMade >= boundedVerifyLimit) break;
       const existing = existingBySystemCode.get(row.systemCode);
-      if (existing?.urlSource === 'congress_gov') continue; // already authoritative
+      if (['congress_gov', 'official_review'].includes(existing?.urlSource ?? '')) continue;
       verifyCallsMade += 1;
       const congressGovUrl = await fetchCongressGovCommitteeUrl(
         row.systemCode,
