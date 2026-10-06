@@ -94,22 +94,28 @@ export function nextStreamPreflightAt(input: NextPreflightInput): Date | null {
   if (nowMs > startMs + config.delayedStartGraceMs) return null;
 
   const window = classifyStreamPreflightWindow(input.now, input.scheduledStart, config);
+  const lastAttemptMs = input.lastAttemptAt?.getTime();
   if (window === 'EARLY') {
-    const futureCheckpoints = buildStreamPreflightSchedule(input.scheduledStart, config)
-      .map((date) => date.getTime())
-      .filter((value) => value > nowMs);
+    const checkpoints = buildStreamPreflightSchedule(input.scheduledStart, config)
+      .map((date) => date.getTime());
+    // A due checkpoint must be attempted, not moved to the next checkpoint by
+    // the scheduler's pre-resolve check. One actual attempt covers all elapsed
+    // checkpoints, so late discovery does not cause a burst of duplicate work.
+    if (checkpoints.some((value) => value <= nowMs &&
+      (!Number.isFinite(lastAttemptMs) || value > lastAttemptMs!))) return new Date(nowMs);
+    const futureCheckpoints = checkpoints.filter((value) => value > nowMs);
     if (futureCheckpoints.length > 0) return new Date(Math.min(...futureCheckpoints));
     return new Date(Math.max(nowMs, startMs - config.rapidPollLeadMs));
   }
 
-  const lastAttemptMs = input.lastAttemptAt?.getTime();
   if (!Number.isFinite(lastAttemptMs)) return new Date(nowMs);
-  const base = Math.max(nowMs, lastAttemptMs!);
   const delay =
     input.resolutionState === 'SOURCE_ERROR'
       ? sourceErrorBackoff(input.consecutiveSourceErrors ?? 0, config)
       : config.rapidPollIntervalMs;
-  const nextMs = base + delay;
+  // The deadline is anchored to the actual attempt. Rechecking a due job must
+  // not perpetually push its retry into the future.
+  const nextMs = Math.max(nowMs, lastAttemptMs! + delay);
   const graceEnd = startMs + config.delayedStartGraceMs;
   return nextMs <= graceEnd ? new Date(nextMs) : null;
 }

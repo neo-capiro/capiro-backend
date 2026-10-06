@@ -17,14 +17,39 @@ describe('stream preflight policy', () => {
     ]);
   });
 
-  it('returns the next future checkpoint when a hearing is still early', () => {
+  it('returns the next future checkpoint after the prior checkpoint was attempted', () => {
     expect(
       nextStreamPreflightAt({
         now: new Date('2026-08-20T15:00:00Z'),
         scheduledStart: start,
-        resolutionState: 'NOT_CHECKED',
+        resolutionState: 'WAITING_FOR_STREAM',
+        lastAttemptAt: new Date('2026-08-20T14:00:00Z'),
       })?.toISOString(),
     ).toBe('2026-08-21T13:00:00.000Z');
+  });
+
+  it('attempts a due or missed early checkpoint once rather than skipping to the next one', () => {
+    for (const time of ['2026-08-20T14:00:00Z', '2026-08-21T13:05:00Z']) {
+      const now = new Date(time);
+      expect(nextStreamPreflightAt({ now, scheduledStart: start, resolutionState: 'NOT_CHECKED' })).toEqual(now);
+    }
+    expect(nextStreamPreflightAt({
+      now: new Date('2026-08-21T13:05:01Z'), scheduledStart: start,
+      resolutionState: 'WAITING_FOR_STREAM', lastAttemptAt: new Date('2026-08-21T13:05:00Z'),
+    })).toEqual(new Date('2026-08-21T13:45:00Z'));
+  });
+
+  it.each([
+    ['WAITING_FOR_STREAM', 0, 20_000],
+    ['SOURCE_ERROR', 2, 120_000],
+  ] as const)('anchors %s retries to the last actual attempt', (resolutionState, consecutiveSourceErrors, delay) => {
+    const lastAttemptAt = new Date('2026-08-21T13:55:00Z');
+    const due = new Date(lastAttemptAt.getTime() + delay);
+    const input = { scheduledStart: start, resolutionState, consecutiveSourceErrors, lastAttemptAt };
+    expect(nextStreamPreflightAt({ ...input, now: new Date(due.getTime() - 1) })).toEqual(due);
+    expect(nextStreamPreflightAt({ ...input, now: due })).toEqual(due);
+    const late = new Date(due.getTime() + 60_000);
+    expect(nextStreamPreflightAt({ ...input, now: late })).toEqual(late);
   });
 
   it('rapid-polls every 20 seconds near and after the nominal start', () => {

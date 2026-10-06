@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES,
   PublicHearingCaptureStore,
+  publicCaptureStorageStatus,
 } from './public-hearing-capture.store.js';
 
 /**
@@ -238,6 +239,7 @@ describeDb('PublicHearingCaptureStore automatic demand on PostgreSQL (hearing-de
     // Child rows before parents; only rows under the random prefix/tenant are
     // removed — existing real QA fixtures (Judiciary338740) are preserved.
     await prisma.withSystem(async (tx) => {
+      await tx.$executeRawUnsafe(`DELETE FROM public_hearing_capture WHERE hearing_id LIKE '${PREFIX}-%'`);
       await tx.$executeRawUnsafe(
         `DELETE FROM hearing_subscription WHERE tenant_id = $1::uuid`,
         TENANT,
@@ -280,6 +282,63 @@ describeDb('PublicHearingCaptureStore automatic demand on PostgreSQL (hearing-de
     await expect(
       store.assertCaptureAllowed(hearingId('official-open-hearing')),
     ).resolves.toBeUndefined();
+  });
+
+  it('keeps a new due hearing inside the bounded scan despite 12 older active captures, while recovering expired or incomplete leases', async () => {
+    const now = new Date('2035-04-10T12:00:00Z');
+    const past = new Date(now.getTime() - 7 * 3_600_000);
+    const expired = new Date(now.getTime() - 1);
+    const future = new Date(now.getTime() + 3_600_000);
+    const states = ['CAPTURING', 'RECOVERING', 'FINALIZING'] as const;
+    const active = Array.from({ length: 12 }, (_, index) => ({
+      key: `scan-active-${index}`, state: states[index % states.length]!,
+      owner: `worker-${index}` as string | null, expiry: future as Date | null,
+    }));
+    const recoverable = [
+      { key: 'scan-expired', state: 'CAPTURING' as const, owner: 'expired-worker', expiry: expired },
+      { key: 'scan-expiry-boundary', state: 'RECOVERING' as const, owner: 'boundary-worker', expiry: now },
+      { key: 'scan-no-owner', state: 'FINALIZING' as const, owner: null, expiry: future },
+      { key: 'scan-no-expiry', state: 'CAPTURING' as const, owner: 'orphan-worker', expiry: null },
+    ];
+    const newId = hearingId('scan-new');
+    await prisma.withSystem(async (tx) => {
+      for (const row of [...active, ...recoverable, { key: 'scan-new', state: null, owner: null, expiry: null }]) {
+        const id = hearingId(row.key);
+        await tx.$executeRawUnsafe(
+          `INSERT INTO committee_hearing
+             (id, chamber, committee_name, title, date, starts_at, type, visibility, event_status)
+           VALUES ($1, 'senate', 'Synthetic demand QA', 'Discovery fairness', $2, $2,
+                   'Open Hearing', 'public', 'in_progress')`,
+          id, row.state ? past : now,
+        );
+        await tx.$executeRawUnsafe(
+          `INSERT INTO hearing_subscription
+             (tenant_id, user_id, hearing_id, attendance_mode, scheduled_by_user)
+           VALUES ($1::uuid, $2::uuid, $3, 'automatic', true)`, TENANT, USER_A, id,
+        );
+        if (row.state) {
+          await tx.$executeRawUnsafe(
+            `INSERT INTO public_hearing_capture
+               (id, hearing_id, status, domain_status, scheduled_start, worker_lease_owner,
+                lease_acquired_at, lease_expires_at, next_preflight_at)
+             VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $4, $6, NULL)`,
+            id, publicCaptureStorageStatus(row.state), row.state, past, row.owner, row.expiry,
+          );
+        }
+      }
+    });
+    const due = await store.listDueHearingIds(now);
+    // These rows precede the new hearing by seven hours; before the guard the
+    // first ten were active captures, so the new hearing never got a job.
+    expect(due.slice(0, 10)).toContain(newId);
+    for (const row of active) expect(due).not.toContain(hearingId(row.key));
+    for (const row of recoverable) expect(due).toContain(hearingId(row.key));
+    const after = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+      `SELECT COUNT(*)::int AS count FROM public_hearing_capture
+       WHERE hearing_id = ANY($1::text[]) AND worker_lease_owner IS NOT NULL AND lease_expires_at=$2`,
+      active.map((row) => hearingId(row.key)), future,
+    );
+    expect(after[0]?.count).toBe(12); // Discovery must not release or modify a live worker's lease.
   });
 });
 
