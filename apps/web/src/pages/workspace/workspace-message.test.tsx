@@ -15,7 +15,7 @@ describe('Workspace feedback across shells', () => {
   it('supports every Workspace notification without Ant App on vNext', () => {
     render(<CapiroToastProvider><Feedback /></CapiroToastProvider>);
     for (const kind of ['info', 'success', 'error', 'warning']) {
-      fireEvent.click(screen.getByRole('button', { name: kind, exact: true }));
+      fireEvent.click(screen.getByRole('button', { name: kind }));
       expect(screen.getByText(`${kind} feedback`)).toBeInTheDocument();
     }
     expect(screen.getAllByRole('status')).toHaveLength(2);
@@ -24,7 +24,7 @@ describe('Workspace feedback across shells', () => {
 
   it('retains legacy Ant feedback without duplicating native notifications', async () => {
     const { container } = render(<CapiroToastProvider><AntApp><Feedback /></AntApp></CapiroToastProvider>);
-    fireEvent.click(screen.getByRole('button', { name: 'info', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'info' }));
     expect(await screen.findByText('info feedback')).toBeInTheDocument();
     expect(container.querySelector('.capiro-toast')).toBeNull();
   });
