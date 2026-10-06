@@ -444,7 +444,6 @@ describe('LiveHearingsService — Florida calendar coverage', () => {
       status: 'complete',
       items: 0,
       details: { expected: 0, found: 0 },
-      session: '2026',
     };
     const { service } = makeService({
       coverage: [
