@@ -77,6 +77,12 @@ export interface MeResponse {
      * The API independently guards every Phase 5 route server-side.
      */
     businessDevelopmentWatch?: boolean;
+    /**
+     * Stage 2 delegated jobs (tenant flag `meri.jobs`). Optional so an older
+     * cached /me fails closed: "Delegate this" renders only when exactly true.
+     * The API rejects job kinds independently when the flag is off.
+     */
+    meriJobs?: boolean;
   };
 }
 

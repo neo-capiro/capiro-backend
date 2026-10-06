@@ -33,11 +33,45 @@ export interface MeriResearchRun {
   readyToStart?: boolean;
 }
 
+/** Public Stage 2 job view (API `meriJobView`). Absent on older API shapes. */
+export const MERI_JOB_KINDS = ['research', 'deliverable', 'audit', 'scheduled'] as const;
+export type MeriJobKind = (typeof MERI_JOB_KINDS)[number];
+export const MERI_JOB_STATUSES = [
+  'queued',
+  'planning',
+  'executing',
+  'waiting_for_user',
+  'finalizing',
+  'completed',
+  'partial',
+  'failed',
+  'cancel_requested',
+  'cancelled',
+] as const;
+export type MeriJobStatus = (typeof MERI_JOB_STATUSES)[number];
+const MERI_JOB_DELIVERABLE_FORMATS = ['docx', 'xlsx', 'pptx', 'pdf', 'markdown'] as const;
+
+export interface MeriJobDeliverable {
+  format: (typeof MERI_JOB_DELIVERABLE_FORMATS)[number];
+  title: string;
+  artifactId: string | null;
+}
+
+export interface MeriJobView {
+  kind: MeriJobKind;
+  status: MeriJobStatus;
+  goalRevision: number;
+  deliverables: MeriJobDeliverable[];
+  /** No live lease: the job continues only when a signed-in client starts or resumes it. */
+  awaitingStart: boolean;
+}
+
 export interface MeriRecoveredResearch {
   id: string;
   conversationId: string;
   title: string;
   run: MeriResearchRun;
+  job?: MeriJobView;
   questions: string[];
   plan: string[];
   planMessageId: string | null;
@@ -107,6 +141,43 @@ export function readResearchRun(value: unknown): MeriResearchRun | null {
   };
 }
 
+/** Strict: an unknown kind, status or deliverable shape yields no job view. */
+export function readMeriJob(value: unknown): MeriJobView | null {
+  const job = record(value);
+  if (
+    !(MERI_JOB_KINDS as readonly unknown[]).includes(job.kind) ||
+    !(MERI_JOB_STATUSES as readonly unknown[]).includes(job.status) ||
+    typeof job.goalRevision !== 'number' ||
+    !Number.isSafeInteger(job.goalRevision) ||
+    job.goalRevision < 0 ||
+    typeof job.awaitingStart !== 'boolean' ||
+    !Array.isArray(job.deliverables)
+  )
+    return null;
+  const deliverables: MeriJobDeliverable[] = [];
+  for (const raw of job.deliverables) {
+    const deliverable = record(raw);
+    if (
+      !(MERI_JOB_DELIVERABLE_FORMATS as readonly unknown[]).includes(deliverable.format) ||
+      typeof deliverable.title !== 'string' ||
+      !(deliverable.artifactId === null || typeof deliverable.artifactId === 'string')
+    )
+      return null;
+    deliverables.push({
+      format: deliverable.format as MeriJobDeliverable['format'],
+      title: deliverable.title,
+      artifactId: deliverable.artifactId as string | null,
+    });
+  }
+  return {
+    kind: job.kind as MeriJobKind,
+    status: job.status as MeriJobStatus,
+    goalRevision: job.goalRevision,
+    deliverables,
+    awaitingStart: job.awaitingStart,
+  };
+}
+
 export function readRecoveredResearch(
   value: unknown,
   conversationId: string,
@@ -119,11 +190,13 @@ export function readRecoveredResearch(
     return null;
   const report = record(session.report);
   const publicMetadata = record(session.reportMetadata);
+  const job = readMeriJob(session.job);
   return {
     id: session.id,
     conversationId,
     title: typeof session.title === 'string' ? session.title : 'Research',
     run,
+    ...(job ? { job } : {}),
     questions: strings(session.clarifyingQuestions),
     plan: strings(session.plan),
     planMessageId: typeof metadata.planMessageId === 'string' ? metadata.planMessageId : null,

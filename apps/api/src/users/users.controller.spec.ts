@@ -231,3 +231,53 @@ describe('UsersController — /me features.businessDevelopmentWatch', () => {
     );
   });
 });
+
+describe('UsersController — /me features.meriJobs', () => {
+  const ctx = {
+    tenantId: 't1',
+    tenantSlug: 'capiro-internal',
+    userId: 'u1',
+    clerkUserId: 'clerk_1',
+    role: 'standard_user',
+  } as unknown as TenantContext;
+
+  function make(settings: unknown) {
+    const row = {
+      email: 'neo@capiro.ai',
+      firstName: 'Neo',
+      lastName: 'M',
+      title: null,
+      emailSignatureHtml: null,
+      emailSignatureEnabled: false,
+      tourCompletedAt: null,
+      legiwatchIntroSeenAt: null,
+    };
+    const tx = {
+      user: { findUnique: jest.fn(async () => row), update: jest.fn(async () => row) },
+      tenant: {
+        findUnique: jest.fn(async () => ({ name: 'Capiro Internal', settings, planTier: 'starter' })),
+      },
+      tenantMembership: { findUnique: jest.fn(async () => ({ billingAdmin: false })) },
+    };
+    const prisma = {
+      withTenant: jest.fn(async (_tenantId: string, fn: (value: typeof tx) => unknown) => fn(tx)),
+    } as unknown as PrismaService;
+    const config = { get: jest.fn(() => false) } as unknown as ConfigService<AppConfig, true>;
+    return new UsersController(prisma, config);
+  }
+
+  it.each([
+    ['no flags', {}],
+    ['meri.jobs off', { clioFeatureFlags: { 'meri.jobs': false } }],
+  ])('GET and PATCH report false with %s', async (_label, settings) => {
+    const controller = make(settings);
+    expect((await controller.me(ctx)).features.meriJobs).toBe(false);
+    expect((await controller.updateMe(ctx, { title: 'VP' })).features.meriJobs).toBe(false);
+  });
+
+  it('GET and PATCH report true when meri.jobs is on', async () => {
+    const controller = make({ clioFeatureFlags: { 'meri.jobs': true } });
+    expect((await controller.me(ctx)).features.meriJobs).toBe(true);
+    expect((await controller.updateMe(ctx, { title: 'VP' })).features.meriJobs).toBe(true);
+  });
+});
