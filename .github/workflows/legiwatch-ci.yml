@@ -315,7 +315,7 @@ jobs:
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 143 1801
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 144 1805
 
       - name: Selected bill inventory qualification
         env:
