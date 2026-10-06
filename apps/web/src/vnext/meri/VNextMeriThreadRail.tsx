@@ -20,6 +20,7 @@ import { CapiroErrorState, CapiroSkeleton } from '../components/feedback/index.j
 import { CapiroModal } from '../components/overlays/index.js';
 import type { MeriChatController } from '../../components/chat/useMeriChatController.js';
 import { MeriIcon } from './meri-icons.js';
+import { MeriRunningJobs } from './MeriRunningJobs.js';
 import {
   createMeriWorkspace,
   assignMeriConversationWorkspace,
@@ -410,6 +411,7 @@ export function VNextMeriThreadRail({
           reachable; the conversation header shows the expand toggle while
           collapsed). */}
       <div className="vnext-meri__rail-left-scroll">
+        <MeriRunningJobs identityKey={identityKey} onSelect={handleSelect} />
         <section data-meri-rail-section="workspaces">
           <div className="vnext-meri__section-label-row">
             <span className="vnext-meri__section-label">WORKSPACES</span>

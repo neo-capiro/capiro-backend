@@ -6769,3 +6769,39 @@
 .capiro-vnext-root .vnext-meri__job-deliverables a.vnext-meri__durable-send {
   text-decoration: none;
 }
+
+/* Stage 2 running jobs (thread rail). */
+.capiro-vnext-root .vnext-meri__running-jobs {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+}
+.capiro-vnext-root .vnext-meri__running-job {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+.capiro-vnext-root .vnext-meri__running-job:hover {
+  background: var(--m-gray-100);
+}
+.capiro-vnext-root .vnext-meri__running-job-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.capiro-vnext-root .vnext-meri__running-job small,
+.capiro-vnext-root .vnext-meri__running-jobs-note {
+  color: var(--m-gray-600);
+}
+.capiro-vnext-root .vnext-meri__running-jobs-note {
+  font-size: 11px;
+  margin: 0 8px 8px;
+}
