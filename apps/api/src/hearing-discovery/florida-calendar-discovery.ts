@@ -604,6 +604,7 @@ export async function resolveFloridaAgenda(
     const normalize = (name: string) =>
       name
         .toLowerCase()
+        .replace(/&/g, ' and ')
         .replace(/^(?:house|senate)\s+/, '')
         .replace(/\s+committee$/, '')
         .replace(/\s+/g, ' ')
