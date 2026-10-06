@@ -118,15 +118,13 @@ describe('LegiWatchModule — Hearings landing (v2 restyle)', () => {
     expect(screen.getByRole('button', { name: 'Trends / Analytics' })).toHaveClass('is-active');
   });
 
-  it('opens watchlists and alerts beside Settings while preserving the client lens', async () => {
+  it('opens client watchlist and alerts beside Settings while preserving the client lens', async () => {
     mount('/legiwatch?tab=hearings&client=c1');
-    const watchlists = screen.getByRole('button', { name: 'Open watchlists' });
+    const watchlists = screen.getByRole('button', { name: 'Open watchlist and alerts' });
     expect(watchlists.parentElement).toContainElement(screen.getByRole('button', { name: 'LegiWatch settings' }));
     fireEvent.click(watchlists);
-    expect(screen.getByLabelText('Current navigation')).toHaveTextContent('tab=bills');
-    expect(screen.getByLabelText('Current navigation')).toHaveTextContent('client=c1');
-    fireEvent.click(screen.getByRole('button', { name: 'Open alerts' }));
-    expect(screen.getByLabelText('Current navigation')).toHaveTextContent('tab=feed');
+    expect(screen.getByLabelText('Current navigation')).toHaveTextContent('tab=settings');
+    expect(screen.getByLabelText('Current navigation')).toHaveTextContent('sub=watchlist');
     expect(screen.getByLabelText('Current navigation')).toHaveTextContent('client=c1');
   });
 

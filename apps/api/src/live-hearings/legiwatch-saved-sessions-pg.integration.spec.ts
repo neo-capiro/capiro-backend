@@ -436,7 +436,7 @@ describeDb('saved hearing identity + archive (PostgreSQL)', () => {
       VALUES ('capture-speaker','8','Shaheen, Jeanne','llm')`);
     const search = async () => {
       const result = await service.searchArchive(ctx, { q: 'Quantum' });
-      const row = result.rows[0] as { transcriptHit?: { speakerName: string | null } } | undefined;
+      const row = (result.rows as Array<{ transcriptHit?: { speakerName: string | null } }>)[0];
       return row?.transcriptHit;
     };
     expect(await search()).toMatchObject({ speakerName: null });

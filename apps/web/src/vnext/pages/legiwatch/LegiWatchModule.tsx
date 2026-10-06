@@ -19,7 +19,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Bell, Bookmark, ChevronDown, Crosshair, Search } from 'lucide-react';
+import { Bell, ChevronDown, Crosshair, Search } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
@@ -34,7 +34,7 @@ import {
 } from './lib/types.js';
 import { useLwFeed, useLwFeedItems, defaultBucketCount } from './lib/api.js';
 import { LwPill, LwButton } from './lib/primitives.js';
-import { watchlistSetupPath } from './lib/watchlist-navigation.js';
+import { isWatchlistSetup, watchlistSetupPath } from './lib/watchlist-navigation.js';
 import { hasTestSessionTitle } from './lib/hearing-presentation.js';
 import { HearingsTab } from './hearings/HearingsTab.js';
 import { CommitteesTab } from './committees/CommitteesTab.js';
@@ -271,7 +271,9 @@ export function LegiWatchModule() {
     );
   };
 
-  const head = TAB_HEAD[tab];
+  const head = isWatchlistSetup(searchParams)
+    ? { eyebrow: 'Client monitoring', title: 'Watchlist & alerts', description: 'Manage client topics, terms, jurisdictions and alert preferences.' }
+    : TAB_HEAD[tab];
   const scopeLabel = selectedClient?.name ?? 'All clients';
 
   // Counts for the tab strip (§8.6) — Hearings count comes from the hearings
@@ -368,14 +370,9 @@ export function LegiWatchModule() {
             <Search size={16} aria-hidden="true" />
             <span>Search all LegiWatch</span>
           </LwButton>
-          <LwButton size="42" className="lw-header-shortcut" onClick={() => setTab('bills')} ariaLabel="Open watchlists">
-            <Bookmark size={16} aria-hidden="true" />
-            <span>Watchlists</span>
-          </LwButton>
-          <LwButton size="42" className="lw-header-shortcut" onClick={() => setTab('feed')} ariaLabel="Open alerts">
+          <LwButton size="42" className="lw-header-shortcut" onClick={() => navigate(watchlistSetupPath(scope))} ariaLabel="Open watchlist and alerts">
             <Bell size={16} aria-hidden="true" />
-            <span>Alerts</span>
-            {activeCount != null && activeCount > 0 ? <span className="lw-tab__count">{activeCount > 999 ? '999+' : activeCount}</span> : null}
+            <span>Watchlist &amp; alerts</span>
           </LwButton>
           <button
             type="button"
