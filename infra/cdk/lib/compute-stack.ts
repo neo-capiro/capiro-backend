@@ -181,6 +181,15 @@ export class ComputeStack extends cdk.Stack {
       'ImportedLegistormApiKey',
       `capiro/${cfg.envName}/legistorm-api-key`,
     );
+    // LegiScan key for Meri's live state-bill lookup (serve task, #2098):
+    // capiro/<env>/legiscan_api_key, provisioned out-of-band for the state
+    // sync jobs. Wired onto capiro-dev-api by a 2026-10-06 configuration
+    // revision (Neo's OK); see DRIFT-FINDINGS.md.
+    const legiscanApiKeyImported = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      'ImportedLegiscanApiKey',
+      `capiro/${cfg.envName}/legiscan_api_key`,
+    );
     // Census ACS API key (District Nexus Phase 0). Already provisioned
     // out-of-band as capiro/<env>/census_api_key (underscore, not hyphen —
     // matches the real secret name); consumed ONLY by the scheduled
@@ -678,6 +687,8 @@ export class ComputeStack extends cdk.Stack {
         ? { TYPESAFE_API_KEY: ecs.Secret.fromSecretsManager(typeSafeApiKeySecret) }
         : {}),
       GOVINFO_API_KEY: ecs.Secret.fromSecretsManager(govInfoApiKeyImported),
+      // Meri live state-bill lookup (serve only; see the import above).
+      LEGISCAN_API_KEY: ecs.Secret.fromSecretsManager(legiscanApiKeyImported),
       // Meeting notetaker (serve only — see the import above for the gating).
       RECALL_API_KEY: ecs.Secret.fromSecretsManager(recallApiKeySecret),
       ...(recallWebhookSecret
@@ -942,6 +953,8 @@ export class ComputeStack extends cdk.Stack {
       // GovInfo key: the operator-populated secret is capiro/<env>/govinfo_api_key
       // (default-KMS). Match its versioned ARN form so the exec role can read it.
       `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/govinfo_api_key*`,
+      // LegiScan key for Meri's live state-bill lookup (serve task).
+      `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/legiscan_api_key*`,
       // SAM.gov key provisioned out-of-band (capiro/<env>/sam-gov-api-key).
       `arn:aws:secretsmanager:${this.region}:${this.account}:secret:capiro/${cfg.envName}/sam-gov-api-key*`,
       // Recall.ai meeting-notetaker secrets (serve task).
