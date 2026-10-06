@@ -15,6 +15,23 @@ describe('Krisp import settings', () => {
     });
   });
   afterEach(cleanup);
+  it.each(['direct_notes', 'generated'])(
+    'describes the server-selected %s flow',
+    async (importMode) => {
+      api.get.mockImplementation(async (url: string) => ({
+        data: url.endsWith('/folders') ? [] : { ...empty, importMode },
+      }));
+      render(<KrispNotetakerSettings connected />);
+      if (importMode === 'direct_notes') {
+        expect(await screen.findByText(/without generating new text/)).toBeInTheDocument();
+        expect(screen.queryByText(/from the completed transcripts/)).toBeNull();
+      } else {
+        await waitFor(() => expect(screen.getByRole('checkbox')).not.toBeDisabled());
+        expect(screen.getByText(/from the completed transcripts/)).toBeInTheDocument();
+        expect(screen.queryByText(/without generating new text/)).toBeNull();
+      }
+    },
+  );
   it('requires explicit opt-in and saves the selected folder', async () => {
     render(<KrispNotetakerSettings connected />);
     const toggle = await screen.findByRole('checkbox');

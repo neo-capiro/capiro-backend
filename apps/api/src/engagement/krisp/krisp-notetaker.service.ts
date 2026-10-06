@@ -8,7 +8,13 @@ import { randomUUID } from 'node:crypto';
 import type { KrispNotetakerPreference, Prisma } from '@prisma/client';
 import type { TenantContext, TenantRole } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { krispNotetakerEnabled, krispTenantEnabled } from '../../common/krisp-notetaker-flags.js';
+import {
+  krispImportMode,
+  krispNotetakerEnabled,
+  krispTenantEnabled,
+} from '../../common/krisp-notetaker-flags.js';
+import { MeetingCapturePersistenceService } from '../../meeting-capture/meeting-capture-persistence.service.js';
+import { formatDebriefBody } from '../notetaker/meeting-debrief-format.js';
 import { MeriManagedMcpService } from '../../meri/meri-managed-mcp.service.js';
 import { managedAppAvailable } from '../../meri/meri-managed-mcp.helpers.js';
 import { ownMeetingWhere } from '../engagement-access.helpers.js';
@@ -21,6 +27,7 @@ import {
   krispPayload,
   krispRows,
   krispNotes,
+  krispTranscript,
   krispNextPage,
   matchKrispMeeting,
   normalizeKrispMeeting,
@@ -47,16 +54,22 @@ export class KrispNotetakerService {
     private readonly managed: MeriManagedMcpService,
     private readonly crypto: MeetingNotesCryptoService,
     private readonly runtime: EngagementRuntimePolicyService,
+    private readonly persistence: MeetingCapturePersistenceService,
   ) {}
 
   private async assertEnabled(ctx: TenantContext) {
-    if (!(await krispTenantEnabled(this.prisma, ctx.tenantId)))
+    const tenant = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.tenant.findUnique({ where: { id: ctx.tenantId }, select: { slug: true, settings: true } }),
+    );
+    if (!tenant || !krispNotetakerEnabled(tenant.settings))
       throw new NotFoundException('Krisp Notetaker is not enabled for this organization.');
+    return krispImportMode(tenant.slug);
   }
 
   async status(ctx: TenantContext) {
-    await this.assertEnabled(ctx);
+    const importMode = await this.assertEnabled(ctx);
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => ({
+      importMode,
       preference: await tx.krispNotetakerPreference.findUnique({
         where: { tenantId_userId: scope(ctx) },
         select: {
@@ -77,7 +90,7 @@ export class KrispNotetakerService {
   }
 
   async configure(ctx: TenantContext, input: { enabled: boolean; folderId?: string | null }) {
-    await this.assertEnabled(ctx);
+    const importMode = await this.assertEnabled(ctx);
     if (!input.enabled) {
       await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
         tx.krispNotetakerPreference.updateMany({
@@ -103,7 +116,10 @@ export class KrispNotetakerService {
           schema.input_schema,
           name === 'search_meetings'
             ? { since: new Date().toISOString(), folderId: input.folderId }
-            : { ids: ['0'.repeat(32)] },
+            : {
+                ids: ['0'.repeat(32)],
+                content: importMode === 'direct_notes' ? 'notes' : 'transcript',
+              },
         );
       } catch {
         throw new BadRequestException(
@@ -384,7 +400,7 @@ export class KrispNotetakerService {
     );
     if (!claimed.count) return;
     try {
-      await this.assertActive(ctx, preference);
+      const importMode = await this.assertActive(ctx, preference);
       const item = await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
         tx.krispMeetingImport.findFirst({ where: { id, ...scope(ctx), leaseToken } }),
       );
@@ -396,11 +412,15 @@ export class KrispNotetakerService {
         }),
       );
       if (!meeting) throw new Error('Meeting is no longer available.');
-      const body = krispNotes(
-        await this.read(ctx, 'get_multiple_documents', { ids: [item.documentId] }),
+      const direct = importMode === 'direct_notes';
+      const sourceText = (direct ? krispNotes : krispTranscript)(
+        await this.read(ctx, 'get_multiple_documents', {
+          ids: [item.documentId],
+          content: direct ? 'notes' : 'transcript',
+        }),
         item.documentId,
       );
-      if (!body) {
+      if (!sourceText) {
         await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
           tx.krispMeetingImport.updateMany({
             where: { id, ...scope(ctx), leaseToken },
@@ -409,14 +429,27 @@ export class KrispNotetakerService {
               leaseToken: null,
               leaseUntil: null,
               attempts: { decrement: 1 },
-              error: 'Waiting for Krisp to finish the notes.',
+              error: direct
+                ? 'Waiting for Krisp to finish the notes.'
+                : 'Waiting for Krisp to finish the transcript.',
             },
           }),
         );
         return;
       }
-      await this.assertActive(ctx, preference);
-      // Preserve Krisp's authored notes verbatim in both artifacts; never regenerate them.
+      if ((await this.assertActive(ctx, preference)) !== importMode)
+        throw new Error('Krisp import mode changed.');
+      let body = sourceText;
+      if (!direct) {
+        this.runtime.assertExternalAction('meeting_debrief_generate');
+        body = formatDebriefBody(
+          await this.persistence.generateMeetingDebriefDraft(ctx, meeting.id, {
+            method: 'upload',
+            sourceText,
+          }),
+        );
+      }
+      // C2 copies its notes verbatim. Other tenants save Meri's generated result.
       const encrypted = this.crypto.encrypt(body);
       await this.assertActive(ctx, preference);
       await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
@@ -427,7 +460,8 @@ export class KrispNotetakerService {
         await tx.$queryRaw`SELECT id FROM tenants WHERE id = ${ctx.tenantId}::uuid FOR SHARE`;
         await tx.$queryRaw`SELECT user_id FROM tenant_memberships WHERE tenant_id = ${ctx.tenantId}::uuid AND user_id = ${ctx.userId}::uuid FOR SHARE`;
         await tx.$queryRaw`SELECT id FROM meetings WHERE id = ${meeting.id}::uuid AND tenant_id = ${ctx.tenantId}::uuid FOR UPDATE`;
-        await this.assertActiveTx(tx, ctx, preference);
+        if ((await this.assertActiveTx(tx, ctx, preference)) !== importMode)
+          throw new Error('Krisp import mode changed.');
         const current = await tx.meeting.findFirst({
           where: {
             id: meeting.id,
@@ -494,7 +528,7 @@ export class KrispNotetakerService {
   private async assertActive(ctx: TenantContext, preference: KrispNotetakerPreference) {
     this.runtime.assertBackgroundOwner('krisp-notetaker');
     if (!managedAppAvailable('krisp', ctx)) throw new Error('Krisp is disabled.');
-    await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
       this.assertActiveTx(tx, ctx, preference),
     );
   }
@@ -531,6 +565,7 @@ export class KrispNotetakerService {
       !server
     )
       throw new Error('Krisp authorization changed.');
+    return krispImportMode(tenant.slug);
   }
 
   private async context(preference: KrispNotetakerPreference): Promise<TenantContext | null> {
