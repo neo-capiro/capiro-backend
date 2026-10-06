@@ -350,6 +350,40 @@ describe('D2 — quote/source-span gate', () => {
     expect(f[0]!.check).toBe('D2');
     expect(f[0]!.severity).toBe('high');
   });
+  it('matches source text across a line break that the JSON serialization escapes', () => {
+    const bill =
+      'shall be carried out without regard to the requirements of that\nsection 3 of the Act';
+    const billLedger = ledgerWith([
+      { tool: 'read_bill_text', serialized: JSON.stringify({ text: bill }) },
+    ]);
+    const out = `The bill text provides that it proceeds "without regard to the requirements of that section 3 of the Act" in full.`;
+    expect(checkQuoteSpans(out, billLedger)).toEqual([]);
+  });
+  it('ignores a comma, period or ellipsis the writer placed inside the closing quote', () => {
+    const billLedger = ledgerWith([
+      {
+        tool: 'read_bill_text',
+        serialized: JSON.stringify({
+          text: 'may proceed without regard to the requirements of that section and shall report.',
+        }),
+      },
+    ]);
+    const out = `The bill states the Secretary may act “…without regard to the requirements of that section,” then report.`;
+    expect(checkQuoteSpans(out, billLedger)).toEqual([]);
+  });
+  it('still flags a quote that only exists by joining two separate result fields', () => {
+    const split = ledgerWith([
+      {
+        tool: 'read_bill_text',
+        serialized: JSON.stringify({
+          a: 'the Secretary shall terminate the program',
+          b: 'no later than fiscal year 2027 absent certification',
+        }),
+      },
+    ]);
+    const out = `The bill states "the Secretary shall terminate the program no later than fiscal year 2027 absent certification".`;
+    expect(checkQuoteSpans(out, split)).toHaveLength(1);
+  });
   it('does NOT flag short scare quotes or coined terms (precision guard)', () => {
     expect(checkQuoteSpans('The bill text calls this a "skinny budget" approach.', ledger)).toEqual(
       [],
