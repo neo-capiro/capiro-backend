@@ -52,11 +52,12 @@ describe('official committee news', () => {
     ];
     const landing = indexes.map((path) => `<a href="${path}">Press releases</a>`).join('');
 
-    it('keeps the published replacement within four indexes, reads it once and retains the original404', async () => {
+    it('recovers a replacement-only article within four indexes and retains the original404', async () => {
       fetchMock.mockImplementation(async (url) => {
-        if (url === foreign.sourceUrl) return html(landing + article);
+        if (url === foreign.sourceUrl) return html(landing);
         if (url === obsolete) return { ...html(''), ok: false, status: 404, error: 'HTTP 404' };
-        return html(article);
+        if (url === current) return html(article + article);
+        return html('');
       });
       const adapter = new CommitteeSiteAdapter();
       const updates = await adapter.discoverUpdates(foreign, ctx);
