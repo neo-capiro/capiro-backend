@@ -130,25 +130,34 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
     // watcher from re-emitting the same facts 96 times a day.
     if (res.notModified || res.body == null) return [];
 
-    const anchors = extractAnchors(res.body, source.sourceUrl);
+    const registeredNewsIndex = isNewsIndex(source.sourceUrl);
+    const anchors = extractAnchors(res.body, source.sourceUrl).map((anchor) => ({
+      ...anchor,
+      newsIndex: registeredNewsIndex,
+    }));
     // Follow only news indexes actually linked by the official landing page.
     // Never invent endpoints or crawl an unbounded archive. A failed linked
     // index is a source failure, not a successful empty feed.
-    const newsIndexes = [
-      ...new Set(
-        anchors
-          .filter(
-            (a) =>
-              sameHost(a.href, source.sourceUrl) &&
-              (isNewsIndex(a.href) ||
-                (systemCode.startsWith('state:') &&
-                  /^\/media\/?$/i.test(new URL(a.href).pathname))),
-          )
-          .map((a) => a.href),
-      ),
-    ]
-      .filter((url) => url !== source.sourceUrl)
-      .slice(0, 4);
+    // A registered index is itself the bounded publication source. Navigation
+    // to sibling indexes does not expand its scope; the landing-page source
+    // still discovers and reports those independent paths.
+    const newsIndexes = registeredNewsIndex
+      ? []
+      : [
+          ...new Set(
+            anchors
+              .filter(
+                (a) =>
+                  sameHost(a.href, source.sourceUrl) &&
+                  (isNewsIndex(a.href) ||
+                    (systemCode.startsWith('state:') &&
+                      /^\/media\/?$/i.test(new URL(a.href).pathname))),
+              )
+              .map((a) => a.href),
+          ),
+        ]
+          .filter((url) => url !== source.sourceUrl)
+          .slice(0, 4);
     for (const url of newsIndexes) {
       const page = await fetchText(url, { accept: 'text/html' });
       if (!page.ok) {
