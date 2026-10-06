@@ -1,6 +1,6 @@
 # Meri File01 checkpoint — C0/C1 complete, C2 active
 
-**Start a new session with [HANDOVER-2026-10-06-evening.md](HANDOVER-2026-10-06-evening.md)** (it points to the pm and morning handovers).
+**Start a new session with [HANDOVER-2026-10-06-finish-plan.md](HANDOVER-2026-10-06-finish-plan.md)**: the program-level handoff that lists everything left in the plan, in order, with code starting points. It points to the evening, pm and morning session handovers for detail. Served at the time it was written: API 625 (`41aead03c`, a LegiWatch roll containing Meri's 623), orchestrator 167, web-vnext 431; `meri_unavailable` since the drill: 0; #2032 is conflicting with main and needs a rebase before 2026-10-12.
 
 **Stage 2 progress, October 6, 2026 (about 22:30 UTC, lead agent, evening).** T5 run 8's refusal was four defects in a row; all four are fixed and deployed, and T5 now **publishes**. Run 10's office brief was held for review by D2, and reading it was very slow. The re-check is now faster and D2 matches decoded text. The real latency source, `search_memory` at 18 to 36 s per call, is open. The federal backfill had stalled; it is fixed and resumed. Evidence: [releases/2026-10-06](../releases/2026-10-06/README.md), evening section.
 
