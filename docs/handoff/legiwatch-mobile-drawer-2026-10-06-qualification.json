@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "6910fb3029c576232ef47c4daa115a27596a4ac8",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:d0a32b9bd2859f920d6d528ec45010c9c83b37d2e7d28efed5604b4847a99ef2",
+  "reviewedAt": "2026-10-06T21:30:53.649815+00:00",
+  "schemaChange": false,
+  "build": {
+    "status": "passed",
+    "id": "capiro-build-web-dev:57e7957e-5c22-419b-baec-9a958acd3c1a",
+    "architecture": "linux/arm64",
+    "nginxSmoke": "passed",
+    "apiPrefixAndNamedBillTabs": "passed",
+    "immutableEcrDigest": "passed",
+    "isolationGuard": "passed"
+  },
+  "automatedTests": {
+    "status": "passed",
+    "id": "capiro-build-web-dev:21bf1518-0def-4530-b1a6-84d5eb175ef7",
+    "web": {
+      "success": true,
+      "numTotalTests": 1186,
+      "numPassedTests": 1186,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 335
+    },
+    "fullWebTypecheck": "passed",
+    "operatorRuntimeTests": 24
+  },
+  "retirementCompatibility": {
+    "status": "passed",
+    "reviewer": "Codex root",
+    "scope": "Two web files only. Mobile-only drawer scrolling and the scope of the main navigation hiding rule change; desktop layout, source data, generation, permissions and service configuration remain unchanged. Accessible bill sections remain named; all native web scope tests pass."
+  },
+  "observedDefect": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "bill": "fl-2026-h1211",
+    "visibleBillTabs": 0,
+    "contentViewportHeight": 85.14583587646484,
+    "cause": "Broad .lw .lw-tabs mobile hiding rule and fixed header/KPIs in flex drawer"
+  },
+  "manualAcceptance": "Final mobile/desktop acceptance is required after guarded promotion; this build record does not declare the remaining upstream/data/capture gaps fixed."
+}

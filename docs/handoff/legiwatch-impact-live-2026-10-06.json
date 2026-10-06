@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-06",
+  "pullRequest": "https://github.com/neo-capiro/capirov2/pull/2130",
+  "qualifiedSource": "d51690c8bc283e19a431d5646aaf1268f8985717",
+  "imageDigest": "sha256:d4c7e35b1a4dd3b33915996e983af017f03f293e39490a2142cb0e1c6372fa78",
+  "webTaskDefinitionRevision": 429,
+  "promotionStatus": "ecs-healthy-manual-acceptance-required",
+  "manualAcceptance": {
+    "method": "Authenticated live browser, documented Playwright controls and rendered DOM",
+    "bill": "FL HB 1211, 2026",
+    "optionsLoaded": 4,
+    "selectedVersion": "Committee substitute 3, February 24, 2026",
+    "selectedOfficialSource": "https://www.flsenate.gov/Session/Bill/2026/1211/BillText/c3/PDF",
+    "versionRevision": "3576685a4fb38b7fb24597dfae05d3ae068b059fd3bdaee090b00c843c33b73b",
+    "generation": "Completed one unsaved client-impact request without a page crash",
+    "supportedImplicationsReturned": 0,
+    "humanReview": "Visible empty result explicitly does not establish no impact. Complete selected-text scope and limitations remain visible. Terminal companion-substitution status is preserved.",
+    "persistenceOrTransmission": "No draft saved or sent",
+    "limits": "This example does not qualify positive client implications, all bills, model correctness or corpus completeness."
+  },
+  "followup": {
+    "pullRequest": "https://github.com/neo-capiro/capirov2/pull/2131",
+    "mobileDefect": "At 390 by 844 the broad tab-hiding rule hid all Bill 360 sections; fixed header and stats left about 85 pixels for content.",
+    "mobileAcceptance": "Pending separately qualified CSS release and live verification"
+  },
+  "privateEvidence": "C:/dev/qa-legiwatch/remaining-issues-20261006/browser-live/impact-generated-dom.txt"
+}
