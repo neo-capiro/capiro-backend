@@ -4326,6 +4326,9 @@ export class MeriResearchService {
               return result;
             } catch (error) {
               const failure = researchChildFailure(error, auth.signal);
+              this.logger.warn(
+                `Research child failed: session=${session.id} child=${task.id} ${failure.code}: ${failure.message}`,
+              );
               try {
                 await this.persistChildTaskFailure(
                   ctx,
@@ -5272,7 +5275,7 @@ function researchChildFailure(
       };
     return {
       code: 'schema_invalid',
-      message: `Strict bounded child validation rejected the result (${error.code}).`.slice(0, 600),
+      message: `Strict bounded child validation rejected the result (${error.message}).`.slice(0, 600),
     };
   }
   return {

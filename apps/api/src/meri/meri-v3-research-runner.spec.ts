@@ -209,6 +209,32 @@ function childDoneFrame(base: MeriV3ChatStreamEvent, reply: string): MeriV3ChatS
   } as MeriV3ChatStreamEvent;
 }
 
+function formatOnlyFrame(
+  base: MeriV3ChatStreamEvent,
+  findingId: string,
+  handle: string,
+): MeriV3ChatStreamEvent {
+  return {
+    ...base,
+    reply: JSON.stringify({
+      version: 1,
+      goalRevision: 0,
+      findings: [
+        {
+          id: findingId,
+          statement: 'The admitted memory record supports the reformatted finding.',
+          evidenceHandles: [handle],
+          confidence: 'medium',
+        },
+      ],
+      limitations: [],
+    }),
+    steps: [],
+    ledgerEntries: [],
+    citations: [],
+  } as MeriV3ChatStreamEvent;
+}
+
 function childTask() {
   return createResearchChildTaskBatch({
     specs: [
@@ -335,31 +361,16 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     );
   });
 
-  it('allows one bounded schema correction without widening capability or parent budget scope', async () => {
+  it('allows one bounded format-only correction that never widens capability or parent budget scope', async () => {
     const base = fixture();
     let call = 0;
     const { runner, client } = fixture();
     client.streamChat.mockImplementation(async (params) => {
       call += 1;
       params.onEvent(
-        childDoneFrame(
-          base.done,
-          call === 1
-            ? '{malformed'
-            : JSON.stringify({
-                version: 1,
-                goalRevision: 0,
-                findings: [
-                  {
-                    id: 'corrected-finding',
-                    statement: 'The corrected result remains evidence-bound.',
-                    evidenceHandles: ['search_memory:memory-a'],
-                    confidence: 'medium',
-                  },
-                ],
-                limitations: [],
-              }),
-        ),
+        call === 1
+          ? childDoneFrame(base.done, '{malformed')
+          : formatOnlyFrame(base.done, 'corrected-finding', 'search_memory:memory-a'),
       );
     });
 
@@ -373,10 +384,76 @@ describe('MeriV3ResearchRunner primary runtime', () => {
         runId: 'run-a',
         leaseEpoch: 3,
       });
-      expect(request[0].input.researchPlanExecution?.allowedReadCapabilities).toEqual([
-        'search_memory',
-      ]);
     }
+    expect(
+      client.streamChat.mock.calls.map(
+        (request) => request[0].input.researchPlanExecution?.allowedReadCapabilities,
+      ),
+    ).toEqual([['search_memory'], []]);
+  });
+
+  it('keeps the rejected turn reads as the evidence of a format-only correction', async () => {
+    const base = fixture();
+    const { runner, client } = fixture();
+    let call = 0;
+    client.streamChat.mockImplementation(async (params) => {
+      call += 1;
+      params.onEvent(
+        call === 1
+          ? childDoneFrame(base.done, 'Findings: the memory record supports it.')
+          : formatOnlyFrame(base.done, 'reformatted-finding', 'search_memory:memory-a'),
+      );
+    });
+
+    const result = await runner.runChild(ctx, childTask(), childInput, auth);
+
+    expect(result.schemaCorrections).toBe(1);
+    expect(result.output.findings[0]?.id).toBe('reformatted-finding');
+    expect(result.toolsUsed).toEqual(['search_memory']);
+    expect(result.ledgerEntries.map((entry) => entry.tool)).toEqual(['search_memory']);
+    expect(result.citations.map((citation) => citation.id)).toEqual(['memory-a']);
+    const correctionPrompt = client.streamChat.mock.calls[1]?.[0].input.messages?.[0]?.text;
+    expect(correctionPrompt).toContain('research_child_output_malformed:invalid_json');
+    expect(correctionPrompt).toContain('search_memory:memory-a');
+    expect(correctionPrompt).toContain('Rejected output: Findings: the memory record supports it.');
+  });
+
+  it('rejects a correction that cites an unread handle or reads again', async () => {
+    const base = fixture();
+    const unread = fixture();
+    let unreadCall = 0;
+    unread.client.streamChat.mockImplementation(async (params) => {
+      unreadCall += 1;
+      params.onEvent(
+        unreadCall === 1
+          ? childDoneFrame(base.done, '{malformed')
+          : formatOnlyFrame(base.done, 'unread-finding', 'search_memory:memory-b'),
+      );
+    });
+    await expect(unread.runner.runChild(ctx, childTask(), childInput, auth)).rejects.toMatchObject({
+      code: 'research_child_evidence_handle_unavailable',
+    });
+
+    const reread = fixture();
+    let rereadCall = 0;
+    reread.client.streamChat.mockImplementation(async (params) => {
+      rereadCall += 1;
+      params.onEvent(
+        childDoneFrame(
+          base.done,
+          rereadCall === 1
+            ? '{malformed'
+            : (
+                formatOnlyFrame(base.done, 'reread-finding', 'search_memory:memory-a') as {
+                  reply: string;
+                }
+              ).reply,
+        ),
+      );
+    });
+    await expect(reread.runner.runChild(ctx, childTask(), childInput, auth)).rejects.toMatchObject({
+      code: 'research_child_correction_read',
+    });
   });
 
   it('aborts a pending provider stream at the child deadline without aborting the parent', async () => {
