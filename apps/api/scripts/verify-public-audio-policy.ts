@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { PrismaClient } from '@prisma/client';
+// Use the same generated client as the recording runtime: Sql fragments from
+// another generated Prisma bundle are not interchangeable parameter values.
+import { PrismaClient } from '../../intel-api/generated/prisma-client/index.js';
 import { globalPublicAudioSource } from '../../intel-api/src/hearing/capture/global-public-audio-policy.js';
 import type { Prisma } from '../../intel-api/generated/prisma-client/index.js';
 import { PublicHearingAudioStore } from '../../intel-api/src/hearing/capture/public-hearing-audio.store.js';
