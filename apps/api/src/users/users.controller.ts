@@ -23,6 +23,7 @@ import {
   businessDevelopmentClaimValidationEnabled,
   businessDevelopmentWatchEnabled,
   entitlementsForTenant,
+  meriJobsEnabled,
 } from '../common/tenant-flags.js';
 import { meriV3ChatActive } from '../common/meriv3-flags.js';
 import type { AppConfig } from '../config/config.schema.js';
@@ -191,6 +192,9 @@ export class UsersController {
           this.config.get('BIZDEV_WATCH_ENABLED', { infer: true }) &&
           businessDevelopmentEnabled(profile.tenant?.settings) &&
           businessDevelopmentWatchEnabled(profile.tenant?.settings),
+        // Stage 2 delegated jobs (tenant flag `meri.jobs`, default OFF). The
+        // web shows "Delegate this" only when true; the API enforces it again.
+        meriJobs: meriJobsEnabled(profile.tenant?.settings),
       },
     };
   }
@@ -318,6 +322,9 @@ export class UsersController {
           this.config.get('BIZDEV_WATCH_ENABLED', { infer: true }) &&
           businessDevelopmentEnabled(profile.tenant?.settings) &&
           businessDevelopmentWatchEnabled(profile.tenant?.settings),
+        // Stage 2 delegated jobs (tenant flag `meri.jobs`, default OFF). The
+        // web shows "Delegate this" only when true; the API enforces it again.
+        meriJobs: meriJobsEnabled(profile.tenant?.settings),
       },
     };
   }

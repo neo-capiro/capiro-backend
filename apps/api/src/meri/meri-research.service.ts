@@ -190,7 +190,7 @@ import {
 } from './meri-research-child-task.js';
 
 import { meriJobView, type MeriJobKind } from './meri-job.js';
-import { MERI_JOB_FLAGS, tenantFeatureEnabled } from '../common/tenant-flags.js';
+import { meriJobsEnabled } from '../common/tenant-flags.js';
 
 const PRODUCT_NAME = 'Meri';
 
@@ -636,7 +636,7 @@ export class MeriResearchService {
       const tenant = (await this.prisma.withTenant(tenantId, (tx) =>
         tx.tenant.findFirst({ where: { id: tenantId }, select: { settings: true } }),
       )) as { settings: unknown } | null;
-      return tenantFeatureEnabled(tenant?.settings, MERI_JOB_FLAGS.jobs, false);
+      return meriJobsEnabled(tenant?.settings);
     } catch {
       return false;
     }
