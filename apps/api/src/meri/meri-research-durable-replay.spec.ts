@@ -389,7 +389,8 @@ async function mappedMailSearch(
     .mockResolvedValueOnce(coverage);
   const engagement = Object.create(EngagementService.prototype) as any;
   engagement.prisma = {
-    withTenant: async (_tenantId: string, callback: any) => callback({ $queryRaw: queries }),
+    withTenant: async (_tenantId: string, callback: any) =>
+      callback({ $queryRaw: queries, $executeRaw: jest.fn().mockResolvedValue(0) }),
   };
   const tools = Object.create(MeriToolsService.prototype) as any;
   tools.engagement = engagement;
