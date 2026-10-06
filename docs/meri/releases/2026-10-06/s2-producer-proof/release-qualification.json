@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-producer-proof-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T19:44:07.312306+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "8f77a578525160e8b649b4311abfb7151d655735",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:557a1c12eaf487cd7ddace509e3f25e65f8553ac3dbab9cccc8d636470d07277",
+      "buildId": "capiro-build-web-dev:1913e360-5ef4-4e6c-ae4f-85e69811d309"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Research reports declare each source tool once and log the failed proof clause (#2124); the source re-check compares live results in their JSON shape (#2125) and re-checks document listings by file identity (#2126). Fixes T5 run 8 (cab91bd9).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
