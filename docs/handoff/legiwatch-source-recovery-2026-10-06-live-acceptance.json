@@ -1,0 +1,251 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "e6ff0250b6f79f92bbfd16edb69d48f27e96883f",
+  "codePullRequest": "https://github.com/neo-capiro/capirov2/pull/2117",
+  "mergeSha": "9ee56613f25f05c274a43215e42109b23462c8c5",
+  "acceptedAt": "2026-10-06T17:20:58.337604+00:00",
+  "services": {
+    "api": {
+      "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:613",
+      "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:af7b8083afe0791a80bc359425c85afe8853da79d88314c55cd04d8c416c6e5e",
+      "deploymentId": "ecs-svc/6394103837405330013",
+      "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+      "candidateTaskHash": "8cdb153774390ba5981732fb8c2457997218a943e430f889e20ed9347c9963d4",
+      "status": "ecs-healthy-manual-acceptance-required"
+    },
+    "web-vnext": {
+      "candidateTaskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:425",
+      "candidateImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:2296282b4c467213be642e01a4bc316da4a2c9c14d0b6566d71d0bc326d9da59",
+      "deploymentId": "ecs-svc/1516950275101183638",
+      "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+      "candidateTaskHash": "e20a049389367c458bab7d6295162224627e6755c9272c65d85f4557732a3660",
+      "status": "ecs-healthy-manual-acceptance-required"
+    }
+  },
+  "serviceAcceptance": "Both exact candidate deployments reached healthy steady state. Immutable promotion receipts retain manual-acceptance-required; this is the separate authenticated acceptance record.",
+  "scheduledOwners": {
+    "central-discovery": {
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:99",
+      "completedAt": "2026-10-06T17:04:46.472Z",
+      "schedule": "rate(10 minutes)",
+      "unchangedRolesSecretsFlagsInputNetworkSchedule": true
+    },
+    "committee-enrichment": {
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:100",
+      "completedAt": "2026-10-06T17:05:34.518Z",
+      "schedule": "rate(15 minutes)",
+      "unchangedRolesSecretsFlagsInputNetworkSchedule": true
+    },
+    "committee-updates": {
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:101",
+      "completedAt": "2026-10-06T17:06:18.335Z",
+      "schedule": "rate(30 minutes)",
+      "unchangedRolesSecretsFlagsInputNetworkSchedule": true
+    },
+    "source-probe": {
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:102",
+      "completedAt": "2026-10-06T17:06:45.155Z",
+      "schedule": "rate(20 minutes)",
+      "unchangedRolesSecretsFlagsInputNetworkSchedule": true
+    },
+    "archive-reconciliation": {
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-legiwatch-phase9-api:103",
+      "completedAt": "2026-10-06T17:07:19.461Z",
+      "schedule": "rate(30 minutes)",
+      "unchangedRolesSecretsFlagsInputNetworkSchedule": true
+    },
+    "rss-intel": {
+      "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-sync-rss-intel:14",
+      "completedAt": "2026-10-06T17:04:15.026Z",
+      "schedule": "rate(1 hour)",
+      "unchangedRolesSecretsFlagsInputNetworkSchedule": true
+    }
+  },
+  "newsVerification": {
+    "mode": "One controlled native verification cloned from pinned scheduled owner, not an ordinary scheduler tick",
+    "task": {
+      "id": "e77ada1a9c8b4d06aacb6c72f4447102",
+      "status": "STOPPED",
+      "definition": "capiro-dev-api-sync-rss-intel:14",
+      "digest": "sha256:af7b8083afe0791a80bc359425c85afe8853da79d88314c55cd04d8c416c6e5e",
+      "exit": 0,
+      "stoppedReason": "Essential container in task exited"
+    },
+    "feedsProcessed": 21,
+    "feedsFailed": 4,
+    "commerceRetained": 30,
+    "dhsRetained": 10,
+    "originalFailedFeedReceiptsPreserved": true,
+    "historyQualified": false,
+    "agencyDatabaseRows": [
+      {
+        "publisher": "www.commerce.gov",
+        "publication_precision": "instant",
+        "count": 30,
+        "earliest": "2025-08-13T19:45:13.000Z",
+        "latest": "2026-09-30T19:41:10.000Z"
+      },
+      {
+        "publisher": "www.dhs.gov",
+        "publication_precision": "day",
+        "count": 10,
+        "earliest": "2026-10-01T00:00:00.000Z",
+        "latest": "2026-10-05T00:00:00.000Z"
+      }
+    ],
+    "remainingFailures": [
+      "reuters_politics: HTTP404",
+      "state_dept: HTTP403",
+      "cato: HTTP403",
+      "brookings: invalid RSS payload"
+    ],
+    "initialLaunchReconciliation": "Initial AWS CLI request was rejected client-side with ParamValidation/exit252 before transmission due to EventBridge/ECS network field casing; original unknown receipt retained with separate reconciliation. Corrected fresh request preserved exact network values and launched one task."
+  },
+  "centralDiscovery": {
+    "mode": "Controlled verification cloned from scheduled owner, not an ordinary tick",
+    "task": {
+      "id": "97d860a4e62c4ecaad3228492ee75cc0",
+      "definition": "capiro-dev-legiwatch-phase9-api:99",
+      "digest": "sha256:af7b8083afe0791a80bc359425c85afe8853da79d88314c55cd04d8c416c6e5e",
+      "exit": 0
+    },
+    "result": {
+      "sourcesRegistered": 3,
+      "committeeSourcesRegistered": 115,
+      "committeeSourcesMissingUrl": 0,
+      "sourcesAttempted": 3,
+      "sourcesSucceeded": 3,
+      "sourcesFailed": 0,
+      "eventsObserved": 1,
+      "hearingsCreated": 0,
+      "hearingsUpdated": 0,
+      "observationsCreated": 0,
+      "observationsChanged": 0,
+      "siteUpdates": 0,
+      "streamCandidates": 0,
+      "reconciliationErrors": 0,
+      "sourceErrors": [],
+      "discoveryWatermarks": {
+        "3208291a-56b3-4338-93ac-13d5840e99ad": "2026-10-06T17:12:59.575Z",
+        "92999a67-8dbe-4715-8ff6-08e8cc7c5808": "2026-10-06T17:12:59.575Z",
+        "ffb8c8f2-9bee-4e96-a839-c3c0d64a43b3": "2026-10-06T17:12:59.575Z"
+      }
+    },
+    "persistedHeartbeat": {
+      "job_key": "central-discovery",
+      "status": "succeeded",
+      "last_started_at": "2026-10-06T17:12:59.489Z",
+      "last_success_at": "2026-10-06T17:13:26.633Z",
+      "last_failure_at": null,
+      "last_error": null,
+      "cursor_count": 3,
+      "errors": null
+    }
+  },
+  "databaseAcceptance": {
+    "observedAt": "2026-10-06T17:15:26.274Z",
+    "task": {
+      "id": "ae42eaa89251411da365753cf5a47121",
+      "definition": "capiro-legiwatch-qa-readonly-20261005:96",
+      "status": "STOPPED",
+      "exit": 0,
+      "digest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c"
+    },
+    "enabledSourceHealth": [
+      {
+        "enabled": true,
+        "source_health": "failing",
+        "count": 1
+      },
+      {
+        "enabled": true,
+        "source_health": "healthy",
+        "count": 151
+      }
+    ],
+    "sourceFailures": [
+      {
+        "committee_system_code": "jstx00",
+        "source_url": "https://www.jct.gov/",
+        "source_health": "failing",
+        "last_checked_at": "2026-10-06T17:07:28.585Z",
+        "last_success_at": null,
+        "last_error": "HTTP 403"
+      }
+    ],
+    "latestCompleted2026FloridaCalendars": [
+      {
+        "chamber": "house",
+        "session": "2026",
+        "from_date": "2026-09-29T00:00:00.000Z",
+        "to_date": "2026-10-20T00:00:00.000Z",
+        "status": "complete",
+        "pages": 22,
+        "items": 0,
+        "attempted_at": "2026-10-06T17:00:09.478Z"
+      },
+      {
+        "chamber": "senate",
+        "session": "2026",
+        "from_date": "2026-09-29T00:00:00.000Z",
+        "to_date": "2026-10-20T00:00:00.000Z",
+        "status": "complete",
+        "pages": 49,
+        "items": 0,
+        "attempted_at": "2026-10-06T16:58:21.562Z"
+      }
+    ],
+    "futureCanonicalRows": 0,
+    "approvedFutureMissingSchedule": 0,
+    "captureAllPublicEvents": true,
+    "floridaCaptureEnabled": true,
+    "hearing119575": {
+      "state": "BLOCKED",
+      "approvedServerSource": false,
+      "resolvedApprovedMedia": false
+    },
+    "selectedBillInventory": [
+      {
+        "id": "fl-2026-h1211",
+        "bill_number": "h1211",
+        "source_checked_at": null,
+        "legiscan_change_hash": "3184aa249ff092c0a182468355c62819",
+        "inventory": null
+      }
+    ],
+    "dateOnlyAudit": "Post-release diagnostic normalizes Date objects before comparing calendar dates; date-only future rows are included in the audit scope."
+  },
+  "browserAcceptance": {
+    "dhs": {
+      "rows": 10,
+      "publicationDisplay": "Date only; Time not stated"
+    },
+    "commerce": {
+      "retained": 30,
+      "rowsInSevenDayWindow": 2,
+      "latestPublishedEastern": "2026-09-30 15:41:10"
+    },
+    "elapsedHearing": "119575 Generate brief returned explicit no-transcript recap-unavailable response; no draft saved",
+    "scope": "L3 Harris retained in news route",
+    "artifactHashes": {
+      "commerce-news-dom.txt": "24e940e80b90d682ecda21198e7c2ef02a8336c51881bbc3d44802d547fb8777",
+      "commerce-news.png": "eaf2f6e2288d67063d75b7e9128743c1b4c1ab62ca126ab37e07562c1b9dc8ff",
+      "dhs-news-dom.txt": "00b714ae12da1b5b050784be459572926788fa4e09f059e5cedbae5a51c0b2c6",
+      "dhs-news.png": "f0bda55b31d47734ac0f3c1accb583d67bfa892a7a2c052b41a7501449ed2076",
+      "elapsed-hearing-guard-dom.txt": "b8d0a3a5fdd5eb10dd135d0ef6f21b77224d0bec48ae1f6224b8b56669f3ff90",
+      "elapsed-hearing-guard.png": "1d8caed9acdbec4b74f7921563d2bac89773f8569f839ea6150211d495c193a4",
+      "pre-release-news-dom.txt": "dd505df7b722c99c0f91ed6f09bbd69b493e713a54e165fe6da407c779828f1f"
+    }
+  },
+  "remaining": {
+    "externalSources": "Four news feeds failed; JCT403. Publisher backoff preserved. Florida2027 publisher serves2026F and is not qualified. Current2026 calendar completeness is window-specific.",
+    "futureRecording": "Zero future retained rows and enabled capture flags do not certify all future hearings were discovered or will be recorded. Browser-only sources are not server-recorded. Later-source BLOCKED recovery remains a follow-up.",
+    "researchInventory": "HB1211 inventory and whole-bill source check remainNULL; explicit bounded legal research hydration is not scheduled by these six owners. No research apply or feature flag changed.",
+    "analysis": "Client-specific substantive bill analysis remains unavailable; absent legacy match traces remain unverified.",
+    "preparedButNotDeployed": [
+      "Publisher coverage qualification/intake label correction (30 tests and typechecks)",
+      "Key-moment summary truncation correction (26 tests)",
+      "Elapsed-hearing dialog availability/copy correction (27 tests and web typecheck)"
+    ]
+  }
+}
