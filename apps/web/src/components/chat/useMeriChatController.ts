@@ -293,6 +293,12 @@ const MAX_ATTACHMENTS = 8;
 const MAX_IMAGE_ATTACHMENTS = 4;
 
 /** Response shape of POST /api/clio/attachments. id === null ⇒ unusable. */
+/** A Stage 2 job request carried on research creation (`meri.jobs`). */
+export interface MeriJobRequest {
+  kind: 'deliverable';
+  deliverables: Array<{ format: 'docx'; title?: string }>;
+}
+
 interface AttachmentUploadResponse {
   id: string | null;
   filename: string;
@@ -1453,7 +1459,7 @@ export function useMeriChatController({
   ); // eslint-disable-line react-hooks/exhaustive-deps
 
   const runResearch = useCallback(
-    async (content: string): Promise<boolean> => {
+    async (content: string, job?: MeriJobRequest): Promise<boolean> => {
       if (researchSessionRef.current && !researchAwaitingAnswers) {
         // Resume keeps the saved request. A new topic after a terminal or
         // interrupted run is a separate, explicit request and may start fresh.
@@ -1531,6 +1537,7 @@ export function useMeriChatController({
               conversationId,
               attachmentIds: turnAttachments.map((attachment) => attachment.id),
               ...(draftReasoningMode ? { reasoningMode: draftReasoningMode } : {}),
+              ...(job ? { kind: job.kind, deliverables: job.deliverables } : {}),
             }),
             signal: controller.signal,
           });
@@ -1620,6 +1627,18 @@ export function useMeriChatController({
       });
       researchSessionRef.current = null;
       void runResearch(topic);
+    },
+    [isStreaming, runResearch],
+  );
+
+  // Stage 2 "Delegate this": the same durable research flow, created as a
+  // deliverable job (a Word document the user can download and file). The API
+  // refuses it unless the tenant flag meri.jobs is on.
+  const delegateJob = useCallback(
+    async (content: string): Promise<boolean> => {
+      if (isStreaming) return false;
+      researchSessionRef.current = null;
+      return runResearch(content, { kind: 'deliverable', deliverables: [{ format: 'docx' }] });
     },
     [isStreaming, runResearch],
   );
@@ -3854,6 +3873,7 @@ export function useMeriChatController({
     researchRecoveryError,
     resumeResearch,
     handleRunResearchOffer,
+    delegateJob,
     lastRetrieval,
     lastUserMessageId,
     editingMessageId,
