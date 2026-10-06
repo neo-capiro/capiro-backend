@@ -1587,6 +1587,36 @@ describe('Meri durable safe-read commit and replay', () => {
     expect(changedAfterOwner.tools.execute).toHaveBeenCalledTimes(1);
   });
 
+  it('re-reads an identical owner read once for every receipt that rests on it', async () => {
+    const initial = completeMeetingSourceResult();
+    const h = harness({
+      tool: 'read_client_meetings',
+      schema: MEETING_SCHEMA,
+      source: initial,
+      clientId: MEETING_CLIENT_ID,
+    });
+    // T5 ca7158f1: the parent, its child and re-reads repeat the same read.
+    for (const executionId of ['meeting-read-parent', 'meeting-read-child']) {
+      await h.service.commitSafeReadOutcome(ctx, 'session-1', 'run-1', {
+        reservationId: executionId,
+        executionId,
+        leaseEpoch: 1,
+        providerCallId: `${executionId}-provider`,
+        tool: 'read_client_meetings',
+        toolVersion: MEETING_VERSION,
+        input: MEETING_INPUT,
+        result: initial,
+      });
+    }
+    h.completeReport(['read_client_meetings']);
+    h.tools.execute.mockClear();
+
+    await expect(h.service.getSession(ctx, 'session-1')).resolves.toMatchObject({
+      report: { bodyText: 'REPORT_CITING_CURRENT_RUN_MEMORY' },
+    });
+    expect(h.tools.execute).toHaveBeenCalledTimes(1);
+  });
+
   it('reauthorizes meeting-source report read, export and model input and withholds edited bytes', async () => {
     const initial = completeMeetingSourceResult();
     const h = harness({
