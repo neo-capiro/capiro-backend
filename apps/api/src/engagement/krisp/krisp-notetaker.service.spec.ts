@@ -12,6 +12,7 @@ const ctx = {
 } as TenantContext;
 const doc = 'a'.repeat(32);
 const now = new Date();
+type ProviderDocumentFixture = { id: string; notes: string; transcript?: string; summary?: string };
 const preference = {
   id: 'pref',
   ...ctx,
@@ -124,7 +125,7 @@ function fixture() {
     executeRead: jest.fn(async (..._args: any[]) => ({
       structuredResult: {
         structuredContent: {
-          documents: [{ id: doc, notes: '  # Krisp notes\n\nFollow up tomorrow.\n' }],
+          documents: [{ id: doc, notes: '  # Krisp notes\n\nFollow up tomorrow.\n' } as ProviderDocumentFixture],
         },
       },
     })),

@@ -30,6 +30,8 @@ export type NewsObservationInput = {
   body?: string | null;
   bodyComplete?: boolean;
   publishedAt?: string | null;
+  /** A publisher calendar day; stored as a UTC date bucket, never an instant claim. */
+  publicationPrecision?: 'day' | 'instant';
   language?: string | null;
   publisherCountry?: string | null;
   rights: 'headline_link' | 'excerpt' | 'full_text';
@@ -54,6 +56,11 @@ export class NewsEvidenceService {
       input.publishedAt && Number.isFinite(Date.parse(input.publishedAt))
         ? new Date(input.publishedAt)
         : null;
+    if (input.publicationPrecision === 'day' &&
+        (!input.publishedAt || !/^\d{4}-\d{2}-\d{2}$/.test(input.publishedAt) ||
+         !publishedAt || publishedAt.toISOString().slice(0, 10) !== input.publishedAt))
+      throw new BadRequestException('INVALID_PUBLICATION_DAY');
+    const publicationPrecision = publishedAt ? input.publicationPrecision ?? 'instant' : 'unknown';
     const summary =
       input.rights === 'headline_link' ? null : (input.summary?.slice(0, 10000) ?? null);
     const body = input.rights === 'full_text' ? (input.body?.slice(0, 2_000_000) ?? null) : null;
@@ -66,6 +73,7 @@ export class NewsEvidenceService {
       publisher: input.publisher,
       rights: input.rights,
       author: input.author ?? null,
+      ...(publicationPrecision === 'day' ? { publicationPrecision } : {}),
     });
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${canonical},0))`;
@@ -90,7 +98,7 @@ export class NewsEvidenceService {
       const known = await tx.$queryRaw<
         Array<{ id: string }>
       >`SELECT id FROM legiwatch_news_observation WHERE id=${id}`;
-      await tx.$executeRaw`INSERT INTO legiwatch_news_observation(id,article_id,revision,provider,provider_id,original_url,canonical_url,publisher,author,provider_parsed_at,title,summary,body,body_complete,language,publisher_country,published_at,publication_precision,source_url,rights) VALUES(${id},${article.id},${revision},${input.provider},${input.providerId ?? null},${input.url},${canonical},${input.publisher},${input.author?.slice(0, 200) ?? null},${input.providerParsedAt && Number.isFinite(Date.parse(input.providerParsedAt)) ? new Date(input.providerParsedAt) : null},${input.title},${summary},${body},${complete},${input.language ?? null},${input.publisherCountry ?? null},${publishedAt},${publishedAt ? 'instant' : 'unknown'},${input.url},${input.rights}) ON CONFLICT(article_id,revision) DO NOTHING`;
+      await tx.$executeRaw`INSERT INTO legiwatch_news_observation(id,article_id,revision,provider,provider_id,original_url,canonical_url,publisher,author,provider_parsed_at,title,summary,body,body_complete,language,publisher_country,published_at,publication_precision,source_url,rights) VALUES(${id},${article.id},${revision},${input.provider},${input.providerId ?? null},${input.url},${canonical},${input.publisher},${input.author?.slice(0, 200) ?? null},${input.providerParsedAt && Number.isFinite(Date.parse(input.providerParsedAt)) ? new Date(input.providerParsedAt) : null},${input.title},${summary},${body},${complete},${input.language ?? null},${input.publisherCountry ?? null},${publishedAt},${publicationPrecision},${input.url},${input.rights}) ON CONFLICT(article_id,revision) DO NOTHING`;
       // Replaying a known older revision cannot roll back the current article.
       if (!known.length) {
         await tx.$executeRaw`INSERT INTO legiwatch_news_current(article_id,observation_id) VALUES(${article.id},${id}) ON CONFLICT(article_id) DO UPDATE SET observation_id=EXCLUDED.observation_id`;

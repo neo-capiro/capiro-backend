@@ -20,7 +20,10 @@
  */
 import { config as dotenvConfig } from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import { runFloridaCalendarDiscovery, runFloridaWatchBackfill } from '../src/hearing-discovery/florida-calendar-discovery.js';
+import {
+  runFloridaCalendarDiscovery,
+  runFloridaWatchBackfill,
+} from '../src/hearing-discovery/florida-calendar-discovery.js';
 import { runFloridaArchiveBackfill } from '../src/hearing-discovery/florida-archive-discovery.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import { CommitteeSourceRepository } from '../src/hearing-discovery/committee-source.repository.js';
@@ -199,6 +202,8 @@ async function runDryRun(flags: Flags): Promise<void> {
   if (flags.limit != null) events = events.slice(0, flags.limit);
   summarize(events, adapter.adapterKey);
   console.log('[discover-hearings] DRY RUN — no database connection was opened');
+  if (adapter.discoveryErrors?.length)
+    throw new Error(`Partial discovery: ${adapter.discoveryErrors.join('; ').slice(0, 1_000)}`);
 }
 
 async function main(): Promise<void> {
@@ -266,20 +271,32 @@ async function main(): Promise<void> {
           await sourceRepo.recordOutcome(source.id, { ok: false, error: message }, now);
           throw err;
         }
+        const limited = flags.limit != null && events.length > flags.limit;
         if (flags.limit != null) events = events.slice(0, flags.limit);
         summarize(events, adapter.adapterKey);
-
-        await sourceRepo.recordOutcome(
-          source.id,
-          { ok: true, observedEvents: events.length },
-          now,
-          adapter.parserVersion,
-        );
 
         const reconciler = new HearingReconcilerService(prisma);
         const { totals } = await reconciler.reconcileBatch(source, events, now, (m) =>
           console.log(m),
         );
+        const discoveryErrors = [...(adapter.discoveryErrors ?? [])];
+        if (totals.errors > 0)
+          discoveryErrors.push(`${totals.errors} event(s) failed reconciliation`);
+        if (limited)
+          discoveryErrors.push('Operator event limit reached; discovery completeness unverified');
+        await sourceRepo.recordOutcome(
+          source.id,
+          {
+            ok: discoveryErrors.length === 0,
+            observedEvents: events.length,
+            error: discoveryErrors.length ? discoveryErrors.join('; ').slice(0, 1_000) : undefined,
+          },
+          now,
+          adapter.parserVersion,
+        );
+        // Valid events are retained, but a partial pass cannot advance SyncRun.
+        if (discoveryErrors.length)
+          throw new Error(`Partial discovery: ${discoveryErrors.join('; ').slice(0, 1_000)}`);
         console.log(
           `[discover-hearings] reconciled: created=${totals.hearingsCreated} ` +
             `updated=${totals.hearingsUpdated} observations=+${totals.observationsCreated}/` +

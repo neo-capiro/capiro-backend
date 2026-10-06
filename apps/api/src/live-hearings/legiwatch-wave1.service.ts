@@ -1977,6 +1977,7 @@ export class LegiWatchWave1Service {
           chamber: hearing.chamber,
           committeeName: hearing.committeeName,
           calendarDate,
+          scheduledStart: hearing.startsAt ? hearing.startsAt.toISOString() : null,
           eventStatus: hearing.eventStatus,
           witnesses: hearing.witnesses,
           detailPath,

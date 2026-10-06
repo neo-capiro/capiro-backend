@@ -9,6 +9,7 @@ import { NewsEvidenceService, newsHash } from '../src/intelligence/news/news-evi
 import { createHash } from 'node:crypto';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { checkPhase8Sources } from './check-legiwatch-phase8-sources.js';
+import { PUBLISHER_NEWS_FALLBACKS, loadPublisherNews } from './lib/publisher-news-fallback.js';
 dotenvConfig();
 
 const DELAY_MS = 300;
@@ -165,6 +166,7 @@ export interface ParsedFeedItem {
   pubDate: string | null;
   author: string | null;
   categories: string[];
+  publicationPrecision?: 'day';
 }
 
 /**
@@ -174,21 +176,64 @@ export interface ParsedFeedItem {
  * LegiWatch observation ledger. Passing only `publisher` made retain() store
  * hostnames in intel_article.source and emptied every saved source filter.
  */
-export function retainInputFor(feed: RssFeed, item: ParsedFeedItem, now: Date = new Date()) {
+export function retainInputFor(feed: RssFeed, item: ParsedFeedItem, now: Date = new Date(), provider = 'rss') {
+  const publishedAt = publishedAtFor(item.pubDate, now);
   return {
-    provider: 'rss' as const,
+    provider,
     providerId: item.url,
     url: item.url,
     source: feed.source,
     publisher: new URL(item.url).hostname,
     title: item.title,
     summary: item.description,
-    publishedAt: publishedAtFor(item.pubDate, now)?.toISOString(),
+    publishedAt: item.publicationPrecision === 'day' && publishedAt ? item.pubDate! : publishedAt?.toISOString(),
+    ...(item.publicationPrecision === 'day' && publishedAt ? { publicationPrecision: 'day' as const } : {}),
     author: item.author,
     feedUrl: feed.url,
     categories: item.categories,
     rights: 'excerpt' as const,
   };
+}
+
+export async function retainFailedFeed(prisma: PrismaClient, feed: RssFeed, failure: string) {
+  if (process.env.LEGIWATCH_NEWS_INGEST_ENABLED !== 'true') return;
+  const observedAt = new Date().toISOString(), manifest = {
+    observedAt, status: 'failed', reason: failure.slice(0, 500), history: 'unqualified',
+  };
+  await prisma.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,content_hash,scope,manifest,complete) VALUES(${newsHash([feed.url, observedAt])},'rss',${feed.url},${newsHash(['failed', observedAt])},${JSON.stringify({ publisher: feed.source, domain: new URL(feed.url).hostname })}::jsonb,${JSON.stringify(manifest)}::jsonb,false)`;
+}
+
+export async function loadConfiguredFeed(feed: RssFeed, fetcher: typeof fetch = fetch) {
+  let primaryFailure: string | null = null;
+  try {
+    const response = await fetcher(feed.url, {
+      headers: { 'User-Agent': RSS_USER_AGENT }, signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) throw new Error(`rss_http_${response.status}`);
+    const body = await response.text(), error = validateFeedXml(body);
+    if (error) throw new Error(`rss_invalid_feed: ${error}`);
+    const rssItems = body.split(/<item[ >]/).slice(1), entries = rssItems.length ? rssItems : body.split(/<entry[ >]/).slice(1);
+    const items: ParsedFeedItem[] = [];
+    let rejected = 0;
+    for (const entry of entries.slice(0, 30)) {
+      const title = extractText(entry, 'title'), link = extractText(entry, 'link') || entry.match(/href="([^"]+)"/)?.[1];
+      if (!title || !link) { rejected++; continue; }
+      items.push({ title, url: link.startsWith('http') ? link : `https://${link}`,
+        pubDate: extractText(entry, 'pubDate') || extractText(entry, 'published') || extractText(entry, 'updated'),
+        description: extractText(entry, 'description') || extractText(entry, 'summary') || extractText(entry, 'content'),
+        author: extractText(entry, 'author') || extractText(entry, 'dc:creator'), categories: extractCategories(entry) });
+    }
+    return { body, items, rejected, observedItems: entries.length, provider: 'rss', sourceUrl: feed.url, primaryFailure };
+  } catch (error) { primaryFailure = (error as Error).message; }
+  const fallback = process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true' ? PUBLISHER_NEWS_FALLBACKS[feed.source] : undefined;
+  // Never use another route to evade a publisher rate limit. Only the two
+  // reviewed public publisher interfaces are configured; no guessed URLs.
+  if (!fallback || primaryFailure === 'rss_http_429') throw new Error(primaryFailure);
+  try {
+    return { ...await loadPublisherNews(fallback, fetcher), provider: fallback.kind, sourceUrl: fallback.url, primaryFailure };
+  } catch (error) {
+    throw new Error(`${primaryFailure}; ${(error as Error).message}`);
+  }
 }
 
 /**
@@ -233,54 +278,22 @@ async function main() {
   for (const feed of FEEDS) {
     await new Promise((r) => setTimeout(r, DELAY_MS));
     try {
-      const resp = await fetch(feed.url, {
-        headers: { 'User-Agent': RSS_USER_AGENT },
-        signal: AbortSignal.timeout(20000),
-      });
-      if (!resp.ok) throw new Error(`rss_http_${resp.status}`);
-      const xml = await resp.text();
-
-      // HTTP 200 is not feed health — the body must parse as an actual
-      // RSS/Atom/RDF document. A 200 HTML challenge/soft-404 page fails
-      // here into the existing failed-source path instead of being
-      // recorded as success-with-0-items.
-      const feedError = validateFeedXml(xml);
-      if (feedError) throw new Error(`rss_invalid_feed: ${feedError}`);
-
-      // Parse RSS items (works for both RSS 2.0 and Atom with fallback)
-      const items = xml.split(/<item[ >]/).slice(1);
-      const entries = items.length ? items : xml.split(/<entry[ >]/).slice(1);
+      const loaded = await loadConfiguredFeed(feed), xml = loaded.body;
+      if (loaded.primaryFailure) {
+        await retainFailedFeed(prisma, feed, loaded.primaryFailure);
+        console.warn(`[rss-sync] ${feed.source} primary failed: ${loaded.primaryFailure}; using ${loaded.provider}`);
+      }
       let feedCount = 0,
-        rejected = 0;
+        rejected = loaded.rejected;
 
-      for (const item of entries.slice(0, 30)) {
+      for (const item of loaded.items) {
         // max 30 per feed
-        const title = extractText(item, 'title');
-        const link = extractText(item, 'link') || item.match(/href="([^"]+)"/)?.[1];
-        const pubDate =
-          extractText(item, 'pubDate') ||
-          extractText(item, 'published') ||
-          extractText(item, 'updated');
-        const description =
-          extractText(item, 'description') ||
-          extractText(item, 'summary') ||
-          extractText(item, 'content');
-        const author = extractText(item, 'author') || extractText(item, 'dc:creator');
-
-        if (!title || !link) continue;
-        const url = link.startsWith('http') ? link : `https://${link}`;
+        const { title, url, pubDate, description, author } = item;
 
         try {
           if (process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true') {
             await new NewsEvidenceService(prisma as never).retain(
-              retainInputFor(feed, {
-                url,
-                title,
-                description,
-                pubDate,
-                author,
-                categories: extractCategories(item),
-              }),
+              retainInputFor({ ...feed, url: loaded.sourceUrl }, item, new Date(), loaded.provider),
             );
           } else
             await (prisma as any).intelArticle.upsert({
@@ -294,7 +307,7 @@ async function main() {
                 author: author?.slice(0, 200) || null,
                 publishedAt: publishedAtFor(pubDate) || new Date(),
                 summary: description?.slice(0, 5000) || null,
-                categories: extractCategories(item),
+                categories: item.categories,
               },
             });
           feedCount++;
@@ -307,32 +320,30 @@ async function main() {
       if (process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true') {
         const observedAt = new Date().toISOString(),
           contentHash = createHash('sha256').update(xml).digest('hex'),
-          id = newsHash([feed.url, contentHash, observedAt]);
+          id = newsHash([loaded.sourceUrl, contentHash, observedAt]);
         const manifest = {
           observedAt,
-          items: entries.length,
+          items: loaded.observedItems,
           retained: feedCount,
           rejected,
           pageLimit: 30,
           history: 'unqualified',
           coverage: 'current_feed_only',
+          status: rejected ? 'partial' : 'retained',
+          provider: loaded.provider,
+          primarySourceUrl: feed.url,
+          ...(loaded.primaryFailure ? { primaryFailure: loaded.primaryFailure, coverage: 'current_publisher_index_only' } : {}),
         };
-        await prisma.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,content_hash,scope,manifest,complete) VALUES(${id},'rss',${feed.url},${contentHash},${JSON.stringify({ publisher: feed.source, domain: new URL(feed.url).hostname })}::jsonb,${JSON.stringify(manifest)}::jsonb,false) ON CONFLICT DO NOTHING`;
+        await prisma.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,content_hash,scope,manifest,complete) VALUES(${id},${loaded.provider === 'rss' ? 'rss' : 'publisher-news'},${loaded.sourceUrl},${contentHash},${JSON.stringify({ publisher: feed.source, domain: new URL(loaded.sourceUrl).hostname })}::jsonb,${JSON.stringify(manifest)}::jsonb,false) ON CONFLICT DO NOTHING`;
       }
       if (feedCount > 0) console.log(`[rss-sync] ${feed.source}: ${feedCount} articles`);
-      feedsProcessed++;
+      if (rejected) {
+        feedsFailed++;
+        console.warn(`[rss-sync] ${feed.source} partial: ${feedCount} retained, ${rejected} rejected`);
+      } else feedsProcessed++;
     } catch (err) {
       console.warn(`[rss-sync] ${feed.source} failed: ${(err as Error).message}`);
-      if (process.env.LEGIWATCH_NEWS_INGEST_ENABLED === 'true') {
-        const observedAt = new Date().toISOString(),
-          manifest = {
-            observedAt,
-            status: 'failed',
-            reason: 'Feed could not be retained',
-            history: 'unqualified',
-          };
-        await prisma.$executeRaw`INSERT INTO legiwatch_source_receipt(id,source,source_url,content_hash,scope,manifest,complete) VALUES(${newsHash([feed.url, observedAt])},'rss',${feed.url},${newsHash(['failed', observedAt])},${JSON.stringify({ publisher: feed.source, domain: new URL(feed.url).hostname })}::jsonb,${JSON.stringify(manifest)}::jsonb,false)`;
-      }
+      await retainFailedFeed(prisma, feed, (err as Error).message);
       feedsFailed++;
     }
   }

@@ -27,6 +27,25 @@ beforeEach(() => {
   }));
 });
 afterEach(cleanup);
+test('publisher day precision keeps its calendar day and does not claim a release time', async () => {
+  mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/folders') ? [] : url.includes('/monitors') ? { monitors: [] } : {
+    items: [{ id: 'day', title: 'Official DHS release', publisher: 'www.dhs.gov', published_at: '2026-10-05T00:00:00Z', publication_precision: 'day' }], coverage: [],
+  } }));
+  // Emulate an Eastern viewer independently of the test machine's timezone.
+  // Native formatting without the UTC day override would show October 4.
+  const dateFormat = vi.spyOn(Date.prototype, 'toLocaleDateString').mockImplementation(function (this: Date, optionsLocale, options) {
+    return new Intl.DateTimeFormat(optionsLocale ?? 'en-US', { timeZone: 'America/New_York', ...options }).format(this);
+  });
+  try {
+    expect(new Date('2026-10-05T00:00:00Z').toLocaleDateString('en-US', { dateStyle: 'medium' })).toBe('Oct 4, 2026');
+    mount(<EvidenceTab lane="news" />);
+    expect(await screen.findByText('Published Oct 5, 2026 · Time not stated')).toBeTruthy();
+    expect(screen.queryByText(/Published Oct 4/)).toBeNull();
+    expect(screen.queryByText(/Publication date not stated/)).toBeNull();
+  } finally {
+    dateFormat.mockRestore();
+  }
+});
 test('publisher coverage distinguishes configured failure from retained reporting and freshness', async () => {
   mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/folders') ? [] : url.includes('/monitors') ? { monitors: [] } : {
     items: [], coverage: [{ id: 'p', publisher: 'Politico', source_group: 'florida_regional', status: 'unavailable',

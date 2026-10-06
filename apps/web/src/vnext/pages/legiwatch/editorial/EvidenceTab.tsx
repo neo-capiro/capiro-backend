@@ -24,6 +24,11 @@ const option = (value: string, label = value) => ({ value, label });
 const budgetLabel = (value: unknown) => String(value ?? 'Not stated').replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
 const amountLabel = (r: Row) => `${budgetLabel(r.chamber)} · ${budgetLabel(r.stage)} · ${budgetLabel(r.fund)} · ${budgetLabel(r.basis)} · ${r.state === 'amount' ? money(r.minorUnits) : budgetLabel(r.state)}`;
 const time = (v: unknown) => (v ? new Date(String(v)).toLocaleString() : 'Date not stated');
+const newsPublication = (row: Row) => row.published_at
+  ? row.publication_precision === 'day'
+    ? `Published ${new Date(String(row.published_at)).toLocaleDateString(undefined, { timeZone: 'UTC', dateStyle: 'medium' })} · Time not stated`
+    : `Published ${time(row.published_at)}`
+  : `Publication date not stated · Observed ${time(row.observed_at)}`;
 export function EvidenceTab({ lane }: { lane: 'news' | 'budget' }) {
   const enabled = useIntelFeatureEnabled(PHASE8_FEATURES[lane]),
     apiScope = useApiScope(),
@@ -376,7 +381,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                     </td>
                     <td>
                       {row.publisher}
-                      <small>{row.published_at ? `Published ${time(row.published_at)}` : `Publication date not stated · Observed ${time(row.observed_at)}`}</small>
+                      <small>{newsPublication(row)}</small>
                     </td>
                     <td>
                       <div className="lw-evidence-actions">

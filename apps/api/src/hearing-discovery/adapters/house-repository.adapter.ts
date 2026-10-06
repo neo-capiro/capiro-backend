@@ -39,25 +39,27 @@ export interface HouseRepositoryAdapterOptions {
 
 export class HouseRepositoryAdapter implements CommitteeSourceAdapter {
   readonly adapterKey = 'house-repository';
-  readonly parserVersion = 'house-repository/2026-08-20';
+  readonly parserVersion = 'house-repository/2026-10-06-completeness';
+  discoveryErrors: string[] = [];
 
   constructor(private readonly options: HouseRepositoryAdapterOptions) {}
 
   async discoverEvents(source: SourceDescriptor, ctx: DiscoveryContext): Promise<SourceEvent[]> {
+    this.discoveryErrors = [];
     const events: SourceEvent[] = [];
     // Anchor on the EASTERN calendar day: docs.house.gov publishes an Eastern
     // calendar, and a UTC anchor silently skips the current day's page between
     // 8 PM and midnight ET (the defect this comment's ancestor documents).
     const base = etCalendarDay(new Date());
-    let dayFailures = 0;
 
     for (let offset = 0; offset <= ctx.daysAhead; offset += 1) {
       const day = new Date(base.getTime() + offset * 86_400_000);
       await sleep(ctx.delayMs);
       const res = await fetchText(byDayUrl(day), { accept: 'text/html' });
       if (!res.ok || res.body == null) {
-        dayFailures += 1;
-        ctx.log(`[house-repository] ByDay ${byDayUrl(day)} failed: ${res.error ?? 'no body'}`);
+        const error = `ByDay ${byDayUrl(day)} failed: ${res.error ?? 'no body'}`;
+        this.discoveryErrors.push(error);
+        ctx.log(`[house-repository] ${error}`);
         continue;
       }
       for (const meeting of parseByDay(res.body)) {
@@ -90,12 +92,7 @@ export class HouseRepositoryAdapter implements CommitteeSourceAdapter {
       }
     }
 
-    // A total wash-out is a source failure, not an empty calendar. Throwing lets
-    // the caller record it against committee_source health instead of writing a
-    // silent "0 events discovered" success.
-    if (dayFailures > 0 && events.length === 0) {
-      throw new Error(`all ${dayFailures} docs.house.gov day fetches failed`);
-    }
+    // Preserve valid days while callers record every unreadable day as partial.
     return events;
   }
 

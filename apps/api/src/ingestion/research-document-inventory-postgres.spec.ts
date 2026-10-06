@@ -1,7 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import { getBill } from '../external/legiscan/legiscan.client.js';
-import { refreshResearchBillInventory } from './research-document-hydration.js';
+import {
+  hydrateResearchDocuments,
+  refreshResearchBillInventory,
+} from './research-document-hydration.js';
 import { currentQuotaMonth } from './legiscan-quota.util.js';
+import { inventoryObservedAt, qualifyLegislativeCorpus } from './legislative-corpus.js';
 jest.mock('../external/legiscan/legiscan.client.js', () => ({
   getBill: jest.fn(),
   getBillText: jest.fn(),
@@ -53,6 +57,43 @@ describe('selected document inventory refresh', () => {
       preserved: 'human/source context',
       documentInventory: result,
     });
+    expect(saved.sourceCheckedAt).toBeNull();
+    expect(result.observedAt).toEqual(expect.any(String));
+    const receipts = await p.$queryRaw<
+      Array<{ manifest: { inventory: unknown }; complete: boolean }>
+    >`
+      SELECT manifest,complete FROM legal_source_receipt
+      WHERE source='legiscan-research-document-inventory' AND scope->>'billId'=${id}`;
+    expect(receipts).toEqual([
+      { complete: true, manifest: expect.objectContaining({ inventory: result }) },
+    ]);
+    expect(
+      qualifyLegislativeCorpus(
+        [id],
+        [
+          {
+            billId: id,
+            providerChangeHash: saved.legiscanChangeHash,
+            sourceCheckedAt: inventoryObservedAt(result, saved.legiscanChangeHash, null),
+            sourceListComplete: result.sourceListComplete,
+            expected: result.expected,
+          },
+        ],
+        [
+          {
+            documentId: 'synthetic-retained-document',
+            billId: id,
+            kind: 'text',
+            providerId: '42',
+            providerHash: 'text-revision',
+            revision: 'parsed-revision',
+            parserVersion: 'test-parser',
+            complete: true,
+            isCurrent: true,
+          },
+        ],
+      ).complete,
+    ).toBe(true);
     expect((await p.stateSyncCursor.findUniqueOrThrow({ where: { id: cursor } })).queriesUsed).toBe(
       1,
     );
@@ -86,5 +127,56 @@ describe('selected document inventory refresh', () => {
       Array<{ count: bigint }>
     >`SELECT count(*) FROM legal_source_receipt WHERE source='legiscan-research-document-inventory' AND scope->>'billId'=${id}`;
     expect(Number(receipts[0]!.count)).toBe(1);
+  });
+
+  it('ordinary selected hydration refreshes an unstamped legacy inventory without claiming a whole-bill check', async () => {
+    await p.stateSession.create({
+      data: {
+        id: cursor,
+        state: 'FL',
+        legiscanSessionId: n,
+        sessionKey: manifest.sessionKey,
+        name: 'Synthetic selected session',
+        yearStart: 2026,
+        yearEnd: 2026,
+      },
+    });
+    await p.stateBill.update({
+      where: { id },
+      data: {
+        legiscanChangeHash: bill.legiscanChangeHash,
+        reportSourceFacts: {
+          documentInventory: {
+            providerChangeHash: bill.legiscanChangeHash,
+            sourceListComplete: true,
+            expected: [],
+          },
+        },
+      },
+    });
+    (getBill as jest.Mock).mockReset().mockResolvedValue({ ...raw, texts: [] });
+    const priorFlag = process.env.LEGISCAN_DOCUMENT_EVIDENCE_ENABLED,
+      priorKey = process.env.LEGISCAN_API_KEY;
+    process.env.LEGISCAN_DOCUMENT_EVIDENCE_ENABLED = 'true';
+    process.env.LEGISCAN_API_KEY = 'synthetic';
+    try {
+      const result = await hydrateResearchDocuments(p, manifest);
+      expect(result.outcomes).toContainEqual({ billId: id, status: 'inventory_refreshed' });
+      expect(getBill).toHaveBeenCalledTimes(1);
+      const saved = await p.stateBill.findUniqueOrThrow({ where: { id } });
+      expect(saved.sourceCheckedAt).toBeNull();
+      expect(saved.reportSourceFacts).toMatchObject({
+        documentInventory: {
+          observedAt: expect.any(String),
+          sourceListComplete: true,
+          providerChangeHash: bill.legiscanChangeHash,
+        },
+      });
+    } finally {
+      if (priorFlag === undefined) delete process.env.LEGISCAN_DOCUMENT_EVIDENCE_ENABLED;
+      else process.env.LEGISCAN_DOCUMENT_EVIDENCE_ENABLED = priorFlag;
+      if (priorKey === undefined) delete process.env.LEGISCAN_API_KEY;
+      else process.env.LEGISCAN_API_KEY = priorKey;
+    }
   });
 });

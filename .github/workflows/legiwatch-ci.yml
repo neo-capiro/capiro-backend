@@ -305,11 +305,29 @@ jobs:
           scripts/verify-image-parity.spec.ts
           scripts/sync-legiscan-bills.spec.ts
           scripts/sync-openstates-events.spec.ts
+          scripts/sync-rss-intel.spec.ts
+          scripts/lib/publisher-news-fallback.spec.ts
+          scripts/backfill-intel-article-sources.spec.ts
+          src/intelligence/news/news-evidence.observation.spec.ts
           src/ingestion/florida-substitution-qa.spec.ts
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 103 1226
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 110 1299
+
+      - name: Selected bill inventory qualification
+        env:
+          DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+          LEGIWATCH_PHASE7_TEST_DATABASE: disposable
+        run: >
+          pnpm --filter @capiro/api exec jest --ci --runInBand --json
+          --outputFile=$GITHUB_WORKSPACE/inventory-summary.json
+          src/ingestion/research-document-inventory-postgres.spec.ts
+          src/ingestion/legislative-corpus.spec.ts
+
+      - name: Assert selected inventory qualification is clean
+        if: always()
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/inventory-summary.json" selected-inventory 2 11
 
       # ---------------------------------------------------------- intel-api --
       # Gate F (feed worklist truth), Gate G (delivery), Gate K (scoring and

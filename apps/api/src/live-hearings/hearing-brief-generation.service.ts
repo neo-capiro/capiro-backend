@@ -238,6 +238,10 @@ export class HearingBriefGenerationService {
       throw new ServiceUnavailableException(
         'The hearing has ended, but a usable transcript is not available yet. Retry the debrief after transcription completes.',
       );
+    if (!turns.length && hasElapsedHearingSchedule(prefill.context.hearing, new Date()))
+      throw new ServiceUnavailableException(
+        'No usable transcript is available for this hearing, and its scheduled time has passed. A recap cannot be generated yet. Check the hearing source and recording status.',
+      );
     const mode: HearingBriefMode = turns.length ? 'recap' : 'preparation';
     const clientName = client?.name ?? prefill.context.client?.name ?? 'the client';
     const expected = (mode === 'recap' ? RECAP_SECTIONS : PREPARATION_SECTIONS).map((name) =>
@@ -447,6 +451,20 @@ export class HearingBriefGenerationService {
     return rows;
   }
 }
+function hasElapsedHearingSchedule(hearing: Record<string, unknown>, now: Date): boolean {
+  if (typeof hearing.scheduledStart === 'string') {
+    const start = Date.parse(hearing.scheduledStart);
+    if (Number.isFinite(start)) return start <= now.getTime();
+  }
+  // Date-only notices do not establish a start time. Treat only a prior
+  // legislative calendar day as elapsed, never midnight UTC on the same day.
+  const day = typeof hearing.calendarDate === 'string' ? hearing.calendarDate : '';
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(now);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) && day < today;
+}
+
 function boundedJson(value: unknown, limit: number): string | null {
   if (value == null) return null;
   try {

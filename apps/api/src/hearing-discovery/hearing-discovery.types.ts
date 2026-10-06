@@ -240,6 +240,9 @@ export interface SourceDescriptor {
  * not forced to fake per-committee enrichment.
  */
 export interface CommitteeSourceAdapter {
+  /** Failures in a bounded discovery pass. Valid returned events may still be
+   * reconciled, but callers must not advance a complete-discovery watermark. */
+  readonly discoveryErrors?: readonly string[];
   /** Stable key persisted in committee_source.adapter_key. */
   readonly adapterKey: string;
   /** Bumped when a parser's output shape changes, so stale rows are detectable. */
