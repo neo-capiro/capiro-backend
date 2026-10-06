@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-efficiency-orch-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T14:19:17.110469+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "d53a5919e508c0e4c11b5335a2f89344d5c597fa",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:8a8b0f514ed2679164165972292d9a32989af931ed49aa5a33499039fe83c623",
+      "buildId": "capiro-build-web-dev:bda806a6-bdf8-4548-9782-2fa88e14be9e"
+    }
+  ],
+  "schemaChange": false,
+  "change": "#2097 identical reads answered with a pointer, bill-status misfire fixed, untargeted follow-ups skipped, efficiency prompt rules",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
