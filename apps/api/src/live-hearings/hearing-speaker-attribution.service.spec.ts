@@ -5,6 +5,7 @@ import {
   isAttributionDue,
   isDiarizationIndex,
   labelsWithNamingCue,
+  hasExplicitSpeakerName,
   selectCueTurns,
 } from './hearing-speaker-attribution.service.js';
 
@@ -111,7 +112,11 @@ describe('acceptSpeakerEntries', () => {
     witnesses: ['Dr. Amaya Patel'],
   };
   const labels = new Set(['0', '1', '2']);
-  const cuedLabels = new Set(['0', '1', '2', '9']);
+  const turns = groupTurns([
+    segment(1, '0', 'I am Chairman Smith.'),
+    segment(2, '1', 'My name is Amaya Patel.'),
+    segment(3, '2', 'I am Mayor Dana Ortiz.'),
+  ]);
 
   it('accepts roster and witness matches above the floor and drops the rest', () => {
     const accepted = acceptSpeakerEntries(
@@ -126,7 +131,7 @@ describe('acceptSpeakerEntries', () => {
       },
       labels,
       roster,
-      cuedLabels,
+      turns,
     );
     expect(accepted).toEqual([
       expect.objectContaining({ speakerLabel: '0', displayName: 'Chairman Smith', personRef: 'S000001' }),
@@ -139,14 +144,14 @@ describe('acceptSpeakerEntries', () => {
       { speakers: [{ label: '2', displayName: 'Mayor Dana Ortiz', role: null, personRef: null, confidence: 0.85 }] },
       labels,
       roster,
-      cuedLabels,
+      turns,
     );
     expect(accepted).toHaveLength(1);
   });
 
   it('tolerates malformed model output', () => {
-    expect(acceptSpeakerEntries(null, labels, roster, cuedLabels)).toEqual([]);
-    expect(acceptSpeakerEntries({ speakers: [null, 'x', { label: '0' }] }, labels, roster, cuedLabels)).toEqual([]);
+    expect(acceptSpeakerEntries(null, labels, roster, turns)).toEqual([]);
+    expect(acceptSpeakerEntries({ speakers: [null, 'x', { label: '0' }] }, labels, roster, turns)).toEqual([]);
   });
 
   it('rejects an identification with no textual cue, even at maximum self-reported confidence', () => {
@@ -162,9 +167,45 @@ describe('acceptSpeakerEntries', () => {
       },
       labels,
       roster,
-      new Set(['0', '1']), // label '2' has no naming cue
+      [], // label '2' has no naming cue
     );
     expect(accepted).toEqual([]);
+  });
+
+  it('rejects generic or wrong-person cues at maximum confidence and cannot borrow another roster identity', () => {
+    const raw = { speakers: [{ label: '1', displayName: 'Jane Q. Smith', personRef: 'S000001', confidence: 1 }] };
+    const unrelated = groupTurns([segment(1, '0', 'Senator Lee, you are recognized.'), segment(2, '1', 'Thank you, Chairman Smith.')]);
+    expect(acceptSpeakerEntries(raw, labels, roster, unrelated)).toEqual([]);
+    const wrongRef = acceptSpeakerEntries({ speakers: [{ label: '0', displayName: 'Chairman Smith', personRef: 'L000002', confidence: 1 }] }, labels, roster, turns);
+    expect(wrongRef[0]?.personRef).toBeNull();
+  });
+});
+
+describe('candidate-specific speaker evidence', () => {
+  it.each([
+    ['Fischer, Deb', 'Senator Fischer, you are recognized.'],
+    ['King, Angus S., Jr.', 'Senator King, you are recognized.'],
+    ['Kaine, Tim', 'Senator Kaine.'],
+    ['Shaheen, Jeanne', 'Next we have Senator Shaheen.'],
+  ])('recognizes the named handoff for comma-form %s', (name, cue) => {
+    const turns = groupTurns([segment(1, '0', cue), segment(2, '8', 'Thank you. Here is my question.')]);
+    expect(hasExplicitSpeakerName('8', name, turns)).toBe(true);
+    expect(hasExplicitSpeakerName('0', name, turns)).toBe(false);
+  });
+  it('does not turn thanks, third-person references or generic titles into identities', () => {
+    for (const text of ['Thank you, Senator Shaheen.', 'Senator Shaheen made an important point.', 'I recognize the next senator.', 'Welcome Senator Shaheen. Senator Kaine, you are recognized.']) {
+      const turns = groupTurns([segment(1, '0', text), segment(2, '8', 'I agree with Senator Shaheen.')]);
+      expect(hasExplicitSpeakerName('8', 'Shaheen, Jeanne', turns)).toBe(false);
+      expect(hasExplicitSpeakerName('0', 'Shaheen, Jeanne', turns)).toBe(false);
+    }
+    expect(hasExplicitSpeakerName('8', 'Shaheen, Jeanne', groupTurns([
+      segment(1, '8', 'She said I am Jeanne Shaheen, but I disagreed with her.'),
+    ]))).toBe(false);
+  });
+  it('matches explicit self-introduction to surname-first roster spelling', () => {
+    expect(hasExplicitSpeakerName('8', 'Shaheen, Jeanne', groupTurns([
+      segment(1, '8', 'My name is Jeanne Shaheen.'),
+    ]))).toBe(true);
   });
 });
 
@@ -361,7 +402,28 @@ describe('HearingSpeakerAttributionService', () => {
     const row = await service.rename('hearing-1', '1', '  Dr. Amaya Patel ', { tenantId: 't', userId: 'u' });
     expect(row).toMatchObject({ speakerLabel: '1', displayName: 'Dr. Amaya Patel', source: 'manual' });
     expect(executed[0]!.sql).toContain("source='manual'");
+    expect(executed[0]!.sql).toContain('role=EXCLUDED.role');
+    expect(executed[0]!.sql).toContain('person_ref=EXCLUDED.person_ref');
     expect(executed[0]!.params).toEqual(['cap-1', '1', 'Dr. Amaya Patel', 't:u']);
+  });
+
+  it('never exposes low-confidence or unsupported legacy LLM identities, while preserving manual corrections', async () => {
+    const { service, prisma } = harness({
+      existing: [
+        { speakerLabel: '0', displayName: 'Jane Q. Smith', confidence: 0.95, source: 'llm' },
+        { speakerLabel: '1', displayName: 'Amaya Patel', confidence: 0.5, source: 'llm' },
+        { speakerLabel: '8', displayName: 'Shaheen, Jeanne', confidence: 1, source: 'llm' },
+        { speakerLabel: '9', displayName: 'Senator Tim Kaine', confidence: null, source: 'manual' },
+      ],
+    });
+    expect(await service.speakerMap('cap-1')).toEqual(new Map([['0', 'Jane Q. Smith'], ['9', 'Senator Tim Kaine']]));
+    expect(prisma.$queryRawUnsafe).toHaveBeenCalledWith(expect.stringContaining('LIMIT $2'), 'cap-1', 20_000);
+  });
+
+  it('preserves manual identities without transcript evidence and returns empty for a missing capture', async () => {
+    const { service } = harness({ segments: [], existing: [{ speakerLabel: '8', displayName: 'Tim Kaine', confidence: 1, source: 'manual' }] });
+    expect(await service.speakerMap('cap-1')).toEqual(new Map([['8', 'Tim Kaine']]));
+    expect(await harness({ capture: null, existing: [], segments: [] }).service.speakerMap('missing')).toEqual(new Map());
   });
 
   it('resolveIfDue never throws', () => {

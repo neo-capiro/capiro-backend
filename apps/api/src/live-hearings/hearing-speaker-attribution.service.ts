@@ -26,7 +26,7 @@ const MAX_SEGMENTS = 20_000;
 const MAX_TURNS = 60;
 const MAX_TURN_CHARS = 400;
 const MAX_TOTAL_CHARS = 24_000;
-const MIN_CONFIDENCE = 0.5;
+const MIN_CONFIDENCE = 0.8;
 const MIN_CONFIDENCE_OUTSIDE_ROSTER = 0.8;
 
 const CUE =
@@ -195,6 +195,9 @@ const SYSTEM_PROMPT = [
   'hearing and recognize members; members are addressed by title and name; witnesses introduce',
   'themselves and are introduced before testifying; "the Senator from <state>" resolves through',
   'the roster. Prefer the exact roster or witness name. Never invent a person.',
+  'A generic diarization label is not an identity and roster order is not evidence.',
+  'Identify a label only from an explicit self-introduction or an immediately preceding named introduction or recognition.',
+  'Mentioning or thanking another person does not identify the speaker as that person. Omit uncertain or conflicting identifications.',
   'Return one entry per label you can identify; omit labels you cannot. Confidence is 0–1 and',
   'must reflect real evidence in the excerpts. personRef must be a roster personRef or null.',
 ].join(' ');
@@ -241,17 +244,43 @@ export function labelsWithNamingCue(turns: SpeakerTurn[]): Set<string> {
   return result;
 }
 
+/** Candidate-specific identity evidence, not merely a nearby title or roster match.
+ * Deliberately conservative: transcription misspellings and uncertain handoffs
+ * remain unidentified until reviewed rather than being silently corrected. */
+export function hasExplicitSpeakerName(label: string, name: string, turns: SpeakerTurn[]): boolean {
+  const normalized = normalizeName(name);
+  const surname = normalizeName(name.includes(',') ? name.split(',')[0]! : name).split(' ').at(-1);
+  if (!normalized || !surname || surname.length < 3) return false;
+  const spoken = name.includes(',')
+    ? normalizeName(`${name.split(',')[1]} ${name.split(',')[0]}`)
+    : normalized;
+  const names = [...new Set([normalized, spoken, surname])].map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const named = `(?:${names})\\b`;
+  const self = new RegExp(`^(?:my name is|i am|i m)\\s+${named}`);
+  const introduction = new RegExp(`\\b(?:recognize|recognise|next we have|welcome)\\s+(?:the\\s+)?${named}`);
+  const recognition = new RegExp(`\\b${named}[^.!?]{0,120}\\b(?:you are recognized|you are recognised|you may begin|your opening statement)\\b`);
+  return turns.some((turn, index) => {
+    if (turn.label !== label) return false;
+    if (turn.text.split(/(?<=[.!?])\s+/).some((sentence) => self.test(normalizeName(sentence)))) return true;
+    const previous = turns[index - 1];
+    if (!previous || previous.label === label) return false;
+    // Keep sentence boundaries for the recognition pattern; normalizeName is
+    // otherwise shared with official names so titles do not manufacture matches.
+    const tail = previous.text.slice(-600).split(/(?<=[.!?])\s+/).map(normalizeName).filter(Boolean).at(-1) ?? '';
+    return tail === surname || tail === normalized || introduction.test(tail) || recognition.test(tail);
+  });
+}
+
 export function acceptSpeakerEntries(
   raw: unknown,
   labels: Set<string>,
   roster: HearingRoster,
-  cuedLabels: Set<string>,
+  turns: SpeakerTurn[],
 ): Array<Omit<SpeakerRecord, 'source'>> {
   const entries = Array.isArray((raw as { speakers?: unknown })?.speakers)
     ? ((raw as { speakers: unknown[] }).speakers as Array<Record<string, unknown>>)
     : [];
   const known = [...roster.members.map((m) => m.name), ...roster.witnesses];
-  const refs = new Set(roster.members.map((m) => m.personRef).filter(Boolean) as string[]);
   const accepted = new Map<string, Omit<SpeakerRecord, 'source'>>();
   for (const entry of entries) {
     if (!entry || typeof entry !== 'object') continue;
@@ -262,12 +291,13 @@ export function acceptSpeakerEntries(
     // Confidence is entirely self-reported by the model; never accept an
     // identification with no independent textual basis, however confident
     // the model claims to be.
-    if (!cuedLabels.has(label)) continue;
+    if (!hasExplicitSpeakerName(label, displayName, turns)) continue;
     const inRoster = nameMatches(displayName, known);
     if (confidence < (inRoster ? MIN_CONFIDENCE : MIN_CONFIDENCE_OUTSIDE_ROSTER)) continue;
     const role = typeof entry.role === 'string' && entry.role.trim() ? entry.role.trim().slice(0, 80) : null;
     const personRefRaw = typeof entry.personRef === 'string' ? entry.personRef.trim() : '';
-    const personRef = personRefRaw && refs.has(personRefRaw) ? personRefRaw : null;
+    const personRef = personRefRaw && roster.members.some((member) =>
+      member.personRef === personRefRaw && nameMatches(displayName, [member.name])) ? personRefRaw : null;
     accepted.set(label, {
       speakerLabel: label,
       displayName,
@@ -339,7 +369,6 @@ export class HearingSpeakerAttributionService {
       if (!cred) return { resolved: 0, ran: false, reason: 'no_credential' };
       const roster = await this.loadRoster(hearingId);
       const excerpt = selectCueTurns(turns);
-      const cuedLabels = labelsWithNamingCue(turns);
       const completion = await this.llm.complete({
         provider: 'anthropic',
         apiKey: cred.apiKey,
@@ -360,7 +389,7 @@ export class HearingSpeakerAttributionService {
       });
       const json = extractJsonObject(completion.text);
       const accepted = json
-        ? acceptSpeakerEntries(JSON.parse(json), labels, roster, cuedLabels)
+        ? acceptSpeakerEntries(JSON.parse(json), labels, roster, turns)
         : [];
       await this.persist(capture.id, accepted, maxSequence);
       // Recorded even on the fire-and-forget path (no ctx): real provider
@@ -397,6 +426,8 @@ export class HearingSpeakerAttributionService {
        VALUES ($1, $2, $3, NULL, NULL, 1, 'manual', $4)
        ON CONFLICT (capture_id, speaker_label) DO UPDATE SET
          display_name=EXCLUDED.display_name,
+         role=EXCLUDED.role,
+         person_ref=EXCLUDED.person_ref,
          confidence=1,
          source='manual',
          updated_by=EXCLUDED.updated_by,
@@ -419,7 +450,12 @@ export class HearingSpeakerAttributionService {
   /** label → display name for a capture. */
   async speakerMap(captureId: string): Promise<Map<string, string>> {
     const rows = await this.speakerRows(captureId);
-    return new Map([...rows].map(([label, row]) => [label, row.displayName]));
+    const eligible = [...rows].filter(([, row]) => row.source === 'manual' ||
+      (row.source === 'llm' && row.confidence != null && row.confidence >= MIN_CONFIDENCE));
+    const turns = eligible.some(([, row]) => row.source !== 'manual')
+      ? groupTurns(await this.segments(captureId)) : [];
+    return new Map(eligible.filter(([label, row]) => row.source === 'manual' ||
+      hasExplicitSpeakerName(label, row.displayName, turns)).map(([label, row]) => [label, row.displayName]));
   }
 
   async loadRoster(hearingId: string): Promise<HearingRoster> {
