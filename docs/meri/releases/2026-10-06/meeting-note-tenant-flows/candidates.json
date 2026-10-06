@@ -31,10 +31,10 @@
   },
   {
     "service": "web-vnext",
-    "baseSha": "fe8822dd8e2f4a1d5db48734c420b19e4a3684bf",
-    "sourceSha": "ca5e574dbe436db86924d3c23d791d97c7aa57c7",
+    "baseSha": "f6f9f696b1f3418cdd354778a98ea5ea61cc7ce8",
+    "sourceSha": "a734bb0a54322ac5327dc04b81647a407a28fb61",
     "featureSha": "35b8ea9134be36b31b4fde5d4129bf31a74cbc5d",
-    "branch": "codex/krisp-tenant-flow-web-vnext",
+    "branch": "codex/krisp-tenant-flow-web-current",
     "files": [
       "apps/web/src/vnext/meri/KrispNotetakerSettings.test.tsx",
       "apps/web/src/vnext/meri/KrispNotetakerSettings.tsx"
