@@ -93,3 +93,17 @@ Handover: [HANDOVER-2026-10-06-pm.md](../../implementation/HANDOVER-2026-10-06-p
 Production changes outside code: tenant flag `meri.jobs` on for capiro-internal (11:22 UTC, `outputs/meri-stage2-20261006/flags/`); task family `capiro-dev-api-federal-evidence-backfill:1` for the one-off historical BILLS backfill (`FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED=true` on that family only; the API service, the Package 4 rules and the outbox drain stay off). The backfill stored 7,754 119th-Congress bill-version packages and then stalled on one package that exceeds the 5-second interactive-transaction timeout (handover §6.1).
 
 Paid turns this afternoon: eleven (T5 ×7, research check ×1, commitments audit ×1, OH HB 1 ×1, bill text ×1). Neo's verdicts are pending on the passing D4b report, the commitments audit answer and the bill-text answer.
+
+## Evening: T5 publication path, re-check speed, D2 matching, backfill unstick
+
+Handover: [HANDOVER-2026-10-06-evening.md](../../implementation/HANDOVER-2026-10-06-evening.md). Every roll went through deployment plan §2 (CodeBuild image, `migration-status` on the candidate, evidence PR, prepare, two ancestry reads, promote, digest readback on every running task). LegiWatch rolled API 619 (`0732f2511`, containing 617) and web-vnext 427 and 431 in between. The first 621 candidate (`e9010f9db`) did not contain 619 and was rebuilt from main instead of shipped.
+
+| Roll | Code | Revision | Rollback | Source | Digest | Live check |
+| --- | --- | --- | --- | --- | --- | --- |
+| [s2-producer-proof](s2-producer-proof/README.md) | #2124 each source tool declared once, plus clause-level proof logs; #2125 re-check compares JSON shape; #2126 document listings re-check by file identity | API 617 | 616 | `8f77a5785` | `sha256:557a1c12…` | T5 run 9 (`00eb08de`): every proof clause passed and a child was admitted; refused at publication on a re-scraped page (`scrape_web_page` `version_changed`) |
+| [s2-scrape-evidence](s2-scrape-evidence/README.md) | #2128 scraped pages re-check by the text read; refusals log changed fields (built from `f3e360155`, which also carries LegiWatch #2122) | API 621 | 620 | `f3e360155` | `sha256:bbb902ae…` | T5 run 10 (`ca7158f1`): **published** (artifact `53e33739`), **held by D2** (review `69250800`). The stream took 29 minutes: two serial re-checks of about 6 minutes each, dominated by `search_memory` at 18 to 36 s per call |
+| [s2-recheck-d2](s2-recheck-d2/README.md) | #2134 re-check runs each distinct owner read once, four at a time; #2132 D2 matches decoded tool text; #2136 federal evidence snapshot transaction allows 180 s | API 623 | 622 | `006eb59d2` | `sha256:7286985d…` | Reading session `ca7158f1` takes 133 s, HTTP 200 (before: over 6 minutes, never finished within the client timeout) |
+
+Production changes outside code: task family `capiro-dev-api-federal-evidence-backfill:2`, the same clone as revision 1 with only the image and SHA keys moved to the API 623 image (`outputs/meri-stage2-20261006/fed-backfill/register_td_v2.py`, `td-registered.json`). The stalled loop was stopped at about 21:45 UTC, and `loop2.py 16` resumed at about 22:16 UTC.
+
+Paid turns this evening: two (T5 runs 9 and 10).

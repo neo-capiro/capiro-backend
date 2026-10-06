@@ -1,6 +1,26 @@
 # Meri File01 checkpoint — C0/C1 complete, C2 active
 
-**Start a new session with [HANDOVER-2026-10-06.md](HANDOVER-2026-10-06.md).**
+**Start a new session with [HANDOVER-2026-10-06-evening.md](HANDOVER-2026-10-06-evening.md)** (it points to the pm and morning handovers).
+
+**Stage 2 progress, October 6, 2026 (about 22:30 UTC, lead agent, evening).** T5 run 8's refusal was four defects in a row; all four are fixed and deployed, and T5 now **publishes**. Run 10's office brief was held for review by D2, and reading it was very slow. The re-check is now faster and D2 matches decoded text. The real latency source, `search_memory` at 18 to 36 s per call, is open. The federal backfill had stalled; it is fixed and resumed. Evidence: [releases/2026-10-06](../releases/2026-10-06/README.md), evening section.
+
+- **Served:** API `capiro-dev-api:623` from `006eb59d2` (digest `sha256:7286985d…`; rollback 622). Orchestrator 167 (unchanged; it does not yet carry #2132 for chat). Web-vnext 431 (other workstreams). Backfill family `capiro-dev-api-federal-evidence-backfill:2` on the 623 image. No migration was applied; `migration-status` was up to date on every candidate.
+- **Deployed code:**
+  - #2124: each source tool is declared once, and every producer-proof refusal logs its clause.
+  - #2125: the re-check compares live results in JSON shape (memory `updatedAt`).
+  - #2126: document listings re-check by file identity.
+  - #2128: scraped pages re-check by the text read; refusals log the changed fields.
+  - #2132: D2 matches decoded tool text and ignores punctuation inside the closing quote.
+  - #2134: the re-check runs each distinct owner read once, four at a time.
+  - #2136: the federal evidence snapshot transaction allows 180 s.
+  - Rolls: 617, 621 (LegiWatch rolled 619 in between, and 621 contains it), then 623.
+- **T5:**
+  - Run 9 (`00eb08de`, API 617) passed every proof clause and admitted a child, then refused on a re-scraped page.
+  - Run 10 (`ca7158f1`, API 621) **published** (artifact `53e33739`) but was **held by D2** on `“without regard to the requirements of that section,”` (review `69250800`, pending; `read_bill_text` failed in that run, so the hold may be right). The job reads `completed`; the body is the hold notice. The stream took 29 minutes, two full serial re-checks of about 6 minutes each.
+  - On API 623, reading that session takes 133 s; before, it never finished within the client timeout.
+- **Open, blocking T5:** `search_memory` partial reads take 17.8 to 36.7 s each in the API (16 calls, 386 s in run 10), which also slows every chat turn. The evening handover §3 has two hypotheses (the `eligible` CTE scanned three times with per-row RLS; Prisma's 5 s transaction plus a silent lexical rerun) and the evidence to collect first.
+- **Backfill:** 7,754 packages, then batches 10 to 15 failed on one large bill version (the snapshot's 5 s transaction against the passage trigger). The loop was stopped about 21:45 UTC. #2136 shipped, the family was re-registered as revision 2, and `fed-backfill/loop2.py 16` resumed at about 22:16 UTC; it also stops when two batches insert nothing.
+- **Next:** the `search_memory` latency; then T5 run 11 (do not approve review `69250800` just to pass T5); the orchestrator roll for #2132; then the pm handover §9 order (sweeper after a T5 pass, T7, verdicts, LegiScan, the 2026-10-12 merges).
 
 **Stage 2 progress, October 6, 2026 (about 17:35 UTC, lead agent). Start the next session with [HANDOVER-2026-10-06-pm.md](HANDOVER-2026-10-06-pm.md).** D4b narrowed and verified; `meri.jobs` on for capiro-internal; T5 run eight times, each run exposing one real research-path defect, all fixed and deployed (the eighth run's result is below); turn efficiency fixed and measured; a live LegiScan state-bill lookup shipped but blocked by the key's real 10,000/month quota; the 119th-Congress bill-text backfill is running; bill-text search (in-bill locator and cross-bill full-text search, one migration applied) shipped and passed its live check. Evidence: [releases/2026-10-06](../releases/2026-10-06/README.md), afternoon section.
 
