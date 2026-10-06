@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "fe8822dd8e2f4a1d5db48734c420b19e4a3684bf",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:81f6ae511be6583c590b87f4edf35e1b5ca9bb807d9fe89913ca3435f20b9ceb",
+  "reviewedAt": "2026-10-06T23:12:16.235938+00:00",
+  "schemaChange": false,
+  "build": {
+    "status": "passed",
+    "id": "capiro-build-web-dev:1a209a6a-a627-493b-b0f6-f4d88454b8ab",
+    "architecture": "linux/arm64",
+    "nginxSmoke": "passed",
+    "recordingLabelAndApiRouteBundleChecks": "passed",
+    "immutableEcrDigest": "passed",
+    "isolationGuard": "passed"
+  },
+  "automatedTests": {
+    "status": "passed",
+    "id": "capiro-build-web-dev:9510bf61-e3a1-402b-862c-a843872cf2c7",
+    "web": {
+      "success": true,
+      "numTotalTests": 1186,
+      "numPassedTests": 1186,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 335
+    },
+    "fullWebTypecheck": "passed",
+    "operatorRuntimeChecks": "passed"
+  },
+  "retirementCompatibility": {
+    "status": "passed",
+    "reviewer": "Codex root",
+    "scope": "Three text strings in one web component change. The section accessible label and heading identify mixed browser/server saved attempts accurately. No processing, history, styles, permissions, API or worker configuration changes. Native web and operator/runtime gates pass."
+  },
+  "observedDefect": {
+    "liveView": "Recordings",
+    "oldHeading": "Saved browser sessions",
+    "includedAttemptKinds": [
+      "Browser recording",
+      "Server session"
+    ]
+  },
+  "manualAcceptance": "Guarded web promotion and visible mixed-recording label acceptance are recorded separately; no universal audio or discovery certification."
+}
