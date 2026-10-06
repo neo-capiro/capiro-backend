@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "f6f9f696b1f3418cdd354778a98ea5ea61cc7ce8",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:518051ad2de91efccc872da22636d112d91e7c4c21d5b068813c6cf647a56ed5",
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:435",
+  "promotionManifestHash": "9825cbe8027e4b2a7abcd0d935fd3d226a9a074252eeb6ca76fc1e8a3b7153bc",
+  "observedAt": "2026-10-06T23:35:47.355Z",
+  "manualAcceptance": {
+    "status": "passed",
+    "heading": "Saved recording attempts",
+    "description": "Browser and server sessions · separate capture attempts",
+    "mixedBrowserServerKindsVisible": true,
+    "desktopSharedControlHeight": 36,
+    "mobileTouchControlHeight": 44,
+    "searchEmptyState": "passed",
+    "completedFilterCount": 26,
+    "otherFilterCount": 13,
+    "allLoadedCount": 39,
+    "hideQaFilterCount": 32,
+    "keyboardFocusOutline": "passed",
+    "mobileAndDesktopNoPageOverflow": true,
+    "viewportOverrideReset": true
+  },
+  "metrics": {
+    "observedAt": "2026-10-06T23:35:47.355Z",
+    "desktop": {
+      "checkbox": {
+        "border": "0px none rgb(0, 0, 0)",
+        "borderRadius": "0px",
+        "fontSize": "13px",
+        "height": 13,
+        "outline": "rgb(0, 0, 0) none 2.66667px",
+        "width": 13
+      },
+      "input": {
+        "border": "0px none rgb(16, 24, 40)",
+        "borderRadius": "8px",
+        "fontSize": "13px",
+        "height": 36,
+        "outline": "rgb(16, 24, 40) none 0px",
+        "width": 257.72918701171875
+      },
+      "search": {
+        "border": "0.666667px solid rgb(208, 213, 221)",
+        "borderRadius": "8px",
+        "fontSize": "16px",
+        "height": 36,
+        "outline": "rgb(16, 24, 40) none 2.66667px",
+        "width": 305.0625
+      },
+      "select": {
+        "border": "0.666667px solid rgb(208, 213, 221)",
+        "borderRadius": "8px",
+        "fontSize": "13px",
+        "height": 36,
+        "outline": "rgb(52, 64, 84) none 2.66667px",
+        "width": 232
+      },
+      "viewport": {
+        "height": 720,
+        "pageWidth": 1265,
+        "width": 1280
+      }
+    },
+    "mobile": {
+      "controls": {
+        "borderRadius": "12px",
+        "fontSize": "16px",
+        "height": 156,
+        "width": 342.66668701171875,
+        "x": 16
+      },
+      "input": {
+        "borderRadius": "8px",
+        "fontSize": "13px",
+        "height": 44,
+        "width": 263.3333435058594,
+        "x": 66.66667175292969
+      },
+      "search": {
+        "borderRadius": "8px",
+        "fontSize": "16px",
+        "height": 44,
+        "width": 310.66668701171875,
+        "x": 32
+      },
+      "select": {
+        "borderRadius": "8px",
+        "fontSize": "13px",
+        "height": 44,
+        "width": 232,
+        "x": 32
+      },
+      "viewport": {
+        "height": 844,
+        "pageWidth": 375,
+        "width": 390
+      }
+    },
+    "completedFilterCount": 26,
+    "allCount": 39,
+    "hideQaCount": 32,
+    "mobileOtherFilter": "    - generic: Recent session history Â· 13 of 39 loaded",
+    "mobileSearchEmpty": true,
+    "keyboard": {
+      "focusedControl": "Recording attempt status",
+      "visibleOutline": true
+    }
+  },
+  "screenshots": [
+    "browser-live/recording-controls-desktop-after.jpg",
+    "browser-live/recording-controls-mobile-after.jpg"
+  ],
+  "interpretation": "Saved attempts remain separate from canonical server captures. Completed attempt status does not establish retained audio or universal hearing discovery. No settings, sessions, media or server capture policies were modified by UI acceptance."
+}
