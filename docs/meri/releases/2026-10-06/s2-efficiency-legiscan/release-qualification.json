@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-efficiency-legiscan-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T14:24:14.876086+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "d53a5919e508c0e4c11b5335a2f89344d5c597fa",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:8ba4408b6944f3314556c2647f0ca7c8ad62f72929f2eca7ec2fc89a1b87c839",
+      "buildId": "capiro-build-web-dev:6d413955-f9b6-4198-b4c8-e053fe8b1a40"
+    }
+  ],
+  "schemaChange": false,
+  "change": "#2097 heartbeat lease diagnostics; #2098 live LegiScan lookup (dark until the key is wired)",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
