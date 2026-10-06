@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-orch-d2-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T23:39:00.923614+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "5231b9a48263540471cef6704b778416c8107455",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:9f9aac405aba73f31404f3e9fa5aef23fa015f5807cf4239cdf7bb80ac842491",
+      "buildId": "capiro-build-web-dev:cde56608-45e7-4f91-9c5f-27f4eed4cbf5"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Orchestrator plain roll from main 5231b9a48: chat auditor picks up #2132 (D2 matches decoded tool text).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
