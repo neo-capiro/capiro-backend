@@ -98,6 +98,7 @@ assert.ok(!inputs.PUBLIC_DATA_RESEARCH_TOOLS.has('get_representation'));
 assert.equal(typeof require('@capiro/meriv2-core').governedSteeringRowDecision,'function');
 const shared=require('@capiro/shared');
 assert.equal(shared.congressGovBillUrl('119-hr-8800'),'https://www.congress.gov/bill/119th-congress/house-bill/8800');
+assert.equal(shared.classifyApiToolReadOutcome('get_pe_budget_timeline',{tool:'get_pe_budget_timeline',generatedAt:'t',years:[{}]}).kind,'complete');
 console.log('IMAGE_SMOKE_PASS');
 "`
     : `docker run --rm --network none --entrypoint node "$image" -e "
@@ -111,6 +112,7 @@ const shared=require('@capiro/shared');
 assert.equal(shared.extractCitationsFromToolResult('get_bill_status',{found:true,billId:'119-hr-8800',title:'T'},1)[0].url,'https://www.congress.gov/bill/119th-congress/house-bill/8800');
 const core=require('/app/packages/meriv2-core/dist/index.js');
 assert.ok(!core.inferClaimCategories('How did this PE change from FY26 enacted to FY27 requested?').includes('member_vote'));
+assert.equal(shared.classifyApiToolReadOutcome('get_pe_budget_timeline',{tool:'get_pe_budget_timeline',generatedAt:'t',years:[{}]}).kind,'complete');
 console.log('IMAGE_SMOKE_PASS');
 "`;
 

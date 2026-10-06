@@ -39,6 +39,13 @@ import {
   type ResearchProducerInputManifestV1,
 } from './meri-research-producer-inputs.js';
 
+/** Capiro's global program-element reads; replayed by re-reading the same element. */
+const PROGRAM_ELEMENT_READ_TOOLS = [
+  'get_program_element',
+  'get_pe_budget_timeline',
+  'get_pe_report_language',
+] as const;
+
 const SUPPORTED_OWNER_TOOLS = new Set([
   'search_memory',
   'read_client_documents',
@@ -55,6 +62,7 @@ const SUPPORTED_OWNER_TOOLS = new Set([
   'scrape_web_page',
   'read_chat_attachments',
   'get_research_evidence',
+  ...PROGRAM_ELEMENT_READ_TOOLS,
 ]);
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -214,6 +222,16 @@ function remainingSourceFamilyProof(tool: string, value: unknown): string[] | nu
     const { generatedAt, ...rest } = root;
     return [researchJsonSha256(rest)];
   }
+  if ((PROGRAM_ELEMENT_READ_TOOLS as readonly string[]).includes(tool)) {
+    const { generatedAt, ...rest } = root;
+    // The reader's own watch flag is presentation state, not budget evidence.
+    const programElement = record(rest.programElement);
+    if (programElement) {
+      const { currentUserIsWatching: _watching, ...evidence } = programElement;
+      rest.programElement = evidence;
+    }
+    return [researchJsonSha256(rest)];
+  }
   return null;
 }
 
@@ -343,6 +361,7 @@ export function currentOwnerResultAuthorizesReplay(
                         'scrape_web_page',
                         'read_chat_attachments',
                         'get_research_evidence',
+                        ...PROGRAM_ELEMENT_READ_TOOLS,
                       ].includes(tool)
                     ? (value: unknown) => remainingSourceFamilyProof(tool, value)
                     : null;
