@@ -23,7 +23,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MeriPdfRenderError } from './meri-docgen-pdf.js';
-import { EngagementTaskStatus, Prisma } from '@prisma/client';
+import { EngagementTaskStatus, Prisma, type PrismaClient } from '@prisma/client';
+import { lookupStateBillLive, type StateBillLiveOutcome } from './meri-state-bill-live.js';
 import type { TenantContext } from '@capiro/shared';
 import {
   formatBillId,
@@ -3709,9 +3710,23 @@ export class MeriToolsService {
       }),
     );
     if (!candidates.length) {
-      return { key: null, note: `No bill found matching "${raw}" in ${parsed.state}.` };
+      // The hourly sync may not have stored a newly filed bill yet.
+      const live = await this.lookupStateBillLive(parsed);
+      if (live.kind === 'found') return { key: live.billKey };
+      return {
+        key: null,
+        note: `No bill found matching "${raw}" in ${parsed.state}.${stateBillLiveNote(live)}`,
+      };
     }
     return { key: candidates[0]!.id };
+  }
+
+  /** Live LegiScan fallback for an exact designation the sync has not stored yet. */
+  protected lookupStateBillLive(designation: {
+    state: string;
+    billNumber: string;
+  }): Promise<StateBillLiveOutcome> {
+    return lookupStateBillLive(this.prisma as unknown as PrismaClient, designation);
   }
 
   private async searchCongressBills(input: Record<string, unknown>) {
@@ -10236,4 +10251,14 @@ function requiredToolSchema<T>(name: string, schemas: Record<string, T>): T {
   const schema = schemas[name];
   if (!schema) throw new Error(`Meri capability has no input schema: ${name}`);
   return schema;
+}
+
+function stateBillLiveNote(outcome: StateBillLiveOutcome): string {
+  if (outcome.kind === 'not_found')
+    return ' A live LegiScan lookup of the current session found no such bill either.';
+  if (outcome.kind === 'unavailable' && outcome.reason === 'quota')
+    return ' A live LegiScan lookup was skipped because this month\u2019s lookup budget is used up; say the bill could not be checked.';
+  if (outcome.kind === 'unavailable' && outcome.reason === 'provider_error')
+    return ' A live LegiScan lookup failed; say the bill could not be checked rather than that it does not exist.';
+  return '';
 }

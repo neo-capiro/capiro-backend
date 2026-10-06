@@ -307,3 +307,51 @@ describe('get_state_legislator (S6.1/S6.2)', () => {
     expect(out.note).toMatch(/do not fabricate a legislator/i);
   });
 });
+
+describe('get_state_bill_status live LegiScan fallback (2026-10-06)', () => {
+  const prisma = (stored: { synced: boolean }): Fake => ({
+    ...withSystemFake({
+      stateBill: {
+        findUnique: async ({ where }: { where: { id: string } }) =>
+          stored.synced && where.id === 'tx-2025-hb1234' ? TX_DEAD_BILL : null,
+        findMany: async () => (stored.synced ? [{ id: 'tx-2025-hb1234' }] : []),
+      },
+      stateBillAction: { findMany: async () => [] },
+      stateRollCallVote: { findMany: async () => [] },
+      stateBillLink: { findMany: async () => [] },
+    }),
+  });
+
+  it('stores a bill the sync has not reached yet and answers from the stored row', async () => {
+    const stored = { synced: false };
+    const service = svc(prisma(stored));
+    const live = jest
+      .spyOn(MeriToolsService.prototype as never, 'lookupStateBillLive')
+      .mockImplementation((async () => {
+        stored.synced = true;
+        return { kind: 'found', billKey: 'tx-2025-hb1234' };
+      }) as never);
+    try {
+      const out = await call(service, 'getStateBillStatus', { billId: 'TX HB 1234' });
+      expect(live).toHaveBeenCalledWith({ state: 'TX', billNumber: 'hb1234', key: null });
+      expect(out).toMatchObject({ found: true, billId: 'tx-2025-hb1234' });
+    } finally {
+      live.mockRestore();
+    }
+  });
+
+  it('says a failed live lookup could not check the bill, never that it does not exist', async () => {
+    const live = jest
+      .spyOn(MeriToolsService.prototype as never, 'lookupStateBillLive')
+      .mockResolvedValue({ kind: 'unavailable', reason: 'provider_error' } as never);
+    try {
+      const out = await call(svc(prisma({ synced: false })), 'getStateBillStatus', {
+        billId: 'TX HB 1234',
+      });
+      expect(out).toMatchObject({ found: false });
+      expect(String(out.note)).toContain('could not be checked');
+    } finally {
+      live.mockRestore();
+    }
+  });
+});

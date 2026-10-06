@@ -31,12 +31,31 @@ interface LegiscanEnvelope {
   alert?: { message?: string };
 }
 
+/** Attempts and per-request timeout for one LegiScan operation. */
+export interface LegiscanTransport {
+  maxAttempts: number;
+  timeoutMs: number;
+}
+
+/** Sync jobs: four attempts with backoff, 30s each. */
+const SYNC_TRANSPORT: LegiscanTransport = { maxAttempts: 4, timeoutMs: 30_000 };
+
+/**
+ * Interactive callers (a Meri tool call): one bounded attempt, so a lookup
+ * fits the tool deadline and a failure never waits on a 60s retry-after.
+ */
+export const INTERACTIVE_LEGISCAN_TRANSPORT: LegiscanTransport = {
+  maxAttempts: 1,
+  timeoutMs: 10_000,
+};
+
 async function legiscanFetch<T>(
   apiKey: string,
   op: string,
   params: Record<string, string | number> = {},
   attempt = 1,
   onRetry?: () => void,
+  transport: LegiscanTransport = SYNC_TRANSPORT,
 ): Promise<T> {
   await pace();
   if (attempt > 1) onRetry?.();
@@ -47,21 +66,24 @@ async function legiscanFetch<T>(
 
   let res: Response;
   try {
-    res = await fetch(url.toString(), { signal: AbortSignal.timeout(30000), redirect: 'error' });
+    res = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(transport.timeoutMs),
+      redirect: 'error',
+    });
   } catch (err) {
-    if (attempt <= 3) {
+    if (attempt < transport.maxAttempts) {
       await new Promise((r) => setTimeout(r, attempt * 2000));
-      return legiscanFetch<T>(apiKey, op, params, attempt + 1, onRetry);
+      return legiscanFetch<T>(apiKey, op, params, attempt + 1, onRetry, transport);
     }
     throw err;
   }
-  if ((res.status === 429 || res.status >= 500) && attempt <= 3) {
+  if ((res.status === 429 || res.status >= 500) && attempt < transport.maxAttempts) {
     const wait = Math.min(
       60000,
       Math.max(0, Number(res.headers.get('retry-after') ?? String(attempt * 15)) * 1000),
     );
     await new Promise((r) => setTimeout(r, wait));
-    return legiscanFetch<T>(apiKey, op, params, attempt + 1, onRetry);
+    return legiscanFetch<T>(apiKey, op, params, attempt + 1, onRetry, transport);
   }
   if (!res.ok) throw new Error(`LegiScan HTTP ${res.status} for op=${op}`);
   const body = (await res.json()) as LegiscanEnvelope & T;
@@ -90,10 +112,19 @@ export interface LegiscanSession {
   prefile?: 0 | 1;
 }
 
-export async function getSessionList(apiKey: string, state: string): Promise<LegiscanSession[]> {
-  const body = await legiscanFetch<{ sessions?: LegiscanSession[] }>(apiKey, 'getSessionList', {
-    state: state.toUpperCase(),
-  });
+export async function getSessionList(
+  apiKey: string,
+  state: string,
+  transport?: LegiscanTransport,
+): Promise<LegiscanSession[]> {
+  const body = await legiscanFetch<{ sessions?: LegiscanSession[] }>(
+    apiKey,
+    'getSessionList',
+    { state: state.toUpperCase() },
+    1,
+    undefined,
+    transport,
+  );
   return body.sessions ?? [];
 }
 
@@ -114,11 +145,15 @@ export interface LegiscanMasterlistBill {
 export async function getMasterListRaw(
   apiKey: string,
   sessionId: number,
+  transport?: LegiscanTransport,
 ): Promise<LegiscanMasterlistBill[]> {
   const body = await legiscanFetch<{ masterlist?: Record<string, unknown> }>(
     apiKey,
     'getMasterListRaw',
     { id: sessionId },
+    1,
+    undefined,
+    transport,
   );
   const raw = body.masterlist ?? {};
   const bills: LegiscanMasterlistBill[] = [];
@@ -306,6 +341,7 @@ export async function getBill(
   apiKey: string,
   billId: number,
   onRetry?: () => void,
+  transport?: LegiscanTransport,
 ): Promise<LegiscanBill | null> {
   const body = await legiscanFetch<{ bill?: LegiscanBill }>(
     apiKey,
@@ -313,6 +349,7 @@ export async function getBill(
     { id: billId },
     1,
     onRetry,
+    transport,
   );
   return body.bill ?? null;
 }
