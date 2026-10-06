@@ -254,6 +254,7 @@ function harness(options: {
       findMany: jest.fn(async () => [conversation]),
     },
     clioMessage: { findMany: jest.fn(async () => [reportMessage]) },
+    $executeRaw: jest.fn(async () => 1),
     engagementContact: {
       findFirst: jest.fn(async () => ({
         clientId: null,

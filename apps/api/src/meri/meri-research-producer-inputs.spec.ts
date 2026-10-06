@@ -26,6 +26,7 @@ const ATTACHMENT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const MESSAGE = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const CONVERSATION = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const OTHER_CONVERSATION = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const USER_MEMORY = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 
 const OBSERVED = new Date('2026-10-05T10:00:00.000Z');
 const COMPILED = new Date('2026-10-05T11:00:00.000Z');
@@ -43,6 +44,7 @@ function governedContext(): MeriGovernedTurnContext {
       items: [
         { id: FIRM_MEMORY, label: 'Firm', type: 'firm-soul', scope: 'firm', authority: 'authoritative', selection: 'automatic' },
         { id: CLIENT_MEMORY, label: 'Client', type: 'client-soul', scope: 'client', authority: 'authoritative', selection: 'automatic' },
+        { id: USER_MEMORY, label: 'Voice', type: 'user-voice', scope: 'personal', authority: 'authoritative', selection: 'automatic' },
       ],
       exclusions: [],
       unauthorizedCount: 0,
@@ -137,7 +139,7 @@ describe('research producer input classification', () => {
     expect(result.producerInputCategories.unsupported).toEqual({});
     expect(result.producerInputDraft).toEqual({
       version: 1,
-      packet: { packetId: PACKET, memoryItemIds: [FIRM_MEMORY, CLIENT_MEMORY].sort() },
+      packet: { packetId: PACKET, memoryItemIds: [FIRM_MEMORY, CLIENT_MEMORY, USER_MEMORY].sort() },
       records: [
         { domain: 'clients', id: CLIENT, observedUpdatedAt: OBSERVED.toISOString() },
         { domain: 'contacts', id: CONTACT, observedUpdatedAt: OBSERVED.toISOString() },
@@ -180,7 +182,7 @@ describe('research producer input classification', () => {
       assistant_handoff_turns: 1,
       inherited_citations: 2,
       inherited_unavailable: 1,
-      context_packet_unpersisted: 2,
+      context_packet_unpersisted: 3,
       steering_outside_packet: 1,
       'context_record:mail': 1,
       'unreceipted_tool:get_client_context': 1,
@@ -335,6 +337,17 @@ function freshState(): FakeState {
           memoryClass: 'client_steering',
         }),
       ],
+      [
+        USER_MEMORY,
+        steeringRow({
+          id: USER_MEMORY,
+          type: 'user-voice',
+          slug: 'user-voice',
+          visibility: 'user',
+          ownerUserId: USER,
+          memoryClass: 'user_preference',
+        }),
+      ],
     ]),
     recall: new Map([[RECALL_MEMORY, recallRow()]]),
     clients: new Map([[CLIENT, { updatedAt: OBSERVED, status: 'active' }]]),
@@ -348,7 +361,7 @@ function freshState(): FakeState {
     messages: new Map([[MESSAGE, { conversationId: CONVERSATION }]]),
     packet: {
       id: PACKET,
-      items: [{ id: FIRM_MEMORY }, { id: CLIENT_MEMORY }],
+      items: [{ id: FIRM_MEMORY }, { id: CLIENT_MEMORY }, { id: USER_MEMORY }],
       createdAt: COMPILED,
       userId: USER,
       clientId: CLIENT,
@@ -361,14 +374,27 @@ function idIn(values: unknown[], ids: Iterable<string>): string | undefined {
   return values.find((value): value is string => typeof value === 'string' && known.has(value));
 }
 
-function fakeTx(state: FakeState): Prisma.TransactionClient {
+function fakeTx(state: FakeState, options: { ignoreUserScope?: boolean } = {}): Prisma.TransactionClient {
+  // memory_items forces owner-aware RLS: a visibility='user' row is visible
+  // only after app.current_user names its owner.
+  let currentUser: string | null = null;
+  const visible = (row: Record<string, unknown>) =>
+    row.visibility !== 'user' || row.ownerUserId === currentUser;
   const tx = {
+    $executeRaw: async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      if (!options.ignoreUserScope && strings.join('?').includes('app.current_user'))
+        currentUser = String(values[0]);
+      return 1;
+    },
     $queryRaw: async (query: Prisma.Sql) => {
       const text = query.sql;
       const values = query.values as unknown[];
       if (text.includes('last_confirmed_at AS "confirmedAt"')) {
         const ids = values.find(Array.isArray) as string[];
-        return ids.flatMap((id) => (state.steering.has(id) ? [state.steering.get(id)] : []));
+        return ids.flatMap((id) => {
+          const row = state.steering.get(id);
+          return row && visible(row) ? [row] : [];
+        });
       }
       if (text.includes('SELECT client_id::text AS "clientId" FROM memory_items')) {
         const id = idIn(values, state.recall.keys());
@@ -432,7 +458,7 @@ describe('governed producer input re-check', () => {
   it('pins every governed input and releases an unchanged read', async () => {
     const manifest = await pinned();
     expect(manifest.packet?.items.map((item) => item.memoryItemId)).toEqual(
-      [FIRM_MEMORY, CLIENT_MEMORY].sort(),
+      [FIRM_MEMORY, CLIENT_MEMORY, USER_MEMORY].sort(),
     );
     expect(manifest.records).toHaveLength(4);
     expect(manifest.attachments).toHaveLength(1);
@@ -478,6 +504,12 @@ describe('governed producer input re-check', () => {
     await expect(
       assertResearchProducerInputsCurrent(fakeTx(state), CTX, SCOPE, manifest),
     ).rejects.toBeInstanceOf(ResearchProducerInputNotCurrent);
+  });
+
+  it('reads a user-private steering item only under the reader identity', async () => {
+    await expect(
+      pinResearchProducerInputs(fakeTx(freshState(), { ignoreUserScope: true }), CTX, SCOPE, draft()),
+    ).rejects.toMatchObject({ category: 'context_packet_item_missing' });
   });
 
   it('accepts a staged attachment claimed by the research topic message', async () => {
