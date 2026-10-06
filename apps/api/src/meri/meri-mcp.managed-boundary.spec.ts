@@ -133,6 +133,29 @@ describe('managed MCP runtime boundary', () => {
     );
   });
 
+  test('Krisp throttling preserves connection state and retries discovery after a minute', async () => {
+    const { service, tx, row, client } = make();
+    Object.assign(row, { name: 'meriv3-krisp', catalogId: 'meriv3-krisp', endpoint: 'https://mcp.krisp.ai/mcp', toolAllowlist: ['search_meetings'], readOnlyTools: ['search_meetings'] });
+    client.listTools.mockRejectedValueOnce(Object.assign(new Error('rate limited'), { code: 429 }));
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    try {
+      expect(await service.bridgedSchemasFor(ctx)).toEqual([]);
+      expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { lastError: 'The app could not be reached. Please try again.' } }));
+      client.listTools.mockResolvedValue([{ name: 'search_meetings', inputSchema: { type: 'object' } }]);
+      now.mockReturnValue(1_061_000);
+      expect((await service.bridgedSchemasFor(ctx)).map(t => t.name)).toEqual(['mcp__meriv3_krisp__search_meetings']);
+      expect(client.listTools).toHaveBeenCalledTimes(2);
+    } finally { now.mockRestore(); }
+  });
+
+  test('Krisp invalid credentials still require reauthentication', async () => {
+    const { service, tx, row, client } = make();
+    Object.assign(row, { name: 'meriv3-krisp', catalogId: 'meriv3-krisp', endpoint: 'https://mcp.krisp.ai/mcp', toolAllowlist: ['search_meetings'], readOnlyTools: ['search_meetings'] });
+    client.listTools.mockRejectedValue(Object.assign(new Error('expired'), { name: 'InvalidTokenError', code: 429 }));
+    expect(await service.bridgedSchemasFor(ctx)).toEqual([]);
+    expect(tx.clioMcpServer.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ connectionStatus: 'needs_reauth' }) }));
+  });
+
   test('an authenticated discovery failure records error instead of connected', async () => {
     const { service, client, tx } = make();
     client.listTools.mockRejectedValue(new Error('provider unavailable'));
