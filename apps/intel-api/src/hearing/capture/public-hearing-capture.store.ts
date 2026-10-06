@@ -1,4 +1,10 @@
-import { blockedRecoveryCaptureSql, blockedRecoveryCandidateSql, blockedRecoveryProbeDueSql, type BlockedRecoveryCandidate, type BlockedRecoveryProbe } from './blocked-source-recovery.js';
+import {
+  blockedRecoveryCaptureSql,
+  blockedRecoveryCandidateSql,
+  blockedRecoveryProbeDueSql,
+  type BlockedRecoveryCandidate,
+  type BlockedRecoveryProbe,
+} from './blocked-source-recovery.js';
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { approvedPublicCapture, publicAudioEnabled } from './public-capture-permission.js';
@@ -110,6 +116,10 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  async getCapture(captureId: string): Promise<PublicCaptureRecord | null> {
+    return this.byId(captureId);
+  }
+
   async getHearing(hearingId: string): Promise<PublicHearingCaptureEvent | null> {
     const rows = await this.prisma.$queryRawUnsafe<PublicHearingCaptureEvent[]>(
       `SELECT id,
@@ -212,9 +222,13 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
     return rows.map((row) => row.hearingId);
   }
 
-  async getBlockedRecoveryCandidate(captureId: string, now: Date): Promise<BlockedRecoveryCandidate | null> {
-    const rows = await this.prisma.withSystem((tx) => tx.$queryRawUnsafe<BlockedRecoveryCandidate[]>(
-      `SELECT sc.id,sc.hearing_id AS "hearingId",sc.source_id AS "sourceId",
+  async getBlockedRecoveryCandidate(
+    captureId: string,
+    now: Date,
+  ): Promise<BlockedRecoveryCandidate | null> {
+    const rows = await this.prisma.withSystem((tx) =>
+      tx.$queryRawUnsafe<BlockedRecoveryCandidate[]>(
+        `SELECT sc.id,sc.hearing_id AS "hearingId",sc.source_id AS "sourceId",
         sc.official_page_url AS "officialPageUrl",sc.media_url AS "mediaUrl",sc.first_seen_at::text AS "firstSeenAt",sc.updated_at::text AS "updatedAt"
        FROM public_hearing_capture c JOIN ${capturableHearingView()} h ON h.id=c.hearing_id
        JOIN hearing_stream_candidate sc ON sc.hearing_id=h.id
@@ -224,26 +238,39 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
          AND LOWER(COALESCE(h.type,''))=ANY($3::text[])
          AND ${blockedRecoveryProbeDueSql('$2')}
        ORDER BY sc.first_seen_at ASC,sc.id ASC LIMIT 1`,
-      captureId, now, [...ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES],
-    ));
+        captureId,
+        now,
+        [...ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES],
+      ),
+    );
     return rows[0] ?? null;
   }
 
   async reopenBlockedCapture(input: {
-    captureId: string; expectedVersion: number; probe: BlockedRecoveryProbe; now: Date;
+    captureId: string;
+    expectedVersion: number;
+    probe: BlockedRecoveryProbe;
+    now: Date;
   }): Promise<PublicCaptureRecord | null> {
     const { candidate, classified, attemptedAt } = input.probe;
-    if (classified.state !== 'READY_FOR_SERVER_CAPTURE' ||
+    if (
+      classified.state !== 'READY_FOR_SERVER_CAPTURE' ||
       classified.capturePolicy !== 'SERVER_CAPTURE_ALLOWED' ||
-      classified.reasonCode !== 'FIRST_PARTY_STREAM_READY' || !classified.media ||
-      !Number.isFinite(attemptedAt.getTime()) || attemptedAt > input.now ||
-      input.now.getTime() - attemptedAt.getTime() > 60_000) return null;
+      classified.reasonCode !== 'FIRST_PARTY_STREAM_READY' ||
+      !classified.media ||
+      !Number.isFinite(attemptedAt.getTime()) ||
+      attemptedAt > input.now ||
+      input.now.getTime() - attemptedAt.getTime() > 60_000
+    )
+      return null;
     const captureAll = captureAllPublicEventsEnabled();
     let priorResolution: { reason: string; state: string } | undefined;
     const recovered = await this.prisma.withSystem(async (tx) => {
       // Lock the capture, canonical event, candidate and provenance owner before
       // repeating every predicate. Ordinary manual-stop/lease writes serialize here.
-      const eligible = await tx.$queryRawUnsafe<Array<{ id: string; reason: string; state: string }>>(
+      const eligible = await tx.$queryRawUnsafe<
+        Array<{ id: string; reason: string; state: string }>
+      >(
         `SELECT c.id,c.resolution_reason_code AS reason,c.resolution_state AS state FROM public_hearing_capture c
          JOIN committee_hearing h ON h.id=c.hearing_id
          JOIN hearing_stream_candidate sc ON sc.hearing_id=h.id
@@ -261,9 +288,17 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
              OR EXISTS (SELECT 1 FROM hearing_subscription s
              WHERE s.hearing_id=h.id AND ${AUTOMATIC_DEMAND_SQL}))
          FOR UPDATE OF c,h,sc,src`,
-        input.captureId, input.expectedVersion, candidate.id, candidate.officialPageUrl,
-        candidate.mediaUrl, candidate.sourceId, candidate.firstSeenAt, input.now, attemptedAt,
-        captureAll, [...ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES],
+        input.captureId,
+        input.expectedVersion,
+        candidate.id,
+        candidate.officialPageUrl,
+        candidate.mediaUrl,
+        candidate.sourceId,
+        candidate.firstSeenAt,
+        input.now,
+        attemptedAt,
+        captureAll,
+        [...ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES],
       );
       if (!eligible.length) return null;
       priorResolution = eligible[0];
@@ -275,14 +310,25 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
           next_preflight_at=NULL,consecutive_source_errors=0,version=version+1,updated_at=$6
          WHERE id=$1 AND version=$2 AND domain_status='BLOCKED'
          RETURNING ${CAPTURE_COLUMNS}`,
-        input.captureId, input.expectedVersion, candidate.id, boundedNullable(classified.provider,200),
-        candidate.officialPageUrl, attemptedAt,
+        input.captureId,
+        input.expectedVersion,
+        candidate.id,
+        boundedNullable(classified.provider, 200),
+        candidate.officialPageUrl,
+        attemptedAt,
       );
       return rows[0] ? mapCapture(rows[0]) : null;
     });
-    if (recovered) this.logger.log({ event: 'late_first_party_source_capture_recovered',
-      hearingId: candidate.hearingId, captureId: input.captureId, candidateId: candidate.id,
-      priorVersion: input.expectedVersion, priorResolution, priorTerminalReason: 'CAPTURE_BLOCKED' });
+    if (recovered)
+      this.logger.log({
+        event: 'late_first_party_source_capture_recovered',
+        hearingId: candidate.hearingId,
+        captureId: input.captureId,
+        candidateId: candidate.id,
+        priorVersion: input.expectedVersion,
+        priorResolution,
+        priorTerminalReason: 'CAPTURE_BLOCKED',
+      });
     return recovered;
   }
 

@@ -284,6 +284,7 @@ jobs:
       - name: Tests — apps/api LegiWatch scope
         env:
           DATABASE_URL: postgresql://legiwatch_test:legiwatch_test@localhost:5433/capiro
+          CAPIRO_DISPOSABLE_PG: '1'
         # In-band on the 6 GB job heap. A 1 GB idle limit restarts the worker
         # after every suite (~30 s ts-jest reload each) and overran the job.
         run: >
@@ -301,6 +302,7 @@ jobs:
           src/prisma/tenant-scope-guard.spec.ts
           src/hearing-discovery/
           src/live-hearings/
+          src/bill-impact/
           scripts/verify-migrations.spec.ts
           scripts/verify-image-parity.spec.ts
           scripts/sync-legiscan-bills.spec.ts
@@ -313,7 +315,7 @@ jobs:
 
       - name: Assert apps/api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 110 1299
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/api-summary.json" apps/api 143 1801
 
       - name: Selected bill inventory qualification
         env:
@@ -372,6 +374,8 @@ jobs:
           src/hearing/capture/public-capture-persistent-queue.adapter.spec.ts
           src/hearing/capture/public-capture-queue.adapter.spec.ts
           src/hearing/capture/public-capture-task-runner.spec.ts
+          src/hearing/capture/capture-start-policy.spec.ts
+          src/hearing/capture/capture-start-postgres.spec.ts
           src/hearing/capture/blocked-source-recovery.spec.ts
           src/hearing/capture/blocked-source-recovery.postgres.spec.ts
           src/hearing/capture/public-capture.orchestrator.spec.ts
@@ -443,7 +447,7 @@ jobs:
 
       - name: Assert apps/intel-api scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 84 1068
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/intel-summary.json" apps/intel-api 91 1237
 
       # ---------------------------------------------------------------- web --
       # Web interaction + accessibility (tracker-a11y.test.tsx) + the packet and
@@ -479,7 +483,7 @@ jobs:
       # Create Watch removal retires one describe block and six feature tests.
       - name: Assert apps/web scope is clean
         if: always()
-        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 286 1004
+        run: node scripts/assert-test-summary.mjs "$GITHUB_WORKSPACE/web-summary.json" apps/web 287 1014
 
       # New real-DB, media, review, consent and UI suites have their own explicit
       # floors. The earlier saved-session fixture stays on its separate DB.

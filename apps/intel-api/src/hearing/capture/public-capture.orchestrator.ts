@@ -17,6 +17,7 @@ import {
 } from './stream-resolution-policy.js';
 import { nextStreamPreflightAt } from './stream-preflight-policy.js';
 import { STATE_CAPTURE_LINK_ONLY } from '../state-capture-policy.js';
+import { captureDeferredUntil } from './capture-start-policy.js';
 
 export interface PublicHearingCaptureEvent {
   id: string;
@@ -56,9 +57,18 @@ export interface CaptureLeaseAcquireResult {
  * owner and fencing token in the same database statement.
  */
 export interface PublicCaptureStorePort {
+  getCapture(captureId: string): Promise<PublicCaptureRecord | null>;
   assertCaptureAllowed?(hearingId: string): Promise<void>;
-  getBlockedRecoveryCandidate?(captureId: string, now: Date): Promise<BlockedRecoveryCandidate | null>;
-  reopenBlockedCapture?(input: { captureId: string; expectedVersion: number; probe: BlockedRecoveryProbe; now: Date }): Promise<PublicCaptureRecord | null>;
+  getBlockedRecoveryCandidate?(
+    captureId: string,
+    now: Date,
+  ): Promise<BlockedRecoveryCandidate | null>;
+  reopenBlockedCapture?(input: {
+    captureId: string;
+    expectedVersion: number;
+    probe: BlockedRecoveryProbe;
+    now: Date;
+  }): Promise<PublicCaptureRecord | null>;
   getHearing(hearingId: string): Promise<PublicHearingCaptureEvent | null>;
   getDemand(hearingId: string): Promise<PublicCaptureDemand>;
   ensureCapture(input: {
@@ -120,7 +130,9 @@ export interface PublicCaptureStorePort {
 }
 
 export interface PublicStreamResolverPort {
-  probeBlockedRecoveryCandidate?(candidate: BlockedRecoveryCandidate): Promise<BlockedRecoveryProbe | null>;
+  probeBlockedRecoveryCandidate?(
+    candidate: BlockedRecoveryCandidate,
+  ): Promise<BlockedRecoveryProbe | null>;
   resolve(input: { pageUrl?: string; hearingId?: string }): Promise<ResolverResultLike>;
 }
 
@@ -131,6 +143,7 @@ export interface PublicCaptureQueuePort {
     hearingId: string;
     /** The worker must resolve again in its own network environment. */
     mustReresolve: true;
+    dueAt?: Date;
   }): Promise<{ enqueued: boolean; jobId?: string }>;
   schedulePreflight(input: { dedupeKey: string; hearingId: string; dueAt: Date }): Promise<void>;
 }
@@ -240,21 +253,36 @@ export class PublicCaptureOrchestrator {
       scheduledStart: hearing.scheduledStart,
       now,
     });
-    if (capture.status === 'BLOCKED' && this.store.getBlockedRecoveryCandidate &&
-      this.store.reopenBlockedCapture && this.resolver.probeBlockedRecoveryCandidate) {
+    if (
+      capture.status === 'BLOCKED' &&
+      this.store.getBlockedRecoveryCandidate &&
+      this.store.reopenBlockedCapture &&
+      this.resolver.probeBlockedRecoveryCandidate
+    ) {
       const candidate = await this.store.getBlockedRecoveryCandidate(capture.id, now);
       if (candidate) {
         // The capture remains BLOCKED throughout the ordinary, exact-source probe.
         const probe = await this.resolver.probeBlockedRecoveryCandidate(candidate);
-        if (probe?.classified.state === 'READY_FOR_SERVER_CAPTURE' &&
-          probe.classified.capturePolicy === 'SERVER_CAPTURE_ALLOWED' && probe.classified.media) {
+        if (
+          probe?.classified.state === 'READY_FOR_SERVER_CAPTURE' &&
+          probe.classified.capturePolicy === 'SERVER_CAPTURE_ALLOWED' &&
+          probe.classified.media
+        ) {
           const recovered = await this.store.reopenBlockedCapture({
-            captureId: capture.id, expectedVersion: capture.version, probe, now: this.now(),
+            captureId: capture.id,
+            expectedVersion: capture.version,
+            probe,
+            now: this.now(),
           });
           if (recovered) {
+            const currentHearing = await this.store.getHearing(hearingId);
+            if (!currentHearing) throw Error('CAPTURE_EVENT_UNAVAILABLE');
             const queued = await this.queue.enqueue({
-              dedupeKey: publicCaptureIdempotencyKey(hearingId), captureId: recovered.id,
-              hearingId, mustReresolve: true,
+              dedupeKey: publicCaptureIdempotencyKey(hearingId),
+              captureId: recovered.id,
+              hearingId,
+              mustReresolve: true,
+              dueAt: captureDeferredUntil(currentHearing, this.now()) ?? this.now(),
             });
             return { action: 'CAPTURE_JOB_ENQUEUED', captureId: recovered.id, ...queued };
           }
@@ -352,11 +380,14 @@ export class PublicCaptureOrchestrator {
       if (capture.status === 'PREPARING' || capture.status === 'WAITING_FOR_STREAM') {
         capture = await this.moveUnfenced(capture, 'READY', now);
       }
+      const currentHearing = await this.store.getHearing(hearingId);
+      if (!currentHearing) throw Error('CAPTURE_EVENT_UNAVAILABLE');
       const queued = await this.queue.enqueue({
         dedupeKey: publicCaptureIdempotencyKey(hearingId),
         captureId: capture.id,
         hearingId,
         mustReresolve: true,
+        dueAt: captureDeferredUntil(currentHearing, this.now()) ?? this.now(),
       });
       return {
         action: 'CAPTURE_JOB_ENQUEUED',
@@ -422,6 +453,7 @@ export interface PublicCaptureWorkerOptions {
 }
 
 export type PublicCaptureWorkerOutcome =
+  | { action: 'DEFERRED_UNTIL_START'; dueAt: Date }
   | { action: 'LEASE_HELD_BY_OTHER' }
   | { action: 'NOT_FOUND' }
   | { action: 'TERMINAL'; status: PublicHearingCaptureStatus }
@@ -492,8 +524,25 @@ export class PublicCaptureWorkerCoordinator {
     hearingId: string;
     workerId: string;
   }): Promise<PublicCaptureWorkerOutcome> {
-    const hearing = await this.store.getHearing(input.hearingId);
+    let hearing = await this.store.getHearing(input.hearingId);
     if (!hearing) return { action: 'NOT_FOUND' };
+    const retained = await this.store.getCapture(input.captureId);
+    if (!retained) return { action: 'NOT_FOUND' };
+    if (retained.hearingId !== input.hearingId) throw new Error(STATE_CAPTURE_LINK_ONLY);
+    if (isTerminal(retained.status)) return { action: 'TERMINAL', status: retained.status };
+    if (retained.lease && retained.lease.expiresAt.getTime() > this.now().getTime())
+      return { action: 'LEASE_HELD_BY_OTHER' };
+    const deferUntil = captureDeferredUntil(hearing, this.now());
+    if (
+      deferUntil &&
+      !['BROWSER_CAPTURE_ONLY', 'POLICY_BLOCKED', 'NO_PUBLIC_STREAM', 'CANCELED'].includes(
+        retained.resolutionState,
+      )
+    ) {
+      await this.assertRuntimeAllowed?.();
+      await this.store.assertCaptureAllowed?.(input.hearingId);
+      return { action: 'DEFERRED_UNTIL_START', dueAt: deferUntil };
+    }
     const acquired = await this.store.tryAcquireLease({
       captureId: input.captureId,
       ownerId: input.workerId,
@@ -622,6 +671,13 @@ export class PublicCaptureWorkerCoordinator {
       } catch (error) {
         raw = { status: 'unresolvable', note: boundedError(error) };
       }
+      // Calendar/visibility can change during network resolution. Apply the
+      // freshest public status and official start before recording any audio.
+      const freshHearing = await this.store.getHearing(input.hearingId);
+      if (!freshHearing) throw Error('CAPTURE_EVENT_UNAVAILABLE');
+      if (freshHearing.officialPageUrl !== hearing.officialPageUrl)
+        throw Error('CAPTURE_SOURCE_CHANGED_DURING_RESOLUTION');
+      hearing = freshHearing;
       const resolution = classifyStreamResolution(raw, {
         now: this.now(),
         scheduledStart: hearing.scheduledStart,
@@ -657,6 +713,9 @@ export class PublicCaptureWorkerCoordinator {
         });
         return { action: 'NO_LONGER_CAPTURABLE', resolution };
       }
+
+      const rescheduledUntil = captureDeferredUntil(hearing, this.now());
+      if (rescheduledUntil) return { action: 'DEFERRED_UNTIL_START', dueAt: rescheduledUntil };
 
       if (capture.status === 'SCHEDULED') {
         const preparing = transitionCapture(capture, 'PREPARING', this.now());

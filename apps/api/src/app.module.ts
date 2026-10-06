@@ -57,6 +57,7 @@ import { ReviewsModule } from './reviews/reviews.module.js';
 import { InternalOnboardingModule } from './internal-onboarding/internal-onboarding.module.js';
 import { BudgetPackagesModule } from './budget-packages/budget-packages.module.js';
 import { LiveHearingsModule } from './live-hearings/live-hearings.module.js';
+import { BillImpactModule } from './bill-impact/bill-impact.module.js';
 import { GovInfoModule } from './external/govinfo/govinfo.module.js';
 import { TangoModule } from './external/tango/tango.module.js';
 import { AdminBroadcastsModule } from './admin-broadcasts/admin-broadcasts.module.js';
@@ -133,6 +134,7 @@ import { ApiLatencyMiddleware } from './observability/api-latency.middleware.js'
     InternalOnboardingModule,
     BudgetPackagesModule,
     LiveHearingsModule,
+    BillImpactModule,
     VendorReferenceModule,
     BusinessDevelopmentModule,
     DefenseBudgetClientWatchModule,

@@ -59,13 +59,17 @@ export function BillDossierBodyVNext({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const returnedToHearings = mode === 'page' && new URLSearchParams(location.search).get('section') === 'hearings';
+  const returnedToHearings =
+    mode === 'page' && new URLSearchParams(location.search).get('section') === 'hearings';
   const query = useBillDossier(billId, clientId ?? null);
   const [tab, setTab] = useState<BillDossierSection>(returnedToHearings ? 'hearings' : 'overview');
 
   // Swapping bills in place (related vehicle, like-for-like comparison) returns to
   // Overview, exactly as the prototype's openBill() resets `tab`.
-  useEffect(() => setTab(returnedToHearings ? 'hearings' : 'overview'), [billId, returnedToHearings]);
+  useEffect(
+    () => setTab(returnedToHearings ? 'hearings' : 'overview'),
+    [billId, returnedToHearings],
+  );
 
   const clientSuffix = clientId ? `?client=${encodeURIComponent(clientId)}` : '';
   const openBill = (id: string) => {
@@ -185,7 +189,14 @@ export function BillDossierBodyVNext({
               <BillFundingTab funding={d.funding} onOpenPe={openPe} onOpenBill={openBill} />
             ) : null}
             {tab === 'provisions' ? <BillProvisionsTab provisions={d.funding.provisions} /> : null}
-            {tab === 'impact' ? <BillImpactTab funding={d.funding} onOpenPe={openPe} /> : null}
+            {tab === 'impact' ? (
+              <BillImpactTab
+                billId={billId}
+                clientId={clientId}
+                funding={d.funding}
+                onOpenPe={openPe}
+              />
+            ) : null}
             {tab === 'hearings' ? (
               <>
                 <BillAgenda billId={billId} clientId={clientId} folderId={folderId} />

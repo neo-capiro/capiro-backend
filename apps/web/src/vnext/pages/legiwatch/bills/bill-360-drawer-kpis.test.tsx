@@ -57,14 +57,67 @@ function hr8800(): BillDossierResponse {
     context: null,
     tracking: null,
     kpis: [
-      { id: 'current_status', label: 'Current status', value: 'Passed House', valueType: 'status', asOf: '2026-07-22T00:00:00.000Z', sub: null, unavailableReason: null },
-      { id: 'latest_vote', label: 'Latest recorded vote', value: 'Passed 216-212', valueType: 'text', asOf: '2026-07-22T00:00:00.000Z', sub: 'On Passage', unavailableReason: null },
-      { id: 'funding_position', label: 'Funding position', value: null, valueType: 'money', asOf: null, sub: null, unavailableReason: NO_FUNDING_REASON },
-      { id: 'delta_from_request', label: 'Δ from request', value: null, valueType: 'signed_money', asOf: null, sub: null, unavailableReason: NO_FUNDING_REASON },
-      { id: 'last_official_action', label: 'Latest action', value: '2026-09-14T00:00:00.000Z', valueType: 'date', asOf: '2026-09-14T00:00:00.000Z', sub: 'Received in the Senate.', unavailableReason: null },
-      { id: 'next_milestone', label: 'Expected next step', value: 'Senate action', valueType: 'text', asOf: null, sub: 'Date not verified', unavailableReason: null },
+      {
+        id: 'current_status',
+        label: 'Current status',
+        value: 'Passed House',
+        valueType: 'status',
+        asOf: '2026-07-22T00:00:00.000Z',
+        sub: null,
+        unavailableReason: null,
+      },
+      {
+        id: 'latest_vote',
+        label: 'Latest recorded vote',
+        value: 'Passed 216-212',
+        valueType: 'text',
+        asOf: '2026-07-22T00:00:00.000Z',
+        sub: 'On Passage',
+        unavailableReason: null,
+      },
+      {
+        id: 'funding_position',
+        label: 'Funding position',
+        value: null,
+        valueType: 'money',
+        asOf: null,
+        sub: null,
+        unavailableReason: NO_FUNDING_REASON,
+      },
+      {
+        id: 'delta_from_request',
+        label: 'Δ from request',
+        value: null,
+        valueType: 'signed_money',
+        asOf: null,
+        sub: null,
+        unavailableReason: NO_FUNDING_REASON,
+      },
+      {
+        id: 'last_official_action',
+        label: 'Latest action',
+        value: '2026-09-14T00:00:00.000Z',
+        valueType: 'date',
+        asOf: '2026-09-14T00:00:00.000Z',
+        sub: 'Received in the Senate.',
+        unavailableReason: null,
+      },
+      {
+        id: 'next_milestone',
+        label: 'Expected next step',
+        value: 'Senate action',
+        valueType: 'text',
+        asOf: null,
+        sub: 'Date not verified',
+        unavailableReason: null,
+      },
     ],
-    overview: { whatChanged: null, whyItMatters: null, officialNextStep: null, analystOutlook: null },
+    overview: {
+      whatChanged: null,
+      whyItMatters: null,
+      officialNextStep: null,
+      analystOutlook: null,
+    },
     milestones: [
       {
         date: '2026-09-14T00:00:00.000Z',
@@ -131,14 +184,26 @@ beforeEach(() => {
 afterEach(() => cleanup());
 it('opens real dossier provisions and honest impact coverage in the drawer', async () => {
   const dossier = hr8800();
-  dossier.funding.provisions = [{ sec: '101', title: 'Published requirement', summary: 'A source-backed provision summary.', origin: 'official', source: 'Committee report' }];
-  apiGet.mockImplementation(async (url: string) => ({ data: url.includes('/dossier') ? dossier : { hearings: [] } }));
+  dossier.funding.provisions = [
+    {
+      sec: '101',
+      title: 'Published requirement',
+      summary: 'A source-backed provision summary.',
+      origin: 'official',
+      source: 'Committee report',
+    },
+  ];
+  apiGet.mockImplementation(async (url: string) => ({
+    data: url.includes('/dossier') ? dossier : { hearings: [] },
+  }));
   renderDrawer();
   fireEvent.click(await screen.findByRole('tab', { name: 'Provisions' }));
   expect(screen.getByText('Published requirement')).toBeTruthy();
   expect(screen.getByText('A source-backed provision summary.')).toBeTruthy();
   fireEvent.click(screen.getByRole('tab', { name: 'Impact' }));
-  expect(screen.getByText(/A client-specific impact assessment is not available here/)).toBeTruthy();
+  expect(
+    screen.getByText(/Select a client to prepare a client-specific impact draft/),
+  ).toBeTruthy();
   expect(screen.queryByText(/full dossier contract/)).toBeNull();
 });
 
@@ -297,8 +362,7 @@ describe('LW-QA-021 — Bill 360 drawer KPI strip', () => {
         amountTreatment: 'proposed_authorization',
         sourceDocumentTitle: 'House-passed H.R. 8800 funding tables',
         sourceDocumentKey: 'hr8800_house_passed_fy2027',
-        sourceDocumentVersion:
-          '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        sourceDocumentVersion: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
         sourceDocumentUrl: 'https://example.invalid/hr8800',
         sourceDocumentCurrent: true,
       },
@@ -334,7 +398,9 @@ describe('LW-QA-021 — Bill 360 drawer KPI strip', () => {
 
     fireEvent.click(await screen.findByRole('tab', { name: 'Funding' }));
     const dialog = screen.getByRole('dialog');
-    expect(dialog.textContent).toContain('Funding tables are available; amounts await verification.');
+    expect(dialog.textContent).toContain(
+      'Funding tables are available; amounts await verification.',
+    );
     expect(dialog.textContent).toContain('Proposed authorization level — not appropriated funding');
     expect(dialog.textContent).toContain('House-passed H.R. 8800 funding tables');
     expect(dialog.textContent).toContain('version 0123456789ab');

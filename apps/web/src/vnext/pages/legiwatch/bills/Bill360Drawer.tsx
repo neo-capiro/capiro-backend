@@ -248,11 +248,24 @@ export function Bill360Drawer({
               ) : tab === 'Funding' ? (
                 <FundingTab d={d} />
               ) : tab === 'Provisions' ? (
-                <><BillProvisionsTab provisions={d.funding.provisions} />
-                  {d.bill.isState && <BillSourceRecords billId={billId} initialSection="documents" />}</>
+                <>
+                  <BillProvisionsTab provisions={d.funding.provisions} />
+                  {d.bill.isState && (
+                    <BillSourceRecords billId={billId} initialSection="documents" />
+                  )}
+                </>
               ) : tab === 'Impact' ? (
-                <><BillImpactTab funding={d.funding} onOpenPe={(pe) => navigate(`/program-elements/${encodeURIComponent(pe)}`)} />
-                  {d.bill.isState && <BillSourceRecords billId={billId} initialSection="documents" />}</>
+                <>
+                  <BillImpactTab
+                    billId={billId}
+                    clientId={clientId}
+                    funding={d.funding}
+                    onOpenPe={(pe) => navigate(`/program-elements/${encodeURIComponent(pe)}`)}
+                  />
+                  {d.bill.isState && (
+                    <BillSourceRecords billId={billId} initialSection="documents" />
+                  )}
+                </>
               ) : tab === 'Hearings' ? (
                 <>
                   <BillAgenda billId={billId} clientId={clientId} folderId={folderId} />
@@ -511,8 +524,8 @@ function FundingTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['d
 
       {funding.overrideReconciliation === 'reconciled' ? (
         <p className="lw-state__body" style={{ marginBottom: 16 }}>
-          <strong>Override reconciliation:</strong> Verified against the bill&apos;s
-          amount-changing provisions.
+          <strong>Override reconciliation:</strong> Verified against the bill&apos;s amount-changing
+          provisions.
         </p>
       ) : null}
 
@@ -558,8 +571,24 @@ function FundingTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['d
                   <td style={{ padding: '10px 12px', fontSize: 13 }}>
                     <span className="lw-mono">{impact.pe}</span>
                     {impact.name ? <span> · {impact.name}</span> : null}
-                    <small style={{ display: 'block' }}>{impact.basis === 'explicit' ? 'Linked by published Program Element code' : 'Inferred program match'}</small>
-                    {impact.source ? <details><summary>Match evidence</summary><p>{impact.source.replaceAll('_', ' ').replace(/confidence ([01](?:\.\d+)?)/g, (_, score) => `Match confidence ${Math.round(Number(score) * 100)}%`)}</p></details> : null}
+                    <small style={{ display: 'block' }}>
+                      {impact.basis === 'explicit'
+                        ? 'Linked by published Program Element code'
+                        : 'Inferred program match'}
+                    </small>
+                    {impact.source ? (
+                      <details>
+                        <summary>Match evidence</summary>
+                        <p>
+                          {impact.source
+                            .replaceAll('_', ' ')
+                            .replace(
+                              /confidence ([01](?:\.\d+)?)/g,
+                              (_, score) => `Match confidence ${Math.round(Number(score) * 100)}%`,
+                            )}
+                        </p>
+                      </details>
+                    ) : null}
                   </td>
                   <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
                     {fmtAmt(impact.requestMillions)}
@@ -571,12 +600,16 @@ function FundingTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['d
                     {fmtAmt(impact.senateMillions)}
                   </td>
                   {showConference ? (
-                    <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
+                    <td
+                      style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}
+                    >
                       {fmtAmt(impact.conferenceMillions ?? null)}
                     </td>
                   ) : null}
                   {showEnacted ? (
-                    <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
+                    <td
+                      style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}
+                    >
                       {fmtAmt(impact.enactedMillions ?? null)}
                     </td>
                   ) : null}

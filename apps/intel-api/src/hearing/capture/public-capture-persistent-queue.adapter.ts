@@ -98,18 +98,29 @@ export class PublicCapturePersistentQueueAdapter
     captureId: string;
     hearingId: string;
     mustReresolve: true;
+    dueAt?: Date;
   }): Promise<{ enqueued: boolean; jobId?: string }> {
     assertStableJobInput(input);
+    if (input.dueAt) assertDate(input.dueAt, 'dueAt');
     const rows = await this.prisma.$queryRawUnsafe<Array<{ id: string }>>(
       `INSERT INTO public_hearing_capture_job
          (job_type, dedupe_key, hearing_id, capture_id, status, due_at, payload, created_at, updated_at)
-       VALUES ('capture', $1, $2, $3, 'pending', now(), $4::jsonb, now(), now())
-       ON CONFLICT (dedupe_key) DO NOTHING
+       VALUES ('capture', $1, $2, $3, 'pending', COALESCE($5::timestamptz,now()), $4::jsonb, now(), now())
+       ON CONFLICT (dedupe_key) DO UPDATE SET due_at=EXCLUDED.due_at,updated_at=now()
+       WHERE $5::timestamptz IS NOT NULL
+         AND public_hearing_capture_job.status='pending'
+         AND public_hearing_capture_job.lease_owner IS NULL
+         AND public_hearing_capture_job.lease_expires_at IS NULL
+         AND public_hearing_capture_job.job_type='capture'
+         AND public_hearing_capture_job.hearing_id=EXCLUDED.hearing_id
+         AND public_hearing_capture_job.capture_id=EXCLUDED.capture_id
+         AND public_hearing_capture_job.due_at IS DISTINCT FROM EXCLUDED.due_at
        RETURNING id`,
       bounded(input.dedupeKey, 300),
       input.hearingId,
       input.captureId,
       JSON.stringify({ mustReresolve: true }),
+      input.dueAt ?? null,
     );
     return rows[0] ? { enqueued: true, jobId: rows[0].id } : { enqueued: false };
   }
@@ -230,6 +241,44 @@ export class PublicCapturePersistentQueueAdapter
     return rows.map(mapJob);
   }
 
+  /** Waiting for an official start is not a failed recording attempt. Refund
+   * only this scheduling claim, retaining every earlier failure and receipt. */
+  async deferUntilStart(input: {
+    jobId: string;
+    hearingId: string;
+    captureId: string;
+    workerId: string;
+    claimedAttempts: number;
+    now: Date;
+    dueAt: Date;
+  }): Promise<void> {
+    assertDate(input.now, 'now');
+    assertDate(input.dueAt, 'dueAt');
+    if (
+      input.dueAt <= input.now ||
+      !Number.isInteger(input.claimedAttempts) ||
+      input.claimedAttempts < 1
+    )
+      throw Error('capture deferral requires a future start and a current claim');
+    const changed = await this.prisma.$executeRawUnsafe(
+      `UPDATE public_hearing_capture_job
+       SET status='pending', due_at=$4, attempts=attempts-1,
+           lease_owner=NULL, lease_expires_at=NULL, updated_at=$3
+       WHERE id=$1::uuid AND status='leased' AND lease_owner=$2
+         AND lease_expires_at>GREATEST($3::timestamptz,now())
+         AND job_type='capture' AND hearing_id=$5 AND capture_id=$6
+         AND attempts=$7 AND attempts>0`,
+      input.jobId,
+      requiredWorkerId(input.workerId),
+      input.now,
+      input.dueAt,
+      input.hearingId,
+      input.captureId,
+      input.claimedAttempts,
+    );
+    if (changed !== 1) throw Error(`capture queue deferral lost lease: ${input.jobId}`);
+  }
+
   async renewLease(input: {
     jobId: string;
     workerId: string;
@@ -258,11 +307,7 @@ export class PublicCapturePersistentQueueAdapter
     return rows[0].leaseExpiresAt;
   }
 
-  async complete(input: {
-    jobId: string;
-    workerId: string;
-    now: Date;
-  }): Promise<void> {
+  async complete(input: { jobId: string; workerId: string; now: Date }): Promise<void> {
     assertDate(input.now, 'now');
     const count = await this.prisma.$executeRawUnsafe(
       `UPDATE public_hearing_capture_job
@@ -386,7 +431,10 @@ function assertDate(value: Date, field: string): void {
 }
 
 function bounded(value: string, max: number): string {
-  return value.replace(/[\r\n\t]+/g, ' ').trim().slice(0, max);
+  return value
+    .replace(/[\r\n\t]+/g, ' ')
+    .trim()
+    .slice(0, max);
 }
 
 function boundedError(error: unknown): string {
