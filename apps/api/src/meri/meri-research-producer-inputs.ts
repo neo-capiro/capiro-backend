@@ -545,6 +545,10 @@ async function currentProducerInputManifest(
   scope: ProducerInputScope,
   identity: ProducerInputIdentity,
 ): Promise<ResearchProducerInputManifestV1> {
+  // memory_items forces owner-aware RLS: without the reader's identity a
+  // user-private steering item (user-voice) is invisible, exactly as under
+  // PrismaService.withTenantUser. Set it for the rest of this transaction.
+  await tx.$executeRaw`SELECT set_config('app.current_user', ${ctx.userId}, true)`;
   const wall = wallReader(tx, ctx);
   const packet = identity.packet
     ? {
