@@ -1,5 +1,7 @@
 import { InEditorAssistantService, EDITOR_TOTAL_BUDGET_MS } from './in-editor-assistant.service.js';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import { MAX_EDITOR_INPUT_CHARS } from './in-editor-prompt.js';
+import { withGovernedEditorContext } from './in-editor-context.js';
 
 const ctx = { tenantId: 'tenant', userId: 'user' } as never;
 const dto = { messages: [{ role: 'user', text: 'Correct this section using its linked source.' }], document: { sections: [{ name: 'Summary', content: 'Draft' }] } };
@@ -21,6 +23,36 @@ function harness(verifierEnabled = false) {
 }
 
 afterEach(() => { jest.restoreAllMocks(); jest.useRealTimers(); });
+
+it.each(['document', 'linked context', 'governed context'] as const)('rejects oversized %s with no edits before any schema, tool, or model call', async (kind) => {
+  const { service, completeWithTools, invoke } = harness();
+  const fetch = jest.spyOn(globalThis, 'fetch');
+  const oversized = 'x'.repeat(MAX_EDITOR_INPUT_CHARS);
+  const input = kind === 'document'
+    ? { ...dto, document: { sections: [{ name: 'Summary', content: oversized }] } }
+    : kind === 'linked context'
+      ? { ...dto, context: [{ label: 'Transcript', text: oversized }] }
+      : withGovernedEditorContext(dto, ctx, { prompt: oversized } as never);
+  const result = await RequestCredentialsStore.run({ bearerToken: 'token' }, () => service.run(ctx, input));
+  expect(result.edits).toEqual([]);
+  expect(result.reply).toContain('No changes were applied');
+  expect(result.reply).toContain('smaller document or reduce the linked context');
+  expect(fetch).not.toHaveBeenCalled();
+  expect(invoke).not.toHaveBeenCalled();
+  expect(completeWithTools).not.toHaveBeenCalled();
+});
+
+it('passes the full source HTML to the model and returns the complete long replacement unchanged', async () => {
+  const { service, completeWithTools } = harness();
+  const content = `<p>${'Retained paragraph '.repeat(200)}</p><p>Closing source deadline [1:23:14].</p>`;
+  const corrected = content.replace('Closing source deadline', 'Two weeks after receipt');
+  completeWithTools.mockResolvedValue({ ...proposed, content: [{ type: 'tool_use', id: 'edit', name: 'propose_document_edits', input: {
+    reply: 'Corrected the deadline.', edits: [{ op: 'replace_section', section: 'Summary', content: corrected }],
+  } }] });
+  const result = await service.run(ctx, { ...dto, document: { sections: [{ name: 'Summary', content }] } });
+  expect(completeWithTools.mock.calls[0][0].system.dynamic).toContain(content);
+  expect(result.edits[0]!.content).toBe(corrected);
+});
 
 it('returns a supplied-source edit in one round without invoking research', async () => {
   const { service, completeWithTools, invoke } = harness();

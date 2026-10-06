@@ -11,17 +11,9 @@ function governedPromptEntries(
 ): Array<{ label: string; text: string }> {
   const prompt = governed?.prompt?.trim();
   if (!prompt) return [];
-  // in-editor-prompt bounds each linked-context item to 600 chars and the whole
-  // block to 8k. Pre-chunking keeps the Context Plane coverage header + evidence
-  // usable instead of silently losing everything after the first 600 chars.
-  const chunks: Array<{ label: string; text: string }> = [];
-  for (let offset = 0, part = 1; offset < prompt.length && part <= 12; offset += 520, part += 1) {
-    chunks.push({
-      label: `Governed Context Plane ${part}`,
-      text: prompt.slice(offset, offset + 520),
-    });
-  }
-  return chunks;
+  // The complete combined request is bounded by the editor service. Do not
+  // silently drop evidence here before that safety check can see it.
+  return [{ label: 'Governed Context Plane', text: prompt }];
 }
 
 /**
