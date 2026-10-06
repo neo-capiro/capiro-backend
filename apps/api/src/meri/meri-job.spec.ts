@@ -64,6 +64,17 @@ describe('Meri job status projection (Stage 2 §5.1)', () => {
     spy.mockRestore();
   });
 
+  it.each([
+    ['a running run', run('running'), 'executing'],
+    ['a failed run', run('failed'), 'failed'],
+  ])('an approval-gated proposal step does not mask %s', (_label, metadata, expected) => {
+    const spy = jest
+      .spyOn(coordinatorModule, 'readDurableResearchCoordinator')
+      .mockReturnValue({ steps: [{ outcome: 'waiting_for_approval' }] } as never);
+    expect(projectMeriJobStatus({ status: 'researching', metadata })).toBe(expected);
+    spy.mockRestore();
+  });
+
   it('a malformed coordinator never breaks the projection', () => {
     const metadata = { ...run('interrupted'), durableCoordinator: { version: 1, steps: 'junk' } };
     expect(projectMeriJobStatus({ status: 'researching', metadata })).toBe('queued');

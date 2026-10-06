@@ -104,7 +104,10 @@ function waitingForApproval(metadata: unknown): boolean {
 
 /**
  * Map the stored session onto the logical job status. Precedence: an explicit
- * stop, then terminal outcomes, then waiting on the user, then live work.
+ * stop, then terminal outcomes, clarification, live work and failure, and only
+ * then an approval wait. Research never executes an approval-gated step (it is
+ * a proposal), so that step waits from the start and must not mask a running
+ * or failed run.
  */
 export function projectMeriJobStatus(
   session: { status: string; metadata: unknown },
@@ -118,12 +121,12 @@ export function projectMeriJobStatus(
   if (state === 'partial') return 'partial';
   if (state === 'awaiting_clarification' || column === 'awaiting_clarification')
     return 'waiting_for_user';
-  if (waitingForApproval(session.metadata)) return 'waiting_for_user';
   if (state === 'running') {
     if (run?.phase === 'plan') return 'planning';
     return FINALIZING_STAGES.has(run?.stage ?? '') ? 'finalizing' : 'executing';
   }
   if (state === 'failed') return 'failed';
+  if (waitingForApproval(session.metadata)) return 'waiting_for_user';
   if (state === 'interrupted') return 'queued';
   if (column === 'failed') return 'failed';
   if (column === 'researching') return 'executing';
