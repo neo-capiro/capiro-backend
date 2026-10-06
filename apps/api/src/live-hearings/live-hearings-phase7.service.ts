@@ -19,13 +19,6 @@ import {
 
 const TRANSCRIPT_MAX_PAGE_SIZE = 500;
 const LIST_MAX_PAGE_SIZE = 100;
-const DOCUMENT_UPDATE_TYPES = new Set([
-  'witness_testimony_published',
-  'committee_memo_published',
-  'amendment_added',
-  'archive_posted',
-  'official_transcript_posted',
-]);
 const ACTIVE_CAPTURE_STATES = new Set([
   'SCHEDULED',
   'PREPARING',
@@ -242,23 +235,13 @@ export class LiveHearingsPhase7Service {
       this.browserJoin(ctx, hearingId),
     ]);
 
-    const documents = updates
-      .filter((update) => DOCUMENT_UPDATE_TYPES.has(update.updateType))
-      .map((update) => ({
-        id: update.id,
-        title: update.title,
-        documentType: update.updateType,
-        sourceUrl: update.sourceUrl,
-        publishedAt: update.officialPublishedAt ?? update.firstSeenAt,
-      }));
-
     return {
       event,
       participation,
       capture,
       browser,
       witnesses: event.witnesses,
-      documents,
+      documents: event.documents ?? [],
       members: members.rows,
       chair: members.chair,
       rankingMember: members.rankingMember,
@@ -1087,9 +1070,7 @@ export function browserJoinPlan(
       capture?.terminalReasonCode ??
       capture?.resolutionReasonCode ??
       'BROWSER_ASSISTED_FALLBACK_AVAILABLE',
-    ...(capture
-      ? { canonicalCaptureId: capture.id, canonicalCaptureStatus: capture.status }
-      : {}),
+    ...(capture ? { canonicalCaptureId: capture.id, canonicalCaptureStatus: capture.status } : {}),
   };
 }
 

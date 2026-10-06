@@ -42,6 +42,31 @@ describe('Live Hearings API normalization', () => {
     expect(event.documents).toHaveLength(1);
   });
 
+  test('renders canonical string witnesses alongside structured witnesses and ignores empty values', () => {
+    const event = normalizeCanonicalHearingEvent({
+      id: 'sen-119-338758',
+      witnesses: [
+        '  Honorable David J. Trachtenberg  ',
+        'Dr. Thomas O. Karako',
+        'Mr. David E. Mosher',
+        { name: 'Published witness', organization: 'Institute' },
+        '',
+        '  ',
+        null,
+        12,
+        {},
+      ],
+    });
+    expect((event.witnesses ?? []).map((witness) => witness.name)).toEqual([
+      'Honorable David J. Trachtenberg',
+      'Dr. Thomas O. Karako',
+      'Mr. David E. Mosher',
+      'Published witness',
+    ]);
+    expect(event.witnesses?.[0]?.organization).toBeUndefined();
+    expect(event.witnesses?.[3]?.organization).toBe('Institute');
+  });
+
   test('reads the real LiveHearingsService field names for start time, not only the legacy aliases', () => {
     // The real backend (apps/api/src/live-hearings/live-hearings.service.ts
     // CalendarEvent) names the event's own start `startsAt`, and puts the
@@ -269,5 +294,4 @@ describe('Live Hearings API normalization', () => {
     expect(event.officialPageUrl).toBeUndefined();
     expect(JSON.stringify(event)).not.toContain('secret');
   });
-
 });

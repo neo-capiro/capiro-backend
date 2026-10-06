@@ -5,6 +5,7 @@ import {
   resolveCanonicalHearingIds,
   resolveOfficialMeetingId,
   supplementCanonicalHearing,
+  preservePublishedWitnesses,
   officialHearingChamber,
 } from './hearing-alias.js';
 import {
@@ -214,5 +215,26 @@ describe('durable canonical hearing aliases', () => {
     expect(result.ics).toContain('DTSTART:20260916T140000Z');
     expect(result.ics).toContain('SEQUENCE:4');
     expect(result.ics).toContain('Updated official hearing title');
+  });
+});
+
+describe('central witness refresh', () => {
+  it('keeps committee-enriched witnesses when a central source returns no witness list', () => {
+    const existing = { title: 'Old title', witnesses: ['Published committee witness'] };
+    const update = preservePublishedWitnesses({ title: 'Refreshed title', witnesses: [] });
+    expect({ ...existing, ...update }).toEqual({
+      title: 'Refreshed title',
+      witnesses: existing.witnesses,
+    });
+  });
+  it('accepts a newly published nonempty central witness list', () => {
+    expect(preservePublishedWitnesses({ witnesses: ['New published witness'] })).toEqual({
+      witnesses: ['New published witness'],
+    });
+  });
+  it('also preserves populated Senate witnesses through the canonical supplement guard', () => {
+    expect(
+      supplementCanonicalHearing({ witnesses: [] }, { witnesses: ['Published witness'] }),
+    ).toEqual({});
   });
 });

@@ -95,3 +95,12 @@ export function supplementCanonicalHearing<T extends Record<string, unknown>>(
     }),
   ) as Partial<T>;
 }
+
+/** A central API's missing witness list is not an official withdrawal notice. */
+export function preservePublishedWitnesses<T extends Record<string, unknown>>(
+  incoming: T,
+): Partial<T> {
+  if (!Array.isArray(incoming.witnesses) || incoming.witnesses.length > 0) return incoming;
+  const { witnesses: _omitted, ...remaining } = incoming;
+  return remaining as Partial<T>;
+}
