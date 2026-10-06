@@ -1775,6 +1775,49 @@ describe('Durable research lease and recovery', () => {
       jest.useRealTimers();
     }
   });
+  it('retries a heartbeat that loses a race to a concurrent write instead of aborting the run', async () => {
+    jest.useFakeTimers();
+    try {
+      const f = fixture();
+      await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+      const ready = gate<void>();
+      const finish = gate<void>();
+      let aborted = false;
+      f.runner.run.mockImplementation((async (
+        _ctx: unknown,
+        _input: unknown,
+        auth: ResearchRuntimeAuth,
+      ) => {
+        auth.signal!.addEventListener('abort', () => (aborted = true), { once: true });
+        ready.resolve();
+        await finish.promise;
+        throw new Error('Runner stopped after the heartbeat.');
+      }) as any);
+      const running = f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+      await ready.promise;
+      const realQuery = f.tx.$queryRawUnsafe.getMockImplementation()!;
+      let lostRaces = 0;
+      // A receipt or budget write lands between the heartbeat's read and its
+      // compare-and-swap, as in T5 run fc3b54a9.
+      f.tx.$queryRawUnsafe.mockImplementation((async (sql: string, ...values: unknown[]) => {
+        if (sql.includes('SET metadata_jsonb') && lostRaces === 0) {
+          lostRaces += 1;
+          return [];
+        }
+        return realQuery(sql, ...values);
+      }) as any);
+      const before = f.getSession().metadata.run.heartbeatAt;
+      await jest.advanceTimersByTimeAsync(10_000);
+      expect(lostRaces).toBe(1);
+      expect(aborted).toBe(false);
+      expect(f.getSession().metadata.run.heartbeatAt).not.toBe(before);
+      finish.resolve();
+      await running;
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('does not restart a cancelled saved request from an older POST that finishes setup late', async () => {
     const f = fixture();
     await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });

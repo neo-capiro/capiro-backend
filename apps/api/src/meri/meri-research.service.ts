@@ -208,6 +208,8 @@ const PRODUCT_NAME = 'Meri';
  * is enough for a multi-section cited body.
  */
 const SYNTHESIS_FLOOR_MS = 180_000;
+/** Compare-and-swap attempts per heartbeat before it skips one beat. */
+const HEARTBEAT_CAS_ATTEMPTS = 3;
 
 const RESEARCH_GATHER_THINKING_STATUS = RESEARCH_OBSERVER_STATUS.gatheringThinking;
 const RESEARCH_SYNTHESIS_THINKING_STATUS = RESEARCH_OBSERVER_STATUS.writingReport;
@@ -1597,58 +1599,65 @@ export class MeriResearchService {
         if (stopping) return;
         pending = pending
           .then(async () => {
-            if (stopping) return;
-            const current = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-              tx.clioResearchSession.findFirst({
-                where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
-              }),
-            );
-            const stored = readResearchRun(current?.metadata);
-            if (
-              !current ||
-              stored?.id !== run.id ||
-              stored.leaseEpoch !== run.leaseEpoch ||
-              stored.status !== 'running'
-            ) {
-              const raw = researchMetadata(researchMetadata(current?.metadata).run);
-              this.logger.warn(
-                `Research heartbeat found the lease inactive: session=${id} run=${run.id} ` +
-                  `epoch=${run.leaseEpoch} stored=${JSON.stringify({
-                    present: Boolean(current),
-                    sameRun: stored?.id === run.id,
-                    epoch: stored?.leaseEpoch ?? null,
-                    status: stored?.status ?? null,
-                    rawStatus: typeof raw.status === 'string' ? raw.status : null,
-                    heartbeatAgeMs:
-                      typeof raw.heartbeatAt === 'string'
-                        ? Date.now() - Date.parse(raw.heartbeatAt)
-                        : null,
-                  })}`,
+            // Receipts, budget and coordinator writes change the session row
+            // between this read and the compare-and-swap below. A lost race is
+            // not a lost lease: re-read and retry, and abort only when the
+            // stored run is no longer this owner's running lease. Skipping one
+            // beat is harmless (10s beats, 120s lease).
+            for (let attempt = 0; attempt < HEARTBEAT_CAS_ATTEMPTS; attempt += 1) {
+              if (stopping) return;
+              const current = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+                tx.clioResearchSession.findFirst({
+                  where: { id, tenantId: ctx.tenantId, userId: ctx.userId },
+                }),
               );
-              controller.abort(researchLeaseError('Research lease is no longer active.'));
-              return;
+              const stored = readResearchRun(current?.metadata);
+              if (
+                !current ||
+                stored?.id !== run.id ||
+                stored.leaseEpoch !== run.leaseEpoch ||
+                stored.status !== 'running'
+              ) {
+                const raw = researchMetadata(researchMetadata(current?.metadata).run);
+                this.logger.warn(
+                  `Research heartbeat found the lease inactive: session=${id} run=${run.id} ` +
+                    `epoch=${run.leaseEpoch} stored=${JSON.stringify({
+                      present: Boolean(current),
+                      sameRun: stored?.id === run.id,
+                      epoch: stored?.leaseEpoch ?? null,
+                      status: stored?.status ?? null,
+                      rawStatus: typeof raw.status === 'string' ? raw.status : null,
+                      heartbeatAgeMs:
+                        typeof raw.heartbeatAt === 'string'
+                          ? Date.now() - Date.parse(raw.heartbeatAt)
+                          : null,
+                    })}`,
+                );
+                controller.abort(researchLeaseError('Research lease is no longer active.'));
+                return;
+              }
+              const heartbeatAt = new Date();
+              const nextMetadata = {
+                ...researchMetadata(current.metadata),
+                run: { ...run, heartbeatAt: heartbeatAt.toISOString() },
+              };
+              const updated = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+                this.updateActiveResearchRun(
+                  tx,
+                  ctx,
+                  id,
+                  run,
+                  current.metadata,
+                  nextMetadata,
+                  current.status,
+                  heartbeatAt,
+                ),
+              );
+              if (updated) return;
             }
-            const heartbeatAt = new Date();
-            const nextMetadata = {
-              ...researchMetadata(current.metadata),
-              run: { ...run, heartbeatAt: heartbeatAt.toISOString() },
-            };
-            const updated = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-              this.updateActiveResearchRun(
-                tx,
-                ctx,
-                id,
-                run,
-                current.metadata,
-                nextMetadata,
-                current.status,
-                heartbeatAt,
-              ),
+            this.logger.warn(
+              `Research heartbeat skipped one beat after ${HEARTBEAT_CAS_ATTEMPTS} concurrent writes: session=${id} run=${run.id}`,
             );
-            if (!updated)
-              controller.abort(
-                researchLeaseError('Research lease changed while reporting progress.'),
-              );
           })
           .catch((error) => {
             this.logger.warn(

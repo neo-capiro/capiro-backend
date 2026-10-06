@@ -418,7 +418,7 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     expect(correctionPrompt).toContain('Rejected output: Findings: the memory record supports it.');
   });
 
-  it('accepts a correction whose only steps are progress, not reads', async () => {
+  it('accepts a correction whose only steps are progress and governed context, not reads', async () => {
     const base = fixture();
     const { runner, client } = fixture();
     let call = 0;
@@ -430,6 +430,10 @@ describe('MeriV3ResearchRunner primary runtime', () => {
           : ({
               ...formatOnlyFrame(base.done, 'progress-finding', 'search_memory:memory-a'),
               steps: [{ tool: 'synthesize', label: 'Writing the answer', status: 'done' }],
+              // The runtime attaches governed context records to every turn.
+              ledgerEntries: [
+                { tool: 'context_plane', result: { records: [] }, serialized: '{}' },
+              ],
             } as MeriV3ChatStreamEvent),
       );
     });
