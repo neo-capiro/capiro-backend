@@ -1,0 +1,33 @@
+{
+  "checkedAt": "2026-10-06T23:35:49.16Z",
+  "sourceSha": "cff810c23b58ce177e7ece04cfee56ec1bace24a",
+  "c2ImportMode": "direct_notes",
+  "internalImportMode": "generated",
+  "recentMeri": [
+    {
+      "tenant": "maven",
+      "completed": 1,
+      "withNotes": 1,
+      "withDebriefs": 1
+    },
+    {
+      "tenant": "capiro-internal",
+      "completed": 12,
+      "withNotes": 12,
+      "withDebriefs": 12
+    }
+  ],
+  "importStatuses": [
+    {
+      "_count": 4,
+      "status": "needs_match"
+    },
+    {
+      "_count": 393,
+      "status": "done"
+    }
+  ],
+  "importedMeetings": 393,
+  "visibleInEngagementList": 393,
+  "readableNotesAndDebriefs": 393
+}

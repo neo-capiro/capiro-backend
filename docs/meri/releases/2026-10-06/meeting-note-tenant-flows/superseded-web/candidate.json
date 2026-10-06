@@ -1,0 +1,11 @@
+{
+  "service": "web-vnext",
+  "baseSha": "fe8822dd8e2f4a1d5db48734c420b19e4a3684bf",
+  "sourceSha": "ca5e574dbe436db86924d3c23d791d97c7aa57c7",
+  "featureSha": "35b8ea9134be36b31b4fde5d4129bf31a74cbc5d",
+  "branch": "codex/krisp-tenant-flow-web-vnext",
+  "files": [
+    "apps/web/src/vnext/meri/KrispNotetakerSettings.test.tsx",
+    "apps/web/src/vnext/meri/KrispNotetakerSettings.tsx"
+  ]
+}

@@ -1,0 +1,43 @@
+[
+  {
+    "service": "api",
+    "baseSha": "41aead03cd5ad9fec8abecb45e6c12569b0ea08e",
+    "sourceSha": "cff810c23b58ce177e7ece04cfee56ec1bace24a",
+    "featureSha": "35b8ea9134be36b31b4fde5d4129bf31a74cbc5d",
+    "branch": "codex/krisp-tenant-flow-api",
+    "files": [
+      "apps/api/src/common/krisp-notetaker-flags.ts",
+      "apps/api/src/engagement/krisp/krisp-notetaker.service.spec.ts",
+      "apps/api/src/engagement/krisp/krisp-notetaker.service.ts",
+      "apps/api/src/engagement/krisp/krisp.helpers.spec.ts",
+      "apps/api/src/engagement/krisp/krisp.helpers.ts",
+      "apps/api/src/meri/meri-managed-mcp.helpers.ts"
+    ]
+  },
+  {
+    "service": "engagement-api",
+    "baseSha": "34d34c6f8201ad0849865118ebd932b3b26bbe7b",
+    "sourceSha": "786e4d4940bcddc6c48d31f112c69d82275529ae",
+    "featureSha": "35b8ea9134be36b31b4fde5d4129bf31a74cbc5d",
+    "branch": "codex/krisp-tenant-flow-engagement-api",
+    "files": [
+      "apps/api/src/common/krisp-notetaker-flags.ts",
+      "apps/api/src/engagement/krisp/krisp-notetaker.service.spec.ts",
+      "apps/api/src/engagement/krisp/krisp-notetaker.service.ts",
+      "apps/api/src/engagement/krisp/krisp.helpers.spec.ts",
+      "apps/api/src/engagement/krisp/krisp.helpers.ts",
+      "apps/api/src/meri/meri-managed-mcp.helpers.ts"
+    ]
+  },
+  {
+    "service": "web-vnext",
+    "baseSha": "f6f9f696b1f3418cdd354778a98ea5ea61cc7ce8",
+    "sourceSha": "a734bb0a54322ac5327dc04b81647a407a28fb61",
+    "featureSha": "35b8ea9134be36b31b4fde5d4129bf31a74cbc5d",
+    "branch": "codex/krisp-tenant-flow-web-current",
+    "files": [
+      "apps/web/src/vnext/meri/KrispNotetakerSettings.test.tsx",
+      "apps/web/src/vnext/meri/KrispNotetakerSettings.tsx"
+    ]
+  }
+]

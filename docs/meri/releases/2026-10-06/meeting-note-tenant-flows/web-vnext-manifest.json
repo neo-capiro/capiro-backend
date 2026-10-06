@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "web-vnext",
+  "preparedAt": "2026-10-06T23:43:59.136Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "web-vnext",
+    "sourceSha": "a734bb0a54322ac5327dc04b81647a407a28fb61",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:eb87bfc8325fb865c14c1c71c89c05c3499393eac498f4ff48b2f19919a355a7",
+    "status": "qualified",
+    "reviewer": "Codex release agent under explicit owner authorization to merge and ship to AWS; owner confirmed only C2 copies directly and other tenants retain Meri generation",
+    "reviewedAt": "2026-10-06T23:43:39.950Z",
+    "expiresAt": "2026-10-07T11:43:39.951Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/da25d30044418b565b275b7b0c8c942c52b91b2e/docs/meri/releases/2026-10-06/meeting-note-tenant-flows/qualification.md"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "a734bb0a54322ac5327dc04b81647a407a28fb61",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:eb87bfc8325fb865c14c1c71c89c05c3499393eac498f4ff48b2f19919a355a7",
+        "url": "https://github.com/neo-capiro/capirov2/blob/da25d30044418b565b275b7b0c8c942c52b91b2e/docs/meri/releases/2026-10-06/meeting-note-tenant-flows/qualification.md"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "a734bb0a54322ac5327dc04b81647a407a28fb61",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:eb87bfc8325fb865c14c1c71c89c05c3499393eac498f4ff48b2f19919a355a7",
+        "url": "https://github.com/neo-capiro/capirov2/blob/da25d30044418b565b275b7b0c8c942c52b91b2e/docs/meri/releases/2026-10-06/meeting-note-tenant-flows/qualification.md"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "a734bb0a54322ac5327dc04b81647a407a28fb61",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:eb87bfc8325fb865c14c1c71c89c05c3499393eac498f4ff48b2f19919a355a7",
+        "url": "https://github.com/neo-capiro/capirov2/blob/da25d30044418b565b275b7b0c8c942c52b91b2e/docs/meri/releases/2026-10-06/meeting-note-tenant-flows/qualification.md"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:435",
+    "serviceHash": "d628e58d777d1a3a3cb1d35f917efbb8f6f8e4428f5a5ecd83c8f321de6d0a93",
+    "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+    "taskHash": "125ff372d0ea85fe231634cc55f8166e0a9c55c333cd8d96582fc1bdcc902670",
+    "imageDigest": "sha256:518051ad2de91efccc872da22636d112d91e7c4c21d5b068813c6cf647a56ed5",
+    "desiredCount": 1
+  }
+}
