@@ -2,12 +2,12 @@
 
 **Start a new session with [HANDOVER-2026-10-06.md](HANDOVER-2026-10-06.md).**
 
-**Stage 2 progress, October 6, 2026 (about 06:00 UTC, lead agent).** Handover §9 step 1 (re-check adapter) is deployed. Step 2 (D4b) is down to a decision for Neo. Two research-path defects found on the way are fixed and deployed. Release B has started dark. Evidence: [releases/2026-10-06](../releases/2026-10-06/README.md).
+**Stage 2 progress, October 6, 2026 (about 07:30 UTC, lead agent).** Handover §9 step 1 (re-check adapter) is deployed. Step 2 (D4b) is down to a decision for Neo. Two research-path defects found on the way are fixed and deployed. Release B is built and deployed dark (API and web) and waits for Neo's OK to enable it. Evidence: [releases/2026-10-06](../releases/2026-10-06/README.md).
 
 - **Served:**
   - API `capiro-dev-api:589` from `e41ad6e6e` (digest `sha256:153eefd4…`; rollback 587). The env diff is the SHA keys only.
   - Orchestrator `capiro-dev-meriv2-orchestrator:155` from `5e38f2c20` (digest `sha256:b821063c…`; rollback 154).
-  - Web-vnext 400 (other workstream).
+  - Web-vnext `capiro-dev-web-vnext:414` from `5152d990b` (digest `sha256:2fad3db0…`; rollback 413). This was the first Meri web roll; `CAPIRO_WEB_RELEASE_SHA` was patched with the SHA keys.
   - Admin-migrate latest is 90 (read-only `migration-status`; schema up to date, 457 migrations). No migration was applied today.
   - LegiWatch rolled the API in between (571, 572, 576, 580, 582, 584). The ancestry reads caught 584 (a branch commit), and that roll was rebuilt from main.
 - **Re-check adapter, live (#2051, #2054, #2056, #2058):** client-scoped Deep Research reports publish and stay readable while their inputs are current (details in the release record).
@@ -23,21 +23,20 @@
   - The rule fires on any `appropriat*` word within 40 characters after an authorization term, and its enumeration exemption looks only right after that term.
   - **Recommendation:** narrow D4b to the verb forms it targets (an authorization subject that "appropriates/provides the money"; an appropriations subject that "authorizes"). It is a shared enforce-mode safety check, so it waits for Neo.
   - The non-budget topic is not held, and a budget report published at 576 escaped only because "$288.3M" put a period in the window.
-- **Release B (dark, `meri.jobs` off everywhere):**
-  - Merged: #2068 (`features.meriJobs` on `/api/me`), #2069 (web parser keeps the job view), #2072 (deliverable jobs).
-    - A deliverable job records one requested Word document.
-    - `GET /api/clio/research/:id/deliverables/:index/docx` renders it from the authorized report: held and withheld rules apply, and nothing derived is stored.
-    - `POST …/file` is the one confirmation that files it into client Files (key `meri-job:<id>:<index>`). A repeat returns the filed document.
-  - Deployed: the API parts (589).
-  - Not deployed: the web parser.
-  - Remaining for Release B:
-    - "Delegate this" in the composer behind `features.meriJobs`.
-    - The deliverable card with Download and "File to client folder".
-    - Auto-resume for `interrupted`/`readyToStart`.
-    - The running-jobs rail.
-    - A web-vnext roll.
-    - Neo's OK to enable `meri.jobs` on capiro-internal and the sweeper configuration revision.
-    - Live checks T5 and T7.
+- **Release B (dark: `meri.jobs` off everywhere, confirmed `/api/me` `meriJobs: false`):**
+  - API (589):
+    - #2068 `features.meriJobs`.
+    - #2072 deliverable jobs: one requested Word document per job. `GET /api/clio/research/:id/deliverables/:index/docx` renders it from the authorized report, so held and withheld rules apply and nothing derived is stored. `POST …/file` is the one confirmation that files it into client Files with key `meri-job:<id>:<index>`, and a repeat returns the filed document.
+  - Web (414):
+    - #2069 job view parser.
+    - #2080 **Delegate this** in the composer Add menu.
+    - #2081 deliverable card under a completed job (Download, File to client folder, link).
+    - #2082 RUNNING JOBS rail section ("continues in the background").
+    - #2083 an interrupted delegated job resumes once while its conversation is open; plain research keeps Reconnect.
+  - Remaining, each needing Neo's OK at the time:
+    - Enable `meri.jobs` on capiro-internal, then T5 (delegated office brief on the QA client, filed into the QA client folder; script `outputs/meri-stage2-20261006/t5-deliverable-check.mjs`) and T7 (steer, close the tab, reopen, finish, then Stop).
+    - The `MERI_JOB_SWEEPER_ENABLED=true` configuration revision with the worker-loss check during an API roll.
+  - Release F Playwright flows come after.
 - **Open:**
   - Parallel reads within one plan step stay serialized (`research_step_attempt_in_flight`).
   - Both bounded children failed `schema_invalid` in every budget run observed.
