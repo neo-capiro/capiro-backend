@@ -13,6 +13,8 @@
 # Match the locked jsdom/toolchain engine floor (Node >=22.13) and API build runtime.
 ARG NODE_VERSION=22.23.3
 ARG NGINX_VERSION=1.27.1-alpine
+ARG NODE_IMAGE=node:${NODE_VERSION}-bookworm-slim
+ARG NGINX_IMAGE=nginxinc/nginx-unprivileged:${NGINX_VERSION}
 
 # -------- base ----------------------------------------------------------------
 # The build emits browser-only static assets, so run Node on the builder's
@@ -20,7 +22,7 @@ ARG NGINX_VERSION=1.27.1-alpine
 # and Vite through QEMU during arm64 releases, which is both much slower and
 # prone to long-running qemu-user crashes. The runtime stage below still uses
 # TARGETPLATFORM, so the shipped nginx image remains arm64 for ECS.
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bookworm-slim AS base
+FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
@@ -67,7 +69,7 @@ RUN NODE_OPTIONS=--max-old-space-size=6144 \
     pnpm --filter @capiro/web build
 
 # -------- runtime -------------------------------------------------------------
-FROM nginxinc/nginx-unprivileged:${NGINX_VERSION} AS runtime
+FROM ${NGINX_IMAGE} AS runtime
 USER root
 RUN apk add --no-cache wget ca-certificates
 COPY apps/web/nginx/nginx.conf /etc/nginx/nginx.conf
