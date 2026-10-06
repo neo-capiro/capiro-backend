@@ -1,6 +1,7 @@
+import { useWorkspaceMessage } from './workspace-message.js';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { App as AntApp, Spin } from 'antd';
+import { Spin } from 'antd';
 import { Icon, Kicker, MeriBtn } from './kit.js';
 import { useIndustries, useProductsFor, useCreateDraft, useMeriIntake } from './api.js';
 import { WsTabs } from './WsTabs.js';
@@ -65,7 +66,7 @@ function intakeError(e: unknown): string {
 
 export function LibraryPage() {
   const navigate = useNavigate();
-  const { message } = AntApp.useApp();
+  const message = useWorkspaceMessage();
   const [sector, setSector] = useState<string | null>(null);
   const [prompt, setPrompt] = useState('');
   const [showRequest, setShowRequest] = useState(false);

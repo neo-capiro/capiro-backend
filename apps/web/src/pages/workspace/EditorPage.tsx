@@ -25,6 +25,7 @@
  * Still deferred (layout present): Insert→Templates picker, Insert→Table-type
  * picker, Meri chat editing. These toast / no-op.
  */
+import { useWorkspaceMessage } from './workspace-message.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { App as AntApp, Spin } from 'antd';
@@ -130,7 +131,8 @@ export function EditorPage() {
   const { draftId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { message, modal } = AntApp.useApp();
+  const { modal } = AntApp.useApp();
+  const message = useWorkspaceMessage();
   const { data: draft, isLoading } = useDraft(draftId ?? null);
 
   const updateDraft = useUpdateDraft(draftId ?? '');

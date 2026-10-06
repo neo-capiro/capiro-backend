@@ -13,9 +13,10 @@
  * Owner-only controls (the invite row, role dropdowns, remove) are shown only to
  * the document owner — the server enforces the same matrix regardless.
  */
+import { useWorkspaceMessage } from './workspace-message.js';
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { App as AntApp, Spin } from 'antd';
+import { Spin } from 'antd';
 import { Ava, Icon } from './kit.js';
 import { StepsRail } from './StepsRail.js';
 import type { WsAssignableRole, WsCollaborator } from './types.js';
@@ -55,7 +56,7 @@ function roleLabel(role: string): string {
 export function CollabPage() {
   const { draftId } = useParams();
   const navigate = useNavigate();
-  const { message } = AntApp.useApp();
+  const message = useWorkspaceMessage();
 
   const { data: draft, isLoading: draftLoading } = useDraft(draftId ?? null);
   const { data: collaborators, isLoading: collabLoading } = useCollaborators(draftId ?? null);

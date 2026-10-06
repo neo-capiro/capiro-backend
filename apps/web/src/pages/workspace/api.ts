@@ -203,7 +203,12 @@ export function useDrafts(params?: { sector?: string; scope?: 'all' | 'mine' | '
       if (params?.sector) q.set('sector', params.sector);
       if (params?.scope) q.set('scope', params.scope);
       const qs = q.toString();
-      return (await api.get<WsDraft[]>(`${BASE}/drafts${qs ? `?${qs}` : ''}`)).data;
+      const { data } = await api.get<WsDraft[] | { drafts?: WsDraft[] } | null>(
+        `${BASE}/drafts${qs ? `?${qs}` : ''}`,
+      );
+      // The workspace engine returns an envelope; older endpoints returned the array.
+      // Keep every caller on the same array contract, including context source filters.
+      return Array.isArray(data) ? data : Array.isArray(data?.drafts) ? data.drafts : [];
     },
   });
 }

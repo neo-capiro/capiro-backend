@@ -19,6 +19,7 @@
  *  - Actions: a Delete control on documents the signed-in user OWNS (useDeleteDraft).
  *  - Row click opens THAT document by id: /workspace/draft/:id.
  */
+import { useWorkspaceMessage } from './workspace-message.js';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { App as AntApp } from 'antd';
@@ -69,7 +70,7 @@ function relativeTime(iso: string): string {
 
 export function DocumentsPage() {
   const navigate = useNavigate();
-  const { message } = AntApp.useApp();
+  const message = useWorkspaceMessage();
   const [scope, setScope] = useState<Scope>('all');
   const [sector, setSector] = useState<string>('all');
 
@@ -332,7 +333,8 @@ function DocRow({
   canDelete: boolean;
   onOpen: () => void;
 }) {
-  const { message, modal } = AntApp.useApp();
+  const { modal } = AntApp.useApp();
+  const message = useWorkspaceMessage();
   const update = useUpdateDraft(d.id);
   const del = useDeleteDraft();
   const isComplete = d.status === 'complete';
