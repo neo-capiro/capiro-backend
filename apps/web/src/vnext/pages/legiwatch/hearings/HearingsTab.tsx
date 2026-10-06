@@ -1420,12 +1420,18 @@ export function HearingsTab({ scope }: { scope: string }) {
             )}
 
             <div className="lw-history__label">Recent session history · {visibleSessions.length} of {sessions.length} loaded</div>
-            <div className="lw-controls" aria-label="Filter saved recording attempts">
-              <input className="lw-input" aria-label="Search recording attempts" placeholder="Search recordings" value={sessionSearch} onChange={(event) => setSessionSearch(event.target.value)} />
-              <select className="lw-select" aria-label="Recording attempt status" value={sessionLifecycle} onChange={(event) => setSessionLifecycle(event.target.value)}>
-                <option value="all">All attempts</option><option value="completed">Completed attempts</option><option value="other">Active or interrupted attempts</option>
-              </select>
-              <label><input type="checkbox" checked={hideTestSessions} onChange={(event) => setHideTestSessions(event.target.checked)} /> Hide titles marked test or QA</label>
+            <div className="lw-controls lw-recording-filters" aria-label="Filter saved recording attempts">
+              <div className="lw-search">
+                <Search size={14} className="lw-search__icon" aria-hidden="true" />
+                <input aria-label="Search recording attempts" placeholder="Search recordings" value={sessionSearch} onChange={(event) => setSessionSearch(event.target.value)} />
+              </div>
+              <span className="lw-selectwrap">
+                <select className="lw-btn lw-select" aria-label="Recording attempt status" value={sessionLifecycle} onChange={(event) => setSessionLifecycle(event.target.value)}>
+                  <option value="all">All attempts</option><option value="completed">Completed attempts</option><option value="other">Active or interrupted attempts</option>
+                </select>
+                <ChevronDown size={14} className="lw-select__caret" aria-hidden="true" />
+              </span>
+              <label className="lw-recording-filters__exclude"><input type="checkbox" checked={hideTestSessions} onChange={(event) => setHideTestSessions(event.target.checked)} /> Hide titles marked test or QA</label>
             </div>
             {sessions.length > 0 && !visibleSessions.length ? <p className="lw-card__meta">No loaded attempts match these filters. Clear the filters or load older sessions.</p> : null}
             <div className="lw-history__rows">
