@@ -1,0 +1,26 @@
+{
+  "check": "one Deep Research run on ZZ-QA-Meri1651-Test-DoNotUse as neo@capiro.ai in capiro-internal",
+  "topic": "Summarize the current federal policy landscape for critical minerals supply chains and what it means for this client. Keep it to one short paragraph with sources.",
+  "summary": {
+    "researchId": "78999210-2ed5-4ec4-a7ea-88f66b5e0b13",
+    "conversationId": "4e1d349d-840d-4aed-9208-5f2425ee2d45",
+    "columnStatus": "failed",
+    "run": {
+      "status": "failed",
+      "leaseEpoch": 2
+    },
+    "job": {
+      "kind": "research",
+      "status": "failed",
+      "goalRevision": 0,
+      "deliverables": [],
+      "awaitingStart": false
+    },
+    "report": null,
+    "pass": false
+  },
+  "apiLogLines": [
+    "[Nest] 7  - 10/06/2026, 2:40:05 AM    WARN [MeriResearchService] Research producer inputs refused: session=78999210-2ed5-4ec4-a7ea-88f66b5e0b13 unsupported={\"unreceipted_tool:search_research_sources\":1} covered={\"context_packet_items\":9,\"steering_records\":6,\"context_record:clients\":1,\"context_record:institutional_knowledge\":37,\"public_tool:search_congress_bills\":1,\"failed_tool_results\":11}",
+    "[Nest] 7  - 10/06/2026, 2:40:05 AM    WARN [MeriResearchService] Research run failed: The research report includes private producer inputs without a current authorization adapter."
+  ]
+}

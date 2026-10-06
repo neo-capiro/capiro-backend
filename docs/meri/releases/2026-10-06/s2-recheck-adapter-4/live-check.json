@@ -1,0 +1,36 @@
+{
+  "check": "one Deep Research run on ZZ-QA-Meri1651-Test-DoNotUse as neo@capiro.ai in capiro-internal",
+  "topic": "Summarize the current federal policy landscape for critical minerals supply chains and what it means for this client. Keep it to one short paragraph with sources.",
+  "summary": {
+    "researchId": "5d29ceb1-ddac-40b3-be7a-b9250501d39b",
+    "conversationId": "e07b8369-bf76-4b4f-affe-ca5de97ecd34",
+    "columnStatus": "complete",
+    "run": {
+      "status": "complete",
+      "leaseEpoch": 2
+    },
+    "job": {
+      "kind": "research",
+      "status": "completed",
+      "goalRevision": 0,
+      "deliverables": [],
+      "awaitingStart": false
+    },
+    "report": {
+      "id": "ebd713a5-86c8-437b-9aa2-7d69afcd15e7",
+      "title": "Critical minerals: current federal policy and client implications",
+      "chars": 3439
+    },
+    "pass": true
+  },
+  "apiLogLines": [
+    "[Nest] 7  - 10/06/2026, 3:31:07 AM     LOG [MeriResearchService] Research producer inputs governed: session=5d29ceb1-ddac-40b3-be7a-b9250501d39b unsupported={} covered={\"context_packet_items\":9,\"steering_records\":6,\"context_record:clients\":1,\"context_record:institutional_knowledge\":37,\"public_tool:search_congress_bills\":1,\"public_tool:search_public_web\":5,\"public_tool:query_regulatory_dockets\":2,\"failed_tool_results\":10}"
+  ],
+  "conversationHistoryRead": {
+    "messages": 4,
+    "reportFound": true,
+    "released": true,
+    "bodyChars": 3439,
+    "exposesManifest": false
+  }
+}
