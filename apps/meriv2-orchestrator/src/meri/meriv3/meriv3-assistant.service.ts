@@ -520,8 +520,17 @@ function incompleteSynthesisPartialReply(ledgerEntries: LedgerEntry[]): string {
  * server-owned research lease. Every Stage 0-2 capability is enrolled by exact
  * surface, so a `chat` enrollment must never reach research traffic.
  */
+/**
+ * Deep Research planning and execution are one surface. Execution turns carry
+ * the durable lease (researchRun); planning turns carry no lease but are issued
+ * by the API under the signed governed operation 'meri.research'. Before this,
+ * planning ran as chat: the chat-enrolled evidence, coverage and correction
+ * stages treated the plan JSON as an answer, appended limitations, and the API
+ * rejected the plan as not strict JSON (Stage 2 Release A live check).
+ */
 function turnSurface(dto: MeriV3ChatInput): CanaryTurnSurface {
-  return dto.researchRun ? 'research' : 'chat';
+  if (dto.researchRun) return 'research';
+  return currentGovernedMeriContext()?.operationId === 'meri.research' ? 'research' : 'chat';
 }
 
 /**
