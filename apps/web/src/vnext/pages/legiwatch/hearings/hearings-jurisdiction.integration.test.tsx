@@ -240,6 +240,22 @@ describe('Hearings calendar jurisdiction (public Florida feed)', () => {
 
   it.each([
     {
+      state: 'attempted',
+      summary: 'Source check in progress',
+      rows: [
+        { chamber: 'house', status: 'complete', checkedAt: '2026-09-20T17:30:00.000Z' },
+        { chamber: 'senate', status: 'attempted', checkedAt: '2026-09-20T17:59:45.000Z' },
+      ],
+    },
+    {
+      state: 'failed while another chamber is attempted',
+      summary: 'Failed check',
+      rows: [
+        { chamber: 'house', status: 'failed', checkedAt: '2026-09-20T17:30:00.000Z' },
+        { chamber: 'senate', status: 'attempted', checkedAt: '2026-09-20T17:59:45.000Z' },
+      ],
+    },
+    {
       state: 'partial',
       summary: 'Partial check',
       rows: [
@@ -281,7 +297,7 @@ describe('Hearings calendar jurisdiction (public Florida feed)', () => {
         { chamber: 'senate', status: 'complete', checkedAt: '2026-09-20T17:30:00.000Z' },
       ],
     },
-  ])('never claims an empty Florida week when coverage is $state', async ({ rows, summary }) => {
+  ])('never claims an empty Florida week when coverage is $state', async ({ rows, summary, state }) => {
     sourceCoverageData = {
       asOf: '2026-09-20T18:00:00.000Z',
       rows: rows.map((row) => ({
@@ -301,6 +317,11 @@ describe('Hearings calendar jurisdiction (public Florida feed)', () => {
     );
     expect(availability.textContent).not.toContain('No Florida proceedings were published');
     expect(screen.getByText(new RegExp(`Florida calendar checks · ${summary}`))).toBeTruthy();
+    if (state === 'attempted') {
+      expect(availability.textContent).toContain('A Florida source check is in progress. Results are pending.');
+      expect(screen.getByText('Senate · Source check in progress; result pending.')).toBeTruthy();
+      expect(screen.queryByText(/Senate · No source check covers/)).toBeNull();
+    }
   });
 
   it('keeps a failed coverage request distinct from a verified empty Florida week', async () => {
@@ -397,4 +418,15 @@ describe('Hearings calendar jurisdiction (public Florida feed)', () => {
     fireEvent.click(reminderToggle);
     expect(screen.queryByLabelText('Published legal dates')).toBeNull();
   });
+});
+
+it('names and clears a folder calendar scope while preserving jurisdiction', async () => {
+  featureFlags = { legiwatch_state_calendar_v1: true };
+  apiPost.mockImplementation(async () => ({ data: { folders: [{ id: 'folder-a', name: 'Defense priorities' }], billIds: [], matches: [] } }));
+  openSchedule('/legiwatch?jurisdiction=FL&calendarFolder=folder-a');
+  const scope = await screen.findByRole('status', { name: 'Active calendar folder scope' });
+  await waitFor(() => expect(scope.textContent).toContain('Defense priorities'));
+  fireEvent.click(within(scope).getByRole('button', { name: 'Clear folder scope' }));
+  await waitFor(() => expect(screen.queryByRole('status', { name: 'Active calendar folder scope' })).toBeNull());
+  expect((screen.getByLabelText('Calendar jurisdiction') as HTMLSelectElement).value).toBe('FL');
 });

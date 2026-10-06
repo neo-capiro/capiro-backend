@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
+import { publicPlaybackCoverage, type PlaybackInterval } from '../../lib/hearing-playback-coverage.js';
 import { useApiScope } from '../../lib/use-api-scope.js';
 
 interface Epoch {
@@ -31,20 +32,24 @@ const clock = (ms: number) => {
 export function PublicHearingAudioPanel({
   hearingId,
   seek,
+  onCoverage,
 }: {
   hearingId: string;
   seek?: { positionMs: number; request: number };
+  onCoverage?: (intervals: PlaybackInterval[]) => void;
 }) {
   const scope = useApiScope();
-  return <Player key={scope + ':' + hearingId} hearingId={hearingId} seek={seek} />;
+  return <Player key={scope + ':' + hearingId} hearingId={hearingId} seek={seek} onCoverage={onCoverage} />;
 }
 
 function Player({
   hearingId,
   seek,
+  onCoverage,
 }: {
   hearingId: string;
   seek?: { positionMs: number; request: number };
+  onCoverage?: (intervals: PlaybackInterval[]) => void;
 }) {
   const api = useApi(),
     scope = useApiScope();
@@ -69,7 +74,12 @@ function Player({
     refetchInterval: 15_000,
   });
   const epochs = manifest.data?.epochs ?? [];
-  const usable = epochs.filter((epoch) => epoch.state !== 'expired' && epoch.durableBytes > 0);
+  const coverage = publicPlaybackCoverage(epochs);
+  const usable = manifest.isError ? [] : epochs.filter((epoch) => coverage.some((range) => range.startMs === epoch.startMs && range.endMs === epoch.durableEndMs));
+  useEffect(() => {
+    onCoverage?.(manifest.isError ? [] : publicPlaybackCoverage(manifest.data?.epochs ?? []));
+    return () => onCoverage?.([]);
+  }, [manifest.data, manifest.isError, onCoverage]);
   const end = Math.max(0, ...epochs.map((epoch) => epoch.durableEndMs));
   useEffect(() => {
     active.current = true;

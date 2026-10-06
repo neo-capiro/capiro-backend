@@ -23,6 +23,7 @@
  *      alert. The empty state's CTA is Follow.
  */
 import { useMemo, useState } from 'react';
+import { hearingEventLabel } from '../lib/hearing-presentation.js';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../../../lib/use-api.js';
@@ -186,7 +187,7 @@ function stampLabel(iso: string): string {
 function dayLabel(iso: string): string {
   const t = new Date(iso).getTime();
   if (!Number.isFinite(t)) return '—';
-  return new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric' });
+  return new Date(t).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function dayYearLabel(iso: string): string {
@@ -519,9 +520,9 @@ export function CommitteeRoomRoute() {
       <header className="lwcr-banner">
         <div className="lwcr-banner__inner">
           <nav className="lwcr-crumbs" aria-label="Breadcrumb">
-            <span>LegiWatch</span>
+            <button type="button" className="lwcr-crumbs__parent" onClick={() => navigate(`/legiwatch${clientId ? `?client=${encodeURIComponent(clientId)}` : ''}`)}>LegiWatch</button>
             <span>/</span>
-            <span>Committees</span>
+            <button type="button" className="lwcr-crumbs__parent" onClick={() => navigate(`/legiwatch?tab=committees${clientId ? `&client=${encodeURIComponent(clientId)}` : ''}`)}>Committees</button>
             {parentCode ? (
               <>
                 <span>/</span>
@@ -767,13 +768,13 @@ export function CommitteeRoomRoute() {
                             onClick={() => navigate(`/legiwatch/hearings/${encodeURIComponent(e.id)}`)}
                           >
                             <span className="lwcr-event__when">
-                              {formatHearingDay(m)} · {formatHearingTime(m)}
+                              {formatHearingDay(m, true)} · {formatHearingTime(m)}
                             </span>
                             <span style={{ flex: 1, minWidth: 0 }}>
                               <span className="lwcr-event__title">{e.title}</span>
                               <span className="lwcr-event__meta">
                                 <span className="lwcr-update__type">
-                                  {(e.eventStatus ?? '').toString().replace(/_/g, ' ').toUpperCase()}
+                                  {hearingEventLabel(e.eventStatus, e.scheduledStart, e.calendarDate)}
                                 </span>
                                 {e.eventType ? (
                                   <span className="lwcr-update__type">{e.eventType}</span>
@@ -802,13 +803,13 @@ export function CommitteeRoomRoute() {
                             onClick={() => navigate(`/legiwatch/hearings/${encodeURIComponent(e.id)}`)}
                           >
                             <span className="lwcr-event__when">
-                              {formatHearingDay(m)} · {formatHearingTime(m)}
+                              {formatHearingDay(m, true)} · {formatHearingTime(m)}
                             </span>
                             <span style={{ flex: 1, minWidth: 0 }}>
                               <span className="lwcr-event__title">{e.title}</span>
                               <span className="lwcr-event__meta">
                                 <span className="lwcr-update__type">
-                                  {(e.eventStatus ?? '').toString().replace(/_/g, ' ').toUpperCase()}
+                                  {hearingEventLabel(e.eventStatus, e.scheduledStart, e.calendarDate)}
                                 </span>
                                 {e.eventType ? (
                                   <span className="lwcr-update__type">{e.eventType}</span>

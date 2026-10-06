@@ -373,7 +373,6 @@ export function FolderBillsTab({ scope, clients }: { scope: string; clients: Cli
                       ? 'Read only for others'
                       : 'Read and change',
                   ownerName(f.ownerClerkId) ?? 'Owner pending',
-                  f.id.slice(0, 8),
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -1691,7 +1690,7 @@ function FastTagger({
                   setChecked([]);
                 }}
               />
-              {f.name} · {f.code ?? f.id.slice(0, 8)}
+              {f.name}{f.code ? ` · ${f.code}` : ''}
               {!f.canEdit ? ' · Read only' : ''}
             </label>
           ))}

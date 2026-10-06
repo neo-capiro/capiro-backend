@@ -313,7 +313,7 @@ function LegiWatchPreferences() {
             <p style={{ margin: '3px 0', color: 'var(--lw-meta)' }}>Hearing follows and committee subscriptions are configured on those tabs.</p>
             <a href="/legiwatch?tab=hearings">Inspect hearings</a>{' · '}
             <a href="/legiwatch?tab=committees">Inspect committees</a>{' · '}
-            <a href="#monitoring-record-hearing">Record a hearing</a>
+            <a href={`/legiwatch?tab=hearings${scope ? `&client=${encodeURIComponent(scope)}` : ''}`}>Record a hearing</a>
           </div>
           <div id="monitoring-agenda">
             <strong>Agenda and published-record rules</strong>

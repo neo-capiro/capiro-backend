@@ -30,6 +30,9 @@ import { BillSourceHealth } from '../../../../pages/bills/BillSourceHealth.js';
 import { BillSourceRecords } from './BillSourceRecords.js';
 import { Bill360ExportVNext } from '../../bills/Bill360ExportVNext.js';
 import { BillAgenda } from '../hearings/BillAgenda.js';
+import { BillProvisionsTab } from '../../bills/BillProvisionsTab.js';
+import { BillImpactTab } from '../../bills/BillImpactTab.js';
+import '../../bills/bill-360-vnext.css';
 
 const TABS = [
   'Overview',
@@ -86,6 +89,7 @@ export function Bill360Drawer({
   const dossier = useBillDossier(billId, clientId || null);
   const hearings = useBillHearings(clientId, billId, Boolean(clientId));
   const [tab, setTab] = useState<DossierTab>('Overview');
+  const navigate = useNavigate();
 
   const dialogRef = useRef<HTMLElement | null>(null);
   useDialogFocus(dialogRef, onClose);
@@ -243,18 +247,12 @@ export function Bill360Drawer({
                 <PathVotesTab d={d} />
               ) : tab === 'Funding' ? (
                 <FundingTab d={d} />
-              ) : d.bill.isState && (tab === 'Provisions' || tab === 'Impact') ? (
-                <BillSourceRecords key={`${billId}:${tab}`} billId={billId} initialSection="documents" />
               ) : tab === 'Provisions' ? (
-                <PlaceholderTab
-                  label="Provisions"
-                  note="Section-by-section provisions with affected clients and relevance level."
-                />
+                <><BillProvisionsTab provisions={d.funding.provisions} />
+                  {d.bill.isState && <BillSourceRecords billId={billId} initialSection="documents" />}</>
               ) : tab === 'Impact' ? (
-                <PlaceholderTab
-                  label="Impact"
-                  note="Per-client impact with position and a per-client brief action."
-                />
+                <><BillImpactTab funding={d.funding} onOpenPe={(pe) => navigate(`/program-elements/${encodeURIComponent(pe)}`)} />
+                  {d.bill.isState && <BillSourceRecords billId={billId} initialSection="documents" />}</>
               ) : tab === 'Hearings' ? (
                 <>
                   <BillAgenda billId={billId} clientId={clientId} folderId={folderId} />
@@ -560,11 +558,8 @@ function FundingTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['d
                   <td style={{ padding: '10px 12px', fontSize: 13 }}>
                     <span className="lw-mono">{impact.pe}</span>
                     {impact.name ? <span> · {impact.name}</span> : null}
-                    {impact.source ? (
-                      <div style={{ marginTop: 3, fontSize: 10, color: 'var(--lw-meta)' }}>
-                        {impact.source}
-                      </div>
-                    ) : null}
+                    <small style={{ display: 'block' }}>{impact.basis === 'explicit' ? 'Linked by published Program Element code' : 'Inferred program match'}</small>
+                    {impact.source ? <details><summary>Match evidence</summary><p>{impact.source.replaceAll('_', ' ').replace(/confidence ([01](?:\.\d+)?)/g, (_, score) => `Match confidence ${Math.round(Number(score) * 100)}%`)}</p></details> : null}
                   </td>
                   <td style={{ padding: '10px 12px', fontFamily: 'var(--lw-mono)', fontSize: 12 }}>
                     {fmtAmt(impact.requestMillions)}
@@ -720,17 +715,6 @@ function EvidenceTab({ d }: { d: NonNullable<ReturnType<typeof useBillDossier>['
           </div>
         ))
       )}
-    </section>
-  );
-}
-
-function PlaceholderTab({ label, note }: { label: string; note: string }) {
-  return (
-    <section>
-      <h3 className="lw-sect__title">{label}</h3>
-      <p className="lw-state__body">
-        {note} This surface reads the same dossier response; the detailed view is on the full page.
-      </p>
     </section>
   );
 }

@@ -159,6 +159,17 @@ afterEach(() => {
 });
 
 describe('Feed rows — federal bill changes are labelled BILL, never DEADLINE', () => {
+  it('renders the current bill status without repeating an obsolete stage in hearing reference prose', async () => {
+    renderFeed([billItem('current-reference', {
+      sourceType: 'combined', title: 'Tracked bill referenced', currentBillStatus: { label: 'Passed House', asOf: '2026-07-22' },
+      evidence: { bill: { billId: '119-hr-8800', displayNum: 'H.R. 8800', stage: 'introduced', title: null, url: null, actionText: null, actionDate: null } },
+      whyItMatters: 'H.R. 8800 (introduced) — a bill you track — was referenced in a hearing.',
+    })]);
+    expect(await screen.findByText(/Current status: Passed House/)).toBeTruthy();
+    expect(screen.getByText('H.R. 8800 — a bill you track — was referenced in a hearing.')).toBeTruthy();
+    expect(screen.queryByText(/\(introduced\)/)).toBeNull();
+    expect(bandPillFor('Tracked bill referenced')).toHaveTextContent('HEARING');
+  });
   it('labels bill_text_updated and bill_new_match rows as BILL with the neutral tone', async () => {
     renderFeed([TEXT_UPDATED, NEW_MATCH]);
     await screen.findByText('H.R.2102: Bill text updated');

@@ -479,6 +479,16 @@ export class SourceDataRepository {
     return rows[0] ?? null;
   }
 
+  /** Current public status for one bounded feed page; alert-time evidence stays immutable. */
+  async getFeedBillStatuses(ids: string[]) {
+    const keys = [...new Set(ids)].filter((id) => /^\d+-[a-z]+-\d+$/i.test(id)).slice(0, 100);
+    if (!keys.length) return [];
+    return this.prisma.$queryRawUnsafe<Array<{
+      id: string; status: string | null; statusAt: Date | null; originChamber: string | null;
+    }>>(`SELECT id,status,status_at AS "statusAt",origin_chamber AS "originChamber"
+         FROM congress_bill WHERE id=ANY($1::text[])`, keys);
+  }
+
   /** Chamber-level roll-call votes ON the bill itself, newest-first (index [bill_id]). */
   async getBillVotes(billId: string, limit?: number): Promise<SourceBillVote[]> {
     const cap = typeof limit === 'number' && limit > 0 ? Math.min(Math.floor(limit), 200) : null;

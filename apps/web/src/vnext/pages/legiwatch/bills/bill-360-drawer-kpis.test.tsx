@@ -129,6 +129,18 @@ beforeEach(() => {
 });
 
 afterEach(() => cleanup());
+it('opens real dossier provisions and honest impact coverage in the drawer', async () => {
+  const dossier = hr8800();
+  dossier.funding.provisions = [{ sec: '101', title: 'Published requirement', summary: 'A source-backed provision summary.', origin: 'official', source: 'Committee report' }];
+  apiGet.mockImplementation(async (url: string) => ({ data: url.includes('/dossier') ? dossier : { hearings: [] } }));
+  renderDrawer();
+  fireEvent.click(await screen.findByRole('tab', { name: 'Provisions' }));
+  expect(screen.getByText('Published requirement')).toBeTruthy();
+  expect(screen.getByText('A source-backed provision summary.')).toBeTruthy();
+  fireEvent.click(screen.getByRole('tab', { name: 'Impact' }));
+  expect(screen.getByText(/A client-specific impact assessment is not available here/)).toBeTruthy();
+  expect(screen.queryByText(/full dossier contract/)).toBeNull();
+});
 
 function renderDrawer() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });

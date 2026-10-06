@@ -162,6 +162,7 @@ export interface CommitteeFollowInput {
 }
 
 export interface ArchiveSearchInput {
+  temporalScope?: 'past' | 'all';
   q?: string;
   from?: string;
   to?: string;
@@ -728,8 +729,9 @@ export class LegiWatchWave1Service {
     // The archive is the DURABLE HISTORICAL corpus: proceedings that already
     // happened, or whose capture reached a terminal state. A scheduled future
     // hearing belongs to the calendar, not here.
-    const baseWhere = `
+    const baseWhere = input.temporalScope === 'all' ? `h.visibility = 'public'` : `
       h.visibility = 'public'
+      AND (h.starts_at < now() OR (h.starts_at IS NULL AND h.date < (now() AT TIME ZONE 'America/New_York')::date))
       AND (
         h.event_status IN ('completed', 'canceled')
         OR c.domain_status IN ('COMPLETE','COMPLETE_WITH_GAPS','FAILED','CANCELED','BLOCKED')

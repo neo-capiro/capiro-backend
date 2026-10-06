@@ -642,6 +642,7 @@ export function useServerCaptureSessions(
 // ── W1-3 · archive search ──────────────────────────────────────────────────
 
 export interface ArchiveSearchParams {
+  temporalScope?: 'past' | 'all';
   q?: string;
   from?: string;
   to?: string;

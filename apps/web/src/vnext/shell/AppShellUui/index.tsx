@@ -21,6 +21,7 @@ import { FUNDING_OPPORTUNITIES_FEATURE } from '../../pages/funding-opportunities
 import { opportunityQueryKeys } from '../../pages/funding-opportunities/opportunity-query-cache.js';
 import type { OpportunitySourceHealthResponseV2 } from '@capiro/shared';
 import type { VNextRouteDefinition } from '../../adapters/routes/routeManifest.js';
+import { navigationRouteMatches } from '../../adapters/routes/navigation-match.js';
 import { MeriLauncher } from '../MeriLauncher/index.js';
 import { QuickNote } from '../QuickNote/index.js';
 import { NotificationBell, ProfileMenu } from '../TopBar/index.js';
@@ -95,7 +96,7 @@ function NavFlyout({
   const location = useLocation();
   const children = route.children ?? [];
   const hasCurrentChild = children.some(
-    (child) => child.path && location.pathname.startsWith(child.path),
+    (child) => navigationRouteMatches(child, location.pathname),
   );
 
   // Pinned open while on a family route; otherwise the click toggles the
@@ -123,7 +124,8 @@ function NavFlyout({
           role="menuitem"
           to={child.path}
           end={end}
-          className="uui-nav-nested-item"
+          className={({ isActive }) => `uui-nav-nested-item${isActive || navigationRouteMatches(child, location.pathname) ? ' active' : ''}`}
+          aria-current={navigationRouteMatches(child, location.pathname) ? 'page' : undefined}
           onClick={close}
         >
           <span className="uui-nav-nested-item__label">{child.label}</span>
@@ -217,11 +219,11 @@ export function topbarSectionLabel(
   routes: readonly VNextRouteDefinition[],
 ): string {
   const current = routes.find((route) => {
-    if (route.path && (pathname === route.path || pathname.startsWith(`${route.path}/`))) {
+    if (navigationRouteMatches(route, pathname)) {
       return true;
     }
     return route.children?.some(
-      (child) => child.path && (pathname === child.path || pathname.startsWith(`${child.path}/`)),
+      (child) => navigationRouteMatches(child, pathname),
     );
   });
   if (!current) return 'Dashboard';

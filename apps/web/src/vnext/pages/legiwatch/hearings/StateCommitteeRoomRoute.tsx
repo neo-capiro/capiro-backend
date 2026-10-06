@@ -15,6 +15,7 @@ import {
   type SourceHealth,
 } from '../lib/source-health.js';
 import { LwStateUnavailable } from '../states/SystemStates.js';
+import { hearingEventLabel } from '../lib/hearing-presentation.js';
 
 type SourceLink = { url?: string | null; note?: string | null };
 interface StateCommitteeBody {
@@ -148,7 +149,7 @@ interface StateCommitteeDetail {
   recentEvents?: CalendarWindow;
   events?: CalendarWindow;
   sourceCoverage?: SourceCoverage[];
-  referredBills?: { rows: ReferredBill[]; total: number };
+  referredBills?: { rows: ReferredBill[]; total: number; page?: number; pageSize?: number };
   directoryProfile?: DirectoryProfile | null;
   updates?: {
     rows: StateCommitteeUpdate[];
@@ -265,12 +266,14 @@ export function StateCommitteeRoomRoute() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const clientId = searchParams.get('client') ?? '';
+  const requestedReferralPage = Number(searchParams.get('referralPage') ?? 1);
+  const referralPage = Number.isSafeInteger(requestedReferralPage) && requestedReferralPage > 0 ? Math.min(requestedReferralPage, 100000) : 1;
   const sectionParam = searchParams.get('section') ?? searchParams.get('tab');
   const section: Section = SECTIONS.some((item) => item.id === sectionParam)
     ? (sectionParam as Section)
     : 'overview';
   const detail = useQuery<StateCommitteeDetail, Error>({
-    queryKey: ['lw-vnext', 'state-committee-room', apiScope, stateCommitteeId],
+    queryKey: ['lw-vnext', 'state-committee-room', apiScope, stateCommitteeId, referralPage],
     enabled: Boolean(stateCommitteeId),
     retry: false,
     staleTime: 60_000,
@@ -278,6 +281,7 @@ export function StateCommitteeRoomRoute() {
       (
         await api.get<StateCommitteeDetail>(
           `/api/legiwatch/live-hearings/state-committees/${encodeURIComponent(stateCommitteeId)}`,
+          { params: { referralPage } },
         )
       ).data,
   });
@@ -489,6 +493,12 @@ export function StateCommitteeRoomRoute() {
               events={records}
               referred={data.referredBills}
               clientQuery={clientQuery}
+              onReferralPage={(page) => {
+                const params = new URLSearchParams(searchParams);
+                params.set('referralPage', String(page));
+                params.set('section', 'records');
+                navigate({ search: `?${params}` });
+              }}
             />
           ) : null}
           {section === 'overview' || section === 'sources' ? (
@@ -756,7 +766,7 @@ function ProceedingGroup({
                 {[
                   event.time,
                   event.eventType ? titleCase(event.eventType) : null,
-                  titleCase(event.eventStatus),
+                  hearingEventLabel(event.eventStatus, event.startsAt, event.date),
                   event.location,
                   event.coverageStatus && event.coverageStatus !== 'not_covered'
                     ? titleCase(event.coverageStatus)
@@ -839,10 +849,12 @@ function PublishedRecords({
   events,
   referred,
   clientQuery,
+  onReferralPage,
 }: {
   events: StateProceeding[];
-  referred?: { rows: ReferredBill[]; total: number };
+  referred?: { rows: ReferredBill[]; total: number; page?: number; pageSize?: number };
   clientQuery: string;
+  onReferralPage: (page: number) => void;
 }) {
   const rows = events.flatMap((event) => [
     ...asObjects(event.agenda).map((item) => ({ event, item, kind: 'Agenda item' })),
@@ -941,13 +953,13 @@ function PublishedRecords({
                 ))}
               </div>
             ) : (
-              <p className="lwcr-claim">No current LegiScan referrals are linked.</p>
+              <p className="lwcr-claim">{referred.total > 0 ? 'No bills on this page. Use Previous bills to return to the referral list.' : 'No current LegiScan referrals are linked.'}</p>
             )}
-            {referred.total > referred.rows.length ? (
-              <p className="lwcr-provenance">
-                Showing {referred.rows.length} of {referred.total} bills with current or recorded referrals.
-              </p>
-            ) : null}
+            <nav className="lw-pagination" aria-label="Referred bill pages" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+              <LwButton disabled={(referred.page ?? 1) <= 1} onClick={() => onReferralPage((referred.page ?? 1) - 1)}>Previous bills</LwButton>
+              <span role="status">{referred.rows.length ? `Showing ${((referred.page ?? 1) - 1) * (referred.pageSize ?? 25) + 1}–${((referred.page ?? 1) - 1) * (referred.pageSize ?? 25) + referred.rows.length} of ${referred.total} bills` : `${referred.total} referred bills · page ${referred.page ?? 1} is empty`}</span>
+              <LwButton disabled={(referred.page ?? 1) * (referred.pageSize ?? 25) >= referred.total} onClick={() => onReferralPage((referred.page ?? 1) + 1)}>Next bills</LwButton>
+            </nav>
           </>
         ) : null}
       </div>

@@ -884,9 +884,11 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
     });
 
     it('reports a no-transcript hearing honestly rather than omitting it', async () => {
-      // A cancelled proceeding is durable history with no transcript.
+      // A cancelled past proceeding is durable history with no transcript.
+      // H_NOSTREAM starts in the future in the shared calendar fixture.
       await prisma.$executeRawUnsafe(
-        `UPDATE committee_hearing SET event_status = 'canceled' WHERE id = $1`,
+        `UPDATE committee_hearing SET event_status = 'canceled',
+           starts_at = now() - interval '1 day', date = CURRENT_DATE - 1 WHERE id = $1`,
         H_NOSTREAM,
       );
       const result = (await wave1.searchArchive(ctxA, {})) as {
@@ -903,9 +905,41 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
       expect(result.rows.map((r) => r.id)).not.toContain(H_ELIGIBLE);
     });
 
+    it('explicit all-time global search finds upcoming public hearings but never private proceedings', async () => {
+      const all = await wave1.searchArchive(ctxA, { temporalScope: 'all' }) as { rows: Array<{ id: string }>; total: number };
+      expect(all.rows.map((row) => row.id)).toContain(H_ELIGIBLE);
+      expect(all.rows.map((row) => row.id)).not.toContain(H_CLOSED);
+      const match = await wave1.searchArchive(ctxA, { temporalScope: 'all', q: 'Acquisition reform' }) as { rows: Array<{ id: string }> };
+      expect(match.rows.map((row) => row.id)).toEqual([H_ELIGIBLE]);
+    });
+
+    it('excludes future blocked captures from rows, facets, and corpus totals while retaining past blocked outcomes', async () => {
+      const before = await wave1.searchArchive(ctxA, {}) as { rows: Array<{ id: string }>; total: number; corpusTotal: number; facets: unknown };
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO public_hearing_capture (id, hearing_id, status, domain_status, scheduled_start)
+         VALUES ('lw-w1-blocked-future', $1, 'failed', 'BLOCKED', now() + interval '2 days')`, H_ELIGIBLE,
+      );
+      const future = await wave1.searchArchive(ctxA, {}) as { rows: Array<{ id: string }>; total: number; corpusTotal: number; facets: unknown };
+      expect(future.rows.map((row) => row.id)).not.toContain(H_ELIGIBLE);
+      expect(future.total).toBe(before.total);
+      expect(future.corpusTotal).toBe(before.corpusTotal);
+      expect(future.facets).toEqual(before.facets);
+      await prisma.$executeRawUnsafe(`UPDATE committee_hearing SET starts_at = now() - interval '1 day', date = CURRENT_DATE - 1 WHERE id = $1`, H_ELIGIBLE);
+      const past = await wave1.searchArchive(ctxA, {}) as { rows: Array<{ id: string }>; total: number; corpusTotal: number; facets: unknown };
+      expect(past.rows.map((row) => row.id)).toContain(H_ELIGIBLE);
+      expect(past.total).toBe(before.total + 1);
+    });
+
+    it('keeps date-only future and current-day outcomes out of the historical archive', async () => {
+      await prisma.$executeRawUnsafe(`UPDATE committee_hearing SET event_status = 'completed', date = (now() AT TIME ZONE 'America/New_York')::date WHERE id = $1`, H_DATEONLY);
+      expect((await wave1.searchArchive(ctxA, {}) as { rows: Array<{ id: string }>; total: number; corpusTotal: number; facets: unknown }).rows.map((row) => row.id)).not.toContain(H_DATEONLY);
+      await prisma.$executeRawUnsafe(`UPDATE committee_hearing SET date = (now() AT TIME ZONE 'America/New_York')::date - 1 WHERE id = $1`, H_DATEONLY);
+      expect((await wave1.searchArchive(ctxA, {}) as { rows: Array<{ id: string }>; total: number; corpusTotal: number; facets: unknown }).rows.map((row) => row.id)).toContain(H_DATEONLY);
+    });
+
     it('never returns a non-public proceeding', async () => {
       await prisma.$executeRawUnsafe(
-        `UPDATE committee_hearing SET event_status = 'completed' WHERE id = $1`,
+        `UPDATE committee_hearing SET event_status = 'completed', starts_at = CASE WHEN starts_at IS NULL THEN NULL ELSE now() - interval '1 day' END, date = CURRENT_DATE - 1 WHERE id = $1`,
         H_CLOSED,
       );
       const result = (await wave1.searchArchive(ctxA, {})) as { rows: Array<{ id: string }> };
@@ -914,7 +948,7 @@ describeDb('LegiWatch Wave 1 (real Postgres)', () => {
 
     it('paginates server-side and reports hasMore honestly', async () => {
       await prisma.$executeRawUnsafe(
-        `UPDATE committee_hearing SET event_status = 'completed' WHERE id IN ($1, $2)`,
+        `UPDATE committee_hearing SET event_status = 'completed', starts_at = CASE WHEN starts_at IS NULL THEN NULL ELSE now() - interval '1 day' END, date = CURRENT_DATE - 1 WHERE id IN ($1, $2)`,
         H_NOSTREAM,
         H_DATEONLY,
       );

@@ -458,7 +458,7 @@ describe('PR B §6 — every entry surface reaches Hearing Detail (real navigati
     const { location } = renderRoutes(MemoryRouter, '/legiwatch/hearings');
     fireEvent.click(await screen.findByRole('tab', { name: 'Recordings' }));
     // The history panel renders after the recordings tab loads; scope to its label.
-    await screen.findByText('Recent session history');
+    await screen.findByText(/Recent session history/);
     const hrow = await screen.findByRole('button', { name: /Open Shipbuilding industrial base oversight/i });
     expect(hrow).toBeTruthy();
 
@@ -716,7 +716,7 @@ describe('LW-QA-018 — one hearing, one rendering, on every surface', () => {
     renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
     expect(await screen.findByRole('tab', { name: /^Proceedings\s*10$/ })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: /^Proceedings\s*0$/ })).toBeNull();
-    expect(await roomRowMeta()).toBe('Wed, Sep 2 · 10:00 AM ET · COMPLETED');
+    expect(await roomRowMeta()).toBe('Wed, Sep 2, 2026 · 10:00 AM ET · Completed');
   });
 
   it('Committee Room renders the same day, time and status as Hearing Detail for the SAME wire row', async () => {
@@ -725,17 +725,17 @@ describe('LW-QA-018 — one hearing, one rendering, on every surface', () => {
 
     // The real day and time, not the blank-date / "Time not announced" pair an
     // unnormalized row produced.
-    expect(roomMeta).toBe('Wed, Sep 2 · 10:00 AM ET · COMPLETED');
+    expect(roomMeta).toBe('Wed, Sep 2, 2026 · 10:00 AM ET · Completed');
 
     cleanup();
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
     await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
     const detailWhen = (document.querySelector('.lw-detail__when')?.textContent ?? '').trim();
     const detailPills = [...document.querySelectorAll('.lw-pill')].map((p) => (p.textContent ?? '').trim());
-    expect(`${detailWhen} · ${detailPills.find((p) => p === 'COMPLETED')}`).toBe(roomMeta);
+    expect(`${detailWhen} · ${detailPills.find((p) => p === 'Completed')}`).toBe(roomMeta);
   });
 
-  it('renders the server eventStatus verbatim — a past hearing still marked scheduled is not relabelled COMPLETED', async () => {
+  it('labels a past scheduled source record as outcome unconfirmed rather than completed', async () => {
     apiGet.mockImplementation((url: string) => {
       if (url === '/api/legiwatch/live-hearings/committees/hs00-lwdt') {
         return Promise.resolve({ data: roomWith({ recentEvents: [calRow({ eventStatus: 'scheduled' })] }) });
@@ -745,7 +745,7 @@ describe('LW-QA-018 — one hearing, one rendering, on every surface', () => {
       return Promise.resolve(hit);
     });
     renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
-    expect(await roomRowMeta()).toBe('Wed, Sep 2 · 10:00 AM ET · SCHEDULED');
+    expect(await roomRowMeta()).toBe('Wed, Sep 2, 2026 · 10:00 AM ET · Past · outcome unconfirmed');
     // The bucket is a date window, so its heading must not assert completion.
     expect(screen.queryByLabelText('Recent & completed hearings')).toBeNull();
   });
@@ -760,7 +760,7 @@ describe('LW-QA-018 — one hearing, one rendering, on every surface', () => {
       return Promise.resolve(hit);
     });
     renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
-    expect(await roomRowMeta()).toBe('Wed, Sep 2 · Time not announced · COMPLETED');
+    expect(await roomRowMeta()).toBe('Wed, Sep 2, 2026 · Time not announced · Completed');
   });
 });
 
@@ -947,8 +947,8 @@ describe('session 53 — tab lifecycle regressions', () => {
   it('every tab control exposes an accessible selected state with the real labels', async () => {
     renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001');
     await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
-    expect(screen.getByText(/Follow sends updates about this hearing/i)).toBeTruthy();
-    expect(screen.getByText(/Record hearing asks Capiro to capture and transcribe it/i)).toBeTruthy();
+    expect(screen.getByText(/Follow sends updates/i)).toBeTruthy();
+    expect(screen.getByText(/Automatic recording runs on the server when the source permits it/i)).toBeTruthy();
     const labels = ['Overview', 'Live & Capture', 'Transcript', 'Intelligence', 'Client Relevance', 'Sources & Documents'];
     for (const name of labels) {
       const tab = screen.getByRole('tab', { name });
@@ -1211,5 +1211,55 @@ describe('session 53 — tab lifecycle regressions', () => {
     await screen.findByRole('heading', { name: /Shipbuilding industrial base oversight/i });
     fireEvent.click(screen.getByText('← Back to LegiWatch'));
     await waitFor(() => expect(location.current.pathname).toBe(returnTo));
+  });
+});
+
+describe('UI audit hearing evidence and recording affordances', () => {
+  it('does not offer transcript playback when the recording manifest contains no retained audio', async () => {
+    apiGet.mockImplementation(async (url) => {
+      if (url.startsWith('/intel-api/public-hearings/') && url.endsWith('/audio')) return { data: { epochs: [] } };
+      const hit = wireWithRetainedAudio(url);
+      if (!hit) throw new Error(`unexpected GET ${url}`);
+      return hit;
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001?detailTab=transcript');
+    const transcript = await screen.findByLabelText('Transcript');
+    await within(transcript).findByText('The committee will come to order.');
+    await waitFor(() => expect(apiGet.mock.calls.some(([url]) => url.endsWith('/audio'))).toBe(true));
+    expect(within(transcript).queryByRole('button', { name: 'Play audio' })).toBeNull();
+  });
+
+  it('exposes collected source documents and labels the timeline observation date honestly', async () => {
+    apiGet.mockImplementation(async (url) => {
+      if (url === '/api/legiwatch/live-hearings/events/cm-119-9001') return { data: { ...DETAIL_EVENT,
+        officialPageUrl: 'https://armed-services.senate.gov/hearings/source',
+        documents: [{ id: 'testimony', title: 'Witness prepared testimony', sourceUrl: 'https://www.senate.gov/testimony.pdf', documentType: 'testimony' }],
+        agenda: [{ key: 'agenda', position: 0, kind: 'agenda', title: 'Published agenda', sourceUrl: 'https://www.senate.gov/agenda.pdf' }],
+      } };
+      if (url.endsWith('/updates')) return { data: { updates: [{ id: 'observed', title: 'Hearing announced', firstSeenAt: '2026-10-05T10:00:00Z' }] } };
+      const hit = wireGet(url); if (!hit) throw new Error(`unexpected GET ${url}`); return hit;
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001?detailTab=sources-documents');
+    const sources = await screen.findByLabelText('Sources and documents');
+    expect((await within(sources).findByRole('link', { name: 'Witness prepared testimony' })).getAttribute('href')).toBe('https://www.senate.gov/testimony.pdf');
+    expect(within(sources).getByRole('link', { name: 'Published agenda' })).toBeTruthy();
+    expect(await within(sources).findByText(/2026 · Observed/)).toBeTruthy();
+  });
+
+  it('shows attempt dates and lets the user exclude explicitly labeled QA sessions', async () => {
+    apiGet.mockImplementation(async (url) => {
+      if (url.startsWith('/intel-api/hearings/history?')) return { data: { items: [
+        { ...HISTORY_SESSION, startedAt: '2025-02-09T14:00:00Z', audioSource: 'browser_tab', recordingPolicy: 'transcript_only' },
+        { ...HISTORY_SESSION, id: 'qa-attempt', title: 'QA test recording', audioSource: 'browser_tab' },
+      ], total: 2, hasMore: false, nextCursor: null } };
+      const hit = wireGet(url); if (!hit) throw new Error(`unexpected GET ${url}`); return hit;
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/hearings?sub=sessions');
+    await screen.findByRole('button', { name: 'Open QA test recording' });
+    expect(screen.getByText(/Feb 9, 2025/)).toBeTruthy();
+    expect(screen.getByText(/Transcript only; audio not retained/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Hide titles marked test or QA' }));
+    expect(screen.queryByRole('button', { name: 'Open QA test recording' })).toBeNull();
+    expect(screen.getByRole('button', { name: `Open ${HISTORY_SESSION.title}` })).toBeTruthy();
   });
 });

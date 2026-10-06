@@ -84,7 +84,7 @@ export interface CommitteeSiteAdapterOptions {
 
 export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
   readonly adapterKey = 'committee-site';
-  readonly parserVersion = 'committee-site/2026-10-06';
+  readonly parserVersion = 'committee-site/2026-10-06-press-index';
   updateErrors: string[] = [];
   // DiscoveryJobsService and phase9 create an adapter for every invocation;
   // cached responses and a publisher429 circuit never survive into a new run.
@@ -145,7 +145,7 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
     // A registered index is itself the bounded publication source. Navigation
     // to sibling indexes does not expand its scope; the landing-page source
     // still discovers and reports those independent paths.
-    const newsIndexes = registeredNewsIndex
+    const linkedNewsIndexes = registeredNewsIndex
       ? []
       : [
           ...new Set(
@@ -159,14 +159,29 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
               )
               .map((a) => a.href),
           ),
-        ]
-          .filter((url) => url !== source.sourceUrl)
-          .slice(0, 4);
+        ].filter((url) => url !== source.sourceUrl);
+    const replacement = foreignAffairsPressIndexReplacement(source, linkedNewsIndexes);
+    // Keep the verified current index inside the existing request budget even
+    // when stale footer/navigation links precede it. Still check the obsolete
+    // path: a working replacement does not erase its failure from coverage.
+    const newsIndexes = (
+      replacement
+        ? [replacement.current, replacement.obsolete, ...linkedNewsIndexes]
+        : linkedNewsIndexes
+    )
+      .filter((url, index, all) => all.indexOf(url) === index)
+      .slice(0, 4);
+    let replacementAvailable = false;
     for (const url of newsIndexes) {
       const page = await this.fetchPage(url, { accept: 'text/html' });
+      if (url === replacement?.current) replacementAvailable = page.ok && Boolean(page.body);
       if (!page.ok) {
+        const recovery =
+          page.status === 404 && url === replacement?.obsolete && replacementAvailable
+            ? `; current official index available: ${replacement.current} (original failure retained)`
+            : '';
         this.updateErrors.push(
-          `committee news index fetch failed: ${url}: ${page.error ?? `HTTP ${page.status}`}`,
+          `committee news index fetch failed: ${url}: ${page.error ?? `HTTP ${page.status}`}${recovery}`,
         );
         continue;
       }
@@ -335,6 +350,24 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
       observedEvents: res.body ? extractAnchors(res.body, source.sourceUrl).length : null,
     };
   }
+}
+
+/** Verified 2026-10-06 migration. Both exact URLs must still be published on
+ * the official House Foreign Affairs page; never infer another site's path,
+ * replace a registered source, or treat an access denial as a migration.
+ */
+function foreignAffairsPressIndexReplacement(
+  source: SourceDescriptor,
+  linkedIndexes: string[],
+): { obsolete: string; current: string } | null {
+  const origin = 'https://foreignaffairs.house.gov';
+  if (source.committeeSystemCode !== 'hsfa00' || new URL(source.sourceUrl).origin !== origin)
+    return null;
+  const obsolete = `${origin}/media/press-releases`;
+  const current = `${origin}/news/press-releases`;
+  return linkedIndexes.includes(obsolete) && linkedIndexes.includes(current)
+    ? { obsolete, current }
+    : null;
 }
 
 function pushUnique(

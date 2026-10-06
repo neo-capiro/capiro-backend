@@ -52,7 +52,7 @@ export function AnalyticsTab({ scope }: { scope: string }) {
   return (
     <div className="lw-body lw-analytics">
       <p className="lw-state__body" style={{ maxWidth: 'none', marginTop: 0 }}>
-        Trends for {scope === 'all' ? 'all accessible clients' : 'the selected client'} · server totals for the last 30 days.
+        Trends for {!scope || scope === 'all' ? 'all accessible clients' : 'the selected client'} · server totals for the last 30 days.
       </p>
       <div className="lw-tiles">
         <Tile label="Signals in 30 days" value={s.signalsTotal} denom={`across ${s.sourceFamiliesInvolved} source famil${s.sourceFamiliesInvolved === 1 ? 'y' : 'ies'}`} />

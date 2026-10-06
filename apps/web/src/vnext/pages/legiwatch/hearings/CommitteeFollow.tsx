@@ -19,6 +19,7 @@ import type { Client } from '../../../../pages/clients/clientTypes.js';
 import { LwModal } from '../overlays/LwModal.js';
 import { LwButton, LwPill, LwSkeleton } from '../lib/primitives.js';
 import { LwStateUnavailable } from '../states/SystemStates.js';
+import { formatHearingDay, parseHearingMoment } from '../lib/hearing-datetime.js';
 import {
   useCommitteeFollow,
   useCommitteeIntelligenceHistory,
@@ -307,6 +308,15 @@ export function CommitteeIntelligenceHistorySection({
     cursor,
     pageSize: 20,
   });
+  const displayedRows = useMemo(() => {
+    const seen = new Set<string>();
+    return (history.data?.rows ?? []).filter((row) => {
+      const key = `${row.hearingId}|${row.insightType}|${row.segmentId ?? row.startMs ?? row.id}|${(row.evidenceText || row.summary).replace(/\s+/g, ' ').trim().toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [history.data?.rows]);
 
   return (
     <section className="lw-card" style={{ padding: 18 }} aria-label="Intelligence history">
@@ -316,6 +326,12 @@ export function CommitteeIntelligenceHistorySection({
           {history.data ? `${history.data.total} findings` : ''}
         </span>
       </div>
+      <p className="lw-card__meta">
+        {includeSubcommittees
+          ? 'Showing this committee and its subcommittees.'
+          : 'Showing this committee only. Include subcommittees to see their findings.'}
+        {' '}Automatic findings should be reviewed against the hearing evidence.
+      </p>
 
       <div
         role="group"
@@ -458,26 +474,32 @@ export function CommitteeIntelligenceHistorySection({
               gap: 12,
             }}
           >
-            {history.data.rows.map((row) => (
+            {displayedRows.map((row) => {
+              const fragment = row.summary.trim().split(/\s+/).length < 5;
+              const target = new URL(row.detailPath, 'https://capiro.invalid');
+              if (clientId) target.searchParams.set('client', clientId);
+              return (
               <li key={row.id} style={{ borderLeft: '2px solid var(--lw-brand-dot)', paddingLeft: 10 }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <LwPill tone="brand" size="22">
                     {row.insightType.replace(/_/g, ' ')}
                   </LwPill>
-                  <strong style={{ fontSize: 14 }}>{row.title}</strong>
+                  {fragment ? <LwPill tone="warning" size="22">Needs context</LwPill> : null}
+                  <strong style={{ fontSize: 14 }}>{fragment ? 'Transcript fragment — review in context' : row.title}</strong>
                 </div>
-                <p style={{ margin: '4px 0 0', fontSize: 13 }}>{row.summary}</p>
+                <p style={{ margin: '4px 0 0', fontSize: 13 }}>{fragment ? 'This automatic extraction is too short to stand alone. Review the surrounding testimony before relying on it.' : row.summary}</p>
+                {row.evidenceText ? <blockquote className="lw-card__meta" style={{ margin: '8px 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{row.evidenceText}</blockquote> : null}
                 <button
                   type="button"
                   className="lw-backlink"
                   style={{ padding: 0, marginTop: 4 }}
-                  onClick={() => navigate(row.detailPath)}
+                  onClick={() => navigate(`${target.pathname}${target.search}${target.hash}`)}
                 >
-                  {row.hearingTitle}
-                  {row.hearingDate ? ` · ${row.hearingDate}` : ''} →
+                  Review hearing evidence · {row.hearingTitle}
+                  {row.hearingDate ? ` · ${formatHearingDay(parseHearingMoment({ date: row.hearingDate }), true)}` : ''} →
                 </button>
               </li>
-            ))}
+            );})}
           </ul>
 
           <nav

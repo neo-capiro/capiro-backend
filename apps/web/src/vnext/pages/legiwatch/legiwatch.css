@@ -72,6 +72,17 @@
      unconditionally, so this module owns its gutter at every width; the
      779px block below restates the mobile figure as 16px instead of 0. */
   --lw-gutter: 24px;
+  /* Shared Capiro controls in Research, Watchlists and Reports use this same
+     control recipe as the native LegiWatch surfaces. */
+  --capiro-radius-control: 8px;
+  --capiro-control-height-compact: 36px;
+  --capiro-control-height-standard: 42px;
+  --capiro-control-min-width-button: 0px;
+  --capiro-color-action-secondary-default: #ffffff;
+  --capiro-color-border-default: #D0D5DD;
+  --capiro-color-text-primary: #101828;
+  --capiro-color-text-secondary: #475467;
+  --capiro-color-text-accent: #294E68;
 
   /* A.1 type */
   --lw-sans: Inter, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
@@ -209,7 +220,8 @@
 .capiro-vnext-root .lw .lw-pill--dark .lw-pill__dot { background: var(--lw-dark-dot); }
 
 /* ---- button recipe (A.3) --------------------------------------------------- */
-.capiro-vnext-root .lw .lw-btn {
+.capiro-vnext-root .lw .lw-btn,
+.capiro-vnext-root .lw button:not([class]) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -235,6 +247,20 @@
 }
 .capiro-vnext-root .lw .lw-btn--primary:hover { filter: brightness(1.08); }
 .capiro-vnext-root .lw .lw-btn:disabled { opacity: .55; cursor: not-allowed; }
+.capiro-vnext-root .lw button:not([class]):disabled { opacity: .55; cursor: not-allowed; }
+.capiro-vnext-root .lw :is(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--lw-focus); outline-offset: 3px; }
+.capiro-vnext-root .lw :where(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea):not([class]) {
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--lw-control);
+  border-radius: 8px;
+  background: var(--lw-surface);
+  color: var(--lw-ink);
+  font: inherit;
+}
+/* Search fields already have a shared outer control; keep the input borderless. */
+.capiro-vnext-root .lw .lw-search input { border: 0; background: transparent; padding: 0; }
 .capiro-vnext-root .lw .lw-btn--40 { height: 40px; }
 .capiro-vnext-root .lw .lw-btn--42 { height: 42px; }
 .capiro-vnext-root .lw .lw-btn--icon { width: 42px; padding: 0; color: var(--lw-meta); }
@@ -415,6 +441,9 @@
   text-transform: uppercase;
   color: var(--lw-meta);
 }
+.capiro-vnext-root .lw .lw-lens__menu { max-height: calc(100dvh - 160px); overflow-y: auto; }
+.capiro-vnext-root .lw .lw-client-search { width: 100%; min-height: 36px; border: 1px solid var(--lw-control); border-radius: 8px; padding: 8px 10px; color: var(--lw-ink); background: var(--lw-surface); font: inherit; }
+.capiro-vnext-root .lw .lw-client-test-filter { display: flex; align-items: center; gap: 7px; padding: 10px; color: var(--lw-meta); font-size: 12px; }
 .capiro-vnext-root .lw .lw-lens__opt {
   display: flex;
   align-items: center;
@@ -469,7 +498,7 @@
   border-bottom: 1px solid var(--lw-line);
   background: var(--lw-surface);
   min-width: 0;
-  overflow-x: auto;
+  flex-wrap: wrap;
   overscroll-behavior-x: contain;
 }
 .capiro-vnext-root .lw .lw-tab {
@@ -503,8 +532,9 @@
   align-items: center;
   /* Keep tab groups at their content width. The strip can scroll when text is
      enlarged; shrinking either group makes the labels paint over each other. */
-  flex: 0 0 auto;
-  min-width: max-content;
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 .capiro-vnext-root .lw .lw-tabs__secondary { margin-left: auto; gap: 2px; }
 .capiro-vnext-root .lw .lw-tab--secondary { font-size: 12px; color: var(--lw-meta); }
@@ -532,7 +562,7 @@
     flex: 0 0 100%;
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 42px 42px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
     gap: 8px;
     align-items: stretch;
   }
@@ -547,8 +577,10 @@
     gap: 0;
   }
   .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action span { display: none; }
-  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action--search { grid-column: 2; }
-  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action--settings { grid-column: 3; }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-shortcut { min-width: 0; padding: 0 8px; grid-column: 1 / 3; grid-row: 2; }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action--search { grid-column: 1 / -1; grid-row: 3; width: 100%; gap: 7px; }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action--search span { display: inline; }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action--settings { grid-column: 3; grid-row: 2; }
   .capiro-vnext-root .lw .lw-pagehead__actions .lw-lens__value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .capiro-vnext-root .lw .lw-mobile-nav { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; padding: 10px var(--lw-gutter); border-bottom: 1px solid var(--lw-line); background: var(--lw-surface); }
   .capiro-vnext-root .lw .lw-mobile-nav__field { display: grid; gap: 4px; min-width: 0; }
@@ -1114,8 +1146,8 @@
 }
 @media (max-width: 1179px) { .capiro-vnext-root .lw .lw-feed-cols { grid-template-columns: minmax(0, 1fr); } }
 
-.capiro-vnext-root .lw .lw-rail { position: sticky; top: 96px; }
-@media (max-width: 1179px) { .capiro-vnext-root .lw .lw-rail { position: static; } }
+.capiro-vnext-root .lw .lw-rail { position: sticky; top: 96px; max-height: calc(100dvh - 112px); overflow-y: auto; scrollbar-gutter: stable; }
+@media (max-width: 1179px) { .capiro-vnext-root .lw .lw-rail { position: static; max-height: none; overflow: visible; } }
 
 /* packet rows — each alert is its own rounded white card with vertical gaps
    (reference feed.png), not a divider-separated list in one clipped wrapper. */
@@ -2616,12 +2648,14 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  height: 42px;
+  min-height: 42px;
+  height: auto;
+  flex-wrap: wrap;
   background: var(--lw-surface);
   border-bottom: 1px solid var(--lw-line);
   margin: 0 -24px 24px;
   padding: 0 24px;
-  overflow-x: auto;
+  overflow: visible;
 }
 /* .lw-detail__tabs now sits one level deeper, inside .lw-detail__main-col —
    its right-edge bleed only needs to reach the 16px column gap, not the full

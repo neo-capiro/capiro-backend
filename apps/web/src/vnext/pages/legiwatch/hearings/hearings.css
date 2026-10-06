@@ -208,3 +208,11 @@
   .capiro-vnext-root .lw .lw-controls.lw-hearings-date-controls > .lw-hearings-date-controls__reminder,
   .capiro-vnext-root .lw .lw-controls.lw-hearings-date-controls > .lw-btn.lw-hearings-date-controls__export { display: none; }
 }
+
+/* Keep source titles complete and expandable without stretching archive cards. */
+.lw-hearing-title { display: block; min-width: 0; }
+.lw-hearing-title__text { display: block; overflow-wrap: anywhere; }
+.lw-hearing-title__text--clamped { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.lw-hearing-title__expand { margin-top: 5px; font-size: 12px; white-space: normal; }
+.capiro-vnext-root .lw .lw-detail .lw-detail__tabs { flex-wrap: wrap; overflow: visible; height: auto; max-height: none; }
+.capiro-vnext-root .lw .lw-hrow .lw-hrow__title { white-space: normal; overflow: visible; text-overflow: clip; }

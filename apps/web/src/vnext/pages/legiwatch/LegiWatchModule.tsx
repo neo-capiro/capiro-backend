@@ -19,7 +19,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, Crosshair, Search } from 'lucide-react';
+import { Bell, ChevronDown, Crosshair, Search } from 'lucide-react';
 import { useApi } from '../../../lib/use-api.js';
 import { useIntelFeature } from '../../../lib/intel-feature-flags.js';
 import type { Client } from '../../../pages/clients/clientTypes.js';
@@ -34,7 +34,8 @@ import {
 } from './lib/types.js';
 import { useLwFeed, useLwFeedItems, defaultBucketCount } from './lib/api.js';
 import { LwPill, LwButton } from './lib/primitives.js';
-import { watchlistSetupPath } from './lib/watchlist-navigation.js';
+import { isWatchlistSetup, watchlistSetupPath } from './lib/watchlist-navigation.js';
+import { hasTestSessionTitle } from './lib/hearing-presentation.js';
 import { HearingsTab } from './hearings/HearingsTab.js';
 import { CommitteesTab } from './committees/CommitteesTab.js';
 import { FeedTab } from './feed/FeedTab.js';
@@ -116,6 +117,8 @@ export function LegiWatchModule() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [lensOpen, setLensOpen] = useState(false);
+  const [clientSearch, setClientSearch] = useState('');
+  const [includeTestClients, setIncludeTestClients] = useState(false);
 
   useEffect(() => {
     const openSearch = (event: KeyboardEvent) => {
@@ -268,7 +271,9 @@ export function LegiWatchModule() {
     );
   };
 
-  const head = TAB_HEAD[tab];
+  const head = isWatchlistSetup(searchParams)
+    ? { eyebrow: 'Client monitoring', title: 'Watchlist & alerts', description: 'Manage client topics, terms, jurisdictions and alert preferences.' }
+    : TAB_HEAD[tab];
   const scopeLabel = selectedClient?.name ?? 'All clients';
 
   // Counts for the tab strip (§8.6) — Hearings count comes from the hearings
@@ -285,7 +290,7 @@ export function LegiWatchModule() {
     ? [...LEGIWATCH_PRIMARY_TABS, tab]
     : LEGIWATCH_PRIMARY_TABS;
   const primaryTab: LegiWatchTab | null =
-    tab === 'analytics' ? 'feed' : LEGIWATCH_SECONDARY_TABS.includes(tab) ? null : tab;
+    LEGIWATCH_SECONDARY_TABS.includes(tab) ? null : tab;
 
   return (
     <div className="lw" data-module="legiwatch">
@@ -316,6 +321,8 @@ export function LegiWatchModule() {
           {lensOpen ? (
             <div className="lw-lens__menu" role="listbox" aria-label="Client">
               <div className="lw-lens__menuhead">Client</div>
+              <input className="lw-client-search" type="search" aria-label="Find a client" placeholder="Find a client" value={clientSearch} onChange={(event) => setClientSearch(event.target.value)} />
+              <label className="lw-client-test-filter"><input type="checkbox" checked={includeTestClients} onChange={(event) => setIncludeTestClients(event.target.checked)} /> Include names marked QA/test</label>
               <button
                 type="button"
                 role="option"
@@ -328,7 +335,7 @@ export function LegiWatchModule() {
               >
                 <span className="lw-lens__optname">All clients</span>
               </button>
-              {visibleClients.map((c) => (
+              {visibleClients.filter((c) => (includeTestClients || c.id === scope || !hasTestSessionTitle(c.name)) && c.name.toLowerCase().includes(clientSearch.toLowerCase())).map((c) => (
                 <button
                   key={c.id}
                   type="button"
@@ -362,6 +369,10 @@ export function LegiWatchModule() {
           >
             <Search size={16} aria-hidden="true" />
             <span>Search all LegiWatch</span>
+          </LwButton>
+          <LwButton size="42" className="lw-header-shortcut" onClick={() => navigate(watchlistSetupPath(scope))} ariaLabel="Open watchlist and alerts">
+            <Bell size={16} aria-hidden="true" />
+            <span>Watchlist &amp; alerts</span>
           </LwButton>
           <button
             type="button"

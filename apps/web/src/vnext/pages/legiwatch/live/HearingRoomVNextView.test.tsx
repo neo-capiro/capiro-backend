@@ -144,7 +144,7 @@ describe('native vNext hearing room', () => {
     expect(
       screen.getByRole('link', { name: 'Open hearing source ↗' }),
     ).toHaveAttribute('href', 'https://committee.example/hearings/42');
-    expect(screen.getByRole('link', { name: 'Open saved public audio ↗' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Review hearing and audio availability ↗' })).toHaveAttribute(
       'href',
       '/legiwatch/hearings/hearing-1',
     );
@@ -162,6 +162,7 @@ describe('native vNext hearing room', () => {
       <HearingRoomVNextView
         room={model({
           playEvidence,
+          canPlayEvidence: (ms) => ms === 1000,
           recordingPanel: <section aria-label="Saved unattended audio" />,
           session: {
             id: 'session',
@@ -179,6 +180,11 @@ describe('native vNext hearing room', () => {
     expect(buttons.length).toBeGreaterThan(0);
     fireEvent.click(buttons[0]!);
     expect(playEvidence).toHaveBeenCalledWith(1_000);
+  });
+
+  test('a completed transcript without retained coverage has no playback actions', () => {
+    render(<HearingRoomVNextView room={model({ playEvidence: vi.fn(), canPlayEvidence: () => false, recordingPanel: <section aria-label="Saved unattended audio" /> })} />);
+    expect(screen.queryByRole('button', { name: 'Play audio here' })).not.toBeInTheDocument();
   });
 
   // Adjacent-segment boundary semantics. A cited moment at the exact ms where

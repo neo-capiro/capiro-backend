@@ -27,6 +27,40 @@ beforeEach(() => {
   }));
 });
 afterEach(cleanup);
+test('publisher coverage distinguishes configured failure from retained reporting and freshness', async () => {
+  mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/folders') ? [] : url.includes('/monitors') ? { monitors: [] } : {
+    items: [], coverage: [{ id: 'p', publisher: 'Politico', source_group: 'florida_regional', status: 'unavailable',
+      retained: { articles: 3, fullTextArticles: 0, latestPublishedAt: '2026-10-05T12:00:00Z', latestObservedAt: '2026-10-06T12:00:00Z' } }],
+  } }));
+  mount(<EvidenceTab lane="news" />);
+  expect(await screen.findByText(/Configured source: Unavailable/)).toBeTruthy();
+  expect(screen.getByText(/3 retained articles · 0 with full text/)).toBeTruthy();
+  expect(screen.getByText(/do not establish complete regional coverage or a healthy feed/)).toBeTruthy();
+});
+test('calendar navigation has no irrelevant fiscal filters or fabricated project schedule', async () => {
+  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&budgetView=calendar');
+  expect(screen.getByText(/A project-specific budget schedule is not available/)).toBeTruthy();
+  expect(screen.queryByLabelText('Fiscal year')).toBeNull();
+  expect(screen.queryByLabelText('Search project title or request identity')).toBeNull();
+  expect(mocks.get.mock.calls.some(([url]) => url.includes('/budget?'))).toBe(false);
+});
+test('budget update emptiness is specific to the selected fiscal year and session', async () => {
+  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&budgetView=updates&fiscalYear=2025-26&budgetSession=2025');
+  expect(await screen.findByText(/No retained budget updates for fiscal year 2025-26, session 2025/)).toBeTruthy();
+  expect(screen.queryByLabelText('Search project title or request identity')).toBeNull();
+  expect(screen.queryByText(/No qualified fiscal documents/)).toBeNull();
+});
+test('budget document labels are readable and clearing filters resets every field together', async () => {
+  mocks.get.mockImplementation(async (url: string) => ({ data: url.endsWith('/folders') ? [] : {
+    projects: [], documents: [{ id: 'd', title: 'Published appropriation', chamber: 'house', stage: 'chamber_proposal', role: 'appropriation', fiscal_year: '2025-26', session_key: '2025', complete: true }],
+  } }));
+  mount(<EvidenceTab lane="budget" />, '/legiwatch?tab=budget&budgetView=documents&fiscalYear=2025-26&budgetSession=2025');
+  expect(await screen.findByText('House · Chamber proposal')).toBeTruthy();
+  expect(screen.getByText(/FY 2025-26 · Session 2025 · Appropriation/)).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+  await waitFor(() => expect((screen.getByLabelText('Fiscal year') as HTMLInputElement).value).toBe('2026-27'));
+  expect((screen.getByLabelText('Legislative session') as HTMLSelectElement).value).toBe('');
+});
 function mount(child: React.ReactNode, route = '/legiwatch?tab=news&folder=folder') {
   return render(
     <QueryClientProvider

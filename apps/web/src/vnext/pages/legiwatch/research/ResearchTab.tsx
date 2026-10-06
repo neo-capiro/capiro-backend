@@ -139,8 +139,9 @@ function ResearchWorkspace() {
     clientId = params.get('client') ?? '';
 
   const jurisdiction = params.get('jurisdiction') ?? 'FL',
-    sessionKey = params.get('session') ?? '2026',
+    sessionKey = params.get('session') ?? (jurisdiction === 'US' ? String(Math.floor((new Date().getFullYear() - 1789) / 2) + 1) : String(new Date().getFullYear())),
     edition = params.get('edition') ?? '2026';
+  const unsupportedLegalScope = view === 'statutes' && jurisdiction !== 'FL';
   const leftBill = params.get('leftBill') ?? params.get('bill') ?? '';
   const isBillView = view === 'bills' || view === 'compare';
 
@@ -180,6 +181,10 @@ function ResearchWorkspace() {
       }
       return next;
     });
+  };
+
+  const changeJurisdiction = (next: string) => {
+    change({ jurisdiction: next, session: next === 'US' ? String(Math.floor((new Date().getFullYear() - 1789) / 2) + 1) : String(new Date().getFullYear()), cursor: '', left: '', right: '', leftRevision: '', rightRevision: '', rightSession: '', leftBill: '', rightBill: '', bill: '' });
   };
 
   useEffect(() => {
@@ -236,7 +241,7 @@ function ResearchWorkspace() {
 
   const read = useQuery<Result>({
     queryKey: key,
-    enabled: requestedView !== 'imports' || importAccessResolved,
+    enabled: !unsupportedLegalScope && (requestedView !== 'imports' || importAccessResolved),
     queryFn: async () => {
       if (view === 'compare')
         return post(BASE + '/compare', {
@@ -421,7 +426,7 @@ function ResearchWorkspace() {
             }
             onClick={() => {
               setImportAccessNotice(false);
-              change({ researchView: value!, cursor: '', researchQuery: '' });
+              change({ researchView: value!, cursor: '', researchQuery: '', ...(value === 'statutes' ? { jurisdiction: 'FL', session: String(new Date().getFullYear()) } : {}) });
               setDraft('');
             }}
           >
@@ -467,7 +472,7 @@ function ResearchWorkspace() {
           label="Jurisdiction"
           value={jurisdiction}
           options={options(['FL', 'US'])}
-          onChange={(e) => change({ jurisdiction: e.target.value, cursor: '' })}
+          onChange={(e) => changeJurisdiction(e.target.value)}
         />
         {view === 'statutes' && params.get('researchCode') !== 'constitution' ? (
           <CapiroInput
@@ -477,16 +482,16 @@ function ResearchWorkspace() {
           />
         ) : view === 'statutes' ? (
           <span>Current publisher snapshot; edition not assigned</span>
-        ) : (
+        ) : ['bills', 'compare', 'coverage', 'imports'].includes(view) ? (
           <CapiroInput
             label="Bill session"
             value={sessionKey}
             onChange={(e) => change({ session: e.target.value, cursor: '' })}
           />
-        )}
+        ) : <span>Bill session does not apply to rule notices or published deadlines.</span>}
         <span className="lw-research__effective">
           Effective scope: {jurisdiction === 'FL' ? 'Florida Legislature' : 'U.S. Congress'} ·{' '}
-          {view === 'statutes' ? `edition ${edition}` : `session ${sessionKey}`} ·{' '}
+          {view === 'statutes' ? params.get('researchCode') === 'constitution' ? 'current Constitution snapshot' : `edition ${edition}` : ['rules', 'deadlines'].includes(view) ? 'published rule notices; no bill session' : `session ${sessionKey}`} ·{' '}
           {folderId || clientId
             ? 'selected folder/client context'
             : 'public corpus, no folder filter'}{' '}
@@ -494,7 +499,8 @@ function ResearchWorkspace() {
         </span>
       </div>
 
-      {view === 'statutes' ? (
+      {unsupportedLegalScope ? <p role="status" className="lw-research__scope-note">Statute and Constitution lookup is available for Florida. <CapiroButton size="compact" onClick={() => changeJurisdiction('FL')}>Use Florida legal sources</CapiroButton></p> : null}
+      {view === 'statutes' && !unsupportedLegalScope ? (
         <CapiroSelect
           label="Legal source"
           value={params.get('researchCode') ?? 'statute'}
@@ -646,7 +652,7 @@ function ResearchWorkspace() {
 
       {requestedView === 'imports' && !importAccessResolved ? (
         <p role="status">Checking administrator access to imported setup review…</p>
-      ) : read.isPending ? (
+      ) : !unsupportedLegalScope && read.isPending ? (
         <p role="status">
           Searching the retained sources for this scope — results appear when the source
           responds…

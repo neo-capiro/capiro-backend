@@ -183,11 +183,12 @@ export function formatHearingTime(m: HearingMoment): string {
  * parts — NO timezone conversion, so a date-only event can never land on the
  * previous day, and an instant shows the day the official source assigned.
  */
-export function formatHearingDay(m: HearingMoment): string {
+export function formatHearingDay(m: HearingMoment, includeYear = false): string {
   const parts = m.kind === 'instant' && m.startsAt ? calendarDayParts(easternDayOf(m.startsAt) ?? m.calendarDate) : calendarDayParts(m.calendarDate);
   if (!parts) return m.calendarDate ?? m.date;
   const label = new Intl.DateTimeFormat('en-US', {
     weekday: 'short',
+    ...(includeYear ? { year: 'numeric' as const } : {}),
     month: 'short',
     day: 'numeric',
     timeZone: 'UTC',

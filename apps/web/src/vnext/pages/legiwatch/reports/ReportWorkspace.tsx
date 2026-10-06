@@ -358,7 +358,6 @@ function Workspace({
                         <strong>{r.name}</strong>
                         <small>
                           Version {r.version + 1}
-                          {r.sourceId ? ` · Source ${r.sourceId}` : ''} · {r.id.slice(0, 8)}
                         </small>
                       </td>
                       <td>
@@ -617,7 +616,6 @@ function Workspace({
                         : c.verified
                           ? 'Verified'
                           : 'Needs verification'}{' '}
-                    · {c.id.slice(0, 8)}
                   </small>
                 </button>
               ))}
@@ -630,7 +628,6 @@ function Workspace({
                   <span>
                     {l.contactIds.length} contacts · {l.private ? 'Private' : 'Workspace'}
                   </span>
-                  <small>{l.id.slice(0, 8)}</small>
                 </button>
               ))}
             </section>
@@ -930,7 +927,7 @@ function FolderSelection({
       {folders.map((f) => (
         <Check
           key={f.id}
-          label={`${f.name} · ${f.id.slice(0, 8)}${f.archived ? ' · Archived' : ''}`}
+          label={`${f.name}${f.archived ? ' · Archived' : ''}`}
           checked={value.includes(f.id)}
           disabled={!f.canEdit && !value.includes(f.id)}
           onChange={(checked) =>
@@ -1584,7 +1581,7 @@ function ScheduleEditor({
         value={reportId}
         options={[
           option('', 'Select report'),
-          ...reports.map((r) => option(r.id, `${r.name} · ${r.id.slice(0, 8)}`)),
+          ...reports.map((r) => option(r.id, r.name)),
         ]}
         onChange={(e) =>
           change(() => {
@@ -1959,7 +1956,7 @@ function ListEditor({
         {contacts.map((c) => (
           <Check
             key={c.id}
-            label={`${c.name} · ${c.email ?? 'Missing email'} · ${c.id.slice(0, 8)}`}
+            label={`${c.name} · ${c.email ?? 'Missing email'}`}
             checked={draft.contactIds.includes(c.id)}
             onChange={(checked) =>
               setDraft({

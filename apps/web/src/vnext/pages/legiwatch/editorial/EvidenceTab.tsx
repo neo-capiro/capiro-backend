@@ -87,6 +87,12 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
     }
     setP(n);
   };
+  const clearFilters = (keys: string[]) => setP((previous) => {
+    const next = new URLSearchParams(previous);
+    for (const key of keys) next.delete(key === 'q' ? queryKey : key === 'offset' ? offsetKey : key);
+    next.delete('q'); next.delete('offset');
+    return next;
+  });
   const params = {
     clientId: client,
     folderId: folder,
@@ -114,7 +120,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
       },
       lane === 'news' && ['personnel', 'registrations'].includes(view),
     ),
-    budget = useEvidence<Row>('budget', params, lane === 'budget');
+    budget = useEvidence<Row>('budget', params, lane === 'budget' && view !== 'calendar');
   // Comparison state belongs to the exact current scope: amount observations,
   // their source revisions, a pending request and its result are only valid for
   // the client/folder/fiscal year/session/project selection that produced them.
@@ -224,7 +230,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
   const reportLink = `/legiwatch?${new URLSearchParams({ tab: 'digest', digestMode: 'bill_report', reportView: 'briefings', client, folder })}`;
   const loading =
     lane === 'budget'
-      ? budget.isPending
+      ? view !== 'calendar' && budget.isPending
       : view === 'articles'
         ? news.isPending
         : view === 'monitors'
@@ -329,7 +335,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                 <CapiroButton
                   size="compact"
                   onClick={() => {
-                    for (const key of ['q', 'monitor', 'publisher', 'days', 'offset']) set(key, '');
+                    clearFilters(['q', 'monitor', 'publisher', 'days', 'offset']);
                   }}
                 >
                   Clear filters
@@ -370,7 +376,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                     </td>
                     <td>
                       {row.publisher}
-                      <small>{time(row.published_at)}</small>
+                      <small>{row.published_at ? `Published ${time(row.published_at)}` : `Publication date not stated · Observed ${time(row.observed_at)}`}</small>
                     </td>
                     <td>
                       <div className="lw-evidence-actions">
@@ -420,9 +426,11 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
           </div>
           <details>
             <summary>Publisher coverage ({news.data?.coverage?.length ?? 0})</summary>
+            <p>Configured source availability and retained publisher articles are separate. Counts cover the last {params.days} days across retained news, before search and monitor filters. Publisher-level articles do not establish complete regional coverage or a healthy feed.</p>
             {(news.data?.coverage ?? []).map((r: Row) => (
               <p key={r.id}>
-                {r.publisher} · {r.source_group} · {r.status}
+                <strong>{r.publisher}</strong> · {budgetLabel(r.source_group)} · Configured source: {budgetLabel(r.status)}
+                {r.retained && <small>{r.retained.articles} retained articles · {r.retained.fullTextArticles} with full text · Latest publication: {time(r.retained.latestPublishedAt)} · Latest observation: {time(r.retained.latestObservedAt)}</small>}
               </p>
             ))}
           </details>
@@ -610,7 +618,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
       )}
       {lane === 'budget' && (
         <>
-          <div className="lw-evidence-card">
+          {view !== 'calendar' && <div className="lw-evidence-card">
             <div className="lw-evidence-toolbar">
               <CapiroInput
                 label="Fiscal year"
@@ -629,16 +637,16 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                 ]}
                 onChange={(e) => set('budgetSession', e.target.value)}
               />
-              <CapiroInput
+              {view === 'projects' && <CapiroInput
                 label="Search project title or request identity"
                 value={params.q}
                 onChange={(e) => set('q', e.target.value)}
-              />
+              />}
               {(params.q || params.sessionKey || params.fiscalYear !== '2026-27' || params.projectId) && (
                 <CapiroButton
                   size="compact"
                   onClick={() => {
-                    for (const key of ['q', 'budgetSession', 'fiscalYear', 'project', 'offset']) set(key, '');
+                    clearFilters(['q', 'budgetSession', 'fiscalYear', 'project', 'offset']);
                   }}
                 >
                   Clear filters
@@ -648,15 +656,19 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
             <p className="lw-evidence-filter-summary">
               Budget figures are shown for the selected fiscal year and session. Requests are not awards.
             </p>
-          </div>
-          <p className="lw-evidence-notice">{budget.data?.notice}</p>
+          </div>}
+          {view !== 'calendar' && <p className="lw-evidence-notice">{budget.data?.notice}</p>}
           {view === 'calendar' ? (
-            <p>
+            <section aria-label="Budget calendar navigation">
+              <h3>Legislative calendar</h3>
+              <p>This view links to the legislative hearing calendar. A project-specific budget schedule is not available here; fiscal-year and project filters do not apply to that calendar.</p>
+              <p>
               <Link to={`/legiwatch?tab=hearings&client=${encodeURIComponent(client)}`}>
                 Open the legislative calendar and hearing workflow
               </Link>
               . Following a project creates no recording.
-            </p>
+              </p>
+            </section>
           ) : view === 'projects' ? (
             <>
               <div className="lw-evidence-table">
@@ -825,11 +837,11 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                       <p>
                         {comparison.comparable
                           ? `Change: ${money(comparison.deltaMinorUnits)} · ${comparison.percentage ?? 'Percentage unavailable from zero baseline'}`
-                          : `Numerical comparison unavailable: ${comparison.reasons.join(', ')}`}
+                          : `Numerical comparison unavailable: ${comparison.reasons.map(budgetLabel).join(', ')}`}
                       </p>
                       {[comparison.left, comparison.right].map((a: Row) => (
                         <p key={a.id}>
-                          {a.chamber} · {a.stage} · FY {a.fiscalYear} · {a.fund} · {a.basis} ·{' '}
+                          {budgetLabel(a.chamber)} · {budgetLabel(a.stage)} · FY {a.fiscalYear} · {budgetLabel(a.fund)} · {budgetLabel(a.basis)} ·{' '}
                           {a.locator}{' '}
                           <CapiroButton
                             size="compact"
@@ -858,11 +870,11 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                   {(budget.data?.events ?? []).map((e: Row) => (
                     <tr key={e.id}>
                       <td>
-                        {e.kind.replace(/_/g, ' ')}
+                        {budgetLabel(e.kind)}
                         <small>{e.payload.summary ?? e.payload.title ?? e.title}</small>
                       </td>
                       <td>
-                        {e.stage}
+                        {budgetLabel(e.stage)}
                         <small>{e.payload.locator}</small>
                         {sourceUrl(e.source_url) && (
                           <a href={sourceUrl(e.source_url)!} target="_blank" rel="noreferrer">
@@ -909,9 +921,9 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
                         )}
                       </td>
                       <td>
-                        {row.chamber} · {row.stage}
+                        {budgetLabel(row.chamber)} · {budgetLabel(row.stage)}
                         <small>
-                          FY {row.fiscal_year} · Session {row.session_key} · {row.role}
+                          FY {row.fiscal_year} · Session {row.session_key} · {budgetLabel(row.role)}
                         </small>
                       </td>
                       <td>{row.complete ? 'Complete selected document' : 'Partial extraction'}</td>
@@ -926,7 +938,8 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
               </table>
             </div>
           )}
-          {!loading && !budget.data?.projects?.length && !budget.data?.documents?.length && (
+          {!loading && !failed && view === 'updates' && !budget.data?.events?.length && <p className="lw-evidence-empty">No retained budget updates for fiscal year {params.fiscalYear}{params.sessionKey ? `, session ${params.sessionKey}` : ''}{params.projectId ? ', and the selected project' : ''}. This does not establish that no budget activity occurred.</p>}
+          {!loading && !failed && ['projects', 'documents'].includes(view) && !(view === 'projects' ? budget.data?.projects?.length : budget.data?.documents?.length) && (
             <p className="lw-evidence-empty">
               No qualified fiscal documents are retained for this scope. Source qualification is
               required before a project comparison can be shown.
@@ -938,7 +951,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
       {selected && (
         <CapiroModal open onClose={() => setSelected(null)} title={selected.title}>
           <p>
-            {selected.authority} · observed {time(selected.observedAt)}
+            {String(selected.authority ?? '').replaceAll('_', ' ')} · observed {time(selected.observedAt)}
           </p>
           <p>{selected.complete ? 'Complete source' : 'Available source fields only'}</p>
           {sourceUrl(selected.sourceUrl) && (
@@ -956,7 +969,7 @@ function EvidenceView({ lane }: { lane: 'news' | 'budget' }) {
             )}
           </>
           <pre className="lw-evidence-text">{selected.text}</pre>
-          <small>Version {selected.revision}</small>
+          <details><summary>Source revision details</summary><small>{selected.revision}</small></details>
         </CapiroModal>
       )}
       {importReview && (
