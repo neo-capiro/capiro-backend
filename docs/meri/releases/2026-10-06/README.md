@@ -67,3 +67,29 @@ The API parts are deployed dark in 589. The web part is not deployed (no web-vne
 This was the first web-vnext roll through the Meri release path. Both ancestry reads saw 412 (`f63686c95`, on main). The env diff is the three release SHA keys only.
 
 No paid turn was run: no backend changed and the new UI is hidden. The UI live checks are T5 and T7 once `meri.jobs` is enabled (Neo's OK), plus the Release F Playwright flows.
+
+## Afternoon: D4b, Release B live checks, turn efficiency, LegiScan, partial receipts, bill text
+
+Handover: [HANDOVER-2026-10-06-pm.md](../../implementation/HANDOVER-2026-10-06-pm.md). Every roll below went through deployment plan §2 (CodeBuild image, `migration-status` on the candidate, evidence PR, prepare, two ancestry reads, promote, digest readback on every running task). Other workstreams rolled the API at 594, 607 and 612/613 and web-vnext at 419, 420 and 425 in between; each was an ancestor of the next candidate.
+
+| Roll | Code | Revision | Rollback | Source | Digest | Live check |
+| --- | --- | --- | --- | --- | --- | --- |
+| [s2-plan-limits](s2-plan-limits/README.md) | #2088 D4b verb forms; #2089 plan string limits | API 596 | 595 | `832c69560` | `sha256:f902cfe7…` | T5 run 2 (`a71e0ac2`): planned (the run-1 failure is gone); failed on provider budget exhaustion (23 attempts) |
+| [s2-d4b-orch](s2-d4b-orch/README.md) | #2088 (orchestrator chat auditor) | orchestrator 161 | 160 | `97ae6d6a8` | `sha256:81741d38…` | Budget topic `e0bd0918` (PE 0605231A FY27 vs FY26): **published, 1,254 characters, no auditor finding** (the two earlier runs on this topic were held) |
+| [s2-child-correction](s2-child-correction/README.md) | #2091 format-only child correction | API 598 | 597 | `aa208004f` | `sha256:f8d45756…` | T5 run 3 (`cfac6f20`): failed `research_child_goal_invalid` |
+| [s2-child-goal](s2-child-goal/README.md) | #2094 child goal trim; job status precedence | API 600 | 599 | `447557786` | `sha256:97bad229…` | T5 run 4 (`f82a2d24`): lease lost at 60s |
+| [s2-efficiency-orch](s2-efficiency-orch/README.md) | #2097 turn efficiency | orchestrator 163 | 162 | `d53a5919e` | `sha256:8a8b0f51…` | Commitments audit `594a31e5`: 14 model calls, 45 tools, 1.12M input tokens, 356s (Neo's runs: 51 to 63 tools, 1.19M to 2.20M); no `search_floor_votes`/`list_members` |
+| [s2-efficiency-legiscan](s2-efficiency-legiscan/README.md) | #2097 heartbeat diagnostic; #2098 live LegiScan lookup | API 602 | 601 | `d53a5919e` | `sha256:8ba4408b…` | After the 602→603 revision: OH HB 1 `ce2185df` refused on quota (LegiScan key at 10,021/10,000), worded honestly |
+| configuration revision (§2.5) | secret `LEGISCAN_API_KEY` (`capiro/dev/legiscan_api_key`), same image | API 603 | 602 | `d53a5919e` | `sha256:8ba4408b…` | `DRIFT-FINDINGS.md`; codified in #2101 |
+| [s2-partial-receipts-orch](s2-partial-receipts-orch/README.md) | #2106 partial owner reads committed as partial receipts | orchestrator 165 | 164 | `006cbc6ee` | `sha256:5ef19ff5…` | T5 run 6 (`fc3b54a9`, with API 609): heartbeat lost a compare-and-swap race |
+| [s2-partial-receipts](s2-partial-receipts/README.md) | #2103 correction guard; #2106 partial reads receipted and re-checked | API 609 | 608 | `006cbc6ee` | `sha256:41655e1f…` | T5 run 5 (`9c52022a`, on 603) had been refused for unreceipted partial reads; run 6 above |
+| [s2-heartbeat-race](s2-heartbeat-race/README.md) | #2114 heartbeat retries a lost race; `context_plane` is not a read | API 611 | 610 | `a84dce2f5` | `sha256:e545a366…` | T5 run 7 (`a1a36b6f`): refused `receipted_unowned_tool:search_public_web` |
+| migration (§2.4, Neo's OK) | `20281008040000_federal_evidence_passage_search` | admin-migrate 98 (apply), 99 (read-only status) | | `0650f02a2` image | | 16:56–16:59 UTC; "All migrations have been successfully applied"; status: up to date, 458 migrations. Logs: `outputs/meri-stage2-20261006/migration-apply-15/`, `migration-post-15/` |
+| [s2-bill-text-orch](s2-bill-text-orch/README.md) | #2115 bill-text prompt routing | orchestrator 167 | 166 | `0650f02a2` | `sha256:20aeedb5…` | Bill-text turn below |
+| [s2-bill-text-public](s2-bill-text-public/README.md) | #2115 in-bill locator, cross-bill text search, 9,000-character pages; #2118 receipted public-data reads are public | API 615 | 614 | `9ee56613f` | `sha256:9a01d791…` | Bill-text `7965f93e`: **six bills found by text; S. 714 `rs` §2(o)(1) quoted verbatim under its heading** (3 rounds, 14 tools, 396k input tokens). T5 run 8 (`cab91bd9`): every producer input covered and the manifest pinned, then refused at publication ("producer proof is unavailable"); the failing clause is not logged (handover §5) |
+
+`migration-status` ran read-only on every API candidate (admin-migrate 91 to 97, then 99). The only migration applied today is the passage-search one above.
+
+Production changes outside code: tenant flag `meri.jobs` on for capiro-internal (11:22 UTC, `outputs/meri-stage2-20261006/flags/`); task family `capiro-dev-api-federal-evidence-backfill:1` for the one-off historical BILLS backfill (`FEDERAL_LEGISLATIVE_EVIDENCE_ENABLED=true` on that family only; the API service, the Package 4 rules and the outbox drain stay off).
+
+Paid turns this afternoon: eleven (T5 ×7, research check ×1, commitments audit ×1, OH HB 1 ×1, bill text ×1). Neo's verdicts are pending on the passing D4b report, the commitments audit answer and the bill-text answer.

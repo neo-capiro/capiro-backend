@@ -729,6 +729,25 @@ describe('Deep Research conversation continuity', () => {
     expect(f.runner.run).toHaveBeenCalledTimes(callCount);
   });
 
+  it('declares each source tool once when the producer lists a tool once per read', async () => {
+    const f = fixture();
+    await f.service.createSession(ctx, { topic: 'Briefing', conversationId: 'thread-a' });
+    const runOnce = f.runner.run.getMockImplementation()!;
+    // T5 cab91bd9: the parent runner lists a tool for every read it made.
+    f.runner.run.mockImplementation(async (...args: Parameters<typeof runOnce>) => {
+      const result = await runOnce(...args);
+      return { ...result, toolsUsed: [...result.toolsUsed, ...result.toolsUsed] };
+    });
+    await f.service.streamResearch(ctx, 'research-a', f.sse, f.auth);
+    expect(f.events.find((event) => event.type === 'error')).toBeUndefined();
+    const report = f.artifacts.find((artifact) => artifact.kind === 'research_report');
+    expect(report.metadata.toolsUsed).toEqual(['read_client_documents']);
+    expect(report.metadata.reportProvenance.toolsUsed).toEqual(['read_client_documents']);
+    const recovered = await f.service.getSession(ctx, 'research-a');
+    expect(recovered.report?.bodyText).toContain('manufacturing footprint');
+    expect(recovered.reportMetadata?.reportBodyAccess).toBeUndefined();
+  });
+
   it('carries stored context/evidence/effort into both phases and withholds unsupported inherited private inputs', async () => {
     const f = fixture({ privateInheritedInputs: true });
     await f.service.createSession(ctx, {

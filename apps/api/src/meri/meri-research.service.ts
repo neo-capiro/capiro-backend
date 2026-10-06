@@ -120,6 +120,7 @@ import {
   currentOwnerReauthorizationInput,
   currentOwnerResultAuthorizesReplay,
   RESEARCH_REPORT_BODY_WITHHELD,
+  researchProducerProofUnavailable,
   supportsDurableOwnerReauthorization,
 } from './meri-research-replay-authorization.js';
 import {
@@ -3734,7 +3735,11 @@ export class MeriResearchService {
     // Source completions are fenced and saved before report persistence or observer delivery.
     await sse.flush?.();
     let { reportBody } = result;
-    const { sources, toolsUsed, ledgerEntries, model, auditorMode, bufferReport } = result;
+    const { sources, ledgerEntries, model, auditorMode, bufferReport } = result;
+    // Producers list a tool once per read; the report declares each tool once,
+    // as its publication and read-time proofs require (T5 cab91bd9: ten
+    // read_client_documents reads refused the report).
+    const toolsUsed = [...new Set(result.toolsUsed)];
     const plan = asStringArray(session.plan);
     const handoff = readResearchHandoff(session.metadata);
     if (!reportBody.trim())
@@ -3919,7 +3924,11 @@ export class MeriResearchService {
           ).length,
         });
     if (!producerInput.producerInputSha256 || !producerInput.producerInputMode)
-      throw new ConflictException('The research report producer proof is unavailable.');
+      throw researchProducerProofUnavailable(
+        session.id,
+        'finish:producer_input_missing',
+        toolsUsed,
+      );
     if (producerInput.producerInputMode === 'unsupported_private_inputs') {
       this.logger.warn(
         `Research producer inputs refused: session=${session.id} ` +
@@ -3932,7 +3941,12 @@ export class MeriResearchService {
     let producerInputManifest: ResearchProducerInputManifestV1 | undefined;
     if (producerInput.producerInputMode === 'governed_inputs') {
       const draft = producerInput.producerInputDraft;
-      if (!draft) throw new ConflictException('The research report producer proof is unavailable.');
+      if (!draft)
+        throw researchProducerProofUnavailable(
+          session.id,
+          'finish:governed_draft_missing',
+          toolsUsed,
+        );
       try {
         producerInputManifest = await this.prisma.withTenant(ctx.tenantId, (tx) =>
           pinResearchProducerInputs(
@@ -5108,7 +5122,15 @@ export class MeriResearchService {
         !options.producerInputMode ||
         options.producerInputMode === 'unsupported_private_inputs')
     )
-      throw new ConflictException('The research report producer proof is unavailable.');
+      throw researchProducerProofUnavailable(
+        id,
+        !run
+          ? 'replay:run_missing'
+          : !options?.producerInputSha256
+            ? 'replay:producer_input_sha256_missing'
+            : `replay:producer_input_mode:${options.producerInputMode ?? 'missing'}`,
+        toolsUsed,
+      );
     await assertCurrentResearchReportSourcesAuthorized({
       prisma: this.prisma,
       tools: this.tools,
