@@ -775,7 +775,10 @@ function nextExecutableStepIndex(coordinator: DurableResearchCoordinatorV1, tool
     );
   const matched = ready.find(({ step }) => step.allowedCapabilities.includes(tool));
   if (matched) return matched.index;
-  if (ready.length) return ready[0]!.index;
+  // A further read for a step that already completed (another of its sources,
+  // or a source a bounded child read first) re-reads that step. A failed
+  // re-read restores the earlier completion. Only a tool whose step is not yet
+  // reachable is refused, so dependency order still holds for first reads.
   for (let index = coordinator.steps.length - 1; index >= 0; index -= 1) {
     const step = coordinator.steps[index]!;
     if (
@@ -786,6 +789,7 @@ function nextExecutableStepIndex(coordinator: DurableResearchCoordinatorV1, tool
     )
       return index;
   }
+  if (ready.length) return ready[0]!.index;
   return -1;
 }
 
