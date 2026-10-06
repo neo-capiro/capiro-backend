@@ -1,0 +1,409 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+  "reviewedAt": "2026-10-06T20:19:40.910567+00:00",
+  "productionCodeBaselines": {
+    "api": "8f77a578525160e8b649b4311abfb7151d655735",
+    "intel-api": "2d727bec0483a48dd261d36e3c1719eadd96a23b",
+    "web-vnext": "e6ff0250b6f79f92bbfd16edb69d48f27e96883f"
+  },
+  "schemaChange": false,
+  "builds": {
+    "build-api": {
+      "sha": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+      "id": "capiro-build-web-dev:f7ed6446-188f-439f-b2e4-1e3db75d4e3b",
+      "status": "SUCCEEDED",
+      "phase": "COMPLETED",
+      "markers": [
+        "UI_API_RUNTIME_IMPORT_PASS\n",
+        "BILL_IMPACT_RUNTIME_IMPORT_PASS\n",
+        "PUBLISHER_NEWS_RUNTIME_IMPORT_PASS\n",
+        "HB1211_DATASET_RUNTIME_IMPORT_PASS\n",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS\n",
+        "CANDIDATE_API_SOURCE_SHA=0732f2511796411c2d9a492e6a3b0a4bc33cb225\n",
+        "CANDIDATE_API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f74234e0e41b6790311ff6687499b174bf747f7c56acdfbcafbc1aed972a9683\n"
+      ],
+      "logUrl": "https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Fcodebuild$252Fcapiro-build-web-dev/log-events/f7ed6446-188f-439f-b2e4-1e3db75d4e3b",
+      "failedPhases": [],
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:f74234e0e41b6790311ff6687499b174bf747f7c56acdfbcafbc1aed972a9683"
+    },
+    "build-intel-api": {
+      "sha": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+      "id": "capiro-build-web-dev:80c350f1-5432-43d0-89a4-066d3206aa81",
+      "status": "SUCCEEDED",
+      "phase": "COMPLETED",
+      "markers": [
+        "INTEL_CAPTURE_RUNTIME_IMPORT_PASS\n",
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS\n",
+        "CANDIDATE_INTEL_API_SOURCE_SHA=0732f2511796411c2d9a492e6a3b0a4bc33cb225\n",
+        "CANDIDATE_INTEL_API_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/intel-api@sha256:8723f93700481b3cd34566dacbe0ef3253e8e2948901b5ca6dd84333d877be7e\n"
+      ],
+      "logUrl": "https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Fcodebuild$252Fcapiro-build-web-dev/log-events/80c350f1-5432-43d0-89a4-066d3206aa81",
+      "failedPhases": [],
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/intel-api@sha256:8723f93700481b3cd34566dacbe0ef3253e8e2948901b5ca6dd84333d877be7e"
+    },
+    "build-web-vnext": {
+      "sha": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+      "id": "capiro-build-web-dev:0f24f655-5d39-412a-8a71-93adea1d176b",
+      "status": "SUCCEEDED",
+      "phase": "COMPLETED",
+      "markers": [
+        "LOCAL_REPODIGEST_ECR_MATCH_PASS\n",
+        "CANDIDATE_WEB_VNEXT_SOURCE_SHA=0732f2511796411c2d9a492e6a3b0a4bc33cb225\n",
+        "CANDIDATE_WEB_VNEXT_IMAGE=967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a57582e0998ceb6d47bf1553f9a8a29c91fd0d527ea447e3326a0ee54800f4c4\n"
+      ],
+      "logUrl": "https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Fcodebuild$252Fcapiro-build-web-dev/log-events/0f24f655-5d39-412a-8a71-93adea1d176b",
+      "failedPhases": [],
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a57582e0998ceb6d47bf1553f9a8a29c91fd0d527ea447e3326a0ee54800f4c4"
+    },
+    "qualification": {
+      "sha": "0732f2511796411c2d9a492e6a3b0a4bc33cb225",
+      "id": "capiro-build-web-dev:c54a9690-fc75-4449-a124-a65a5eef3748",
+      "status": "SUCCEEDED",
+      "phase": "COMPLETED",
+      "markers": [
+        "UI_GATE_BEGIN Generate Prisma clients\n",
+        "UI_GATE_PASS Generate Prisma clients\n",
+        "UI_GATE_BEGIN Typecheck (apps/api, apps/intel-api, apps/web)\n",
+        "UI_GATE_PASS Typecheck (apps/api, apps/intel-api, apps/web)\n",
+        "UI_GATE_BEGIN Tests \u2014 state bill supporting document records\n",
+        "UI_GATE_PASS Tests \u2014 state bill supporting document records\n",
+        "UI_GATE_BEGIN Tests \u2014 automatic public recording policy\n",
+        "UI_GATE_PASS Tests \u2014 automatic public recording policy\n",
+        "UI_GATE_BEGIN Tests \u2014 saved hearing association SQL\n",
+        "UI_GATE_PASS Tests \u2014 saved hearing association SQL\n",
+        "UI_GATE_BEGIN Bootstrap restricted worker in the owned LegiWatch service\n",
+        "UI_GATE_PASS Bootstrap restricted worker in the owned LegiWatch service\n",
+        "UI_GATE_BEGIN LegiWatch additive migrations and PostgreSQL recovery\n",
+        "UI_GATE_PASS LegiWatch additive migrations and PostgreSQL recovery\n",
+        "UI_GATE_BEGIN Prepare isolated committee alert test database\n",
+        "UI_GATE_PASS Prepare isolated committee alert test database\n",
+        "UI_GATE_BEGIN Committee news fresh and retired-upgrade migration rehearsal\n",
+        "UI_GATE_PASS Committee news fresh and retired-upgrade migration rehearsal\n",
+        "UI_GATE_BEGIN Phase 2 report, source and delivery qualification\n",
+        "UI_GATE_PASS Phase 2 report, source and delivery qualification\n",
+        "UI_GATE_BEGIN Assert Phase 2 qualification is clean\n",
+        "UI_GATE_PASS Assert Phase 2 qualification is clean\n",
+        "UI_GATE_BEGIN Phase 3 calendar, preparation and agenda delivery qualification\n",
+        "UI_GATE_PASS Phase 3 calendar, preparation and agenda delivery qualification\n",
+        "UI_GATE_BEGIN Assert Phase 3 qualification is clean\n",
+        "UI_GATE_PASS Assert Phase 3 qualification is clean\n",
+        "UI_GATE_BEGIN Assert Phase 1 PostgreSQL suites are clean\n",
+        "UI_GATE_PASS Assert Phase 1 PostgreSQL suites are clean\n",
+        "UI_GATE_BEGIN Assert saved hearing association SQL is clean\n",
+        "UI_GATE_PASS Assert saved hearing association SQL is clean\n",
+        "UI_GATE_BEGIN Tests \u2014 apps/api LegiWatch scope\n",
+        "UI_GATE_PASS Tests \u2014 apps/api LegiWatch scope\n",
+        "UI_GATE_BEGIN Assert apps/api scope is clean\n",
+        "UI_GATE_PASS Assert apps/api scope is clean\n",
+        "UI_GATE_BEGIN Selected bill inventory qualification\n",
+        "UI_GATE_PASS Selected bill inventory qualification\n",
+        "UI_GATE_BEGIN Assert selected inventory qualification is clean\n",
+        "UI_GATE_PASS Assert selected inventory qualification is clean\n",
+        "UI_GATE_BEGIN Tests \u2014 HB1211 scoped dataset inventory operator\n",
+        "UI_GATE_PASS Tests \u2014 HB1211 scoped dataset inventory operator\n",
+        "UI_GATE_BEGIN Tests \u2014 apps/intel-api LegiWatch scope\n",
+        "UI_GATE_PASS Tests \u2014 apps/intel-api LegiWatch scope\n",
+        "UI_GATE_BEGIN Assert apps/intel-api scope is clean\n",
+        "UI_GATE_PASS Assert apps/intel-api scope is clean\n",
+        "UI_GATE_BEGIN Tests \u2014 apps/web LegiWatch scope\n",
+        "UI_GATE_PASS Tests \u2014 apps/web LegiWatch scope\n",
+        "UI_GATE_BEGIN Assert apps/web scope is clean\n",
+        "UI_GATE_PASS Assert apps/web scope is clean\n",
+        "UI_GATE_BEGIN Phase 4 recording, review, delivery and document qualification\n",
+        "UI_GATE_PASS Phase 4 recording, review, delivery and document qualification\n",
+        "UI_GATE_BEGIN Phase 5 source revisions, private briefs and delivery qualification\n",
+        "UI_GATE_PASS Phase 5 source revisions, private briefs and delivery qualification\n",
+        "UI_GATE_BEGIN_MERGED_MERI_RESEARCH\n",
+        "UI_GATE_PASS_MERGED_MERI_RESEARCH\n",
+        "LEGIWATCH_UI_QUALIFICATION_PASS\n",
+        "UI_RESULT saved-session-sql-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 28, \"numPassedTests\": 28, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 1}\n",
+        "UI_RESULT folder-pg-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 34, \"numPassedTests\": 34, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 3}\n",
+        "UI_RESULT source-pg-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 2, \"numPassedTests\": 2, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 1}\n",
+        "UI_RESULT phase2-report-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 35, \"numPassedTests\": 35, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 2}\n",
+        "UI_RESULT phase2-source-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 7, \"numPassedTests\": 7, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 2}\n",
+        "UI_RESULT phase2-web-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 8, \"numPassedTests\": 8, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 1}\n",
+        "UI_RESULT phase3-private-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 7, \"numPassedTests\": 7, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 1}\n",
+        "UI_RESULT phase3-calendar-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 20, \"numPassedTests\": 20, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 4}\n",
+        "UI_RESULT phase3-web-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 6, \"numPassedTests\": 6, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 2}\n",
+        "UI_RESULT api-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 1801, \"numPassedTests\": 1801, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 143}\n",
+        "UI_RESULT inventory-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 11, \"numPassedTests\": 11, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 2}\n",
+        "UI_RESULT intel-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 1237, \"numPassedTests\": 1237, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 91}\n",
+        "UI_RESULT web-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 1180, \"numPassedTests\": 1180, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 335}\n",
+        "UI_RESULT merged-meri-summary.json {\"success\": true, \"passed\": null, \"numTotalTests\": 80, \"numPassedTests\": 80, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 3}\n",
+        "UI_RESULT work/phase4-qualification/api.json {\"success\": true, \"passed\": null, \"numTotalTests\": 92, \"numPassedTests\": 92, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 7}\n",
+        "UI_RESULT work/phase4-qualification/intel-api.json {\"success\": true, \"passed\": null, \"numTotalTests\": 124, \"numPassedTests\": 124, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 15}\n",
+        "UI_RESULT work/phase4-qualification/web.json {\"success\": true, \"passed\": null, \"numTotalTests\": 119, \"numPassedTests\": 119, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 28}\n",
+        "UI_RESULT work/phase5-qualification/api.json {\"success\": true, \"passed\": null, \"numTotalTests\": 222, \"numPassedTests\": 222, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 15}\n",
+        "UI_RESULT work/phase5-qualification/intel.json {\"success\": true, \"passed\": null, \"numTotalTests\": 26, \"numPassedTests\": 26, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 4}\n",
+        "UI_RESULT work/phase5-qualification/core.json {\"success\": true, \"passed\": null, \"numTotalTests\": 119, \"numPassedTests\": 119, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 3}\n",
+        "UI_RESULT work/phase5-qualification/orchestrator.json {\"success\": true, \"passed\": null, \"numTotalTests\": 70, \"numPassedTests\": 70, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 3}\n",
+        "UI_RESULT work/phase5-qualification/web.json {\"success\": true, \"passed\": null, \"numTotalTests\": 74, \"numPassedTests\": 74, \"numFailedTests\": 0, \"numPendingTests\": 0, \"numTotalTestSuites\": 13}\n",
+        "UI_RESULT work/phase5-qualification/summary.json {\"success\": null, \"passed\": null, \"numTotalTests\": null, \"numPassedTests\": null, \"numFailedTests\": null, \"numPendingTests\": null, \"numTotalTestSuites\": null}\n"
+      ],
+      "logUrl": "https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#logsV2:log-groups/log-group/$252Faws$252Fcodebuild$252Fcapiro-build-web-dev/log-events/c54a9690-fc75-4449-a124-a65a5eef3748",
+      "failedPhases": []
+    }
+  },
+  "tests": {
+    "saved-session-sql-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 28,
+      "numPassedTests": 28,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 1
+    },
+    "folder-pg-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 34,
+      "numPassedTests": 34,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 3
+    },
+    "source-pg-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 2,
+      "numPassedTests": 2,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 1
+    },
+    "phase2-report-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 35,
+      "numPassedTests": 35,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 2
+    },
+    "phase2-source-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 7,
+      "numPassedTests": 7,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 2
+    },
+    "phase2-web-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 8,
+      "numPassedTests": 8,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 1
+    },
+    "phase3-private-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 7,
+      "numPassedTests": 7,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 1
+    },
+    "phase3-calendar-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 20,
+      "numPassedTests": 20,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 4
+    },
+    "phase3-web-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 6,
+      "numPassedTests": 6,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 2
+    },
+    "api-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 1801,
+      "numPassedTests": 1801,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 143
+    },
+    "inventory-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 11,
+      "numPassedTests": 11,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 2
+    },
+    "intel-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 1237,
+      "numPassedTests": 1237,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 91
+    },
+    "web-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 1180,
+      "numPassedTests": 1180,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 335
+    },
+    "merged-meri-summary.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 80,
+      "numPassedTests": 80,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 3
+    },
+    "work/phase4-qualification/api.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 92,
+      "numPassedTests": 92,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 7
+    },
+    "work/phase4-qualification/intel-api.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 124,
+      "numPassedTests": 124,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 15
+    },
+    "work/phase4-qualification/web.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 119,
+      "numPassedTests": 119,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 28
+    },
+    "work/phase5-qualification/api.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 222,
+      "numPassedTests": 222,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 15
+    },
+    "work/phase5-qualification/intel.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 26,
+      "numPassedTests": 26,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 4
+    },
+    "work/phase5-qualification/core.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 119,
+      "numPassedTests": 119,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 3
+    },
+    "work/phase5-qualification/orchestrator.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 70,
+      "numPassedTests": 70,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 3
+    },
+    "work/phase5-qualification/web.json": {
+      "success": true,
+      "passed": null,
+      "numTotalTests": 74,
+      "numPassedTests": 74,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTotalTestSuites": 13
+    },
+    "work/phase5-qualification/summary.json": {
+      "success": null,
+      "passed": null,
+      "numTotalTests": null,
+      "numPassedTests": null,
+      "numFailedTests": null,
+      "numPendingTests": null,
+      "numTotalTestSuites": null
+    }
+  },
+  "typechecks": "All API programs, Intel API and web passed in exact-source native gate",
+  "runtime": "API compiled debrief, pruned RSS and actual dataset client/parser/facts imports; Intel capture/controller imports and FFmpeg; web assets and Nginx passed offline",
+  "workflow": "All named runnable steps from the frozen LegiWatch workflow, including fresh/retired migration rehearsal and Phases 2\u20135, executed natively",
+  "review": {
+    "status": "no blockers",
+    "reviewer": "Codex root; publisher/debrief and scoped dataset operator reviewed; capture recovery corrected after lifecycle review; client-impact independently reviewed by Hermes and root, including server-authored limitations; capture-start and fenced queue deferral reviewed by root"
+  },
+  "corrections": [
+    "Catalog qualification, exact dated intake receipts and retained article counts are distinct",
+    "Newer failures remain authoritative and both Politico endpoints are represented",
+    "Public news filters do not claim client-specific relevance",
+    "Elapsed/no-transcript and unresolved transcript dialogs withhold generation with a visible reason",
+    "Oversized key-moment summaries withhold the draft instead of silently removing closing qualifications",
+    "Untouched source-blocked captures can recover only a newly observed verified source in the ordinary timing window, with fresh probes and locked lifecycle/provenance checks",
+    "RSS HTML redirects and unsupported content types have accurate failure reasons",
+    "A separately reviewed exact-bill dataset operator preserves quota guards, original archive time and protected bill facts; retrieval and missing-inventory update are separate actions",
+    "Future capture jobs wait until five minutes before the fresh official start; unknown scheduled times wait while officially in-progress events can start immediately",
+    "Pending capture jobs move earlier and later without mutating leased/terminal work; leased early jobs use an owner/expiry/identity/attempt-guarded deferral which refunds only the scheduling claim and retains prior failures",
+    "Review-only client-impact drafts require complete exact retained text, authorized active client context, server-owned citations, independent substantive checking, current evidence/access revalidation and bounded cancellation; no unsupported fallback or persistence"
+  ],
+  "databaseRegression": {
+    "captureRecoveryTests": 35,
+    "captureStartSchedulingTests": 4,
+    "clientImpactScopeTests": 3,
+    "operatorTests": 27,
+    "receiptSelection": "Actual application-role query and fixture rollback preserve immutable receipts"
+  },
+  "firstAttempt": {
+    "sourceSha": "51f302efa566f0d9bfe4ca3bcb6042ba55a6c73c",
+    "buildId": "capiro-build-web-dev:6eeb0580-b495-4e75-9c10-ad67ca92281c",
+    "status": "failed",
+    "reason": "Receipt test assertions passed but fixture DELETE hit PHASE8_EVIDENCE_IMMUTABLE; fixture now rolls back and verifies absence. Protection unchanged."
+  },
+  "limits": [
+    "Only six verified publisher identities are bound; unknown catalog rows are explicit",
+    "Receipt date is historical evidence, not a current-health or history-completeness guarantee",
+    "No current approved-source recovery case or universal future capture coverage is certified",
+    "HB1211 hydration remains held above the unchanged soft budget; dataset operator is qualified code only, not proof of execution or inventory completeness",
+    "Missing legacy match traces remain unqualified",
+    "Client-impact is an unsaved review draft, not certified semantic correctness or actual eligibility; human-reviewed live generation remains an acceptance gate"
+  ],
+  "promotion": "Not deployed by this record; exact guarded release and live acceptance remain required",
+  "timingFixtureAttempt": {
+    "sourceSha": "054420c8769b9647901cdac31c41efd45f2ac7d1",
+    "status": "failed",
+    "reason": "Three native timing fixture setup updates omitted UUID parameter casts. Test setup corrected; production queue already used explicit UUID casts. Full qualification restarted."
+  },
+  "preTimingQualification": {
+    "sourceSha": "fee08edc986a4eb5f744051ec28e159e9ab5020c",
+    "status": "all native builds and tests passed; deployment withheld after finding early recording could exhaust the runtime before the hearing",
+    "supersededBy": "0732f2511796411c2d9a492e6a3b0a4bc33cb225"
+  }
+}
