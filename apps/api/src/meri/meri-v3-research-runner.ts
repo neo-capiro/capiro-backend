@@ -358,7 +358,13 @@ export class MeriV3ResearchRunner {
         'read-only',
         () => {},
       );
-      if ((correction.ledgerEntries ?? []).length || (correction.steps ?? []).length)
+      // A ledger entry or a durable read step means a tool actually executed.
+      // Other steps (context and synthesis progress) are not reads; counting
+      // them rejected every correction in T5 run 9c52022a.
+      if (
+        (correction.ledgerEntries ?? []).length ||
+        (correction.steps ?? []).some((step) => step.durableSafeRead)
+      )
         throw new ResearchChildTaskError('research_child_correction_read');
       frame = { ...frame, reply: correction.reply, model: correction.model };
       output = validateResearchChildOutput(frame.reply, {
