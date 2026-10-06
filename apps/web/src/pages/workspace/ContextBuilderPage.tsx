@@ -1,6 +1,7 @@
+import { useWorkspaceMessage } from './workspace-message.js';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { App as AntApp, Spin } from 'antd';
+import { Spin } from 'antd';
 import { useQuery } from '@tanstack/react-query';
 import { useApi } from '../../lib/use-api.js';
 import { StepsRail } from './StepsRail.js';
@@ -192,7 +193,7 @@ function ContextBuilder({
   client: string | null;
 }) {
   const navigate = useNavigate();
-  const { message } = AntApp.useApp();
+  const message = useWorkspaceMessage();
   const api = useApi();
   const [tab, setTab] = useState(0);
   const [freeText, setFreeText] = useState('');

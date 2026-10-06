@@ -19,8 +19,8 @@
  * text, so the highlight can be recomputed on every render even though the live
  * DOM `.ws-hl` span is transient (re-anchor in anchors.ts).
  */
+import { useWorkspaceMessage } from '../workspace-message.js';
 import { useEffect, useRef, useState } from 'react';
-import { App as AntApp } from 'antd';
 import { Ava, Icon } from '../kit.js';
 import type { WsComment } from '../types.js';
 import {
@@ -162,7 +162,7 @@ export function CommentsRail({
    */
   onApplyEdit: (anchor: CommentAnchor, after: string) => void;
 }) {
-  const { message } = AntApp.useApp();
+  const message = useWorkspaceMessage();
   const { data: members } = useTenantMembers();
   const createComment = useCreateComment(documentId);
   const updateComment = useUpdateComment(documentId);

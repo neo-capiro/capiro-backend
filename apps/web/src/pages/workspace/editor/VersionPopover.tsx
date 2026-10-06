@@ -7,7 +7,8 @@
  * Meri-authored versions show the Meri sparkle avatar; person versions show the
  * tenant-member avatar. Footer carries the AI-use disclosure note.
  */
-import { Spin, App as AntApp } from 'antd';
+import { useWorkspaceMessage } from '../workspace-message.js';
+import { Spin } from 'antd';
 import { Ava, Icon } from '../kit.js';
 import {
   initials as initialsOf,
@@ -44,7 +45,7 @@ export function VersionPopover({
   onClose: () => void;
   onRestored: () => void;
 }) {
-  const { message } = AntApp.useApp();
+  const message = useWorkspaceMessage();
   const { data: versions, isLoading } = useVersions(draftId);
   const { data: members } = useTenantMembers();
   const restore = useRestoreVersion(draftId);

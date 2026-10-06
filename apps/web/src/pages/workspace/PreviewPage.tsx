@@ -26,9 +26,10 @@
  *    (Q-PV-3).
  *  - Autosaved stamp from draft.updatedAt.
  */
+import { useWorkspaceMessage } from './workspace-message.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { App as AntApp, Spin } from 'antd';
+import { Spin } from 'antd';
 import { Icon, Ava } from './kit.js';
 import { StepsRail } from './StepsRail.js';
 import {
@@ -58,7 +59,7 @@ type Bundle = 'separate' | 'packet';
 export function PreviewPage() {
   const { draftId } = useParams();
   const navigate = useNavigate();
-  const { message } = AntApp.useApp();
+  const message = useWorkspaceMessage();
 
   const { data: draft, isLoading } = useDraft(draftId ?? null);
   const { data: me } = useMe();
