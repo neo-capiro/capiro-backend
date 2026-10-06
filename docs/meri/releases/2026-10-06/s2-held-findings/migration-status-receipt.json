@@ -1,0 +1,8 @@
+{
+  "taskDefinition": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api-admin-migrate:90",
+  "task": "arn:aws:ecs:us-east-1:967807252336:task/capiro-dev/9f951ec85e6c41a09b6b0763f52f71ce",
+  "exitCode": 0,
+  "logStream": "api/api-admin-migrate/9f951ec85e6c41a09b6b0763f52f71ce",
+  "upToDate": true,
+  "pendingMentioned": []
+}
