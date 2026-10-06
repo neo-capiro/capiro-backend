@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "engagement-api",
+  "preparedAt": "2026-10-06T15:37:33.475Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "engagement-api",
+    "sourceSha": "34d34c6f8201ad0849865118ebd932b3b26bbe7b",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:47e56506ea13181b096c81e7bd7967946c8bd6430ce7e73dc32c66f85c21012c",
+    "status": "qualified",
+    "reviewer": "Codex release agent under explicit owner authorization to merge, deploy to AWS, and backfill Krisp notes directly",
+    "reviewedAt": "2026-10-06T15:36:06.400Z",
+    "expiresAt": "2026-10-07T03:36:06.400Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/8b24bd2d9d17e4d102f23871e3c34b4eaa8ae43e/docs/meri/releases/2026-10-06/krisp-direct-notes/qualification.md"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "34d34c6f8201ad0849865118ebd932b3b26bbe7b",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:47e56506ea13181b096c81e7bd7967946c8bd6430ce7e73dc32c66f85c21012c",
+        "url": "https://github.com/neo-capiro/capirov2/blob/8b24bd2d9d17e4d102f23871e3c34b4eaa8ae43e/docs/meri/releases/2026-10-06/krisp-direct-notes/qualification.md"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "34d34c6f8201ad0849865118ebd932b3b26bbe7b",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:47e56506ea13181b096c81e7bd7967946c8bd6430ce7e73dc32c66f85c21012c",
+        "url": "https://github.com/neo-capiro/capirov2/blob/8b24bd2d9d17e4d102f23871e3c34b4eaa8ae43e/docs/meri/releases/2026-10-06/krisp-direct-notes/qualification.md"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "34d34c6f8201ad0849865118ebd932b3b26bbe7b",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:47e56506ea13181b096c81e7bd7967946c8bd6430ce7e73dc32c66f85c21012c",
+        "url": "https://github.com/neo-capiro/capirov2/blob/8b24bd2d9d17e4d102f23871e3c34b4eaa8ae43e/docs/meri/releases/2026-10-06/krisp-direct-notes/qualification.md"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:133",
+    "serviceHash": "5e696a4589758632cd452975d0e29e4a60030cd6c1be919246e270596f97ccf6",
+    "configHash": "e9334676af8901afefb274207fbe152d2cc296ec0b6d6dc807639640e656fdc2",
+    "taskHash": "34613851ecb42cae00598f17db3876d64fb29b7adbd90226a22a3aca877872f9",
+    "imageDigest": "sha256:38d0b7c91b00bc34d0d12928ede41f00f04dca9509832c057921f3bf1a14b5b8",
+    "desiredCount": 2
+  }
+}

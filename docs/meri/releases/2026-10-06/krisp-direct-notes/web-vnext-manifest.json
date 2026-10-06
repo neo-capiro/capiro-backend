@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "web-vnext",
+  "preparedAt": "2026-10-06T15:37:33.523Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "web-vnext",
+    "sourceSha": "6db96857068b52ec2993af33267f14a45efcf2e6",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:c076f962d9a3afdfab83a9c042f9dc6b749dac5172d8b8bcba8ebe31a53c29ee",
+    "status": "qualified",
+    "reviewer": "Codex release agent under explicit owner authorization to merge, deploy to AWS, and backfill Krisp notes directly",
+    "reviewedAt": "2026-10-06T15:36:06.400Z",
+    "expiresAt": "2026-10-07T03:36:06.400Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/8b24bd2d9d17e4d102f23871e3c34b4eaa8ae43e/docs/meri/releases/2026-10-06/krisp-direct-notes/qualification.md"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "6db96857068b52ec2993af33267f14a45efcf2e6",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:c076f962d9a3afdfab83a9c042f9dc6b749dac5172d8b8bcba8ebe31a53c29ee",
+        "url": "https://github.com/neo-capiro/capirov2/blob/8b24bd2d9d17e4d102f23871e3c34b4eaa8ae43e/docs/meri/releases/2026-10-06/krisp-direct-notes/qualification.md"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "6db96857068b52ec2993af33267f14a45efcf2e6",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:c076f962d9a3afdfab83a9c042f9dc6b749dac5172d8b8bcba8ebe31a53c29ee",
+        "url": "https://github.com/neo-capiro/capirov2/blob/8b24bd2d9d17e4d102f23871e3c34b4eaa8ae43e/docs/meri/releases/2026-10-06/krisp-direct-notes/qualification.md"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "6db96857068b52ec2993af33267f14a45efcf2e6",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:c076f962d9a3afdfab83a9c042f9dc6b749dac5172d8b8bcba8ebe31a53c29ee",
+        "url": "https://github.com/neo-capiro/capirov2/blob/8b24bd2d9d17e4d102f23871e3c34b4eaa8ae43e/docs/meri/releases/2026-10-06/krisp-direct-notes/qualification.md"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-web-vnext:418",
+    "serviceHash": "17a03774b76a7b127cf1afa823787e300633d46b7ed6d49786a6118cf5f4f56d",
+    "configHash": "453a3d5aedc3da7d989370b97669abf0c1b14efbacd2d1597990b9cac7d50ab7",
+    "taskHash": "703cce2f5d291894acdeac17251fd63df544c9eb9275a51def5287fc9723eda9",
+    "imageDigest": "sha256:4114766a34f8abb31a990ca640f99f8fdf919aeef10d469b8f14f0e1b212cc89",
+    "desiredCount": 1
+  }
+}

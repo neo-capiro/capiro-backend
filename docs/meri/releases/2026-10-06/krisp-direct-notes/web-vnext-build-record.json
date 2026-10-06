@@ -1,0 +1,11 @@
+{
+  "service": "web-vnext",
+  "sourceSha": "6db96857068b52ec2993af33267f14a45efcf2e6",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:c076f962d9a3afdfab83a9c042f9dc6b749dac5172d8b8bcba8ebe31a53c29ee",
+  "buildId": "capiro-build-web-dev:985c58ab-00f4-4df5-b9ca-37ad2a1d4a70",
+  "status": "SUCCEEDED",
+  "startedAt": "2026-10-06T11:19:29.742000-04:00",
+  "endedAt": "2026-10-06T11:26:45.497000-04:00",
+  "packagedProbePassed": true,
+  "packagedMigrationsMatched": false
+}
