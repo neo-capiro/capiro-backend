@@ -1,0 +1,24 @@
+{
+  "at": "2026-10-06T00:12:24.082Z",
+  "service": "meriv2-orchestrator",
+  "status": "SUCCEEDED",
+  "qualification": "IMMUTABLE_BUILD_AND_IMAGE_SMOKE_PASS",
+  "sourceSha": "2b5a9d29600431efb218e5d78802bc3a860addc1",
+  "resolvedSourceSha": "2b5a9d29600431efb218e5d78802bc3a860addc1",
+  "buildId": "capiro-build-web-dev:84456615-85a2-41d5-b686-bc0eeeac2032",
+  "startedAt": "2026-10-05T20:07:28.930000-04:00",
+  "finishedAt": "2026-10-05T20:11:53.166000-04:00",
+  "requiredMarkers": [
+    "IMAGE_SMOKE_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+  ],
+  "markersSeen": [
+    "IMAGE_SMOKE_PASS",
+    "LOCAL_REPODIGEST_ECR_MATCH_PASS"
+  ],
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:7511b7f92e2640fe60b5f21bb2f1dce3c46c37f5f1868d649143da2f87cef493",
+  "imageDigest": "sha256:7511b7f92e2640fe60b5f21bb2f1dce3c46c37f5f1868d649143da2f87cef493",
+  "imageTags": [
+    "2b5a9d29600431efb218e5d78802bc3a860addc1"
+  ]
+}
