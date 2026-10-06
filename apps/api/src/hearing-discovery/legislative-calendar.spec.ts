@@ -55,10 +55,10 @@ function notice(): LegislativeObservation {
 describe('Legislative calendar source contract', () => {
   it('retains closed visibility through incomplete and lower-authority calendar refreshes', () => {
     const closed = notice();
-    closed.fields.visibility = 'closed';
+    closed.fields.visibility = 'private';
     closed.completeFields.push('visibility');
     const projected = projectLegislativeObservation({}, {}, closed, source, now);
-    expect(projected.facts.visibility).toBe('closed');
+    expect(projected.facts.visibility).toBe('private');
     const partial = projectLegislativeObservation(
       projected.facts,
       projected.provenance,
@@ -66,7 +66,7 @@ describe('Legislative calendar source contract', () => {
       source,
       now,
     );
-    expect(partial.facts.visibility).toBe('closed');
+    expect(partial.facts.visibility).toBe('private');
     expect(partial.changedFields).not.toContain('visibility');
     const weak = { ...closed, fields: { ...closed.fields, visibility: 'public' as const } };
     expect(
@@ -77,9 +77,9 @@ describe('Legislative calendar source contract', () => {
         { id: 'secondary', priority: 100 },
         now,
       ).facts.visibility,
-    ).toBe('closed');
+    ).toBe('private');
     expect(() =>
-      validateCalendarObservation({ ...closed, fields: { visibility: 'invalid' as 'closed' } }),
+      validateCalendarObservation({ ...closed, fields: { visibility: 'invalid' as 'private' } }),
     ).toThrow('visibility');
   });
 

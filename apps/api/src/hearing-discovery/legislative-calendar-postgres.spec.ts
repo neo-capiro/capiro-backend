@@ -282,12 +282,12 @@ describe('Phase 3 calendar persistence on PostgreSQL', () => {
   });
   it('projects an explicit closed notice and never reopens it when later visibility is omitted', async () => {
     const closed = notice();
-    closed.fields.visibility = 'closed';
+    closed.fields.visibility = 'private';
     closed.completeFields.push('visibility');
     await repo.reconcile(source, 'upstream-909', closed, now);
     const before = await prisma.committeeHearing.findUniqueOrThrow({ where: { id: hearingId } });
-    expect(before.visibility).toBe('closed');
-    expect(before.calendarSnapshot).toMatchObject({ visibility: 'closed' });
+    expect(before.visibility).toBe('private');
+    expect(before.calendarSnapshot).toMatchObject({ visibility: 'private' });
     await repo.reconcile(
       source,
       'upstream-909',
@@ -295,13 +295,13 @@ describe('Phase 3 calendar persistence on PostgreSQL', () => {
       now,
     );
     const after = await prisma.committeeHearing.findUniqueOrThrow({ where: { id: hearingId } });
-    expect(after.visibility).toBe('closed');
+    expect(after.visibility).toBe('private');
     expect(after.calendarRevision).toBe(before.calendarRevision);
     const transition = await prisma.legislativeCalendarTransition.findFirstOrThrow({
       where: { hearingId },
       orderBy: { revision: 'desc' },
     });
     expect(transition.changedFields).toContain('visibility');
-    expect(transition.after).toMatchObject({ visibility: 'closed' });
+    expect(transition.after).toMatchObject({ visibility: 'private' });
   });
 });

@@ -802,7 +802,7 @@ export function houseNoticeObservation(
   }
   const fields: LegislativeObservation['fields'] = {
     title: bodyName,
-    ...(securedBriefing ? { visibility: 'closed' as const } : {}),
+    ...(securedBriefing ? { visibility: 'private' as const } : {}),
     status: /\b(cancelled|canceled|not meeting)\b/i.test($('.cm_contents').text())
       ? 'canceled'
       : 'scheduled',

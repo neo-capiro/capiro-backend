@@ -30,7 +30,7 @@ const ref: SenateNoticeRef = {
 };
 describe('Florida first-party calendar contract', () => {
   it.each([
-    ['Secured briefing on critical incident response protocols', true, 'closed'],
+    ['Secured briefing on critical incident response protocols', true, 'private'],
     ['Public workshop on critical incident response protocols', true, undefined],
     ['Secured briefing on critical incident response protocols', false, undefined],
   ])(
@@ -46,7 +46,7 @@ describe('Florida first-party calendar contract', () => {
         '2026',
       );
       expect(notice.fields.visibility).toBe(expected);
-      expect(notice.completeFields.includes('visibility')).toBe(expected === 'closed');
+      expect(notice.completeFields.includes('visibility')).toBe(expected === 'private');
       expect(() => validateCalendarObservation(notice)).not.toThrow();
     },
   );
