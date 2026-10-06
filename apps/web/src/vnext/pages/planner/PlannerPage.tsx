@@ -1407,6 +1407,8 @@ function TaskEditor({
   const [mentions, setMentions] = useState<string[]>([]);
   const [minutes, setMinutes] = useState(30);
   const [subtask, setSubtask] = useState('');
+  const [dependencySearch, setDependencySearch] = useState('');
+  const dependencyQuery = usePlannerTasks({ search: dependencySearch });
   const [dialogParams, setDialogParams] = useSearchParams();
   const children = usePlannerTasks({ parentId: task?.id }, Boolean(task));
   useEffect(() => {
@@ -1661,27 +1663,67 @@ function TaskEditor({
                 </Label>
               ))}
               <Label name="Dependencies">
+                <input
+                  aria-label="Search dependencies across Planner"
+                  value={dependencySearch}
+                  onChange={(e) => setDependencySearch(e.target.value)}
+                  placeholder="Find a task in any project…"
+                />
                 <select
                   disabled={!canEdit}
                   multiple
                   value={data.dependencies}
+                  aria-label="Dependencies"
                   onChange={(e) =>
                     edit({ dependencies: Array.from(e.target.selectedOptions, (o) => o.value) })
                   }
                 >
-                  <ErrorText error={children.error} />
-                  {(children.data?.pages.flatMap((p) => p.items) ?? tasks)
-                    .filter((t) => t.id !== task?.id)
+                  {Array.from(
+                    new Map(
+                      [
+                        ...tasks,
+                        ...(dependencyQuery.data?.pages.flatMap((p) => p.items) ?? []),
+                      ].map((t) => [t.id, t]),
+                    ).values(),
+                  )
+                    .filter(
+                      (t) =>
+                        t.id !== task?.id &&
+                        (!dependencySearch ||
+                          data.dependencies.includes(t.id) ||
+                          t.name.toLowerCase().includes(dependencySearch.toLowerCase())),
+                    )
                     .map((t) => (
                       <option key={t.id} value={t.id}>
-                        <button type="button" onClick={() => navigateTask(t.id)}>
-                          {t.name}
-                        </button>
+                        {t.name}
+                      </option>
+                    ))}
+                  {data.dependencies
+                    .filter(
+                      (id) =>
+                        ![
+                          ...tasks,
+                          ...(dependencyQuery.data?.pages.flatMap((p) => p.items) ?? []),
+                        ].some((t) => t.id === id),
+                    )
+                    .map((id) => (
+                      <option key={id} value={id}>
+                        Linked dependency {id}
                       </option>
                     ))}
                 </select>
                 <small>Hold Ctrl or Command to select several tasks.</small>
               </Label>
+              <ErrorText error={dependencyQuery.error} />
+              {dependencyQuery.hasNextPage && (
+                <button
+                  type="button"
+                  disabled={dependencyQuery.isFetchingNextPage}
+                  onClick={() => void dependencyQuery.fetchNextPage()}
+                >
+                  Load more dependencies
+                </button>
+              )}
               <Label name="Collaborators">
                 <select
                   disabled={!canEdit}
@@ -1780,12 +1822,15 @@ function TaskEditor({
                   </div>
                   <PlannerAttachments task={task} />
                   <h3>Subtasks</h3>
-                  {tasks
+                  <ErrorText error={children.error} />
+                  {(children.data?.pages.flatMap((p) => p.items) ?? tasks)
                     .filter((t) => t.parentId === task.id)
                     .map((t) => (
                       <div key={t.id} className="planner-subtask">
                         <CheckCircle2 size={16} />
-                        {t.name}
+                        <button type="button" onClick={() => navigateTask(t.id)}>
+                          {t.name}
+                        </button>
                         <span>{PLANNER_STATUS_LABELS[t.status]}</span>
                       </div>
                     ))}
@@ -1800,6 +1845,7 @@ function TaskEditor({
                       <button
                         type="button"
                         disabled={!subtask.trim() || actions.task.isPending}
+                        aria-label="Add subtask"
                         onClick={async () => {
                           try {
                             await actions.task.mutateAsync({
@@ -1808,7 +1854,6 @@ function TaskEditor({
                                 name: subtask,
                                 parentId: task.id,
                                 assigneeId: task.assigneeId,
-                                memberships: task.memberships,
                               },
                             });
                             setSubtask('');

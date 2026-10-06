@@ -41,7 +41,13 @@ export function usePlannerQueue() {
   });
 }
 export function usePlannerTasks(
-  filters: { projectId?: string; mine?: string; archived?: string; parentId?: string } = {},
+  filters: {
+    projectId?: string;
+    mine?: string;
+    archived?: string;
+    parentId?: string;
+    search?: string;
+  } = {},
   enabled = true,
 ) {
   const api = useApi();

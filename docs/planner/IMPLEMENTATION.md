@@ -28,13 +28,15 @@ Canonical client/meeting authorization remains with the canonical APIs. Forward 
 
 ## Status
 
-The current candidate implements the inventory above, with the following limits still requiring parity work: personal My Tasks sections, scheduled due-date rules, due times and richer recurrence schedules, editing/removing comments and time entries, paginated inbox/activity, global dependency search, form custom-field questions and branching, relative template dates, goal hierarchies, and deeper reporting/timesheet dashboards. Do not claim exact full Asana parity from this candidate.
+The current candidate implements the inventory above, with the following limits still requiring parity work: personal My Tasks sections, scheduled due-date rules, due times and richer recurrence schedules, editing/removing comments and time entries, paginated inbox/activity, form custom-field questions and branching, relative template dates, goal hierarchies, and deeper reporting/timesheet dashboards. Do not claim exact full Asana parity from this candidate.
 
 Implemented additions include project duplication, transactional task ordering, list grouping, saved views, bulk status/assignee/priority/section/archive changes, formatted descriptions/comments and authorized mention notifications, revocable anonymous intake links, immutable private task attachments, workload capacity, portfolios/goals, rules, templates preserving hierarchy and dependencies, and reviewed CSV import/export. Duplicate projects start private with fresh identities and exclude other projects' fields and record links.
 
 Public forms use 256-bit capabilities stored only as SHA-256 hashes. The embedded tenant ID scopes all requests through `withTenant`; no anonymous route uses a system/RLS bypass. The response exposes only form questions and submission receipts. Publishing requires project edit access and an expected version; rotation/revocation closes old links. A shared database quota caps submissions at ten per form per minute.
 
 QA: real PostgreSQL migration rehearsal and ACL/concurrency/graph/recurrence/forms/template/attachment-constraint tests; API routing and link-authorization tests; web/Strategies production builds; 47 focused web tests; infrastructure typecheck and three attachment/logo policy checks. The broad Strategies regression run passed 96 suites (1,725 tests) and had one stale-controller failure in a test edited during that run; a fresh run of that HTTP suite passes. Local browser QA verifies task editing, board moves, Gantt keyboard rescheduling, project duplication/order, forms, comments and management resources using explicitly synthetic data. Live release validation is still pending.
+
+The final focused API run passes 111 checks across nine suites, including real database tests and AppModule DI boot. The dependency selector searches across authorized Planner work, preserves selected references, and can load additional pages. Subtasks load separately from the current project/filter and open their own details. Browser verification saved a dependency and displayed its Gantt connection.
 
 The Assets CDK diff contains the intended attachment policy and an unrelated auto-delete-provider runtime change (Node 22 to 24). Release only the policy using the existing stack template; preserve the rest of the live template.
 
