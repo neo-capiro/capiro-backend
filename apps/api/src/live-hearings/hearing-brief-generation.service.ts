@@ -3,7 +3,7 @@ import { parseProviderUsage, recordAiUsageEvent, type TenantContext } from '@cap
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AiCredentialResolverService } from '../ai-credentials/ai-credential-resolver.service.js';
 import { LlmCompletionService } from '../engagement/llm-completion.service.js';
-import { extractJsonObject } from '../engagement/generation/json-extract.js';
+import { parseHearingBriefJson } from './hearing-brief-json.js';
 import { LegiWatchWave1Service } from './legiwatch-wave1.service.js';
 import {
   HearingSpeakerAttributionService,
@@ -325,8 +325,7 @@ export class HearingBriefGenerationService {
         cacheUserStatic: true,
       });
       raw = completion.raw;
-      const json = extractJsonObject(completion.text);
-      const parsed = json ? (JSON.parse(json) as Record<string, unknown>) : {};
+      const parsed = parseHearingBriefJson(completion.text);
       const normalized = normalizeSections(parsed.sections, expected);
       sections = normalized.sections;
       if (!normalized.complete || completion.truncated)

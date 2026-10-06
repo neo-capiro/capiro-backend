@@ -57,3 +57,30 @@ The first actual Golden Dome/L3 Harris generation attempt reached the prior 120-
 Release sequence: promote the API and intelligence through the guarded operator; pin the notification consumer separately; verify old API and notification tasks have drained; then pin the ten ingestion owners and the capture/media workers. Only afterward apply reviewed source/tenant-feature repairs and refresh the sources. Preserve existing roles, secrets, networking, cadence, rollout flags and external delivery gates.
 
 Final production API/worker acceptance, the 297-row committee coverage readback, and actual generated Golden Dome debrief acceptance are pending. A built image is not a deployment receipt.
+
+
+## Follow-up acceptance fixes — source 567ef73ada87bf1aeeafad1c34d8b80596b99096
+
+The final cloud regression build `dd644672-7b82-4d52-8b9c-62ec5b5fc9c5` passed **17 API suites / 305 tests** and **91 web tests**, with zero failures, skips or todos. The API tests include real PostgreSQL calendar and committee-notification checks, debrief generation/evidence/JSON, federal readiness, alias handling, Meri compatibility, Florida identity and publisher backoff. The web tests cover metadata normalization, recording policy and actual hearing-detail navigation. The prior combined source `2e4381b69` also passed 266 API tests and 13 web tests in `f8e89d20-3497-4b8f-8a8c-1b6831438be9`.
+
+Live inspection found three additional presentation gaps. String-form witness names were discarded by the browser, official testimony updates appeared without document links, and a pending capture request concealed a browser-only source restriction. The follow-up preserves and displays witness names, merges verified calendar and testimony documents in event and room responses, keeps unknown publication dates null, and displays current source restrictions before pending recording status. Completed or failed recording outcomes remain visible. Synchronization no longer clears enriched witness names when a House/transcript payload omits them.
+
+A second live Golden Dome debrief attempt passed the former timeout but returned literal unescaped paragraph breaks inside JSON strings. The parser now losslessly encodes those control characters inside strings only. Invalid syntax, truncation, missing sections and unsupported citations remain rejected; this is not a content-repair or grounding bypass. Successful live generation and saving remain an acceptance requirement.
+
+The Florida scheduled Senate crawl was genuinely throttled, while House 2026 completed. The follow-up raises normal request spacing to one second, permits `FL_CALENDAR_DELAY_MS` from 1,000 to 5,000 milliseconds, respects publisher retry delays within the bounded request budget and stops subsequent requests to a throttled host within that run, including additional sessions. It does not provide distributed throttling across independent news and probe jobs. Recovery must be demonstrated by a new complete 2026 calendar receipt, not inferred from unit tests or a source-only probe.
+
+Federal readiness now excludes Florida observations from its federal directory checks. An explicit no-public-stream or blocked rollup counts as an explained non-capture outcome only when no capture or stream candidate exists. Failed captures, unresolved candidates and historical first-party streams without a recording remain visible gaps. Four reviewed same-ID Senate duplicate pairs were repaired through the standard alias validator with exact plan hashes, retaining rows, references and history. The two closed legacy copies were first restricted to the visibility proven by their authoritative Senate observations in the same transaction. The separate House pair 119524/119525 remains unresolved: one official page exists and the other is missing, without an authoritative cancellation or duplicate statement.
+
+The full federal synchronization completed with 3,835 updated records, including 2,766 meeting records and 1,068 hearing/transcript records; it processed 2,731 agenda-to-bill links. Detail-fetch and House-day failures were zero; two transcript source entries lacked dates and were skipped. The news audit retained 774 official articles with zero source-identity mismatches and zero undated-news notifications. Foreign Affairs has all ten verified current articles despite a broken secondary category link. The subsequent RSS run succeeded for 20 of 25 feeds and retained 401 articles; all four Florida feeds succeeded, and Brookings recovered. Reuters, DHS, State, Commerce and Cato remain explicit publisher exceptions.
+
+The URL-provenance migration's fresh-database, retired-upgrade and replay qualification passed in `865514bd-09a7-4759-bfc3-22b6a95a1c83`. The final source's complete 457-file migration inventory is byte-identical to that qualified inventory. Its production wrapper binds the existing 613-row ledger and permits exactly the new official-review allowance, without rewriting historical migration evidence. Production application, new API/web deployment, Florida joint-committee refresh/retirement and final live debrief acceptance are still pending at this entry.
+
+
+Both final ARM64 images passed compilation, runtime checks, source-label validation and immutable ECR readback:
+
+| Service | Final immutable digest | Successful build |
+| --- | --- | --- |
+| API | `sha256:0eaa3d78e07254af7351298bbb03573b819ee1096956230071dae1dda1d0d19a` | `02d83e20-8d24-4941-8b36-762200048db3` |
+| Web | `sha256:671bcd1586b01327df9e9fcde60525d89679920ba51c18d77f01ce79a807822f` | `35c3d83e-c45c-486d-920e-18404542a77c` |
+
+Independent readback after the full federal synchronization confirmed all four Senate aliases, both closed visibility restrictions, retained canonical observations and unchanged protected history. The final images are qualified for guarded promotion; this statement does not yet assert deployment or successful live debrief generation.

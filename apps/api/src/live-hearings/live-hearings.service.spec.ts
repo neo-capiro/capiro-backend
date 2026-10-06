@@ -265,6 +265,80 @@ function makeService(seed: Parameters<typeof makePrisma>[0]) {
   return { service: new LiveHearingsService(prisma as any), prisma };
 }
 
+describe('published hearing documents', () => {
+  it('projects official testimony alongside calendar documents without duplicates or invented publication dates', async () => {
+    const { service } = makeService({
+      hearings: [
+        hearing({
+          calendarSnapshot: {
+            documents: [
+              {
+                key: 'calendar',
+                title: 'Agenda',
+                kind: 'agenda',
+                url: 'https://official.gov/agenda.pdf',
+              },
+            ],
+          },
+        }),
+      ],
+      updates: [
+        {
+          id: 'testimony',
+          hearingId: 'cm-119-119504',
+          updateType: 'witness_testimony_published',
+          normalizedTitle: 'Witness testimony: Published Witness',
+          sourceUrl: 'https://official.gov/download/testimony/witness',
+          officialPublishedAt: null,
+          firstSeenAt: new Date('2026-10-05'),
+        },
+        {
+          id: 'duplicate',
+          hearingId: 'cm-119-119504',
+          updateType: 'committee_memo_published',
+          normalizedTitle: 'Same agenda',
+          sourceUrl: 'https://official.gov/agenda.pdf',
+          officialPublishedAt: null,
+        },
+        {
+          id: 'memo',
+          hearingId: 'cm-119-119504',
+          updateType: 'committee_memo_published',
+          normalizedTitle: 'Memo',
+          sourceUrl: 'https://official.gov/memo.pdf',
+          officialPublishedAt: new Date('2026-09-29'),
+        },
+        {
+          id: 'other',
+          hearingId: 'other-hearing',
+          updateType: 'witness_testimony_published',
+          normalizedTitle: 'Other hearing',
+          sourceUrl: 'https://official.gov/other.pdf',
+          officialPublishedAt: null,
+        },
+        {
+          id: 'news',
+          hearingId: 'cm-119-119504',
+          updateType: 'committee_news_published',
+          normalizedTitle: 'News',
+          sourceUrl: 'https://official.gov/news',
+          officialPublishedAt: null,
+        },
+      ],
+    });
+    const event = await service.event(ctxA, 'cm-119-119504');
+    expect(event?.documents).toEqual([
+      expect.objectContaining({ id: 'calendar', title: 'Agenda', publishedAt: null }),
+      expect.objectContaining({
+        id: 'testimony',
+        title: 'Witness testimony: Published Witness',
+        publishedAt: null,
+      }),
+      expect.objectContaining({ id: 'memo', publishedAt: '2026-09-29T00:00:00.000Z' }),
+    ]);
+  });
+});
+
 describe('QA committee identity and referrals', () => {
   it('keeps parent and subcommittee names attached to their own codes', async () => {
     const { service } = makeService({

@@ -157,7 +157,7 @@ function normalizeMember(value: unknown): HearingMember | null {
 
 function normalizeWitness(value: unknown): HearingWitness | null {
   const row = record(value);
-  const name = stringValue(row.name, row.fullName, row.witnessName);
+  const name = stringValue(value, row.name, row.fullName, row.witnessName);
   if (!name) return null;
   return {
     id: stringValue(row.id, row.witnessId),
@@ -332,9 +332,7 @@ export function normalizeCanonicalHearingEvent(value: unknown): CanonicalHearing
     officialPageUrl: stringValue(row.officialPageUrl),
     officialPlaybackUrl: stringValue(row.officialPlaybackUrl),
     officialPlaybackKind: stringValue(row.officialPlaybackKind) as
-      | 'official_player_page'
-      | 'official_listing_page'
-      | undefined,
+      'official_player_page' | 'official_listing_page' | undefined,
     lastOfficialUpdate: isoValue(row.lastOfficialUpdate, row.sourceUpdatedAt, row.updatedAt),
     streamState:
       stringValue(row.streamState, row.streamAvailability, capture.streamState) ?? 'NOT_CHECKED',

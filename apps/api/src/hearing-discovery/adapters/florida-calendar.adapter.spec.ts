@@ -4,6 +4,7 @@ import {
   floridaDate,
   floridaBillNumberAliases,
   fetchFloridaSource,
+  FloridaSourceRateLimitError,
   houseNoticeObservation,
   senateCommitteeLinks,
   senateCommitteePageSession,
@@ -486,5 +487,102 @@ describe('Florida first-party calendar contract', () => {
     expect(canceled.fields.status).toBe('canceled');
     expect(reinstated.fields.status).toBe('scheduled');
     expect(canceled.officialIdentity).toBe(reinstated.officialIdentity);
+  });
+});
+
+describe('joint hearings published by the Senate', () => {
+  const jointRef: SenateNoticeRef = {
+    ...ref,
+    id: '6747',
+    bodyCode: 'JSCB',
+    bodyName: 'Joint Select Committee on Collective Bargaining',
+    date: '2026-01-20',
+    sourceUrl: 'https://www.flsenate.gov/Committees/Show/JSCB/MeetingNotice/6747',
+  };
+  it('preserves the explicit joint chamber and the published public-hearing agenda', () => {
+    const observation = senateNoticeObservation(jointRef, fixture('senate-jscb-6747.txt'), '2026');
+    expect(observation).toMatchObject({
+      chamber: 'joint',
+      eventType: 'joint',
+      bodySourceKey: 'fl:joint:JSCB',
+      officialIdentity: 'fl:senate:meeting:6747',
+      completeness: 'complete',
+    });
+    expect(observation.fields.time?.startsAt).toBe('2026-01-20T13:00:00.000Z');
+    expect(observation.fields.agenda).toHaveLength(1);
+    expect(observation.fields.agenda?.[0]).toMatchObject({
+      kind: 'other',
+      sourceUrl: jointRef.sourceUrl,
+    });
+    expect(observation.fields.agenda?.[0]?.evidence.publishedText).toContain('issues at impasse');
+    expect(() => validateCalendarObservation(observation)).not.toThrow();
+  });
+  it('does not infer a joint chamber from name alone or a generic heading alone', () => {
+    expect(
+      senateNoticeObservation(
+        jointRef,
+        fixture('senate-jscb-6747.txt').replace(
+          'JOINT COMMITTEE MEETING NOTICE',
+          'COMMITTEE MEETING NOTICE',
+        ),
+        '2026',
+      ).chamber,
+    ).toBe('senate');
+    expect(
+      senateNoticeObservation(
+        { ...jointRef, bodyName: 'Fiscal Policy' },
+        fixture('senate-jscb-6747.txt'),
+        '2026',
+      ).chamber,
+    ).toBe('senate');
+  });
+});
+
+describe('Florida publisher rate-limit backoff', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
+
+  it('waits the full bounded Retry-After before making another request', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('', { status: 429, headers: { 'retry-after': '5' } }))
+      .mockResolvedValueOnce(new Response('published bytes'));
+    const result = fetchFloridaSource('https://www.flsenate.gov/Committees');
+    await jest.advanceTimersByTimeAsync(4999);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(1);
+    await expect(result).resolves.toEqual(new TextEncoder().encode('published bytes'));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['120', 'Tue, 06 Oct 2026 04:02:00 GMT'])(
+    'defers a publisher backoff beyond the request budget without retrying early (%s)',
+    async (header) => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-10-06T04:00:00Z'));
+      const fetchMock = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('', { status: 429, headers: { 'retry-after': header } }));
+      await expect(fetchFloridaSource('https://www.flsenate.gov/Committees')).rejects.toMatchObject(
+        { retryAfterMs: 120000, message: expect.stringContaining('retry after 120 seconds') },
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(jest.getTimerCount()).toBe(0);
+    },
+  );
+
+  it('stops after three paced throttled attempts without a Retry-After header', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => new Response('', { status: 429 }));
+    const result = expect(
+      fetchFloridaSource('https://www.flsenate.gov/Committees'),
+    ).rejects.toBeInstanceOf(FloridaSourceRateLimitError);
+    await jest.advanceTimersByTimeAsync(20000);
+    await result;
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

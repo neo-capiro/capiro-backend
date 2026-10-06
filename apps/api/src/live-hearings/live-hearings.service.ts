@@ -1,3 +1,4 @@
+import { HEARING_DOCUMENT_UPDATE_TYPES, mergeHearingDocuments } from './live-hearings-documents.js';
 import {
   resolveCanonicalHearingId,
   resolveCanonicalHearingIds,
@@ -1118,7 +1119,7 @@ export class LiveHearingsService {
 
   /**
    * Attach the global capture/candidate data and the per-user subscription to a
-   * page of canonical rows. Three bounded queries for the whole page rather than
+   * page of canonical rows. Bounded queries for the whole page rather than
    * per-row lookups.
    */
   private async hydrate(
@@ -1128,27 +1129,41 @@ export class LiveHearingsService {
     const ids = rows.map((r) => String(r.id));
     if (ids.length === 0) return [];
 
-    const [captures, candidates, subscriptions, follows, committees] = await Promise.all([
-      this.prisma.publicHearingCapture.findMany({ where: { hearingId: { in: ids } } }),
-      this.prisma.hearingStreamCandidate.findMany({
-        where: { hearingId: { in: ids } },
-        orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }],
-      }),
-      this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.hearingSubscription.findMany({
-          where: { userId: ctx.userId, hearingId: { in: ids } },
+    const [captures, candidates, subscriptions, follows, committees, documentUpdates] =
+      await Promise.all([
+        this.prisma.publicHearingCapture.findMany({ where: { hearingId: { in: ids } } }),
+        this.prisma.hearingStreamCandidate.findMany({
+          where: { hearingId: { in: ids } },
+          orderBy: [{ priority: 'asc' }, { updatedAt: 'desc' }, { id: 'asc' }],
         }),
-      ),
-      this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.hearingFollow.findMany({
-          where: { userId: ctx.userId, hearingId: { in: ids } },
-          select: { hearingId: true },
+        this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.hearingSubscription.findMany({
+            where: { userId: ctx.userId, hearingId: { in: ids } },
+          }),
+        ),
+        this.prisma.withTenant(ctx.tenantId, (tx) =>
+          tx.hearingFollow.findMany({
+            where: { userId: ctx.userId, hearingId: { in: ids } },
+            select: { hearingId: true },
+          }),
+        ),
+        this.prisma.congressCommittee.findMany({
+          select: { systemCode: true, name: true, chamber: true, parentSystemCode: true },
         }),
-      ),
-      this.prisma.congressCommittee.findMany({
-        select: { systemCode: true, name: true, chamber: true, parentSystemCode: true },
-      }),
-    ]);
+        this.prisma.committeeSiteUpdate.findMany({
+          where: { hearingId: { in: ids }, updateType: { in: HEARING_DOCUMENT_UPDATE_TYPES } },
+          orderBy: [{ officialPublishedAt: 'desc' }, { firstSeenAt: 'desc' }, { id: 'asc' }],
+          take: 10000,
+          select: {
+            id: true,
+            hearingId: true,
+            normalizedTitle: true,
+            updateType: true,
+            sourceUrl: true,
+            officialPublishedAt: true,
+          },
+        }),
+      ]);
 
     const captureByHearing = new Map(captures.map((c) => [c.hearingId, c]));
     const candidatesByHearing = new Map<string, typeof candidates>();
@@ -1237,18 +1252,10 @@ export class LiveHearingsService {
         calendarCheckState: row.calendarCheckState,
         timePrecision: row.timePrecision,
         agenda: (row.calendarSnapshot as { agenda?: unknown } | null)?.agenda ?? [],
-        documents: (
-          (row.calendarSnapshot as { documents?: Array<Record<string, unknown>> } | null)
-            ?.documents ?? []
-        ).map((d) => ({
-          id: d.key,
-          title: d.title,
-          documentType: d.kind,
-          sourceUrl: d.url,
-          publishedAt: d.publishedAt,
-          contentHash: d.contentHash,
-          deadlines: d.deadlines,
-        })),
+        documents: mergeHearingDocuments(
+          row.calendarSnapshot,
+          documentUpdates.filter((update) => update.hearingId === row.id),
+        ),
         congress: row.congress,
         chamber: row.chamber,
         committeeName: parentCommittee?.name ?? row.committeeName,

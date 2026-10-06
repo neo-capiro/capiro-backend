@@ -55,6 +55,7 @@ interface BodyRow {
 
 interface SourceRow {
   id: string;
+  jurisdiction?: string | null;
   committeeSystemCode: string | null;
   chamber: string;
   sourceHealth: string;
@@ -70,6 +71,7 @@ interface SourceRow {
 
 interface ObservationRow {
   id: string;
+  jurisdiction?: string | null;
   hearingId: string | null;
   bodyCode: string | null;
   reconciliationStatus: string;
@@ -222,6 +224,13 @@ export class LegiWatchPhase9ReadinessService {
       intelligenceDueBefore,
       now,
     });
+    // This audit's body directory and canonical hearing view are federal.
+    // State observations share the ledger but belong to their state coverage
+    // checks, including pending observations that do not yet have a hearing.
+    const federalObservations = snapshot.observations.filter(
+      (row) => (row.jurisdiction ?? 'US') === 'US',
+    );
+    const federalSources = snapshot.sources.filter((row) => (row.jurisdiction ?? 'US') === 'US');
     const exceptions: LegiWatchPhase9Exception[] = [];
     const pushException = (exception: LegiWatchPhase9Exception): void => {
       if (exceptions.length < MAX_EXCEPTIONS) exceptions.push(exception);
@@ -233,7 +242,7 @@ export class LegiWatchPhase9ReadinessService {
     const demandByHearing = new Map(snapshot.demand.map((row) => [row.hearingId, row.count]));
     const transcriptByCapture = new Map(snapshot.transcript.map((row) => [row.captureId, row]));
     const provenanceByHearing = new Map<string, number>();
-    for (const observation of snapshot.observations) {
+    for (const observation of federalObservations) {
       if (observation.reconciliationStatus === 'RECONCILED' && observation.hearingId) {
         provenanceByHearing.set(
           observation.hearingId,
@@ -242,7 +251,7 @@ export class LegiWatchPhase9ReadinessService {
       }
     }
 
-    const observations = snapshot.observations.map((observation) => {
+    const observations = federalObservations.map((observation) => {
       if (observation.bodyCode) return observation;
       const hearing = observation.hearingId ? hearingsById.get(observation.hearingId) : undefined;
       return {
@@ -262,10 +271,10 @@ export class LegiWatchPhase9ReadinessService {
     );
 
     const directSources = groupBy(
-      snapshot.sources.filter((source) => Boolean(source.committeeSystemCode)),
+      federalSources.filter((source) => Boolean(source.committeeSystemCode)),
       (source) => source.committeeSystemCode as string,
     );
-    const centralSources = snapshot.sources.filter((source) => source.committeeSystemCode === null);
+    const centralSources = federalSources.filter((source) => source.committeeSystemCode === null);
     const bodies: LegiWatchPhase9BodyCoverage[] = snapshot.bodies.map((body) => {
       const direct = directSources.get(body.systemCode) ?? [];
       const parent = body.parentSystemCode ? (directSources.get(body.parentSystemCode) ?? []) : [];
@@ -571,6 +580,7 @@ export class LegiWatchPhase9ReadinessService {
       if (!eligible) continue;
       eligibleEvents += 1;
       const outcome = assessCaptureOutcome({
+        hearingCoverageStatus: capture ? undefined : hearing.coverageStatus,
         captureStatus: capture?.domainStatus,
         terminalReasonCode: capture?.terminalReasonCode,
         failureCode: capture?.failureCode,
@@ -1215,6 +1225,10 @@ export class LegiWatchPhase9ReadinessService {
         );
         const sources = await tx.$queryRawUnsafe<SourceRow[]>(
           `SELECT s.id::text AS id,
+                CASE WHEN s.adapter_key LIKE 'florida-%'
+                       OR s.adapter_key='openstates-florida-events'
+                       OR s.committee_system_code ~ '^[a-z]{2}:'
+                  THEN 'STATE' ELSE 'US' END AS jurisdiction,
                 s.committee_system_code AS "committeeSystemCode",
                 s.chamber,
                 s.source_health AS "sourceHealth",
@@ -1230,6 +1244,12 @@ export class LegiWatchPhase9ReadinessService {
         );
         const observations = await tx.$queryRawUnsafe<ObservationRow[]>(
           `SELECT o.id::text AS id,
+                COALESCE(
+                  NULLIF(o.source_metadata #>> '{legislative,jurisdiction}', ''),
+                  NULLIF(h.geographic_jurisdiction, ''),
+                  NULLIF(o.source_metadata #>> '{event,geographicJurisdiction}', ''),
+                  'US'
+                ) AS jurisdiction,
                 o.hearing_id AS "hearingId",
                 COALESCE(
                   NULLIF(o.source_metadata #>> '{event,subcommitteeSystemCode}', ''),
@@ -1243,6 +1263,7 @@ export class LegiWatchPhase9ReadinessService {
                   o.first_seen_at
                 ) AS "observedAt"
          FROM hearing_source_observation o
+         LEFT JOIN committee_hearing h ON h.id=o.hearing_id
          WHERE COALESCE(
                  NULLIF(o.source_metadata #>> '{event,startsAt}', '')::timestamptz,
                  o.observed_date::timestamptz,

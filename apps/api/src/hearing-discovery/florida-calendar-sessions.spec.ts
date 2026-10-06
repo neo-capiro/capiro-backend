@@ -1,3 +1,4 @@
+import { FloridaSourceRateLimitError } from './adapters/florida-calendar.adapter.js';
 import type { PrismaClient } from '@prisma/client';
 import {
   defaultFloridaCalendarWindow,
@@ -5,6 +6,7 @@ import {
   discoverFloridaCalendar,
   discoverFloridaCalendarSessions,
   floridaCalendarSessions,
+  floridaCalendarDelayMs,
   type FloridaDiscoveryOptions,
 } from './florida-calendar-discovery.js';
 
@@ -362,5 +364,52 @@ describe('Florida recurring calendar session rollover', () => {
     );
 
     expect(receipt).toMatchObject({ complete: true, errors: 0, unavailableSessions: ['2027'] });
+  });
+});
+
+describe('Florida calendar pacing and host throttle isolation', () => {
+  it('defaults to one second and permits only bounded slower scheduled pacing', () => {
+    expect(floridaCalendarDelayMs({})).toBe(1000);
+    expect(floridaCalendarDelayMs({ FL_CALENDAR_DELAY_MS: '2500' })).toBe(2500);
+    for (const value of ['0', '400', '5001', 'NaN'])
+      expect(() => floridaCalendarDelayMs({ FL_CALENDAR_DELAY_MS: value })).toThrow('1000..5000');
+  });
+
+  it('stops remaining Senate requests and the next session after throttling while House still completes', async () => {
+    const throttledHosts = new Map<string, FloridaSourceRateLimitError>();
+    const calls: string[] = [];
+    const fetchSource = async (url: string) => {
+      calls.push(url);
+      if (url.endsWith('/Committees'))
+        return new TextEncoder().encode(
+          '<a href="/Committees/Show/FP">Fiscal Policy</a><a href="/Committees/Show/RI">Regulated Industries</a>',
+        );
+      if (url.includes('flsenate.gov')) throw new FloridaSourceRateLimitError(120000);
+      return new TextEncoder().encode(
+        '<h1>House Schedule</h1><h2>House Schedule for Monday, September 14, 2026</h2><p>No scheduled events before the house.</p>',
+      );
+    };
+    const options = {
+      from: '2026-09-14',
+      to: '2026-09-14',
+      delayMs: 0,
+      throttledHosts,
+      fetchSource,
+    };
+    const primary = await discoverFloridaCalendar(null, { ...options, session: '2026' });
+    expect(primary[0]?.issues).toEqual([expect.stringContaining('retry after 120 seconds')]);
+    expect(primary[1]).toMatchObject({ chamber: 'house', pages: 1, issues: [] });
+    const previousCalls = calls.length;
+    const additional = await discoverFloridaCalendar(null, {
+      ...options,
+      session: '2027',
+      chambers: ['senate'],
+      optionalSession: true,
+      includeSenateDaily: false,
+    });
+    expect(additional[0]?.issues).toEqual([expect.stringContaining('HTTP 429')]);
+    expect(calls).toHaveLength(previousCalls);
+    expect(calls.filter((url) => url.includes('flsenate.gov'))).toHaveLength(2);
+    expect(calls.some((url) => url.includes('/Home/') || url.includes('/Show/RI/'))).toBe(false);
   });
 });

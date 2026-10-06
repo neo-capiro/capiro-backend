@@ -172,6 +172,29 @@ describe('normalizeSections', () => {
 });
 
 describe('HearingBriefGenerationService.generate', () => {
+  it('retains supported multi-paragraph prose when the provider emits literal JSON line breaks', async () => {
+    const { service, llm } = harness({
+      segments: [
+        { sequence: 0, startMs: 0, text: 'Recorded exchange.', speakerLabel: '1' },
+        { sequence: 1, startMs: 5000, text: 'Opening statement.', speakerLabel: '0' },
+      ],
+    });
+    const original = llm.complete.getMockImplementation()!;
+    llm.complete.mockImplementationOnce(async request => {
+      const result = await original(request);
+      return {
+        ...result,
+        text: result.text.replaceAll(
+          'Recorded exchange [00:00].',
+          'Recorded exchange [00:00].\n\nFurther source context.',
+        ),
+      };
+    });
+    const brief = await service.generate(ctx, 'hearing-1', { clientId: 'client-1' });
+    expect(brief.sections).toHaveLength(7);
+    expect(brief.sections[0]!.content).toContain('[00:00].\n\nFurther source context.');
+  });
+
   it('writes a preparation brief when no transcript exists', async () => {
     const { service, llm } = harness({});
     const brief = await service.generate(ctx, 'hearing-1', {

@@ -13,7 +13,7 @@ import type {
 export const FL_SENATE = 'https://www.flsenate.gov';
 export const FL_HOUSE = 'https://www.flhouse.gov';
 export const FL_CHANNEL = 'https://thefloridachannel.org';
-export const FL_CALENDAR_PARSER = 'fl-calendar/2026-10-06.1';
+export const FL_CALENDAR_PARSER = 'fl-calendar/2026-10-06.2';
 export const FL_ARCHIVE_PARSER = 'fl-archive/2026-09-16.1';
 
 /**
@@ -455,7 +455,7 @@ export function senateNoticeObservation(
   // Preserve their published section and source text, never synthesize a bill.
   const businessOccurrences = new Map<string, number>();
   for (const m of normalized.matchAll(
-    /^\s*((?:Senate Confirmation Hearing|Presentation|Discussion|Workshop|To set the Special Order Calendar|Other Business|Consideration of (?!the following bill))[^\n]*)/gim,
+    /^\s*((?:Senate Confirmation Hearing|Presentation|Discussion|Workshop|To conduct a public hearing|To set the Special Order Calendar|Other Business|Consideration of (?!the following bill))[^\n]*)/gim,
   )) {
     const baseKey = `business:${contentHash(clean(m[1]!)).slice(0, 24)}`;
     const occurrence = (businessOccurrences.get(baseKey) ?? 0) + 1;
@@ -492,7 +492,7 @@ export function senateNoticeObservation(
   });
   if (
     !agenda.length &&
-    !/presentation|discussion|workshop|confirmation|consideration|To set the Special Order Calendar|no bills|other business|not meeting|cancel/i.test(
+    !/presentation|discussion|workshop|confirmation|consideration|To conduct a public hearing|To set the Special Order Calendar|no bills|other business|not meeting|cancel/i.test(
       text,
     )
   )
@@ -504,15 +504,26 @@ export function senateNoticeObservation(
         `${Number(stamp[4]) % 12 || 12}:${stamp[5]} ${Number(stamp[4]) >= 12 ? 'PM' : 'AM'}`,
       ).startsAt
     : null;
+  // A Senate-hosted notice can describe a joint body. Require both the
+  // published joint-notice heading and the linked body's explicit joint name;
+  // the publisher host is not the chamber identity.
+  const joint =
+    ref.bodyCode === 'JLBC' ||
+    (/\bJOINT\s+COMMITTEE\s+MEETING\s+NOTICE\b/i.test(text) && /^joint\b/i.test(ref.bodyName));
   const o: LegislativeObservation = {
     jurisdiction: 'FL',
     session: /\b(\d{4}) Regular Session\b/.exec(text)?.[1] ?? session,
-    chamber: ref.bodyCode === 'JLBC' ? 'joint' : 'senate',
+    chamber: joint ? 'joint' : 'senate',
     officialIdentity: `fl:senate:meeting:${ref.id}`,
-    bodySourceKey: ref.bodyCode === 'JLBC' ? 'fl:joint:lbc' : `fl:senate:${ref.bodyCode}`,
+    bodySourceKey:
+      ref.bodyCode === 'JLBC'
+        ? 'fl:joint:lbc'
+        : joint
+          ? `fl:joint:${ref.bodyCode}`
+          : `fl:senate:${ref.bodyCode}`,
     bodyName: ref.bodyName,
     stateCommitteeId: null,
-    eventType: ref.bodyCode === 'JLBC' ? 'joint' : 'committee',
+    eventType: joint ? 'joint' : 'committee',
     sourceUrl: ref.sourceUrl,
     publishedAt: publishedTime,
     completeFields: ['title', 'status', 'time', 'documents', 'watchUrl'],
@@ -919,6 +930,23 @@ export async function fetchFloridaChannelSource(
 
 /** Source reads are restricted to the two qualified first-party hosts, bounded
  * and checked after redirects. No provider secret appears in the URL. */
+export class FloridaSourceRateLimitError extends Error {
+  constructor(readonly retryAfterMs: number) {
+    super(
+      `Florida source HTTP 429; publisher throttled; retry after ${Math.ceil(retryAfterMs / 1000)} seconds; remaining host requests deferred`,
+    );
+    this.name = 'FloridaSourceRateLimitError';
+  }
+}
+
+function floridaRetryDelay(header: string | null, fallback: number): number {
+  if (!header?.trim()) return fallback;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.max(1000, seconds * 1000);
+  const date = Date.parse(header);
+  return Number.isFinite(date) ? Math.max(1000, date - Date.now()) : fallback;
+}
+
 export async function fetchFloridaSource(url: string): Promise<Uint8Array> {
   const allowed = (u: string) => {
     const p = new URL(u);
@@ -947,26 +975,24 @@ export async function fetchFloridaSource(url: string): Promise<Uint8Array> {
         await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
         continue;
       }
-      // The Florida Senate edge intermittently answers 500 for otherwise
-      // healthy committee pages. Treat it like the other bounded upstream
-      // transients; three failures still surface as a real source error.
-      if (![429, 500, 502, 503, 504].includes(response.status) || attempt === 2) break;
-      const retryAfter = Number(response.headers.get('retry-after'));
+      // Respect the publisher's backoff. A longer pause than this bounded
+      // request budget ends this host's pass instead of retrying too early.
+      if (response.status === 429) {
+        const delay = floridaRetryDelay(response.headers.get('retry-after'), 10000);
+        await response.body?.cancel();
+        if (delay > 10000 || attempt === 2) throw new FloridaSourceRateLimitError(delay);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      // Other transient publisher failures keep the existing bounded retries.
+      if (![500, 502, 503, 504].includes(response.status) || attempt === 2) break;
+      const delay = floridaRetryDelay(response.headers.get('retry-after'), 1000 * 2 ** attempt);
       await response.body?.cancel();
-      await new Promise((resolve) =>
-        setTimeout(
-          resolve,
-          Math.min(
-            10000,
-            Math.max(
-              1000,
-              Number.isFinite(retryAfter) && retryAfter > 0
-                ? retryAfter * 1000
-                : 1000 * 2 ** attempt,
-            ),
-          ),
-        ),
-      );
+      if (delay > 10000)
+        throw new Error(
+          `Florida source HTTP ${response.status}; retry after ${Math.ceil(delay / 1000)} seconds`,
+        );
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
     if (!response) throw new Error('Florida source response unavailable');
     if ([301, 302, 303, 307, 308].includes(response.status)) {

@@ -36,6 +36,7 @@ export interface Phase9BodyClassificationInput {
 }
 
 export interface Phase9CaptureOutcomeInput {
+  hearingCoverageStatus?: string | null;
   captureStatus?: string | null;
   terminalReasonCode?: string | null;
   failureCode?: string | null;
@@ -89,9 +90,11 @@ export function canonicalEventFingerprint(input: {
   ].join('\u001f');
 }
 
-export function classifyBodyCoverage(
-  input: Phase9BodyClassificationInput,
-): { status: LegiWatchPhase9BodyStatus; reasonCode: string; reason: string } {
+export function classifyBodyCoverage(input: Phase9BodyClassificationInput): {
+  status: LegiWatchPhase9BodyStatus;
+  reasonCode: string;
+  reason: string;
+} {
   if (input.sourcesRegistered === 0) {
     return {
       status: 'UNAVAILABLE',
@@ -138,7 +141,8 @@ export function classifyBodyCoverage(
     return {
       status: 'HEALTHY_NO_EVENTS_OBSERVED',
       reasonCode: 'SOURCE_HEALTHY_NO_EVENT_EVIDENCE',
-      reason: 'The source path is healthy, but the audit window contains no official event observation.',
+      reason:
+        'The source path is healthy, but the audit window contains no official event observation.',
     };
   }
   if (input.sourcesFailing > 0) {
@@ -168,6 +172,15 @@ export function assessCaptureOutcome(input: Phase9CaptureOutcomeInput): {
   }
 
   if (!input.candidates.length) {
+    // A resolver may prove there is no public stream without creating a media
+    // candidate or a capture. This is an explained non-capture disposition,
+    // never evidence of a recording; existing capture state takes precedence.
+    if (!captureStatus && input.hearingCoverageStatus === 'no_public_stream') {
+      return { complete: true, reasonCode: 'EXPLICIT_HEARING_NO_PUBLIC_STREAM' };
+    }
+    if (!captureStatus && input.hearingCoverageStatus === 'blocked') {
+      return { complete: true, reasonCode: 'EXPLICIT_HEARING_CAPTURE_BLOCKED' };
+    }
     return { complete: false, reasonCode: 'NO_STREAM_CANDIDATE_OR_CAPTURE_OUTCOME' };
   }
 
@@ -180,11 +193,7 @@ export function assessCaptureOutcome(input: Phase9CaptureOutcomeInput): {
 
   const allExplicit = input.candidates.every((candidate) => {
     const policy = candidate.capturePolicy;
-    const terminalPolicy = [
-      'BROWSER_CAPTURE_ONLY',
-      'LICENSE_REQUIRED',
-      'BLOCKED',
-    ].includes(policy);
+    const terminalPolicy = ['BROWSER_CAPTURE_ONLY', 'LICENSE_REQUIRED', 'BLOCKED'].includes(policy);
     const terminalResolution = TERMINAL_RESOLUTION_STATES.has(candidate.resolutionState);
     return terminalPolicy && (terminalResolution || Boolean(candidate.failureReason?.trim()));
   });
@@ -240,9 +249,7 @@ export function requiredEvidenceTypes(mode: LegiWatchPhase9Mode): readonly strin
   return [];
 }
 
-export function evidenceSourceSatisfiesCutover(
-  source: LegiWatchPhase9EvidenceSource,
-): boolean {
+export function evidenceSourceSatisfiesCutover(source: LegiWatchPhase9EvidenceSource): boolean {
   return source === 'LIVE' || source === 'MIXED';
 }
 
@@ -260,8 +267,6 @@ export function deriveRunStatus(input: {
   ) {
     return 'BLOCKED';
   }
-  const failedRequired = input.gates.some(
-    (gate) => gate.required && gate.status !== 'PASS',
-  );
+  const failedRequired = input.gates.some((gate) => gate.required && gate.status !== 'PASS');
   return failedRequired ? 'FAIL' : 'PASS';
 }

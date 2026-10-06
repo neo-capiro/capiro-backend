@@ -214,6 +214,7 @@ jobs:
         run: |
           pnpm --filter @capiro/api exec node --test scripts/verify-committee-news-migration.spec.cjs
           pnpm --filter @capiro/api exec node scripts/verify-committee-news-migration.cjs
+          pnpm --filter @capiro/api exec node scripts/verify-committee-news-migration.cjs committee-url-provenance
 
       - name: Phase 2 report, source and delivery qualification
         env:

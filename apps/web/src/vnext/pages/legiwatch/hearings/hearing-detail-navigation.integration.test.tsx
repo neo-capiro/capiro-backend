@@ -342,6 +342,24 @@ function renderRoutes(Router: typeof MemoryRouter | typeof BrowserRouter, initia
 }
 
 describe('PR B §6 — every entry surface reaches Hearing Detail (real navigation)', () => {
+  it('shows a browser-only source restriction instead of promising scheduled server capture', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/api/legiwatch/live-hearings/events/cm-119-9001')
+        return Promise.resolve({ data: calRow({
+          eventStatus: 'scheduled', capturePolicy: 'BROWSER_CAPTURE_ONLY',
+          streamAvailability: 'BROWSER_CAPTURE_ONLY',
+          capture: { id: 'pending', status: 'SCHEDULED', capturePolicy: 'BROWSER_CAPTURE_ONLY' },
+        }) });
+      const hit = wireGet(url);
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/hearings/cm-119-9001?detailTab=live-capture');
+    expect(await screen.findByText('BROWSER RECORDING ONLY')).toBeInTheDocument();
+    expect(screen.queryByText('CAPTURE SCHEDULED')).not.toBeInTheDocument();
+    const panel = screen.getByRole('tabpanel', { name: 'Live and capture panel' });
+    expect(within(panel).getByText('Browser recording only')).toBeInTheDocument();
+  });
+
   it.each(['calendar chip', 'live room button'])('live %s opens the canonical hearing instead of an unhandled route', async (entry) => {
     apiGet.mockImplementation((url: string) => {
       const hit = wireGet(url);

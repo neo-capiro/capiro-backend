@@ -33,6 +33,7 @@ import {
   resolveOfficialMeetingId,
   officialHearingChamber,
   supplementCanonicalHearing,
+  preservePublishedWitnesses,
 } from '../src/hearing-discovery/hearing-alias.js';
 import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 // Eastern-time derivation lives in ./lib so it is unit-testable without pulling
@@ -437,9 +438,9 @@ async function main() {
 
             // H1c: witnesses ride on the committee-meeting detail we already
             // fetched — store them (populated as a committee posts them, so
-            // upcoming hearings surface their witness list once announced). The
-            // detail is authoritative for cm-* rows, so setting it each run is
-            // idempotent; Source 3 (docs.house) preserves this on its later merge.
+            // upcoming hearings surface their witness list once announced).
+            // Empty central lists are incomplete metadata, not a withdrawal of
+            // witnesses published on the committee's own event page.
             const witnesses = formatWitnesses(d.witnesses);
             const id = await resolveOfficialMeetingId(prisma, {
               congress,
@@ -485,7 +486,11 @@ async function main() {
             const update = canonical ? supplementCanonicalHearing(row, canonical) : row;
             await prisma.committeeHearing.upsert({
               where: { id },
-              update: { ...update, geographicJurisdiction: 'US', syncedAt: new Date() },
+              update: {
+                ...preservePublishedWitnesses(update),
+                geographicJurisdiction: 'US',
+                syncedAt: new Date(),
+              },
               create: { id, ...fields, geographicJurisdiction: 'US' },
             });
             meetingUpserts++;
@@ -591,7 +596,7 @@ async function main() {
                   date,
                   startsAt,
                   type: 'hearing',
-                  witnesses,
+                  ...preservePublishedWitnesses({ witnesses }),
                   url: publicUrl,
                   // Source 2 is /hearing/{congress} — a published TRANSCRIPT
                   // record, which by construction only exists after the

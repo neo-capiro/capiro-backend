@@ -19,6 +19,7 @@ import {
   useCanonicalHearingEvent,
   usePublicHearingTranscript,
   useHearingIntelligence,
+  captureSummaryLabel,
   type PublicTranscriptSegment,
   type HearingIntelligenceItem,
 } from '../lib/canonical-hearings.js';
@@ -350,7 +351,7 @@ export function HearingDetailRoute() {
           </LwPill>
           {e.capture ? (
             <LwPill tone="gray" size="22">
-              CAPTURE {e.capture.status.toUpperCase()}
+              {captureSummaryLabel(e).toUpperCase()}
             </LwPill>
           ) : null}
         </div>
@@ -496,7 +497,7 @@ export function HearingDetailRoute() {
                 </span>
               ) : e.capture ? (
                 <span className="lw-card__meta">
-                  {e.capture.status}
+                  {captureSummaryLabel(e)}
                   {e.capture.failureReason ? ` · ${e.capture.failureReason}` : ''}
                   {e.capture.gapSeconds ? ` · ${Math.round(e.capture.gapSeconds / 60)} min gaps` : ''}
                 </span>
