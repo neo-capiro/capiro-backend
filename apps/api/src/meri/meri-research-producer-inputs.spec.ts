@@ -13,6 +13,7 @@ import {
   type ResearchProducerInputDraftV1,
 } from './meri-research-producer-inputs';
 import type { MeriResearchHandoff } from './meri-research-handoff';
+import { buildResearchReportProvenance } from './meri-report-provenance';
 
 const TENANT = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
@@ -117,13 +118,14 @@ function classify(overrides: Partial<Parameters<typeof classifyResearchProducerI
   return classifyResearchProducerInputs({
     hashMaterial: { run: 1 },
     durableTools: ['search_memory'],
+    qualifiedDurableExecutionIds: new Set(['exec-memory']),
     clientContext: PROMPT,
     governedContext: governedContext(),
     handoff: handoff(),
     inherited: { citations: 0, unavailable: 0, omitted: 0 },
     ledgerEntries: [
       { tool: 'context_plane', serialized: '', result: { origin: 'initial_context' } },
-      { tool: 'search_memory', serialized: '', result: {}, durableSafeRead: { tool: 'search_memory' } },
+      { tool: 'search_memory', serialized: '', result: {}, durableSafeRead: { tool: 'search_memory', executionId: 'exec-memory' } },
       { tool: 'get_pe_budget_timeline', serialized: '', result: { rows: [{ fy: 2027 }] } },
       { tool: 'search_congress_bills', serialized: '', result: { error: 'Upstream unavailable' } },
     ],
@@ -171,7 +173,7 @@ describe('research producer input classification', () => {
       inherited: { citations: 2, unavailable: 1, omitted: 0 },
       ledgerEntries: [
         { tool: 'get_client_context', serialized: '', result: { client: { name: 'x' } } },
-        { tool: 'get_client_context', serialized: '', result: {}, durableSafeRead: { tool: 'get_client_context' } },
+        { tool: 'get_client_context', serialized: '', result: {}, durableSafeRead: { tool: 'get_client_context', executionId: 'exec-context' } },
         { tool: 'search_committee_hearings', serialized: '', result: { hearings: [] } },
       ],
     });
@@ -191,6 +193,42 @@ describe('research producer input classification', () => {
       'unreceipted_tool:search_committee_hearings': 1,
     });
     expect(JSON.stringify(result.producerInputCategories)).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}/);
+  });
+
+  it('refuses a receipted read the model saw that will not be declared as a source', () => {
+    const result = classify({ qualifiedDurableExecutionIds: new Set() });
+    expect(result.producerInputMode).toBe('unsupported_private_inputs');
+    expect(result.producerInputCategories.unsupported).toEqual({
+      'receipted_unqualified_tool:search_memory': 1,
+    });
+  });
+
+  it('builds provenance for a report that declares no source while a dropped child left receipts', () => {
+    const provenance = buildResearchReportProvenance({
+      artifactId: 'report-1',
+      messageId: null,
+      sessionId: 'session-1',
+      tenantId: TENANT,
+      userId: USER,
+      clientId: CLIENT,
+      conversationId: CONVERSATION,
+      runId: 'run-1',
+      leaseEpoch: 2,
+      body: 'report',
+      receipts: [
+        { version: 2, status: 'complete', tool: 'read_client_documents', runId: 'run-1', leaseEpoch: 2, sequence: 5, receiptId: 'r-5' },
+      ] as never,
+      toolsUsed: [],
+      producerInputSha256: 'a'.repeat(64),
+      producerInputMode: 'governed_inputs',
+      clientContextSha256: null,
+      producerInputManifestSha256: 'b'.repeat(64),
+    });
+    expect(provenance).toMatchObject({
+      toolsUsed: [],
+      sourceMode: 'producer_current_inputs',
+      producerInputMode: 'governed_inputs',
+    });
   });
 
   it('pins handoff attachments by their snapshot digest', () => {
