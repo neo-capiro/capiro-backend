@@ -1,10 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StreamResolverService } from '../stream-resolver.service.js';
-import {
-  approvedPublicCapture,
-  publicAudioEnabled,
-} from './public-capture-permission.js';
+import { approvedPublicCapture, publicAudioEnabled } from './public-capture-permission.js';
 import {
   AutomaticStreamResolver,
   type AutomaticStreamResolutionResult,
@@ -128,7 +125,12 @@ export class PublicCaptureAutomaticResolverAdapter implements PublicStreamResolv
       });
     }
     const videos = await this.loadVideoReferences(hearingId, new Date());
-    if (publicAudioEnabled() && (await approvedPublicCapture(this.prisma, hearingId)).length) {
+    // Global retention never upgrades browser-only/licensed media into an
+    // authorized source. Only an explicit source grant can use this branch.
+    if (
+      publicAudioEnabled() &&
+      (await approvedPublicCapture(this.prisma, hearingId, undefined, false)).length
+    ) {
       const attempts: AutomaticStreamResolutionResult['attempts'] = [];
       // Existing guarded provider resolution still validates every fetch/redirect.
       // With state capture off, state hearings have already returned above and

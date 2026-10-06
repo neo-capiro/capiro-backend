@@ -23,11 +23,7 @@ import { assertPublicCaptureRuntimeEnabled } from './public-capture-runtime-cont
 import { capturableHearingView } from '../state-capture-policy.js';
 
 export type PublicCaptureTaskMode =
-  | 'preflight'
-  | 'worker'
-  | 'status'
-  | 'disposition'
-  | 'disposition-backfill';
+  'preflight' | 'worker' | 'status' | 'disposition' | 'disposition-backfill';
 
 export interface PublicCaptureTaskResult {
   mode: PublicCaptureTaskMode;
@@ -217,6 +213,21 @@ export async function runPublicCaptureTask(
     for (const hearingId of ids) {
       const job = claimedByHearing.get(hearingId);
       try {
+        if (job) {
+          const hearing = await store.getHearing(hearingId);
+          const start = hearing?.scheduledStart?.getTime();
+          if (
+            !Number.isFinite(start) ||
+            (start! < now().getTime() - 6 * 3_600_000 && hearing?.eventStatus !== 'in_progress')
+          ) {
+            // Historical undated rows previously rearmed themselves every
+            // minute and crowded new hearings out of this bounded batch.
+            await queue.complete({ jobId: job.id, workerId, now: now() });
+            result.completed += 1;
+            result.results.push({ hearingId, outcome: 'OUTSIDE_AUTOMATIC_CAPTURE_WINDOW' });
+            continue;
+          }
+        }
         const outcome = await orchestrator.reconcile(hearingId);
         result.results.push({ hearingId, outcome });
         result.completed += 1;
@@ -314,7 +325,7 @@ export async function runPublicCaptureTask(
         retryAt: new Date(now().getTime() + retryDelayMs(work.job.attempts)),
       });
       if (state === 'REQUEUED') result.requeued += 1;
-      else result.failed += 1;
+      result.failed += 1;
     }
     if (explicitHearingId) throw error;
     result.results.push({ error: boundedError(error), stage: 'runtime_initialization' });
@@ -337,7 +348,18 @@ export async function runPublicCaptureTask(
         captureId: work.captureId,
         outcome,
       });
-      result.completed += 1;
+      if (
+        outcome.action === 'FAILED' ||
+        (outcome.action === 'TERMINAL' && outcome.status === 'FAILED')
+      ) {
+        result.failed += 1;
+      } else if (outcome.action === 'RECOVERING') {
+        // The coordinator already owns the durable retry. Complete this lease,
+        // but never report recovery as a successfully finished recording.
+        result.requeued += 1;
+      } else {
+        result.completed += 1;
+      }
       if (work.job) {
         await queue.complete({ jobId: work.job.id, workerId, now: now() });
       }

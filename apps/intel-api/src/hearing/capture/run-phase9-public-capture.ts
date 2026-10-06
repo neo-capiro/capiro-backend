@@ -7,13 +7,22 @@ import {
   type PublicCaptureTaskResult,
 } from './public-capture-task-runner.js';
 
-const MODES = ['preflight', 'worker', 'both', 'status', 'disposition', 'disposition-backfill'] as const;
+const MODES = [
+  'preflight',
+  'worker',
+  'both',
+  'status',
+  'disposition',
+  'disposition-backfill',
+] as const;
 type Phase9CaptureMode = (typeof MODES)[number];
 
 async function main(): Promise<void> {
   const rawMode = process.argv[2] ?? 'both';
   if (!MODES.includes(rawMode as Phase9CaptureMode)) {
-    throw new Error(`usage: run-phase9-public-capture <${MODES.join('|')}> [--manual] [--limit=N] [--hearingId=ID] [--lookback-days=N] [--cursor=ISO|hearingId]`);
+    throw new Error(
+      `usage: run-phase9-public-capture <${MODES.join('|')}> [--manual] [--limit=N] [--hearingId=ID] [--lookback-days=N] [--cursor=ISO|hearingId]`,
+    );
   }
   const mode = rawMode as Phase9CaptureMode;
   const manual = process.argv.includes('--manual');
@@ -33,8 +42,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(3).filter((value) => value !== '--manual');
   const prisma = new PrismaService();
   const workerId =
-    process.env.LEGIWATCH_WORKER_ID ??
-    `phase9-capture:${hostname()}:${process.pid}:${mode}`;
+    process.env.LEGIWATCH_WORKER_ID ?? `phase9-capture:${hostname()}:${process.pid}:${mode}`;
   const heartbeat = new Phase9RuntimeHeartbeat(prisma, {
     jobKey: 'capture-worker',
     workerId,
@@ -62,10 +70,18 @@ async function main(): Promise<void> {
       }
     }
     const summary = combine(results);
+    console.log(
+      `PHASE9_PUBLIC_CAPTURE_RESULT ${JSON.stringify({ workerId, mode, summary, results })}`,
+    );
+    if (mode !== 'status' && summary.failed > 0) {
+      throw new Error(`Public capture task failed for ${summary.failed} work item(s)`);
+    }
     await heartbeat.succeed(scalarMetrics(summary));
-    console.log(`PHASE9_PUBLIC_CAPTURE_DONE ${JSON.stringify({ workerId, mode, summary, results })}`);
+    console.log(
+      `PHASE9_PUBLIC_CAPTURE_DONE ${JSON.stringify({ workerId, mode, summary, results })}`,
+    );
   } catch (error) {
-    await heartbeat.fail(error, { mode });
+    await heartbeat.fail(error, { mode, ...scalarMetrics(combine(results)) });
     throw error;
   } finally {
     heartbeat.stopTimer();
@@ -86,7 +102,9 @@ function run(
   });
 }
 
-function combine(results: readonly PublicCaptureTaskResult[]): Record<string, number> {
+function combine(
+  results: readonly PublicCaptureTaskResult[],
+): Pick<PublicCaptureTaskResult, 'discovered' | 'claimed' | 'completed' | 'requeued' | 'failed'> {
   return results.reduce(
     (summary, result) => ({
       discovered: summary.discovered + result.discovered,
@@ -102,7 +120,7 @@ function combine(results: readonly PublicCaptureTaskResult[]): Record<string, nu
 void main().catch((error: unknown) => {
   console.error(
     `PHASE9_PUBLIC_CAPTURE_ERROR ${
-      error instanceof Error ? error.stack ?? error.message : String(error)
+      error instanceof Error ? (error.stack ?? error.message) : String(error)
     }`,
   );
   process.exitCode = 1;

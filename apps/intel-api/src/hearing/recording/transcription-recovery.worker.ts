@@ -15,6 +15,7 @@ import {
 } from '../state-capture-policy.js';
 import { RecordingStorageService } from './recording-storage.service.js';
 import { pcmWave } from '../capture/public-hearing-audio.store.js';
+import { globalPublicAudioSource } from '../capture/global-public-audio-policy.js';
 import {
   recoveryWindowWords,
   uncoveredSegments,
@@ -181,9 +182,13 @@ export class TranscriptionRecoveryWorker {
       throw Error('public_audio_disabled');
     // Completed captures need current source permission, rather than new capture
     // demand. Revocation and inactive membership still stop every repair chunk.
-    const grants = await tx.$queryRaw<
-      Array<{ id: string }>
-    >`SELECT p.id FROM intel_hearing_media_permission p
+    const global =
+      source.kind === 'public' && source.hearingId
+        ? await globalPublicAudioSource(tx, source.hearingId, { sourceUrl: source.sourceUrl })
+        : null;
+    const grants = global
+      ? [global]
+      : await tx.$queryRaw<Array<{ id: string }>>`SELECT p.id FROM intel_hearing_media_permission p
       JOIN intel_feature_flag f ON f.tenant_id=p.tenant_id AND f.feature='legiwatch_hearing_recording_v1' AND f.enabled
       WHERE p.source_url=${source.sourceUrl} AND p.hearing_id IS NOT DISTINCT FROM ${source.hearingId}
         AND p.mode=${source.kind === 'browser' ? 'browser' : 'server'} AND p.revoked_at IS NULL AND p.expires_at>clock_timestamp()
@@ -382,10 +387,10 @@ export class TranscriptionRecoveryWorker {
               )
             ? diagnostic.message!
             : /^P\d{4}$/.test(diagnostic.code ?? '')
-            ? `${diagnostic.code}:${diagnostic.meta?.code ?? 'unknown'}`
-            : diagnostic.name === 'AbortError'
-              ? 'recovery_cancelled'
-              : 'recovery_incomplete';
+              ? `${diagnostic.code}:${diagnostic.meta?.code ?? 'unknown'}`
+              : diagnostic.name === 'AbortError'
+                ? 'recovery_cancelled'
+                : 'recovery_incomplete';
       await this.prisma.withSystem(async (tx) => {
         const changed =
           await tx.$executeRaw`UPDATE intel_hearing_transcription_recovery SET state=${failed ? 'failed' : 'pending'},token=NULL,lease_until=NULL,

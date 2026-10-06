@@ -63,14 +63,19 @@ export class PublicHearingAudioStore implements PublicAudioSinkPort {
   ) {}
   private async owned(
     tx: Prisma.TransactionClient,
-    attempt: Pick<PublicAudioAttempt, 'captureId' | 'ownerId' | 'fencingToken' | 'hearingId'>,
+    attempt: Pick<
+      PublicAudioAttempt,
+      'captureId' | 'ownerId' | 'fencingToken' | 'hearingId' | 'sourceUrl'
+    >,
   ) {
     if (!publicAudioEnabled()) throw new ForbiddenException('PUBLIC_AUDIO_DISABLED');
     const rows = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM public_hearing_capture
       WHERE id=${attempt.captureId} AND hearing_id=${attempt.hearingId} AND worker_lease_owner=${attempt.ownerId}
         AND fencing_token=${attempt.fencingToken} AND lease_expires_at>clock_timestamp() FOR UPDATE`;
     if (!rows.length) throw new ForbiddenException('PUBLIC_AUDIO_LEASE_LOST');
-    const permissions = await approvedPublicCapture(this.prisma, attempt.hearingId, tx);
+    const permissions = (await approvedPublicCapture(this.prisma, attempt.hearingId, tx)).filter(
+      (permission) => !attempt.sourceUrl || permission.sourceUrl === attempt.sourceUrl,
+    );
     if (!permissions.length)
       throw new ForbiddenException('PUBLIC_AUDIO_PERMISSION_OR_DEMAND_WITHDRAWN');
     return permissions;
@@ -78,11 +83,15 @@ export class PublicHearingAudioStore implements PublicAudioSinkPort {
   async begin(
     input: Parameters<PublicAudioSinkPort['begin']>[0],
   ): Promise<PublicAudioAttempt | undefined> {
-    if (
-      !publicAudioEnabled() ||
-      !(await approvedPublicCapture(this.prisma, input.hearingId)).length
-    )
+    const required = process.env.HEARING_PUBLIC_AUDIO_CAPTURE_ALL_ENABLED === 'true';
+    if (!publicAudioEnabled()) {
+      if (required) throw new Error('PUBLIC_AUDIO_STORAGE_REQUIRED');
       return undefined;
+    }
+    if (!(await approvedPublicCapture(this.prisma, input.hearingId)).length) {
+      if (required) throw new Error('PUBLIC_AUDIO_APPROVED_SOURCE_REQUIRED');
+      return undefined;
+    }
     this.storage.assertReady();
     const attempt: PublicAudioAttempt = {
       id: randomUUID(),

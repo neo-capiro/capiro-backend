@@ -112,7 +112,9 @@ describe('CreateBriefDialog', () => {
   it('requires a client before drafting', async () => {
     renderDialog({ initialClientId: '' });
     await screen.findByRole('option', { name: 'Aperture Defense' });
-    const generateButton = screen.getByRole('button', { name: 'Generate brief' }) as HTMLButtonElement;
+    const generateButton = screen.getByRole('button', {
+      name: 'Generate brief',
+    }) as HTMLButtonElement;
     expect(generateButton.disabled).toBe(true);
     fireEvent.change(screen.getByLabelText('Client'), { target: { value: CLIENT_A } });
     expect(generateButton.disabled).toBe(false);
@@ -147,7 +149,11 @@ describe('CreateBriefDialog', () => {
         return {
           reply: 'Tightened the summary.',
           edits: [
-            { op: 'replace_section', section: 'executive summary', content: '<p>Shorter summary.</p>' },
+            {
+              op: 'replace_section',
+              section: 'executive summary',
+              content: '<p>Shorter summary.</p>',
+            },
             { op: 'replace_section', section: 'Missing section', content: '<p>x</p>' },
           ],
         };
@@ -170,7 +176,11 @@ describe('CreateBriefDialog', () => {
     // The REAL assistant contract: the live document + the hearing packet as context.
     const turn = calls.find((c) => c.url === '/api/workspace/assistant')!.body as {
       messages: unknown[];
-      document: { title: string; client?: string; sections: Array<{ name: string; content: string }> };
+      document: {
+        title: string;
+        client?: string;
+        sections: Array<{ name: string; content: string }>;
+      };
       context: Array<{ label: string; text: string }>;
       clientId: string;
     };
@@ -190,10 +200,15 @@ describe('CreateBriefDialog', () => {
     expect(screen.queryByRole('button', { name: 'Undo last edit' })).toBeNull();
   });
 
-  it('reports a missing AI credential and creates no draft', async () => {
+  it('shows the actual generation failure and creates no draft', async () => {
     handlers.post.mockImplementation((url: string) => {
       if (url === GENERATE_URL) {
-        throw { response: { status: 503, data: { message: 'AI provider unavailable' } } };
+        throw {
+          response: {
+            status: 503,
+            data: { message: 'The debrief could not be verified. Please retry generation.' },
+          },
+        };
       }
       return {};
     });
@@ -202,7 +217,7 @@ describe('CreateBriefDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'No AI credential is configured for this tenant.',
+      'The debrief could not be verified. Please retry generation.',
     );
     expect(screen.queryByRole('button', { name: 'Save to Workspace' })).toBeNull();
     expect(calls.some((c) => c.url.startsWith('/workspace-api/'))).toBe(false);
@@ -280,7 +295,10 @@ describe('CreateBriefDialog', () => {
     let resolveSave: (value: unknown) => void = () => {};
     handlers.post.mockImplementation((url: string) => {
       if (url === GENERATE_URL) return BRIEF;
-      if (url === SAVE_URL) return new Promise((resolve) => { resolveSave = resolve; });
+      if (url === SAVE_URL)
+        return new Promise((resolve) => {
+          resolveSave = resolve;
+        });
       return {};
     });
     const { onClose } = renderDialog();
@@ -302,7 +320,8 @@ describe('CreateBriefDialog', () => {
     const SAVE_URL = `/api/legiwatch/live-hearings/events/${HEARING_ID}/actions/brief/save-to-client`;
     handlers.post.mockImplementation((url: string) => {
       if (url === GENERATE_URL) return BRIEF;
-      if (url === SAVE_URL) throw { response: { data: { message: 'Attachment storage unavailable' } } };
+      if (url === SAVE_URL)
+        throw { response: { data: { message: 'Attachment storage unavailable' } } };
       return {};
     });
     renderDialog();

@@ -128,8 +128,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
       const state = await this.prisma.$queryRaw<
         Array<{ id: string }>
       >`SELECT id FROM committee_hearing WHERE id=${hearingId} AND geographic_jurisdiction IS NOT NULL AND geographic_jurisdiction<>'US'`;
-      if (state.length)
-        return { activeSubscriptionCount: 0, globalCoverageRequested: false };
+      if (state.length) return { activeSubscriptionCount: 0, globalCoverageRequested: false };
     }
     const rows = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<Array<{ count: number }>>(
@@ -176,11 +175,14 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
     const captureAll = await this.captureAllPublicEvents();
     const rows = await this.prisma.withSystem((tx) =>
       tx.$queryRawUnsafe<Array<{ hearingId: string }>>(
-        `SELECT DISTINCT h.id AS "hearingId"
+        `SELECT DISTINCT h.id AS "hearingId", h.starts_at
          FROM ${capturableHearingView()} h
          LEFT JOIN hearing_subscription s ON s.hearing_id = h.id
          LEFT JOIN public_hearing_capture c ON c.hearing_id = h.id
          WHERE h.event_status IN ('scheduled','postponed','in_progress')
+           AND h.starts_at IS NOT NULL
+           AND (h.starts_at BETWEEN $1 - interval '6 hours' AND $1 + interval '14 days'
+             OR c.domain_status IN ('CAPTURING','RECOVERING','FINALIZING'))
            AND LOWER(COALESCE(h.type,'')) = ANY($3::text[])
            AND (
              (${AUTOMATIC_DEMAND_SQL}) OR
@@ -191,7 +193,7 @@ export class PublicHearingCaptureStore implements PublicCaptureStorePort {
              c.domain_status NOT IN ('COMPLETE','COMPLETE_WITH_GAPS','FAILED','CANCELED','BLOCKED')
            )
            AND (c.id IS NULL OR c.next_preflight_at IS NULL OR c.next_preflight_at <= $1)
-         ORDER BY h.id`,
+         ORDER BY h.starts_at ASC, h.id ASC`,
         now,
         captureAll,
         [...ELIGIBLE_PUBLIC_HEARING_EVENT_TYPES],
