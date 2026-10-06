@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-recheck-adapter-2-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T02:26:43.265567+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "30fd674d091f4e86b266e5a5c9e22086e5c26194",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d9e76278d18ef05c16f265f66cc5dc6a29ed7de83e9e807e85d1003c73432256",
+      "buildId": "capiro-build-web-dev:c7588dfa-b4d6-41ed-8177-4fd508748737"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Producer-input re-check reads memory as the reader (#2054): sets app.current_user for the check so the reader's own user-private steering items are visible under memory_items' forced owner RLS. Fixes the context_packet_item_missing refusal seen on the first live check after the s2-recheck-adapter roll (#2051). No migration.",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
