@@ -384,9 +384,23 @@ export function currentOwnerResultAuthorizesReplay(
                     ? (value: unknown) => remainingSourceFamilyProof(tool, value)
                     : null;
   if (!project) return false;
-  const saved = project(savedResult);
-  const current = project(currentResult);
+  const saved = project(wireShape(savedResult));
+  const current = project(wireShape(currentResult));
   return Boolean(saved && current && researchJsonSha256(saved) === researchJsonSha256(current));
+}
+
+/**
+ * The producer saw each owner result as JSON (the orchestrator reads it over
+ * HTTP), so saved results carry dates as ISO strings. The in-process re-check
+ * returns Date objects; compare both in the JSON shape (T5 cab91bd9: every
+ * non-empty search_memory re-check failed on updatedAt).
+ */
+function wireShape(value: unknown): unknown {
+  try {
+    return JSON.parse(JSON.stringify(value)) as unknown;
+  } catch {
+    return undefined;
+  }
 }
 
 export const RESEARCH_REPORT_BODY_WITHHELD =

@@ -68,6 +68,15 @@ describe('durable replay current-owner authorization adapters', () => {
     expect(currentOwnerResultAuthorizesReplay('search_memory', memory(), memory('v1', 'hash-2'))).toBe(false);
   });
 
+  it('compares a live in-process result in the JSON shape the producer saw', () => {
+    // The saved result crossed HTTP (ISO string); the re-check runs in process (Date).
+    const live = memory();
+    live.records[0]!.updatedAt = new Date('2026-09-28T00:00:00.000Z') as never;
+    expect(currentOwnerResultAuthorizesReplay('search_memory', memory(), live)).toBe(true);
+    live.records[0]!.updatedAt = new Date('2026-09-29T00:00:00.000Z') as never;
+    expect(currentOwnerResultAuthorizesReplay('search_memory', memory(), live)).toBe(false);
+  });
+
   it('rejects unversioned projections while preserving owner-proven empty results', () => {
     expect(currentOwnerResultAuthorizesReplay(
       'search_memory',
