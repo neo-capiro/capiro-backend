@@ -504,7 +504,7 @@ export function CommitteeRoomRoute() {
 
   const tabs: Array<{ id: string; label: string; count?: number }> = [
     { id: 'overview', label: 'Overview' },
-    { id: 'proceedings', label: 'Proceedings', count: upcomingCount },
+    { id: 'proceedings', label: 'Proceedings', count: upcomingCount + recentCount },
     { id: 'members', label: 'Members', count: c.members.length },
     { id: 'updates', label: 'Updates', count: c.updates.length },
     { id: 'intelligence', label: 'Intelligence' },

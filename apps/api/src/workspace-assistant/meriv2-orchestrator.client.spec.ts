@@ -23,7 +23,7 @@ describe('MeriV2 editor authenticated delegation', () => {
     fetchMock = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ reply: 'Done', edits: [] }), { status: 200 }));
   });
   afterEach(() => {
-    fetchMock.mockRestore();
+    jest.restoreAllMocks();
     if (savedUrl === undefined) delete process.env.MERIV2_ORCHESTRATOR_URL;
     else process.env.MERIV2_ORCHESTRATOR_URL = savedUrl;
     if (savedSecret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
@@ -57,5 +57,36 @@ describe('MeriV2 editor authenticated delegation', () => {
     delete process.env.INTERNAL_SERVICE_SECRET;
     await expect(client().runInEditorAssistant(ctx, dto, 'caller-token')).rejects.toThrow('requires INTERNAL_SERVICE_SECRET');
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('bounds context resolution before any remote request, including an unresponsive resolver', async () => {
+    const timers: Array<{ ms: number; control: AbortController }> = [];
+    jest.spyOn(AbortSignal, 'timeout').mockImplementation(ms => {
+      const control = new AbortController(); timers.push({ ms, control }); return control.signal;
+    });
+    resolveEditor.mockReturnValue(new Promise(() => undefined));
+    const run = client().runInEditorAssistant(ctx, dto, 'caller-token');
+    const rejected = expect(run).rejects.toThrow('No changes were applied');
+    expect(timers.map(t => t.ms)).toEqual([160000, 25000]);
+    timers[1]!.control.abort();
+    await rejected;
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps one total deadline through the response body and aborts the remote transport', async () => {
+    const timers: AbortController[] = [];
+    jest.spyOn(AbortSignal, 'timeout').mockImplementation(() => {
+      const control = new AbortController(); timers.push(control); return control.signal;
+    });
+    const bodyStarted = jest.fn();
+    fetchMock.mockResolvedValue({ ok: true, json: () => { bodyStarted(); return new Promise(() => undefined); } });
+    const run = client().runInEditorAssistant(ctx, dto, 'caller-token');
+    const rejected = expect(run).rejects.toThrow('No changes were applied');
+    for (let i = 0; i < 10 && !bodyStarted.mock.calls.length; i++) await Promise.resolve();
+    expect(bodyStarted).toHaveBeenCalled();
+    expect(fetchMock.mock.calls[0]![1].signal).toBe(timers[0]!.signal);
+    timers[0]!.abort();
+    await rejected;
+    expect(fetchMock.mock.calls[0]![1].signal.aborted).toBe(true);
   });
 });

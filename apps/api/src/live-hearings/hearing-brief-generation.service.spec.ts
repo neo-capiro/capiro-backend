@@ -247,6 +247,9 @@ describe('HearingBriefGenerationService.generate', () => {
     );
     expect(request.userVolatile).toContain('[E002] Speaker 2: Thank you, Chair.');
     expect(request.userVolatile).toContain('"speakerName":"Jane Q. Smith"');
+    expect(request.userVolatile).toContain('Paraphrase all testimony accurately in sections and key moments.');
+    expect(request.userVolatile).toContain('Do not use quotation marks or direct quotations');
+    expect(request.userVolatile).toContain('Retain exact evidence references in sections.');
     expect(request).toMatchObject({
       provider: 'anthropic',
       timeoutMs: 300_000,

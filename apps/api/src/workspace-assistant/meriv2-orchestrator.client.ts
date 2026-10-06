@@ -1,7 +1,19 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { GatewayTimeoutException, Injectable, Logger } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { WorkspaceContextPlaneService } from './workspace-context-plane.service.js';
 import type { WorkspaceAssistantDto } from './workspace-assistant.dto.js';
+
+export const EDITOR_PROXY_BUDGET_MS = 160_000;
+const EDITOR_CONTEXT_BUDGET_MS = 25_000;
+
+function beforeDeadline<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(new GatewayTimeoutException('The edit could not finish in time. No changes were applied. Please try a smaller edit.'));
+    work.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+    if (signal.aborted) { abort(); return; }
+    signal.addEventListener('abort', abort, { once: true });
+  });
+}
 
 /** The resolved tenant AI credential forwarded to the orchestrator (BYOK). */
 export interface ResolvedAiForHeader {
@@ -52,7 +64,9 @@ export class MeriV2OrchestratorClient {
       throw new Error('MeriV2 in-editor-assistant proxy requires authenticated tenant and Clerk user identities');
     }
 
-    const governed = await this.contextPlane.resolveEditor(ctx, dto);
+    const deadline = AbortSignal.timeout(EDITOR_PROXY_BUDGET_MS);
+    const governed = await beforeDeadline(this.contextPlane.resolveEditor(ctx, dto),
+      AbortSignal.any([deadline, AbortSignal.timeout(EDITOR_CONTEXT_BUDGET_MS)]));
     const headers: Record<string, string> = {
       authorization: `Bearer ${bearerToken}`,
       'content-type': 'application/json',
@@ -65,18 +79,19 @@ export class MeriV2OrchestratorClient {
     };
     if (aiProvider) headers['x-capiro-ai-provider'] = JSON.stringify(aiProvider);
 
-    const res = await fetch(`${this.baseUrl}/meri-api/in-editor-assistant`, {
+    const res = await beforeDeadline(fetch(`${this.baseUrl}/meri-api/in-editor-assistant`, {
       method: 'POST',
       headers,
+      signal: deadline,
       body: JSON.stringify({
         ...dto,
         governedContext: governed.governedContext,
       }),
-    });
+    }), deadline);
     if (!res.ok) {
       this.logger.warn(`MeriV2 in-editor-assistant proxy failed with status ${res.status}`);
       throw new Error(`MeriV2 in-editor-assistant proxy failed: ${res.status} ${res.statusText}`);
     }
-    return (await res.json()) as T;
+    return await beforeDeadline(res.json() as Promise<T>, deadline);
   }
 }

@@ -703,6 +703,22 @@ async function roomRowMeta(): Promise<string> {
 }
 
 describe('LW-QA-018 — one hearing, one rendering, on every surface', () => {
+  it('counts recent proceedings in the tab when nothing is upcoming', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url === '/api/legiwatch/live-hearings/committees/hs00-lwdt') {
+        return Promise.resolve({ data: roomWith({
+          upcomingEvents: [], upcomingEventCount: 0, recentEventCount: 10,
+        }) });
+      }
+      const hit = wireGet(url);
+      return hit ? Promise.resolve(hit) : Promise.reject(new Error(`unexpected GET ${url}`));
+    });
+    renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
+    expect(await screen.findByRole('tab', { name: /^Proceedings\s*10$/ })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /^Proceedings\s*0$/ })).toBeNull();
+    expect(await roomRowMeta()).toBe('Wed, Sep 2 · 10:00 AM ET · COMPLETED');
+  });
+
   it('Committee Room renders the same day, time and status as Hearing Detail for the SAME wire row', async () => {
     renderRoutes(MemoryRouter, '/legiwatch/committees/hs00-lwdt');
     const roomMeta = await roomRowMeta();

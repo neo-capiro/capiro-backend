@@ -1,0 +1,448 @@
+{
+  "observedAt": "2026-10-06T06:11:31.781Z",
+  "scope": "10 federal/Florida API ingestion owners, notification consumer, public capture, media, intelligence and central RSS",
+  "owners": [
+    {
+      "owner": "sync-hearings",
+      "enabled": true,
+      "schedule": "cron(30 9 * * ? *)",
+      "configuredTaskDefinition": "capiro-dev-api-sync-hearings:14",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "lastActualRun": {
+        "job": "sync-hearings",
+        "completedAt": "2026-10-06T03:46:52.050Z",
+        "taskId": "828348c6aafe42baaa6afc62a5e432f0",
+        "definition": "capiro-dev-api-sync-hearings:11",
+        "imageDigest": "sha256:d10c4536a371a2a80f26086da1f943ac21318d0c1a7969ec2113fa21f31fe330",
+        "status": "STOPPED",
+        "exit": 0,
+        "message": "INGESTION_METRIC {\"source\":\"sync-hearings\",\"rows_inserted\":0,\"rows_updated\":3835,\"error_count\":0,\"complete\":true,\"duration_seconds\":1773}"
+      },
+      "assessment": "completed",
+      "latestActualRunUsesConfiguredImage": false
+    },
+    {
+      "owner": "sync-committees",
+      "enabled": true,
+      "schedule": "cron(40 5 ? * MON,THU *)",
+      "configuredTaskDefinition": "capiro-dev-api-sync-congress:18",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "lastActualRun": {
+        "job": "sync-committees",
+        "completedAt": "2026-10-06T04:03:06.243Z",
+        "taskId": "48e3d46f16354e5b8907bf0fec707dc1",
+        "definition": "capiro-dev-api-sync-congress:16",
+        "imageDigest": "sha256:0eaa3d78e07254af7351298bbb03573b819ee1096956230071dae1dda1d0d19a",
+        "status": "STOPPED",
+        "exit": 0,
+        "message": "INGESTION_METRIC {\"source\":\"sync-committees\",\"rows_inserted\":0,\"rows_updated\":230,\"error_count\":0,\"complete\":true,\"duration_seconds\":2}"
+      },
+      "assessment": "completed",
+      "latestActualRunUsesConfiguredImage": false
+    },
+    {
+      "owner": "sync-rss-intel",
+      "enabled": true,
+      "schedule": "rate(1 hour)",
+      "configuredTaskDefinition": "capiro-dev-api-sync-rss-intel:13",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:b989b89736577dece12f6ec912aa696f2f6019c525b9e8766e23c5b6bebf1e4d",
+      "lastActualRun": {
+        "job": "sync-rss-intel",
+        "completedAt": "2026-10-06T05:46:47.710Z",
+        "taskId": "2668595ab9cb476287a96923fe781e71",
+        "definition": "capiro-dev-api-sync-rss-intel:13",
+        "imageDigest": "sha256:b989b89736577dece12f6ec912aa696f2f6019c525b9e8766e23c5b6bebf1e4d",
+        "status": "STOPPED",
+        "exit": 0,
+        "messages": [
+          "[rss-sync] florida_phoenix: 30 articles",
+          "[rss-sync] wusf: 10 articles",
+          "[rss-sync] florida_daily: 12 articles",
+          "[rss-sync] cbs_miami: 30 articles",
+          "[rss-sync] reuters_politics failed: rss_http_404",
+          "[rss-sync] state_dept failed: rss_http_403",
+          "[rss-sync] commerce failed: rss_http_403",
+          "[rss-sync] dhs failed: rss_http_404",
+          "[rss-sync] cato failed: rss_invalid_feed: Expected closing tag 'META' (opened in line 3, col 1) instead of closing tag 'html'.",
+          "[rss-sync] brookings failed: rss_invalid_feed: char '&' is not expected.",
+          "[rss-sync] feeds: 19 ok, 6 failed",
+          "[rss-sync] total: 401 articles",
+          "[rss-sync] DONE in 15.7s"
+        ]
+      },
+      "assessment": "completed_19_feeds_ok_6_failed",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "notification-drain",
+      "enabled": true,
+      "schedule": "rate(5 minutes)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-api:89",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "lastActualRun": {
+        "job": "notification-drain",
+        "completedAt": "2026-10-06T06:06:31.934Z",
+        "taskId": "ab973d3bd2ab4c8a8671b5cf9cc88bd1",
+        "definition": "capiro-dev-legiwatch-phase9-api:89",
+        "imageDigest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+        "status": "STOPPED",
+        "exit": 0,
+        "result": {
+          "committees": 2,
+          "inserted": 0,
+          "lifecycleInserted": 0,
+          "scanned": 0,
+          "sent": 0,
+          "retryScheduled": 0,
+          "terminalFailures": 0,
+          "suppressed": 0
+        }
+      },
+      "assessment": "completed",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "capture-worker",
+      "enabled": true,
+      "schedule": "rate(1 minute)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-intel:34",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/intel-api@sha256:4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d",
+      "lastActualRun": {
+        "job": "capture-worker",
+        "completedAt": "2026-10-06T06:10:24.668Z",
+        "taskId": "4a3866a930224354b3647380d3cec008",
+        "definition": "capiro-dev-legiwatch-phase9-intel:34",
+        "imageDigest": "sha256:4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d",
+        "status": "STOPPED",
+        "exit": 0,
+        "result": {
+          "discovered": 1,
+          "claimed": 0,
+          "completed": 1,
+          "requeued": 0,
+          "failed": 0
+        }
+      },
+      "assessment": "completed",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "hearing-media-worker",
+      "enabled": true,
+      "schedule": "rate(2 minutes)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-intel:35",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/intel-api@sha256:4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d",
+      "lastActualRun": {
+        "job": "hearing-media-worker",
+        "completedAt": "2026-10-06T06:11:10.885Z",
+        "taskId": "757334d6ff5a454ca792e4cc1f0673bf",
+        "definition": "capiro-dev-legiwatch-phase9-intel:35",
+        "imageDigest": "sha256:4605a59a8573362f444910e209608a7ad37900be042d89dd29be6423ffc6d78d",
+        "status": "DEPROVISIONING",
+        "exit": 0,
+        "result": {
+          "purged": 0,
+          "recovered": 0,
+          "assembled": 0
+        }
+      },
+      "assessment": "completed",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "intelligence-worker",
+      "enabled": true,
+      "schedule": "rate(1 minute)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-intel:30",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/intel-api@sha256:350a3ed0d4bed56ae8db3307f7b5a1396e8b9040523ecbe5a7c2dab927e5122e",
+      "lastActualRun": {
+        "job": "intelligence-worker",
+        "completedAt": "2026-10-06T06:10:36.558Z",
+        "taskId": "269b1afcf642412a87779d6c3acaf77c",
+        "definition": "capiro-dev-legiwatch-phase9-intel:30",
+        "imageDigest": "sha256:350a3ed0d4bed56ae8db3307f7b5a1396e8b9040523ecbe5a7c2dab927e5122e",
+        "status": "STOPPED",
+        "exit": 0,
+        "result": {
+          "passes": 1,
+          "backfillInserted": 0,
+          "relevanceBackfillJobs": 0,
+          "publicClaimed": 0,
+          "publicCompleted": 0,
+          "publicRequeued": 0,
+          "publicFailed": 0,
+          "publicInsightsPersisted": 0,
+          "tenantJobsEnqueued": 0,
+          "tenantClaimed": 0,
+          "tenantCompleted": 0,
+          "tenantFailed": 0,
+          "tenantMatchesPersisted": 0
+        }
+      },
+      "assessment": "completed",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "central-discovery",
+      "enabled": true,
+      "schedule": "rate(10 minutes)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-api:90",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "lastActualRun": {
+        "job": "central-discovery",
+        "completedAt": "2026-10-06T06:06:41.972Z",
+        "taskId": "946be800c9bf49f9b3bddcdddad8341a",
+        "definition": "capiro-dev-legiwatch-phase9-api:90",
+        "imageDigest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+        "status": "STOPPED",
+        "exit": 0,
+        "result": {
+          "sourcesRegistered": 3,
+          "committeeSourcesRegistered": 115,
+          "committeeSourcesMissingUrl": 0,
+          "sourcesAttempted": 3,
+          "sourcesSucceeded": 3,
+          "sourcesFailed": 0,
+          "eventsObserved": 1,
+          "hearingsCreated": 0,
+          "hearingsUpdated": 0,
+          "observationsCreated": 0,
+          "observationsChanged": 0,
+          "siteUpdates": 0,
+          "streamCandidates": 0,
+          "reconciliationErrors": 0,
+          "sourceErrors": []
+        }
+      },
+      "assessment": "completed",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "committee-enrichment",
+      "enabled": true,
+      "schedule": "rate(15 minutes)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-api:91",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "lastActualRun": {
+        "job": "committee-enrichment",
+        "completedAt": "2026-10-06T05:56:44.893Z",
+        "taskId": "18988b07236c48f8acc22031400a4fff",
+        "definition": "capiro-dev-legiwatch-phase9-api:91",
+        "imageDigest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+        "status": "STOPPED",
+        "exit": 0,
+        "result": {
+          "inserted": 0,
+          "updated": 0,
+          "skipped": 43,
+          "errors": 0
+        }
+      },
+      "assessment": "completed",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "committee-updates",
+      "enabled": true,
+      "schedule": "rate(30 minutes)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-api:92",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "lastActualRun": {
+        "job": "committee-updates",
+        "completedAt": "2026-10-06T05:59:56.968Z",
+        "taskId": "62c756a87a9a4ce084ff835e7efc4540",
+        "definition": "capiro-dev-legiwatch-phase9-api:92",
+        "imageDigest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+        "status": "STOPPED",
+        "exit": 0,
+        "result": {
+          "inserted": 0,
+          "updated": 0,
+          "skipped": 71,
+          "errors": 2
+        }
+      },
+      "assessment": "completed_with_source_errors",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "archive-reconciliation",
+      "enabled": true,
+      "schedule": "rate(30 minutes)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-api:93",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "lastActualRun": {
+        "job": "archive-reconciliation",
+        "completedAt": "2026-10-06T05:56:57.100Z",
+        "taskId": "6216727eb2a94706ac5954ae6061e9cb",
+        "definition": "capiro-dev-legiwatch-phase9-api:93",
+        "imageDigest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+        "status": "STOPPED",
+        "exit": 0,
+        "result": {
+          "inserted": 0,
+          "updated": 0,
+          "skipped": 0,
+          "errors": 0
+        }
+      },
+      "assessment": "completed",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "source-probe",
+      "enabled": true,
+      "schedule": "rate(20 minutes)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-api:94",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "lastActualRun": {
+        "job": "source-probe",
+        "completedAt": "2026-10-06T06:10:12.198Z",
+        "taskId": "5a03a964cd854e44a175021f2e5972d0",
+        "definition": "capiro-dev-legiwatch-phase9-api:94",
+        "imageDigest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+        "status": "STOPPED",
+        "exit": 0,
+        "result": {
+          "inserted": 0,
+          "updated": 148,
+          "skipped": 4,
+          "errors": 1
+        }
+      },
+      "assessment": "completed_with_source_errors",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "coverage-audit",
+      "enabled": true,
+      "schedule": "rate(6 hours)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-api:95",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "lastActualRun": {
+        "job": "coverage-audit",
+        "completedAt": "2026-10-06T05:59:04.213Z",
+        "taskId": "c4104522f8394d50ba10218cc5feb08a",
+        "definition": "capiro-dev-legiwatch-phase9-api:95",
+        "imageDigest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+        "status": "STOPPED",
+        "exit": 0,
+        "result": {
+          "status": "BLOCKED",
+          "generatedAt": "2026-10-06T05:59:00.555Z"
+        }
+      },
+      "assessment": "completed_but_readiness_blocked",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "stream-preflight",
+      "enabled": true,
+      "schedule": "rate(2 minutes)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-api:96",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "lastActualRun": {
+        "job": "stream-preflight",
+        "completedAt": "2026-10-06T06:10:11.505Z",
+        "taskId": "7a5921c14bd24cb7a1244b5b9bba9980",
+        "definition": "capiro-dev-legiwatch-phase9-api:96",
+        "imageDigest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+        "status": "STOPPED",
+        "exit": 0,
+        "result": {
+          "scanned": 1,
+          "eligible": 1,
+          "capturesCreated": 0,
+          "checkpointsInserted": 0,
+          "checkpointsRearmed": 4,
+          "checkpointsAlreadyActive": 0,
+          "delayedStartCheckpoints": 0,
+          "skippedNoDemand": 0,
+          "skippedTerminalCapture": 0,
+          "skippedExplicitNonServerPolicy": 0,
+          "errors": []
+        }
+      },
+      "assessment": "completed",
+      "latestActualRunUsesConfiguredImage": true
+    },
+    {
+      "owner": "florida-calendar",
+      "enabled": true,
+      "schedule": "rate(15 minutes)",
+      "configuredTaskDefinition": "capiro-dev-legiwatch-phase9-api:97",
+      "configuredImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+      "lastActualRun": {
+        "job": "florida-calendar",
+        "completedAt": "2026-10-06T06:00:30.045Z",
+        "taskId": "cb7028cc7f5b4bdf9064c7d60315e2e1",
+        "definition": "capiro-dev-legiwatch-phase9-api:97",
+        "imageDigest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+        "status": "STOPPED",
+        "exit": 0,
+        "result": {
+          "inserted": 0,
+          "updated": 0,
+          "skipped": 0,
+          "errors": 0,
+          "complete": true,
+          "unavailableSessions": [
+            "2027"
+          ]
+        }
+      },
+      "assessment": "completed",
+      "latestActualRunUsesConfiguredImage": true
+    }
+  ],
+  "limitations": [
+    "Exit0 proves worker execution, not publication completeness. Counts/source failures are retained in result.",
+    "Configured image is separate from last actual run image; a newly pinned owner is not claimed tested until a completion from that image exists."
+  ],
+  "historicalDisabled": [
+    {
+      "rule": "capiro-dev-legiwatch-agenda-updates",
+      "enabled": false,
+      "definition": "capiro-dev-intel-api-legiwatch-agenda:6"
+    },
+    {
+      "rule": "capiro-dev-legiwatch-hearing-delivery-worker",
+      "enabled": false,
+      "definition": "capiro-dev-legiwatch-phase9-intel:25"
+    },
+    {
+      "rule": "capiro-dev-legiwatch-report-updates",
+      "enabled": false,
+      "definition": "capiro-dev-intel-api-legiwatch-reports:17"
+    }
+  ],
+  "additionalEnabledTelemetry": [
+    {
+      "rule": "capiro-dev-legiwatch-metrics",
+      "definition": "capiro-dev-legiwatch-phase9-api:60",
+      "enabled": true
+    },
+    {
+      "rule": "capiro-dev-legiwatch-parallel-comparison",
+      "definition": "capiro-dev-legiwatch-phase9-api:60",
+      "enabled": true
+    },
+    {
+      "rule": "capiro-dev-legiwatch-report-draft-qualification",
+      "definition": "capiro-dev-intel-api-legiwatch-reports:16",
+      "enabled": true
+    }
+  ],
+  "configuredPinsVerifiedAt": "2026-10-06T05:50:59.421Z",
+  "acceptance": {
+    "ingestionSourceRevision": "d6fef85b726e6c7f4c5c674f82a47602894a64f9",
+    "ingestionImageDigest": "sha256:045ee466e2dffcc2b7248691c3dfdf3dc6c2fde8e103b6f2974fe353d363013c",
+    "enabledOwners": 15,
+    "latestActualCompletionMatchesConfiguredImage": 13,
+    "awaitingActualCompletionFromConfiguredImage": [
+      "sync-hearings",
+      "sync-committees"
+    ],
+    "interpretation": "Every owner has an actual completion recorded. A new configured image is not presented as a completed execution. The daily sync owners retain their earlier successful actual runs; their relevant ingestion code remains included in the qualified merged release."
+  }
+}
