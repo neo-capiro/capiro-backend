@@ -56,8 +56,11 @@ test('a jurisdiction change resets incompatible bill sessions', async () => {
 test('a federal statute deep link does not request Florida material under a federal scope', async () => {
   mount('/legiwatch?tab=research&researchView=statutes&jurisdiction=US&session=119&researchQuery=395.003');
   expect(screen.getByText(/Statute and Constitution lookup is available for Florida/)).toBeTruthy();
+  expect(screen.getByRole('button', { name: /^Search$/ })).toBeDisabled();
+  expect(screen.getByRole('textbox', { name: 'Citation or title' })).toBeDisabled();
   expect(mocks.get.mock.calls.some(([url]) => url.includes('/references?'))).toBe(false);
   fireEvent.click(screen.getByRole('button', { name: 'Use Florida legal sources' }));
+  expect(screen.getByRole('button', { name: /^Search$/ })).toBeEnabled();
   await waitFor(() => expect(mocks.get).toHaveBeenCalledWith(expect.stringContaining('/references?jurisdiction=FL')));
 });
 

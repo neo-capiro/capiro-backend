@@ -389,6 +389,12 @@
   flex: 1 1 0;
   min-width: 0;
 }
+.capiro-vnext-root .lw .lw-pagehead__shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
 
 /* Client lens — the one shaded control in the header set (brand-tinted
    bg/ring). Eyebrow (mono 9px) over the selected client label, v2 prototype. */
@@ -562,16 +568,18 @@
     flex: 0 0 100%;
     width: 100%;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
     gap: 8px;
     align-items: stretch;
   }
   .capiro-vnext-root .lw .lw-pagehead__actions .lw-lens { grid-column: 1 / -1; min-width: 0; width: 100%; }
-  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action {
+  .capiro-vnext-root .lw .lw-pagehead__shortcuts { display: contents; }
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action,
+  .capiro-vnext-root .lw .lw-pagehead__actions .lw-header-action--settings {
     box-sizing: border-box;
     min-width: 0;
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
     padding: 0;
     justify-content: center;
     gap: 0;

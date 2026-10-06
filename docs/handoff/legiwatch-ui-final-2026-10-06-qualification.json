@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "checkedAt": "2026-10-06T15:28:48.462909+00:00",
+  "pullRequest": "https://github.com/neo-capiro/capirov2/pull/2102",
+  "previousRelease": "https://github.com/neo-capiro/capirov2/pull/2096",
+  "sourceSha": "82f38b6a3cd6e69e6b1339d01eb484dd23e17ae4",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:4114766a34f8abb31a990ca640f99f8fdf919aeef10d469b8f14f0e1b212cc89",
+  "service": "web-vnext",
+  "schemaChange": false,
+  "build": {
+    "id": "capiro-build-web-dev:7fcf09c0-51bc-41f0-9562-11fbff86fc77",
+    "status": "SUCCEEDED",
+    "architecture": "arm64",
+    "exactSourceAndImageLabel": true,
+    "runtimeNginxConfigAndAssets": true,
+    "pushedDigestMatched": true
+  },
+  "checks": {
+    "webTypecheck": "passed",
+    "packagesBuild": "passed",
+    "fullLegiWatchWebScope": {
+      "success": true,
+      "suites": 334,
+      "passed": 1156,
+      "failed": 0,
+      "pending": 0
+    },
+    "minimumSuiteAndTestFloors": "passed",
+    "trackedSourceCleanAfterTests": true
+  },
+  "githubActions": {
+    "status": "startup_failure before jobs executed",
+    "sourceSha": "82f38b6a3cd6e69e6b1339d01eb484dd23e17ae4",
+    "runs": [
+      37485489841,
+      37485482110
+    ],
+    "countedAsPassed": false,
+    "equivalentWebJobScope": "Executed in the native ARM64 CodeBuild above; backend qualification remains the previous release."
+  },
+  "review": {
+    "reviewer": "Codex under owner instruction to fix, merge and ship; independent debrief_review review of exact source",
+    "status": "no blockers",
+    "files": [
+      "apps/web/src/vnext/pages/legiwatch/LegiWatchModule.tsx",
+      "apps/web/src/vnext/pages/legiwatch/legiwatch.css",
+      "apps/web/src/vnext/pages/legiwatch/research/ResearchTab.test.tsx",
+      "apps/web/src/vnext/pages/legiwatch/research/ResearchTab.tsx"
+    ]
+  },
+  "behavior": [
+    "Unsupported federal statute input and Search are disabled; form submission guarded; Florida switch restores search.",
+    "Mobile header action touch targets are 44px.",
+    "Desktop Watchlist & alerts and Settings remain grouped when other header controls wrap."
+  ],
+  "compatibility": {
+    "backendApiChanges": false,
+    "databaseChanges": false,
+    "configOrPermissionChanges": false,
+    "existingClientScopeAndButtonLabelsPreserved": true,
+    "previousBackendAndRecordingQualification": "docs/handoff/legiwatch-ui-audit-2026-10-06-qualification.json"
+  },
+  "browserAcceptance": {
+    "mainReleaseRepresentativeSurfaces": "verified in authenticated production browser at desktop and390pxmobile",
+    "followUp": "requires post-promotion live acceptance"
+  },
+  "notClaimed": [
+    "All upstream sources healthy",
+    "Complete publisher inventory",
+    "Recording every future hearing regardless of source access",
+    "Missing bill analysis or media fabricated"
+  ]
+}
