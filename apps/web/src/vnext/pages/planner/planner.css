@@ -601,11 +601,33 @@
   position: absolute;
   top: 8px;
   height: 28px;
-  border: 0;
-  font-size: 10px;
+  border: 1px solid #d2d5de;
+  border-radius: 6px;
+  padding: 0 6px;
+  font-size: 11px;
   overflow: hidden;
   white-space: nowrap;
   justify-content: flex-start;
+}
+.planner-root button.planner-timeline-bar.planner-status-todo {
+  background: #f0f1f5;
+  color: #454b56;
+  border-color: #d2d5de;
+}
+.planner-root button.planner-timeline-bar.planner-status-in_progress {
+  background: #efebfc;
+  color: #564590;
+  border-color: #b7a9e5;
+}
+.planner-root button.planner-timeline-bar.planner-status-blocked {
+  background: #fbe9e8;
+  color: #8a3c38;
+  border-color: #dea8a4;
+}
+.planner-root button.planner-timeline-bar.planner-status-done {
+  background: #e5f4ec;
+  color: #386749;
+  border-color: #a4ceb3;
 }
 .planner-timeline-deps {
   position: absolute;
