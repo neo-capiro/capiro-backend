@@ -85,6 +85,36 @@ export class MeriClientFilingService {
     };
   }
 
+  /**
+   * File a server-generated job deliverable (one user confirmation) into the
+   * client's Files. Same destination checks and readiness receipt as a note.
+   */
+  async saveJobDeliverable(ctx: TenantContext, input: {
+    clientId: string; conversationId?: string; jobId: string; index: number;
+    fileName: string; contentType: string; buffer: Buffer;
+  }) {
+    const destination = await this.destination(ctx, input.clientId, input.conversationId);
+    const document = await this.documents.createAttachmentFromBuffer(ctx, {
+      clientId: input.clientId, fileName: input.fileName, contentType: input.contentType,
+      buffer: input.buffer, source: 'meri_job', sourceEntityType: 'clio_research_session',
+      sourceEntityId: input.jobId, idempotencyKey: `meri-job:${input.jobId}:${input.index}`,
+      untrustedUpload: true,
+    });
+    if (!document.id) throw new Error('The client document was not persisted.');
+    const pending = document.lifecycleStatus === 'quarantined';
+    const failed = document.lifecycleStatus != null &&
+      !['ready', 'legacy_ready', 'quarantined'].includes(document.lifecycleStatus);
+    return {
+      status: failed ? 'failed' as const : pending ? 'pending' as const : 'saved' as const,
+      ...destination,
+      location: `${destination.location}&attachmentId=${encodeURIComponent(document.id)}`,
+      documentId: document.id, fileName: document.fileName, reused: document.reused === true,
+      ...(failed ? { message: 'The document was stored but is unavailable under the document readiness policy.' }
+        : pending ? { message: 'The document is stored in the client profile Files tab; scanning is still pending.' }
+        : {}),
+    };
+  }
+
   async saveAttachments(ctx: TenantContext, input: {
     clientId: string; conversationId: string; attachmentIds: unknown;
   }) {

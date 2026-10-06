@@ -164,6 +164,12 @@ class CreateResearchSessionDto {
   @IsOptional()
   @IsIn(MERI_JOB_KINDS)
   kind?: MeriJobKind;
+
+  /** Deliverable jobs only: the requested document ({ format: 'docx', title? }). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(1)
+  deliverables?: unknown[];
 }
 
 class AnswerClarificationsDto {

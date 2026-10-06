@@ -1816,4 +1816,36 @@ describe('Stage 2 job kinds stay dark behind meri.jobs', () => {
     const view = await f.service.getSession(ctx, 'research-a');
     expect(view.job).toMatchObject({ kind: 'deliverable', status: 'queued', awaitingStart: true });
   });
+
+  it('records one Word deliverable for a deliverable job, titled by the request', async () => {
+    const f = fixture({ tenantSettings: { clioFeatureFlags: { 'meri.jobs': true } } });
+    await f.service.createSession(ctx, {
+      topic: 'Office brief on HR 1',
+      conversationId: 'thread-a',
+      kind: 'deliverable',
+      deliverables: [{ format: 'docx', title: 'HR 1 office brief' }],
+    });
+    expect(f.getSession().deliverables).toEqual([
+      { format: 'docx', title: 'HR 1 office brief', artifactId: null },
+    ]);
+    const view = await f.service.getSession(ctx, 'research-a');
+    expect(view.job?.deliverables).toEqual([
+      { format: 'docx', title: 'HR 1 office brief', artifactId: null },
+    ]);
+  });
+
+  it.each([
+    ['deliverables on a research job', { kind: 'research', deliverables: [{ format: 'docx' }] }],
+    ['an unsupported format', { kind: 'deliverable', deliverables: [{ format: 'xlsx' }] }],
+  ] as const)('refuses %s and creates nothing', async (_label, request) => {
+    const f = fixture({ tenantSettings: { clioFeatureFlags: { 'meri.jobs': true } } });
+    await expect(
+      f.service.createSession(ctx, {
+        topic: 'Office brief',
+        conversationId: 'thread-a',
+        ...request,
+      } as never),
+    ).rejects.toThrow(/deliverable/i);
+    expect(f.getSession()).toBeUndefined();
+  });
 });
