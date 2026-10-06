@@ -213,4 +213,26 @@ describe('official committee news', () => {
     expect(await adapter.discoverUpdates(source, ctx)).toHaveLength(1);
     expect(adapter.updateErrors[0]).toContain('HTTP 404');
   });
+  it('does not attribute unrelated PDFs or hearing links from a shared state/chamber page', async () => {
+    fetchMock.mockResolvedValueOnce(
+      html(
+        '<a href="/documents/statement.pdf">Written testimony for another committee</a><a href="/hearings/2026-10-07">Other Committee hearing October 7, 2026</a><a href="/documents/commerce-memo.pdf">Commerce Committee memorandum</a>',
+      ),
+    );
+    const rows = await new CommitteeSiteAdapter({
+      stateCommitteeName: () => 'Commerce',
+    }).discoverUpdates(
+      {
+        ...source,
+        committeeSystemCode: 'state:FL:commerce',
+        sourceUrl: 'https://www.flsenate.gov/Committees/Show/CM/2026',
+      },
+      ctx,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      normalizedTitle: 'Commerce Committee memorandum',
+      updateType: 'committee_memo_published',
+    });
+  });
 });

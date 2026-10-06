@@ -199,6 +199,12 @@ export class CommitteeSiteAdapter implements CommitteeSourceAdapter {
         continue;
       }
 
+      // Shared state/chamber pages also contain unrelated meeting notices and
+      // PDFs in their navigation. The dedicated calendar adapters already
+      // ingest attributed meetings; this watcher must not fan those links out
+      // to every committee hosted on the same website.
+      if (requiresAttribution && stateName && !headlineNamesCommittee(text, stateName)) continue;
+
       const category = DOCUMENT_CATEGORIES.find(
         (c) => c.pattern.test(text) && DOC_HREF_RE.test(a.href),
       );
