@@ -5,6 +5,8 @@ import { ConfigService } from '@nestjs/config';
 import { EngagementModule } from '../engagement/engagement.module.js';
 import { ClientDocumentsModule } from '../client-documents/client-documents.module.js';
 import { MeriClientFilingService } from './meri-client-filing.service.js';
+import { MeriJobDeliverablesController } from './meri-job-deliverables.controller.js';
+import { MeriJobDeliverablesService } from './meri-job-deliverables.service.js';
 import { AiCredentialsModule } from '../ai-credentials/ai-credentials.module.js';
 // Phase 4 server-only slice: one-way import. BD exports the scope service;
 // BD itself must NEVER import MeriModule (no reverse dependency).
@@ -127,9 +129,11 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
     MeriPolicyPackController,
     MeriMcpOAuthController,
     MeriVNextLibraryController,
+    MeriJobDeliverablesController,
   ],
   providers: [
     MeriClientFilingService,
+    MeriJobDeliverablesService,
     MeriChatAttachmentReadService,
     MeriSourceService,
     MeriContextPlaneService,

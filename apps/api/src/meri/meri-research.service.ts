@@ -189,7 +189,11 @@ import {
   type ResearchChildTaskV1,
 } from './meri-research-child-task.js';
 
-import { meriJobView, type MeriJobKind } from './meri-job.js';
+import { meriJobView, type MeriJobDeliverable, type MeriJobKind } from './meri-job.js';
+import {
+  MeriJobDeliverableRequestError,
+  requestedJobDeliverables,
+} from './meri-job-deliverables.js';
 import { meriJobsEnabled } from '../common/tenant-flags.js';
 
 const PRODUCT_NAME = 'Meri';
@@ -535,14 +539,26 @@ export class MeriResearchService {
 
   async createSession(
     ctx: TenantContext,
-    request: ResearchHandoffInput & { kind?: MeriJobKind },
+    request: ResearchHandoffInput & { kind?: MeriJobKind; deliverables?: unknown },
   ) {
-    const { kind = 'research', ...input } = request;
+    const { kind = 'research', deliverables: requestedDeliverables, ...input } = request;
     const topic = (input.topic ?? '').trim();
     if (!topic) throw new BadRequestException('A research topic is required');
     // Stage 2 jobs are dark until the tenant flag is on; research is unchanged.
     if (kind !== 'research' && !(await this.jobsEnabled(ctx.tenantId)))
       throw new ForbiddenException('meri_jobs_disabled');
+    let deliverables: MeriJobDeliverable[];
+    try {
+      deliverables = requestedJobDeliverables(
+        kind,
+        requestedDeliverables,
+        clampTitle(input.title?.trim() || topic),
+      );
+    } catch (error) {
+      if (error instanceof MeriJobDeliverableRequestError)
+        throw new BadRequestException(error.message);
+      throw error;
+    }
     return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
       const handoff = await captureResearchHandoff(tx, ctx, { ...input, topic });
       const session = await tx.clioResearchSession.create({
@@ -554,6 +570,9 @@ export class MeriResearchService {
           topic,
           status: 'plan',
           kind,
+          ...(deliverables.length
+            ? { deliverables: deliverables as unknown as Prisma.InputJsonValue }
+            : {}),
           metadata: {
             handoff,
             run: {
