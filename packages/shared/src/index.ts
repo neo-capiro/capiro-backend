@@ -4201,7 +4201,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'search_congress_bills',
     description:
-      'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Accepts a bill designation or id ("H.R. 8800", "119-hr-8800") as the query for a direct lookup. Returns bill title, sponsor, latest action, canonical STATUS (e.g. rule_failed, passed_chamber), policy area, and cosponsors count.',
+      'Search congressional bills in the Capiro database (118th and 119th Congress). Filter by keyword, policy area, congress number, or recent activity date. Accepts a bill designation or id ("H.R. 8800", "119-hr-8800") as the query for a direct lookup. Returns bill title, sponsor, latest action, canonical STATUS (e.g. rule_failed, passed_chamber), policy area, and cosponsors count. With textQuery it searches inside stored bill TEXT instead (119th Congress) and returns matching bills with passages; use it to find which bills mention a program, term, or phrase.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat', 'in_editor'],
@@ -4217,7 +4217,7 @@ export const MERI_CAPABILITY_REGISTRY = [
   {
     name: 'read_bill_text',
     description:
-      'Read the exact current canonical full-text revision for one federal bill and version code from the immutable federal evidence owner. Returns bill/version/package identity, source locator, content and extraction hashes, bounded text, and continuation coverage. This is bill text, not amendment text or procedural status; use get_bill_status separately for status.',
+      'Read the exact current canonical full-text revision for one federal bill and version code from the immutable federal evidence owner. Returns bill/version/package identity, source locator, content and extraction hashes, bounded text, and continuation coverage. To answer a question about part of a long bill, pass query (words or "an exact phrase") to get the best matching passages with their section headings, then read on with a passage readCursor; do not page through a long bill from the start. This is bill text, not amendment text or procedural status; use get_bill_status separately for status.',
     backend: 'meri',
     readOnly: true,
     surfaces: ['full_chat'],
