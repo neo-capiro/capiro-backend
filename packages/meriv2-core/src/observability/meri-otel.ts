@@ -68,6 +68,7 @@ const identities = [
   'runtime',
   'provider',
   'configIdentity',
+  'callSignature',
   'requestedModel',
   'effectiveModel',
   'proposalId',
