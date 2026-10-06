@@ -131,6 +131,11 @@ describeDb('Planner real PostgreSQL integration', () => {
         { can_update: boolean; can_delete: boolean }[]
       >`SELECT has_table_privilege('capiro_app', 'sp_planner_events', 'UPDATE') AS can_update, has_table_privilege('capiro_app', 'sp_planner_events', 'DELETE') AS can_delete`;
       expect(rights[0]).toEqual({ can_update: false, can_delete: false });
+      const tableRights = await tx.$queryRaw<
+        { relname: string; relforcerowsecurity: boolean; can_delete: boolean }[]
+      >`SELECT relname, relforcerowsecurity, has_table_privilege('capiro_app', oid, 'DELETE') AS can_delete FROM pg_class WHERE relkind='r' AND relname LIKE 'sp_planner_%' ORDER BY relname`;
+      expect(tableRights).toHaveLength(6);
+      expect(tableRights.every((row) => row.relforcerowsecurity && !row.can_delete)).toBe(true);
     });
   });
   it('shares only form questions and a receipt, enforces tenant scope, quotas and revocation', async () => {
