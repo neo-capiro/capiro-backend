@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-release-a-orch-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-06T00:13:46.052295+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "2b5a9d29600431efb218e5d78802bc3a860addc1",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:7511b7f92e2640fe60b5f21bb2f1dce3c46c37f5f1868d649143da2f87cef493",
+      "buildId": "capiro-build-web-dev:84456615-85a2-41d5-b686-bc0eeeac2032"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Stage 2 Release A follow-up, orchestrator only: Deep Research plan turns (toolPolicy none) are no longer held to the client-file read gate, which had released every file-mentioning plan as partial (#2040). Found by the Release A live research check.",
+  "reviewer": "Lead agent (Stage 1): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo: \"implement stage 1\" (2026-10-05); program plan \u00a710 release path."
+}
