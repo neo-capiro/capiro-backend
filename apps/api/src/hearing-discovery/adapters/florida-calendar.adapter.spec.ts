@@ -4,6 +4,7 @@ import {
   floridaDate,
   floridaBillNumberAliases,
   fetchFloridaSource,
+  FloridaSourceRateLimitError,
   houseNoticeObservation,
   senateCommitteeLinks,
   senateCommitteePageSession,
@@ -534,5 +535,54 @@ describe('joint hearings published by the Senate', () => {
         '2026',
       ).chamber,
     ).toBe('senate');
+  });
+});
+
+describe('Florida publisher rate-limit backoff', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.useRealTimers();
+  });
+
+  it('waits the full bounded Retry-After before making another request', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response('', { status: 429, headers: { 'retry-after': '5' } }))
+      .mockResolvedValueOnce(new Response('published bytes'));
+    const result = fetchFloridaSource('https://www.flsenate.gov/Committees');
+    await jest.advanceTimersByTimeAsync(4999);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(1);
+    await expect(result).resolves.toEqual(new TextEncoder().encode('published bytes'));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['120', 'Tue, 06 Oct 2026 04:02:00 GMT'])(
+    'defers a publisher backoff beyond the request budget without retrying early (%s)',
+    async (header) => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-10-06T04:00:00Z'));
+      const fetchMock = jest
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(new Response('', { status: 429, headers: { 'retry-after': header } }));
+      await expect(fetchFloridaSource('https://www.flsenate.gov/Committees')).rejects.toMatchObject(
+        { retryAfterMs: 120000, message: expect.stringContaining('retry after 120 seconds') },
+      );
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(jest.getTimerCount()).toBe(0);
+    },
+  );
+
+  it('stops after three paced throttled attempts without a Retry-After header', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async () => new Response('', { status: 429 }));
+    const result = expect(
+      fetchFloridaSource('https://www.flsenate.gov/Committees'),
+    ).rejects.toBeInstanceOf(FloridaSourceRateLimitError);
+    await jest.advanceTimersByTimeAsync(20000);
+    await result;
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

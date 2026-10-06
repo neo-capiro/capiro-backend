@@ -13,6 +13,7 @@ import {
   FL_HOUSE,
   FL_SENATE,
   fetchFloridaSource,
+  FloridaSourceRateLimitError,
   floridaDate,
   floridaBillNumberAliases,
   floridaOfficialWatchChamber,
@@ -139,6 +140,8 @@ export type FloridaDiscoveryOptions = {
   fetchChannel?: (url: string) => Promise<{ bytes: Uint8Array; totalPages: number | null }>;
   /** Per-run page→publisher-entry cache shared with the archive crosswalk. */
   probeCache?: Map<string, string | null>;
+  /** Shared across session passes so throttling cannot restart on the next session. */
+  throttledHosts?: Map<string, FloridaSourceRateLimitError>;
 };
 
 export async function discoverFloridaCalendar(
@@ -153,10 +156,24 @@ export async function discoverFloridaCalendar(
     !isFloridaSessionCode(options.session)
   )
     throw new Error('Florida source requires a valid <=32-day window and Florida session code');
-  const fetchSource = options.fetchSource ?? fetchFloridaSource;
+  const throttledHosts = options.throttledHosts ?? new Map<string, FloridaSourceRateLimitError>();
+  const readSource = options.fetchSource ?? fetchFloridaSource;
+  const fetchSource = async (url: string) => {
+    const host = new URL(url).hostname;
+    const prior = throttledHosts.get(host);
+    if (prior) throw prior;
+    try {
+      return await readSource(url);
+    } catch (error) {
+      if (error instanceof FloridaSourceRateLimitError) throttledHosts.set(host, error);
+      throw error;
+    }
+  };
+  const senateThrottled = () => throttledHosts.has(new URL(FL_SENATE).hostname);
+  const houseThrottled = () => throttledHosts.has(new URL(FL_HOUSE).hostname);
   const text = async (url: string) => new TextDecoder().decode(await fetchSource(url));
   const log = options.log ?? (() => {});
-  const pause = () => new Promise((resolve) => setTimeout(resolve, options.delayMs ?? 400));
+  const pause = () => new Promise((resolve) => setTimeout(resolve, options.delayMs ?? 1000));
   const repo = prisma ? new CommitteeSourceRepository(prisma) : null;
   const reconciler = prisma ? new HearingReconcilerService(prisma) : null;
   const candidates = prisma ? new StreamCandidateRepository(prisma) : null;
@@ -263,6 +280,7 @@ export async function discoverFloridaCalendar(
             'Senate committee directory unavailable; no coverage assertion can be made',
           );
         for (const body of bodies) {
+          if (senateThrottled()) break;
           await pause();
           try {
             const html = await text(body.url);
@@ -294,6 +312,7 @@ export async function discoverFloridaCalendar(
               (n) => n.date >= options.from && n.date <= options.to,
             );
             for (const ref of refs) {
+              if (senateThrottled()) break;
               if (seenNotices.has(ref.id)) continue;
               expected++;
               await pause();
@@ -333,12 +352,13 @@ export async function discoverFloridaCalendar(
             }
           }
         }
-        if (options.includeSenateDaily !== false) {
+        if (options.includeSenateDaily !== false && !senateThrottled()) {
           for (
             let day = new Date(`${options.from}T00:00:00Z`);
             day.toISOString().slice(0, 10) <= options.to;
             day.setUTCDate(day.getUTCDate() + 1)
           ) {
+            if (senateThrottled()) break;
             await pause();
             const date = day.toISOString().slice(0, 10);
             try {
@@ -357,6 +377,7 @@ export async function discoverFloridaCalendar(
               expected += daily.floors.length + daily.unresolved;
               observations.push(...daily.floors);
               for (const ref of daily.notices) {
+                if (senateThrottled()) break;
                 if (seenNotices.has(ref.id)) continue;
                 expected++;
                 await pause();
@@ -400,6 +421,7 @@ export async function discoverFloridaCalendar(
           date.toISOString().slice(0, 10) <= options.to;
           date.setUTCDate(date.getUTCDate() + 1)
         ) {
+          if (houseThrottled()) break;
           await pause();
           const day = `${date.getUTCMonth() + 1}-${date.getUTCDate()}-${date.getUTCFullYear()}`;
           const url = `${FL_HOUSE}/Sections/HouseSchedule/houseschedule.aspx?date=${day}`;
@@ -428,6 +450,7 @@ export async function discoverFloridaCalendar(
         }
         expected = urls.size + unresolved;
         for (const url of urls) {
+          if (houseThrottled()) break;
           await pause();
           try {
             // A session may only be attached when the specific notice provides
@@ -825,6 +848,15 @@ export function floridaCalendarSessions(
   return sessions;
 }
 
+export function floridaCalendarDelayMs(env: NodeJS.ProcessEnv = process.env): number {
+  const value = env.FL_CALENDAR_DELAY_MS?.trim();
+  if (!value) return 1000;
+  const delay = Number(value);
+  if (!Number.isInteger(delay) || delay < 1000 || delay > 5000)
+    throw new Error('FL_CALENDAR_DELAY_MS must be an integer in 1000..5000');
+  return delay;
+}
+
 /**
  * Execute one bounded recurring Florida window across a session rollover.
  *
@@ -848,6 +880,8 @@ export async function discoverFloridaCalendarSessions(
     throw new Error('Florida source requires one or two valid Florida session codes');
   const discover = dependencies.discover ?? discoverFloridaCalendar;
   const primarySession = sessions[0]!;
+  const delayMs = floridaCalendarDelayMs();
+  const throttledHosts = new Map<string, FloridaSourceRateLimitError>();
   const results: Awaited<ReturnType<typeof discoverFloridaCalendar>> = [];
   const seenSenateNoticeIds = new Set<string>();
 
@@ -862,6 +896,8 @@ export async function discoverFloridaCalendarSessions(
         includeSenateDaily: primary,
         optionalSession: !primary,
         recordSourceHealth: primary,
+        delayMs,
+        throttledHosts,
         seenSenateNoticeIds,
         dryRun: options.dryRun,
         log: options.log,
