@@ -48,6 +48,8 @@ export interface FetchTextResult {
   notModified: boolean;
   durationMs: number;
   error: string | null;
+  /** Publisher backoff evidence; callers must not retry ahead of this value. */
+  retryAfter?: string | null;
 }
 
 /**
@@ -95,6 +97,7 @@ export async function fetchText(
       };
     }
     if (!resp.ok) {
+      const retryAfter = resp.headers.get('retry-after');
       return {
         ok: false,
         status: resp.status,
@@ -104,7 +107,8 @@ export async function fetchText(
         lastModified,
         notModified: false,
         durationMs: Date.now() - started,
-        error: `HTTP ${resp.status}`,
+        error: `HTTP ${resp.status}${retryAfter ? `; Retry-After: ${retryAfter}` : ''}`,
+        retryAfter,
       };
     }
     const buffer = await resp.arrayBuffer();

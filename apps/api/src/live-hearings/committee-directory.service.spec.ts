@@ -143,27 +143,75 @@ describe('CommitteeDirectoryService', () => {
     });
   });
 
-  it('uses one China directory entry for both publisher and catalog code links', async () => {
-    const { service, prisma, hearings } = fixture();
-    const china = { systemCode: 'hszs00', thomasId: 'HSZS', name: 'House Select Committee on China', chamber: 'house', parentSystemCode: null, url: 'https://chinaselectcommittee.house.gov/', jurisdiction: 'China', isCurrent: true, lastSyncedAt };
-    prisma.congressCommittee.findMany.mockResolvedValue([china]);
-    prisma.congressCommittee.findFirst.mockResolvedValue(china);
-    prisma.committeeHearing.findMany.mockResolvedValue([{ id: 'cm-119-119538', committeeSystemCode: 'hlzs00', subcommitteeSystemCode: null, title: 'Import Controls', date: future, startsAt: future, eventStatus: 'scheduled', type: 'hearing' }]);
-    const directory = await service.committees();
-    expect(directory.rows).toHaveLength(1);
-    expect(directory.rows[0]).toMatchObject({ systemCode: 'hszs00', upcomingEventCount: 1 });
-    expect(prisma.committeeHearing.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ AND: expect.arrayContaining([expect.objectContaining({ OR: expect.arrayContaining([{ committeeSystemCode: { in: ['hszs00', 'hlzs00'] } }]) })]) }) }));
-    const ctx = { tenantId: 'tenant-a', userId: 'user-a' } as never;
-    const canonical = await service.committee('hszs00', ctx);
-    const alias = await service.committee('hlzs00', ctx);
-    expect(alias).toMatchObject({ systemCode: 'hszs00' });
-    expect(alias?.systemCode).toEqual(canonical?.systemCode);
-    expect(hearings.calendar).toHaveBeenCalledWith(ctx, expect.objectContaining({ committee: 'hszs00' }));
-    await service.members('hlzs00');
-    await service.updates('hlzs00');
-    expect(prisma.congressCommittee.findFirst).toHaveBeenLastCalledWith({ where: { systemCode: 'hszs00', isCurrent: true } });
-    expect(prisma.committeeSiteUpdate.findMany).toHaveBeenLastCalledWith(expect.objectContaining({ where: { committeeSystemCode: { in: ['hszs00', 'hlzs00'] } } }));
-  });
+  it.each([
+    ['hszs00', 'hlzs00'],
+    ['hsqj00', 'hlqj00'],
+  ])(
+    'uses one %s directory entry for both publisher and catalog code links',
+    async (catalogCode, publisherCode) => {
+      const { service, prisma, hearings } = fixture();
+      const china = {
+        systemCode: catalogCode,
+        thomasId: 'HSZS',
+        name: 'House Select Committee on China',
+        chamber: 'house',
+        parentSystemCode: null,
+        url: 'https://chinaselectcommittee.house.gov/',
+        jurisdiction: 'China',
+        isCurrent: true,
+        lastSyncedAt,
+      };
+      prisma.congressCommittee.findMany.mockResolvedValue([china]);
+      prisma.congressCommittee.findFirst.mockResolvedValue(china);
+      prisma.committeeHearing.findMany.mockResolvedValue([
+        {
+          id: 'cm-119-119538',
+          committeeSystemCode: publisherCode,
+          subcommitteeSystemCode: null,
+          title: 'Import Controls',
+          date: future,
+          startsAt: future,
+          eventStatus: 'scheduled',
+          type: 'hearing',
+        },
+      ]);
+      const directory = await service.committees();
+      expect(directory.rows).toHaveLength(1);
+      expect(directory.rows[0]).toMatchObject({ systemCode: catalogCode, upcomingEventCount: 1 });
+      expect(prisma.committeeHearing.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            AND: expect.arrayContaining([
+              expect.objectContaining({
+                OR: expect.arrayContaining([
+                  { committeeSystemCode: { in: [catalogCode, publisherCode] } },
+                ]),
+              }),
+            ]),
+          }),
+        }),
+      );
+      const ctx = { tenantId: 'tenant-a', userId: 'user-a' } as never;
+      const canonical = await service.committee(catalogCode, ctx);
+      const alias = await service.committee(publisherCode, ctx);
+      expect(alias).toMatchObject({ systemCode: catalogCode });
+      expect(alias?.systemCode).toEqual(canonical?.systemCode);
+      expect(hearings.calendar).toHaveBeenCalledWith(
+        ctx,
+        expect.objectContaining({ committee: catalogCode }),
+      );
+      await service.members(publisherCode);
+      await service.updates(publisherCode);
+      expect(prisma.congressCommittee.findFirst).toHaveBeenLastCalledWith({
+        where: { systemCode: catalogCode, isCurrent: true },
+      });
+      expect(prisma.committeeSiteUpdate.findMany).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: { committeeSystemCode: { in: [catalogCode, publisherCode] } },
+        }),
+      );
+    },
+  );
 
   it('counts a subcommittee event in both its own room and its parent room', async () => {
     const { service } = fixture();
@@ -349,13 +397,11 @@ describe('CommitteeDirectoryService', () => {
     function roomFixture(calendarRows: Array<Record<string, unknown>>[]) {
       const { service, prisma, hearings } = fixture();
       // The two bounded calendar calls: [upcoming day-bucket, recent day-bucket].
-      hearings.calendar.mockImplementation(
-        (_ctx: unknown, query: { from: string; to: string }) => {
-          const isUpcoming = query.from >= query.to === false && query.from === '2026-09-15';
-          const rows = (isUpcoming ? calendarRows[0] : calendarRows[1]) ?? [];
-          return Promise.resolve({ rows, total: rows.length, page: 1, pageSize: 100 });
-        },
-      );
+      hearings.calendar.mockImplementation((_ctx: unknown, query: { from: string; to: string }) => {
+        const isUpcoming = query.from >= query.to === false && query.from === '2026-09-15';
+        const rows = (isUpcoming ? calendarRows[0] : calendarRows[1]) ?? [];
+        return Promise.resolve({ rows, total: rows.length, page: 1, pageSize: 100 });
+      });
       return { service, prisma, hearings };
     }
 
@@ -386,7 +432,11 @@ describe('CommitteeDirectoryService', () => {
       const { service } = roomFixture([[passed], []]);
       const room = (await service.committee('hsag00', {} as never)) as Record<string, unknown>;
       expect(room.upcomingEvents).toEqual([]);
-      const recent = room.recentEvents as Array<{ id: string; eventStatus: string; startsAt: string }>;
+      const recent = room.recentEvents as Array<{
+        id: string;
+        eventStatus: string;
+        startsAt: string;
+      }>;
       expect(recent.map((e) => e.id)).toEqual(['passed-today']);
       // Source status/time preserved verbatim — not coerced to "completed".
       expect(recent[0]).toMatchObject({
@@ -449,10 +499,26 @@ describe('CommitteeDirectoryService', () => {
     });
 
     it('keeps upcoming ascending and recent descending, with deterministic id tie-breaks', async () => {
-      const up1 = calEvent({ id: 'b-up', startsAt: '2026-09-16T14:00:00.000Z', date: '2026-09-16' });
-      const up2 = calEvent({ id: 'a-up', startsAt: '2026-09-16T14:00:00.000Z', date: '2026-09-16' });
-      const re1 = calEvent({ id: 'r-old', startsAt: '2026-09-13T14:00:00.000Z', date: '2026-09-13' });
-      const re2 = calEvent({ id: 'r-new', startsAt: '2026-09-14T14:00:00.000Z', date: '2026-09-14' });
+      const up1 = calEvent({
+        id: 'b-up',
+        startsAt: '2026-09-16T14:00:00.000Z',
+        date: '2026-09-16',
+      });
+      const up2 = calEvent({
+        id: 'a-up',
+        startsAt: '2026-09-16T14:00:00.000Z',
+        date: '2026-09-16',
+      });
+      const re1 = calEvent({
+        id: 'r-old',
+        startsAt: '2026-09-13T14:00:00.000Z',
+        date: '2026-09-13',
+      });
+      const re2 = calEvent({
+        id: 'r-new',
+        startsAt: '2026-09-14T14:00:00.000Z',
+        date: '2026-09-14',
+      });
       const { service } = roomFixture([
         [up1, up2],
         [re1, re2],

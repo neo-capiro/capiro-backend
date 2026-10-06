@@ -32,6 +32,37 @@ function html(body: string) {
 beforeEach(() => fetchMock.mockReset());
 
 describe('official committee news', () => {
+  it('attributes a shared Florida page separately for each committee instead of treating later bodies as304', async () => {
+    fetchMock.mockResolvedValueOnce(
+      html(
+        '<a href="/news/commerce-report">Commerce Committee publishes report</a>' +
+          '<a href="/news/education-report">Education Committee publishes report</a>',
+      ),
+    );
+    const state = new Map();
+    const adapter = new CommitteeSiteAdapter({
+      stateCommitteeName: (key) => (key.endsWith('commerce') ? 'Commerce' : 'Education'),
+      priorState: (url) => state.get(url),
+      saveState: (url, value) => state.set(url, value),
+    });
+    const shared = { ...source, sourceUrl: 'https://flhouse.gov/news' };
+    const commerce = await adapter.discoverUpdates(
+      { ...shared, committeeSystemCode: 'state:FL:commerce' },
+      ctx,
+    );
+    const education = await adapter.discoverUpdates(
+      { ...shared, committeeSystemCode: 'state:FL:education' },
+      ctx,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(commerce.map((row) => row.normalizedTitle)).toEqual([
+      'Commerce Committee publishes report',
+    ]);
+    expect(education.map((row) => row.normalizedTitle)).toEqual([
+      'Education Committee publishes report',
+    ]);
+    expect(education[0]?.committeeSystemCode).toBe('state:FL:education');
+  });
   it('reads an explicitly registered news index without following sibling navigation', async () => {
     fetchMock.mockResolvedValueOnce(
       html(
