@@ -205,4 +205,19 @@ describe('Release D: job approval cards', () => {
       );
     },
   );
+
+  it('the task snapshot settles a decided card, so the web stops showing it', async () => {
+    const recorded = recordDurableResearchApprovalProposal({
+      metadata: metadataWithReadDone('complete'),
+      stepId: 'propose-summary-email',
+      proposalId: 'proposal-1',
+    }).metadata;
+    const f = fixture({ kind: 'deliverable', metadata: recorded, proposalStatus: 'succeeded' });
+    const snapshot = (await f.service.getCoordinatorSnapshot(ctx, 'session-1')) as {
+      coordinator: { steps: Array<{ id: string; outcome: string }> };
+    };
+    expect(snapshot.coordinator.steps.find((step) => step.id === 'propose-summary-email')?.outcome).toBe(
+      'completed',
+    );
+  });
 });

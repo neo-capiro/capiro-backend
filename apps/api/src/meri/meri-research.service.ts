@@ -1501,7 +1501,7 @@ export class MeriResearchService {
     const afterSequence = rawAfterSequence === undefined ? 0 : Number(rawAfterSequence);
     if (!Number.isSafeInteger(afterSequence) || afterSequence < 0)
       throw new BadRequestException('afterSequence must be a non-negative integer.');
-    const session = await this.ensureSession(ctx, id);
+    const session = await this.settleJobApprovals(ctx, await this.ensureSession(ctx, id));
     const coordinator = readDurableResearchCoordinator(session.metadata);
     if (!coordinator)
       throw new ConflictException(
