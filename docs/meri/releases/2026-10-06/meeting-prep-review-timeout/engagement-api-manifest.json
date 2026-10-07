@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "engagement-api",
+  "preparedAt": "2026-10-07T03:12:25.244Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "engagement-api",
+    "sourceSha": "ae744c83829394dd745cf7accc413ae518ae695c",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:3fd622817ff025e0c35762554f487125aeca02574ba7ddeb590fc64a1611ff5d",
+    "status": "qualified",
+    "reviewer": "Codex release agent under explicit user authorization to merge and ship to AWS; 26 comprehensive prep tests including both provider timeout messages, full API typecheck, native packaged behavioral probe and exact baseline compatibility reviewed",
+    "reviewedAt": "2026-10-07T03:12:12.488Z",
+    "expiresAt": "2026-10-07T15:12:12.489Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/353d721c4e3f7a73d101e5424ecff47060bdbc36/docs/meri/releases/2026-10-06/meeting-prep-review-timeout/qualification.md"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "ae744c83829394dd745cf7accc413ae518ae695c",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:3fd622817ff025e0c35762554f487125aeca02574ba7ddeb590fc64a1611ff5d",
+        "url": "https://github.com/neo-capiro/capirov2/blob/353d721c4e3f7a73d101e5424ecff47060bdbc36/docs/meri/releases/2026-10-06/meeting-prep-review-timeout/qualification.md"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "ae744c83829394dd745cf7accc413ae518ae695c",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:3fd622817ff025e0c35762554f487125aeca02574ba7ddeb590fc64a1611ff5d",
+        "url": "https://github.com/neo-capiro/capirov2/blob/353d721c4e3f7a73d101e5424ecff47060bdbc36/docs/meri/releases/2026-10-06/meeting-prep-review-timeout/qualification.md"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "ae744c83829394dd745cf7accc413ae518ae695c",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:3fd622817ff025e0c35762554f487125aeca02574ba7ddeb590fc64a1611ff5d",
+        "url": "https://github.com/neo-capiro/capirov2/blob/353d721c4e3f7a73d101e5424ecff47060bdbc36/docs/meri/releases/2026-10-06/meeting-prep-review-timeout/qualification.md"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:141",
+    "serviceHash": "48eb95d4057d0b4d857a6f887d5e63b1263e66df862aeee3209a4000a3bfc063",
+    "configHash": "e9334676af8901afefb274207fbe152d2cc296ec0b6d6dc807639640e656fdc2",
+    "taskHash": "7ecf4679c372fcaca72cdba580784f049c6325b0e83a563855edf3c84f5ab0fd",
+    "imageDigest": "sha256:caf11ea79a2b79b0c7e7846c14e0adadd06a39361c664a619defe55d875dfe1a",
+    "desiredCount": 2
+  }
+}

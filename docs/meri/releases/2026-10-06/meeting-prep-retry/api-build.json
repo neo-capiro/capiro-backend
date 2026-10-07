@@ -1,0 +1,11 @@
+{
+  "service": "api",
+  "sourceSha": "5f7d600daafe1e368d7491a204295ed5a50f9305",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:8f9add33e7975128ad9bcbe23dcb8002ed91b0d95a3dd5548ca80e71d0ca6397",
+  "buildId": "capiro-build-web-dev:200b6d84-ef6d-42b5-b7b9-b4349632eb1c",
+  "status": "SUCCEEDED",
+  "startedAt": "2026-10-06T22:34:00.741000-04:00",
+  "endedAt": "2026-10-06T22:40:30.478000-04:00",
+  "packagedProbePassed": true,
+  "packagedMigrationsMatched": true
+}

@@ -1,0 +1,31 @@
+{
+  "at": "2026-10-07T02:49:55.439Z",
+  "service": "api",
+  "rollouts": [
+    {
+      "status": "PRIMARY",
+      "task": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:640",
+      "running": 2,
+      "pending": 0,
+      "rollout": "COMPLETED"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "3cbd9ee5fc194f3683aea65c484e33fd",
+      "status": "RUNNING",
+      "health": "HEALTHY",
+      "digest": "sha256:8f9add33e7975128ad9bcbe23dcb8002ed91b0d95a3dd5548ca80e71d0ca6397",
+      "applicationStarted": true,
+      "startupErrors": []
+    },
+    {
+      "id": "6e4ed55e048a4a6f91901697c5ccace5",
+      "status": "RUNNING",
+      "health": "HEALTHY",
+      "digest": "sha256:8f9add33e7975128ad9bcbe23dcb8002ed91b0d95a3dd5548ca80e71d0ca6397",
+      "applicationStarted": true,
+      "startupErrors": []
+    }
+  ]
+}

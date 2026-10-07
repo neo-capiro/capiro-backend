@@ -1,0 +1,11 @@
+{
+  "service": "engagement-api",
+  "sourceSha": "601c7b45476e8efdd2c34172ba2de25c88dc8631",
+  "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:caf11ea79a2b79b0c7e7846c14e0adadd06a39361c664a619defe55d875dfe1a",
+  "buildId": "capiro-build-web-dev:19cfdc70-6537-4738-93c0-7f66bf038e6b",
+  "status": "SUCCEEDED",
+  "startedAt": "2026-10-06T22:33:59.689000-04:00",
+  "endedAt": "2026-10-06T22:40:22.270000-04:00",
+  "packagedProbePassed": true,
+  "packagedMigrationsMatched": true
+}
