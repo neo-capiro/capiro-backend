@@ -1,6 +1,6 @@
 # Planner native timer
 
-Seventeenth release, currently locally qualified on `feat/planner-native-timer-20261007`. Deployment and authenticated live verification remain required before claiming release completion.
+Seventeenth release, [PR #2199](https://github.com/neo-capiro/capirov2/pull/2199), from `feat/planner-native-timer-20261007`. Live on stable, healthy Strategies 50 / web-vNext 463, both built from `af4441059ac1d972c90ba61b20c245a754075fe1`. The final evidence commit changes documentation only.
 
 ## Behavior and access
 
@@ -18,7 +18,25 @@ This adds no schema migration, shared authentication change or new Capiro tool i
 
 Thirteen timer browser-component checks cover start defaults, explicit allocations, stable retries after settings changes, lost-start reconciliation, duplicate stop suppression, exact stop retries, captured-zone preservation, discard, stale/private cache handling and captured initiating-organization invalidation. Local browser QA verifies reload/navigation persistence, exact task opening, eight logged minutes and a second discarded timer that adds no time. The synthetic time entry was removed through the correction flow. Evidence: `artifacts/planner/timer-local-running.png` and `timer-local-logged.png`.
 
-Shared, Strategies and web production builds pass. Deployed evidence will be recorded after qualification.
+Shared, Strategies and web production builds pass. Read-only preflight and serving-role proof pass as `PLANNER_TIMER_SCHEMA_PROOF_PASSED`: 28 migration files and their recorded checksums, twelve Planner migrations, eleven forced-RLS tables and six immutable-history protections, under the actual non-super/non-bypass `capiro_app` role. No migration was needed.
+
+## Deployed identities
+
+Both exact-source ARM64 CodeBuild jobs succeeded. Strategies build `capiro-build-web-dev:95c41117-12da-4d3a-beb6-dd86ff351595` produced `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api-strategy@sha256:b8bc692f6c4fcefdc20607035f38612bc0a7d2612d2b4a96fa4e2e0ad950de2d`. Web build `capiro-build-web-dev:d0752cac-134b-4604-ae37-ee02ffe9af9e` produced `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:69723e67e6ed113687a5f16d76a2ff27e7335a69af7423d63dfa882e307ce86a`.
+
+Strategies task `8735950a643c47dfa055fd8136e74b47` and web task `908ae0999edb4b43903a58583253c70e` are running and healthy with matching immutable digests. Each service has one completed primary deployment, one desired/running task and no pending tasks. Public Strategies health returns `ok: true`; public runtime configuration identifies the exact web source. The actual serving-role schema proof independently passes.
+
+Candidate definitions preserve every baseline field except immutable image and release identifiers. No canonical API, Compute, routing, IAM, shared authentication or CDK changes were deployed. Rollback restores Strategies 49 / web-vNext 462; no schema rollback is needed.
+
+## Authenticated live verification and cleanup
+
+The signed-in UI created a private, self-assigned synthetic task with no additional members or record links. Its timer captured UTC, its own project allocation and the non-billable default. Reload and Planner navigation preserved the running session; the floating task button opened the exact task. `PLANNER_TIMER_RUNNING_LIVE_PROOF_PASSED` verifies one private running version-1 session with no time events or weekly changes.
+
+Stopping after 52,058 milliseconds recorded exactly one minute, October 7, under the signed-in actor and recorded-by identity. The normal event retains the timer's server start/end timestamps and receipt ID. Reload preserved the actual time. A second session was discarded and added no time. `PLANNER_TIMER_PROOF_LIVE_PROOF_PASSED` verifies the stopped and discarded version-2 private receipts, one normal time entry, no active timer, exact stop/discard replays without writes, changed-input stop rejection and receipt exclusion from generic resource views.
+
+The synthetic entry was removed through the recoverable correction flow, then the task and private project were archived through normal UI recovery flows. `PLANNER_TIMER_CLEANUP_LIVE_PROOF_PASSED` verifies both archives, the latest removed revision, zero task actual time and retained private timer receipts. The current week returns to its original 85 minutes with the original status, reviewer, daily totals and entry count; its version advances from zero to two through logging and removal. Hashes of all ten pre-existing owner time events and their revisions, preferences and organization time settings are unchanged. Private preferences remain version 4, settings remain empty, Planner unread remains zero and the eight unrelated main-bell items remain unread.
+
+Evidence: `artifacts/planner/timer-live-before.png`, `timer-live-running.png`, `timer-live-logged.png`, `timer-live-ready.png` and the schema/running/stop/cleanup proof logs. Planner is left on the clean My tasks view.
 
 ## Remaining parity
 
