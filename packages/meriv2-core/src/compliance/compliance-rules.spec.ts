@@ -135,7 +135,7 @@ describe('PROPOSED_CAPIRO_RULES — the tiered production proposal', () => {
   });
 
   it('holds standing automation for approval (WARN, standing_automation)', () => {
-    for (const tool of ['schedule_task', 'cancel_scheduled_task']) {
+    for (const tool of ['schedule_task', 'cancel_scheduled_task', 'update_scheduled_task']) {
       expect(decide(policy, tool).outcome).toBe('WARN');
       expect(decide(policy, tool).code).toBe('standing_automation');
     }

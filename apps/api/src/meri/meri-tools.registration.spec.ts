@@ -213,6 +213,7 @@ const EXPECTED_TOOLS = [
   'schedule_task',
   'list_scheduled_tasks',
   'cancel_scheduled_task',
+  'update_scheduled_task',
   // Firm operational data (tool-coverage expansion)
   'query_tasks',
   'query_action_items',
@@ -389,6 +390,7 @@ const REQUIRED_INPUTS: Record<string, string[]> = {
   create_powerpoint: ['title', 'slides'],
   schedule_task: ['name', 'prompt', 'intervalMinutes'],
   cancel_scheduled_task: ['taskId'],
+  update_scheduled_task: ['taskId', 'action'],
   search_tracked_bills: ['clientId'],
   query_debriefs: ['clientId'],
   read_client_meetings: ['clientId'],
@@ -871,6 +873,7 @@ describe('Meri tool registration', () => {
       'create_powerpoint',
       'schedule_task',
       'cancel_scheduled_task',
+      'update_scheduled_task',
       'create_client',
       'create_task',
       'update_task',

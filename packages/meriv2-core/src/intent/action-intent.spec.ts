@@ -22,13 +22,14 @@ describe('classifyActionIntent', () => {
       'create_powerpoint',
       'schedule_task',
       'cancel_scheduled_task',
+      'update_scheduled_task',
       'create_client',
       'create_task',
       'update_task',
       'update_client_profile',
       'save_business_development_brief',
     ];
-    expect(writeTools).toHaveLength(24);
+    expect(writeTools).toHaveLength(25);
     for (const tool of writeTools) {
       expect(classifyActionIntent('', tool).reason).toBe('missing_explicit_action_intent');
     }

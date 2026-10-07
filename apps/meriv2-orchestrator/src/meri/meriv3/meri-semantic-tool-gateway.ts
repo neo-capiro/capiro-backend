@@ -190,7 +190,14 @@ const ACTION_RULES: ReadonlyArray<{ pattern: RegExp; tools: readonly string[] }>
       'update_task',
       'schedule_task',
       'cancel_scheduled_task',
+      'update_scheduled_task',
     ],
+  },
+  {
+    // Release E (T10): "pause my Monday brief", "run the weekly briefing now".
+    pattern:
+      /\b(?:pause|resume|restart|run)\b.{0,40}\b(?:schedule[ds]?|brief(?:ing)?|automation|recurring|weekly|daily)\b/i,
+    tools: ['list_scheduled_tasks', 'update_scheduled_task', 'cancel_scheduled_task'],
   },
   {
     pattern: /\b(?:remember|memory|forget|forgot|correct what you remember|still right)\b/i,

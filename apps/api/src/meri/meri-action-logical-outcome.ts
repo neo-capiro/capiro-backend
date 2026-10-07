@@ -103,6 +103,24 @@ export function classifyMeriActionLogicalFailure(
     };
   }
 
+  if (tool === 'update_scheduled_task') {
+    if (value.updated === false) {
+      return {
+        status: 'failed_terminal',
+        errorCode: 'update_scheduled_task_rejected',
+        errorMessage: message(value.error, 'The scheduled task was not changed.'),
+      };
+    }
+    if (value.updated === true && typeof value.taskId === 'string' && value.taskId.trim())
+      return null;
+    return {
+      status: 'outcome_unknown',
+      errorCode: 'update_scheduled_task_receipt_missing',
+      errorMessage:
+        'The scheduler did not return a confirmed change receipt. Check the task before retrying.',
+    };
+  }
+
   if (tool === 'cancel_scheduled_task') {
     if (value.canceled === false) {
       return {

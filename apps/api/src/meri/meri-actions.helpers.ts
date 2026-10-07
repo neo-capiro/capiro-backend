@@ -23,6 +23,7 @@ const WRITE_TOOLS = new Set([
   'create_powerpoint',
   'schedule_task',
   'cancel_scheduled_task',
+  'update_scheduled_task',
   'create_task',
   'update_task',
 ]);
@@ -51,6 +52,7 @@ const VERBS: Record<string, string> = {
   create_powerpoint: 'generated a PowerPoint deck',
   schedule_task: 'scheduled a recurring task',
   cancel_scheduled_task: 'canceled a scheduled task',
+  update_scheduled_task: 'paused, resumed, or ran a scheduled task',
   create_task: 'created an engagement task',
   update_task: 'updated an engagement task',
 };

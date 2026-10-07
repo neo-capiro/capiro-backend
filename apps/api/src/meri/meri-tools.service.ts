@@ -1737,6 +1737,17 @@ export class MeriToolsService {
       ),
       list_scheduled_tasks: obj({}),
       cancel_scheduled_task: obj({ taskId: str('Scheduled task UUID') }, ['taskId']),
+      update_scheduled_task: obj(
+        {
+          taskId: str('Scheduled task UUID'),
+          action: {
+            type: 'string',
+            enum: ['pause', 'resume', 'run_now'],
+            description: 'pause, resume, or run_now',
+          },
+        },
+        ['taskId', 'action'],
+      ),
       query_tasks: obj({
         clientId: str('Optional client UUID'),
         taskId: str('Optional exact native task UUID'),
@@ -2772,6 +2783,8 @@ export class MeriToolsService {
         return this.listScheduledTasks(ctx);
       case 'cancel_scheduled_task':
         return this.cancelScheduledTask(ctx, input);
+      case 'update_scheduled_task':
+        return this.updateScheduledTask(ctx, input);
       case 'query_tasks':
         return this.queryTasks(ctx, input);
       case 'query_action_items':
@@ -8315,6 +8328,92 @@ export class MeriToolsService {
       return { tool: 'cancel_scheduled_task', canceled: false, error: 'Task not found.' };
     }
     return { tool: 'cancel_scheduled_task', canceled: true, taskId };
+  }
+
+  /**
+   * Release E (T10): pause, resume, or run a scheduled task now. Owner-scoped,
+   * one confirmation like the other standing-automation tools. A paused task
+   * keeps its definition and is skipped by the runner (enabled = false); resume
+   * recomputes the next run from its cadence (including a local anchor);
+   * run_now sets the next run to now, so the hourly tick runs it once and then
+   * continues on the cadence. A canceled task cannot be resumed.
+   */
+  private async updateScheduledTask(ctx: TenantContext, input: Record<string, unknown>) {
+    const taskId = requiredString(input, 'taskId', 80);
+    const action = requiredString(input, 'action', 20);
+    const fail = (error: string) => ({
+      tool: 'update_scheduled_task',
+      updated: false,
+      taskId,
+      action,
+      error,
+    });
+    if (!['pause', 'resume', 'run_now'].includes(action))
+      return fail('action must be pause, resume, or run_now.');
+    const task = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioScheduledTask.findFirst({
+        where: { id: taskId, tenantId: ctx.tenantId, ownerUserId: ctx.userId },
+        select: { enabled: true, lastStatus: true, intervalMinutes: true, metadata: true },
+      }),
+    );
+    if (!task || task.lastStatus === 'canceled') return fail('Task not found.');
+    // Pause and resume are idempotent: a retried proposal whose first execution
+    // landed (receipt lost) gets a success receipt, not a misleading refusal.
+    if ((action === 'pause' && !task.enabled) || (action === 'resume' && task.enabled)) {
+      return {
+        tool: 'update_scheduled_task',
+        updated: true,
+        unchanged: true,
+        taskId,
+        action,
+        enabled: task.enabled,
+      };
+    }
+    const now = new Date();
+    let data: { enabled?: boolean; lastStatus?: string; nextRunAt?: Date };
+    if (action === 'pause') {
+      data = { enabled: false, lastStatus: 'paused' };
+    } else if (action === 'resume') {
+      const meta =
+        task.metadata && typeof task.metadata === 'object' && !Array.isArray(task.metadata)
+          ? (task.metadata as Record<string, unknown>)
+          : {};
+      data = {
+        enabled: true,
+        lastStatus: 'resumed',
+        nextRunAt: computeNextScheduledRun(
+          now,
+          task.intervalMinutes,
+          typeof meta.runAtMinutesUtc === 'number' ? meta.runAtMinutesUtc : null,
+          readScheduleLocalAnchor(meta),
+        ),
+      };
+    } else {
+      if (!task.enabled) return fail('Resume the task before running it.');
+      if (task.lastStatus === 'running') return fail('The task is running now.');
+      data = { nextRunAt: now };
+    }
+    const result = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioScheduledTask.updateMany({
+        where: {
+          id: taskId,
+          tenantId: ctx.tenantId,
+          ownerUserId: ctx.userId,
+          enabled: task.enabled,
+          NOT: { lastStatus: 'canceled' },
+        },
+        data,
+      }),
+    );
+    if (result.count === 0) return fail('The task changed; list it and try again.');
+    return {
+      tool: 'update_scheduled_task',
+      updated: true,
+      taskId,
+      action,
+      enabled: data.enabled ?? task.enabled,
+      ...(data.nextRunAt ? { nextRunAt: data.nextRunAt.toISOString() } : {}),
+    };
   }
 
   // ── Firm operational data (tasks / actions) ──

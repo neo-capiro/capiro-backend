@@ -42,6 +42,7 @@ const CRM_MUTATION = new Set([
 const STANDING_AUTOMATION = new Set([
   'schedule_task',
   'cancel_scheduled_task',
+  'update_scheduled_task',
   'watch_research_portfolio',
 ]);
 const MEMORY_MUTATION = new Set([
@@ -60,6 +61,7 @@ const DISPLAY_VERBS: Readonly<Record<string, string>> = {
   update_task: 'Update task',
   schedule_task: 'Schedule automation',
   cancel_scheduled_task: 'Cancel automation',
+  update_scheduled_task: 'Change automation',
   save_note: 'Save note',
   save_chat_attachments: 'Save documents to client',
   save_memory: 'Remember',

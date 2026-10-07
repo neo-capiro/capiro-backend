@@ -4791,6 +4791,14 @@ export const MERI_CAPABILITY_REGISTRY = [
     surfaces: ['full_chat'],
   },
   {
+    name: 'update_scheduled_task',
+    description:
+      'Pause, resume, or run now a recurring scheduled Meri task by its id. action is "pause" (stops future runs until resumed), "resume" (restarts it on its cadence), or "run_now" (queues one run at the next scheduler tick, within the hour). Use list_scheduled_tasks first to find the id.',
+    backend: 'meri',
+    readOnly: false,
+    surfaces: ['full_chat'],
+  },
+  {
     name: 'query_tasks',
     description:
       'List engagement tasks/to-dos for the firm or a client — filter by status and due date. Use for "what is due, overdue, or open".',
