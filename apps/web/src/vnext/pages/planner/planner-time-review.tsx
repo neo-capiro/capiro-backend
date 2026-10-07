@@ -6,6 +6,7 @@ import {
   usePlannerTimeReviewPages,
   usePlannerMutations,
 } from './planner-api.js';
+import { PlannerTimeExportButton } from './planner-time-export.js';
 
 const hours = (n: number) =>
   `${(n / 60).toLocaleString(undefined, { maximumFractionDigits: 2 })} h`;
@@ -149,6 +150,12 @@ export function PlannerTimeReview({
         Empty people and status selections show all assigned submitters.
       </p>
       <div className="planner-actions">
+        <PlannerTimeExportButton
+          key={week}
+          target={{ scope: 'review' }}
+          week={week}
+          label="Time logged by all submitters currently assigned to you. Review filters apply to the weekly table; this export uses its own date range."
+        />
         <button type="button" onClick={() => change(structuredClone(PLANNER_DEFAULT_TIME_REVIEW))}>
           Clear filters
         </button>

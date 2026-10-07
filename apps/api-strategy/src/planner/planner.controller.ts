@@ -49,6 +49,12 @@ export class PlannerController {
   ) {
     return this.planner.saveTimeSettings(ctx, dto);
   }
+  @Get('time/entries') timeExport(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Query() query: Record<string, string>,
+  ) {
+    return this.planner.timeExport(ctx, query);
+  }
   @Get('timesheets/review') timeReview(
     @CurrentTenant() ctx: AuthTenantContext,
     @Query() query: Record<string, string>,

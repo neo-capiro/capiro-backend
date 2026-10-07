@@ -48,6 +48,21 @@ export interface PlannerTimeEntry extends PlannerEvent {
   projectName: string | null;
   canEdit: boolean;
 }
+export interface PlannerTimeExportEntry extends PlannerTimeEntry {
+  submitterName: string;
+  taskStatus: 'Open' | 'Completed' | null;
+}
+export interface PlannerTimeExportPage {
+  fromOn: string;
+  throughOn: string;
+  revision: string;
+  matched: number;
+  totalMinutes: number;
+  billableMinutes: number;
+  unavailableEntries: boolean;
+  items: PlannerTimeExportEntry[];
+  nextCursor: string | null;
+}
 export interface PlannerTimesheet {
   id: string | null;
   userId: string;

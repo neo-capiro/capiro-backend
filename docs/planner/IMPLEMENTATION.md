@@ -18,6 +18,8 @@ Approved integrations: Dashboard Work Queue; links to client records and Engagem
 
 Owner decision: Planner uses the signed-in organization. An impersonation header is rejected by a Planner-specific guard; shared Strategies authentication is unchanged.
 
+Owner decision: time exports, including those used by organization admins, require the caller's existing project/task access. There is no organization-admin bypass for private Planner work.
+
 ## Acceptance inventory
 
 Asana source: https://asana.com/features and the connected Capiro HQ project (1214276435168870). Its configurable fields include Priority, Status, Functional Areas, Task Type; its sections include Inbox / Triage and functional departments. Reading this reference does not authorize migrating live Asana data.

@@ -303,6 +303,59 @@ const api = {
   async get(path: string, config?: { params?: Record<string, string> }) {
     if (path.endsWith('/time/preferences')) return { data: structuredClone(timePreferences) };
     if (path.endsWith('/time/settings')) return { data: structuredClone(timeSettings) };
+    if (path.endsWith('/time/entries')) {
+      const params = config?.params ?? {},
+        assigned = Object.keys(timeSettings.reviewers).filter(
+          (id) => timeSettings.reviewers[id] === 'user_qa',
+        );
+      const items = events
+        .filter(
+          (e) =>
+            e.kind === 'time' &&
+            !e.removed &&
+            e.time &&
+            e.time.workedOn >= params.fromOn! &&
+            e.time.workedOn <= params.throughOn! &&
+            (params.scope === 'organization'
+              ? timeSettings.canManage
+              : params.scope === 'project'
+                ? e.time.projectId === params.projectId
+                : params.scope === 'review'
+                  ? assigned.includes(e.actorId)
+                  : e.actorId === params.userId),
+        )
+        .map((e) => ({
+          ...e,
+          taskName: tasks.find((t) => t.id === e.taskId)?.name ?? null,
+          projectName: projects.find((p) => p.id === e.time?.projectId)?.name ?? null,
+          canEdit: false,
+          submitterName: people.find((p) => p.id === e.actorId)?.name ?? 'Former member',
+          taskStatus: e.taskId
+            ? tasks.find((t) => t.id === e.taskId)?.status === 'done'
+              ? 'Completed'
+              : 'Open'
+            : null,
+        }))
+        .sort(
+          (a, b) => a.time!.workedOn.localeCompare(b.time!.workedOn) || a.id.localeCompare(b.id),
+        );
+      const revision = JSON.stringify(items);
+      if (params.revision && params.revision !== revision) error('Time changed during export', 409);
+      const start = params.cursor ? items.findIndex((e) => e.id === params.cursor) + 1 : 0;
+      return {
+        data: {
+          fromOn: params.fromOn,
+          throughOn: params.throughOn,
+          revision,
+          matched: items.length,
+          unavailableEntries: false,
+          totalMinutes: items.reduce((n, e) => n + (e.minutes ?? 0), 0),
+          billableMinutes: items.reduce((n, e) => n + (e.time!.billable ? (e.minutes ?? 0) : 0), 0),
+          items: items.slice(start, start + 100),
+          nextCursor: items.length > start + 100 ? items[start + 99]!.id : null,
+        },
+      };
+    }
     if (path.endsWith('/timesheets/review')) {
       const params = config?.params ?? {},
         view: PlannerTimeReviewView = {
