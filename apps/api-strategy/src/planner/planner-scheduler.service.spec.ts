@@ -7,6 +7,11 @@ describe('Planner scheduler tenant discovery and lifecycle', () => {
     const query = jest.fn(async (_sql: unknown) => [{ tenantId: tenant }]);
     const prisma = { withSystem: jest.fn(async (run) => run({ $queryRaw: query })) };
     const planner = {
+      runScheduledBudgetWork: jest.fn(async (_tenantId: string, _now: Date, _cursor?: string) => ({
+        executed: 0,
+        failed: 0,
+        nextCursor: null as string | null,
+      })),
       runScheduledTimeWork: jest.fn(async (_tenantId: string, _now: Date, _cursor?: string) => ({
         executed: 0,
         failed: 0,
@@ -43,6 +48,7 @@ describe('Planner scheduler tenant discovery and lifecycle', () => {
     expect(planner.runScheduledWork).toHaveBeenCalledWith(tenant, now, undefined);
     expect(planner.runScheduledGoalWork).toHaveBeenCalledWith(tenant, now, undefined);
     expect(planner.runScheduledTimeWork).toHaveBeenCalledWith(tenant, now, undefined);
+    expect(planner.runScheduledBudgetWork).toHaveBeenCalledWith(tenant, now, undefined);
   });
   it('retains task cursors, isolates a failed tenant and retries discovery after failure', async () => {
     const { service, planner, query } = fixture();
@@ -113,5 +119,28 @@ describe('Planner scheduler tenant discovery and lifecycle', () => {
     service.onModuleDestroy();
     expect(jest.getTimerCount()).toBe(0);
     jest.useRealTimers();
+  });
+  it('keeps budget alert pagination separate and retries a failed page', async () => {
+    const { service, planner } = fixture();
+    const cursor = '30000000-0000-4000-8000-000000000006';
+    planner.runScheduledBudgetWork
+      .mockResolvedValueOnce({ executed: 50, failed: 0, nextCursor: cursor })
+      .mockRejectedValueOnce(Error('retry'));
+    await service.tickOnce();
+    await service.tickOnce();
+    await service.tickOnce();
+    expect(planner.runScheduledBudgetWork).toHaveBeenNthCalledWith(
+      2,
+      tenant,
+      expect.any(Date),
+      cursor,
+    );
+    expect(planner.runScheduledBudgetWork).toHaveBeenNthCalledWith(
+      3,
+      tenant,
+      expect.any(Date),
+      cursor,
+    );
+    expect(planner.runScheduledTimeWork).toHaveBeenCalledTimes(3);
   });
 });

@@ -33,6 +33,7 @@ import { PlannerActivity } from './planner-activity.js';
 import { PlannerTemplateScheduleEditor } from './planner-template-schedule.js';
 import { PlannerGoalEditor, PLANNER_GOAL_STATUS_LABELS } from './planner-goal-editor.js';
 import { PlannerGoalDetail } from './planner-goal-detail.js';
+import { PlannerPortfolioBudget } from './planner-budgets.js';
 import { PlannerGoalActivity } from './planner-goal-activity.js';
 import { PlannerFormBuilder, plannerDuplicateFormData } from './planner-form-builder.js';
 import {
@@ -402,6 +403,9 @@ export function PlannerManagement({
                     {p.name} · {p.health.replaceAll('_', ' ')}
                   </button>
                 ))}
+                {kind === 'portfolio' && (
+                  <PlannerPortfolioBudget id={row.id} onProject={onProject} />
+                )}
                 {kind === 'rule' && (
                   <p>
                     {row.data.enabled ? 'Enabled' : 'Paused'} ·{' '}

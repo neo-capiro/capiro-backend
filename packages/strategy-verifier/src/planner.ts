@@ -93,6 +93,7 @@ export interface PlannerEvent {
   time?: import('./planner-timesheets.js').PlannerTimeDetails;
   timeEditable?: boolean;
   timesheet?: { weekOn: string; userId: string };
+  budgetThreshold?: { projectId: string };
   goalSnapshot?: PlannerGoalSnapshot;
   goalUpdate?: { title: string; sections: PlannerGoalUpdateSection[] };
   actorId: string;
@@ -107,7 +108,8 @@ export interface PlannerEvent {
     | 'reminder'
     | 'goal_status'
     | 'goal_progress'
-    | 'timesheet_status';
+    | 'timesheet_status'
+    | 'budget_threshold';
   text: string;
   minutes: number | null;
   createdAt: string;

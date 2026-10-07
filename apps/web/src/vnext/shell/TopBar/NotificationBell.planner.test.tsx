@@ -222,6 +222,56 @@ describe('Planner fourth notification source', () => {
     resolve({ data: {} });
     await waitFor(() => expect(fixture.navigate).toHaveBeenCalledTimes(1));
   });
+  it.each([
+    [
+      {
+        budgetThreshold: { projectId: '20000000-0000-4000-8000-000000000001' },
+        kind: 'budget_threshold',
+      },
+      '/planner?scope=budget&project=20000000-0000-4000-8000-000000000001',
+    ],
+    [
+      { timesheet: { weekOn: '2026-10-05', userId: 'submitter' }, kind: 'reminder' },
+      '/planner?scope=timesheets&week=2026-10-05&user=submitter',
+    ],
+  ])(
+    'opens typed budget and timesheet notification targets after persisting the read',
+    async (target, expected) => {
+      const original = fixture.get.getMockImplementation()!;
+      fixture.get.mockImplementation((url) =>
+        url === path
+          ? Promise.resolve({
+              data: {
+                unread: 1,
+                items: read
+                  ? []
+                  : [
+                      {
+                        ...item,
+                        title: 'Synthetic resource notice',
+                        event: {
+                          ...item.event,
+                          taskId: null,
+                          resourceId: '21000000-0000-4000-8000-000000000001',
+                          ...target,
+                        },
+                      },
+                    ],
+              },
+            })
+          : original(url),
+      );
+      view();
+      await open();
+      fireEvent.click(await screen.findByRole('button', { name: /Synthetic resource notice/ }));
+      await waitFor(() =>
+        expect(fixture.patch).toHaveBeenCalledWith('/strategy-api/planner/inbox/same-id', {
+          read: true,
+        }),
+      );
+      await waitFor(() => expect(fixture.navigate).toHaveBeenCalledWith(expected));
+    },
+  );
   it('mark-all includes Planner and isolates a Planner failure from the other feeds', async () => {
     fixture.post.mockImplementation(async (url) => {
       if (url === `${path}/read-all`) throw new Error('Planner read-all failed');

@@ -93,6 +93,7 @@ model SpPlannerEvent {
   resource SpPlannerResource? @relation(fields: [tenantId,resourceId], references: [tenantId,id], onDelete: Restrict, onUpdate: Cascade)
   goalReminderClaims SpPlannerGoalReminderClaim[]
   timeReminderClaims SpPlannerTimeReminderClaim[]
+  budgetAlertClaims SpPlannerBudgetAlertClaim[]
   kind      String
   text      String
   minutes   Int?
@@ -153,6 +154,7 @@ model SpPlannerResource {
   events SpPlannerEvent[]
   goalReminderClaims SpPlannerGoalReminderClaim[]
   timeReminderClaims SpPlannerTimeReminderClaim[]
+  budgetAlertClaims SpPlannerBudgetAlertClaim[]
   @@unique([tenantId, id])
   @@index([tenantId, kind, archived])
   @@map("sp_planner_resources")
@@ -208,6 +210,21 @@ model SpPlannerTimeReminderClaim {
 }
 
 // ---- Enums --------------------------------------------------------------------
+// Immutable delivery receipt for a project's personal budget threshold alert.
+model SpPlannerBudgetAlertClaim {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  resourceId String @map("resource_id") @db.Uuid
+  ownerId String @map("owner_id")
+  fingerprint String @db.Char(64)
+  eventId String @map("event_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  resource SpPlannerResource @relation(fields: [tenantId,resourceId], references: [tenantId,id], onDelete: Restrict, onUpdate: Cascade)
+  event SpPlannerEvent @relation(fields: [tenantId,resourceId,eventId], references: [tenantId,resourceId,id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([tenantId,resourceId,ownerId,fingerprint], map: "sp_planner_budget_alert_claims_delivery_key")
+  @@map("sp_planner_budget_alert_claims")
+}
+
 
 enum SpStrategyType {
   appropriations

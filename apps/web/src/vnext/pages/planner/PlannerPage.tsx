@@ -74,6 +74,7 @@ import { PlannerReporting } from './planner-reporting.js';
 import { PlannerTimesheets } from './planner-timesheets.js';
 import { PlannerTimeExportButton } from './planner-time-export.js';
 import { PlannerTimeForm } from './planner-time-form.js';
+import { PlannerBudget } from './planner-budgets.js';
 import type { PlannerSavedViewData } from '@capiro/strategy-verifier';
 import './planner.css';
 
@@ -136,11 +137,11 @@ export function PlannerPage() {
       ...(projectId ? { projectId } : scope === 'mine' ? { mine: 'true' } : {}),
       ...(archived ? { archived: 'true' } : {}),
     },
-    Boolean(bootstrap.data) && !['inbox', 'reporting', 'timesheets'].includes(scope),
+    Boolean(bootstrap.data) && !['inbox', 'reporting', 'timesheets', 'budget'].includes(scope),
   );
   useEffect(() => {
     if (
-      !['inbox', 'reporting', 'timesheets'].includes(scope) &&
+      !['inbox', 'reporting', 'timesheets', 'budget'].includes(scope) &&
       query.hasNextPage &&
       !query.isFetchingNextPage &&
       !query.isError
@@ -570,12 +571,26 @@ export function PlannerPage() {
                   <Settings2 size={16} /> Project settings
                 </button>
               )}
+              {project?.access === 'admin' && (
+                <button
+                  onClick={() =>
+                    updateParams({
+                      scope: scope === 'budget' ? 'project' : 'budget',
+                      task: null,
+                      report: null,
+                    })
+                  }
+                >
+                  {scope === 'budget' ? 'Project tasks' : 'Budget and costs'}
+                </button>
+              )}
               {scope !== 'inbox' &&
                 !managementKind &&
                 scope !== 'projects' &&
                 scope !== 'workload' &&
                 scope !== 'reporting' &&
                 scope !== 'timesheets' &&
+                scope !== 'budget' &&
                 (!project || writable(project.access)) &&
                 !archived && (
                   <button
@@ -628,7 +643,10 @@ export function PlannerPage() {
               onGoal={(id) => updateParams({ scope: 'goals', goal: id, task: null, project: null })}
               onProject={(id) => go('project', id)}
               onTimesheet={(week, userId) => setParams({ scope: 'timesheets', week, user: userId })}
+              onBudget={(id) => go('budget', id)}
             />
+          ) : scope === 'budget' && project ? (
+            <PlannerBudget key={project.id} bootstrap={data} projectId={project.id} />
           ) : scope === 'workload' ? (
             <PlannerWorkload tasks={tasks} data={data} />
           ) : scope === 'reporting' ? (
@@ -2190,11 +2208,13 @@ function PlannerInbox({
   onGoal,
   onProject,
   onTimesheet,
+  onBudget,
 }: {
   onOpen: (id: string) => void;
   onGoal: (id: string) => void;
   onProject: (id: string) => void;
   onTimesheet: (week: string, userId: string) => void;
+  onBudget: (id: string) => void;
 }) {
   const [archive, setArchive] = useState(false);
   const query = usePlannerInbox(archive);
@@ -2219,7 +2239,8 @@ function PlannerInbox({
             <button
               onClick={() => {
                 actions.inbox.mutate({ id: item.id, read: true });
-                if (item.event.timesheet)
+                if (item.event.budgetThreshold) onBudget(item.event.budgetThreshold.projectId);
+                else if (item.event.timesheet)
                   onTimesheet(item.event.timesheet.weekOn, item.event.timesheet.userId);
                 else if (item.event.resourceId) onGoal(item.event.resourceId);
                 else if (item.event.taskId) onOpen(item.event.taskId);

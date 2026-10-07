@@ -26,6 +26,11 @@ import {
   plannerTimeWorkKey,
   plannerWeekOn,
   plannerWeekDate,
+  plannerDefaultBudget,
+  PLANNER_DEFAULT_BUDGET_ALERT,
+  plannerRatedCost,
+  type PlannerProjectBudget,
+  type PlannerBudgetData,
 } from '@capiro/strategy-verifier';
 const PROJECT = '20000000-0000-4000-8000-000000000001';
 const SECTION = '40000000-0000-4000-8000-000000000001';
@@ -84,6 +89,68 @@ const tasks: PlannerTask[] = [
 const events: PlannerEvent[] = [];
 const removedEventContents = new Map<string, { text: string; minutes: number | null }>();
 const resources: PlannerResource[] = [];
+const budgetConfigs = new Map<string, { version: number; data: PlannerBudgetData }>();
+const budgetAlerts = new Map<string, PlannerProjectBudget['alert']>();
+function projectBudget(id: string): PlannerProjectBudget {
+  const stored = budgetConfigs.get(id),
+    data = stored?.data ?? plannerDefaultBudget(timeSettings.options.budgetCurrency ?? 'USD');
+  const personIds = new Set([...people.map((p) => p.id), ...data.rates.map((r) => r.userId)]);
+  const rows = [...personIds].map((userId) => {
+    const estimatedMinutes = tasks
+      .filter(
+        (t) =>
+          !t.archived && t.assigneeId === userId && t.memberships.some((m) => m.projectId === id),
+      )
+      .reduce((n, t) => n + t.estimateMinutes, 0);
+    const time = events.filter(
+      (e) => e.kind === 'time' && !e.removed && e.actorId === userId && e.time?.projectId === id,
+    );
+    const actualMinutes = time
+      .filter(
+        (e) =>
+          data.actualFilter === 'all' ||
+          (e.time!.billable ? 'billable' : 'nonbillable') === data.actualFilter,
+      )
+      .reduce((n, e) => n + (e.minutes ?? 0), 0);
+    const hourlyMinor = data.rates.find((r) => r.userId === userId)?.hourlyMinor ?? null;
+    return {
+      userId,
+      name:
+        people.find((p) => p.id === userId)?.name ??
+        data.rates.find((r) => r.userId === userId)?.name ??
+        'Former member',
+      active: people.some((p) => p.id === userId),
+      hourlyMinor,
+      estimatedMinutes,
+      actualMinutes,
+      estimatedMinor: hourlyMinor === null ? null : plannerRatedCost(estimatedMinutes, hourlyMinor),
+      actualMinor: hourlyMinor === null ? null : plannerRatedCost(actualMinutes, hourlyMinor),
+    };
+  });
+  const time = events.filter((e) => e.kind === 'time' && !e.removed && e.time?.projectId === id);
+  return {
+    projectId: id,
+    projectName: projects.find((p) => p.id === id)?.name ?? 'Project',
+    version: stored?.version ?? 0,
+    data: structuredClone(data),
+    alert: structuredClone(budgetAlerts.get(id) ?? PLANNER_DEFAULT_BUDGET_ALERT),
+    people: rows,
+    estimatedMinutes: rows.reduce((n, p) => n + p.estimatedMinutes, 0),
+    actualMinutes: rows.reduce((n, p) => n + p.actualMinutes, 0),
+    billableMinutes: time.filter((e) => e.time!.billable).reduce((n, e) => n + (e.minutes ?? 0), 0),
+    nonbillableMinutes: time
+      .filter((e) => !e.time!.billable)
+      .reduce((n, e) => n + (e.minutes ?? 0), 0),
+    estimatedMinor: rows.reduce((n, p) => n + BigInt(p.estimatedMinor ?? '0'), 0n).toString(),
+    actualMinor: rows.reduce((n, p) => n + BigInt(p.actualMinor ?? '0'), 0n).toString(),
+    unratedEstimatedMinutes: rows
+      .filter((p) => p.hourlyMinor === null)
+      .reduce((n, p) => n + p.estimatedMinutes, 0),
+    unratedActualMinutes: rows
+      .filter((p) => p.hourlyMinor === null)
+      .reduce((n, p) => n + p.actualMinutes, 0),
+  };
+}
 const timeSettings = {
   version: 1,
   canManage: new URLSearchParams(window.location.search).get('qaRole') === 'admin',
@@ -301,6 +368,7 @@ const error = (message: string, status = 400) => {
 };
 const api = {
   async get(path: string, config?: { params?: Record<string, string> }) {
+    if (path.endsWith('/budget')) return { data: projectBudget(path.split('/').at(-2)!) };
     if (path.endsWith('/time/preferences')) return { data: structuredClone(timePreferences) };
     if (path.endsWith('/time/settings')) return { data: structuredClone(timeSettings) };
     if (path.endsWith('/time/entries')) {
@@ -940,6 +1008,27 @@ const api = {
         timePreferences.reviewView = structuredClone(body.reviewView);
       timePreferences.version++;
       return { data: { ok: true, version: timePreferences.version } };
+    }
+    if (path.endsWith('/budget/alert')) {
+      const id = path.split('/').at(-3)!,
+        old = budgetAlerts.get(id) ?? PLANNER_DEFAULT_BUDGET_ALERT;
+      if (body.version !== old.version) error('Alert changed', 409);
+      budgetAlerts.set(id, {
+        ...old,
+        ...body.data,
+        version: old.version + 1,
+      } as PlannerProjectBudget['alert']);
+      return { data: projectBudget(id) };
+    }
+    if (path.endsWith('/budget')) {
+      const id = path.split('/').at(-2)!,
+        old = projectBudget(id);
+      if (body.version !== old.version) error('Budget changed', 409);
+      budgetConfigs.set(id, {
+        version: old.version + 1,
+        data: { ...old.data, ...body.data } as PlannerBudgetData,
+      });
+      return { data: projectBudget(id) };
     }
     if (path.endsWith('/time/settings')) {
       if (!timeSettings.canManage) error('Organization admin required', 403);

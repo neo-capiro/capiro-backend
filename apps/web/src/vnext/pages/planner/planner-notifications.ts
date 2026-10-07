@@ -43,6 +43,10 @@ export function usePlannerNotificationsReadAll() {
 }
 /** Build routes from typed target identities, never follow an arbitrary URL. */
 export function plannerNotificationTarget(item: PlannerBellItem): string {
+  if (item.event.budgetThreshold)
+    return `/planner?scope=budget&project=${encodeURIComponent(item.event.budgetThreshold.projectId)}`;
+  if (item.event.timesheet)
+    return `/planner?scope=timesheets&week=${encodeURIComponent(item.event.timesheet.weekOn)}&user=${encodeURIComponent(item.event.timesheet.userId)}`;
   return item.event.resourceId
     ? `/planner?scope=goals&goal=${encodeURIComponent(item.event.resourceId)}`
     : item.event.taskId

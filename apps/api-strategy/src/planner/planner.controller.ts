@@ -101,6 +101,32 @@ export class PlannerController {
   ) {
     return this.planner.saveProject(ctx, null, dto, req.headers.authorization);
   }
+  @Get('projects/:id/budget') projectBudget(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+  ) {
+    return this.planner.projectBudget(ctx, id);
+  }
+  @Patch('projects/:id/budget') saveProjectBudget(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.saveProjectBudget(ctx, id, dto);
+  }
+  @Patch('projects/:id/budget/alert') saveBudgetAlert(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.saveBudgetAlert(ctx, id, dto);
+  }
+  @Get('portfolios/:id/budgets') portfolioBudgets(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+  ) {
+    return this.planner.portfolioBudgets(ctx, id);
+  }
   @Post('projects/:id/duplicate') duplicateProject(
     @CurrentTenant() ctx: AuthTenantContext,
     @Param('id') id: string,

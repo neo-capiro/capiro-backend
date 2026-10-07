@@ -1,4 +1,4 @@
-import type { PlannerTimeOptions } from '@capiro/strategy-verifier';
+import { plannerBudgetCurrency, type PlannerTimeOptions } from '@capiro/strategy-verifier';
 
 export function PlannerTimeOptionsFields({
   value,
@@ -14,6 +14,21 @@ export function PlannerTimeOptionsFields({
   return (
     <>
       <h3>Time tracking and submission</h3>
+      <label className="planner-field">
+        <span>Default budget currency</span>
+        <input
+          aria-label="Default budget currency"
+          value={value.budgetCurrency ?? 'USD'}
+          maxLength={3}
+          onChange={(e) => onChange({ ...value, budgetCurrency: e.target.value.toUpperCase() })}
+        />
+      </label>
+      {!plannerBudgetCurrency(value.budgetCurrency ?? 'USD') && (
+        <p role="alert">Enter a supported three-letter currency code.</p>
+      )}
+      <p className="planner-muted">
+        Used for newly configured project budgets. Existing budgets keep their saved currency.
+      </p>
       {(
         [
           ['timeTrackingEnabled', 'Enable time tracking'],

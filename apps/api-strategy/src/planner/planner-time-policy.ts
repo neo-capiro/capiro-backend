@@ -3,6 +3,7 @@ import {
   PLANNER_DEFAULT_TIME_OPTIONS,
   plannerTimeDateBounds,
   plannerTimeZone,
+  plannerBudgetCurrency,
   type PlannerTimeDetails,
   type PlannerTimeOptions,
 } from '@capiro/strategy-verifier';
@@ -31,6 +32,8 @@ export function plannerTimeOptions(
     )
       fail('Time limits require 0–520 weeks or no limit');
   if (!plannerTimeZone(result.timeZone)) fail('Choose a valid time rules zone');
+  if (!plannerBudgetCurrency(result.budgetCurrency ?? 'USD'))
+    fail('Choose a supported budget currency');
   if (result.submissionReminder != null) {
     const reminder = object(result.submissionReminder);
     keys(reminder, ['weekday', 'time', 'week']);
