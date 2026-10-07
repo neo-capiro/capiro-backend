@@ -173,6 +173,8 @@ export interface PlannerResource {
   archived: boolean;
   access: PlannerRole;
   publicShared?: boolean;
+  goalProgress?: PlannerGoalProgress;
+  parentGoalIds?: string[];
 }
 export interface PlannerPublicForm {
   name: string;
@@ -192,11 +194,36 @@ export interface PlannerPortfolioData extends PlannerResourceSharing {
 export interface PlannerGoalData extends PlannerPortfolioData {
   ownerId: string | null;
   dueOn: string | null;
-  status: 'on_track' | 'at_risk' | 'off_track' | 'achieved';
-  progress: 'manual' | 'task_completion';
+  status: 'on_track' | 'at_risk' | 'off_track' | 'achieved' | 'partial' | 'missed' | 'dropped';
+  progress:
+    | 'manual'
+    | 'task_completion'
+    | 'project_task_completion'
+    | 'project_milestone_completion'
+    | 'task_list_completion'
+    | 'subgoal_percentage'
+    | 'subgoal_total';
   current: number;
   target: number;
   unit: string;
+  subgoalIds?: string[];
+  taskIds?: string[];
+  startOn?: string | null;
+  timePeriod?: string;
+  goalType?: 'company' | 'team' | 'individual';
+  weightMode?: 'equal' | 'custom';
+  weights?: { sourceId: string; weight: number }[];
+}
+export interface PlannerGoalProgress {
+  value: number;
+  percentage: number;
+  sources: {
+    id: string;
+    kind: 'goal' | 'project' | 'task';
+    value: number;
+    percentage: number;
+    weight: number;
+  }[];
 }
 export interface PlannerTemplateData extends PlannerResourceSharing {
   project: PlannerProjectData;

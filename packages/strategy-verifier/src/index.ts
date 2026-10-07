@@ -3,6 +3,7 @@ export * from './planner.js';
 export * from './planner-schedule.js';
 export * from './planner-template.js';
 export * from './planner-form.js';
+export * from './planner-goals.js';
 export {
   verifyPlan,
   validIso,

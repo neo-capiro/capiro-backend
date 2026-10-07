@@ -168,7 +168,7 @@ export function PlannerPage() {
     setParams({ scope, ...(projectId ? { project: projectId } : {}) });
     setSelected([]);
   };
-  const openTask = (id: string) => updateParams({ task: id });
+  const openTask = (id: string) => updateParams({ task: id, goal: null });
   const savePersonal = async (
     data: PlannerMyTasksData,
     baseline: { id?: string; version?: number } = {
@@ -605,6 +605,8 @@ export function PlannerPage() {
               tasks={tasks}
               onProject={(id) => go('project', id)}
               onTask={openTask}
+              selectedGoalId={params.get('goal')}
+              onGoal={(id) => updateParams({ goal: id })}
             />
           ) : (
             <>

@@ -1,0 +1,25 @@
+# Planner goal hierarchies and progress
+
+Goal hierarchies and weighted progress are qualified locally for a narrow Strategies API and web-vNext release. Promotion and live verification are pending. This remains part of the active Asana work-parity goal.
+
+Goals support multiple parents and subgoals, company/team/individual categories, responsible owners, time periods, start/due dates, status and closing outcomes. Progress can use a manual value, average subgoal percentages, summed compatible subgoal values, per-project task or milestone completion, selected task completion, or the existing combined-project task ratio. Automatic percentage sources support equal shares or custom weights totaling 100%. Per-project progress averages each project's percentage; the legacy mode retains its deduplicated task ratio. Details expose contribution weights/progress and parent/subgoal/project/task navigation, with goal deep links. Search, owner, status, type and period filters distinguish empty results. Duplicates start private with the current user as responsible owner, omit archived goal/project sources and preserve authorized task references independently of task-name pagination.
+
+Progress is computed on the Strategies server from task status/subtype/access metadata within the existing tenant transaction and forced row security. Task descriptions, custom values and file contents are not loaded for goal progress. Connected work retains its own permissions. Private goals, projects and tasks are excluded from IDs, reverse parents, contributions and progress; hidden weights are normalized over currently accessible work. Editing visible connections or weights preserves hidden stored connections and weights. Grant revocation is checked on every request. Archived contributors stop contributing while their stored connections remain recoverable. Self/indirect cycles, including archived and hidden graph edges, are rejected under the existing tenant write lock. Expected versions retain conflict protection. Numeric subgoal totals require compatible units, including when a child is edited.
+
+There is no database migration, authentication change, new Capiro integration, IAM/Compute/CDK change, canonical API or routing deployment. Signed-in-organization scope and the approved notification integration remain in place. Workspace documents remain excluded.
+
+## Qualification
+
+197 Planner API checks across fifteen suites passed, including 52 real PostgreSQL cases. The real database cases cover current task/subgoal rollups, ACL redaction without implicit grants, hidden-reference preservation, visible-weight normalization and edits, revoked project/task access, opposite concurrent graph edges, stale versions, cross-tenant references, compatible totals and archive/restore. Unit coverage includes a 3,000-goal hierarchy without recursive traversal, per-project versus combined ratios, milestones, selected tasks, weights and strict dates/source validation. AppModule DI boot is recorded separately below.
+
+62 web checks across thirteen suites passed. New coverage verifies editor source changes, custom weights, ancestor/unit guards, authoritative progress when task pages are empty, preservation of selected/duplicated task references during pagination, filters, deep-link selection and private duplication. Existing forms, notifications, scheduling, personal rules, activity, CSV and view regressions pass. Shared/Strategies and web production builds pass.
+
+Local browser checks created synthetic manual goals at 40% and 80% and a 75/25 weighted parent at 50%. Changing the first child to 60% immediately recalculated the parent to 65%. Reverse parent navigation and disabled ancestor connections worked; copied links retained the selected goal, type filtering worked, and a duplicate retained the same contributions. A project's progress rose from 0% to 25% after one of four tasks completed. Screenshot: ignored `artifacts/planner/goals-local-weighted.png`.
+
+## Promotion / recovery
+
+Pending exact-source ARM64 builds, immutable image promotion and authenticated live verification. Serving baselines are Strategies 39 and web-vNext 450. Clone the current serving definitions immediately before promotion and allow changes only to container images and release identifiers.
+
+Returning to an older UI while retaining the new API is possible, but older goal editing cannot expose the new hierarchy/weight fields. An older API rejects edits to goals carrying the richer JSON contracts; retain the compatible API or prefer a forward fix once new goals exist. Do not purge goal connections or weaken tenant isolation.
+
+References: [Asana progress and connected work](https://help.asana.com/s/article/progress-status-and-connecting-work-to-goals?language=en_US), [weighted goals](https://help.asana.com/s/article/weighted-goals?language=en_US), [goal privacy](https://help.asana.com/s/article/goals-privacy-and-sharing?language=en_US). Further work remains on goal status updates/history/reminders, starting/decreasing metrics, deeper reporting/timesheets and additional rules/templates. No live Asana records are copied or modified.
