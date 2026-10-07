@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ModalOverlay, Modal, Dialog, Heading } from 'react-aria-components';
 import { Plus, X } from 'lucide-react';
 import {
@@ -153,7 +153,18 @@ export function PlannerManagement({
   const [using, setUsing] = useState<PlannerResource | null>(null);
   const [name, setName] = useState('');
   const [anchorOn, setAnchorOn] = useState('');
-  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [shareLink, setShareLink] = useState<{ formId: string; url: string } | null>(null);
+  const sharedForm = query.data?.find((row) => row.id === shareLink?.formId);
+  const shareLinkCurrent =
+    sharedForm?.kind === 'form' &&
+    !sharedForm.archived &&
+    sharedForm.data.enabled === true &&
+    sharedForm.data.audience !== 'organization' &&
+    sharedForm.publicShared === true &&
+    editable(sharedForm.access);
+  useEffect(() => {
+    if (shareLink && query.data && !shareLinkCurrent) setShareLink(null);
+  }, [shareLink, query.data, shareLinkCurrent]);
   const rows = query.data?.filter((r) => r.kind === kind && r.archived === archived) ?? [];
   return (
     <div className="planner-management">
@@ -178,7 +189,7 @@ export function PlannerManagement({
           actions.shareForm.error
         }
       />
-      {shareLink && (
+      {kind === 'form' && shareLink && shareLinkCurrent && (
         <div className="planner-form-share" role="status">
           <p>
             Anyone with this link can submit a request. Creating a new link revokes the previous
@@ -186,12 +197,12 @@ export function PlannerManagement({
           </p>
           <label className="planner-field">
             <span>Public form link</span>
-            <input readOnly value={shareLink} onFocus={(e) => e.currentTarget.select()} />
+            <input readOnly value={shareLink.url} onFocus={(e) => e.currentTarget.select()} />
           </label>
           <button
             onClick={async () => {
               try {
-                await navigator.clipboard.writeText(shareLink);
+                await navigator.clipboard.writeText(shareLink.url);
               } catch {}
             }}
           >
@@ -348,7 +359,10 @@ export function PlannerManagement({
                               version: row.version,
                               enabled: true,
                             });
-                            setShareLink(`${window.location.origin}/planner/forms/${result.token}`);
+                            setShareLink({
+                              formId: row.id,
+                              url: `${window.location.origin}/planner/forms/${result.token}`,
+                            });
                           } catch {}
                         }}
                       >
