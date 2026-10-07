@@ -1244,6 +1244,63 @@ describe('ProgramElementReadService', () => {
       );
     });
   });
+
+  describe('a $0 request that other sources contradict (PE 0603203F FY27)', () => {
+    const zeroYear = {
+      fy: 2027,
+      request: 0,
+      hascMark: 72.15,
+      sascMark: 75.2,
+      hacDMark: 85.2,
+      sacDMark: null,
+      conference: null,
+      ndaaConference: null,
+      enacted: null,
+    };
+
+    test('flags the year, drops the vs-request delta and never renders $0 as citable', async () => {
+      const prisma = makePrisma({ queryRawQueue: [], peYears: [zeroYear] });
+      prisma.programElementYearSourceValue.findMany = jest.fn(async (args: any) =>
+        args.where.isWinner
+          ? []
+          : [{ fy: 2027, canonicalValueM: 72.149 }, { fy: 2027, canonicalValueM: 72.149 }],
+      ) as never;
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+
+      const timeline = (await service.getTimeline('0603203F')) as any;
+      const year = timeline.years.find((y: any) => y.fy === 2027);
+      expect(year.requestConflictValuesM).toEqual([72.149]);
+      expect(year.currentDeltaVsRequestM).toBeNull();
+      expect(timeline.fundingSummary).toContain('request on record $0.0M — UNVERIFIED');
+      expect(timeline.fundingSummary).not.toMatch(/\$[\d.]+[MB] (above|below) the request/);
+      expect(prisma.programElementYearSourceValue.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            peCode: '0603203F',
+            fieldName: 'request',
+            fy: { in: [2027] },
+            canonicalValueM: { not: 0 },
+          },
+        }),
+      );
+    });
+
+    test('leaves a $0 request with no conflicting source as a real comparison', async () => {
+      const prisma = makePrisma({ queryRawQueue: [], peYears: [zeroYear] });
+      const service = new ProgramElementReadService(
+        prisma as never,
+        makeConferenceProbabilityService() as never,
+      );
+      const timeline = (await service.getTimeline('0603203F')) as any;
+      const year = timeline.years.find((y: any) => y.fy === 2027);
+      expect(year.requestConflictValuesM).toBeNull();
+      expect(timeline.fundingSummary).not.toContain('UNVERIFIED');
+      expect(timeline.fundingSummary).toContain('above the request');
+    });
+  });
 });
 
 /** Phase 7 Workstream M — a fake `PeSnapshotGateService`, same shape as the real one. */

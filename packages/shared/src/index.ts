@@ -2282,6 +2282,12 @@ export function currentCycleFyOf(years: readonly FundingYearMarks[]): number | n
 export interface ModelFundingYear extends FundingStageValues {
   fy: number;
   ndaaConference?: number | null;
+  /**
+   * Non-zero request values ($M) other sources recorded for this FY while the
+   * canonical request is 0. When present, the $0 is a lineage conflict, not a
+   * zero request, and is never rendered as citable or used for vs-request deltas.
+   */
+  requestConflictValuesM?: number[] | null;
 }
 
 export interface ModelFundingInput {
@@ -2355,9 +2361,21 @@ export function renderPeFundingForModel(
   };
 
   for (const y of years) {
-    const req = y.request;
     const parts: string[] = [];
-    if (req != null) parts.push(`request ${fmtFundingMillions(req)}`);
+    const conflicts = (y.requestConflictValuesM ?? []).filter((v) => Number.isFinite(v) && v !== 0);
+    // A stored $0 request that other sources contradict (PE 0603203F FY27: $0.0M
+    // stored, $72.1M restated by HASC) is not a request to cite or compare
+    // against. A $0 request with no conflicting source (a congressional add)
+    // still renders as a real comparison.
+    const unverifiedZero = y.request === 0 && conflicts.length > 0;
+    const req = unverifiedZero ? null : y.request;
+    if (unverifiedZero)
+      parts.push(
+        `request on record ${fmtFundingMillions(0)} — UNVERIFIED: other sources for this year report a non-zero request (${conflicts
+          .map((v) => fmtFundingMillions(v))
+          .join(', ')}); do NOT cite $0.0M as the request and do NOT describe any figure as above or below the request`,
+      );
+    else if (req != null) parts.push(`request ${fmtFundingMillions(req)}`);
 
     const mark = (v: number | null, short: string, vehicle: FundingVehicle): void => {
       if (v == null) return;
