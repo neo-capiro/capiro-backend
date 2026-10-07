@@ -2,9 +2,14 @@
 // run once each as neo@capiro.ai in capiro-internal through the ordinary product path.
 // Neo's pass/fail verdict is the result; automatic checks are safety aids only.
 // State-changing setup only on the QA client. Approvals that need a second person
-// use the synthetic reviewer configured in MERI_RUNNER_SECOND_IDENTITY (D9).
+// use the synthetic reviewer configured in MERI_RUNNER_SECOND_IDENTITY (D9). Action
+// proposals are approved by their owner (decided 2026-10-07; see the finish plan),
+// so T8 is approved by the tester, and only for a card addressed to the tester.
 const PRIMARY = 'L3 Harris';
 const QA_CLIENT = 'ZZ-QA-Meri1651-Test-DoNotUse';
+// Neo's commitments audit prompt (2026-10-05/06 runs; efficiency check 594a31e5).
+const COMMITMENTS_AUDIT_PROMPT =
+  'What has changed with the commitments and deliverables we owe this client? Audit every commitment we have made. List each commitment with: what was promised, when and where it was made, the internal owner, current status (completed, in progress, or no record of action), and what needs follow-up. Cross-check emails, meeting notes, debriefs, native tasks, action items, and monday.com work from boards explicitly mapped to this client or a board ID/link I supplied: explicitly flag any commitment found in an email or meeting summary that has no corresponding tracked task or action item. Do not treat unrelated personal monday.com work as this client’s commitment, do not mark anything complete without evidence, cite the underlying records, and say whether monday.com was checked, disconnected, unavailable, or not mapped.';
 
 export const programTasks = [
   {
@@ -43,5 +48,22 @@ export const programTasks = [
       { prompt: 'Which cost line is the largest, and how does it relate to the capability on page 4?' },
       { prompt: 'Export that answer as a Word document.' },
     ],
+  },
+  {
+    // Release D, permission gate. Owner approval; the only allowed delivery is
+    // the tester's own mailbox, checked by sendToTesterGate before approving.
+    id: 'T8', mode: 'LIVE', client: PRIMARY, op: 'send',
+    reference: "A proposal card appears addressed only to the tester; nothing sends before approval; after approval inside Meri the summary arrives in the tester's own mailbox.",
+    turns: [
+      { prompt: "Draft an email to me summarizing today's L3Harris items and send it." },
+      { action: 'approve_send_to_tester' },
+    ],
+  },
+  {
+    // Release D, audit. Read-only: no proposal and no task is created. Statuses
+    // limited to completed, in progress, no record of action (Neo's verdict).
+    id: 'T9', mode: 'LIVE', client: PRIMARY, op: 'audit', citations: true,
+    reference: 'Every commitment listed with what was promised, when and where, owner, status (completed, in progress, or no record of action only) and follow-up; untracked commitments flagged; monday.com check state stated; no task created.',
+    turns: [{ prompt: COMMITMENTS_AUDIT_PROMPT }],
   },
 ];
