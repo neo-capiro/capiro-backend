@@ -1,8 +1,11 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   BILL_TEXT_PASSAGE_CHARS,
+  BILL_TEXT_RESPONSE_BUDGET,
   MAX_BILL_TEXT_PASSAGES,
+  billTextSearchResponse,
   groupBillTextSearchRows,
+  type BillTextSearchRow,
   locateBillTextPassages,
   parseBillTextQuery,
 } from './meri-bill-text-search.js';
@@ -124,5 +127,81 @@ describe('grouping text search rows by bill', () => {
       7200,
     ]);
     expect(grouped[1]?.passages[0]?.readCursor).toBeNull();
+  });
+});
+
+describe('a bill text search page', () => {
+  const words = (n: number, seed: string) =>
+    Array.from({ length: n }, (_, i) => `${seed}${i}`).join(' ');
+  function rows(bills: number, perBill: number, snippetWords: number, totalBills = bills) {
+    const out: BillTextSearchRow[] = [];
+    for (let b = 0; b < bills; b += 1)
+      for (let p = 0; p < perBill; p += 1)
+        out.push({
+          billId: `119-hr-${100 + b}`,
+          versionCode: 'ih',
+          revisionId: `aaaaaaaa-aaaa-4aaa-8aaa-${String(b).padStart(12, '0')}`,
+          extractionHash: 'a'.repeat(64),
+          startOffset: 3600 * (p + 1),
+          endOffset: 3600 * (p + 1) + 4000,
+          rank: 1 - b / 100 - p / 1000,
+          totalBills,
+          snippet: `the «critical minerals» ${words(snippetWords, `b${b}p${p}w`)}`,
+          title: `Critical Minerals Act number ${b} of the One Hundred Nineteenth Congress`,
+        });
+    return out;
+  }
+  const request = {
+    textQuery: 'critical minerals',
+    page: 1,
+    perPage: 8,
+    generatedAt: '2026-10-07T00:00:00.000Z',
+  };
+
+  it('fits a full page of eight bills under the budget and says how many match', () => {
+    const page = billTextSearchResponse(rows(8, 2, 35, 54), request);
+    expect(JSON.stringify(page).length).toBeLessThanOrEqual(BILL_TEXT_RESPONSE_BUDGET);
+    expect(page.results).toHaveLength(8);
+    expect(page).toMatchObject({ totalBills: 54, hasMore: true, nextPage: 2, page: 1, perPage: 8 });
+    expect(page.note).toContain('54 bills match in all. Ask for page 2 for more.');
+    expect(page).not.toHaveProperty('omittedBills');
+  });
+
+  it('stays under the 12,000-character projection limit even with long snippets', () => {
+    const page = billTextSearchResponse(rows(10, 2, 120, 10), { ...request, perPage: 10 });
+    expect(JSON.stringify(page).length).toBeLessThanOrEqual(BILL_TEXT_RESPONSE_BUDGET);
+    expect(BILL_TEXT_RESPONSE_BUDGET).toBeLessThan(12_000);
+    // Second passages go before any bill does.
+    expect(page.results.every((bill) => bill.passages.length === 1)).toBe(true);
+    expect(page.note).toContain('Only the best passage is shown');
+    expect(page.hasMore).toBe(false);
+  });
+
+  it('drops the lowest-ranked bills last and names how many were left out', () => {
+    const page = billTextSearchResponse(rows(10, 1, 400, 30), { ...request, perPage: 10 });
+    expect(JSON.stringify(page).length).toBeLessThanOrEqual(BILL_TEXT_RESPONSE_BUDGET);
+    expect(page.omittedBills).toBeGreaterThan(0);
+    expect(page.results.length + page.omittedBills!).toBe(10);
+    expect(page.results[0]!.billId).toBe('119-hr-100');
+    // The next page still starts after this whole page.
+    expect(page).toMatchObject({ nextPage: 2, totalBills: 30 });
+  });
+
+  it('reports an exhausted later page and an empty first page honestly', () => {
+    expect(billTextSearchResponse([], { ...request, page: 3 })).toMatchObject({
+      results: [],
+      totalBills: null,
+      hasMore: false,
+      note: 'No more matching bills on this page.',
+    });
+    const none = billTextSearchResponse([], request);
+    expect(none).toMatchObject({ totalBills: 0, hasMore: false });
+    expect(none.note).toContain('No stored bill text matches.');
+  });
+
+  it('ends paging on the last page', () => {
+    const last = billTextSearchResponse(rows(3, 1, 20, 19), { ...request, page: 3 });
+    expect(last).toMatchObject({ totalBills: 19, hasMore: false });
+    expect(last).not.toHaveProperty('nextPage');
   });
 });

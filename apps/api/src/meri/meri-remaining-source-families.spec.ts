@@ -429,9 +429,10 @@ describe('remaining canonical source families', () => {
       expect.stringContaining('federal_evidence_passage'),
       '"gallium reserve"',
       119,
-      10,
+      5,
+      0,
     );
-    expect(result).toMatchObject({ mode: 'bill_text', total: 1 });
+    expect(result).toMatchObject({ mode: 'bill_text', total: 1, page: 1, perPage: 5 });
     expect(result.results[0]).toMatchObject({
       billId: '119-hr-42',
       title: 'Minerals Act',

@@ -124,7 +124,8 @@ describe('federal evidence passage search (PGlite)', () => {
     const result = await db.query<BillTextSearchRow>(BILL_TEXT_PASSAGE_SEARCH_SQL, [
       '"hypersonic glide body"',
       119,
-      40,
+      8,
+      0,
     ]);
     const grouped = groupBillTextSearchRows(result.rows);
     expect(grouped.map((bill) => bill.billId)).toEqual(['119-hr-20']);
@@ -136,17 +137,49 @@ describe('federal evidence passage search (PGlite)', () => {
     const other = await db.query<BillTextSearchRow>(BILL_TEXT_PASSAGE_SEARCH_SQL, [
       'gallium',
       118,
-      40,
+      8,
+      0,
     ]);
     expect(other.rows).toHaveLength(0);
     const found = await db.query<BillTextSearchRow>(BILL_TEXT_PASSAGE_SEARCH_SQL, [
       'gallium',
       null,
-      40,
+      8,
+      0,
     ]);
     expect(found.rows.map((row) => row.billId)).toEqual(['119-hr-10']);
-    const none = await db.query(BILL_TEXT_PASSAGE_SEARCH_SQL, ['quantum', null, 40]);
+    const none = await db.query(BILL_TEXT_PASSAGE_SEARCH_SQL, ['quantum', null, 8, 0]);
     expect(none.rows).toHaveLength(0);
+  });
+
+  it('pages by bill with the exact number of matching bills on every row', async () => {
+    for (const bill of ['119-hr-31', '119-hr-32', '119-hr-33']) {
+      await insertRevision(
+        db,
+        bill,
+        `${filler(5)} The tungsten stockpile is maintained. ${filler(5)}`,
+      );
+    }
+    const first = await db.query<BillTextSearchRow>(BILL_TEXT_PASSAGE_SEARCH_SQL, [
+      'tungsten',
+      119,
+      2,
+      0,
+    ]);
+    const firstBills = [...new Set(first.rows.map((row) => row.billId))];
+    expect(firstBills).toHaveLength(2);
+    expect(first.rows.every((row) => row.totalBills === 3)).toBe(true);
+    const second = await db.query<BillTextSearchRow>(BILL_TEXT_PASSAGE_SEARCH_SQL, [
+      'tungsten',
+      119,
+      2,
+      2,
+    ]);
+    const secondBills = [...new Set(second.rows.map((row) => row.billId))];
+    expect(secondBills).toHaveLength(1);
+    expect([...firstBills, ...secondBills].sort()).toEqual(['119-hr-31', '119-hr-32', '119-hr-33']);
+    const past = await db.query(BILL_TEXT_PASSAGE_SEARCH_SQL, ['tungsten', 119, 2, 4]);
+    expect(past.rows).toHaveLength(0);
   });
 
   it('keeps passages insert-only', async () => {
