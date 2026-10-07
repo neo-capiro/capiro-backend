@@ -594,7 +594,32 @@ export class PlannerService {
       );
     });
   }
-  async saveTask(ctx: AuthTenantContext, id: string | null, raw: unknown, authorization?: string) {
+  async importTask(ctx: AuthTenantContext, raw: unknown, authorization?: string) {
+    const input = object(raw);
+    keys(input, ['importKey', 'data', 'actualMinutes', 'time']);
+    const key = uuid(input.importKey);
+    if (
+      !Number.isInteger(input.actualMinutes) ||
+      Number(input.actualMinutes) < 0 ||
+      Number(input.actualMinutes) > 1_000_000
+    )
+      fail('Imported actual time requires 0–1,000,000 whole minutes');
+    // Parsing here rejects malformed details even for a zero-time row. Defaults
+    // are resolved once, in the first successful transaction, rather than on retry.
+    if (input.time !== undefined) plannerTimeDetails(input.time);
+    return this.saveTask(ctx, null, { data: input.data }, authorization, {
+      key,
+      actualMinutes: Number(input.actualMinutes),
+      time: input.time,
+    });
+  }
+  async saveTask(
+    ctx: AuthTenantContext,
+    id: string | null,
+    raw: unknown,
+    authorization?: string,
+    imported?: { key: string; actualMinutes: number; time: unknown },
+  ) {
     if (id) uuid(id);
     const dto = validateMutation(raw);
     const linkData = { clientId: dto.data.clientId ?? null, meetingId: dto.data.meetingId ?? null };
@@ -609,6 +634,32 @@ export class PlannerService {
       ctx,
       async (tx) => {
         const projects = await this.projects(tx, ctx);
+        const importHash = imported
+          ? createHash('sha256')
+              .update(JSON.stringify([dto.data, imported.actualMinutes, imported.time]))
+              .digest('hex')
+          : null;
+        if (imported) {
+          if (id) fail('CSV imports create new tasks');
+          if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId))
+            throw new ForbiddenException('Active membership is required');
+          const receipt = await tx.spPlannerResource.findFirst({
+            where: { tenantId: ctx.tenantId, id: imported.key },
+          });
+          if (receipt) {
+            if (receipt.kind !== 'task_import_receipt' || receipt.ownerId !== ctx.clerkUserId)
+              throw missing();
+            const recorded = object(receipt.data);
+            if (recorded.hash !== importHash)
+              throw new ConflictException('This import key already belongs to a different row');
+            const task = await tx.spPlannerTask.findFirst({
+              where: { tenantId: ctx.tenantId, id: uuid(recorded.taskId) },
+            });
+            if (!task) throw missing();
+            requireRole(plannerTaskAccess(task, projects, ctx.clerkUserId), 'editor');
+            return this.taskView(tx, task, projects, ctx);
+          }
+        }
         const old = id
           ? await tx.spPlannerTask.findFirst({ where: { tenantId: ctx.tenantId, id } })
           : null;
@@ -767,6 +818,51 @@ export class PlannerService {
           else if (data.status === 'done') data.approval = 'approved';
         }
         const row = await this.persistTask(tx, ctx, newId, old, data, projects, all, dto);
+        if (imported) {
+          if (imported.actualMinutes > 0) {
+            const options = this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx));
+            if (row.projectIds.length > 1)
+              fail('Choose a single project for an imported time total');
+            const time = plannerTimeDetails(imported.time, {
+              workedOn: plannerTimeToday(options.timeZone),
+              timeZone: options.timeZone,
+              billable: options.billableEnabled && options.billableDefault,
+              projectId: row.projectIds[0] ?? null,
+              category: '',
+            });
+            this.validateTimeProject(time, row, projects, ctx);
+            if (row.projectIds.length && !time.projectId)
+              fail('Choose a project for imported time');
+            requirePlannerTimePolicy(time, options, ctx.role === 'org:admin');
+            await this.touchTimesheet(tx, ctx, ctx.clerkUserId, plannerWeekOn(time.workedOn));
+            // CSV actual time is an aggregate, not a date-by-date historical
+            // timesheet. Preserve the reviewed date/logger and split it into
+            // normal, individually correctable entries of at most 24 hours.
+            const entries = [];
+            for (let remaining = imported.actualMinutes; remaining > 0; remaining -= 1440)
+              entries.push({
+                id: randomUUID(),
+                tenantId: ctx.tenantId,
+                actorId: ctx.clerkUserId,
+                taskId: row.id,
+                kind: 'time',
+                text: 'Imported task time',
+                minutes: Math.min(remaining, 1440),
+                details: json({ time, recordedBy: ctx.clerkUserId }),
+              });
+            await tx.spPlannerEvent.createMany({ data: entries });
+          }
+          await tx.spPlannerResource.create({
+            data: {
+              id: imported.key,
+              tenantId: ctx.tenantId,
+              ownerId: ctx.clerkUserId,
+              kind: 'task_import_receipt',
+              name: 'Task import receipt',
+              data: json({ taskId: row.id, hash: importHash }),
+            },
+          });
+        }
         return this.taskView(tx, row, projects, ctx);
       },
       true,
@@ -1847,6 +1943,7 @@ export class PlannerService {
     projects: SpPlannerProject[],
     ctx: AuthTenantContext,
   ): PlannerRole | null {
+    if (row.kind === 'task_import_receipt') return null;
     if (['project_budget', 'project_budget_alert'].includes(row.kind)) {
       const project = projects.find((p) => p.id === row.projectId);
       return project &&

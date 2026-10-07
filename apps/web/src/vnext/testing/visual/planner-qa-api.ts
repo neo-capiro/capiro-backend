@@ -87,6 +87,7 @@ const tasks: PlannerTask[] = [
   memberships: [{ projectId: PROJECT, sectionId: SECTION, position: i }],
 }));
 const events: PlannerEvent[] = [];
+const taskImports = new Map<string, { hash: string; taskId: string }>();
 const removedEventContents = new Map<string, { text: string; minutes: number | null }>();
 const resources: PlannerResource[] = [];
 const budgetConfigs = new Map<string, { version: number; data: PlannerBudgetData }>();
@@ -711,6 +712,54 @@ const api = {
     return { data: structuredClone(row) };
   },
   async post(path: string, body: Record<string, unknown>) {
+    if (path.endsWith('/tasks/import')) {
+      const key = String(body.importKey),
+        hash = JSON.stringify(body),
+        receipt = taskImports.get(key);
+      if (receipt) {
+        if (receipt.hash !== hash) error('Import row changed', 409);
+        return { data: structuredClone(tasks.find((t) => t.id === receipt.taskId)!) };
+      }
+      const row = {
+        ...PLANNER_DEFAULT_TASK,
+        ...(body.data as object),
+        id: crypto.randomUUID(),
+        ownerId: 'user_qa',
+        version: 1,
+        archived: false,
+        access: 'editor',
+        actualMinutes: Number(body.actualMinutes),
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      } as PlannerTask;
+      const time: PlannerTimeDetails = {
+        workedOn: new Date().toISOString().slice(0, 10),
+        timeZone: timeSettings.options.timeZone,
+        billable: timeSettings.options.billableEnabled && timeSettings.options.billableDefault,
+        category: '',
+        projectId: row.memberships[0]?.projectId ?? null,
+        ...(body.time as object),
+      };
+      if (row.actualMinutes) touchTime('user_qa', time.workedOn);
+      for (let remaining = row.actualMinutes; remaining > 0; remaining -= 1440)
+        events.unshift({
+          id: crypto.randomUUID(),
+          taskId: row.id,
+          projectId: null,
+          actorId: 'user_qa',
+          kind: 'time',
+          text: 'Imported task time',
+          minutes: Math.min(remaining, 1440),
+          time,
+          timeEditable: true,
+          createdAt: now,
+          version: 0,
+        });
+      tasks.push(row);
+      taskImports.set(key, { hash, taskId: row.id });
+      return { data: structuredClone(row) };
+    }
     if (path.endsWith('/timesheets/work')) {
       const week = String(body.week),
         userId = String(body.userId),

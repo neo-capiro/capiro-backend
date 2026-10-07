@@ -27,6 +27,7 @@ import type {
   PlannerTimeReviewView,
   PlannerTimeReviewPage,
   PlannerTimesheetWorkRef,
+  PlannerTaskImport,
 } from '@capiro/strategy-verifier';
 import { plannerFormSubmissionBody, type PlannerFormFiles } from './planner-form-questions.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -377,6 +378,11 @@ export function usePlannerMutations() {
     },
     onSuccess,
   });
+  const importTask = useMutation({
+    mutationFn: async (input: PlannerTaskImport) =>
+      (await api.post<PlannerTask>(`${BASE}/tasks/import`, input)).data,
+    onSuccess,
+  });
   const event = useMutation({
     mutationFn: async (input: {
       taskId?: string;
@@ -558,6 +564,7 @@ export function usePlannerMutations() {
   return {
     project,
     task,
+    importTask,
     event,
     reviseEvent,
     inbox,

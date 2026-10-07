@@ -8,6 +8,29 @@ import {
   type PlannerProject,
   type PlannerTaskData,
 } from '@capiro/strategy-verifier';
+export type PlannerCsvTask = PlannerTaskData & { importedActualMinutes: number };
+/** Asana CSV durations: hh:mm, hours/minutes labels, or a number of hours. */
+export function plannerCsvTime(value: string): number {
+  const source = value.trim().toLowerCase();
+  if (!source) return 0;
+  if (source.length > 40) throw new Error('Time values cannot exceed 1,000,000 minutes.');
+  let minutes: bigint;
+  const clock = /^(\d+):([0-5]\d)$/.exec(source);
+  const units = /^(?:(\d+)\s*(?:hr|h)\s*)?(?:(\d+)\s*(?:min|m))?$/.exec(source);
+  if (clock) minutes = BigInt(clock[1]!) * 60n + BigInt(clock[2]!);
+  else if (units && (units[1] || units[2]))
+    minutes = BigInt(units[1] ?? '0') * 60n + BigInt(units[2] ?? '0');
+  else if (/^(?:\d+(?:\.\d{0,8})?|\.\d{1,8})$/.test(source)) {
+    const [whole, fraction = ''] = source.split('.');
+    const divisor = 10n ** BigInt(fraction.length);
+    minutes = BigInt(whole || '0') * 60n + (BigInt(fraction || '0') * 60n + divisor / 2n) / divisor;
+  } else throw new Error('Use hh:mm, 1hr 30min, 1h 30m, or a number of hours.');
+  if (minutes > 1_000_000n) throw new Error('Time values cannot exceed 1,000,000 minutes.');
+  return Number(minutes);
+}
+export function plannerCsvTimeLabel(minutes: number): string {
+  return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
+}
 /** RFC 4180 quoted fields, including embedded commas, quotes and CRLF/newlines. */
 export function parsePlannerCsv(source: string): string[][] {
   if (source.length > 2_000_000) throw new Error('CSV files must be smaller than 2 MB.');
@@ -60,7 +83,7 @@ export function importPlannerCsv(
   source: string,
   people: PlannerPerson[],
   project?: PlannerProject,
-): PlannerTaskData[] {
+): PlannerCsvTask[] {
   const rows = parsePlannerCsv(source.replace(/^\uFEFF/, ''));
   if (!rows.length) throw new Error('The CSV is empty.');
   const headers = rows.shift()!.map((h) => h.trim().toLowerCase());
@@ -77,10 +100,12 @@ export function importPlannerCsv(
     'priority',
     'status',
     'section',
+    'estimated time',
+    'actual time',
   ];
   if (headers.some((h) => !allowed.includes(h)) || new Set(headers).size !== headers.length)
     throw new Error(
-      'Use the supported CSV columns: Task, Description, Assignee, Start date, Due date, Start time, Due time, Time zone, Priority, Status, Section.',
+      'Use the supported CSV columns: Task, Description, Assignee, Start date, Due date, Start time, Due time, Time zone, Priority, Status, Section, Estimated time, Actual time.',
     );
   if (!headers.includes('task') && !headers.includes('name'))
     throw new Error('The CSV needs a Task or Name column.');
@@ -152,8 +177,17 @@ export function importPlannerCsv(
     );
     if (section && !matchingSection)
       throw new Error(`Row ${i + 2} has a section that does not belong to this project.`);
+    let estimateMinutes: number, importedActualMinutes: number;
+    try {
+      estimateMinutes = plannerCsvTime(get('estimated time'));
+      importedActualMinutes = plannerCsvTime(get('actual time'));
+    } catch (error) {
+      throw new Error(`Row ${i + 2}: ${(error as Error).message}`);
+    }
     return {
       ...PLANNER_DEFAULT_TASK,
+      estimateMinutes,
+      importedActualMinutes,
       startTime,
       dueTime,
       timeZone,

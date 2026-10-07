@@ -166,6 +166,13 @@ export class PlannerController {
   @Get('tasks/:id') task(@CurrentTenant() ctx: AuthTenantContext, @Param('id') id: string) {
     return this.planner.task(ctx, id);
   }
+  @Post('tasks/import') importTask(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Body() dto: unknown,
+    @Req() req: Request,
+  ) {
+    return this.planner.importTask(ctx, dto, req.headers.authorization);
+  }
   @Post('tasks') createTask(
     @CurrentTenant() ctx: AuthTenantContext,
     @Body() dto: unknown,

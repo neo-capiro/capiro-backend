@@ -485,10 +485,16 @@
 }
 .planner-content-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 18px;
   margin-bottom: 22px;
+}
+.planner-content-head > div:first-child {
+  flex: 1 1 260px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .planner-content-head h2 {
   font-size: 21px;
@@ -510,6 +516,9 @@
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  max-width: 100%;
+  min-width: 0;
 }
 .planner-project-health {
   font-size: 10px;

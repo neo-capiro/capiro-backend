@@ -25,6 +25,7 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     tasks: jest.fn(async () => ({ items: [], nextCursor: null })),
     task: jest.fn(async () => ({ id: ID })),
     saveTask: jest.fn(async () => ({ id: ID, version: 2 })),
+    importTask: jest.fn(async () => ({ id: ID, actualMinutes: 90 })),
     saveProject: jest.fn(async () => ({ id: ID })),
     resources: jest.fn(async () => []),
     reportWidget: jest.fn(async () => ({ buckets: [], total: 0, matched: 0, dashboardVersion: 1 })),
@@ -109,6 +110,7 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     ['get', 'tasks'],
     ['get', `tasks/${ID}`],
     ['post', 'tasks'],
+    ['post', 'tasks/import'],
     ['patch', `tasks/${ID}`],
     ['post', 'projects'],
     ['patch', `projects/${ID}`],
@@ -151,6 +153,16 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .send(body)
       .expect(200);
     expect(planner.reviseEvent).toHaveBeenCalledWith(ctx, ID, body);
+  });
+  it('forwards a reviewed time import and caller authorization through the signed-in organization', async () => {
+    const body = { importKey: ID, data: { name: 'Reviewed CSV' }, actualMinutes: 90 };
+    await request(app.getHttpServer())
+      .post('/strategy-api/planner/tasks/import')
+      .set('x-planner-qa', 'allowed')
+      .set('authorization', 'Bearer synthetic-import')
+      .send(body)
+      .expect(201);
+    expect(planner.importTask).toHaveBeenCalledWith(ctx, body, 'Bearer synthetic-import');
   });
   it('forwards private budget operations through the signed-in organization context', async () => {
     const body = { version: 0, data: { measurement: 'time', budgetMinutes: 600 } };
