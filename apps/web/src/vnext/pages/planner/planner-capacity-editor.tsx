@@ -7,6 +7,7 @@ import {
   type PlannerCapacityPlan,
   type PlannerCapacityCatalog,
   type PlannerCapacityAllocation,
+  type PlannerCapacityAllocationData,
   type PlannerStaffTeam,
   type PlannerStaffPlaceholder,
   type PlannerResource,
@@ -17,7 +18,11 @@ export type CapacityEditor =
   | { kind: 'plans'; row?: PlannerCapacityPlan }
   | { kind: 'teams'; row?: PlannerStaffTeam }
   | { kind: 'placeholders'; row?: PlannerStaffPlaceholder }
-  | { kind: 'allocation'; row?: PlannerCapacityAllocation };
+  | {
+      kind: 'allocation';
+      row?: PlannerCapacityAllocation;
+      initial?: { projectId?: string; data: Partial<PlannerCapacityAllocationData> };
+    };
 function Frame({
   title,
   onClose,
@@ -114,10 +119,13 @@ export function PlannerCapacityEditor({
               startOn: plannerToday(),
               endOn: plannerCapacityDateShift(plannerToday(), 6),
               effort: { unit: 'percent', value: 100 },
+              ...(editor.kind === 'allocation' ? editor.initial?.data : {}),
             });
   const [data, setData] = useState<any>(structuredClone(initial));
   const [projectId, setProjectId] = useState(
-    editor.kind === 'allocation' ? (editor.row?.projectId ?? plan?.data.projectIds[0] ?? '') : '',
+    editor.kind === 'allocation'
+      ? (editor.row?.projectId ?? editor.initial?.projectId ?? plan?.data.projectIds[0] ?? '')
+      : '',
   );
   const [error, setError] = useState<unknown>(),
     [pending, setPending] = useState(false);

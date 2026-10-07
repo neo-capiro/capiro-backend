@@ -138,6 +138,59 @@ describe('Capacity planning workflows', () => {
     expect(screen.getByRole('checkbox', { name: /Select allocation/ })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Edit allocation' })).not.toBeInTheDocument();
   });
+  it('preserves the calendar, layout and filters while switching archived allocations', () => {
+    render(<PlannerCapacity bootstrap={bootstrap} selectedId={cp.id} onSelect={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Capacity window start'), {
+      target: { value: '2026-12-21' },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Projects' }));
+    fireEvent.change(screen.getByLabelText('Capacity zoom'), { target: { value: 'month' } });
+    fireEvent.change(screen.getByLabelText('Capacity display'), { target: { value: 'percent' } });
+    fireEvent.change(screen.getByLabelText('Group capacity'), { target: { value: 'health' } });
+    fireEvent.change(screen.getByLabelText('Search staffing'), { target: { value: 'Owner' } });
+    fireEvent.change(screen.getByLabelText('Filter capacity person'), {
+      target: { value: 'owner' },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Archived allocations & staffing' }));
+    expect(screen.getByLabelText('Capacity window start')).toHaveValue('2026-12-21');
+    expect(screen.getByRole('tab', { name: 'Projects' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText('Capacity zoom')).toHaveValue('month');
+    expect(screen.getByLabelText('Capacity display')).toHaveValue('percent');
+    expect(screen.getByLabelText('Group capacity')).toHaveValue('health');
+    expect(screen.getByLabelText('Search staffing')).toHaveValue('Owner');
+    expect(screen.getByLabelText('Filter capacity person')).toHaveValue('owner');
+  });
+  it('archives selected allocations with Delete inside the timeline and ignores typing in the date control', async () => {
+    render(<PlannerCapacity bootstrap={bootstrap} selectedId={cp.id} onSelect={vi.fn()} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /Select allocation/ }));
+    fireEvent.keyDown(screen.getByLabelText('Capacity window start'), { key: 'Delete' });
+    expect(state.save).not.toHaveBeenCalled();
+    fireEvent.keyDown(screen.getByRole('region', { name: 'Staffing timeline' }), { key: 'Delete' });
+    await waitFor(() =>
+      expect(state.save).toHaveBeenCalledWith({
+        planId: cp.id,
+        planVersion: 3,
+        changes: [{ id: a.id, version: 4, archived: true }],
+      }),
+    );
+  });
+  it('starts an allocation from the selected timeline window and row', async () => {
+    render(<PlannerCapacity bootstrap={bootstrap} selectedId={cp.id} onSelect={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Capacity window start'), {
+      target: { value: '2026-10-05' },
+    });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Allocate Owner from 2026-10-05 to 2026-10-11' }),
+    );
+    expect(screen.getByLabelText('Start date')).toHaveValue('2026-10-05');
+    expect(screen.getByLabelText('End date')).toHaveValue('2026-10-11');
+    fireEvent.click(screen.getByRole('button', { name: 'Save allocation' }));
+    await waitFor(() => expect(state.save).toHaveBeenCalled());
+    expect(state.save.mock.calls[0]![0].changes[0]).toMatchObject({
+      projectId: p.id,
+      data: { userId: 'owner', placeholderId: null, startOn: '2026-10-05', endOn: '2026-10-11' },
+    });
+  });
   it('hides cached staffing and its export control after a failed grant recheck', () => {
     state.plan.isError = true;
     state.plan.error = new Error('Access revoked');

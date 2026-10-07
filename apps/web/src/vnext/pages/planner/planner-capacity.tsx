@@ -18,6 +18,7 @@ import {
   plannerLoadCapacity,
 } from './planner-capacity-api.js';
 import { PlannerCapacityEditor, type CapacityEditor } from './planner-capacity-editor.js';
+import { PlannerAllocationBar } from './planner-capacity-bar.js';
 import { usePlannerResources, plannerError, usePlannerKey } from './planner-api.js';
 import { useApi } from '../../../lib/use-api.js';
 import { plannerToday } from './planner-views.js';
@@ -106,8 +107,10 @@ export function PlannerCapacity({
     setSelected([]);
     setEditor(null);
     setError(null);
-    setView({ ...PLANNER_DEFAULT_CAPACITY_VIEW, startOn: plannerToday() });
   }, [scopeKey, selectedId, archived]);
+  useEffect(() => {
+    setView({ ...PLANNER_DEFAULT_CAPACITY_VIEW, startOn: plannerToday() });
+  }, [scopeKey, selectedId]);
   const catalog = !catalogQuery.isError ? catalogQuery.data : undefined;
   const page = !planQuery.isError && !catalogQuery.isError ? planQuery.data : undefined;
   const plan = page?.plan;
@@ -658,6 +661,34 @@ export function PlannerCapacity({
             role="region"
             aria-label="Staffing timeline"
             tabIndex={0}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setSelected([]);
+                return;
+              }
+              if (
+                !canEdit ||
+                archived ||
+                event.key !== 'Delete' ||
+                (event.target instanceof HTMLElement &&
+                  (event.target.isContentEditable ||
+                    ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)))
+              )
+                return;
+              const focusedId =
+                event.target instanceof HTMLElement
+                  ? event.target.closest<HTMLElement>('[data-capacity-allocation]')?.dataset
+                      .capacityAllocation
+                  : undefined;
+              const ids = selected.length ? selected : focusedId ? [focusedId] : [];
+              const current = allocations.filter(
+                (a) => ids.includes(a.id) && a.access === 'admin' && !a.archived,
+              );
+              if (!current.length) return;
+              event.preventDefault();
+              event.stopPropagation();
+              void change(current.map((a) => ({ id: a.id, version: a.version, archived: true })));
+            }}
           >
             <div
               className="planner-capacity-timeline"
@@ -752,6 +783,8 @@ export function PlannerCapacity({
                         <div
                           key={c.start}
                           className={`planner-capacity-cell ${view.tab === 'people' && minutes > capacity ? 'is-overallocated' : ''}`}
+                          data-capacity-start={c.start}
+                          data-capacity-end={c.end}
                           onDragOver={(e) => canEdit && e.preventDefault()}
                           onDrop={(e) => {
                             e.preventDefault();
@@ -788,38 +821,71 @@ export function PlannerCapacity({
                             {label}
                           </small>
                           {active.map((a) => (
-                            <button
-                              key={a.id}
-                              className="planner-capacity-bar"
-                              style={
-                                {
-                                  '--capacity-color':
-                                    bootstrap.projects.find((p) => p.id === a.projectId)?.color ??
-                                    '#7565dd',
-                                } as any
+                            <PlannerAllocationBar
+                              key={`${a.id}:${a.version}:${a.archived}`}
+                              allocation={a}
+                              column={c}
+                              label={
+                                view.tab === 'people'
+                                  ? a.projectName
+                                  : (names.get(personId(a)) ?? a.personName)
                               }
-                              title={`${a.projectName} · ${names.get(personId(a)) ?? a.personName} · ${a.data.startOn} – ${a.data.endOn} · ${hours(plannerCapacityMinutes(a))}`}
-                              draggable={canEdit && a.access === 'admin'}
-                              onDragStart={(e) => e.dataTransfer.setData('text/plain', a.id)}
-                              aria-pressed={selected.includes(a.id)}
-                              onClick={(e) => {
-                                if (!canEdit || a.access !== 'admin') return;
-                                if (e.ctrlKey || e.metaKey)
-                                  setSelected(
-                                    selected.includes(a.id)
-                                      ? selected.filter((id) => id !== a.id)
-                                      : selected.length < 100
-                                        ? [...selected, a.id]
-                                        : selected,
-                                  );
-                                else setEditor({ kind: 'allocation', row: a });
-                              }}
-                            >
-                              {view.tab === 'people'
-                                ? a.projectName
-                                : (names.get(personId(a)) ?? a.personName)}
-                            </button>
+                              description={`${a.projectName} · ${names.get(personId(a)) ?? a.personName} · ${a.data.startOn} – ${a.data.endOn} · ${hours(plannerCapacityMinutes(a))}`}
+                              color={
+                                bootstrap.projects.find((p) => p.id === a.projectId)?.color ??
+                                '#7565dd'
+                              }
+                              selected={selected.includes(a.id)}
+                              canEdit={canEdit}
+                              onSelect={() =>
+                                setSelected((current) =>
+                                  current.includes(a.id)
+                                    ? current.filter((id) => id !== a.id)
+                                    : current.length < 100
+                                      ? [...current, a.id]
+                                      : current,
+                                )
+                              }
+                              onEdit={() => setEditor({ kind: 'allocation', row: a })}
+                              onChange={(changeDto) => void change([changeDto])}
+                              onError={setError}
+                            />
                           ))}
+                          {canEdit &&
+                            !archived &&
+                            plannerCapacityWorkdays(c.start, c.end).length > 0 &&
+                            (view.tab === 'people' ||
+                              bootstrap.projects.some(
+                                (p) => p.id === row.id && ['admin', 'editor'].includes(p.access),
+                              )) && (
+                              <button
+                                type="button"
+                                className="planner-capacity-add-cell"
+                                aria-label={`Allocate ${row.name} from ${c.start} to ${c.end}`}
+                                onClick={() =>
+                                  setEditor({
+                                    kind: 'allocation',
+                                    initial: {
+                                      ...(view.tab === 'projects' ? { projectId: row.id } : {}),
+                                      data: {
+                                        startOn: c.start,
+                                        endOn: c.end,
+                                        userId:
+                                          view.tab === 'people'
+                                            ? row.person
+                                              ? null
+                                              : row.id
+                                            : bootstrap.me.id,
+                                        placeholderId:
+                                          view.tab === 'people' && row.person ? row.id : null,
+                                      },
+                                    },
+                                  })
+                                }
+                              >
+                                <Plus size={12} aria-hidden="true" />
+                              </button>
+                            )}
                         </div>
                       );
                     })}
