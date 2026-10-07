@@ -185,6 +185,7 @@ export class MeriDocgenService {
         align: 'center',
       });
     }
+    if (spec.titleNotes) title.addNotes(spec.titleNotes);
 
     for (const slide of spec.slides) {
       const s = pptx.addSlide();
@@ -201,7 +202,15 @@ export class MeriDocgenService {
       if (slide.bullets.length > 0) {
         s.addText(
           slide.bullets.map((t) => ({ text: t, options: { bullet: true } })),
-          { x: 0.7, y, w: 11.5, h: 4.5, fontSize: 16, color: '1A1A1A', valign: 'top' },
+          {
+            x: 0.7,
+            y,
+            w: 11.5,
+            h: 4.5,
+            fontSize: bulletFontSize(slide.bullets),
+            color: '1A1A1A',
+            valign: 'top',
+          },
         );
         y += Math.min(4.5, slide.bullets.length * 0.4 + 0.5);
       }
@@ -233,11 +242,21 @@ export class MeriDocgenService {
         });
         y += 4.8;
       }
+      if (slide.notes) s.addNotes(slide.notes);
     }
 
     const out = (await pptx.write({ outputType: 'nodebuffer' })) as Buffer;
     return out;
   }
+}
+
+/**
+ * Body text size for a slide's bullets: 16 pt fits about 700 characters in the
+ * 11.5 x 4.5 inch box, 14 pt about 1,000 and 12 pt about 1,300.
+ */
+export function bulletFontSize(bullets: readonly string[]): number {
+  const chars = bullets.reduce((sum, bullet) => sum + bullet.length, 0);
+  return chars <= 700 ? 16 : chars <= 1_000 ? 14 : 12;
 }
 
 /** Coerce a string cell into a number when it cleanly parses, else keep the string. */

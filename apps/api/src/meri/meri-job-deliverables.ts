@@ -208,18 +208,25 @@ export function researchReportExcelSpec(title: string, markdown: string): ExcelS
   return normalizeExcelSpec({ title, sheets });
 }
 
-const SLIDE_TEXT_BUDGET = 900;
-const SLIDE_MAX_BULLETS = 6;
+// One slide holds about 1,300 characters at 12 pt (docgen sizes the text down
+// from 16 pt as a slide fills), so a section continues only past that.
+const SLIDE_TEXT_BUDGET = 1_300;
+const SLIDE_MAX_BULLETS = 8;
 const SLIDE_MAX_TABLE_ROWS = 10;
+const SOURCES_PER_SLIDE = 12;
+const SOURCE_LABEL_CHARS = 90;
+const SOURCES_HEADING = /^(?:sources?(?:\s+consulted)?|references|citations)$/i;
+const PROVENANCE_LINE = /^(?:deep research report\b|topic:)/i;
 
 /** Splits a long paragraph at sentence ends so a slide never truncates report text. */
 function slideItems(text: string): string[] {
-  if (text.length <= SLIDE_TEXT_BUDGET / 2) return [text];
+  const limit = SLIDE_TEXT_BUDGET / 2;
+  if (text.length <= limit) return [text];
   const sentences = text.match(/[^.!?]+(?:[.!?]+(?=\s|$)|$)/g)?.map((s) => s.trim()) ?? [text];
   const items: string[] = [];
   let current = '';
   for (const sentence of sentences.filter(Boolean)) {
-    if (current && current.length + sentence.length + 1 > SLIDE_TEXT_BUDGET / 2) {
+    if (current && current.length + sentence.length + 1 > limit) {
       items.push(current);
       current = sentence;
     } else current = current ? `${current} ${sentence}` : sentence;
@@ -228,25 +235,61 @@ function slideItems(text: string): string[] {
   return items;
 }
 
+/** "[7] Name — long description" becomes "[7] Name" for the slide face. */
+function sourceLabel(entry: string): string {
+  const head = entry.split(/\s+[—–]\s+|\s+-\s+/)[0]!.trim();
+  return head.length > SOURCE_LABEL_CHARS ? `${head.slice(0, SOURCE_LABEL_CHARS - 1)}…` : head;
+}
+
+type DeckSlide = { title: string; bullets: string[]; table: DocTable | null; notes?: string };
+
 /**
- * A research report as a deck: one slide per section (continued across slides
- * when its text is long), and each report table on its own slide, split by
- * rows. Every paragraph and list item appears; nothing is summarized away.
+ * A research report as a deck. The report's provenance lines (generated date,
+ * the request) become the title slide's subtitle instead of a slide. Each
+ * section is one slide, continued only when its text passes what 12 pt holds.
+ * Each table gets its own slides, ten rows each. The source register shows
+ * short labels, twelve per slide, with every full entry in the speaker notes.
+ * No paragraph or list item is dropped: everything is on a slide or in its notes.
  */
 export function researchReportPptxSpec(title: string, markdown: string): PptxSpec {
-  const slides: Array<{ title: string; bullets: string[]; table: DocTable | null }> = [];
-  for (const section of reportSections(title, markdown)) {
-    const items = [...section.paragraphs, ...section.bullets].flatMap(slideItems);
+  const slides: DeckSlide[] = [];
+  let subtitle: string | null = null;
+  let titleNotes: string | null = null;
+  const titled = (heading: string) =>
+    slides.some((slide) => slide.title === heading) ? `${heading} (cont.)` : heading;
+  for (const [index, section] of reportSections(title, markdown).entries()) {
+    let paragraphs = section.paragraphs;
+    if (index === 0 && section.heading === 'Summary') {
+      const provenance = paragraphs.filter((paragraph) => PROVENANCE_LINE.test(paragraph));
+      const generated = provenance.find((line) => /^deep research report\b/i.test(line));
+      if (generated) subtitle = generated;
+      const topic = provenance.find((line) => /^topic:/i.test(line));
+      paragraphs = paragraphs.filter((paragraph) => !PROVENANCE_LINE.test(paragraph));
+      if (!paragraphs.length && !section.bullets.length && !section.tables.length) {
+        // The title slide carries the date; the request itself goes in its notes.
+        if (topic) titleNotes = topic;
+        continue;
+      }
+    }
+    if (SOURCES_HEADING.test(section.heading)) {
+      const entries = [...section.bullets, ...paragraphs];
+      for (let start = 0; start < entries.length; start += SOURCES_PER_SLIDE) {
+        const page = entries.slice(start, start + SOURCES_PER_SLIDE);
+        slides.push({
+          title: titled(section.heading),
+          bullets: page.map(sourceLabel),
+          table: null,
+          notes: page.join('\n'),
+        });
+      }
+      continue;
+    }
+    const items = [...paragraphs, ...section.bullets].flatMap(slideItems);
     let page: string[] = [];
     let size = 0;
     const flush = () => {
       if (!page.length) return;
-      const first = !slides.some((slide) => slide.title === section.heading);
-      slides.push({
-        title: first ? section.heading : `${section.heading} (cont.)`,
-        bullets: page,
-        table: null,
-      });
+      slides.push({ title: titled(section.heading), bullets: page, table: null });
       page = [];
       size = 0;
     };
@@ -262,9 +305,8 @@ export function researchReportPptxSpec(title: string, markdown: string): PptxSpe
     flush();
     for (const table of section.tables) {
       for (let start = 0; start < Math.max(table.rows.length, 1); start += SLIDE_MAX_TABLE_ROWS) {
-        const first = !slides.some((slide) => slide.title === section.heading);
         slides.push({
-          title: first ? section.heading : `${section.heading} (cont.)`,
+          title: titled(section.heading),
           bullets: [],
           table: {
             headers: table.headers,
@@ -276,7 +318,8 @@ export function researchReportPptxSpec(title: string, markdown: string): PptxSpe
   }
   return normalizePptxSpec({
     title,
-    subtitle: null,
+    subtitle,
+    ...(titleNotes ? { titleNotes } : {}),
     slides: slides.map((slide) => ({ ...slide, imageArtifactIds: [], images: [] })),
   });
 }
