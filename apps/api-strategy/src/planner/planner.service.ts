@@ -39,6 +39,8 @@ import {
   type PlannerFormData,
   type PlannerTemplateData,
   type PlannerPublicForm,
+  type PlannerReportWidget,
+  type PlannerReportResponse,
 } from '@capiro/strategy-verifier';
 import {
   Prisma,
@@ -75,6 +77,19 @@ import {
   plannerGoalActivityView,
   validatePlannerGoalUpdate,
 } from './planner-goal-activity.js';
+import {
+  plannerReportWidgetView,
+  preparePlannerReportWidgets,
+  type PlannerReportVisibility,
+} from './planner-reporting-sharing.js';
+import { validatePlannerReportChart } from './planner-reporting.validation.js';
+import {
+  plannerBuildReport,
+  plannerReportMatches,
+  plannerReportGroups,
+  plannerReportValue,
+} from './planner-reporting.js';
+import { plannerReportRecords, type PlannerReportTaskRecord } from './planner-reporting-data.js';
 import {
   plannerPublicForm,
   plannerFormTaskValues,
@@ -1972,6 +1987,22 @@ export class PlannerService {
     }
     return { executed, failed, nextCursor: page.length > 50 ? page[49]!.id : null };
   }
+  private reportVisibility(
+    projects: SpPlannerProject[],
+    rows: SpPlannerResource[],
+    ctx: AuthTenantContext,
+  ): PlannerReportVisibility {
+    const readable = projects.filter((p) => plannerProjectAccess(p, ctx.clerkUserId));
+    return {
+      projects: new Set(readable.map((p) => p.id)),
+      portfolios: new Set(
+        rows
+          .filter((r) => r.kind === 'portfolio' && this.resourceAccess(r, projects, ctx))
+          .map((r) => r.id),
+      ),
+      fields: new Set(readable.flatMap((p) => projectData(p).fields.map((f) => f.id))),
+    };
+  }
   private resourceView(
     row: SpPlannerResource,
     projects: SpPlannerProject[],
@@ -1979,10 +2010,19 @@ export class PlannerService {
     goalIds = new Set<string>(),
     taskIds = new Set<string>(),
     projectIds?: Set<string>,
+    reportVisibility?: PlannerReportVisibility,
   ): PlannerResource {
     const access = this.resourceAccess(row, projects, ctx);
     requireRole(access, 'viewer');
     const data = structuredClone(row.data) as Record<string, unknown>;
+    const report =
+      row.kind === 'dashboard'
+        ? plannerReportWidgetView(
+            data.widgets as PlannerReportWidget[],
+            reportVisibility ?? this.reportVisibility(projects, [], ctx),
+          )
+        : null;
+    if (report) data.widgets = report.widgets;
     if (Array.isArray(data.projectIds))
       data.projectIds = data.projectIds.filter((id) =>
         projectIds
@@ -2011,6 +2051,7 @@ export class PlannerService {
       archived: row.archived,
       access: access!,
       ...(row.kind === 'form' ? { publicShared: Boolean(row.shareTokenHash) } : {}),
+      ...(report ? { reportWarnings: report.warnings } : {}),
     };
   }
   private resourceViews(
@@ -2037,8 +2078,9 @@ export class PlannerService {
           if (linked) linked.push(g.id);
           else parents.set(child, [g.id]);
         }
+    const reportVisibility = this.reportVisibility(projects, rows, ctx);
     const views = visible.map((row) =>
-      this.resourceView(row, projects, ctx, goalIds, taskIds, projectIds),
+      this.resourceView(row, projects, ctx, goalIds, taskIds, projectIds, reportVisibility),
     );
     const progress = plannerGoalProgress(
       views,
@@ -2167,6 +2209,229 @@ export class PlannerService {
     }
     return data;
   }
+  async reportWidget(
+    ctx: AuthTenantContext,
+    dashboardId: string,
+    widgetId: string,
+    raw: unknown = {},
+  ): Promise<PlannerReportResponse> {
+    uuid(dashboardId);
+    uuid(widgetId);
+    const query = object(raw);
+    keys(query, ['rows', 'cursor', 'bucket', 'version', 'revision']);
+    if (
+      query.revision !== undefined &&
+      (typeof query.revision !== 'string' || !/^[0-9a-f]{64}$/.test(query.revision))
+    )
+      fail('Invalid report revision');
+    const reportRevision = (payload: unknown) => {
+      const revision = createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+      if (query.revision !== undefined && query.revision !== revision)
+        throw new ConflictException(
+          'Work in this report changed. Refresh the report before continuing.',
+        );
+      return revision;
+    };
+    if (query.rows !== undefined && !['true', 'false'].includes(String(query.rows)))
+      fail('Invalid report rows option');
+    if (query.cursor !== undefined) {
+      uuid(query.cursor);
+      if (query.rows !== 'true') fail('A report cursor requires rows');
+    }
+    if (
+      query.bucket !== undefined &&
+      (typeof query.bucket !== 'string' || query.bucket.length > 1000)
+    )
+      fail('Invalid report category');
+    if (
+      query.version !== undefined &&
+      (!/^[1-9][0-9]*$/.test(String(query.version)) || !Number.isSafeInteger(Number(query.version)))
+    )
+      fail('Invalid dashboard version');
+    return this.scope(ctx, async (tx) => {
+      const projects = await this.projects(tx, ctx);
+      const dashboard = await tx.spPlannerResource.findFirst({
+        where: { tenantId: ctx.tenantId, id: dashboardId, kind: 'dashboard' },
+      });
+      if (!dashboard) throw missing();
+      requireRole(this.resourceAccess(dashboard, projects, ctx), 'viewer');
+      if (query.version !== undefined) version(dashboard.version, Number(query.version));
+      const widget = (dashboard.data as unknown as { widgets: PlannerReportWidget[] }).widgets.find(
+        (w) => w.id === widgetId,
+      );
+      if (!widget || widget.kind !== 'chart') throw missing();
+      const chart = structuredClone(validatePlannerReportChart(widget.chart));
+      if (dashboard.projectId && chart.entity !== 'tasks')
+        fail('Project dashboards report on their tasks');
+      const rows = await tx.spPlannerResource.findMany({
+        where: { tenantId: ctx.tenantId, kind: { in: ['goal', 'portfolio'] } },
+      });
+      const visible = this.reportVisibility(projects, rows, ctx);
+      const source = chart.filters.source;
+      const unavailableSources =
+        source.kind === 'all'
+          ? false
+          : source.ids.some((id) => !visible[source.kind as 'projects' | 'portfolios'].has(id));
+      const numericFields = new Set(
+        projects
+          .filter((p) => plannerProjectAccess(p, ctx.clerkUserId))
+          .flatMap((p) =>
+            projectData(p)
+              .fields.filter((f) => f.type === 'number')
+              .map((f) => f.id),
+          ),
+      );
+      const unavailableFields =
+        [
+          chart.groupFieldId,
+          chart.metricFieldId,
+          ...chart.filters.custom.map((f) => f.fieldId),
+        ].some((id) => !!id && !visible.fields.has(id)) ||
+        (chart.metric === 'custom_number' && !numericFields.has(chart.metricFieldId!));
+      const unit = chart.metric.endsWith('_minutes')
+        ? 'minutes'
+        : chart.metric === 'progress'
+          ? 'percent'
+          : chart.metric === 'custom_number'
+            ? 'number'
+            : 'items';
+      if (unavailableFields)
+        return {
+          dashboardVersion: dashboard.version,
+          revision: reportRevision({
+            version: dashboard.version,
+            unavailableFields: true,
+            unavailableSources,
+          }),
+          total: null,
+          matched: null,
+          buckets: [],
+          unit,
+          overlapping: false,
+          unavailableSources,
+          unavailableFields: true,
+          ...(query.rows === 'true' ? { items: [], nextCursor: null } : {}),
+        };
+      const activeProjects = new Set(
+        projects
+          .filter((p) => !p.archived && plannerProjectAccess(p, ctx.clerkUserId))
+          .map((p) => p.id),
+      );
+      let sourceProjects = new Set<string>();
+      if (source.kind === 'projects')
+        sourceProjects = new Set(source.ids.filter((id) => activeProjects.has(id)));
+      else if (source.kind === 'portfolios') {
+        for (const portfolio of rows.filter(
+          (r) =>
+            r.kind === 'portfolio' &&
+            !r.archived &&
+            source.ids.includes(r.id) &&
+            this.resourceAccess(r, projects, ctx),
+        ))
+          for (const id of (portfolio.data as unknown as { projectIds: string[] }).projectIds)
+            if (activeProjects.has(id)) sourceProjects.add(id);
+      }
+      if (dashboard.projectId) {
+        const matches =
+          source.kind === 'all'
+            ? activeProjects.has(dashboard.projectId)
+            : sourceProjects.has(dashboard.projectId);
+        sourceProjects = new Set(matches ? [dashboard.projectId] : []);
+        chart.filters.source = { kind: 'projects', ids: [dashboard.projectId] };
+      }
+      const readableProjects = projects
+        .filter((p) => plannerProjectAccess(p, ctx.clerkUserId))
+        .map((p) => p.id);
+      const projectArray = readableProjects.length
+        ? Prisma.sql`ARRAY[${Prisma.join(readableProjects.map((id) => Prisma.sql`${id}::uuid`))}]::uuid[]`
+        : Prisma.sql`ARRAY[]::uuid[]`;
+      const needsTasks =
+        chart.entity === 'tasks' ||
+        (chart.entity === 'projects' && chart.metric !== 'count') ||
+        (chart.entity === 'goals' && chart.metric === 'progress');
+      const restricted =
+        chart.filters.source.kind !== 'all' && ['tasks', 'projects'].includes(chart.entity);
+      const sourceArray = sourceProjects.size
+        ? Prisma.sql`ARRAY[${Prisma.join([...sourceProjects].map((id) => Prisma.sql`${id}::uuid`))}]::uuid[]`
+        : Prisma.sql`ARRAY[]::uuid[]`;
+      const taskRows = needsTasks
+        ? (
+            await tx.$queryRaw<PlannerReportTaskRecord[]>`
+        SELECT id,owner_id AS "ownerId",assignee_id AS "assigneeId",project_ids AS "projectIds",parent_id AS "parentId",archived,
+          created_at AS "createdAt",completed_at AS "completedAt",
+          jsonb_build_object('name',data->'name','status',data->'status','priority',data->'priority','subtype',data->'subtype',
+            'startOn',data->'startOn','dueOn',data->'dueOn','assigneeId',data->'assigneeId','memberships',data->'memberships',
+            'collaborators',data->'collaborators','tags',data->'tags','customValues',data->'customValues','estimateMinutes',data->'estimateMinutes') AS data
+        FROM sp_planner_tasks WHERE tenant_id=${ctx.tenantId}::uuid AND archived=false
+          ${restricted ? Prisma.sql`AND project_ids && ${sourceArray}` : Prisma.empty}
+          AND (project_ids && ${projectArray} OR assignee_id=${ctx.clerkUserId}
+            OR (cardinality(project_ids)=0 AND owner_id=${ctx.clerkUserId})
+            OR COALESCE(data->'collaborators','[]'::jsonb) ? ${ctx.clerkUserId})
+      `
+          ).filter((task) => plannerTaskAccess(task, projects, ctx.clerkUserId))
+        : [];
+      const minutes = new Map<string, number>();
+      if (chart.metric === 'actual_minutes')
+        for (let offset = 0; offset < taskRows.length; offset += 1000) {
+          const batch = await plannerActualMinutes(
+            tx,
+            ctx,
+            taskRows.slice(offset, offset + 1000).map((t) => t.id),
+          );
+          for (const [id, value] of batch) minutes.set(id, value);
+        }
+      const resourceViews = this.resourceViews(rows, projects, ctx, taskRows);
+      const created = new Map(rows.map((r) => [r.id, r.createdAt]));
+      const records = plannerReportRecords({
+        tasks: taskRows,
+        projects: projects
+          .filter((p) => plannerProjectAccess(p, ctx.clerkUserId))
+          .map((p) => this.projectView(p, ctx)),
+        resources: resourceViews.map((r) => ({ ...r, createdAt: created.get(r.id)! })),
+        people: await this.people(tx, ctx),
+        minutes,
+        timeZone: chart.filters.timeZone,
+      });
+      if (chart.entity === 'portfolios' && chart.filters.source.kind === 'projects')
+        for (const record of records.filter((r) => r.entity === 'portfolios')) {
+          const selected = record.projectIds.filter((id) => sourceProjects.has(id));
+          record.metrics.project_count = selected.length;
+          record.contributions = { project_count: selected.map((id) => ({ id, value: 1 })) };
+        }
+      const result = plannerBuildReport(records, chart, sourceProjects, unavailableSources);
+      const authorized = records
+        .filter((record) => plannerReportMatches(record, chart, sourceProjects))
+        .sort((a, b) => a.id.localeCompare(b.id));
+      const revision = reportRevision({ version: dashboard.version, result, records: authorized });
+      if (query.rows !== 'true')
+        return { ...result, dashboardVersion: dashboard.version, revision };
+      const matching = authorized
+        .filter(
+          (record) =>
+            plannerReportMatches(record, chart, sourceProjects) &&
+            (!query.bucket ||
+              plannerReportGroups(record, chart).some((group) => group.key === query.bucket)) &&
+            (!query.cursor || record.id > String(query.cursor)),
+        )
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .slice(0, 101);
+      return {
+        ...result,
+        dashboardVersion: dashboard.version,
+        revision,
+        items: matching.slice(0, 100).map((record) => ({
+          id: record.id,
+          entity: record.entity,
+          name: record.name,
+          status: record.status,
+          personName: record.personName,
+          dueOn: record.dates.due,
+          value: plannerReportValue(record, chart),
+        })),
+        nextCursor: matching.length > 100 ? matching[99]!.id : null,
+      };
+    });
+  }
   async saveResource(ctx: AuthTenantContext, id: string | null, raw: unknown) {
     if (id) uuid(id);
     const dto = object(raw);
@@ -2225,12 +2490,58 @@ export class PlannerService {
             : [];
         const goalTasks = kind === 'goal' ? await this.goalTasks(tx, ctx) : [];
         const newGoalId = kind === 'goal' && !old ? randomUUID() : null;
+        const reportRows =
+          kind === 'dashboard'
+            ? await tx.spPlannerResource.findMany({
+                where: { tenantId: ctx.tenantId, kind: 'portfolio' },
+              })
+            : [];
+        const reportVisibility =
+          kind === 'dashboard' ? this.reportVisibility(projects, reportRows, ctx) : undefined;
+        const patch = object(dto.data ?? {});
+        const resourceData = { ...(old ? object(old.data) : {}), ...patch };
+        if (kind === 'dashboard' && patch.widgets !== undefined)
+          resourceData.widgets = preparePlannerReportWidgets(
+            (old?.data as { widgets?: PlannerReportWidget[] } | undefined)?.widgets ?? [],
+            patch.widgets,
+            reportVisibility!,
+          );
         const data = validateResource(
           kind,
           kind === 'goal'
             ? this.prepareGoalData(old, object(dto.data ?? {}), goalRows, goalTasks, projects, ctx)
-            : { ...(old ? object(old.data) : {}), ...object(dto.data ?? {}) },
+            : resourceData,
         );
+        if (kind === 'dashboard') {
+          const numeric = new Set(
+            projects
+              .filter((p) => plannerProjectAccess(p, ctx.clerkUserId))
+              .flatMap((p) =>
+                projectData(p)
+                  .fields.filter((f) => f.type === 'number')
+                  .map((f) => f.id),
+              ),
+          );
+          const previous =
+            (old?.data as { widgets?: PlannerReportWidget[] } | undefined)?.widgets ?? [];
+          for (const widget of data.widgets as PlannerReportWidget[]) {
+            if (widget.kind !== 'chart') continue;
+            if (projectId && widget.chart.entity !== 'tasks')
+              fail('Project dashboards report on their tasks');
+            if (
+              widget.chart.metric === 'custom_number' &&
+              !numeric.has(widget.chart.metricFieldId!)
+            ) {
+              const baseline = previous.find((w) => w.id === widget.id);
+              if (!(
+                baseline?.kind === 'chart' &&
+                baseline.chart.metric === 'custom_number' &&
+                baseline.chart.metricFieldId === widget.chart.metricFieldId
+              ))
+                fail('Choose a numeric report field');
+            }
+          }
+        }
         const people = new Set((await this.people(tx, ctx)).map((p) => p.id));
         if (!people.has(ctx.clerkUserId))
           throw new ForbiddenException('Active membership is required');
@@ -2409,7 +2720,16 @@ export class PlannerService {
                 data: json(data),
               },
             });
-        if (kind !== 'goal') return this.resourceView(row, projects, ctx);
+        if (kind !== 'goal')
+          return this.resourceView(
+            row,
+            projects,
+            ctx,
+            undefined,
+            undefined,
+            undefined,
+            reportVisibility,
+          );
         const views = this.resourceViews(
           [...goalRows.filter((g) => g.id !== row.id), row],
           projects,

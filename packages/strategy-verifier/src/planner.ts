@@ -150,7 +150,15 @@ export interface PlannerTaskPage {
   nextCursor: string | null;
 }
 export type PlannerResourceKind =
-  'portfolio' | 'goal' | 'template' | 'rule' | 'form' | 'saved_view' | 'capacity' | 'my_tasks';
+  | 'portfolio'
+  | 'goal'
+  | 'template'
+  | 'rule'
+  | 'form'
+  | 'saved_view'
+  | 'capacity'
+  | 'my_tasks'
+  | 'dashboard';
 export interface PlannerMyTasksData {
   sections: PlannerSection[];
   placements: { taskId: string; sectionId: string | null; position: number }[];
@@ -188,6 +196,7 @@ export interface PlannerResource {
   publicShared?: boolean;
   goalProgress?: PlannerGoalProgress;
   parentGoalIds?: string[];
+  reportWarnings?: { widgetId: string; unavailableSources: boolean; unavailableFields: boolean }[];
 }
 export interface PlannerPublicForm {
   name: string;

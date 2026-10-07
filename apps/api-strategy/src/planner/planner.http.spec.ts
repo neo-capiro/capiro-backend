@@ -27,6 +27,7 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     saveTask: jest.fn(async () => ({ id: ID, version: 2 })),
     saveProject: jest.fn(async () => ({ id: ID })),
     resources: jest.fn(async () => []),
+    reportWidget: jest.fn(async () => ({ buckets: [], total: 0, matched: 0, dashboardVersion: 1 })),
     saveResource: jest.fn(async () => ({ id: ID })),
     instantiateTemplate: jest.fn(async () => ({ id: ID })),
     submitForm: jest.fn(async () => ({ id: ID })),
@@ -103,6 +104,7 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     ['post', 'notifications/read-all'],
     ['patch', `inbox/${ID}`],
     ['get', 'resources'],
+    ['get', `reports/${ID}/widgets/${ID}`],
     ['post', 'resources'],
     ['patch', `resources/${ID}`],
     ['post', `templates/${ID}/instantiate`],
@@ -123,6 +125,19 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .send(body)
       .expect(200);
     expect(planner.reviseEvent).toHaveBeenCalledWith(ctx, ID, body);
+  });
+  it('forwards reporting drill-down cursors, category and expected version through the signed-in tenant guard', async () => {
+    await request(app.getHttpServer())
+      .get(`/strategy-api/planner/reports/${ID}/widgets/${ID}`)
+      .query({ rows: 'true', cursor: ID, bucket: 'done', version: '2' })
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.reportWidget).toHaveBeenCalledWith(ctx, ID, ID, {
+      rows: 'true',
+      cursor: ID,
+      bucket: 'done',
+      version: '2',
+    });
   });
   it('routes goal activity, structured updates and self-following through the signed-in organization', async () => {
     const agent = request(app.getHttpServer());

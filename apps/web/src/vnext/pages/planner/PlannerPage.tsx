@@ -9,6 +9,7 @@ import {
   Columns3,
   CalendarDays,
   ChartGantt,
+  BarChart3,
   Inbox,
   CheckCircle2,
   FolderKanban,
@@ -18,7 +19,7 @@ import {
   Download,
   RefreshCw,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   PlannerProject,
   PlannerProjectData,
@@ -66,6 +67,7 @@ import { PlannerAttachments } from './planner-attachments.js';
 import { PlannerRichText, PlannerFormattedText } from './planner-rich-text.js';
 import { PlannerMyTasksSettings } from './planner-my-tasks.js';
 import { PlannerTaskSchedule } from './planner-task-schedule.js';
+import { PlannerReporting } from './planner-reporting.js';
 import type { PlannerSavedViewData } from '@capiro/strategy-verifier';
 import './planner.css';
 
@@ -110,6 +112,8 @@ function Empty({ title, children }: { title: string; children: React.ReactNode }
 }
 
 export function PlannerPage() {
+  const queryClient = useQueryClient();
+  const plannerCacheKey = usePlannerKey();
   const [params, setParams] = useSearchParams();
   const bootstrap = usePlannerBootstrap();
   const mutations = usePlannerMutations();
@@ -126,12 +130,18 @@ export function PlannerPage() {
       ...(projectId ? { projectId } : scope === 'mine' ? { mine: 'true' } : {}),
       ...(archived ? { archived: 'true' } : {}),
     },
-    Boolean(bootstrap.data) && scope !== 'inbox',
+    Boolean(bootstrap.data) && scope !== 'inbox' && scope !== 'reporting',
   );
   useEffect(() => {
-    if (query.hasNextPage && !query.isFetchingNextPage && !query.isError)
+    if (
+      scope !== 'inbox' &&
+      scope !== 'reporting' &&
+      query.hasNextPage &&
+      !query.isFetchingNextPage &&
+      !query.isError
+    )
       void query.fetchNextPage();
-  }, [query.hasNextPage, query.isFetchingNextPage, query.isError, query.fetchNextPage]);
+  }, [scope, query.hasNextPage, query.isFetchingNextPage, query.isError, query.fetchNextPage]);
   const tasks = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('open');
@@ -530,12 +540,24 @@ export function PlannerPage() {
               <button
                 aria-label="Refresh Planner"
                 onClick={() => {
-                  void bootstrap.refetch();
-                  void query.refetch();
+                  void queryClient.invalidateQueries({ queryKey: plannerCacheKey });
                 }}
               >
                 <RefreshCw size={17} />
               </button>
+              {project && (
+                <button
+                  onClick={() =>
+                    updateParams({
+                      scope: scope === 'reporting' ? 'project' : 'reporting',
+                      report: null,
+                    })
+                  }
+                >
+                  <BarChart3 size={16} />{' '}
+                  {scope === 'reporting' ? 'Project tasks' : 'Project dashboard'}
+                </button>
+              )}
               {project && (
                 <button onClick={() => setProjectEditor(project)}>
                   <Settings2 size={16} /> Project settings
@@ -601,7 +623,12 @@ export function PlannerPage() {
           ) : scope === 'workload' ? (
             <PlannerWorkload tasks={tasks} data={data} />
           ) : scope === 'reporting' ? (
-            <PlannerReporting tasks={tasks} />
+            <PlannerReporting
+              bootstrap={data}
+              selectedId={params.get('report')}
+              onSelect={(id) => updateParams({ report: id })}
+              projectId={project?.id}
+            />
           ) : managementKind ? (
             <PlannerManagement
               kind={managementKind}
@@ -611,6 +638,8 @@ export function PlannerPage() {
               onTask={openTask}
               selectedGoalId={params.get('goal')}
               onGoal={(id) => updateParams({ goal: id })}
+              selectedPortfolioId={params.get('portfolio')}
+              onPortfolio={(id) => updateParams({ portfolio: id })}
             />
           ) : (
             <>
@@ -2291,47 +2320,6 @@ function PlannerWorkload({ tasks, data }: { tasks: PlannerTask[]; data: PlannerB
         {open.filter((t) => !t.assigneeId).length} tasks are unassigned.{' '}
         {open.filter((t) => !t.dueOn).length} tasks have no dates and are excluded from this window.
       </p>
-    </div>
-  );
-}
-function PlannerReporting({ tasks }: { tasks: PlannerTask[] }) {
-  return (
-    <div className="planner-reporting">
-      <p className="planner-muted">Reporting on the tasks visible to you.</p>
-      <div className="planner-metrics">
-        {[
-          { label: 'Tasks', value: tasks.length },
-          { label: 'Completed', value: tasks.filter((t) => t.status === 'done').length },
-          {
-            label: 'Overdue',
-            value: tasks.filter((t) => plannerTaskOverdue(t)).length,
-          },
-          {
-            label: 'Time logged',
-            value: `${(tasks.reduce((n, t) => n + t.actualMinutes, 0) / 60).toFixed(1)} h`,
-          },
-        ].map((metric) => (
-          <article key={metric.label}>
-            <span>{metric.label}</span>
-            <strong>{metric.value}</strong>
-          </article>
-        ))}
-      </div>
-      <h3>Tasks by status</h3>
-      {Object.entries(PLANNER_STATUS_LABELS).map(([status, label]) => (
-        <div className="planner-report-bar" key={status}>
-          <span>{label}</span>
-          <div>
-            <i
-              className={`planner-status-${status}`}
-              style={{
-                width: `${(tasks.filter((t) => t.status === status).length / Math.max(1, tasks.length)) * 100}%`,
-              }}
-            />
-          </div>
-          <strong>{tasks.filter((t) => t.status === status).length}</strong>
-        </div>
-      ))}
     </div>
   );
 }

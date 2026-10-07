@@ -21,6 +21,7 @@ import {
   validatePlannerFieldValue,
 } from './planner.validation.js';
 import { validatePlannerForm } from './planner-form.js';
+import { validatePlannerReportWidgets } from './planner-reporting.validation.js';
 import { plannerGoalSourceIds, PLANNER_WEIGHTED_GOAL_MODES } from './planner-goals.js';
 
 export const RESOURCE_KINDS: PlannerResourceKind[] = [
@@ -32,6 +33,7 @@ export const RESOURCE_KINDS: PlannerResourceKind[] = [
   'saved_view',
   'capacity',
   'my_tasks',
+  'dashboard',
 ];
 function string(value: unknown, max = 5000, required = false) {
   if (typeof value !== 'string' || value.length > max || (required && !value.trim()))
@@ -71,7 +73,11 @@ export function validateResource(
   value: unknown,
 ): Record<string, unknown> {
   const d = object(value);
-  if (kind === 'portfolio' || kind === 'goal') {
+  if (kind === 'dashboard') {
+    keys(d, ['description', 'privacy', 'members', 'widgets']);
+    sharing(d);
+    validatePlannerReportWidgets(d.widgets);
+  } else if (kind === 'portfolio' || kind === 'goal') {
     keys(d, [
       'description',
       'privacy',

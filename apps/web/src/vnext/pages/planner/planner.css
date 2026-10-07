@@ -38,6 +38,317 @@
   font-family: inherit;
   min-width: 0;
 }
+.planner-reporting {
+  min-width: 0;
+}
+.planner-report-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.planner-report-actions-spacer {
+  flex: 1;
+}
+.planner-report-actions input {
+  min-width: 150px;
+  max-width: 220px;
+  padding: 8px 12px;
+  border: 1px solid #dce0e7;
+  border-radius: 7px;
+  font: inherit;
+}
+.planner-report-heading {
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin: 22px 0;
+}
+.planner-report-heading h3 {
+  font-size: 23px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  letter-spacing: -0.4px;
+}
+.planner-report-heading p {
+  color: #717987;
+  font-size: 13px;
+  max-width: 600px;
+  overflow-wrap: anywhere;
+}
+.planner-report-heading small {
+  color: #717987;
+  font-size: 11px;
+}
+.planner-report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.planner-report-widget {
+  border: 1px solid #e6e8ed;
+  border-radius: 12px;
+  padding: 22px;
+  min-width: 0;
+  overflow: hidden;
+  background: #fff;
+}
+.planner-report-widget-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.planner-report-widget h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 18px;
+  overflow-wrap: anywhere;
+}
+.planner-report-widget-head small {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #717987;
+}
+.planner-report-total {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.planner-report-total strong {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+}
+.planner-report-total span {
+  font-size: 12px;
+  color: #717987;
+}
+.planner-report-notice {
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: #faf4e9;
+  color: #8b6233;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.planner-report-buckets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+.planner-root .planner-report-buckets button {
+  display: flex;
+  gap: 10px;
+  border: 0;
+  padding: 5px 0;
+  background: transparent;
+  font-size: 12px;
+  min-height: 26px;
+}
+.planner-report-bucket-label {
+  flex: 1 1 100px;
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.planner-report-bucket-label i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 7px;
+}
+.planner-report-bucket-track {
+  flex: 1 1 100px;
+  height: 9px;
+  border-radius: 5px;
+  position: relative;
+  background: #f2f3f7;
+  overflow: hidden;
+}
+.planner-report-bucket-track i {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 5px;
+}
+.planner-report-buckets strong {
+  flex: 0 0 65px;
+  text-align: right;
+  font-size: 12px;
+}
+.planner-root .planner-report-results-button {
+  border: 0;
+  padding: 3px 0;
+  color: #7565dd;
+  background: transparent;
+  font-size: 12px;
+}
+.planner-report-donut {
+  width: 100%;
+  height: 160px;
+  display: block;
+}
+.planner-report-line {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin: 12px 0;
+}
+.planner-root .planner-report-card {
+  display: block;
+  text-align: left;
+  min-height: 190px;
+  border-radius: 11px;
+  padding: 24px;
+}
+.planner-report-card .planner-project-symbol {
+  background: #efecfc;
+  color: #7565dd;
+}
+.planner-report-card h3 {
+  font-size: 16px;
+  margin: 18px 0 10px;
+  overflow-wrap: anywhere;
+}
+.planner-report-card p {
+  font-size: 12px;
+  color: #717987;
+  overflow-wrap: anywhere;
+}
+.planner-report-card small {
+  font-size: 11px;
+  color: #717987;
+}
+.planner-report-modal {
+  width: 1000px;
+}
+.planner-report-editor-body {
+  padding: 20px 24px;
+  overflow: auto;
+}
+.planner-report-settings {
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e6e8ed;
+}
+.planner-report-editor-layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 24px;
+  padding-top: 22px;
+}
+.planner-widget-list {
+  min-width: 0;
+  padding-right: 18px;
+  border-right: 1px solid #e6e8ed;
+}
+.planner-widget-list-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #edf0f3;
+}
+.planner-modal .planner-widget-list-item > button {
+  display: block;
+  text-align: left;
+  width: 100%;
+  border: 0;
+  padding: 10px;
+  overflow-wrap: anywhere;
+}
+.planner-modal .planner-widget-list-item > button[aria-pressed='true'] {
+  color: #7565dd;
+  background: #efecfc;
+}
+.planner-widget-list-item > div {
+  display: flex;
+  gap: 4px;
+  padding-top: 4px;
+}
+.planner-modal .planner-widget-list-item > div button {
+  border: 0;
+  padding: 5px 8px;
+  font-size: 11px;
+}
+.planner-widget-editor {
+  min-width: 0;
+}
+.planner-report-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+.planner-report-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 18px;
+  font-size: 13px;
+}
+.planner-custom-report-filter {
+  padding: 12px;
+  margin: 10px 0;
+  background: #f8f9fb;
+  border-radius: 8px;
+}
+.planner-report-drilldown {
+  overflow: auto;
+  padding: 20px 24px;
+}
+.planner-report-table-wrap {
+  overflow: auto;
+}
+.planner-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 14px 0;
+}
+.planner-report-table th {
+  text-align: left;
+  font-weight: 600;
+  color: #717987;
+}
+.planner-report-table td,
+.planner-report-table th {
+  padding: 12px 10px;
+  border-bottom: 1px solid #edf0f3;
+}
+.planner-report-table td:first-child {
+  min-width: 220px;
+  max-width: 400px;
+  overflow-wrap: anywhere;
+}
+.planner-report-table td:last-child {
+  white-space: nowrap;
+}
+.planner-report-table a {
+  color: #7565dd;
+}
+@media (max-width: 1050px) {
+  .planner-report-grid {
+    grid-template-columns: 1fr;
+  }
+  .planner-report-heading {
+    flex-direction: column;
+  }
+}
+@media (max-width: 650px) {
+  .planner-report-editor-layout {
+    grid-template-columns: 1fr;
+  }
+  .planner-widget-list {
+    border-right: 0;
+    padding-right: 0;
+  }
+  .planner-report-field-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .planner-root button,
 .planner-modal button,
 .planner-drawer button {
