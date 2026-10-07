@@ -694,7 +694,8 @@ export function VNextMeriComposer({
   );
 
   // Same send gate and draft restore as submit(); the draft becomes a
-  // deliverable job (plan, research, then a Word document to file).
+  // deliverable job (plan, research, then the Word, Excel or PowerPoint file
+  // the request names, to file).
   const delegate = useCallback(async () => {
     const content = draft.trim();
     if (!canSend) return;
@@ -781,7 +782,7 @@ export function VNextMeriComposer({
                   <span className="vnext-meri__add-popover-item-body">
                     <span className="vnext-meri__add-popover-item-label">Delegate this</span>
                     <span className="vnext-meri__add-popover-item-desc">
-                      WORK ON IT IN THE BACKGROUND AND DELIVER A WORD DOCUMENT
+                      WORK ON IT IN THE BACKGROUND AND DELIVER A WORD, EXCEL OR POWERPOINT FILE
                     </span>
                   </span>
                 </button>
