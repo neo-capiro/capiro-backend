@@ -38,6 +38,7 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     reorderTasks: jest.fn(async () => ({ ok: true })),
     events: jest.fn(async () => []),
     addEvent: jest.fn(async () => ({ id: ID })),
+    reviseEvent: jest.fn(async () => ({ id: ID, version: 1 })),
     inbox: jest.fn(async () => []),
     updateInbox: jest.fn(async () => ({ ok: true })),
   };
@@ -88,6 +89,7 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     ['post', `tasks/${ID}/events`],
     ['get', `projects/${ID}/events`],
     ['post', `projects/${ID}/events`],
+    ['patch', `events/${ID}`],
     ['get', 'inbox'],
     ['patch', `inbox/${ID}`],
     ['get', 'resources'],
@@ -102,6 +104,15 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
   ])('guards %s /strategy-api/planner/%s', async (method, path) => {
     const agent = request(app.getHttpServer());
     await agent[method as 'get'](`/strategy-api/planner/${path}`).expect(403);
+  });
+  it('forwards activity corrections through the signed-in tenant context', async () => {
+    const body = { version: 0, text: 'Corrected comment' };
+    await request(app.getHttpServer())
+      .patch(`/strategy-api/planner/events/${ID}`)
+      .set('x-planner-qa', 'allowed')
+      .send(body)
+      .expect(200);
+    expect(planner.reviseEvent).toHaveBeenCalledWith(ctx, ID, body);
   });
   it('forwards tenant identity, version patches and the requesting bearer only to link validation', async () => {
     const body = { version: 1, data: { clientId: ID, name: 'HTTP task' } };

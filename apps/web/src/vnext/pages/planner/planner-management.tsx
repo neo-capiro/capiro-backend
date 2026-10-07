@@ -13,6 +13,10 @@ import {
   type PlannerFormData,
   type PlannerTaskData,
   type PlannerProjectData,
+  type PlannerRole,
+  type PlannerTemplateData,
+  plannerTemplateSchedule,
+  plannerCalendarDate,
 } from '@capiro/strategy-verifier';
 import {
   usePlannerResources,
@@ -21,6 +25,8 @@ import {
   plannerError,
 } from './planner-api.js';
 import { PlannerRichText, PlannerFormattedText } from './planner-rich-text.js';
+import { PlannerActivity } from './planner-activity.js';
+import { PlannerTemplateScheduleEditor } from './planner-template-schedule.js';
 
 const editable = (role: string) => ['admin', 'editor'].includes(role);
 const sharing = { description: '', privacy: 'private', members: [] };
@@ -136,6 +142,7 @@ export function PlannerManagement({
   const [archived, setArchived] = useState(false);
   const [using, setUsing] = useState<PlannerResource | null>(null);
   const [name, setName] = useState('');
+  const [anchorOn, setAnchorOn] = useState('');
   const [shareLink, setShareLink] = useState<string | null>(null);
   const rows = query.data?.filter((r) => r.kind === kind && r.archived === archived) ?? [];
   return (
@@ -282,6 +289,7 @@ export function PlannerManagement({
                       onClick={() => {
                         actions.instantiate.reset();
                         setName(`${row.name} project`);
+                        setAnchorOn('');
                         setUsing(row);
                       }}
                     >
@@ -364,7 +372,11 @@ export function PlannerManagement({
             onSubmit={async (e) => {
               e.preventDefault();
               try {
-                const project = await actions.instantiate.mutateAsync({ id: using.id, name });
+                const project = await actions.instantiate.mutateAsync({
+                  id: using.id,
+                  name,
+                  ...(using.data.schedule ? { anchorOn } : {}),
+                });
                 setUsing(null);
                 onProject(project.id);
               } catch {}
@@ -375,6 +387,39 @@ export function PlannerManagement({
                 <input required value={name} onChange={(e) => setName(e.target.value)} />
               </Field>
               <Alert error={actions.instantiate.error} />
+              {using.data.schedule != null && (
+                <>
+                  <Field
+                    name={
+                      (using.data as unknown as PlannerTemplateData).schedule?.anchor === 'due'
+                        ? 'Project due date'
+                        : 'Project start date'
+                    }
+                  >
+                    <input
+                      type="date"
+                      required
+                      value={anchorOn}
+                      onInput={(e) => setAnchorOn(e.currentTarget.value)}
+                    />
+                  </Field>
+                  {plannerCalendarDate(anchorOn) && (
+                    <div
+                      className="planner-template-offsets"
+                      aria-label="Template schedule preview"
+                    >
+                      {plannerTemplateSchedule(
+                        using.data as unknown as PlannerTemplateData,
+                        anchorOn,
+                      ).tasks.map((task, index) => (
+                        <p key={index}>
+                          {task.name}: {task.startOn ?? 'No start'} → {task.dueOn ?? 'No due date'}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
             <footer className="planner-dialog-footer">
               <button className="planner-primary" disabled={actions.instantiate.isPending}>
@@ -645,6 +690,7 @@ function ResourceEditor({
                       );
                     edit({
                       project: { ...project, clientId: null, members: [] },
+                      schedule: undefined,
                       layout: copied.map((t) => ({
                         sectionId:
                           t.memberships.find((m) => m.projectId === p.id)?.sectionId ?? null,
@@ -687,6 +733,10 @@ function ResourceEditor({
                     ))}
                 </select>
               </Field>
+              <PlannerTemplateScheduleEditor
+                config={data as unknown as PlannerTemplateData}
+                onChange={(schedule) => edit({ schedule })}
+              />
               <p>
                 {(data.tasks as unknown[]).length} tasks ·{' '}
                 {(data.project as PlannerProjectData).sections.length} sections ·{' '}
@@ -1094,10 +1144,12 @@ export function PlannerProjectActivity({
   projectId,
   bootstrap,
   canEdit,
+  access,
 }: {
   projectId: string;
   bootstrap: PlannerBootstrap;
   canEdit: boolean;
+  access: PlannerRole;
 }) {
   const query = usePlannerEvents(undefined, projectId);
   const actions = usePlannerMutations();
@@ -1131,13 +1183,14 @@ export function PlannerProjectActivity({
       {query.data?.pages
         .flatMap((page) => page.items)
         .map((e) => (
-          <article key={e.id}>
-            <strong>
-              {bootstrap.people.find((p) => p.id === e.actorId)?.name ?? 'Team member'}
-            </strong>
-            <time>{new Date(e.createdAt).toLocaleString()}</time>
-            <PlannerFormattedText text={e.text} />
-          </article>
+          <PlannerActivity
+            key={e.id}
+            event={e}
+            author={bootstrap.people.find((p) => p.id === e.actorId)?.name ?? 'Team member'}
+            me={bootstrap.me.id}
+            access={access}
+            mutation={actions.reviseEvent}
+          />
         ))}
       {query.hasNextPage && (
         <button disabled={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>

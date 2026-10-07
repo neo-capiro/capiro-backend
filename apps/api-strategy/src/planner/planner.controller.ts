@@ -113,6 +113,13 @@ export class PlannerController {
   ) {
     return this.planner.addEvent(ctx, { projectId: id }, dto);
   }
+  @Patch('events/:id') reviseEvent(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.reviseEvent(ctx, id, dto);
+  }
   @Get('inbox') inbox(
     @CurrentTenant() ctx: AuthTenantContext,
     @Query() query: { paged?: string; cursor?: string; archived?: string },

@@ -94,6 +94,9 @@ export interface PlannerEvent {
   text: string;
   minutes: number | null;
   createdAt: string;
+  version?: number;
+  editedAt?: string | null;
+  removed?: boolean;
 }
 export interface PlannerInboxItem {
   id: string;
@@ -175,6 +178,11 @@ export interface PlannerTemplateData extends PlannerResourceSharing {
   project: PlannerProjectData;
   tasks: PlannerTaskData[];
   layout?: { sectionId: string | null; parentIndex: number | null; dependencyIndices: number[] }[];
+  schedule?: {
+    anchor: 'start' | 'due';
+    skipWeekends: boolean;
+    dates: { startOffset: number | null; dueOffset: number | null }[];
+  };
 }
 export interface PlannerRuleData {
   enabled: boolean;

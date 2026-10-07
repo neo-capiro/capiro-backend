@@ -11,6 +11,8 @@ import {
   PLANNER_DEFAULT_TASK,
   nextPlannerSchedule,
   plannerDueTimestamp,
+  plannerCalendarDate,
+  plannerTemplateSchedule,
   plannerDependencyCycle,
   type PlannerBootstrap,
   type PlannerProject,
@@ -50,6 +52,7 @@ import {
   validatePlannerFieldValue,
 } from './planner.validation.js';
 import { RESOURCE_KINDS, validateResource, applyPlannerRule } from './planner-resources.js';
+import { plannerActualMinutes, plannerEventView, plannerReadActivity } from './planner-activity.js';
 
 type Tx = Prisma.TransactionClient;
 type ActivityQuery = { paged?: string; cursor?: string; archived?: string };
@@ -196,12 +199,7 @@ export class PlannerService {
     );
     const actualMinutes = batch
       ? (batch.minutes.get(row.id) ?? 0)
-      : ((
-          await tx.spPlannerEvent.aggregate({
-            where: { tenantId: ctx.tenantId, taskId: row.id, kind: 'time' },
-            _sum: { minutes: true },
-          })
-        )._sum.minutes ?? 0);
+      : ((await plannerActualMinutes(tx, ctx, [row.id])).get(row.id) ?? 0);
     // Dependency references are subject to their own task grants.
     const references =
       batch?.references ??
@@ -391,11 +389,11 @@ export class PlannerService {
       };
       const rows = await tx.spPlannerTask.findMany({ where, orderBy: { id: 'asc' }, take: 101 });
       const selected = rows.slice(0, 100);
-      const sums = await tx.spPlannerEvent.groupBy({
-        by: ['taskId'],
-        where: { tenantId: ctx.tenantId, taskId: { in: selected.map((t) => t.id) }, kind: 'time' },
-        _sum: { minutes: true },
-      });
+      const minutes = await plannerActualMinutes(
+        tx,
+        ctx,
+        selected.map((t) => t.id),
+      );
       const referenceIds = [
         ...new Set(
           selected.flatMap((row) => [
@@ -410,7 +408,7 @@ export class PlannerService {
           })
         : [];
       const batch = {
-        minutes: new Map(sums.map((s) => [s.taskId!, s._sum.minutes ?? 0])),
+        minutes,
         references,
       };
       return {
@@ -634,6 +632,9 @@ export class PlannerService {
           !(old!.data as Record<string, unknown>).recurrenceSuccessorId;
         const nextSchedule = createNextRecurrence ? nextPlannerSchedule(data, completedAt!) : null;
         const successorId = nextSchedule ? randomUUID() : undefined;
+        const recurrenceCopies = successorId
+          ? this.recurrenceCopies(all, newId, successorId, projects, ctx)
+          : new Map<string, string>();
         const stored = {
           data: storedTaskData(data, old ?? undefined, successorId),
           projectIds: data.memberships.map((m) => m.projectId),
@@ -675,7 +676,7 @@ export class PlannerService {
             ...nextSchedule,
             status: 'todo' as const,
             approval: 'pending' as const,
-            dependencies: [],
+            dependencies: data.dependencies.map((id) => recurrenceCopies.get(id) ?? id),
           });
           const recurring = await tx.spPlannerTask.create({
             data: {
@@ -694,6 +695,7 @@ export class PlannerService {
             { taskId: recurring.id, kind: 'created', text: 'Created next recurring task' },
             data.assigneeId ? [data.assigneeId] : [],
           );
+          await this.copyRecurringContents(tx, ctx, all, recurrenceCopies);
         }
         return this.taskView(tx, row, projects, ctx);
       },
@@ -701,16 +703,86 @@ export class PlannerService {
     );
   }
   private eventView(row: SpPlannerEvent): PlannerEvent {
-    return {
-      id: row.id,
-      taskId: row.taskId,
-      projectId: row.projectId,
-      actorId: row.actorId,
-      kind: row.kind as PlannerEvent['kind'],
-      text: row.text,
-      minutes: row.minutes,
-      createdAt: row.createdAt.toISOString(),
-    };
+    return plannerEventView(row);
+  }
+  private recurrenceCopies(
+    all: SpPlannerTask[],
+    sourceId: string,
+    nextId: string,
+    projects: SpPlannerProject[],
+    ctx: AuthTenantContext,
+  ) {
+    const ids = new Map([[sourceId, nextId]]);
+    const children = new Map<string, SpPlannerTask[]>();
+    for (const task of all) {
+      if (task.archived || !task.parentId) continue;
+      const siblings = children.get(task.parentId) ?? [];
+      siblings.push(task);
+      children.set(task.parentId, siblings);
+    }
+    for (const parentId of ids.keys()) {
+      for (const child of children.get(parentId) ?? []) {
+        requireRole(plannerTaskAccess(child, projects, ctx.clerkUserId), 'viewer');
+        if (ids.has(child.id)) fail('Subtasks cannot form a cycle');
+        if (ids.size >= 1000) fail('A recurring task can copy up to 1,000 tasks at once');
+        ids.set(child.id, randomUUID());
+      }
+    }
+    return ids;
+  }
+  private async copyRecurringContents(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    all: SpPlannerTask[],
+    ids: Map<string, string>,
+  ) {
+    const activePeople = new Set((await this.people(tx, ctx)).map((p) => p.id));
+    const sources = all.filter((task) => ids.has(task.id));
+    const rootId = ids.keys().next().value!;
+    const children = sources
+      .filter((task) => task.id !== rootId)
+      .map((task) => {
+        const original = taskData(task);
+        const data = validateTask({
+          ...original,
+          status: 'todo',
+          approval: 'pending',
+          parentId: ids.get(task.parentId!),
+          dependencies: original.dependencies.map((id) => ids.get(id) ?? id),
+          assigneeId:
+            original.assigneeId && activePeople.has(original.assigneeId)
+              ? original.assigneeId
+              : null,
+          collaborators: original.collaborators.filter((id) => activePeople.has(id)),
+        });
+        return {
+          id: ids.get(task.id)!,
+          tenantId: ctx.tenantId,
+          ownerId: task.ownerId,
+          parentId: data.parentId,
+          projectIds: task.projectIds,
+          assigneeId: data.assigneeId,
+          data: storedTaskData(data),
+        };
+      });
+    if (children.length) await tx.spPlannerTask.createMany({ data: children });
+    const attachments = await tx.spPlannerAttachment.findMany({
+      where: { tenantId: ctx.tenantId, taskId: { in: [...ids.keys()] }, archived: false },
+    });
+    if (attachments.length)
+      await tx.spPlannerAttachment.createMany({
+        data: attachments.map((file) => ({
+          id: randomUUID(),
+          tenantId: ctx.tenantId,
+          taskId: ids.get(file.taskId)!,
+          uploadedBy: file.uploadedBy,
+          fileName: file.fileName,
+          sizeBytes: file.sizeBytes,
+          // Immutable payloads are shared within the same tenant. Each occurrence
+          // has independent metadata, permission checks and recoverable archive state.
+          objectKey: file.objectKey,
+        })),
+      });
   }
   private async runRules(
     tx: Tx,
@@ -822,7 +894,7 @@ export class PlannerService {
         ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
         take: paged ? 101 : 100,
       });
-      const items = rows.slice(0, 100).map((row) => this.eventView(row));
+      const items = await plannerReadActivity(tx, ctx, rows.slice(0, 100));
       return paged ? { items, nextCursor: rows.length > 100 ? rows[99]!.id : null } : items;
     });
   }
@@ -960,12 +1032,105 @@ export class PlannerService {
           archived: row.archived,
         });
       }
+      const allowedInbox = new Set(result.map((item) => item.id));
+      const projected = await plannerReadActivity(
+        tx,
+        ctx,
+        scanned.filter((row) => allowedInbox.has(row.id)).map((row) => row.event),
+      );
+      const revised = new Map(projected.map((event) => [event.id, event]));
+      const items = result.map((item) => ({ ...item, event: revised.get(item.event.id)! }));
       // Advance by scanned rows even when every visible grant on this page was
       // revoked. A later authorized update must still be reachable.
-      return paged
-        ? { items: result, nextCursor: rows.length > 100 ? rows[99]!.id : null }
-        : result;
+      return paged ? { items, nextCursor: rows.length > 100 ? rows[99]!.id : null } : items;
     });
+  }
+  async reviseEvent(ctx: AuthTenantContext, id: string, raw: unknown) {
+    uuid(id);
+    const dto = object(raw);
+    keys(dto, ['version', 'text', 'minutes', 'removed']);
+    if (
+      !Number.isInteger(dto.version) ||
+      Number(dto.version) < 0 ||
+      Number(dto.version) > 1_000_000
+    )
+      fail('An expected activity version is required');
+    if (dto.removed !== undefined && typeof dto.removed !== 'boolean')
+      fail('Invalid activity removal');
+    if (
+      dto.text !== undefined &&
+      (typeof dto.text !== 'string' || !dto.text.trim() || dto.text.length > 20_000)
+    )
+      fail('Activity text is required');
+    if (
+      dto.minutes !== undefined &&
+      (!Number.isInteger(dto.minutes) || Number(dto.minutes) < 1 || Number(dto.minutes) > 1440)
+    )
+      fail('Time entries require 1–1440 minutes');
+    if (dto.removed === true && (dto.text !== undefined || dto.minutes !== undefined))
+      fail('Remove activity separately from editing it');
+    return this.scope(
+      ctx,
+      async (tx) => {
+        const original = await tx.spPlannerEvent.findFirst({
+          where: { tenantId: ctx.tenantId, id, actorId: ctx.clerkUserId },
+        });
+        if (!original) throw missing();
+        if (!['comment', 'time'].includes(original.kind))
+          fail('Only comments and time entries can be corrected');
+        const projects = await this.projects(tx, ctx);
+        if (original.taskId) {
+          const task = await tx.spPlannerTask.findFirst({
+            where: { tenantId: ctx.tenantId, id: original.taskId },
+          });
+          if (!task) throw missing();
+          requireRole(
+            plannerTaskAccess(task, projects, ctx.clerkUserId),
+            original.kind === 'time' ? 'editor' : 'commenter',
+          );
+        } else if (original.projectId) {
+          const project = projects.find((p) => p.id === original.projectId);
+          requireRole(project ? plannerProjectAccess(project, ctx.clerkUserId) : null, 'commenter');
+        } else throw missing();
+        const previous = await tx.spPlannerEventRevision.findFirst({
+          where: { tenantId: ctx.tenantId, eventId: original.id },
+          orderBy: { version: 'desc' },
+        });
+        if ((previous?.version ?? 0) !== dto.version)
+          throw new ConflictException('This activity changed. Refresh before saving again.');
+        if (original.kind !== 'time' && dto.minutes !== undefined)
+          fail('Only time entries contain minutes');
+        if (
+          previous?.removed &&
+          dto.removed !== false &&
+          (dto.text !== undefined || dto.minutes !== undefined)
+        )
+          fail('Restore removed activity before editing it');
+        const text = (dto.text as string | undefined) ?? previous?.text ?? original.text;
+        const minutes =
+          (dto.minutes as number | undefined) ?? previous?.minutes ?? original.minutes;
+        const removed = (dto.removed as boolean | undefined) ?? previous?.removed ?? false;
+        if (
+          text === (previous?.text ?? original.text) &&
+          minutes === (previous?.minutes ?? original.minutes) &&
+          removed === (previous?.removed ?? false)
+        )
+          fail('Choose an activity change');
+        const revision = await tx.spPlannerEventRevision.create({
+          data: {
+            tenantId: ctx.tenantId,
+            eventId: original.id,
+            actorId: ctx.clerkUserId,
+            version: Number(dto.version) + 1,
+            text,
+            minutes,
+            removed,
+          },
+        });
+        return plannerEventView(original, revision);
+      },
+      true,
+    );
   }
   async updateInbox(ctx: AuthTenantContext, id: string, raw: unknown) {
     uuid(id);
@@ -1239,9 +1404,11 @@ export class PlannerService {
   async instantiateTemplate(ctx: AuthTenantContext, id: string, raw: unknown) {
     uuid(id);
     const dto = object(raw);
-    keys(dto, ['name']);
+    keys(dto, ['name', 'anchorOn']);
     if (typeof dto.name !== 'string' || !dto.name.trim() || dto.name.length > 500)
       fail('Project name is required');
+    if (dto.anchorOn !== undefined && !plannerCalendarDate(dto.anchorOn))
+      fail('Invalid project reference date');
     return this.scope(
       ctx,
       async (tx) => {
@@ -1251,10 +1418,13 @@ export class PlannerService {
         });
         if (!template) throw missing();
         requireRole(this.resourceAccess(template, projects, ctx), 'viewer');
-        const config = validateResource(
-          'template',
-          template.data,
-        ) as unknown as PlannerTemplateData;
+        let config = validateResource('template', template.data) as unknown as PlannerTemplateData;
+        if (config.schedule) {
+          if (!plannerCalendarDate(dto.anchorOn))
+            fail('Choose a project reference date for this template');
+          config = plannerTemplateSchedule(config, dto.anchorOn);
+          validateResource('template', config);
+        } else if (dto.anchorOn !== undefined) fail('This template uses fixed dates');
         return this.copyProject(
           tx,
           ctx,
@@ -1405,6 +1575,7 @@ export class PlannerService {
         data: json({
           ...config.project,
           name,
+          privacy: 'private',
           members: [],
           clientId: null,
           sections: config.project.sections.map((s) => ({ ...s, id: sectionIds.get(s.id) })),

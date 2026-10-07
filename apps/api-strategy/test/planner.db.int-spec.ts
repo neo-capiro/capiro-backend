@@ -33,6 +33,157 @@ describeDb('Planner real PostgreSQL integration', () => {
   afterAll(async () => {
     await prisma?.$disconnect();
   });
+  it('corrects, removes and restores time without changing the original audit record or losing totals', async () => {
+    const t = await service.saveTask(owner, null, { data: { name: 'Correctable time' } });
+    const e = await service.addEvent(
+      owner,
+      { taskId: t.id },
+      { kind: 'time', text: 'Original note', minutes: 15 },
+    );
+    const corrected = await service.reviseEvent(owner, e.id, {
+      version: 0,
+      text: 'Corrected note',
+      minutes: 30,
+    });
+    expect(corrected).toMatchObject({
+      version: 1,
+      text: 'Corrected note',
+      minutes: 30,
+      removed: false,
+    });
+    expect((await service.task(owner, t.id)).actualMinutes).toBe(30);
+    expect(
+      (await service.tasks(owner, { search: 'Correctable time' })).items.find((x) => x.id === t.id)
+        ?.actualMinutes,
+    ).toBe(30);
+    const removed = await service.reviseEvent(owner, e.id, { version: 1, removed: true });
+    expect(removed).toMatchObject({ version: 2, text: '', minutes: null, removed: true });
+    expect((await service.task(owner, t.id)).actualMinutes).toBe(0);
+    expect(
+      (await service.events(owner, { taskId: t.id })).find((x) => x.id === e.id),
+    ).toMatchObject({ text: '', removed: true });
+    const restored = await service.reviseEvent(owner, e.id, { version: 2, removed: false });
+    expect(restored).toMatchObject({
+      version: 3,
+      text: 'Corrected note',
+      minutes: 30,
+      removed: false,
+    });
+    expect((await service.task(owner, t.id)).actualMinutes).toBe(30);
+    const original = await prisma.withTenant(owner.tenantId, (tx) =>
+      tx.spPlannerEvent.findFirst({ where: { tenantId: owner.tenantId, id: e.id } }),
+    );
+    expect(original).toMatchObject({ text: 'Original note', minutes: 15 });
+    const revisions = await prisma.withTenant(owner.tenantId, (tx) =>
+      tx.spPlannerEventRevision.findMany({
+        where: { tenantId: owner.tenantId, eventId: e.id },
+        orderBy: { version: 'asc' },
+      }),
+    );
+    expect(revisions.map((r) => r.version)).toEqual([1, 2, 3]);
+    await expect(
+      service.reviseEvent(owner, e.id, { version: 1, minutes: 60 }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+  it('projects comment corrections into inbox and rechecks author and current project access', async () => {
+    // Only the dedicated local synthetic inbox is cleared between repeated runs.
+    await prisma.withTenant(owner.tenantId, (tx) =>
+      tx.spPlannerInbox.updateMany({
+        where: { tenantId: owner.tenantId, userId: viewer.clerkUserId },
+        data: { archived: true },
+      }),
+    );
+    const p = await service.saveProject(owner, null, {
+      data: {
+        name: 'Comment correction grants',
+        members: [{ userId: viewer.clerkUserId, role: 'commenter' }],
+      },
+    });
+    const t = await service.saveTask(owner, null, {
+      data: {
+        name: 'Inbox correction',
+        memberships: [{ projectId: p.id, sectionId: null, position: 0 }],
+        collaborators: [viewer.clerkUserId],
+      },
+    });
+    const e = await service.addEvent(
+      owner,
+      { taskId: t.id },
+      { kind: 'comment', text: 'Original comment' },
+    );
+    await expect(
+      service.reviseEvent(viewer, e.id, { version: 0, text: 'Cannot edit another author' }),
+    ).rejects.toMatchObject({ status: 404 });
+    await service.reviseEvent(owner, e.id, { version: 0, text: 'Corrected comment' });
+    let inbox = await service.inbox(viewer, { paged: 'true', archived: 'false' });
+    expect('items' in inbox ? inbox.items.find((i) => i.event.id === e.id)?.event.text : null).toBe(
+      'Corrected comment',
+    );
+    await service.reviseEvent(owner, e.id, { version: 1, removed: true });
+    inbox = await service.inbox(viewer, { paged: 'true', archived: 'false' });
+    expect(
+      'items' in inbox ? inbox.items.find((i) => i.event.id === e.id)?.event : null,
+    ).toMatchObject({ text: '', removed: true });
+    const own = await service.addEvent(
+      viewer,
+      { projectId: p.id },
+      { kind: 'comment', text: 'Own project comment' },
+    );
+    await service.reviseEvent(viewer, own.id, {
+      version: 0,
+      text: 'Own corrected project comment',
+    });
+    await service.saveProject(owner, p.id, { version: p.version, data: { members: [] } });
+    await service.saveTask(owner, t.id, { version: t.version, data: { collaborators: [] } });
+    await expect(
+      service.reviseEvent(viewer, own.id, { version: 1, text: 'Revoked access' }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+  it('serializes activity corrections, rejects generated audit editing and keeps revisions tenant-bound and immutable', async () => {
+    const t = await service.saveTask(owner, null, { data: { name: 'Revision concurrency' } });
+    const e = await service.addEvent(owner, { taskId: t.id }, { kind: 'comment', text: 'Base' });
+    const changes = await Promise.allSettled(
+      ['A', 'B'].map((text) => service.reviseEvent(owner, e.id, { version: 0, text })),
+    );
+    expect(changes.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(changes.find((r) => r.status === 'rejected')).toMatchObject({ reason: { status: 409 } });
+    const generated = (await service.events(owner, { taskId: t.id })).find(
+      (x) => x.kind === 'created',
+    )!;
+    await expect(
+      service.reviseEvent(owner, generated.id, { version: 0, text: 'Replace audit' }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.reviseEvent(owner, e.id, { version: 1, minutes: 2 }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.reviseEvent({ ...owner, tenantId: '10000000-0000-4000-8000-000000000002' }, e.id, {
+        version: 1,
+        text: 'Cross tenant',
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      prisma.withTenant(
+        owner.tenantId,
+        (tx) =>
+          tx.$executeRaw`UPDATE sp_planner_event_revisions SET text = 'Overwrite' WHERE event_id = ${e.id}::uuid`,
+      ),
+    ).rejects.toThrow('append-only');
+    await prisma.withTenant(owner.tenantId, async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+      const rights = await tx.$queryRaw<
+        { can_insert: boolean; can_update: boolean; can_delete: boolean }[]
+      >`SELECT has_table_privilege(current_user, 'sp_planner_event_revisions', 'INSERT') AS can_insert, has_table_privilege(current_user, 'sp_planner_event_revisions', 'UPDATE') AS can_update, has_table_privilege(current_user, 'sp_planner_event_revisions', 'DELETE') AS can_delete`;
+      expect(rights[0]).toEqual({ can_insert: true, can_update: false, can_delete: false });
+    });
+    await prisma.withTenant('10000000-0000-4000-8000-000000000002', async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL ROLE capiro_app');
+      const hidden = await tx.$queryRaw<
+        unknown[]
+      >`SELECT * FROM sp_planner_event_revisions WHERE event_id = ${e.id}::uuid`;
+      expect(hidden).toHaveLength(0);
+    });
+  });
   it('orders the Dashboard queue by deadlines across time zones', async () => {
     // This suite is restricted to localhost planner_qa. Clear earlier synthetic
     // assignments so repeated runs can assert the service's five-row ordering.
@@ -97,6 +248,183 @@ describeDb('Planner real PostgreSQL integration', () => {
     expect(await service.task(outsider, fold.id)).not.toHaveProperty('deadlineAt');
     for (const t of [fold, after])
       await service.saveTask(outsider, t.id, { version: t.version, archived: true });
+  });
+  it('copies a recurring hierarchy and immutable attachments with independent identities and no prior comments or time', async () => {
+    const p = await service.saveProject(owner, null, {
+      data: { name: `Recurring contents ${randomUUID()}` },
+    });
+    const root = await service.saveTask(owner, null, {
+      data: {
+        name: 'Recurring parent',
+        dueOn: '2026-10-06',
+        recurrence: { frequency: 'weekly', interval: 1 },
+        memberships: [{ projectId: p.id, sectionId: null, position: 0 }],
+      },
+    });
+    const child = await service.saveTask(owner, null, {
+      data: { name: 'Recurring child', parentId: root.id, dueOn: '2026-10-05' },
+    });
+    const grandchild = await service.saveTask(owner, null, {
+      data: { name: 'Recurring grandchild', parentId: child.id, dependencies: [root.id] },
+    });
+    await service.saveTask(owner, child.id, { version: child.version, data: { status: 'done' } });
+    await service.addEvent(
+      owner,
+      { taskId: root.id },
+      { kind: 'comment', text: 'Previous occurrence comment' },
+    );
+    await service.addEvent(
+      owner,
+      { taskId: child.id },
+      { kind: 'time', text: 'Previous occurrence time', minutes: 20 },
+    );
+    const attachments = await prisma.withTenant(owner.tenantId, async (tx) => {
+      const files = [];
+      for (const task of [root, grandchild])
+        files.push(
+          await tx.spPlannerAttachment.create({
+            data: {
+              id: randomUUID(),
+              tenantId: owner.tenantId,
+              taskId: task.id,
+              uploadedBy: owner.clerkUserId,
+              fileName: 'Recurring QA.txt',
+              sizeBytes: 1,
+              objectKey: `tenants/${owner.tenantId}/planner/tasks/${task.id}/${randomUUID()}`,
+            },
+          }),
+        );
+      await tx.spPlannerAttachment.create({
+        data: {
+          id: randomUUID(),
+          tenantId: owner.tenantId,
+          taskId: child.id,
+          uploadedBy: owner.clerkUserId,
+          fileName: 'Archived QA.txt',
+          sizeBytes: 1,
+          objectKey: 'local-archived-qa',
+          archived: true,
+        },
+      });
+      return files;
+    });
+    await service.saveTask(owner, root.id, { version: root.version, data: { status: 'done' } });
+    const rows = (await service.tasks(owner, { projectId: p.id })).items;
+    expect(rows).toHaveLength(6);
+    const next = rows.find((t) => t.name === root.name && t.id !== root.id)!;
+    const nextChild = rows.find((t) => t.parentId === next.id)!;
+    const nextGrandchild = rows.find((t) => t.parentId === nextChild.id)!;
+    expect(next).toMatchObject({ status: 'todo', dueOn: '2026-10-13', actualMinutes: 0 });
+    expect(nextChild).toMatchObject({ status: 'todo', dueOn: child.dueOn, actualMinutes: 0 });
+    expect(nextGrandchild.dependencies).toEqual([next.id]);
+    expect(
+      (await service.events(owner, { taskId: next.id })).some((e) =>
+        ['comment', 'time'].includes(e.kind),
+      ),
+    ).toBe(false);
+    const copied = await prisma.withTenant(owner.tenantId, (tx) =>
+      tx.spPlannerAttachment.findMany({
+        where: {
+          tenantId: owner.tenantId,
+          taskId: { in: [next.id, nextChild.id, nextGrandchild.id] },
+        },
+      }),
+    );
+    expect(copied).toHaveLength(2);
+    expect(copied.map((f) => f.objectKey).sort()).toEqual(
+      attachments.map((f) => f.objectKey).sort(),
+    );
+    expect(copied.every((f) => attachments.every((source) => source.id !== f.id))).toBe(true);
+    await prisma.withTenant(owner.tenantId, (tx) =>
+      tx.spPlannerAttachment.update({
+        where: { id: attachments[0]!.id },
+        data: { archived: true },
+      }),
+    );
+    expect(
+      await prisma.withTenant(owner.tenantId, (tx) =>
+        tx.spPlannerAttachment.count({ where: { taskId: next.id, archived: false } }),
+      ),
+    ).toBe(1);
+    await expect(service.task(outsider, nextGrandchild.id)).rejects.toMatchObject({ status: 404 });
+  });
+  it('rolls back recurring completion if a descendant is inaccessible', async () => {
+    const p = await service.saveProject(owner, null, {
+      data: { name: `Restricted recurrence ${randomUUID()}` },
+    });
+    const root = await service.saveTask(owner, null, {
+      data: {
+        name: 'Restricted recurrence root',
+        assigneeId: viewer.clerkUserId,
+        dueOn: '2026-10-06',
+        recurrence: { frequency: 'daily', interval: 1 },
+        memberships: [{ projectId: p.id, sectionId: null, position: 0 }],
+      },
+    });
+    await service.saveTask(owner, null, { data: { name: 'Restricted child', parentId: root.id } });
+    await expect(
+      service.saveTask(viewer, root.id, { version: root.version, data: { status: 'done' } }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(await service.task(owner, root.id)).toMatchObject({
+      version: root.version,
+      status: 'todo',
+    });
+    expect((await service.tasks(owner, { projectId: p.id })).items).toHaveLength(2);
+  });
+  it('requires a template reference date, skips weekends and shifts timed repeats while preserving its source', async () => {
+    const template = await service.saveResource(owner, null, {
+      kind: 'template',
+      name: `Relative QA ${randomUUID()}`,
+      data: {
+        description: '',
+        privacy: 'private',
+        members: [],
+        project: { ...PLANNER_DEFAULT_PROJECT, name: 'Relative source', privacy: 'team' },
+        tasks: [
+          {
+            ...PLANNER_DEFAULT_TASK,
+            name: 'Relative repeat',
+            startOn: '2026-10-06',
+            dueOn: '2026-10-07',
+            dueTime: '09:00',
+            timeZone: 'America/New_York',
+            recurrence: { frequency: 'weekly', interval: 1, endsOn: '2026-10-21' },
+          },
+        ],
+        schedule: {
+          anchor: 'due',
+          skipWeekends: true,
+          dates: [{ startOffset: -2, dueOffset: -1 }],
+        },
+      },
+    });
+    await expect(
+      service.instantiateTemplate(owner, template.id, { name: 'Missing date' }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.instantiateTemplate(owner, template.id, {
+        name: 'Invalid date',
+        anchorOn: '2026-02-30',
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    const p = await service.instantiateTemplate(owner, template.id, {
+      name: 'Relative deployed QA',
+      anchorOn: '2026-10-12',
+    });
+    expect(p).toMatchObject({ privacy: 'private', startOn: '2026-10-08', dueOn: '2026-10-12' });
+    expect((await service.tasks(owner, { projectId: p.id })).items[0]).toMatchObject({
+      startOn: '2026-10-08',
+      dueOn: '2026-10-09',
+      dueTime: '09:00',
+      timeZone: 'America/New_York',
+      recurrence: { anchorOn: '2026-10-09', endsOn: '2026-10-23' },
+    });
+    const unchanged = (await service.resources(owner)).find((r) => r.id === template.id)!;
+    expect(unchanged.version).toBe(template.version);
+    expect(unchanged.data).toEqual(template.data);
+    await expect(
+      service.task(outsider, (await service.tasks(owner, { projectId: p.id })).items[0]!.id),
+    ).rejects.toMatchObject({ status: 404 });
   });
   it('creates a single timed successor across concurrent completion and reopen, preserving its month-end anchor', async () => {
     const sectionId = randomUUID();
@@ -508,7 +836,7 @@ describeDb('Planner real PostgreSQL integration', () => {
       const tableRights = await tx.$queryRaw<
         { relname: string; relforcerowsecurity: boolean; can_delete: boolean }[]
       >`SELECT relname, relforcerowsecurity, has_table_privilege('capiro_app', oid, 'DELETE') AS can_delete FROM pg_class WHERE relkind='r' AND relname LIKE 'sp_planner_%' ORDER BY relname`;
-      expect(tableRights).toHaveLength(6);
+      expect(tableRights).toHaveLength(7);
       expect(tableRights.every((row) => row.relforcerowsecurity && !row.can_delete)).toBe(true);
     });
   });

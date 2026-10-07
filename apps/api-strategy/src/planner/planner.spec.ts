@@ -123,6 +123,7 @@ function fixture(projects = [project()], tasks = [task()]) {
       findMany: jest.fn(async () => []),
     },
     spPlannerInbox: { create: jest.fn(async () => ({})), findMany: jest.fn(async () => []) },
+    spPlannerAttachment: { findMany: jest.fn(async () => []) },
     spPlannerResource: { findMany: jest.fn(async () => []) },
   };
   const prisma = {
