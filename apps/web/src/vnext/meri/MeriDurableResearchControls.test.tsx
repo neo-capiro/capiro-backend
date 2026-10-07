@@ -12,7 +12,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('./useMeriDurableResearch.js', () => ({
   useMeriDurableResearch: (...args: unknown[]) => mocks.observe(...args),
 }));
-import { MeriDurableResearchControls } from './MeriDurableResearchControls.js';
+import {
+  APPROVAL_WAIT_REFRESH_MS,
+  MeriDurableResearchControls,
+} from './MeriDurableResearchControls.js';
 
 function observer(status: 'running' | 'cancel_requested' = 'running'): MeriDurableResearchObserver {
   return {
@@ -150,5 +153,77 @@ describe('Meri durable research controls', () => {
     expect(screen.getByText('The durable research task is complete.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send direction' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+  });
+});
+
+describe('Release D: a job waiting on an approval card', () => {
+  function withApprovalStep(operationRefs: string[]): MeriDurableResearchObserver {
+    const base = observer();
+    const snapshot = base.snapshot!;
+    return {
+      ...base,
+      snapshot: {
+        ...snapshot,
+        run: null,
+        coordinator: {
+          ...snapshot.coordinator,
+          steps: [
+            ...snapshot.coordinator.steps.map((step) => ({ ...step, outcome: 'completed' as const })),
+            {
+              id: 'propose-summary-email',
+              objective: 'Email me the summary',
+              dependsOn: ['assess'],
+              goalRevision: 1,
+              effect: 'approval_required',
+              attempt: 0,
+              deadlineAt: null,
+              outcome: 'waiting_for_approval',
+              sourceRefs: [],
+              operationRefs,
+              leaseEpoch: 2,
+              completedAt: null,
+              failureCode: null,
+            },
+          ],
+        },
+      } as never,
+    };
+  }
+
+  test('says approval is needed and opens the Approvals panel', () => {
+    mocks.observe.mockReturnValue(withApprovalStep(['proposal:proposal-1']));
+    const onOpenApprovals = vi.fn();
+    render(
+      <MeriDurableResearchControls
+        controller={controller}
+        researchId="research-1"
+        onOpenApprovals={onOpenApprovals}
+      />,
+    );
+    expect(screen.getByText('approval needed')).toBeInTheDocument();
+    expect(screen.getByText(/nothing happens until you\s+approve it/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Review it' }));
+    expect(onOpenApprovals).toHaveBeenCalledOnce();
+  });
+
+  test('re-checks the job while the card waits, so a decision clears it', () => {
+    vi.useFakeTimers();
+    try {
+      const waiting = withApprovalStep(['proposal:proposal-1']);
+      mocks.observe.mockReturnValue(waiting);
+      render(<MeriDurableResearchControls controller={controller} researchId="research-1" />);
+      expect(waiting.refresh).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(APPROVAL_WAIT_REFRESH_MS);
+      expect(waiting.refresh).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('an approval step that was never posted is not a wait', () => {
+    mocks.observe.mockReturnValue(withApprovalStep([]));
+    render(<MeriDurableResearchControls controller={controller} researchId="research-1" />);
+    expect(screen.queryByText('approval needed')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Review it' })).toBeNull();
   });
 });

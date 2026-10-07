@@ -506,6 +506,7 @@ export function VNextMeriConversation({
                   researchId={
                     controller.researchSessionRef.current ?? controller.researchRecovery?.id ?? null
                   }
+                  onOpenApprovals={onOpenApprovals}
                 />
 
                 {controller.researchAwaitingAnswers && controller.researchQuestions.length > 0 ? (

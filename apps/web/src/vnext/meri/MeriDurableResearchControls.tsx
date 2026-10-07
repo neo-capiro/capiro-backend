@@ -8,12 +8,18 @@ function outcomeLabel(value: string): string {
   return value.replaceAll('_', ' ');
 }
 
+/** Release D: how often a job waiting on an approval card re-checks its state. */
+export const APPROVAL_WAIT_REFRESH_MS = 15_000;
+
 export function MeriDurableResearchControls({
   controller,
   researchId,
+  onOpenApprovals,
 }: {
   controller: MeriChatController;
   researchId: string | null;
+  /** Opens the Approvals panel, where the job's card is approved or dismissed. */
+  onOpenApprovals?: () => void;
 }) {
   const durable = useMeriDurableResearch(researchId, controller.authHeaders);
   const [direction, setDirection] = useState('');
@@ -28,6 +34,18 @@ export function MeriDurableResearchControls({
       ) ?? [],
     [snapshot],
   );
+  // A posted, undecided proposal card on a current approval step (Release D).
+  const approvalWaiting = currentSteps.some(
+    (step) =>
+      step.outcome === 'waiting_for_approval' &&
+      step.operationRefs.some((ref) => /^proposal:[^:]+$/.test(ref)),
+  );
+  const { refresh } = durable;
+  useEffect(() => {
+    if (!approvalWaiting) return;
+    const timer = setInterval(() => void refresh(), APPROVAL_WAIT_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [approvalWaiting, refresh]);
   if (!researchId || (!snapshot && !durable.error)) return null;
 
   if (!snapshot) {
@@ -67,8 +85,14 @@ export function MeriDurableResearchControls({
           <span className="vnext-meri__durable-kicker">DURABLE RESEARCH TASK</span>
           <h3>{snapshot.coordinator.goal.objective}</h3>
         </div>
-        <span className={`vnext-meri__durable-status is-${runStatus}`}>
-          {stopping ? 'Stopping…' : outcomeLabel(runStatus)}
+        <span
+          className={`vnext-meri__durable-status is-${terminal && approvalWaiting ? 'waiting_for_approval' : runStatus}`}
+        >
+          {stopping
+            ? 'Stopping…'
+            : terminal && approvalWaiting
+              ? 'approval needed'
+              : outcomeLabel(runStatus)}
         </span>
       </div>
 
@@ -84,6 +108,19 @@ export function MeriDurableResearchControls({
           ? 'Cancel requested. Waiting for the worker to confirm termination.'
           : (snapshot.run?.stage ?? 'The durable research task is complete.')}
       </p>
+      {terminal && approvalWaiting ? (
+        <div className="vnext-meri__durable-approval" role="status">
+          <p>
+            Approval needed. Meri prepared an action from this task; nothing happens until you
+            approve it.
+          </p>
+          {onOpenApprovals ? (
+            <button type="button" className="vnext-meri__durable-send" onClick={onOpenApprovals}>
+              Review it
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {terminal ? (
         <MeriJobDeliverables
           researchId={researchId}
