@@ -17,7 +17,7 @@ import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
  * Intended cadence: hourly via EventBridge -> ECS run-task. The runner enforces
  * a 60-min per-task minimum, so hourly is the finest usable granularity. Tasks
  * with a clock-anchored time-of-day (metadata.runAtMinutesUtc) are re-pinned to
- * that wall-clock minute via computeNextRunAtAnchored.
+ * that wall-clock minute (or the local anchor) via computeNextScheduledRun.
  *
  * Multi-tenant safe: due rows are read via the system path, then each task runs
  * under a per-task TenantContext (owner user + tenant) so every tool read is
@@ -29,9 +29,10 @@ import { Logger } from '@nestjs/common';
 import { recordAiUsageEvent, parseProviderUsage, type TenantContext } from '@capiro/shared';
 import type { ResolvedAiCredential } from '../src/ai-credentials/ai-credential-resolver.service.js';
 import {
-  computeNextRunAtAnchored,
+  computeNextScheduledRun,
   isAllowListSafe,
   DEFAULT_SCHEDULED_TOOL_ALLOWLIST,
+  readScheduleLocalAnchor,
 } from '../src/meri/meri-schedule.helpers.js';
 import {
   advanceScheduledTaskExecution,
@@ -391,7 +392,13 @@ export async function runScheduledTasks(options: ScheduledTaskRunnerOptions = {}
           ? (task.metadata_jsonb as Record<string, unknown>)
           : {};
       const runAtMin = typeof meta.runAtMinutesUtc === 'number' ? meta.runAtMinutesUtc : null;
-      const nextRunAt = computeNextRunAtAnchored(now, task.interval_minutes, runAtMin);
+      // Release E: a local anchor (e.g. Mondays 08:00 America/New_York) wins over the UTC minute.
+      const nextRunAt = computeNextScheduledRun(
+        now,
+        task.interval_minutes,
+        runAtMin,
+        readScheduleLocalAnchor(meta),
+      );
       const emailTo = typeof meta.emailTo === 'string' ? meta.emailTo : null;
 
       // The due list is only a snapshot. The claim binds the exact scheduled

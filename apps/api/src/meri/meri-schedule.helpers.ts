@@ -235,3 +235,163 @@ export function validateScheduleRequest(input: {
   if (!allow.ok) return allow;
   return { ok: true, intervalMinutes: interval, allowList: allow.allowList };
 }
+
+/**
+ * Release E (T10): a local wall-clock anchor, so "every Monday at 8" means 8:00
+ * in the owner's time zone on Mondays, across daylight-saving changes. Stored
+ * in the task's metadata; no schema change.
+ */
+export interface ScheduleLocalAnchor {
+  /** "HH:MM", 24h, in `timeZone`. */
+  localTime: string;
+  /** IANA zone, e.g. "America/New_York". */
+  timeZone: string;
+  /** 0 = Sunday … 6 = Saturday; weekly schedules only. */
+  weekday: number | null;
+}
+
+export const DEFAULT_SCHEDULE_TIME_ZONE = 'America/New_York';
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+export function isValidTimeZone(value: unknown): value is string {
+  if (typeof value !== 'string' || !value.trim()) return false;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** "monday" / "Mon" / 1 -> 1; anything else -> null. */
+export function parseWeekday(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isInteger(value) && value >= 0 && value <= 6 ? value : null;
+  if (typeof value !== 'string') return null;
+  const v = value.trim().toLowerCase();
+  const index = WEEKDAYS.findIndex((day) => day === v || (v.length >= 3 && day.startsWith(v)));
+  return index >= 0 ? index : null;
+}
+
+/**
+ * Validate a local anchor for a daily (1440) or weekly (10080) schedule. A
+ * weekday is required for weekly and refused for daily. Returns null when no
+ * local time was requested; throws a message string when it is invalid.
+ */
+export function parseScheduleLocalAnchor(
+  input: { localTime?: unknown; timeZone?: unknown; weekday?: unknown },
+  intervalMinutes: number,
+): ScheduleLocalAnchor | { error: string } | null {
+  if (input.localTime == null || input.localTime === '') return null;
+  const minutes = parseTimeOfDayUtc(input.localTime);
+  if (minutes == null) return { error: 'localTime must be "HH:MM" in 24h form.' };
+  const timeZone =
+    input.timeZone == null || input.timeZone === '' ? DEFAULT_SCHEDULE_TIME_ZONE : input.timeZone;
+  if (!isValidTimeZone(timeZone)) return { error: 'timeZone must be an IANA time zone, e.g. "America/New_York".' };
+  if (intervalMinutes !== 1440 && intervalMinutes !== 10080)
+    return { error: 'A local time needs a daily (1440) or weekly (10080) interval.' };
+  const weekday = input.weekday == null || input.weekday === '' ? null : parseWeekday(input.weekday);
+  if (input.weekday != null && input.weekday !== '' && weekday == null)
+    return { error: 'weekday must be a day name such as "monday".' };
+  if (intervalMinutes === 10080 && weekday == null)
+    return { error: 'A weekly schedule with a local time needs a weekday.' };
+  if (intervalMinutes === 1440 && weekday != null)
+    return { error: 'A daily schedule cannot name a weekday.' };
+  const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
+  const mm = String(minutes % 60).padStart(2, '0');
+  return { localTime: `${hh}:${mm}`, timeZone: timeZone as string, weekday };
+}
+
+export function readScheduleLocalAnchor(metadata: unknown): ScheduleLocalAnchor | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+  const m = metadata as Record<string, unknown>;
+  if (typeof m.localTime !== 'string' || !isValidTimeZone(m.timeZone)) return null;
+  if (parseTimeOfDayUtc(m.localTime) == null) return null;
+  const weekday = typeof m.weekday === 'number' ? parseWeekday(m.weekday) : null;
+  return { localTime: m.localTime, timeZone: m.timeZone, weekday };
+}
+
+function zonedParts(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    hour: get('hour'),
+    minute: get('minute'),
+    second: get('second'),
+  };
+}
+
+/** The UTC instant of a local wall-clock time in `timeZone` (DST-aware). */
+export function zonedTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  minutesOfDay: number,
+  timeZone: string,
+): Date {
+  const wall = Date.UTC(year, month - 1, day, Math.floor(minutesOfDay / 60), minutesOfDay % 60);
+  let guess = wall;
+  for (let i = 0; i < 3; i += 1) {
+    const p = zonedParts(new Date(guess), timeZone);
+    const shown = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+    const next = guess + (wall - shown);
+    if (next === guess) break;
+    guess = next;
+  }
+  return new Date(guess);
+}
+
+/**
+ * Next run for a local anchor: the first local date on or after `from`'s local
+ * date (on the anchor weekday, for weekly) whose local time is strictly after
+ * `from`. Without an anchor, the UTC-minute / interval behavior is unchanged.
+ */
+export function computeNextScheduledRun(
+  from: Date,
+  intervalMinutes: number,
+  runAtMinutesUtc: number | null | undefined,
+  anchor: ScheduleLocalAnchor | null,
+): Date {
+  if (!anchor) return computeNextRunAtAnchored(from, intervalMinutes, runAtMinutesUtc);
+  const minutes = parseTimeOfDayUtc(anchor.localTime)!;
+  const today = zonedParts(from, anchor.timeZone);
+  for (let offset = 0; offset <= 8; offset += 1) {
+    const date = new Date(Date.UTC(today.year, today.month - 1, today.day + offset));
+    if (anchor.weekday != null && date.getUTCDay() !== anchor.weekday) continue;
+    const at = zonedTimeToUtc(
+      date.getUTCFullYear(),
+      date.getUTCMonth() + 1,
+      date.getUTCDate(),
+      minutes,
+      anchor.timeZone,
+    );
+    if (at.getTime() > from.getTime()) return at;
+  }
+  return computeNextRunAt(from, intervalMinutes);
+}
+
+/** A short human description for a proposal preview, e.g. "Mondays at 08:00 (America/New_York)". */
+export function describeScheduleCadence(
+  intervalMinutes: number,
+  anchor: ScheduleLocalAnchor | null,
+): string {
+  if (anchor) {
+    const day = anchor.weekday == null ? 'Every day' : `${WEEKDAYS[anchor.weekday]![0]!.toUpperCase()}${WEEKDAYS[anchor.weekday]!.slice(1)}s`;
+    return `${day} at ${anchor.localTime} (${anchor.timeZone})`;
+  }
+  if (intervalMinutes === 1440) return 'Every day';
+  if (intervalMinutes === 10080) return 'Every week';
+  return `Every ${intervalMinutes} minutes`;
+}
+
