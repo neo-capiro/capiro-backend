@@ -64,7 +64,7 @@ import {
 import { PlannerManagement, PlannerProjectActivity } from './planner-management.js';
 import { PlannerActivity } from './planner-activity.js';
 import { PlannerImport } from './planner-import.js';
-import { plannerCsvCell } from './planner-csv.js';
+import { plannerCsvCell, plannerCsvTimeLabel } from './planner-csv.js';
 import { SavePlannerView } from './planner-saved-view.js';
 import { PlannerAttachments } from './planner-attachments.js';
 import { PlannerRichText, PlannerFormattedText } from './planner-rich-text.js';
@@ -330,6 +330,8 @@ export function PlannerPage() {
         'Time zone',
         'Priority',
         'Status',
+        'Estimated time',
+        'Actual time',
       ],
       ...visible.map((t) => [
         t.name,
@@ -342,6 +344,8 @@ export function PlannerPage() {
         t.timeZone,
         t.priority,
         t.status,
+        plannerCsvTimeLabel(t.estimateMinutes),
+        plannerCsvTimeLabel(t.actualMinutes),
       ]),
     ];
     const blob = new Blob(['\uFEFF' + rows.map((row) => row.map(quote).join(',')).join('\r\n')], {

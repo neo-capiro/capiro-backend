@@ -85,6 +85,13 @@ export interface PlannerTask extends PlannerTaskData {
   access: PlannerRole;
   actualMinutes: number;
 }
+/** A reviewed CSV row. Reusing its key retries the same creation without duplicating time. */
+export interface PlannerTaskImport {
+  importKey: string;
+  data: Partial<PlannerTaskData>;
+  actualMinutes: number;
+  time?: Partial<import('./planner-timesheets.js').PlannerTimeDetails>;
+}
 export interface PlannerEvent {
   id: string;
   taskId: string | null;
