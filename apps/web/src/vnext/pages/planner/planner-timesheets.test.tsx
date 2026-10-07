@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   query: {} as any,
   config: {} as any,
   review: {} as any,
+  preferences: { data: { version: 1, autoAddDueTasks: false } },
   save: vi.fn(),
   revise: vi.fn(),
   get: vi.fn(),
@@ -27,6 +28,23 @@ vi.mock('./planner-api.js', () => ({
   usePlannerTimesheet: () => mocks.query,
   usePlannerTimeSettings: () => mocks.config,
   usePlannerTimeReview: () => mocks.review,
+  usePlannerTimeReviewPages: () => ({
+    ...mocks.review,
+    data: {
+      pages: [
+        {
+          revision: 'review',
+          items: mocks.review.data ?? [],
+          people: bootstrap.people,
+          matched: mocks.review.data?.length ?? 0,
+          totalMinutes: 0,
+          billableMinutes: 0,
+        },
+      ],
+    },
+  }),
+  usePlannerTimePreferences: () => mocks.preferences,
+  usePlannerTimesheetHistory: () => ({ data: mocks.query.data }),
   usePlannerKey: () => ['planner', mocks.scope, 'owner', null],
   usePlannerTasks: () => ({ data: { pages: [{ items: [] }] } }),
   usePlannerTask: () => ({}),
@@ -34,6 +52,7 @@ vi.mock('./planner-api.js', () => ({
     timesheet: { mutateAsync: mocks.save, isPending: false },
     timeSettings: { mutateAsync: mocks.save, isPending: false },
     reviseEvent: { mutateAsync: mocks.revise, isPending: false },
+    timePreferences: { mutateAsync: mocks.save, isPending: false },
   }),
   plannerError: String,
 }));
@@ -142,6 +161,14 @@ describe('Planner dated time controls and weekly review', () => {
       target: { value: ' Research\nDelivery\n' },
     });
     fireEvent.change(screen.getByLabelText('Submission workflow'), { target: { value: 'simple' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Send a weekly submission reminder' }));
+    fireEvent.change(screen.getByLabelText('Submission reminder day'), { target: { value: '1' } });
+    fireEvent.input(screen.getByLabelText('Submission reminder time'), {
+      target: { value: '09:00' },
+    });
+    fireEvent.change(screen.getByLabelText('Submission reminder week'), {
+      target: { value: 'previous' },
+    });
     mocks.config = {
       data: {
         ...mocks.config.data,
@@ -163,6 +190,7 @@ describe('Planner dated time controls and weekly review', () => {
           billableDefault: true,
           approvalProcess: 'simple',
           categories: ['Research', 'Delivery'],
+          submissionReminder: { weekday: 1, time: '09:00', week: 'previous' },
         },
       }),
     );

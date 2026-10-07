@@ -31,6 +31,19 @@ export function plannerTimeOptions(
     )
       fail('Time limits require 0–520 weeks or no limit');
   if (!plannerTimeZone(result.timeZone)) fail('Choose a valid time rules zone');
+  if (result.submissionReminder != null) {
+    const reminder = object(result.submissionReminder);
+    keys(reminder, ['weekday', 'time', 'week']);
+    if (
+      !Number.isInteger(reminder.weekday) ||
+      Number(reminder.weekday) < 1 ||
+      Number(reminder.weekday) > 7 ||
+      typeof reminder.time !== 'string' ||
+      !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(reminder.time) ||
+      !['current', 'previous'].includes(String(reminder.week))
+    )
+      fail('Choose a reminder weekday, valid time and timesheet week');
+  }
   if (
     !Array.isArray(result.categories) ||
     result.categories.length > 100 ||

@@ -52,6 +52,7 @@ import {
   type PlannerTimeEntry,
   type PlannerTimePreferences,
   type PlannerTimesheetWorkRef,
+  type PlannerTimeReviewPage,
 } from '@capiro/strategy-verifier';
 import {
   Prisma,
@@ -94,6 +95,11 @@ import {
   requirePlannerTimePolicy,
 } from './planner-time-policy.js';
 import { plannerTimesheetWorkRows, type PlannerTimeWorkSource } from './planner-timesheet-work.js';
+import {
+  plannerTimeReviewView,
+  plannerTimeReviewRows,
+  plannerTimeSubmissionDue,
+} from './planner-time-review.js';
 import { plannerDateRuleReady, plannerScheduleHash } from './planner-date-rules.js';
 import {
   plannerGoalCycle,
@@ -138,6 +144,16 @@ type GoalTaskRecord = Pick<
   'id' | 'ownerId' | 'assigneeId' | 'projectIds' | 'archived' | 'data'
 >;
 type ActivityQuery = { paged?: string; cursor?: string; archived?: string };
+type TimeReviewQuery = {
+  week?: string;
+  people?: string;
+  statuses?: string;
+  sort?: string;
+  direction?: string;
+  paged?: string;
+  cursor?: string;
+  revision?: string;
+};
 function activityQuery(query: ActivityQuery, inbox = false) {
   keys(query, inbox ? ['paged', 'cursor', 'archived'] : ['paged', 'cursor']);
   if (query.paged !== undefined && !['true', 'false'].includes(query.paged))
@@ -2174,6 +2190,116 @@ export class PlannerService {
     }
     return { executed, failed, nextCursor: page.length > 50 ? page[49]!.id : null };
   }
+  async runScheduledTimeWork(tenantId: string, now = new Date(), afterUserId?: string) {
+    uuid(tenantId);
+    if (afterUserId !== undefined && (!afterUserId || afterUserId.length > 200))
+      fail('Invalid time reminder cursor');
+    const scope: AuthTenantContext = { tenantId, clerkUserId: '', role: null };
+    const candidates = await this.scope(scope, async (tx) => {
+      const config = await this.timeSettingsRecord(tx, scope);
+      const options = this.storedTimeOptions(config);
+      if (!plannerTimeSubmissionDue(options, now)) return [];
+      const people = await this.people(tx, scope),
+        active = new Set(people.map((p) => p.id)),
+        reviewers =
+          (config?.data as { reviewers?: Record<string, string> } | undefined)?.reviewers ?? {};
+      return [...active]
+        .filter(
+          (id) =>
+            typeof id === 'string' &&
+            !!id &&
+            (options.approvalProcess === 'simple' ||
+              (!!reviewers[id] && active.has(reviewers[id]!))) &&
+            (!afterUserId || id > afterUserId),
+        )
+        .sort()
+        .slice(0, 51);
+    });
+    let executed = 0,
+      failed = 0;
+    for (const ownerId of candidates.slice(0, 50)) {
+      try {
+        executed += await this.scope(
+          scope,
+          async (tx) => {
+            const config = await this.timeSettingsRecord(tx, scope),
+              options = this.storedTimeOptions(config),
+              due = plannerTimeSubmissionDue(options, now);
+            if (!due) return 0;
+            const active = new Set((await this.people(tx, scope)).map((p) => p.id)),
+              reviewers =
+                (config?.data as { reviewers?: Record<string, string> } | undefined)?.reviewers ??
+                {};
+            if (
+              !active.has(ownerId) ||
+              (options.approvalProcess === 'full' &&
+                (!reviewers[ownerId] || !active.has(reviewers[ownerId]!)))
+            )
+              return 0;
+            const author: AuthTenantContext = {
+              tenantId,
+              clerkUserId: ownerId,
+              role: 'org:member',
+            };
+            const old = await this.timeSheetRecord(tx, author, ownerId, due.weekOn),
+              data = await this.timeSheetData(tx, author, ownerId, due.weekOn, old);
+            if (!['draft', 'rejected'].includes(data.status)) return 0;
+            const weekOn = new Date(`${due.weekOn}T00:00:00Z`);
+            if (
+              await tx.spPlannerTimeReminderClaim.findFirst({
+                where: { tenantId, ownerId, weekOn },
+              })
+            )
+              return 0;
+            const row =
+              old ??
+              (await tx.spPlannerResource.create({
+                data: {
+                  tenantId,
+                  ownerId,
+                  kind: 'timesheet',
+                  name: `Timesheet · ${due.weekOn}`,
+                  data: json(data),
+                },
+              }));
+            const event = await this.event(
+              tx,
+              author,
+              {
+                resourceId: row.id,
+                kind: 'reminder',
+                text: `Time to submit your timesheet · ${due.weekOn}`,
+                details: {
+                  timesheet: { weekOn: due.weekOn, userId: ownerId },
+                  timesheetReminder: { scheduledOn: due.scheduledOn, deadlineAt: due.deadlineAt },
+                },
+              },
+              [ownerId],
+              true,
+            );
+            await tx.spPlannerTimeReminderClaim.create({
+              data: {
+                tenantId,
+                resourceId: row.id,
+                ownerId,
+                weekOn,
+                scheduledOn: new Date(`${due.scheduledOn}T00:00:00Z`),
+                eventId: event.id,
+              },
+            });
+            return 1;
+          },
+          true,
+        );
+      } catch {
+        failed++;
+        this.logger.warn(
+          `Planner time submitter ${ownerId} reminder failed; next cycle will retry`,
+        );
+      }
+    }
+    return { executed, failed, nextCursor: candidates.length > 50 ? candidates[49]! : null };
+  }
   private reportVisibility(
     projects: SpPlannerProject[],
     rows: SpPlannerResource[],
@@ -2343,24 +2469,38 @@ export class PlannerService {
     return this.scope(ctx, async (tx) => {
       if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId)) throw missing();
       const row = await this.timePreferencesRecord(tx, ctx);
+      const stored = row?.data as { autoAddDueTasks?: boolean; reviewView?: unknown } | undefined;
       return {
         version: row?.version ?? 0,
-        autoAddDueTasks:
-          (row?.data as { autoAddDueTasks?: boolean } | undefined)?.autoAddDueTasks === true,
+        autoAddDueTasks: stored?.autoAddDueTasks === true,
+        ...(stored?.reviewView === undefined
+          ? {}
+          : { reviewView: plannerTimeReviewView(stored.reviewView) }),
       };
     });
   }
   async saveTimePreferences(ctx: AuthTenantContext, raw: unknown) {
     const dto = object(raw);
-    keys(dto, ['version', 'autoAddDueTasks']);
-    if (typeof dto.autoAddDueTasks !== 'boolean') fail('Choose whether to auto-add due tasks');
+    keys(dto, ['version', 'autoAddDueTasks', 'reviewView']);
+    if (dto.autoAddDueTasks === undefined && dto.reviewView === undefined)
+      fail('Choose a personal timesheet setting');
+    if (dto.autoAddDueTasks !== undefined && typeof dto.autoAddDueTasks !== 'boolean')
+      fail('Choose whether to auto-add due tasks');
+    const reviewView =
+      dto.reviewView === undefined ? undefined : plannerTimeReviewView(dto.reviewView);
     return this.scope(
       ctx,
       async (tx) => {
         if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId)) throw missing();
         const row = await this.timePreferencesRecord(tx, ctx);
         requirePlannerTimesheetVersion(dto.version, row?.version ?? 0);
-        const data = json({ autoAddDueTasks: dto.autoAddDueTasks });
+        const previous = row?.data as
+          { autoAddDueTasks?: boolean; reviewView?: unknown } | undefined;
+        const data = json({
+          autoAddDueTasks: dto.autoAddDueTasks ?? previous?.autoAddDueTasks ?? false,
+          ...(previous?.reviewView === undefined ? {} : { reviewView: previous.reviewView }),
+          ...(reviewView === undefined ? {} : { reviewView }),
+        });
         if (row)
           await tx.spPlannerResource.update({
             where: { tenantId: ctx.tenantId, id: row.id },
@@ -2376,7 +2516,7 @@ export class PlannerService {
               data,
             },
           });
-        return { ok: true };
+        return { ok: true, version: (row?.version ?? 0) + 1 };
       },
       true,
     );
@@ -2584,7 +2724,13 @@ export class PlannerService {
     ctx: AuthTenantContext,
     userId: string,
     weekOn: string,
-    query: { cursor?: string; workCursor?: string; revision?: string; allWork?: boolean } = {},
+    query: {
+      cursor?: string;
+      workCursor?: string;
+      historyCursor?: string;
+      revision?: string;
+      allWork?: boolean;
+    } = {},
   ): Promise<PlannerTimesheet> {
     const row = await this.timeSheetRecord(tx, ctx, userId, weekOn);
     const data = await this.timeSheetData(tx, ctx, userId, weekOn, row);
@@ -2744,11 +2890,30 @@ export class PlannerService {
       ? workRows.findIndex((w) => w.key === query.workCursor) + 1
       : 0;
     if (query.workCursor && !workStart) fail('Timesheet work cursor is no longer available');
+    if (query.historyCursor) {
+      const cursorEvent =
+        row &&
+        (await tx.spPlannerEvent.findFirst({
+          where: {
+            tenantId: ctx.tenantId,
+            id: query.historyCursor,
+            resourceId: row.id,
+            kind: 'timesheet_status',
+          },
+        }));
+      if (!cursorEvent) fail('Timesheet history cursor is no longer available');
+    }
     const history = row
       ? await tx.spPlannerEvent.findMany({
           where: { tenantId: ctx.tenantId, resourceId: row.id, kind: 'timesheet_status' },
           orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-          take: 100,
+          ...(query.historyCursor
+            ? {
+                cursor: { tenantId_id: { tenantId: ctx.tenantId, id: query.historyCursor } },
+                skip: 1,
+              }
+            : {}),
+          take: 101,
         })
       : [];
     const reviewerActive =
@@ -2784,7 +2949,8 @@ export class PlannerService {
       items: items.slice(start, start + 100),
       nextCursor: items.length > start + 100 ? items[start + 99]!.id : null,
       actions,
-      history: history.map((e) => plannerEventView(e)),
+      history: history.slice(0, 100).map((e) => plannerEventView(e)),
+      nextHistoryCursor: history.length > 100 ? history[99]!.id : null,
       canLogTime: canEditWeek,
       timeNotice: plannerTimeDateNotice(weekOn, timeOptions, ctx.role === 'org:admin'),
       approvalProcess: timeOptions.approvalProcess,
@@ -2800,10 +2966,11 @@ export class PlannerService {
       userId?: string;
       cursor?: string;
       workCursor?: string;
+      historyCursor?: string;
       revision?: string;
     },
   ) {
-    keys(query, ['week', 'userId', 'cursor', 'workCursor', 'revision']);
+    keys(query, ['week', 'userId', 'cursor', 'workCursor', 'historyCursor', 'revision']);
     const weekOn = plannerTimesheetWeek(query.week),
       userId = query.userId ?? ctx.clerkUserId;
     if (typeof userId !== 'string' || userId.length > 200) fail('Invalid time submitter');
@@ -2813,6 +2980,10 @@ export class PlannerService {
     }
     if (query.workCursor && (query.workCursor.length > 80 || !query.revision))
       fail('Work paging requires a cursor and data revision');
+    if (query.historyCursor) {
+      uuid(query.historyCursor);
+      if (!query.revision) fail('Status history paging requires its data revision');
+    }
     if (query.revision && !/^[a-f0-9]{64}$/.test(query.revision))
       fail('Invalid timesheet revision');
     return this.scope(ctx, (tx) => this.timesheetView(tx, ctx, userId, weekOn, query));
@@ -2905,24 +3076,100 @@ export class PlannerService {
       true,
     );
   }
-  async timeReview(ctx: AuthTenantContext, query: { week?: string }) {
-    keys(query, ['week']);
+  async timeReview(
+    ctx: AuthTenantContext,
+    query: TimeReviewQuery & { paged: 'true' },
+  ): Promise<PlannerTimeReviewPage>;
+  async timeReview(
+    ctx: AuthTenantContext,
+    query: TimeReviewQuery & { paged?: 'false' },
+  ): Promise<PlannerTimesheet[]>;
+  async timeReview(
+    ctx: AuthTenantContext,
+    query: TimeReviewQuery,
+  ): Promise<PlannerTimeReviewPage | PlannerTimesheet[]>;
+  async timeReview(
+    ctx: AuthTenantContext,
+    query: TimeReviewQuery,
+  ): Promise<PlannerTimeReviewPage | PlannerTimesheet[]> {
+    keys(query, ['week', 'people', 'statuses', 'sort', 'direction', 'paged', 'cursor', 'revision']);
     const weekOn = plannerTimesheetWeek(query.week);
+    if (query.paged !== undefined && !['true', 'false'].includes(query.paged))
+      fail('Choose whether to page time review');
+    for (const key of ['people', 'statuses', 'sort', 'direction', 'cursor', 'revision'] as const)
+      if (
+        query[key] !== undefined &&
+        (typeof query[key] !== 'string' || query[key]!.length > 20100)
+      )
+        fail('Invalid time review filter');
+    if (query.cursor && (query.cursor.length > 200 || query.paged !== 'true' || !query.revision))
+      fail('Review paging requires its data revision');
+    if (query.revision && !/^[a-f0-9]{64}$/.test(query.revision))
+      fail('Invalid time review revision');
+    const view = plannerTimeReviewView({
+      ...(query.people === undefined
+        ? {}
+        : { people: query.people ? query.people.split(',') : [] }),
+      ...(query.statuses === undefined
+        ? {}
+        : { statuses: query.statuses ? query.statuses.split(',') : [] }),
+      ...(query.sort === undefined ? {} : { sort: query.sort }),
+      ...(query.direction === undefined ? {} : { direction: query.direction }),
+    });
     return this.scope(ctx, async (tx) => {
       const config = await this.timeSettingsRecord(tx, ctx);
       const reviewers =
         (config?.data as { reviewers?: Record<string, string> } | undefined)?.reviewers ?? {};
-      const active = new Set((await this.people(tx, ctx)).map((p) => p.id));
+      const members = await this.people(tx, ctx);
+      const active = new Set(members.map((p) => p.id));
       if (!active.has(ctx.clerkUserId)) throw missing();
       const users = Object.keys(reviewers).filter(
         (id) => reviewers[id] === ctx.clerkUserId && active.has(id),
       );
-      const result = [];
+      const result: PlannerTimesheet[] = [];
       for (const user of users) {
-        const view = await this.timesheetView(tx, ctx, user, weekOn);
-        result.push({ ...view, items: [], history: [], workRows: [] });
+        const sheet = await this.timesheetView(tx, ctx, user, weekOn);
+        result.push({
+          ...sheet,
+          items: [],
+          history: [],
+          workRows: [],
+          nextCursor: null,
+          nextWorkCursor: null,
+          nextHistoryCursor: null,
+        });
       }
-      return result;
+      const people = members
+        .filter((p) => users.includes(p.id))
+        .map(({ id, name }) => ({ id, name }));
+      people.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+      const items = plannerTimeReviewRows(result, view, new Map(people.map((p) => [p.id, p.name])));
+      if (query.paged !== 'true') return items;
+      const revision = createHash('sha256')
+        .update(
+          JSON.stringify({
+            weekOn,
+            view,
+            settingsVersion: config?.version ?? 0,
+            people,
+            items,
+          }),
+        )
+        .digest('hex');
+      if (query.revision && query.revision !== revision)
+        throw new ConflictException('Reviewed time or access changed. Refresh time review.');
+      const start = query.cursor ? items.findIndex((s) => s.userId === query.cursor) + 1 : 0;
+      if (query.cursor && !start) fail('Review cursor is no longer available');
+      return {
+        weekOn,
+        revision,
+        people,
+        matched: items.length,
+        items: items.slice(start, start + 100),
+        nextCursor: items.length > start + 100 ? items[start + 99]!.userId : null,
+        totalMinutes: items.reduce((n, s) => n + s.totalMinutes, 0),
+        billableMinutes: items.reduce((n, s) => n + s.billableMinutes, 0),
+      } satisfies PlannerTimeReviewPage;
     });
   }
   async transitionTimesheet(ctx: AuthTenantContext, raw: unknown) {
@@ -2988,7 +3235,8 @@ export class PlannerService {
             recall_submission: 'Recalled submission for',
             approve: 'Approved',
             reject: 'Rejected',
-            recall_approval: 'Recalled approval for',
+            recall_approval:
+              view.status === 'rejected' ? 'Recalled rejection for' : 'Recalled approval for',
           } as Record<string, string>
         )[String(dto.action)];
         await this.event(

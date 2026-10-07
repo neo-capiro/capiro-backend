@@ -18,6 +18,9 @@ import {
   type PlannerTimeDetails,
   type PlannerTimesheet,
   type PlannerTimeOptions,
+  type PlannerTimePreferences,
+  type PlannerTimeReviewView,
+  PLANNER_DEFAULT_TIME_REVIEW,
   type PlannerTimesheetWorkRef,
   type PlannerTimesheetWorkRow,
   plannerTimeWorkKey,
@@ -84,7 +87,10 @@ const resources: PlannerResource[] = [];
 const timeSettings = {
   version: 1,
   canManage: new URLSearchParams(window.location.search).get('qaRole') === 'admin',
-  reviewers: { user_qa: 'user_qa2' } as Record<string, string>,
+  reviewers: { user_qa: 'user_qa2', user_qa2: 'user_qa', user_qa3: 'user_qa' } as Record<
+    string,
+    string
+  >,
   options: structuredClone(PLANNER_DEFAULT_TIME_OPTIONS),
 };
 function timeAllowed(date: string) {
@@ -99,7 +105,7 @@ const timeSheets = new Map<
   string,
   { version: number; status: PlannerTimesheet['status']; notes: string; history: PlannerEvent[] }
 >();
-const timePreferences = { version: 1, autoAddDueTasks: false };
+const timePreferences: PlannerTimePreferences = { version: 1, autoAddDueTasks: false };
 const selectedWork = new Map<string, PlannerTimesheetWorkRef[]>();
 const excludedWork = new Map<string, string[]>();
 function timeSheet(week: string, userId = 'user_qa'): PlannerTimesheet {
@@ -297,14 +303,74 @@ const api = {
   async get(path: string, config?: { params?: Record<string, string> }) {
     if (path.endsWith('/time/preferences')) return { data: structuredClone(timePreferences) };
     if (path.endsWith('/time/settings')) return { data: structuredClone(timeSettings) };
-    if (path.endsWith('/timesheets/review')) return { data: [] };
-    if (path.endsWith('/timesheets'))
+    if (path.endsWith('/timesheets/review')) {
+      const params = config?.params ?? {},
+        view: PlannerTimeReviewView = {
+          ...PLANNER_DEFAULT_TIME_REVIEW,
+          people: params.people ? params.people.split(',') : [],
+          statuses: params.statuses
+            ? (params.statuses.split(',') as PlannerTimeReviewView['statuses'])
+            : [],
+          sort: (params.sort ?? 'name') as PlannerTimeReviewView['sort'],
+          direction: (params.direction ?? 'asc') as PlannerTimeReviewView['direction'],
+        },
+        assigned = people.filter((p) => timeSettings.reviewers[p.id] === 'user_qa');
+      const items = assigned
+        .map((p) => timeSheet(params.week ?? now.slice(0, 10), p.id))
+        .filter(
+          (s) =>
+            (!view.people.length || view.people.includes(s.userId)) &&
+            (!view.statuses.length || view.statuses.includes(s.status)),
+        )
+        .sort((a, b) => {
+          const n =
+            view.sort === 'total'
+              ? a.totalMinutes - b.totalMinutes
+              : view.sort === 'billable'
+                ? a.billableMinutes - b.billableMinutes
+                : people
+                    .find((p) => p.id === a.userId)!
+                    .name.localeCompare(people.find((p) => p.id === b.userId)!.name);
+          return n * (view.direction === 'desc' ? -1 : 1) || a.userId.localeCompare(b.userId);
+        });
+      const revision = JSON.stringify([timeSettings.version, view, items.map((s) => s.revision)]);
+      if (params.revision && params.revision !== revision) error('Reviewed time changed', 409);
+      const start = params.cursor ? items.findIndex((s) => s.userId === params.cursor) + 1 : 0;
       return {
-        data: timeSheet(
-          config?.params?.week ?? new Date().toISOString().slice(0, 10),
-          config?.params?.userId,
-        ),
+        data:
+          params.paged === 'true'
+            ? {
+                weekOn: plannerWeekOn(params.week ?? now.slice(0, 10)),
+                revision,
+                people: assigned,
+                matched: items.length,
+                items: items.slice(start, start + 100),
+                nextCursor: items.length > start + 100 ? items[start + 99]!.userId : null,
+                totalMinutes: items.reduce((n, s) => n + s.totalMinutes, 0),
+                billableMinutes: items.reduce((n, s) => n + s.billableMinutes, 0),
+              }
+            : items,
       };
+    }
+    if (path.endsWith('/timesheets')) {
+      const sheet = timeSheet(
+        config?.params?.week ?? new Date().toISOString().slice(0, 10),
+        config?.params?.userId,
+      );
+      if (config?.params?.revision && config.params.revision !== sheet.revision)
+        error('Time changed', 409);
+      const start = config?.params?.historyCursor
+        ? sheet.history.findIndex((e) => e.id === config.params!.historyCursor) + 1
+        : 0;
+      return {
+        data: {
+          ...sheet,
+          history: sheet.history.slice(start, start + 100),
+          nextHistoryCursor:
+            sheet.history.length > start + 100 ? sheet.history[start + 99]!.id : null,
+        },
+      };
+    }
     if (path.includes('/reports/')) {
       const parts = path.split('/'),
         dashboard = resources.find((r) => r.id === parts.at(-3));
@@ -810,13 +876,17 @@ const api = {
       reviewers?: Record<string, string>;
       options?: Partial<PlannerTimeOptions>;
       autoAddDueTasks?: boolean;
+      reviewView?: PlannerTimeReviewView;
     },
   ) {
     if (path.endsWith('/time/preferences')) {
       if (body.version !== timePreferences.version) error('Settings changed', 409);
-      timePreferences.autoAddDueTasks = !!body.autoAddDueTasks;
+      if (body.autoAddDueTasks !== undefined)
+        timePreferences.autoAddDueTasks = body.autoAddDueTasks;
+      if (body.reviewView !== undefined)
+        timePreferences.reviewView = structuredClone(body.reviewView);
       timePreferences.version++;
-      return { data: { ok: true } };
+      return { data: { ok: true, version: timePreferences.version } };
     }
     if (path.endsWith('/time/settings')) {
       if (!timeSettings.canManage) error('Organization admin required', 403);

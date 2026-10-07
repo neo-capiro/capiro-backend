@@ -7,6 +7,11 @@ describe('Planner scheduler tenant discovery and lifecycle', () => {
     const query = jest.fn(async (_sql: unknown) => [{ tenantId: tenant }]);
     const prisma = { withSystem: jest.fn(async (run) => run({ $queryRaw: query })) };
     const planner = {
+      runScheduledTimeWork: jest.fn(async (_tenantId: string, _now: Date, _cursor?: string) => ({
+        executed: 0,
+        failed: 0,
+        nextCursor: null as string | null,
+      })),
       runScheduledGoalWork: jest.fn(async (_tenantId: string, _now: Date, _cursor?: string) => ({
         executed: 0,
         failed: 0,
@@ -37,6 +42,7 @@ describe('Planner scheduler tenant discovery and lifecycle', () => {
     expect(sql.join('')).not.toContain('sp_planner');
     expect(planner.runScheduledWork).toHaveBeenCalledWith(tenant, now, undefined);
     expect(planner.runScheduledGoalWork).toHaveBeenCalledWith(tenant, now, undefined);
+    expect(planner.runScheduledTimeWork).toHaveBeenCalledWith(tenant, now, undefined);
   });
   it('retains task cursors, isolates a failed tenant and retries discovery after failure', async () => {
     const { service, planner, query } = fixture();
@@ -58,6 +64,33 @@ describe('Planner scheduler tenant discovery and lifecycle', () => {
     await service.tick();
     await service.tick();
     expect(query).toHaveBeenCalledTimes(4);
+  });
+  it('retains submission cursors independently and retries after an isolated failure', async () => {
+    const { service, planner } = fixture();
+    planner.runScheduledTimeWork
+      .mockResolvedValueOnce({
+        executed: 50,
+        failed: 0,
+        nextCursor: 'user_time_050',
+      })
+      .mockRejectedValueOnce(Error('transient'));
+    await service.tickOnce();
+    await service.tickOnce();
+    await service.tickOnce();
+    expect(planner.runScheduledTimeWork).toHaveBeenNthCalledWith(
+      2,
+      tenant,
+      expect.any(Date),
+      'user_time_050',
+    );
+    expect(planner.runScheduledTimeWork).toHaveBeenNthCalledWith(
+      3,
+      tenant,
+      expect.any(Date),
+      'user_time_050',
+    );
+    expect(planner.runScheduledWork).toHaveBeenCalledTimes(3);
+    expect(planner.runScheduledGoalWork).toHaveBeenCalledTimes(3);
   });
   it('prevents overlapping ticks and clears its unreferenced timer on shutdown', async () => {
     jest.useFakeTimers();

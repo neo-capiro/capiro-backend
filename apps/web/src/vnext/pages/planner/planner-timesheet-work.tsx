@@ -206,7 +206,10 @@ export function PlannerTimesheetWork({
             disabled={mutations.timePreferences.isPending}
             onClick={() =>
               void mutations.timePreferences
-                .mutateAsync(preferences)
+                .mutateAsync({
+                  version: preferences.version,
+                  autoAddDueTasks: preferences.autoAddDueTasks,
+                })
                 .then(() => setPreferences(null))
                 .catch(() => {})
             }

@@ -24,6 +24,8 @@ import type {
   PlannerTimeSettings,
   PlannerTimeOptions,
   PlannerTimePreferences,
+  PlannerTimeReviewView,
+  PlannerTimeReviewPage,
   PlannerTimesheetWorkRef,
 } from '@capiro/strategy-verifier';
 import { plannerFormSubmissionBody, type PlannerFormFiles } from './planner-form-questions.js';
@@ -62,6 +64,55 @@ export function usePlannerTimeReview(week: string, enabled: boolean) {
     queryFn: async () =>
       (await api.get<PlannerTimesheet[]>(`${BASE}/timesheets/review`, { params: { week } })).data,
     refetchInterval: 30_000,
+  });
+}
+export function usePlannerTimeReviewPages(
+  week: string,
+  view: PlannerTimeReviewView,
+  enabled: boolean,
+) {
+  const api = useApi(),
+    key = usePlannerKey();
+  return useInfiniteQuery({
+    queryKey: [...key, 'time-review-pages', week, view],
+    enabled,
+    initialPageParam: null as { cursor: string; revision: string } | null,
+    queryFn: async ({ pageParam, signal }) =>
+      (
+        await api.get<PlannerTimeReviewPage>(`${BASE}/timesheets/review`, {
+          params: {
+            week,
+            paged: 'true',
+            people: view.people.join(','),
+            statuses: view.statuses.join(','),
+            sort: view.sort,
+            direction: view.direction,
+            ...pageParam,
+          },
+          signal,
+        })
+      ).data,
+    getNextPageParam: (page) =>
+      page.nextCursor ? { cursor: page.nextCursor, revision: page.revision } : undefined,
+    refetchInterval: 30_000,
+    retry: false,
+  });
+}
+export function usePlannerTimesheetHistory(week: string, userId: string, revision: string) {
+  const api = useApi(),
+    key = usePlannerKey();
+  return useInfiniteQuery({
+    queryKey: [...key, 'timesheet-history', week, userId, revision],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam, signal }) =>
+      (
+        await api.get<PlannerTimesheet>(`${BASE}/timesheets`, {
+          params: { week, userId, revision, ...(pageParam ? { historyCursor: pageParam } : {}) },
+          signal,
+        })
+      ).data,
+    getNextPageParam: (page) => page.nextHistoryCursor ?? undefined,
+    retry: false,
   });
 }
 export function usePlannerTimesheetWork(week: string, userId: string, revision?: string) {
@@ -487,8 +538,10 @@ export function usePlannerMutations() {
     onSuccess,
   });
   const timePreferences = useMutation({
-    mutationFn: async (input: PlannerTimePreferences) =>
-      (await api.patch(`${BASE}/time/preferences`, input)).data,
+    mutationFn: async (
+      input: Pick<PlannerTimePreferences, 'version'> &
+        Partial<Omit<PlannerTimePreferences, 'version'>>,
+    ) => (await api.patch<{ ok: true; version: number }>(`${BASE}/time/preferences`, input)).data,
     onSuccess,
   });
   const timesheetWork = useMutation({

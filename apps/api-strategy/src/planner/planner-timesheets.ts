@@ -50,6 +50,7 @@ export function plannerTimesheetActions(
       ...(reviewer && process === 'full' ? ['approve' as const, 'reject' as const] : []),
     ];
   if (data.status === 'approved') return reviewer ? ['recall_approval'] : [];
+  if (data.status === 'rejected' && reviewer) return ['submit', 'recall_approval'];
   return (owner || reviewer) && (data.reviewerId || process === 'simple') ? ['submit'] : [];
 }
 export function plannerTimeEditable(

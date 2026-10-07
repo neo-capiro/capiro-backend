@@ -92,6 +92,7 @@ model SpPlannerEvent {
   details Json @default("{}")
   resource SpPlannerResource? @relation(fields: [tenantId,resourceId], references: [tenantId,id], onDelete: Restrict, onUpdate: Cascade)
   goalReminderClaims SpPlannerGoalReminderClaim[]
+  timeReminderClaims SpPlannerTimeReminderClaim[]
   kind      String
   text      String
   minutes   Int?
@@ -151,6 +152,7 @@ model SpPlannerResource {
   scheduleClaims SpPlannerScheduleClaim[]
   events SpPlannerEvent[]
   goalReminderClaims SpPlannerGoalReminderClaim[]
+  timeReminderClaims SpPlannerTimeReminderClaim[]
   @@unique([tenantId, id])
   @@index([tenantId, kind, archived])
   @@map("sp_planner_resources")
@@ -186,6 +188,23 @@ model SpPlannerGoalReminderClaim {
   event SpPlannerEvent @relation(fields: [tenantId,resourceId,eventId], references: [tenantId,resourceId,id], onDelete: Restrict, onUpdate: Cascade)
   @@unique([tenantId,resourceId,ownerId,kind,fingerprint,deadlineKey], map:"sp_planner_goal_reminder_claims_delivery_key")
   @@map("sp_planner_goal_reminder_claims")
+}
+
+// Append-only, once-per-owner/week submission reminders.
+model SpPlannerTimeReminderClaim {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  resourceId String @map("resource_id") @db.Uuid
+  ownerId String @map("owner_id")
+  weekOn DateTime @map("week_on") @db.Date
+  scheduledOn DateTime @map("scheduled_on") @db.Date
+  eventId String @map("event_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  resource SpPlannerResource @relation(fields: [tenantId,resourceId], references: [tenantId,id], onDelete: Restrict, onUpdate: Cascade)
+  event SpPlannerEvent @relation(fields: [tenantId,resourceId,eventId], references: [tenantId,resourceId,id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([tenantId,ownerId,weekOn], map: "sp_planner_time_reminder_claims_delivery_key")
+  @@unique([tenantId,resourceId], map: "sp_planner_time_reminder_claims_resource_key")
+  @@map("sp_planner_time_reminder_claims")
 }
 
 // ---- Enums --------------------------------------------------------------------

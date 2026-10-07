@@ -37,6 +37,7 @@ export interface PlannerTimesheetWorkRow extends PlannerTimesheetWorkRef {
 export interface PlannerTimePreferences {
   version: number;
   autoAddDueTasks: boolean;
+  reviewView?: PlannerTimeReviewView;
 }
 export function plannerTimeWorkKey(work: PlannerTimesheetWorkRef): string {
   return `${work.taskId ?? 'project'}:${work.projectId ?? 'personal'}`;
@@ -67,6 +68,7 @@ export interface PlannerTimesheet {
   nextCursor: string | null;
   actions: PlannerTimesheetAction[];
   history: PlannerEvent[];
+  nextHistoryCursor?: string | null;
   canLogTime?: boolean;
   timeNotice?: string | null;
   approvalProcess?: 'simple' | 'full';
@@ -84,6 +86,35 @@ export interface PlannerTimeOptions {
   pastLockWeeks: number | null;
   futureWeeks: number | null;
   timeZone: string;
+  submissionReminder?: PlannerTimeSubmissionReminder | null;
+}
+export interface PlannerTimeSubmissionReminder {
+  /** Monday=1 through Sunday=7, in the organization time rules zone. */
+  weekday: number;
+  time: string;
+  week: 'current' | 'previous';
+}
+export interface PlannerTimeReviewView {
+  people: string[];
+  statuses: PlannerTimesheetStatus[];
+  sort: 'name' | 'total' | 'billable';
+  direction: 'asc' | 'desc';
+}
+export const PLANNER_DEFAULT_TIME_REVIEW: PlannerTimeReviewView = {
+  people: [],
+  statuses: [],
+  sort: 'name',
+  direction: 'asc',
+};
+export interface PlannerTimeReviewPage {
+  weekOn: string;
+  revision: string;
+  matched: number;
+  people: { id: string; name: string }[];
+  items: PlannerTimesheet[];
+  nextCursor: string | null;
+  totalMinutes: number;
+  billableMinutes: number;
 }
 export const PLANNER_DEFAULT_TIME_OPTIONS: PlannerTimeOptions = {
   timeTrackingEnabled: true,
@@ -95,6 +126,7 @@ export const PLANNER_DEFAULT_TIME_OPTIONS: PlannerTimeOptions = {
   pastLockWeeks: null,
   futureWeeks: null,
   timeZone: 'UTC',
+  submissionReminder: null,
 };
 export interface PlannerTimeSettings {
   version: number;

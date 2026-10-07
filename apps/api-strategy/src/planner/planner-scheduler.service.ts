@@ -10,6 +10,7 @@ export class PlannerSchedulerService implements OnModuleInit, OnModuleDestroy {
   private tenantCursor = '00000000-0000-0000-0000-000000000000';
   private readonly taskCursors = new Map<string, string>();
   private readonly goalCursors = new Map<string, string>();
+  private readonly timeCursors = new Map<string, string>();
   constructor(
     private readonly prisma: PrismaService,
     private readonly planner: PlannerService,
@@ -18,7 +19,9 @@ export class PlannerSchedulerService implements OnModuleInit, OnModuleDestroy {
     if (process.env.PLANNER_SCHEDULER_ENABLED === 'false') return;
     this.timer = setInterval(() => void this.tick(), 60_000);
     this.timer.unref?.();
-    this.logger.log('Planner configured date rules and goal reminders armed (60-second polling)');
+    this.logger.log(
+      'Planner configured date rules, goal and submission reminders armed (60-second polling)',
+    );
   }
   onModuleDestroy() {
     if (this.timer) clearInterval(this.timer);
@@ -73,6 +76,19 @@ export class PlannerSchedulerService implements OnModuleInit, OnModuleDestroy {
       } catch {
         this.logger.warn(`Planner tenant ${tenantId} goal reminders failed; next cycle will retry`);
       }
+      try {
+        const result = await this.planner.runScheduledTimeWork(
+          tenantId,
+          now,
+          this.timeCursors.get(tenantId),
+        );
+        if (result.nextCursor) this.timeCursors.set(tenantId, result.nextCursor);
+        else this.timeCursors.delete(tenantId);
+      } catch {
+        this.logger.warn(
+          `Planner tenant ${tenantId} submission reminders failed; next cycle will retry`,
+        );
+      }
     }
     this.tenantCursor =
       tenants.length < 20
@@ -81,5 +97,6 @@ export class PlannerSchedulerService implements OnModuleInit, OnModuleDestroy {
     // Cursors are an optimization; durable tenant-scoped receipts are the authority.
     if (this.taskCursors.size > 10000) this.taskCursors.clear();
     if (this.goalCursors.size > 10000) this.goalCursors.clear();
+    if (this.timeCursors.size > 10000) this.timeCursors.clear();
   }
 }

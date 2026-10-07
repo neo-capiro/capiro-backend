@@ -51,5 +51,15 @@ describe('Planner calendar time and weekly locks', () => {
     expect(plannerTimesheetActions({ ...data, status: 'approved' }, 'owner', 'reviewer')).toEqual([
       'recall_approval',
     ]);
+    expect(plannerTimesheetActions({ ...data, status: 'rejected' }, 'owner', 'reviewer')).toEqual([
+      'submit',
+      'recall_approval',
+    ]);
+    expect(plannerTimesheetActions({ ...data, status: 'rejected' }, 'owner', 'owner')).toEqual([
+      'submit',
+    ]);
+    expect(plannerTimesheetActions({ ...data, status: 'rejected' }, 'owner', 'stranger')).toEqual(
+      [],
+    );
   });
 });

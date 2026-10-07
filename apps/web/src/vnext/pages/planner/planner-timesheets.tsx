@@ -16,7 +16,6 @@ import {
 } from '@capiro/strategy-verifier';
 import {
   usePlannerTimesheet,
-  usePlannerTimeReview,
   usePlannerTimeSettings,
   usePlannerTask,
   usePlannerTasks,
@@ -27,6 +26,8 @@ import {
 import { PlannerTimeForm } from './planner-time-form.js';
 import { PlannerTimeOptionsFields } from './planner-time-options.js';
 import { PlannerTimesheetWork } from './planner-timesheet-work.js';
+import { PlannerTimeReview } from './planner-time-review.js';
+import { PlannerTimesheetHistory } from './planner-timesheet-history.js';
 import { PlannerFormattedText } from './planner-rich-text.js';
 import { plannerCsvCell } from './planner-csv.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -148,7 +149,6 @@ export function PlannerTimesheets({
     [error, setError] = useState<unknown>(),
     [exporting, setExporting] = useState(false);
   const query = usePlannerTimesheet(week, userId),
-    review = usePlannerTimeReview(week, reviewing),
     config = usePlannerTimeSettings(),
     mutations = usePlannerMutations(),
     api = useApi();
@@ -277,54 +277,14 @@ export function PlannerTimesheets({
         </p>
       )}
       {reviewing ? (
-        <>
-          {review.isError ? (
-            <p role="alert" className="planner-error">
-              {plannerError(review.error)}
-            </p>
-          ) : review.isPending ? (
-            <p role="status">Loading time review…</p>
-          ) : (
-            <>
-              {!review.data?.length && <p>No submitters are assigned to you for time review.</p>}
-              <table className="planner-table">
-                <thead>
-                  <tr>
-                    <th>Submitter</th>
-                    <th>Status</th>
-                    <th>Total</th>
-                    <th>Billable</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {review.data?.map((s) => (
-                    <tr key={s.userId}>
-                      <td>{person(s.userId)}</td>
-                      <td>
-                        {s.status}
-                        {s.unavailableEntries ? ' · Some work unavailable' : ''}
-                      </td>
-                      <td>{hours(s.totalMinutes)}</td>
-                      <td>{hours(s.billableMinutes)}</td>
-                      <td>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onSelect(week, s.userId);
-                            setReviewing(false);
-                          }}
-                        >
-                          View timesheet
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </>
-          )}
-        </>
+        <PlannerTimeReview
+          key={scope}
+          week={week}
+          onSelect={(id) => {
+            onSelect(week, id);
+            setReviewing(false);
+          }}
+        />
       ) : query.isError || stalePages ? (
         <p role="alert" className="planner-error">
           {stalePages
@@ -439,7 +399,9 @@ export function PlannerTimesheets({
                   setAction({ sheet, action: a });
                 }}
               >
-                {actionLabels[a]}
+                {a === 'recall_approval' && sheet.status === 'rejected'
+                  ? 'Recall rejection'
+                  : actionLabels[a]}
               </button>
             ))}
             {exporting ? (
@@ -538,17 +500,11 @@ export function PlannerTimesheets({
           )}
           <details>
             <summary>Timesheet status activity</summary>
-            {sheet.history.length ? (
-              sheet.history.map((e) => (
-                <article key={e.id} className="planner-activity">
-                  <strong>{person(e.actorId)}</strong>
-                  <time>{new Date(e.createdAt).toLocaleString()}</time>
-                  <PlannerFormattedText text={e.text} />
-                </article>
-              ))
-            ) : (
-              <p>No status changes yet.</p>
-            )}
+            <PlannerTimesheetHistory
+              key={`${scope}:${week}:${userId}:${sheet.revision}`}
+              sheet={sheet}
+              people={bootstrap.people}
+            />
           </details>
         </>
       )}
@@ -572,7 +528,14 @@ export function PlannerTimesheets({
         />
       )}
       {action && (
-        <Frame title={actionLabels[action.action]} onClose={() => setAction(null)}>
+        <Frame
+          title={
+            action.action === 'recall_approval' && action.sheet.status === 'rejected'
+              ? 'Recall rejection'
+              : actionLabels[action.action]
+          }
+          onClose={() => setAction(null)}
+        >
           <p>
             {person(action.sheet.userId)} · {action.sheet.weekOn} ·{' '}
             {hours(action.sheet.totalMinutes)}
@@ -609,7 +572,9 @@ export function PlannerTimesheets({
                 .catch(() => {})
             }
           >
-            {actionLabels[action.action]}
+            {action.action === 'recall_approval' && action.sheet.status === 'rejected'
+              ? 'Recall rejection'
+              : actionLabels[action.action]}
           </button>
         </Frame>
       )}

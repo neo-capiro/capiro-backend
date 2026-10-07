@@ -222,6 +222,47 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .set('x-planner-qa', 'allowed')
       .expect(404);
   });
+  it('forwards reviewer filters, history cursors and private saved views through guarded routes', async () => {
+    const revision = 'a'.repeat(64);
+    const review = {
+      week: '2026-10-05',
+      people: 'user_submitter',
+      statuses: 'submitted',
+      sort: 'total',
+      direction: 'desc',
+      paged: 'true',
+      cursor: 'user_cursor',
+      revision,
+    };
+    await request(app.getHttpServer())
+      .get('/strategy-api/planner/timesheets/review')
+      .query(review)
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.timeReview).toHaveBeenLastCalledWith(ctx, review);
+    const history = { week: '2026-10-05', userId: 'user_submitter', historyCursor: ID, revision };
+    await request(app.getHttpServer())
+      .get('/strategy-api/planner/timesheets')
+      .query(history)
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.timesheet).toHaveBeenLastCalledWith(ctx, history);
+    const preferences = {
+      version: 4,
+      reviewView: {
+        people: ['user_submitter'],
+        statuses: ['submitted'],
+        sort: 'billable',
+        direction: 'desc',
+      },
+    };
+    await request(app.getHttpServer())
+      .patch('/strategy-api/planner/time/preferences')
+      .set('x-planner-qa', 'allowed')
+      .send(preferences)
+      .expect(200);
+    expect(planner.saveTimePreferences).toHaveBeenLastCalledWith(ctx, preferences);
+  });
   it('forwards activity cursors and the archived inbox filter through guarded routes', async () => {
     await request(app.getHttpServer())
       .get(`/strategy-api/planner/tasks/${ID}/events?paged=true&cursor=${ID}`)

@@ -7,6 +7,8 @@ import {
   usePlannerInbox,
   usePlannerReportRows,
   usePlannerTimesheetWork,
+  usePlannerTimeReviewPages,
+  usePlannerTimesheetHistory,
 } from './planner-api.js';
 
 const fixture = vi.hoisted(() => ({ get: vi.fn(), userId: 'user_first' }));
@@ -29,6 +31,70 @@ function wrapper() {
   );
 }
 describe('Planner activity pagination', () => {
+  it('sends people and status filters and binds review paging to its captured revision', async () => {
+    fixture.get.mockImplementation(async (_path, config) => ({
+      data: {
+        items: [],
+        revision: 'review-revision',
+        nextCursor: config.params.cursor ? null : 'member-100',
+      },
+    }));
+    const view = {
+      people: ['member'],
+      statuses: ['submitted' as const],
+      sort: 'total' as const,
+      direction: 'desc' as const,
+    };
+    const { result } = renderHook(() => usePlannerTimeReviewPages('2026-10-05', view, true), {
+      wrapper: wrapper(),
+    });
+    await waitFor(() => expect(result.current.hasNextPage).toBe(true));
+    await act(async () => {
+      await result.current.fetchNextPage();
+    });
+    expect(fixture.get.mock.calls.at(-1)![1]).toEqual({
+      params: {
+        week: '2026-10-05',
+        paged: 'true',
+        people: 'member',
+        statuses: 'submitted',
+        sort: 'total',
+        direction: 'desc',
+        cursor: 'member-100',
+        revision: 'review-revision',
+      },
+      signal: expect.any(AbortSignal),
+    });
+  });
+  it('keeps status history pages separate from time/work pages and isolates new revisions', async () => {
+    fixture.get.mockImplementation(async (_path, config) => ({
+      data: {
+        history: [],
+        revision: config.params.revision,
+        nextHistoryCursor: config.params.historyCursor ? null : 'status-100',
+      },
+    }));
+    const { result, rerender } = renderHook(
+      ({ revision }) => usePlannerTimesheetHistory('2026-10-05', 'member', revision),
+      { initialProps: { revision: 'first' }, wrapper: wrapper() },
+    );
+    await waitFor(() => expect(result.current.hasNextPage).toBe(true));
+    await act(async () => {
+      await result.current.fetchNextPage();
+    });
+    expect(fixture.get.mock.calls.at(-1)![1]).toEqual({
+      params: {
+        week: '2026-10-05',
+        userId: 'member',
+        revision: 'first',
+        historyCursor: 'status-100',
+      },
+      signal: expect.any(AbortSignal),
+    });
+    rerender({ revision: 'next' });
+    await waitFor(() => expect(result.current.data?.pages).toHaveLength(1));
+    expect(result.current.data?.pages[0]?.revision).toBe('next');
+  });
   it('binds weekly work pages to a captured data revision and isolates the next revision', async () => {
     fixture.get.mockImplementation(async (_path, config) => ({
       data: {
