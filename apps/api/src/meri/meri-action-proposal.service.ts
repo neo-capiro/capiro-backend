@@ -52,7 +52,14 @@ export interface CreateMeriActionProposalInput {
   tool: string;
   input: unknown;
   conversationId?: string;
-  surface: 'chat';
+  /** `job`: posted by a Meri job's approval step (Release D), in-process only. */
+  surface: 'chat' | 'job';
+  /**
+   * Post a card only for an action that needs approval. A PASS action would
+   * execute inside create(), which a job must never do, so it is refused before
+   * any row is written. Approval authority is unchanged (owner, WARN only).
+   */
+  requireApproval?: boolean;
 }
 
 export interface PublicMeriActionProposal {
@@ -620,6 +627,8 @@ export class MeriActionProposalService {
       );
     }
     const decision = await this.policyPacks.decideForAction(ctx, tool, input);
+    if (request.requireApproval && decision.outcome === 'PASS')
+      throw new BadRequestException('meri_action_approval_not_applicable');
     const status: MeriActionProposalStatus =
       decision.outcome === 'BLOCK'
         ? 'blocked'

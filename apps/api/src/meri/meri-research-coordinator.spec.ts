@@ -12,7 +12,9 @@ import {
   queueDurableResearchSteering,
   requestDurableResearchCancellation,
   observeDurableResearchCancellation,
+  recordDurableResearchApprovalProposal,
   reserveDurableResearchStep,
+  settleDurableResearchApprovalStep,
 } from './meri-research-coordinator';
 
 const run = (leaseEpoch = 1, id = `run-${leaseEpoch}`): ResearchRunState => ({
@@ -522,5 +524,133 @@ describe('durable per-step research coordinator', () => {
     expect(observed.run.status).toBe('cancelled');
     expect(observed.coordinator.cancellation).toMatchObject({ state: 'observed' });
     expect(observed.coordinator.steps.every((step) => step.outcome === 'cancelled')).toBe(true);
+  });
+});
+
+describe('approval steps inside a job (Release D)', () => {
+  // The report is saved, the run is terminal, and the approval step waits on a
+  // proposal card; approval or rejection settles the step without a lease.
+  function completedWithApprovalStep() {
+    const first = admitted();
+    const metadata = first.metadata as Record<string, any>;
+    return { ...metadata, run: { ...metadata.run, status: 'complete' } };
+  }
+
+  it('records the proposal posted for the approval step, once', () => {
+    const recorded = recordDurableResearchApprovalProposal({
+      metadata: completedWithApprovalStep(),
+      stepId: 'prepare-follow-up',
+      proposalId: 'proposal-1',
+    });
+    const step = recorded.coordinator.steps.find((s) => s.id === 'prepare-follow-up');
+    expect(step).toMatchObject({
+      outcome: 'waiting_for_approval',
+      operationRefs: ['proposal:proposal-1'],
+    });
+    const again = recordDurableResearchApprovalProposal({
+      metadata: recorded.metadata,
+      stepId: 'prepare-follow-up',
+      proposalId: 'proposal-1',
+    });
+    expect(again.coordinator.steps.find((s) => s.id === 'prepare-follow-up')?.operationRefs).toEqual([
+      'proposal:proposal-1',
+    ]);
+    expect(() =>
+      recordDurableResearchApprovalProposal({
+        metadata: recorded.metadata,
+        stepId: 'prepare-follow-up',
+        proposalId: 'proposal-2',
+      }),
+    ).toThrow('research_approval_proposal_already_recorded');
+    expect(() =>
+      recordDurableResearchApprovalProposal({
+        metadata: recorded.metadata,
+        stepId: 'read-house-text',
+        proposalId: 'proposal-1',
+      }),
+    ).toThrow('research_approval_step_not_found');
+  });
+
+  it.each([
+    ['succeeded', 'completed', null, 'step_completed'],
+    ['dismissed', 'cancelled', 'approval_dismissed', 'step_failed'],
+    ['expired', 'cancelled', 'approval_expired', 'step_failed'],
+    ['blocked', 'cancelled', 'approval_blocked', 'step_failed'],
+    ['failed_terminal', 'cancelled', 'approval_execution_failed', 'step_failed'],
+    ['outcome_unknown', 'uncertain_effect', 'approval_outcome_unknown', 'step_failed'],
+  ] as const)(
+    'settles a %s proposal as %s on a terminal run, with an ordered event',
+    (status, outcome, failureCode, eventType) => {
+      const recorded = recordDurableResearchApprovalProposal({
+        metadata: completedWithApprovalStep(),
+        stepId: 'prepare-follow-up',
+        proposalId: 'proposal-1',
+      });
+      const before = (recorded.metadata.run as { eventSequence: number }).eventSequence;
+      const settled = settleDurableResearchApprovalStep({
+        metadata: recorded.metadata,
+        stepId: 'prepare-follow-up',
+        proposalId: 'proposal-1',
+        proposalStatus: status,
+        now: new Date('2026-09-28T01:00:00.000Z'),
+      });
+      expect(settled.changed).toBe(true);
+      const step = settled.coordinator.steps.find((s) => s.id === 'prepare-follow-up');
+      expect(step).toMatchObject({ outcome, failureCode });
+      expect(step?.operationRefs).toContain(`proposal:proposal-1:${status}`);
+      expect(settled.coordinator.events.at(-1)).toMatchObject({
+        type: eventType,
+        stepId: 'prepare-follow-up',
+        detail: `proposal:${status}`,
+      });
+      expect((settled.metadata.run as { eventSequence: number; status: string })).toMatchObject({
+        status: 'complete',
+        eventSequence: before + 1,
+      });
+      // Settling again is a no-op: the step is no longer waiting.
+      expect(
+        settleDurableResearchApprovalStep({
+          metadata: settled.metadata,
+          stepId: 'prepare-follow-up',
+          proposalId: 'proposal-1',
+          proposalStatus: status,
+        }).changed,
+      ).toBe(false);
+    },
+  );
+
+  it.each(['proposed', 'approved', 'executing', 'failed_retryable'] as const)(
+    'leaves the step waiting while the proposal is %s',
+    (status) => {
+      const recorded = recordDurableResearchApprovalProposal({
+        metadata: completedWithApprovalStep(),
+        stepId: 'prepare-follow-up',
+        proposalId: 'proposal-1',
+      });
+      const result = settleDurableResearchApprovalStep({
+        metadata: recorded.metadata,
+        stepId: 'prepare-follow-up',
+        proposalId: 'proposal-1',
+        proposalStatus: status,
+      });
+      expect(result.changed).toBe(false);
+      expect(result.metadata).toEqual(recorded.metadata);
+    },
+  );
+
+  it('refuses to settle a step with a proposal it never posted', () => {
+    const recorded = recordDurableResearchApprovalProposal({
+      metadata: completedWithApprovalStep(),
+      stepId: 'prepare-follow-up',
+      proposalId: 'proposal-1',
+    });
+    expect(() =>
+      settleDurableResearchApprovalStep({
+        metadata: recorded.metadata,
+        stepId: 'prepare-follow-up',
+        proposalId: 'proposal-other',
+        proposalStatus: 'succeeded',
+      }),
+    ).toThrow('research_approval_proposal_mismatch');
   });
 });
