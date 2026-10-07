@@ -18,6 +18,8 @@ Seven restricted-role PostgreSQL cases cover estimates and importer/date/allocat
 
 Synthetic browser verification imported two tasks with 135 estimated / 90 actual minutes and 900 estimated / 30 actual minutes, on December 14. The actual downloaded CSV was read from disk and verified to contain `2:15` / `1:30` and `15:00` / `0:30`. The in-app browser saved the download normally although its automation download event timed out. Local evidence: `artifacts/planner/time-import-local-preview.png`, `time-import-local-result.png`, `time-import-local-export.csv` and `PLANNER_TIME_IMPORT_LOCAL_EXPORT_PASSED`.
 
+Browser qualification also found that the growing project controls squeezed long titles into a narrow column. The header now preserves the title's usable width and wraps actions onto another row when needed. `time-import-local-header.png` verifies the corrected layout, and the final web production build passes. Initial remote builds were superseded before any deployment so both final images will use the same corrected source.
+
 Read-only production preflight passed as `PLANNER_TIME_IMPORT_SCHEMA_PROOF_PASSED` on serving Strategies 48: 28 migration files and their recorded checksums, twelve Planner migrations, eleven forced-RLS tables and six immutable triggers, under the actual non-super/non-bypass application role with restricted privileges.
 
 ## Remaining work
