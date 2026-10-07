@@ -6668,6 +6668,8 @@ export class EngagementService {
   }
 
   async generateMeetingPrep(ctx: TenantContext, meetingId: string, additionalContext?: string) {
+    const prepStartedAt = Date.now();
+    const prepExecution = currentMeetingPrepExecution();
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const meeting = await tx.meeting.findFirst({
         where: { id: meetingId, tenantId: ctx.tenantId, ...ownMeetingWhere(ctx.userId) },
@@ -6864,6 +6866,18 @@ export class EngagementService {
         ),
       )
       .digest('hex');
+    if (prepExecution)
+      this.logger.log(
+        JSON.stringify({
+          event: 'meeting_prep_context_ready',
+          jobId: prepExecution.jobId,
+          elapsedMs: Date.now() - prepStartedAt,
+          priorMeetings: context.recentMeetings.length,
+          mailThreads: context.recentThreads.length,
+          tasks: context.tasks.length,
+          governedSources: governed?.evidenceSources?.length ?? 0,
+        }),
+      );
     const generated = await this.ai.generateMeetingPrep(promptContext, ctx);
     const generationPromptHash = generated.promptHash ?? promptHash;
     await this.recordAiUsage(ctx, 'meeting_prep', generated);
@@ -6973,6 +6987,14 @@ export class EngagementService {
         ),
       );
     }
+    if (prepExecution)
+      this.logger.log(
+        JSON.stringify({
+          event: 'meeting_prep_saved',
+          jobId: prepExecution.jobId,
+          elapsedMs: Date.now() - prepStartedAt,
+        }),
+      );
     return created;
   }
 

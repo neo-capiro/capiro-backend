@@ -217,11 +217,12 @@ function batches(sources: PrepEvidenceSource[], budget = 40_000): PrepEvidenceSo
 async function parallelMap<T, U>(
   values: T[],
   run: (value: T, index: number) => Promise<U>,
+  concurrency = 3,
 ): Promise<U[]> {
   const results: U[] = new Array(values.length);
   let next = 0;
   await Promise.all(
-    Array.from({ length: Math.min(3, values.length) }, async () => {
+    Array.from({ length: Math.min(concurrency, values.length) }, async () => {
       for (;;) {
         const index = next++;
         if (index >= values.length) return;
@@ -240,6 +241,7 @@ export async function generateComprehensiveMeetingPrep(
 ): Promise<MeetingPrepResult> {
   const execution = currentMeetingPrepExecution();
   if (!execution) throw new Error('meeting_prep_durable_execution_required');
+  const generationStartedAt = Date.now();
   const sources = prepEvidenceSources(input);
   const asOf = new Date(execution.requestedAt ?? Date.now()).toISOString();
   const inputHash = hash({
@@ -310,12 +312,42 @@ export async function generateComprehensiveMeetingPrep(
       for (let retry = 0; ; retry++) {
         const remaining = stageDeadline - Date.now();
         if (remaining <= 0) throw new Error('meeting_prep_provider_stage_timed_out');
+        const startedAt = Date.now();
         try {
-          return await llm.complete({
+          const result = await llm.complete({
             ...attempt,
             timeoutMs: Math.min(attempt.timeoutMs, remaining, prepStageTimeout(timeout, reserve)),
           });
+          logger.log(
+            JSON.stringify({
+              event: 'meeting_prep_provider_call',
+              jobId: execution!.jobId,
+              stage,
+              attempt: retry + 1,
+              reasoningEffort: attempt.reasoningEffort,
+              maxTokens: attempt.maxTokens,
+              elapsedMs: Date.now() - startedAt,
+              inputTokens: result.usage.inputTokens,
+              outputTokens: result.usage.outputTokens,
+              truncated: result.truncated,
+              status: 'completed',
+            }),
+          );
+          return result;
         } catch (error) {
+          logger.warn(
+            JSON.stringify({
+              event: 'meeting_prep_provider_call',
+              jobId: execution!.jobId,
+              stage,
+              attempt: retry + 1,
+              reasoningEffort: attempt.reasoningEffort,
+              maxTokens: attempt.maxTokens,
+              elapsedMs: Date.now() - startedAt,
+              status: 'failed',
+              errorType: error instanceof Error ? error.name : 'unknown',
+            }),
+          );
           execution!.signal.throwIfAborted();
           if (
             stage !== 'extracting' ||
@@ -416,7 +448,7 @@ export async function generateComprehensiveMeetingPrep(
     const result = { hash: batchHash, ...(await extractBatch(batch)) };
     await execution.checkpoint(key, result);
     return result;
-  });
+  }, POLICY.extractionConcurrency);
   const facts = [
     ...new Map(extraction.flatMap((batch) => batch.facts).map((fact) => [fact.id, fact])).values(),
   ];
@@ -494,6 +526,21 @@ export async function generateComprehensiveMeetingPrep(
       },
       usage,
     );
+    logger.log(
+      JSON.stringify({
+        event: 'meeting_prep_generated',
+        jobId: execution.jobId,
+        depth: execution.depth,
+        elapsedMs: Date.now() - generationStartedAt,
+        extractionBatches: sourceBatches.length,
+        extractedFacts: facts.length,
+        selectedFacts: selectedFactCount,
+        reviewedFacts: reviewedFactCount,
+        repairs: completedRepairs,
+        unresolvedReviewItems: stillFlagged.length,
+        partialCoverage: result.briefing?.coverage.partial ?? true,
+      }),
+    );
     return { ...result, promptHash: hash(requestHashes.sort()) };
   };
   const finishAfterRefinementFailure = (error: unknown): MeetingPrepResult => {
@@ -566,6 +613,7 @@ export async function generateComprehensiveMeetingPrep(
           POLICY.synthesisMs,
           maxTokens,
           POLICY.coverageReviewMs + POLICY.persistenceReserveMs,
+          pass > 0 && execution.depth === 'standard' ? 'medium' : 'high',
         );
         let candidate: Draft;
         try {

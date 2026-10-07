@@ -33,6 +33,7 @@ export const MEETING_PREP_POLICY = {
   synthesisMs: 20 * 60_000,
   coverageReviewMs: 10 * 60_000,
   extractionMs: 10 * 60_000,
+  extractionConcurrency: 4,
   toolMs: 45_000,
   persistenceReserveMs: 15_000,
   synthesisReserveMs: 15 * 60_000,

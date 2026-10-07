@@ -274,7 +274,11 @@ describe('bounded repair delivers the last renderable briefing', () => {
     ),
     limitations: [],
   });
-  function run(complete: jest.Mock, execution: Partial<MeetingPrepExecution> = {}) {
+  function run(
+    complete: jest.Mock,
+    execution: Partial<MeetingPrepExecution> = {},
+    evidenceSources: PrepEvidenceSource[] = [evidence],
+  ) {
     return runWithMeetingGovernedContext(
       {
         kind: 'governed_packet',
@@ -323,7 +327,7 @@ describe('bounded repair delivers the last renderable briefing', () => {
                 recentMeetings: [],
                 recentThreads: [],
                 tasks: [],
-                evidenceSources: [evidence],
+                evidenceSources,
               },
               {
                 provider: 'openai',
@@ -436,12 +440,84 @@ describe('bounded repair delivers the last renderable briefing', () => {
     );
     const result = await run(complete);
     expect(reviews).toBe(3);
+    expect(
+      complete.mock.calls.find(([request]) => request.jsonSchemaName.endsWith('synthesizing'))![0]
+        .reasoningEffort,
+    ).toBe('high');
+    expect(
+      complete.mock.calls
+        .filter(([request]) => request.jsonSchemaName.endsWith('repairing'))
+        .map(([request]) => request.reasoningEffort),
+    ).toEqual(['medium', 'medium']);
     expect(result.briefing?.sections.commitments.items[0]?.text).toBe(
       'Send the implementation timeline.',
     );
     expect(result.briefing?.limitations.join(' ')).toContain(
       'still flagged 1 item(s) after 2 repair passes',
     );
+  });
+
+  test('deep preparation keeps high reasoning for its repair', async () => {
+    const extracted = parseBriefingFacts([extractionFact], [evidence]);
+    let reviews = 0;
+    const complete = jest.fn(async (request) =>
+      reply(
+        request.jsonSchemaName.endsWith('extracting')
+          ? { facts: [extractionFact], limitations: [] }
+          : request.jsonSchemaName.endsWith('checking_coverage')
+            ? { omittedFactIds: reviews++ === 0 ? [extracted[0]!.id] : [] }
+            : renderable([extracted[0]!.id]),
+      ),
+    );
+    await run(complete, { depth: 'deep' });
+    expect(
+      complete.mock.calls.find(([request]) => request.jsonSchemaName.endsWith('repairing'))![0]
+        .reasoningEffort,
+    ).toBe('high');
+  });
+
+  test('extracts four evidence batches concurrently and finishes the briefing', async () => {
+    const sources: PrepEvidenceSource[] = Array.from({ length: 5 }, (_, index) => ({
+      ...evidence,
+      id: `mail:large-${index}`,
+      recordId: `large-${index}`,
+      excerpt: 'A'.repeat(39_000),
+    }));
+    let active = 0;
+    let maximumActive = 0;
+    let release!: () => void;
+    let reachedFour!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fourStarted = new Promise<void>((resolve) => {
+      reachedFour = resolve;
+    });
+    const complete = jest.fn(async (request) => {
+      if (request.jsonSchemaName.endsWith('extracting')) {
+        active++;
+        maximumActive = Math.max(maximumActive, active);
+        if (active === 4) reachedFour();
+        await gate;
+        active--;
+        return reply({ facts: [extractionFact], limitations: [] });
+      }
+      return reply(
+        request.jsonSchemaName.endsWith('checking_coverage')
+          ? { omittedFactIds: [] }
+          : renderable([]),
+      );
+    });
+    const generated = run(complete, {}, sources);
+    try {
+      await fourStarted;
+      expect(active).toBe(4);
+    } finally {
+      release();
+    }
+    const result = await generated;
+    expect(maximumActive).toBe(4);
+    expect(result.briefing?.coverage.extractedBatches).toBeGreaterThan(4);
   });
 
   test('only a briefing that never renders is refused', async () => {
