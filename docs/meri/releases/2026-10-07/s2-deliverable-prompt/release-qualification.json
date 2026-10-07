@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-deliverable-prompt-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-07T01:21:21.480985+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "f5abab1822824785a0560839ed47d9ffad900325",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:3a427ec56bd47eb6a9beda9387a7fa7addb4139f4efae7f1afbd67714600ce00",
+      "buildId": "capiro-build-web-dev:9a7cfa31-25b5-4ff8-8ec5-86d9631aff29"
+    }
+  ],
+  "schemaChange": false,
+  "change": "API roll from main f5abab182: a deliverable job's plan and research are told Capiro renders the file (#2156); carries planner scheduling #2155. Host roll for the worker-loss check (sweeper on since 632).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
