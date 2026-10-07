@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-deck-layout-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-07T01:56:23.549315+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "ca8c114efcfcdd1a536ec55b140d4d6732d9933a",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:03e72d8938ad9e074c0f51c6014bf16fe46638f1579e85abb2e5af20f1792a4f",
+      "buildId": "capiro-build-web-dev:19a25aa5-f561-47dc-9e1d-baa4bbad82e7"
+    }
+  ],
+  "schemaChange": false,
+  "change": "API roll from main: a deliverable deck keeps one slide per section with a compact source list and notes (#2160).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
