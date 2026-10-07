@@ -40,6 +40,8 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     addEvent: jest.fn(async () => ({ id: ID })),
     reviseEvent: jest.fn(async () => ({ id: ID, version: 1 })),
     inbox: jest.fn(async () => []),
+    notifications: jest.fn(async () => ({ items: [], unread: 0 })),
+    readAllNotifications: jest.fn(async () => ({ read: 0 })),
     updateInbox: jest.fn(async () => ({ ok: true })),
   };
   const attachments = {
@@ -91,6 +93,8 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     ['post', `projects/${ID}/events`],
     ['patch', `events/${ID}`],
     ['get', 'inbox'],
+    ['get', 'notifications'],
+    ['post', 'notifications/read-all'],
     ['patch', `inbox/${ID}`],
     ['get', 'resources'],
     ['post', 'resources'],

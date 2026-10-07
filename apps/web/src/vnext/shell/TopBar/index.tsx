@@ -1,6 +1,9 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DashboardIcon, type DashboardIconName } from '../../components/untitledui/dashboard-icons.js';
+import {
+  DashboardIcon,
+  type DashboardIconName,
+} from '../../components/untitledui/dashboard-icons.js';
 import type { ShellIdentityViewModel } from '../../adapters/legacy/useShellIdentity.js';
 import type { ShellNotificationsViewModel } from '../../adapters/legacy/useShellNotifications.js';
 import {
@@ -10,6 +13,15 @@ import {
   useRespondToInvite,
 } from '../../../pages/workspace/api.js';
 import type { WsNotification } from '../../../pages/workspace/types.js';
+import type { PlannerBellItem } from '@capiro/strategy-verifier';
+import {
+  usePlannerNotifications,
+  usePlannerNotificationsEnabled,
+  usePlannerNotificationRead,
+  usePlannerNotificationsReadAll,
+  plannerNotificationTarget,
+} from '../../pages/planner/planner-notifications.js';
+import { plannerError, usePlannerKey } from '../../pages/planner/planner-api.js';
 import {
   useLwNotifications,
   useMarkAllLwNotificationsRead,
@@ -58,7 +70,9 @@ export function CapiroBrand({ environmentLabel }: { environmentLabel?: string })
     <span className="capiro-vnext-brand">
       {/* The real wordmark the canonical shell already ships, not a drawn glyph. */}
       <img className="capiro-vnext-brand-wordmark" src="/logo.png" alt="Capiro" />
-      {environmentLabel ? <span className="capiro-vnext-brand-meta">{environmentLabel}</span> : null}
+      {environmentLabel ? (
+        <span className="capiro-vnext-brand-meta">{environmentLabel}</span>
+      ) : null}
     </span>
   );
 }
@@ -111,32 +125,50 @@ export function NotificationBell({
   // duplicate read/read-all requests while a mutation is in flight.
   const bdReadInFlight = useRef(false);
   const bdMarkAllInFlight = useRef(false);
+  const plannerOn = usePlannerNotificationsEnabled();
+  const plannerIdentity = JSON.stringify(usePlannerKey());
+  const latestPlannerIdentity = useRef(plannerIdentity);
+  latestPlannerIdentity.current = plannerIdentity;
+  const plannerList = usePlannerNotifications();
+  const plannerMarkRead = usePlannerNotificationRead();
+  const plannerMarkAll = usePlannerNotificationsReadAll();
+  const plannerReadInFlight = useRef(false);
+  const plannerAllInFlight = useRef(false);
 
   const wsItems = wsList.data?.items ?? [];
   const lwItems = lwList.data?.rows ?? [];
   const wsFailed = wsList.isError;
   const lwFailed = lwList.isError;
   const bdFailed = bdWatchOn && bdList.isError;
+  const plannerFailed = plannerOn && plannerList.isError;
   const unavailable =
-    notifications.unavailable || (wsFailed && lwFailed && (!bdWatchOn || bdFailed));
+    notifications.unavailable ||
+    (wsFailed && lwFailed && (!bdWatchOn || bdFailed) && (!plannerOn || plannerFailed));
 
   const label = unavailable
     ? 'Notifications unavailable'
     : `Notifications${notifications.unread > 0 ? `, ${notifications.unread} unread` : ''}`;
 
-  const merged = useMemo<Array<
-    | { source: 'workspace'; at: number; n: WsNotification }
-    | { source: 'committee'; at: number; n: LwNotification }
-    | { source: 'bizdev'; at: number; n: BizDevBellAlert }
-  >>(() => {
+  const merged = useMemo<
+    Array<
+      | { source: 'workspace'; at: number; n: WsNotification }
+      | { source: 'committee'; at: number; n: LwNotification }
+      | { source: 'bizdev'; at: number; n: BizDevBellAlert }
+      | { source: 'planner'; at: number; n: PlannerBellItem }
+    >
+  >(() => {
     const out: Array<
       | { source: 'workspace'; at: number; n: WsNotification }
       | { source: 'committee'; at: number; n: LwNotification }
       | { source: 'bizdev'; at: number; n: BizDevBellAlert }
+      | { source: 'planner'; at: number; n: PlannerBellItem }
     > = [];
     const bdItems = bdWatchOn ? (bdList.data?.items ?? []).filter((a) => !a.dismissedAt) : [];
     for (const n of wsItems) out.push({ source: 'workspace', at: Date.parse(n.createdAt) || 0, n });
     for (const n of lwItems) out.push({ source: 'committee', at: Date.parse(n.createdAt) || 0, n });
+    if (plannerOn && !plannerFailed)
+      for (const n of plannerList.data?.items ?? [])
+        out.push({ source: 'planner', at: Date.parse(n.event.createdAt) || 0, n });
     // Arrival order matters: a watcher may surface an OLD event today, so
     // firstObservedAt (notification arrival) sorts first; published/event
     // timestamps are fallbacks only.
@@ -147,7 +179,7 @@ export function NotificationBell({
     }
     // Newest first; a committee alert must never be buried under older items.
     return out.sort((a, b) => b.at - a.at);
-  }, [wsItems, lwItems, bdWatchOn, bdList.data]);
+  }, [wsItems, lwItems, bdWatchOn, bdList.data, plannerOn, plannerFailed, plannerList.data]);
 
   const onRespond = (draftId: string, collaboratorId: string, action: 'accept' | 'decline') => {
     respond.mutate(
@@ -164,6 +196,22 @@ export function NotificationBell({
   };
 
   const [actionError, setActionError] = useState<string | null>(null);
+  const openPlanner = (n: PlannerBellItem) => {
+    if (!plannerOn || plannerReadInFlight.current) return;
+    plannerReadInFlight.current = true;
+    setActionError(null);
+    plannerMarkRead.mutate(n.id, {
+      onSettled: () => {
+        plannerReadInFlight.current = false;
+      },
+      onSuccess: () => {
+        if (latestPlannerIdentity.current !== plannerIdentity) return;
+        close();
+        navigate(plannerNotificationTarget(n));
+      },
+      onError: (err) => setActionError(plannerError(err)),
+    });
+  };
 
   /** Business Development row: mark read FIRST, then navigate to the
    *  prospect alert panel. Navigation happens ONLY after the read persists —
@@ -220,7 +268,10 @@ export function NotificationBell({
   };
 
   const markAllPending =
-    wsMarkAll.isPending || lwMarkAll.isPending || (bdWatchOn && bdMarkAll.isPending);
+    wsMarkAll.isPending ||
+    lwMarkAll.isPending ||
+    (bdWatchOn && bdMarkAll.isPending) ||
+    (plannerOn && plannerMarkAll.isPending);
   const markAll = () => {
     // All sources, all caches — the dashboard Needs Attention module reads
     // the same lw key, so it clears together with the bell. Each source is
@@ -230,6 +281,15 @@ export function NotificationBell({
       setActionError(w1Error(err) || 'Some notifications could not be marked read.');
     if (!wsFailed) wsMarkAll.mutate(undefined, { onError });
     if (!lwFailed) lwMarkAll.mutate(undefined, { onError });
+    if (plannerOn && !plannerFailed && !plannerAllInFlight.current) {
+      plannerAllInFlight.current = true;
+      plannerMarkAll.mutate(undefined, {
+        onSettled: () => {
+          plannerAllInFlight.current = false;
+        },
+        onError: (err) => setActionError(plannerError(err)),
+      });
+    }
     if (bdWatchOn && !bdFailed && !bdMarkAllInFlight.current) {
       bdMarkAllInFlight.current = true;
       bdMarkAll.mutate(undefined, {
@@ -262,7 +322,11 @@ export function NotificationBell({
       </button>
 
       {isOpen ? (
-        <div className="capiro-vnext-menu capiro-vnext-notif capiro-elevation-popover" role="menu" aria-label="Notifications">
+        <div
+          className="capiro-vnext-menu capiro-vnext-notif capiro-elevation-popover"
+          role="menu"
+          aria-label="Notifications"
+        >
           <div className="capiro-vnext-notif__head">
             <span className="capiro-vnext-notif__title">Notifications</span>
             {notifications.unread > 0 ? (
@@ -298,8 +362,17 @@ export function NotificationBell({
               {actionError}
             </p>
           ) : null}
+          {plannerFailed ? (
+            <p className="capiro-vnext-notif__empty" role="alert">
+              Planner notifications are unavailable right now. Other notifications remain available.
+            </p>
+          ) : null}
 
-          {wsList.isLoading || lwList.isLoading || (bdWatchOn && bdList.isLoading) ? (
+          {merged.length === 0 &&
+          (wsList.isLoading ||
+            lwList.isLoading ||
+            (bdWatchOn && bdList.isLoading) ||
+            (plannerOn && plannerList.isLoading)) ? (
             <p className="capiro-vnext-notif__empty">Loading…</p>
           ) : unavailable ? (
             <p className="capiro-vnext-notif__empty">Notifications are unavailable right now.</p>
@@ -312,6 +385,32 @@ export function NotificationBell({
           ) : (
             <ul className="capiro-vnext-notif__list">
               {merged.map((entry) => {
+                if (entry.source === 'planner') {
+                  const n = entry.n;
+                  return (
+                    <li key={`planner-${n.id}`} className="capiro-vnext-notif__item" data-unread>
+                      <button
+                        type="button"
+                        className="capiro-vnext-notif__open"
+                        disabled={plannerMarkRead.isPending}
+                        onClick={() => openPlanner(n)}
+                      >
+                        <span className="capiro-vnext-notif__message">
+                          <span className="capiro-vnext-notif__source">Planner</span>
+                          {n.title}
+                          <span className="capiro-vnext-notif__time">
+                            {n.event.removed
+                              ? 'Activity removed'
+                              : n.event.text.replace(/\s+/g, ' ').slice(0, 180)}
+                          </span>
+                        </span>
+                        <span className="capiro-vnext-notif__time">
+                          {relativeTime(n.event.createdAt)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                }
                 if (entry.source === 'bizdev') {
                   const n = entry.n;
                   const dateLine = bizDevBellDateLine(n);
@@ -334,9 +433,13 @@ export function NotificationBell({
                           <span className="capiro-vnext-notif__source">Business Development</span>
                           {n.company ? `${n.company} — ` : ''}
                           {n.title}
-                          {n.summary ? <span className="capiro-bizdev__meta">{n.summary}</span> : null}
+                          {n.summary ? (
+                            <span className="capiro-bizdev__meta">{n.summary}</span>
+                          ) : null}
                           {n.materiality ? (
-                            <span className="capiro-bizdev__meta">Materiality: {n.materiality}</span>
+                            <span className="capiro-bizdev__meta">
+                              Materiality: {n.materiality}
+                            </span>
                           ) : null}
                         </span>
                         {dateLine ? (
@@ -372,17 +475,22 @@ export function NotificationBell({
                       >
                         <span className="capiro-vnext-notif__message">
                           <span className="capiro-vnext-notif__source">
-                            {n.eventType === 'committee_publication' ? 'Committee publication' : 'Committee'}
+                            {n.eventType === 'committee_publication'
+                              ? 'Committee publication'
+                              : 'Committee'}
                           </span>
                           {n.title}
                         </span>
-                        <span className="capiro-vnext-notif__time">{relativeTime(n.createdAt)}</span>
+                        <span className="capiro-vnext-notif__time">
+                          {relativeTime(n.createdAt)}
+                        </span>
                       </button>
                     </li>
                   );
                 }
                 const n = entry.n;
-                const isInvite = n.kind === 'collab_invite' && n.actionable && n.draftId && n.collaboratorId;
+                const isInvite =
+                  n.kind === 'collab_invite' && n.actionable && n.draftId && n.collaboratorId;
                 return (
                   <li
                     key={`ws-${n.id}`}
@@ -450,7 +558,15 @@ interface ProfileMenuEntry {
 const PROFILE_MENU: readonly ProfileMenuEntry[] = [
   { id: 'profile', label: 'Profile', path: null, icon: 'User01', action: 'profile' },
   { id: 'settings', label: 'Settings', path: '/settings', icon: 'Settings01' },
-  { id: 'sign-out', label: 'Sign out', path: null, icon: 'LogOut01', action: 'sign-out', destructive: true, separated: true },
+  {
+    id: 'sign-out',
+    label: 'Sign out',
+    path: null,
+    icon: 'LogOut01',
+    action: 'sign-out',
+    destructive: true,
+    separated: true,
+  },
 ];
 
 export function ProfileMenu({
@@ -505,7 +621,11 @@ export function ProfileMenu({
       </button>
 
       {isOpen ? (
-        <div className="capiro-vnext-menu capiro-elevation-popover" role="menu" aria-label="Profile">
+        <div
+          className="capiro-vnext-menu capiro-elevation-popover"
+          role="menu"
+          aria-label="Profile"
+        >
           <div className="capiro-vnext-menu__header">
             <p className="capiro-vnext-menu__name">{identity.name ?? 'Signed in'}</p>
             {identity.role ? <p className="capiro-vnext-menu__title">{identity.role}</p> : null}
@@ -542,7 +662,7 @@ export function ProfileMenu({
                   <DashboardIcon name={entry.icon} size={16} />
                 </span>
                 <span className="capiro-vnext-menu__label">{entry.label}</span>
-                {(disabled || entry.tag) ? (
+                {disabled || entry.tag ? (
                   <span className="capiro-vnext-menu__tag">
                     {disabled ? 'Not available' : entry.tag}
                   </span>

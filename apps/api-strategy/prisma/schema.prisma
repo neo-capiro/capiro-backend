@@ -59,6 +59,7 @@ model SpPlannerTask {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   attachments SpPlannerAttachment[]
+  scheduleClaims SpPlannerScheduleClaim[]
   @@unique([tenantId, id])
   @@index([tenantId, archived, assigneeId])
   @@index([tenantId, parentId])
@@ -140,8 +141,25 @@ model SpPlannerResource {
   shareTokenHash String? @map("share_token_hash")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  scheduleClaims SpPlannerScheduleClaim[]
+  @@unique([tenantId, id])
   @@index([tenantId, kind, archived])
   @@map("sp_planner_resources")
+}
+
+// Append-only execution receipts prevent repeat reminders after retries/restarts.
+model SpPlannerScheduleClaim {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  resourceId String @map("resource_id") @db.Uuid
+  taskId String @map("task_id") @db.Uuid
+  fingerprint String @db.Char(64)
+  deadlineKey String @map("deadline_key") @db.Char(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  resource SpPlannerResource @relation(fields: [tenantId, resourceId], references: [tenantId, id])
+  task SpPlannerTask @relation(fields: [tenantId, taskId], references: [tenantId, id])
+  @@unique([tenantId, resourceId, taskId, fingerprint, deadlineKey], map: "sp_planner_schedule_claims_execution_key")
+  @@map("sp_planner_schedule_claims")
 }
 
 // ---- Enums --------------------------------------------------------------------

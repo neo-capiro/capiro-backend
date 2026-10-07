@@ -758,14 +758,83 @@ function ResourceEditor({
                 />
               </Field>
               <Field name="When">
-                <select value={rule.trigger} onChange={(e) => edit({ trigger: e.target.value })}>
-                  {['created', 'status_changed', 'priority_changed', 'section_changed'].map((t) => (
+                <select
+                  value={rule.trigger}
+                  onChange={(e) => {
+                    const trigger = e.target.value;
+                    const scheduled = ['due_approaching', 'overdue'].includes(trigger);
+                    edit({
+                      trigger,
+                      schedule: scheduled
+                        ? (rule.schedule ?? { amount: 0, unit: 'days' })
+                        : undefined,
+                      actions: scheduled
+                        ? rule.actions
+                        : Object.fromEntries(
+                            Object.entries(rule.actions).filter(([k]) => k !== 'notify'),
+                          ),
+                    });
+                  }}
+                >
+                  {[
+                    'created',
+                    'status_changed',
+                    'priority_changed',
+                    'section_changed',
+                    'due_approaching',
+                    'overdue',
+                  ].map((t) => (
                     <option key={t} value={t}>
                       {t.replaceAll('_', ' ')}
                     </option>
                   ))}
                 </select>
               </Field>
+              {['due_approaching', 'overdue'].includes(rule.trigger) && (
+                <div className="planner-form-grid">
+                  <Field name={rule.trigger === 'overdue' ? 'After due date' : 'Before due date'}>
+                    <input
+                      type="number"
+                      min={0}
+                      max={
+                        rule.schedule?.unit === 'days'
+                          ? 365
+                          : rule.schedule?.unit === 'hours'
+                            ? 8760
+                            : 525600
+                      }
+                      value={rule.schedule?.amount ?? 0}
+                      onChange={(e) =>
+                        edit({
+                          schedule: {
+                            unit: rule.schedule?.unit ?? 'days',
+                            amount: Number(e.target.value),
+                          },
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field name="Offset unit">
+                    <select
+                      value={rule.schedule?.unit ?? 'days'}
+                      onChange={(e) => edit({ schedule: { amount: 0, unit: e.target.value } })}
+                    >
+                      <option value="days">Calendar days</option>
+                      <option value="hours">Hours</option>
+                      <option value="minutes">Minutes</option>
+                    </select>
+                  </Field>
+                  <Field name="Send Planner reminder">
+                    <input
+                      type="checkbox"
+                      checked={rule.actions.notify ?? false}
+                      onChange={(e) =>
+                        edit({ actions: { ...rule.actions, notify: e.target.checked } })
+                      }
+                    />
+                  </Field>
+                </div>
+              )}
               <h3>Only when</h3>
               <div className="planner-form-grid">
                 <Field name="Status condition">
@@ -906,7 +975,12 @@ function ResourceEditor({
                   </select>
                 </Field>
               </div>
-              <p className="planner-muted">Rules run once per task change, in creation order.</p>
+              <p className="planner-muted">
+                Date rules run automatically once per due schedule on unfinished top-level
+                tasks. Calendar days use the task’s time zone (UTC when unset). Reminders appear in
+                Planner Inbox and Capiro’s bell. Other rules run once per task change, in creation
+                order.
+              </p>
             </>
           )}
           {kind === 'form' && (
