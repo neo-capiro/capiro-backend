@@ -1,0 +1,11 @@
+[
+  {
+    "service": "engagement-api",
+    "baselineTask": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:143",
+    "baselineSha": "ae744c83829394dd745cf7accc413ae518ae695c",
+    "baselineImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:3fd622817ff025e0c35762554f487125aeca02574ba7ddeb590fc64a1611ff5d",
+    "sourceSha": "b7742b3b2db598358feac76c2767bffad11889d3",
+    "branch": "codex/prep-speed-engagement-api-20261007",
+    "featureSha": "8869a1f97a593d3bf945cdab717cfba79addf17a"
+  }
+]
