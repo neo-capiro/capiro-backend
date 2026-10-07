@@ -69,6 +69,43 @@ describe('G1 stage & direction — every figure is labeled, signed, and vehicle-
     expect(block).toContain('appropriations'); // vehicle tag present
   });
 
+  it('keeps a genuine $0 request with a congressional add as a real comparison', () => {
+    // Congress funding a line the President did not request is common; with no
+    // conflicting source the $0 request stands and the add is above it.
+    const block = renderPeFundingForModel({
+      peCode: '0603851F',
+      years: [yr(2027, { request: 0, hacDMark: 10 })],
+      currentCycleFy: 2027,
+    });
+    expect(block).toContain('request $0.0M');
+    expect(block).toContain('$10.0M above the request');
+    expect(block).not.toContain('UNVERIFIED');
+  });
+
+  it('never cites a $0 request that other sources contradict (PE 0603203F FY27)', () => {
+    // Stored request 0.0 while the HASC report restates a $72.1M request: the
+    // model must not quote $0 as the request or call every mark "above" it.
+    const block = renderPeFundingForModel({
+      peCode: '0603203F',
+      years: [
+        yr(2027, {
+          request: 0,
+          hascMark: 72.15,
+          sascMark: 75.2,
+          hacDMark: 85.2,
+          requestConflictValuesM: [72.149],
+        }),
+      ],
+      currentCycleFy: 2027,
+    });
+    expect(block).toContain('request on record $0.0M — UNVERIFIED');
+    expect(block).toContain('$72.1M');
+    // No signed delta against the unverified $0 ("$72.2M above the request").
+    expect(block).not.toMatch(/\$[\d.]+[MB] (above|below) the request/);
+    expect(block).not.toContain('equal to the request');
+    expect(block).toContain('HASC mark $72.2M (authorization)');
+  });
+
   it('labels a mark BELOW the request as a real cut', () => {
     const block = renderPeFundingForModel({
       peCode: '0603851F',

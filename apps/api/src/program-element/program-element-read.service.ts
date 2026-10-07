@@ -1024,6 +1024,7 @@ export class ProgramElementReadService {
     ]);
 
     const numDec = (d: Prisma.Decimal | null): number | null => (d == null ? null : Number(d));
+    const requestConflicts = await this.zeroRequestConflicts(peCode, programElement.years);
     const fundingYears = programElement.years.map(
       (y): ModelFundingYear => ({
         fy: y.fy,
@@ -1035,6 +1036,7 @@ export class ProgramElementReadService {
         conference: numDec(y.conference),
         ndaaConference: numDec(y.ndaaConference),
         enacted: numDec(y.enacted),
+        requestConflictValuesM: requestConflicts.get(y.fy) ?? null,
       }),
     );
 
@@ -1069,6 +1071,37 @@ export class ProgramElementReadService {
       ...detail,
       currentUserIsWatching: Boolean(watch[0]),
     };
+  }
+
+  /**
+   * Non-zero request observations for FYs whose canonical request is 0. Every
+   * observation is stored, winner or not, so a $0 that won over a real figure
+   * (PE 0603203F FY27: $0.0M stored, $72.1M restated by HASC) is visible here
+   * and the model-facing block never cites it. One query, only when such a
+   * year exists; a $0 request with no conflicting source is left alone.
+   */
+  private async zeroRequestConflicts(
+    peCode: string,
+    years: ReadonlyArray<{ fy: number; request: Prisma.Decimal | number | null }>,
+  ): Promise<Map<number, number[]>> {
+    const conflicts = new Map<number, number[]>();
+    const zeroFys = years
+      .filter((year) => year.request != null && Number(year.request) === 0)
+      .map((year) => year.fy);
+    if (!zeroFys.length) return conflicts;
+    const rows = await this.prisma.programElementYearSourceValue.findMany({
+      where: { peCode, fieldName: 'request', fy: { in: zeroFys }, canonicalValueM: { not: 0 } },
+      select: { fy: true, canonicalValueM: true },
+      orderBy: [{ fy: 'asc' }, { lastObservedAt: 'desc' }],
+    });
+    for (const row of rows) {
+      const value = row.canonicalValueM == null ? null : Number(row.canonicalValueM);
+      if (value == null || !Number.isFinite(value) || value === 0) continue;
+      const values = conflicts.get(row.fy) ?? [];
+      if (!values.includes(value)) values.push(value);
+      conflicts.set(row.fy, values);
+    }
+    return conflicts;
   }
 
   async getTimeline(peCode: string) {
@@ -1110,6 +1143,7 @@ export class ProgramElementReadService {
         orderBy: [{ observedAt: 'desc' }, { sourceDocumentId: 'asc' }, { pageNumber: 'asc' }],
       }),
     ]);
+    const requestConflicts = await this.zeroRequestConflicts(peCode, years);
 
     const provenanceFor = (fy: number, fieldName: string): FundingClaimProvenance | undefined => {
       const value = sourceValues.find((row) => row.fy === fy && row.fieldName === fieldName);
@@ -1220,9 +1254,14 @@ export class ProgramElementReadService {
           // appropriations mark as authorization or invents a direction.
           currentVehicle: FUNDING_STAGE_VEHICLE[pick.stage],
           currentDeltaVsRequestM:
-            pick.value != null && values.request != null && pick.stage !== 'request'
+            pick.value != null &&
+            values.request != null &&
+            pick.stage !== 'request' &&
+            !requestConflicts.has(year.fy)
               ? pick.value - values.request
               : null,
+          // A stored $0 request that other sources contradict (never citable).
+          requestConflictValuesM: requestConflicts.get(year.fy) ?? null,
           // Phase G — shared FundingClaim (value/FY/stage/vehicle/cycle/projection).
           fundingClaim: claim,
           // Phase G — missing-mark taxonomy per stage cell (zeros are 'present').
@@ -1260,6 +1299,7 @@ export class ProgramElementReadService {
           conference: num(y.conference),
           ndaaConference: num(y.ndaaConference),
           enacted: num(y.enacted),
+          requestConflictValuesM: requestConflicts.get(y.fy) ?? null,
         }),
       ),
     });
