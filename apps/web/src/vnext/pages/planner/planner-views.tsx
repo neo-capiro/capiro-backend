@@ -6,7 +6,11 @@ import type {
   PlannerStatus,
   PlannerMyTasksData,
 } from '@capiro/strategy-verifier';
-import { PLANNER_STATUS_LABELS } from '@capiro/strategy-verifier';
+import {
+  PLANNER_STATUS_LABELS,
+  plannerScheduledInstant,
+  plannerTaskOverdue,
+} from '@capiro/strategy-verifier';
 import { Check, Circle, Flag, MessageSquare } from 'lucide-react';
 
 export function plannerToday(): string {
@@ -19,6 +23,17 @@ export function plannerDate(date: string | null) {
         new Date(`${date}T12:00:00`),
       )
     : '—';
+}
+export function plannerDueLabel(task: PlannerTask): string {
+  if (!task.dueOn || !task.dueTime || !task.timeZone) return plannerDate(task.dueOn);
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: task.timeZone,
+    timeZoneName: 'short',
+  }).format(plannerScheduledInstant(task.dueOn, task.dueTime, task.timeZone));
 }
 export function shiftPlannerDate(date: string, days: number): string {
   const value = new Date(`${date}T12:00:00Z`);
@@ -168,15 +183,8 @@ export function PlannerList(
                 <span role="cell">
                   {props.people.find((p) => p.id === task.assigneeId)?.name ?? 'Unassigned'}
                 </span>
-                <span
-                  role="cell"
-                  className={
-                    task.dueOn && task.dueOn < plannerToday() && task.status !== 'done'
-                      ? 'planner-overdue'
-                      : ''
-                  }
-                >
-                  {plannerDate(task.dueOn)}
+                <span role="cell" className={plannerTaskOverdue(task) ? 'planner-overdue' : ''}>
+                  {plannerDueLabel(task)}
                 </span>
                 <span role="cell">
                   <span className={`planner-tag planner-priority-${task.priority}`}>
@@ -273,7 +281,9 @@ export function PlannerBoard(props: TaskViewProps) {
                   <span className={`planner-tag planner-priority-${task.priority}`}>
                     {task.priority === 'none' ? 'No priority' : task.priority}
                   </span>
-                  <span>{plannerDate(task.dueOn)}</span>
+                  <span className={plannerTaskOverdue(task) ? 'planner-overdue' : ''}>
+                    {plannerDueLabel(task)}
+                  </span>
                 </div>
                 <div className="planner-card-meta">
                   <span>

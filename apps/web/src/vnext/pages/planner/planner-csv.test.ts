@@ -1,6 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { parsePlannerCsv, importPlannerCsv, plannerCsvCell } from './planner-csv.js';
 describe('Planner CSV transfers', () => {
+  it('imports timed schedules and rejects missing zones or inverted times', () => {
+    const columns = 'Task,Start date,Due date,Start time,Due time,Time zone\n';
+    expect(
+      importPlannerCsv(columns + 'One,2026-10-07,2026-10-07,08:00,09:30,America/New_York', [])[0],
+    ).toMatchObject({
+      startTime: '08:00',
+      dueTime: '09:30',
+      timeZone: 'America/New_York',
+    });
+    expect(() =>
+      importPlannerCsv(columns + 'One,2026-10-07,2026-10-07,10:00,09:30,UTC', []),
+    ).toThrow();
+    expect(() =>
+      importPlannerCsv(columns + 'One,2026-10-07,2026-10-07,08:00,09:30,', []),
+    ).toThrow();
+    expect(() =>
+      importPlannerCsv(columns + 'One,2026-10-07,2026-10-07,08:00,09:30,Bad/Zone', []),
+    ).toThrow();
+  });
   it('reads commas, escaped quotes and newlines inside a quoted field', () =>
     expect(
       parsePlannerCsv('Task,Description\r\n"Review, approve","Say ""yes""\nthen launch"\r\n'),

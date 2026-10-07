@@ -48,6 +48,10 @@ export interface PlannerTaskData {
   approval: 'pending' | 'approved' | 'rejected' | 'changes_requested';
   startOn: string | null;
   dueOn: string | null;
+  /** Wall-clock times repeat in this IANA zone, including across daylight saving changes. */
+  startTime?: string | null;
+  dueTime?: string | null;
+  timeZone?: string | null;
   assigneeId: string | null;
   parentId: string | null;
   dependencies: string[];
@@ -56,10 +60,20 @@ export interface PlannerTaskData {
   memberships: { projectId: string; sectionId: string | null; position: number }[];
   customValues: Record<string, string | number | string[] | null>;
   estimateMinutes: number;
-  recurrence: { frequency: 'daily' | 'weekly' | 'monthly'; interval: number } | null;
+  recurrence: PlannerRecurrence | null;
   clientId: string | null;
   meetingId: string | null;
 }
+export type PlannerRecurrence = {
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'periodically';
+  interval: number;
+  basedOn?: 'due_date' | 'completion_date';
+  /** Sunday = 0. Empty/omitted uses the due date's weekday. */
+  weekdays?: number[];
+  endsOn?: string | null;
+  /** Preserves the original day of month and the interval's calendar week. */
+  anchorOn?: string;
+};
 export interface PlannerTask extends PlannerTaskData {
   id: string;
   ownerId: string;
@@ -229,6 +243,9 @@ export const PLANNER_DEFAULT_TASK: PlannerTaskData = {
   startOn: null,
   dueOn: null,
   assigneeId: null,
+  startTime: null,
+  dueTime: null,
+  timeZone: null,
   parentId: null,
   dependencies: [],
   collaborators: [],

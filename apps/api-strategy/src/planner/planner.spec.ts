@@ -317,6 +317,56 @@ describe('Planner service mutation boundaries', () => {
     });
     await f.service.saveTask(ctx, TASK, { version: 2, data: { status: 'done' } });
     expect(f.tx.spPlannerTask.create).toHaveBeenCalledTimes(1);
+    await f.service.saveTask(ctx, TASK, { version: 3, data: { status: 'todo' } });
+    await f.service.saveTask(ctx, TASK, { version: 4, data: { status: 'done' } });
+    expect(f.tx.spPlannerTask.create).toHaveBeenCalledTimes(1);
+    expect(await f.service.task(ctx, TASK)).not.toHaveProperty('recurrenceSuccessorId');
+  });
+  it('does not create recurring work while archiving or beyond its end date', async () => {
+    for (const archive of [true, false]) {
+      const f = fixture(
+        [project()],
+        [
+          task({
+            dueOn: '2026-10-06',
+            recurrence: {
+              frequency: 'daily',
+              interval: 1,
+              ...(archive ? {} : { endsOn: '2026-10-06' }),
+            },
+          }),
+        ],
+      );
+      await f.service.saveTask(ctx, TASK, {
+        version: 1,
+        data: { status: 'done' },
+        ...(archive ? { archived: true } : {}),
+      });
+      expect(f.tx.spPlannerTask.create).not.toHaveBeenCalled();
+    }
+  });
+  it('rescheduling a repeating task resets its calendar anchor and rejects internal metadata', async () => {
+    const f = fixture(
+      [project()],
+      [
+        task({
+          dueOn: '2026-10-06',
+          recurrence: {
+            frequency: 'monthly',
+            interval: 1,
+            anchorOn: '2026-09-06',
+          },
+        }),
+      ],
+    );
+    const moved = await f.service.saveTask(ctx, TASK, {
+      version: 1,
+      data: { dueOn: '2026-10-01' },
+    });
+    expect(moved.recurrence?.anchorOn).toBe('2026-10-01');
+    await expect(
+      f.service.saveTask(ctx, TASK, { version: 2, data: { recurrenceSuccessorId: OTHER } }),
+    ).rejects.toThrow(BadRequestException);
   });
   it('serializes graph writes and forwards only user authorization for links', async () => {
     const f = fixture();

@@ -8,6 +8,7 @@ import {
   PlannerList,
   PlannerTimeline,
   plannerDate,
+  plannerDueLabel,
   shiftPlannerDate,
   TaskCheck,
 } from './planner-views.js';
@@ -28,6 +29,24 @@ const task: PlannerTask = {
 };
 afterEach(cleanup);
 describe('Planner task views', () => {
+  it('shows the due time and zone in list and board cards', () => {
+    const timed = { ...task, dueTime: '09:30', timeZone: 'America/New_York' };
+    const label = plannerDueLabel(timed);
+    expect(label).toMatch(/9:30/);
+    expect(label).toMatch(/EDT|GMT-4/);
+    const props = {
+      tasks: [timed],
+      people: [],
+      onOpen: vi.fn(),
+      onPatch: vi.fn(),
+      disabled: false,
+    };
+    render(<PlannerList {...props} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    cleanup();
+    render(<PlannerBoard {...props} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
   it('organizes personal sections without patching shared task membership', () => {
     const onMove = vi.fn();
     const onPatch = vi.fn();

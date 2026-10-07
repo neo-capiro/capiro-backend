@@ -33,6 +33,142 @@ describeDb('Planner real PostgreSQL integration', () => {
   afterAll(async () => {
     await prisma?.$disconnect();
   });
+  it('orders the Dashboard queue by deadlines across time zones', async () => {
+    // This suite is restricted to localhost planner_qa. Clear earlier synthetic
+    // assignments so repeated runs can assert the service's five-row ordering.
+    await prisma.withTenant(owner.tenantId, (tx) =>
+      tx.spPlannerTask.updateMany({
+        where: { tenantId: owner.tenantId, assigneeId: outsider.clerkUserId, archived: false },
+        data: { archived: true },
+      }),
+    );
+    const late = await service.saveTask(outsider, null, {
+      data: {
+        name: 'New York evening',
+        assigneeId: outsider.clerkUserId,
+        dueOn: '2000-01-02',
+        dueTime: '20:00',
+        timeZone: 'America/New_York',
+      },
+    });
+    const early = await service.saveTask(outsider, null, {
+      data: {
+        name: 'Tokyo morning',
+        assigneeId: outsider.clerkUserId,
+        dueOn: '2000-01-03',
+        dueTime: '09:00',
+        timeZone: 'Asia/Tokyo',
+      },
+    });
+    const endOfDay = await service.saveTask(outsider, null, {
+      data: {
+        name: 'Date only New York',
+        assigneeId: outsider.clerkUserId,
+        dueOn: '2000-01-02',
+        timeZone: 'America/New_York',
+      },
+    });
+    const queue = await service.queue(outsider);
+    expect(queue.slice(0, 3).map((t) => t.id)).toEqual([early.id, late.id, endOfDay.id]);
+    for (const t of [late, early, endOfDay])
+      await service.saveTask(outsider, t.id, { version: t.version, archived: true });
+    const fold = await service.saveTask(outsider, null, {
+      data: {
+        name: 'First folded hour',
+        assigneeId: outsider.clerkUserId,
+        dueOn: '2000-10-29',
+        dueTime: '01:30',
+        timeZone: 'America/New_York',
+      },
+    });
+    const after = await service.saveTask(outsider, null, {
+      data: {
+        name: 'After first folded hour',
+        assigneeId: outsider.clerkUserId,
+        dueOn: '2000-10-29',
+        dueTime: '06:00',
+        timeZone: 'UTC',
+      },
+    });
+    expect((await service.queue(outsider)).slice(0, 2).map((t) => t.id)).toEqual([
+      fold.id,
+      after.id,
+    ]);
+    expect(await service.task(outsider, fold.id)).not.toHaveProperty('deadlineAt');
+    for (const t of [fold, after])
+      await service.saveTask(outsider, t.id, { version: t.version, archived: true });
+  });
+  it('creates a single timed successor across concurrent completion and reopen, preserving its month-end anchor', async () => {
+    const sectionId = randomUUID();
+    const p = await service.saveProject(owner, null, {
+      data: {
+        name: `Recurring QA ${randomUUID()}`,
+        sections: [{ id: sectionId, name: 'Recurring work' }],
+      },
+    });
+    const t = await service.saveTask(owner, null, {
+      data: {
+        name: 'Timed monthly recurrence',
+        startOn: '2028-01-29',
+        dueOn: '2028-01-31',
+        startTime: '08:00',
+        dueTime: '09:00',
+        timeZone: 'America/New_York',
+        memberships: [{ projectId: p.id, sectionId, position: 0 }],
+        recurrence: { frequency: 'monthly', interval: 1, endsOn: '2028-03-31' },
+      },
+    });
+    const completions = await Promise.allSettled(
+      [1, 2].map(() =>
+        service.saveTask(owner, t.id, {
+          version: t.version,
+          data: { status: 'done' },
+        }),
+      ),
+    );
+    expect(completions.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(completions.find((result) => result.status === 'rejected')).toMatchObject({
+      reason: { status: 409 },
+    });
+    let completed = await service.task(owner, t.id);
+    expect(completed).not.toHaveProperty('recurrenceSuccessorId');
+    await service.reorderTasks(owner, p.id, {
+      tasks: [{ id: completed.id, version: completed.version }],
+    });
+    await service.saveProject(owner, p.id, { version: p.version, data: { sections: [] } });
+    completed = await service.task(owner, t.id);
+    const reopened = await service.saveTask(owner, t.id, {
+      version: completed.version,
+      data: { status: 'todo' },
+    });
+    completed = await service.saveTask(owner, t.id, {
+      version: reopened.version,
+      data: { status: 'done' },
+    });
+    let page = await service.tasks(owner, { projectId: p.id });
+    expect(page.items).toHaveLength(2);
+    const next = page.items.find((item) => item.id !== t.id)!;
+    expect(next).toMatchObject({
+      startOn: '2028-02-27',
+      dueOn: '2028-02-29',
+      dueTime: '09:00',
+      timeZone: 'America/New_York',
+      recurrence: { anchorOn: '2028-01-31' },
+    });
+    await service.saveTask(owner, next.id, { version: next.version, data: { status: 'done' } });
+    page = await service.tasks(owner, { projectId: p.id });
+    const last = page.items.find((item) => item.status === 'todo')!;
+    expect(last.dueOn).toBe('2028-03-31');
+    await service.saveTask(owner, last.id, { version: last.version, data: { status: 'done' } });
+    expect((await service.tasks(owner, { projectId: p.id })).items).toHaveLength(3);
+    await expect(service.task(outsider, next.id)).rejects.toMatchObject({ status: 404 });
+    await expect(
+      service.saveTask(owner, completed.id, {
+        version: completed.version,
+        data: { recurrenceSuccessorId: randomUUID() },
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
   it('keeps personal sections private, versioned, and independent of shared project membership', async () => {
     const p = await service.saveProject(owner, null, {
       data: {

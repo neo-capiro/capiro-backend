@@ -34,6 +34,8 @@ import {
   PLANNER_DEFAULT_TASK,
   PLANNER_STATUS_LABELS,
   PLANNER_DEFAULT_MY_TASKS,
+  plannerTaskOverdue,
+  plannerDueTimestamp,
 } from '@capiro/strategy-verifier';
 import { useApi } from '../../../lib/use-api.js';
 import {
@@ -62,6 +64,7 @@ import { SavePlannerView } from './planner-saved-view.js';
 import { PlannerAttachments } from './planner-attachments.js';
 import { PlannerRichText, PlannerFormattedText } from './planner-rich-text.js';
 import { PlannerMyTasksSettings } from './planner-my-tasks.js';
+import { PlannerTaskSchedule } from './planner-task-schedule.js';
 import type { PlannerSavedViewData } from '@capiro/strategy-verifier';
 import './planner.css';
 
@@ -266,7 +269,10 @@ export function PlannerPage() {
         (!priority || task.priority === priority),
     )
     .sort((a, b) => {
-      if (sort === 'due') return (a.dueOn ?? '9999').localeCompare(b.dueOn ?? '9999');
+      if (sort === 'due')
+        return (
+          plannerDueTimestamp(a) - plannerDueTimestamp(b) || a.createdAt.localeCompare(b.createdAt)
+        );
       if (sort === 'name') return a.name.localeCompare(b.name);
       if (sort === 'priority')
         return (
@@ -296,13 +302,27 @@ export function PlannerPage() {
   const exportTasks = () => {
     const quote = plannerCsvCell;
     const rows = [
-      ['Task', 'Description', 'Assignee', 'Start date', 'Due date', 'Priority', 'Status'],
+      [
+        'Task',
+        'Description',
+        'Assignee',
+        'Start date',
+        'Due date',
+        'Start time',
+        'Due time',
+        'Time zone',
+        'Priority',
+        'Status',
+      ],
       ...visible.map((t) => [
         t.name,
         t.description,
         bootstrap.data?.people.find((p) => p.id === t.assigneeId)?.name,
         t.startOn,
         t.dueOn,
+        t.startTime,
+        t.dueTime,
+        t.timeZone,
         t.priority,
         t.status,
       ]),
@@ -1508,7 +1528,12 @@ function TaskEditor({
 }) {
   const clean = (value: PlannerTaskData) =>
     Object.fromEntries(
-      Object.keys(PLANNER_DEFAULT_TASK).map((key) => [key, value[key as keyof PlannerTaskData]]),
+      Object.keys(PLANNER_DEFAULT_TASK).map((key) => [
+        key,
+        value[key as keyof PlannerTaskData] === undefined
+          ? PLANNER_DEFAULT_TASK[key as keyof PlannerTaskData]
+          : value[key as keyof PlannerTaskData],
+      ]),
     ) as unknown as PlannerTaskData;
   const [data, setData] = useState<PlannerTaskData>(() =>
     task
@@ -1618,23 +1643,6 @@ function TaskEditor({
                     ))}
                   </select>
                 </Label>
-                <Label name="Start date">
-                  <input
-                    disabled={!canEdit}
-                    type="date"
-                    value={data.startOn ?? ''}
-                    onInput={(e) => edit({ startOn: e.currentTarget.value || null })}
-                  />
-                </Label>
-                <Label name="Due date">
-                  <input
-                    disabled={!canEdit}
-                    type="date"
-                    min={data.startOn ?? undefined}
-                    value={data.dueOn ?? ''}
-                    onInput={(e) => edit({ dueOn: e.currentTarget.value || null })}
-                  />
-                </Label>
                 <Label name="Priority">
                   <select
                     disabled={!canEdit}
@@ -1662,6 +1670,7 @@ function TaskEditor({
                   </select>
                 </Label>
               </div>
+              <PlannerTaskSchedule data={data} disabled={!canEdit} onChange={edit} />
               {data.subtype === 'approval' && (
                 <Label name="Approval">
                   <select
@@ -1889,43 +1898,6 @@ function TaskEditor({
                     onChange={(e) => edit({ estimateMinutes: Number(e.target.value) })}
                   />
                 </Label>
-                <Label name="Repeat">
-                  <select
-                    disabled={!canEdit}
-                    value={data.recurrence?.frequency ?? ''}
-                    onChange={(e) =>
-                      edit({
-                        recurrence: e.target.value
-                          ? {
-                              frequency: e.target.value as 'daily',
-                              interval: data.recurrence?.interval ?? 1,
-                            }
-                          : null,
-                      })
-                    }
-                  >
-                    <option value="">Does not repeat</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                  </select>
-                </Label>
-                {data.recurrence && (
-                  <Label name="Repeat interval">
-                    <input
-                      disabled={!canEdit}
-                      type="number"
-                      min={1}
-                      max={365}
-                      value={data.recurrence.interval}
-                      onChange={(e) =>
-                        edit({
-                          recurrence: { ...data.recurrence!, interval: Number(e.target.value) },
-                        })
-                      }
-                    />
-                  </Label>
-                )}
               </div>
               <CapiroLinkPicker
                 clientId={data.clientId}
@@ -2258,7 +2230,7 @@ function PlannerWorkload({ tasks, data }: { tasks: PlannerTask[]; data: PlannerB
               <i style={{ width: `${(minutes / max) * 100}%` }} />
             </div>
             <p>
-              {assigned.filter((t) => t.dueOn && t.dueOn < plannerToday()).length} overdue ·{' '}
+              {assigned.filter((t) => plannerTaskOverdue(t)).length} overdue ·{' '}
               {assigned.filter((t) => !t.estimateMinutes).length} without estimates
             </p>
             {person.id === data.me.id && (
@@ -2307,8 +2279,7 @@ function PlannerReporting({ tasks }: { tasks: PlannerTask[] }) {
           { label: 'Completed', value: tasks.filter((t) => t.status === 'done').length },
           {
             label: 'Overdue',
-            value: tasks.filter((t) => t.status !== 'done' && t.dueOn && t.dueOn < plannerToday())
-              .length,
+            value: tasks.filter((t) => plannerTaskOverdue(t)).length,
           },
           {
             label: 'Time logged',

@@ -1,6 +1,9 @@
 import {
   PLANNER_DEFAULT_TASK,
   plannerCalendarDate,
+  plannerTime,
+  plannerTimeZone,
+  plannerScheduledInstant,
   type PlannerPerson,
   type PlannerProject,
   type PlannerTaskData,
@@ -68,13 +71,16 @@ export function importPlannerCsv(
     'assignee',
     'start date',
     'due date',
+    'start time',
+    'due time',
+    'time zone',
     'priority',
     'status',
     'section',
   ];
   if (headers.some((h) => !allowed.includes(h)) || new Set(headers).size !== headers.length)
     throw new Error(
-      'Use the supported CSV columns: Task, Description, Assignee, Start date, Due date, Priority, Status, Section.',
+      'Use the supported CSV columns: Task, Description, Assignee, Start date, Due date, Start time, Due time, Time zone, Priority, Status, Section.',
     );
   if (!headers.includes('task') && !headers.includes('name'))
     throw new Error('The CSV needs a Task or Name column.');
@@ -97,6 +103,26 @@ export function importPlannerCsv(
       (startOn && dueOn && startOn > dueOn)
     )
       throw new Error(`Row ${i + 2} needs valid YYYY-MM-DD dates with start before due.`);
+    const startTime = get('start time') || null,
+      dueTime = get('due time') || null;
+    const timeZone = get('time zone') || null;
+    if (
+      (startTime && (!startOn || !plannerTime(startTime))) ||
+      (dueTime && (!dueOn || !plannerTime(dueTime))) ||
+      (timeZone && !plannerTimeZone(timeZone)) ||
+      ((startTime || dueTime) && !timeZone)
+    )
+      throw new Error(`Row ${i + 2} needs HH:mm times, matching dates and a valid IANA time zone.`);
+    if (
+      startOn &&
+      dueOn &&
+      startTime &&
+      dueTime &&
+      timeZone &&
+      plannerScheduledInstant(startOn, startTime, timeZone) >
+        plannerScheduledInstant(dueOn, dueTime, timeZone)
+    )
+      throw new Error(`Row ${i + 2} has a start time after its due time.`);
     const assignee = get('assignee');
     const matches = people.filter(
       (p) => p.id === assignee || p.name.toLowerCase() === assignee.toLowerCase(),
@@ -128,6 +154,9 @@ export function importPlannerCsv(
       throw new Error(`Row ${i + 2} has a section that does not belong to this project.`);
     return {
       ...PLANNER_DEFAULT_TASK,
+      startTime,
+      dueTime,
+      timeZone,
       name,
       description,
       startOn,
