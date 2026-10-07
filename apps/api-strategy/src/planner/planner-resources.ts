@@ -2,6 +2,7 @@ import type {
   PlannerResourceKind,
   PlannerTaskData,
   PlannerRuleData,
+  PlannerGoalData,
 } from '@capiro/strategy-verifier';
 import {
   PLANNER_DEFAULT_TASK,
@@ -18,6 +19,7 @@ import {
   validatePlannerFieldValue,
 } from './planner.validation.js';
 import { validatePlannerForm } from './planner-form.js';
+import { plannerGoalSourceIds, PLANNER_WEIGHTED_GOAL_MODES } from './planner-goals.js';
 
 export const RESOURCE_KINDS: PlannerResourceKind[] = [
   'portfolio',
@@ -74,7 +76,22 @@ export function validateResource(
       'members',
       'projectIds',
       ...(kind === 'goal'
-        ? ['ownerId', 'dueOn', 'status', 'progress', 'current', 'target', 'unit']
+        ? [
+            'ownerId',
+            'dueOn',
+            'status',
+            'progress',
+            'current',
+            'target',
+            'unit',
+            'subgoalIds',
+            'taskIds',
+            'startOn',
+            'timePeriod',
+            'goalType',
+            'weightMode',
+            'weights',
+          ]
         : []),
     ]);
     sharing(d);
@@ -84,12 +101,66 @@ export function validateResource(
     if (kind === 'goal') {
       if (d.ownerId !== null) string(d.ownerId, 200, true);
       if (d.dueOn !== null && !plannerCalendarDate(d.dueOn)) fail('Invalid goal date');
-      enumValue(d.status, ['on_track', 'at_risk', 'off_track', 'achieved']);
-      enumValue(d.progress, ['manual', 'task_completion']);
+      enumValue(d.status, [
+        'on_track',
+        'at_risk',
+        'off_track',
+        'achieved',
+        'partial',
+        'missed',
+        'dropped',
+      ]);
+      enumValue(d.progress, [
+        'manual',
+        'task_completion',
+        'project_task_completion',
+        'project_milestone_completion',
+        'task_list_completion',
+        'subgoal_percentage',
+        'subgoal_total',
+      ]);
       number(d.current);
       number(d.target);
       if (Number(d.target) <= 0) fail('A goal needs a positive target');
       string(d.unit, 100, true);
+      if (d.startOn !== undefined && d.startOn !== null && !plannerCalendarDate(d.startOn))
+        fail('Invalid goal start date');
+      if (d.startOn && d.dueOn && String(d.startOn) > String(d.dueOn))
+        fail('Goal start date must precede its due date');
+      if (d.timePeriod !== undefined) string(d.timePeriod, 100);
+      if (d.goalType !== undefined) enumValue(d.goalType, ['company', 'team', 'individual']);
+      for (const key of ['subgoalIds', 'taskIds']) {
+        if (d[key] !== undefined) {
+          const ids = array(d[key]);
+          ids.forEach(uuid);
+          distinct(ids);
+        }
+      }
+      if (d.weightMode !== undefined) enumValue(d.weightMode, ['equal', 'custom']);
+      const weights = array(d.weights ?? []);
+      for (const raw of weights) {
+        const item = object(raw);
+        keys(item, ['sourceId', 'weight']);
+        uuid(item.sourceId);
+        number(item.weight, 100);
+      }
+      distinct(weights.map((w) => object(w).sourceId));
+      if (d.weightMode === 'custom') {
+        if (!(PLANNER_WEIGHTED_GOAL_MODES as readonly string[]).includes(String(d.progress)))
+          fail('Custom weights require automatic percentage progress');
+        const sourceIds = plannerGoalSourceIds(d as unknown as PlannerGoalData);
+        if (
+          !sourceIds.length ||
+          weights.length !== sourceIds.length ||
+          weights.some((w) => !sourceIds.includes(String(object(w).sourceId)))
+        )
+          fail('Every progress source needs a weight');
+        if (
+          Math.abs(weights.reduce<number>((sum, w) => sum + Number(object(w).weight), 0) - 100) >
+          0.000001
+        )
+          fail('Goal weights must add up to 100%');
+      } else if (weights.length) fail('Custom weights require custom weight mode');
     }
   } else if (kind === 'template') {
     keys(d, ['description', 'privacy', 'members', 'project', 'tasks', 'layout', 'schedule']);

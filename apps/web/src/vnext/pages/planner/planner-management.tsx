@@ -10,6 +10,7 @@ import {
   type PlannerResource,
   type PlannerResourceKind,
   type PlannerRuleData,
+  type PlannerGoalData,
   type PlannerFormData,
   type PlannerTaskData,
   type PlannerProjectData,
@@ -17,6 +18,8 @@ import {
   type PlannerTemplateData,
   plannerTemplateSchedule,
   plannerCalendarDate,
+  plannerGoalSourceIds,
+  plannerGoalWeights,
 } from '@capiro/strategy-verifier';
 import {
   usePlannerResources,
@@ -27,6 +30,8 @@ import {
 import { PlannerRichText, PlannerFormattedText } from './planner-rich-text.js';
 import { PlannerActivity } from './planner-activity.js';
 import { PlannerTemplateScheduleEditor } from './planner-template-schedule.js';
+import { PlannerGoalEditor, PLANNER_GOAL_STATUS_LABELS } from './planner-goal-editor.js';
+import { PlannerGoalDetail } from './planner-goal-detail.js';
 import { PlannerFormBuilder, plannerDuplicateFormData } from './planner-form-builder.js';
 import {
   PlannerFormQuestions,
@@ -49,6 +54,13 @@ export function plannerResourceDefaults(kind: PlannerResourceKind): Record<strin
       current: 0,
       target: 100,
       unit: '%',
+      subgoalIds: [],
+      taskIds: [],
+      startOn: null,
+      timePeriod: '',
+      goalType: 'team',
+      weightMode: 'equal',
+      weights: [],
     };
   if (kind === 'template')
     return {
@@ -139,12 +151,16 @@ export function PlannerManagement({
   tasks,
   onProject,
   onTask,
+  selectedGoalId,
+  onGoal,
 }: {
   kind: PlannerResourceKind;
   bootstrap: PlannerBootstrap;
   tasks: PlannerTask[];
   onProject: (id: string) => void;
   onTask: (id: string) => void;
+  selectedGoalId?: string | null;
+  onGoal?: (id: string | null) => void;
 }) {
   const query = usePlannerResources();
   const actions = usePlannerMutations();
@@ -153,6 +169,15 @@ export function PlannerManagement({
   const [using, setUsing] = useState<PlannerResource | null>(null);
   const [name, setName] = useState('');
   const [anchorOn, setAnchorOn] = useState('');
+  const [goalId, setGoalId] = useState<string | null>(null);
+  const openGoal = onGoal ?? setGoalId;
+  const [goalSearch, setGoalSearch] = useState('');
+  const [goalOwner, setGoalOwner] = useState('');
+  const [goalStatus, setGoalStatus] = useState('');
+  const [goalType, setGoalType] = useState('');
+  const [goalPeriod, setGoalPeriod] = useState('');
+  const currentGoalId = onGoal ? selectedGoalId : goalId;
+  const goalDetail = query.data?.find((r) => r.id === currentGoalId && r.kind === 'goal');
   const [shareLink, setShareLink] = useState<{ formId: string; url: string } | null>(null);
   const sharedForm = query.data?.find((row) => row.id === shareLink?.formId);
   const shareLinkCurrent =
@@ -165,7 +190,20 @@ export function PlannerManagement({
   useEffect(() => {
     if (shareLink && query.data && !shareLinkCurrent) setShareLink(null);
   }, [shareLink, query.data, shareLinkCurrent]);
-  const rows = query.data?.filter((r) => r.kind === kind && r.archived === archived) ?? [];
+  const rows =
+    query.data?.filter(
+      (r) =>
+        r.kind === kind &&
+        r.archived === archived &&
+        (kind !== 'goal' ||
+          ((!goalSearch || r.name.toLowerCase().includes(goalSearch.toLowerCase())) &&
+            (!goalOwner || r.data.ownerId === goalOwner) &&
+            (!goalStatus || r.data.status === goalStatus) &&
+            (!goalType || (r.data.goalType ?? 'team') === goalType) &&
+            (!goalPeriod || r.data.timePeriod === goalPeriod))),
+    ) ?? [];
+  const goalFiltered =
+    kind === 'goal' && [goalSearch, goalOwner, goalStatus, goalType, goalPeriod].some(Boolean);
   return (
     <div className="planner-management">
       <div className="planner-management-actions">
@@ -181,6 +219,68 @@ export function PlannerManagement({
         </button>
         <button onClick={() => setArchived(!archived)}>{archived ? 'Active' : 'Archived'}</button>
       </div>
+      {kind === 'goal' && (
+        <div className="planner-toolbar" aria-label="Goal filters">
+          <input
+            aria-label="Search goals"
+            placeholder="Search goals"
+            value={goalSearch}
+            onChange={(e) => setGoalSearch(e.target.value)}
+          />
+          <select
+            aria-label="Filter goal owner"
+            value={goalOwner}
+            onChange={(e) => setGoalOwner(e.target.value)}
+          >
+            <option value="">All owners</option>
+            {bootstrap.people.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter goal status"
+            value={goalStatus}
+            onChange={(e) => setGoalStatus(e.target.value)}
+          >
+            <option value="">All statuses</option>
+            {Object.entries(PLANNER_GOAL_STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter goal type"
+            value={goalType}
+            onChange={(e) => setGoalType(e.target.value)}
+          >
+            <option value="">All types</option>
+            <option value="company">Company</option>
+            <option value="team">Team</option>
+            <option value="individual">Individual</option>
+          </select>
+          <select
+            aria-label="Filter goal time period"
+            value={goalPeriod}
+            onChange={(e) => setGoalPeriod(e.target.value)}
+          >
+            <option value="">All time periods</option>
+            {Array.from(
+              new Set(
+                query.data
+                  ?.filter((r) => r.kind === 'goal' && r.data.timePeriod)
+                  .map((r) => String(r.data.timePeriod)),
+              ),
+            )
+              .sort()
+              .map((period) => (
+                <option key={period}>{period}</option>
+              ))}
+          </select>
+        </div>
+      )}
       <Alert
         error={
           query.error ||
@@ -189,6 +289,12 @@ export function PlannerManagement({
           actions.shareForm.error
         }
       />
+      {kind === 'goal' && currentGoalId && query.data && !goalDetail && (
+        <p role="alert">
+          This goal is unavailable or your access has changed.{' '}
+          <button onClick={() => openGoal(null)}>Back to goals</button>
+        </p>
+      )}
       {kind === 'form' && shareLink && shareLinkCurrent && (
         <div className="planner-form-share" role="status">
           <p>
@@ -218,15 +324,11 @@ export function PlannerManagement({
           {rows.map((row) => {
             const projectIds = (row.data.projectIds ?? []) as string[];
             const linked = bootstrap.projects.filter((p) => projectIds.includes(p.id));
-            const goalTasks = tasks.filter((t) =>
-              t.memberships.some((m) => projectIds.includes(m.projectId)),
-            );
             const percentage =
-              row.data.progress === 'task_completion'
-                ? (goalTasks.filter((t) => t.status === 'done').length /
-                    Math.max(1, goalTasks.length)) *
-                  100
-                : (Number(row.data.current) / Math.max(1, Number(row.data.target))) * 100;
+              row.goalProgress?.percentage ??
+              (row.data.progress === 'manual'
+                ? (Number(row.data.current) / Math.max(1, Number(row.data.target))) * 100
+                : 0);
             return (
               <article className="planner-management-card" key={row.id}>
                 <h3>{row.name}</h3>
@@ -239,9 +341,9 @@ export function PlannerManagement({
                 {kind === 'goal' && (
                   <>
                     <strong>
-                      {row.data.progress === 'task_completion'
+                      {row.data.progress !== 'manual' && row.data.progress !== 'subgoal_total'
                         ? `${percentage.toFixed(0)}%`
-                        : `${row.data.current} / ${row.data.target} ${row.data.unit}`}
+                        : `${row.goalProgress?.value ?? row.data.current} / ${row.data.target} ${row.data.unit}`}
                     </strong>
                     <progress
                       max={100}
@@ -249,9 +351,19 @@ export function PlannerManagement({
                       aria-label={`${row.name} progress`}
                     />
                     <p>
-                      {String(row.data.status).replaceAll('_', ' ')}
+                      {PLANNER_GOAL_STATUS_LABELS[row.data.status as PlannerGoalData['status']]}
                       {row.data.dueOn ? ` · Due ${row.data.dueOn}` : ''}
                     </p>
+                    {!!row.data.timePeriod && (
+                      <p className="planner-muted">{String(row.data.timePeriod)}</p>
+                    )}
+                    <p className="planner-muted">
+                      {bootstrap.people.find((p) => p.id === row.data.ownerId)?.name ??
+                        'Unassigned'}
+                    </p>
+                    <button className="planner-related-link" onClick={() => openGoal(row.id)}>
+                      View goal
+                    </button>
                   </>
                 )}
                 {kind === 'portfolio' && (
@@ -344,6 +456,43 @@ export function PlannerManagement({
                       Duplicate form
                     </button>
                   )}
+                  {kind === 'goal' && !archived && editable(row.access) && (
+                    <button
+                      disabled={actions.resource.isPending}
+                      onClick={() => {
+                        const data = structuredClone(row.data) as unknown as PlannerGoalData;
+                        data.privacy = 'private';
+                        data.members = [];
+                        data.ownerId = bootstrap.me.id;
+                        data.projectIds = data.projectIds.filter((id) =>
+                          bootstrap.projects.some((p) => p.id === id && !p.archived),
+                        );
+                        data.subgoalIds = (data.subgoalIds ?? []).filter((id) =>
+                          query.data?.some((g) => g.id === id && !g.archived),
+                        );
+                        // The resource response already filters task connections by current access
+                        // and archive state. Preserve them while task-name pages are still loading.
+                        data.taskIds = data.taskIds ?? [];
+                        if (data.weightMode === 'custom') {
+                          data.weights = plannerGoalWeights(data, plannerGoalSourceIds(data));
+                          if (
+                            Math.abs(data.weights.reduce((sum, w) => sum + w.weight, 0) - 100) >
+                            0.000001
+                          ) {
+                            data.weightMode = 'equal';
+                            data.weights = [];
+                          }
+                        }
+                        actions.resource.mutate({
+                          kind: 'goal',
+                          name: `${row.name} copy`.slice(0, 500),
+                          data: data as unknown as Record<string, unknown>,
+                        });
+                      }}
+                    >
+                      Duplicate goal
+                    </button>
+                  )}
                   {kind === 'form' && !archived && editable(row.access) && (
                     <>
                       <button
@@ -396,10 +545,20 @@ export function PlannerManagement({
       {!query.isPending && !rows.length && (
         <div className="planner-empty">
           <h3>
-            No {archived ? 'archived ' : ''}
-            {kind}s yet
+            {goalFiltered ? (
+              'No goals match these filters'
+            ) : (
+              <>
+                No {archived ? 'archived ' : ''}
+                {kind}s yet
+              </>
+            )}
           </h3>
-          <p>Create one to organize your team’s work.</p>
+          <p>
+            {goalFiltered
+              ? 'Try different filters to find your goals.'
+              : 'Create one to organize your team’s work.'}
+          </p>
         </div>
       )}
       {editor && (
@@ -410,6 +569,31 @@ export function PlannerManagement({
           tasks={tasks}
           onClose={() => setEditor(null)}
         />
+      )}
+      {goalDetail && kind === 'goal' && (
+        <ModalFrame title="Goal details" onClose={() => openGoal(null)}>
+          <PlannerGoalDetail
+            key={goalDetail.id}
+            goal={goalDetail}
+            goals={query.data ?? []}
+            bootstrap={bootstrap}
+            tasks={tasks}
+            onGoal={openGoal}
+            onProject={(id) => {
+              openGoal(null);
+              onProject(id);
+            }}
+            onTask={(id) => {
+              openGoal(null);
+              onTask(id);
+            }}
+            onEdit={() => {
+              actions.resource.reset();
+              setEditor(goalDetail);
+              openGoal(null);
+            }}
+          />
+        </ModalFrame>
       )}
       {using && kind === 'template' && (
         <ModalFrame title="Create project from template" onClose={() => setUsing(null)}>
@@ -502,10 +686,16 @@ function ResourceEditor({
   onClose: () => void;
 }) {
   const actions = usePlannerMutations();
+  const resources = usePlannerResources();
   const [name, setName] = useState(resource?.name ?? '');
   const [projectId, setProjectId] = useState(resource?.projectId ?? '');
   const [data, setData] = useState<Record<string, unknown>>(() =>
-    structuredClone(resource?.data ?? plannerResourceDefaults(kind)),
+    structuredClone(
+      resource?.data ?? {
+        ...plannerResourceDefaults(kind),
+        ...(kind === 'goal' ? { ownerId: bootstrap.me.id } : {}),
+      },
+    ),
   );
   const edit = (patch: Record<string, unknown>) => setData((old) => ({ ...old, ...patch }));
   const submit = async (e: FormEvent) => {
@@ -615,7 +805,7 @@ function ResourceEditor({
               </details>
             </>
           )}
-          {['portfolio', 'goal'].includes(kind) && (
+          {kind === 'portfolio' && (
             <Field name="Projects">
               <select
                 multiple
@@ -635,82 +825,14 @@ function ResourceEditor({
             </Field>
           )}
           {kind === 'goal' && (
-            <>
-              <div className="planner-form-grid">
-                <Field name="Owner">
-                  <select
-                    value={String(data.ownerId ?? '')}
-                    onChange={(e) => edit({ ownerId: e.target.value || null })}
-                  >
-                    <option value="">Unassigned</option>
-                    {bootstrap.people.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field name="Due date">
-                  <input
-                    type="date"
-                    value={String(data.dueOn ?? '')}
-                    onInput={(e) => edit({ dueOn: e.currentTarget.value || null })}
-                  />
-                </Field>
-                <Field name="Status">
-                  <select
-                    value={String(data.status)}
-                    onChange={(e) => edit({ status: e.target.value })}
-                  >
-                    {['on_track', 'at_risk', 'off_track', 'achieved'].map((s) => (
-                      <option key={s} value={s}>
-                        {s.replaceAll('_', ' ')}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field name="Progress measurement">
-                  <select
-                    value={String(data.progress)}
-                    onChange={(e) => edit({ progress: e.target.value })}
-                  >
-                    <option value="manual">Manual value</option>
-                    <option value="task_completion">Linked tasks completed</option>
-                  </select>
-                </Field>
-                <Field name="Current value">
-                  <input
-                    type="number"
-                    min={0}
-                    step="any"
-                    disabled={data.progress !== 'manual'}
-                    value={Number(data.current)}
-                    onChange={(e) => edit({ current: Number(e.target.value) })}
-                  />
-                </Field>
-                <Field name="Target">
-                  <input
-                    type="number"
-                    required
-                    min={0.001}
-                    step="any"
-                    value={Number(data.target)}
-                    onChange={(e) => edit({ target: Number(e.target.value) })}
-                  />
-                </Field>
-                <Field name="Unit">
-                  <input
-                    required
-                    maxLength={100}
-                    value={String(data.unit)}
-                    onChange={(e) => edit({ unit: e.target.value })}
-                  />
-                </Field>
-              </div>
-              <p className="planner-muted">
-                Automatic progress reflects linked tasks you can access.
-              </p>
-            </>
+            <PlannerGoalEditor
+              goal={data as unknown as PlannerGoalData}
+              id={resource?.id}
+              goals={resources.data ?? []}
+              bootstrap={bootstrap}
+              tasks={tasks}
+              edit={edit}
+            />
           )}
           {kind === 'template' && (
             <>

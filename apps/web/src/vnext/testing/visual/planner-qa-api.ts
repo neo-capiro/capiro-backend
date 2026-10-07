@@ -9,6 +9,8 @@ import {
   type PlannerFormData,
   type PlannerTemplateData,
   plannerTemplateSchedule,
+  plannerGoalProgress,
+  type PlannerGoalData,
 } from '@capiro/strategy-verifier';
 const PROJECT = '20000000-0000-4000-8000-000000000001';
 const SECTION = '40000000-0000-4000-8000-000000000001';
@@ -84,7 +86,34 @@ const api = {
       return { data: { me: people[0], people, projects: structuredClone(projects) } };
     if (path.endsWith('/inbox'))
       return { data: config?.params?.paged === 'true' ? { items: [], nextCursor: null } : [] };
-    if (path.endsWith('/resources')) return { data: structuredClone(resources) };
+    if (path.endsWith('/resources')) {
+      const views = structuredClone(resources);
+      const progress = plannerGoalProgress(
+        views,
+        new Set(projects.filter((p) => !p.archived).map((p) => p.id)),
+        tasks
+          .filter((t) => !t.archived)
+          .map((t) => ({
+            id: t.id,
+            status: t.status,
+            kind: t.subtype,
+            projectIds: t.memberships.map((m) => m.projectId),
+          })),
+      );
+      for (const row of views)
+        if (row.kind === 'goal') {
+          row.goalProgress = progress.get(row.id);
+          row.parentGoalIds = views
+            .filter(
+              (g) =>
+                g.kind === 'goal' &&
+                !g.archived &&
+                ((g.data as unknown as PlannerGoalData).subgoalIds ?? []).includes(row.id),
+            )
+            .map((g) => g.id);
+        }
+      return { data: views };
+    }
     if (path.endsWith('/attachments')) return { data: [] };
     if (path.endsWith('/events')) {
       const target = path.split('/').at(-2);

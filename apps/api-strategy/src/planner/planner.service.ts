@@ -31,6 +31,7 @@ import {
   type PlannerResource,
   type PlannerResourceKind,
   type PlannerRuleData,
+  type PlannerGoalData,
   type PlannerMyTasksData,
   type PlannerPersonalRule,
   type PlannerFormData,
@@ -61,6 +62,12 @@ import { RESOURCE_KINDS, validateResource, applyPlannerRule } from './planner-re
 import { plannerActualMinutes, plannerEventView, plannerReadActivity } from './planner-activity.js';
 import { plannerDateRuleReady, plannerScheduleHash } from './planner-date-rules.js';
 import {
+  plannerGoalCycle,
+  plannerGoalProgress,
+  plannerGoalSourceIds,
+  plannerGoalWeights,
+} from './planner-goals.js';
+import {
   plannerPublicForm,
   plannerFormTaskValues,
   validatePlannerFormProject,
@@ -73,6 +80,10 @@ import {
 } from './planner-form-files.service.js';
 
 type Tx = Prisma.TransactionClient;
+type GoalTaskRecord = Pick<
+  SpPlannerTask,
+  'id' | 'ownerId' | 'assigneeId' | 'projectIds' | 'archived' | 'data'
+>;
 type ActivityQuery = { paged?: string; cursor?: string; archived?: string };
 function activityQuery(query: ActivityQuery, inbox = false) {
   keys(query, inbox ? ['paged', 'cursor', 'archived'] : ['paged', 'cursor']);
@@ -89,7 +100,7 @@ function activityQuery(query: ActivityQuery, inbox = false) {
 const RANK: Record<PlannerRole, number> = { viewer: 0, commenter: 1, editor: 2, admin: 3 };
 const json = (data: unknown) => JSON.parse(JSON.stringify(data)) as Prisma.InputJsonValue;
 const projectData = (row: SpPlannerProject) => row.data as unknown as PlannerProjectData;
-const taskData = (row: SpPlannerTask): PlannerTaskData => {
+const taskData = (row: Pick<SpPlannerTask, 'data'>): PlannerTaskData => {
   const {
     recurrenceSuccessorId: _successor,
     deadlineAt: _deadline,
@@ -1561,14 +1572,26 @@ export class PlannerService {
     row: SpPlannerResource,
     projects: SpPlannerProject[],
     ctx: AuthTenantContext,
+    goalIds = new Set<string>(),
+    taskIds = new Set<string>(),
+    projectIds?: Set<string>,
   ): PlannerResource {
     const access = this.resourceAccess(row, projects, ctx);
     requireRole(access, 'viewer');
     const data = structuredClone(row.data) as Record<string, unknown>;
     if (Array.isArray(data.projectIds))
       data.projectIds = data.projectIds.filter((id) =>
-        projects.some((p) => p.id === id && plannerProjectAccess(p, ctx.clerkUserId)),
+        projectIds
+          ? projectIds.has(id)
+          : projects.some((p) => p.id === id && plannerProjectAccess(p, ctx.clerkUserId)),
       );
+    if (row.kind === 'goal') {
+      if (Array.isArray(data.subgoalIds))
+        data.subgoalIds = data.subgoalIds.filter((id) => goalIds.has(id));
+      if (Array.isArray(data.taskIds)) data.taskIds = data.taskIds.filter((id) => taskIds.has(id));
+      if (data.weightMode === 'custom')
+        data.weights = plannerGoalWeights(data as unknown as PlannerGoalData);
+    }
     return {
       id: row.id,
       kind: row.kind as PlannerResourceKind,
@@ -1582,6 +1605,59 @@ export class PlannerService {
       ...(row.kind === 'form' ? { publicShared: Boolean(row.shareTokenHash) } : {}),
     };
   }
+  private resourceViews(
+    rows: SpPlannerResource[],
+    projects: SpPlannerProject[],
+    ctx: AuthTenantContext,
+    tasks: GoalTaskRecord[],
+  ) {
+    const visible = rows.filter((row) => this.resourceAccess(row, projects, ctx));
+    const goals = visible.filter((row) => row.kind === 'goal');
+    const readableTasks = tasks.filter(
+      (t) => !t.archived && plannerTaskAccess(t, projects, ctx.clerkUserId),
+    );
+    const goalIds = new Set(goals.map((g) => g.id));
+    const taskIds = new Set(readableTasks.map((t) => t.id));
+    const projectIds = new Set(
+      projects.filter((p) => plannerProjectAccess(p, ctx.clerkUserId)).map((p) => p.id),
+    );
+    const parents = new Map<string, string[]>();
+    for (const g of goals.filter((g) => !g.archived))
+      for (const child of (g.data as unknown as PlannerGoalData).subgoalIds ?? [])
+        if (goalIds.has(child)) {
+          const linked = parents.get(child);
+          if (linked) linked.push(g.id);
+          else parents.set(child, [g.id]);
+        }
+    const views = visible.map((row) =>
+      this.resourceView(row, projects, ctx, goalIds, taskIds, projectIds),
+    );
+    const progress = plannerGoalProgress(
+      views,
+      new Set(
+        projects
+          .filter((p) => !p.archived && plannerProjectAccess(p, ctx.clerkUserId))
+          .map((p) => p.id),
+      ),
+      readableTasks.map((t) => {
+        const data = taskData(t);
+        return { id: t.id, status: data.status, kind: data.subtype, projectIds: t.projectIds };
+      }),
+    );
+    for (const view of views)
+      if (view.kind === 'goal') {
+        view.goalProgress = progress.get(view.id);
+        view.parentGoalIds = parents.get(view.id) ?? [];
+      }
+    return views;
+  }
+  private goalTasks(tx: Tx, ctx: AuthTenantContext): Promise<GoalTaskRecord[]> {
+    return tx.$queryRaw<GoalTaskRecord[]>`
+      SELECT id, owner_id AS "ownerId", assignee_id AS "assigneeId", project_ids AS "projectIds", archived,
+        jsonb_strip_nulls(jsonb_build_object('status',data->'status','subtype',data->'subtype','assigneeId',data->'assigneeId',
+          'memberships',data->'memberships','collaborators',data->'collaborators')) AS data
+      FROM sp_planner_tasks WHERE tenant_id = ${ctx.tenantId}::uuid`;
+  }
   async resources(ctx: AuthTenantContext) {
     return this.scope(ctx, async (tx) => {
       const projects = await this.projects(tx, ctx);
@@ -1590,27 +1666,98 @@ export class PlannerService {
         orderBy: { createdAt: 'asc' },
       });
       const own = rows.filter((row) => row.kind === 'my_tasks' && row.ownerId === ctx.clerkUserId);
-      const assigned = own.length
-        ? await tx.spPlannerTask.findMany({
-            where: { tenantId: ctx.tenantId, assigneeId: ctx.clerkUserId },
-          })
-        : [];
+      const hasGoals = rows.some(
+        (row) => row.kind === 'goal' && this.resourceAccess(row, projects, ctx),
+      );
+      const assigned = hasGoals
+        ? await this.goalTasks(tx, ctx)
+        : own.length
+          ? await tx.spPlannerTask.findMany({
+              where: { tenantId: ctx.tenantId, assigneeId: ctx.clerkUserId },
+            })
+          : [];
       const visible = new Set(
         assigned
           .filter((task) => plannerTaskAccess(task, projects, ctx.clerkUserId))
           .map((task) => task.id),
       );
-      return rows
-        .filter((row) => this.resourceAccess(row, projects, ctx))
-        .map((row) => {
-          const result = this.resourceView(row, projects, ctx);
-          if (row.kind === 'my_tasks')
-            result.data.placements = (result.data.placements as { taskId: string }[]).filter((p) =>
-              visible.has(p.taskId),
-            );
-          return result;
-        });
+      return this.resourceViews(rows, projects, ctx, assigned).map((result) => {
+        if (result.kind === 'my_tasks')
+          result.data.placements = (result.data.placements as { taskId: string }[]).filter(
+            (p) =>
+              visible.has(p.taskId) &&
+              assigned.some((t) => t.id === p.taskId && t.assigneeId === ctx.clerkUserId),
+          );
+        return result;
+      });
     });
+  }
+  private prepareGoalData(
+    old: SpPlannerResource | null,
+    patch: Record<string, unknown>,
+    goals: SpPlannerResource[],
+    tasks: GoalTaskRecord[],
+    projects: SpPlannerProject[],
+    ctx: AuthTenantContext,
+  ) {
+    const previous = (old?.data ?? {}) as unknown as PlannerGoalData;
+    const data = { ...previous, ...patch } as PlannerGoalData;
+    const readable = (key: string, id: string): boolean =>
+      key === 'subgoalIds'
+        ? goals.some((g) => g.id === id && this.resourceAccess(g, projects, ctx))
+        : key === 'taskIds'
+          ? tasks.some(
+              (t) => t.id === id && !t.archived && plannerTaskAccess(t, projects, ctx.clerkUserId),
+            )
+          : projects.some((p) => p.id === id && plannerProjectAccess(p, ctx.clerkUserId));
+    for (const key of ['projectIds', 'subgoalIds', 'taskIds'] as const) {
+      if (patch[key] !== undefined) {
+        if (!Array.isArray(patch[key]) || (patch[key] as unknown[]).length > 100)
+          fail('Invalid goal connections');
+        for (const requested of patch[key] as unknown[]) {
+          uuid(requested);
+          requireRole(readable(key, String(requested)) ? 'viewer' : null, 'viewer');
+          const previousIds = previous[key] ?? [];
+          const archived =
+            key === 'subgoalIds'
+              ? goals.find((g) => g.id === requested)?.archived
+              : key === 'projectIds'
+                ? projects.find((p) => p.id === requested)?.archived
+                : false;
+          if (archived && !previousIds.includes(String(requested)))
+            fail('New goal connections require active work');
+        }
+        const hidden = (previous[key] ?? []).filter((id) => !readable(key, id));
+        data[key] = [...new Set([...(patch[key] as string[]), ...hidden])];
+      }
+    }
+    if (patch.weights !== undefined && data.weightMode === 'custom') {
+      const visibleData = { ...data };
+      for (const key of ['projectIds', 'subgoalIds', 'taskIds'] as const)
+        if (visibleData[key])
+          visibleData[key] = visibleData[key]!.filter((id) => readable(key, id));
+      // Validate the caller's visible weights before scaling; never silently fix a bad total.
+      validateResource('goal', visibleData);
+      const sourceKey = data.progress.startsWith('subgoal_')
+        ? 'subgoalIds'
+        : data.progress === 'task_list_completion'
+          ? 'taskIds'
+          : 'projectIds';
+      const hidden = plannerGoalSourceIds(data).filter((id) => !readable(sourceKey, id));
+      const held = hidden.map((sourceId) => ({
+        sourceId,
+        weight:
+          previous.progress === data.progress && previous.weightMode === 'custom'
+            ? (previous.weights?.find((w) => w.sourceId === sourceId)?.weight ?? 0)
+            : 0,
+      }));
+      const available = 100 - held.reduce((sum, w) => sum + w.weight, 0);
+      data.weights = [
+        ...data.weights!.map((w) => ({ ...w, weight: (w.weight * available) / 100 })),
+        ...held,
+      ];
+    }
+    return data;
   }
   async saveResource(ctx: AuthTenantContext, id: string | null, raw: unknown) {
     if (id) uuid(id);
@@ -1662,10 +1809,20 @@ export class PlannerService {
         const name = dto.name ?? old?.name;
         if (typeof name !== 'string' || !name.trim() || name.length > 500)
           fail('Resource name is required');
-        const data = validateResource(kind, {
-          ...(old ? object(old.data) : {}),
-          ...object(dto.data ?? {}),
-        });
+        const goalRows =
+          kind === 'goal'
+            ? await tx.spPlannerResource.findMany({
+                where: { tenantId: ctx.tenantId, kind: 'goal' },
+              })
+            : [];
+        const goalTasks = kind === 'goal' ? await this.goalTasks(tx, ctx) : [];
+        const newGoalId = kind === 'goal' && !old ? randomUUID() : null;
+        const data = validateResource(
+          kind,
+          kind === 'goal'
+            ? this.prepareGoalData(old, object(dto.data ?? {}), goalRows, goalTasks, projects, ctx)
+            : { ...(old ? object(old.data) : {}), ...object(dto.data ?? {}) },
+        );
         const people = new Set((await this.people(tx, ctx)).map((p) => p.id));
         if (!people.has(ctx.clerkUserId))
           throw new ForbiddenException('Active membership is required');
@@ -1734,6 +1891,28 @@ export class PlannerService {
         }
         if (kind === 'goal' && data.ownerId && !people.has(String(data.ownerId)))
           fail('Goal owner must be an active team member');
+        if (kind === 'goal') {
+          const graph = [
+            ...goalRows.filter((g) => g.id !== old?.id),
+            { id: old?.id ?? newGoalId!, data },
+          ];
+          const byId = new Map(graph.map((g) => [g.id, g]));
+          if (
+            plannerGoalCycle(
+              graph.map((g) => ({ id: g.id, data: g.data as unknown as PlannerGoalData })),
+            )
+          )
+            fail('Goal connections cannot form a cycle');
+          for (const parent of graph) {
+            const config = parent.data as unknown as PlannerGoalData;
+            if (config.progress === 'subgoal_total')
+              for (const childId of config.subgoalIds ?? []) {
+                const child = byId.get(childId);
+                if (child && (child.data as unknown as PlannerGoalData).unit !== config.unit)
+                  fail('Goal totals require compatible units');
+              }
+          }
+        }
         if (kind === 'rule' || kind === 'form') {
           const p = projects.find((p) => p.id === projectId)!;
           if (kind === 'form' && dto.archived !== true)
@@ -1776,12 +1955,20 @@ export class PlannerService {
                 tenantId: ctx.tenantId,
                 ownerId: ctx.clerkUserId,
                 kind,
+                ...(newGoalId ? { id: newGoalId } : {}),
                 projectId,
                 name,
                 data: json(data),
               },
             });
-        return this.resourceView(row, projects, ctx);
+        return kind === 'goal'
+          ? this.resourceViews(
+              [...goalRows.filter((g) => g.id !== row.id), row],
+              projects,
+              ctx,
+              goalTasks,
+            ).find((g) => g.id === row.id)!
+          : this.resourceView(row, projects, ctx);
       },
       true,
     );
