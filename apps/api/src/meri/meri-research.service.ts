@@ -56,6 +56,7 @@ import {
   ResearchPlanValidationError,
   buildResearchPlanRepairPrompt,
   buildResearchPlanSystemPrompt,
+  describePlanReply,
   researchPlanStringProjection,
   validateResearchPlan,
   type ResearchPlanAdmissionContext,
@@ -4745,10 +4746,23 @@ export class MeriResearchService {
         : this.anthropicComplete(ctx, session.id, auth, nextSystem, nextUser);
 
     const raw = await complete(system, user);
+    // The reply's shape, never its text: tells a cut-off reply from prose or
+    // fences around a valid plan (T7's steering re-plan failed both attempts
+    // with plan_must_be_strict_json and nothing else to go on, 2026-10-07).
+    const logInvalid = (attempt: 'first' | 'repair', reply: unknown, issues: string[]) =>
+      this.logger.warn(
+        `meri.research.plan_invalid ${JSON.stringify({
+          sessionId: session.id,
+          attempt,
+          issues: issues.slice(0, 8),
+          reply: describePlanReply(reply),
+        })}`,
+      );
     try {
       return validateResearchPlan(raw, admissionContext);
     } catch (error) {
       if (!(error instanceof ResearchPlanValidationError)) throw error;
+      logInvalid('first', raw, error.issues);
       if (auth.run) await this.assertRunActive(ctx, session.id, auth.run.id);
       const repair = buildResearchPlanRepairPrompt(system, raw, error);
       const repairedRaw = await complete(repair.system, `${user}\n\n${repair.user}`);
@@ -4756,6 +4770,7 @@ export class MeriResearchService {
         return validateResearchPlan(repairedRaw, admissionContext);
       } catch (repairError) {
         if (!(repairError instanceof ResearchPlanValidationError)) throw repairError;
+        logInvalid('repair', repairedRaw, repairError.issues);
         throw new BadRequestException(
           `Research plan remained invalid after one repair attempt: ${repairError.issues.join('; ')}`,
         );

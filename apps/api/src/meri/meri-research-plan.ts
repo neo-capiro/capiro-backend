@@ -80,6 +80,37 @@ export class ResearchPlanValidationError extends Error {
   }
 }
 
+/**
+ * The shape of a planner reply that failed validation, for the log line only:
+ * never its text. Tells a cut-off reply (no closing brace, nothing parses)
+ * from prose or fences around a valid object (the brace slice parses).
+ */
+export function describePlanReply(raw: unknown): Record<string, unknown> {
+  if (typeof raw !== 'string') return { type: raw === null ? 'null' : typeof raw };
+  const trimmed = raw.trim();
+  const first = trimmed.indexOf('{');
+  const last = trimmed.lastIndexOf('}');
+  let braceSliceParses = false;
+  if (first >= 0 && last > first) {
+    try {
+      JSON.parse(trimmed.slice(first, last + 1));
+      braceSliceParses = true;
+    } catch {
+      braceSliceParses = false;
+    }
+  }
+  return {
+    type: 'string',
+    chars: raw.length,
+    startsWithBrace: trimmed.startsWith('{'),
+    endsWithBrace: trimmed.endsWith('}'),
+    fenced: /```/.test(trimmed),
+    charsBeforeFirstBrace: first < 0 ? null : first,
+    charsAfterLastBrace: last < 0 ? null : trimmed.length - last - 1,
+    braceSliceParses,
+  };
+}
+
 const STEP_ID_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const EXACT_PLAN_KEYS = ['version', 'title', 'scope', 'budget', 'steps', 'clarifyingQuestions'];
 const EXACT_SCOPE_KEYS = ['sessionId', 'tenantId', 'actorId', 'clientId', 'conversationId'];
