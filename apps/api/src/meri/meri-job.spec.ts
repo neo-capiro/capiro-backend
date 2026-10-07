@@ -58,12 +58,60 @@ describe('Meri job status projection (Stage 2 §5.1)', () => {
     expect(view).toMatchObject({ status: 'queued', awaitingStart: true });
   });
 
-  it('a step waiting for approval puts the job in waiting_for_user', () => {
+  // Release D: a wait needs a posted proposal card on a current-revision step.
+  const postedApproval = {
+    goalRevision: 0,
+    steps: [
+      {
+        goalRevision: 0,
+        effect: 'approval_required',
+        outcome: 'waiting_for_approval',
+        operationRefs: ['proposal:proposal-1'],
+      },
+    ],
+  };
+  const unpostedApproval = {
+    goalRevision: 0,
+    steps: [
+      {
+        goalRevision: 0,
+        effect: 'approval_required',
+        outcome: 'waiting_for_approval',
+        operationRefs: [],
+      },
+    ],
+  };
+
+  it.each([
+    ['a completed job with a posted, undecided proposal', 'complete', run('complete')],
+    ['an interrupted job with a posted, undecided proposal', 'researching', run('interrupted')],
+  ])('%s waits for the user', (_label, status, metadata) => {
     const spy = jest
       .spyOn(coordinatorModule, 'readDurableResearchCoordinator')
-      .mockReturnValueOnce({ steps: [{ outcome: 'waiting_for_approval' }] } as never);
-    expect(projectMeriJobStatus({ status: 'researching', metadata: run('interrupted') })).toBe(
-      'waiting_for_user',
+      .mockReturnValue(postedApproval as never);
+    expect(projectMeriJobStatus({ status, metadata })).toBe('waiting_for_user');
+    spy.mockRestore();
+  });
+
+  it.each([
+    // t5-check-12: the planner's approval step on a completed session, never posted.
+    ['a completed job whose approval step was never posted', 'complete', run('complete'), 'completed'],
+    // The stale "Waiting for you" rail entry (HANDOVER-2026-10-07 §3.4).
+    ['an interrupted job whose approval step was never posted', 'researching', run('interrupted'), 'queued'],
+  ])('%s does not wait for the user', (_label, status, metadata, expected) => {
+    const spy = jest
+      .spyOn(coordinatorModule, 'readDurableResearchCoordinator')
+      .mockReturnValue(unpostedApproval as never);
+    expect(projectMeriJobStatus({ status, metadata })).toBe(expected);
+    spy.mockRestore();
+  });
+
+  it('a proposal posted under an older goal revision is not a wait', () => {
+    const spy = jest
+      .spyOn(coordinatorModule, 'readDurableResearchCoordinator')
+      .mockReturnValue({ ...postedApproval, goalRevision: 1 } as never);
+    expect(projectMeriJobStatus({ status: 'complete', metadata: run('complete') })).toBe(
+      'completed',
     );
     spy.mockRestore();
   });
@@ -74,7 +122,7 @@ describe('Meri job status projection (Stage 2 §5.1)', () => {
   ])('an approval-gated proposal step does not mask %s', (_label, metadata, expected) => {
     const spy = jest
       .spyOn(coordinatorModule, 'readDurableResearchCoordinator')
-      .mockReturnValue({ steps: [{ outcome: 'waiting_for_approval' }] } as never);
+      .mockReturnValue(postedApproval as never);
     expect(projectMeriJobStatus({ status: 'researching', metadata })).toBe(expected);
     spy.mockRestore();
   });

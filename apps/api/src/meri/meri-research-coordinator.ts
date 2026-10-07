@@ -693,6 +693,123 @@ export function observeDurableResearchCancellation(input: { metadata: unknown; n
   };
 }
 
+/**
+ * Release D: a job's approval step is a proposal card, never executed by the
+ * research run. These record the posted proposal and settle the step from the
+ * proposal's own outcome. Neither needs a lease: the run is terminal by then,
+ * and execution stays with the proposal authority (approveAndExecute).
+ */
+function currentApprovalStepIndex(
+  coordinator: DurableResearchCoordinatorV1,
+  stepId: string,
+): number {
+  const index = coordinator.steps.findIndex(
+    (step) =>
+      step.id === stepId &&
+      step.goalRevision === coordinator.goalRevision &&
+      step.effect === 'approval_required',
+  );
+  if (index < 0) throw new DurableResearchCoordinatorError('research_approval_step_not_found');
+  return index;
+}
+
+const PROPOSAL_REF = /^proposal:([^:]+)$/;
+
+export function recordDurableResearchApprovalProposal(input: {
+  metadata: unknown;
+  stepId: string;
+  proposalId: string;
+}): { metadata: Record<string, unknown>; coordinator: DurableResearchCoordinatorV1 } {
+  const metadata = researchMetadata(input.metadata);
+  const coordinator = requiredCoordinator(metadata);
+  const index = currentApprovalStepIndex(coordinator, input.stepId);
+  const current = coordinator.steps[index]!;
+  if (current.outcome !== 'waiting_for_approval')
+    throw new DurableResearchCoordinatorError('research_approval_step_not_waiting');
+  const ref = `proposal:${input.proposalId}`;
+  const existing = current.operationRefs.find((value) => PROPOSAL_REF.test(value));
+  if (existing === ref) return { metadata, coordinator };
+  if (existing)
+    throw new DurableResearchCoordinatorError('research_approval_proposal_already_recorded');
+  const steps = [...coordinator.steps];
+  steps[index] = { ...current, operationRefs: [...current.operationRefs, ref] };
+  const next = { ...coordinator, steps };
+  return { metadata: { ...metadata, durableCoordinator: next }, coordinator: next };
+}
+
+/** The proposal posted for a step, if any. */
+export function approvalStepProposalId(step: DurableResearchCoordinatorStepV1): string | null {
+  for (const value of step.operationRefs) {
+    const match = PROPOSAL_REF.exec(value);
+    if (match) return match[1]!;
+  }
+  return null;
+}
+
+const APPROVAL_SETTLEMENT: Partial<
+  Record<string, { outcome: DurableResearchStepOutcome; failureCode: string | null }>
+> = {
+  succeeded: { outcome: 'completed', failureCode: null },
+  dismissed: { outcome: 'cancelled', failureCode: 'approval_dismissed' },
+  expired: { outcome: 'cancelled', failureCode: 'approval_expired' },
+  blocked: { outcome: 'cancelled', failureCode: 'approval_blocked' },
+  failed_terminal: { outcome: 'cancelled', failureCode: 'approval_execution_failed' },
+  outcome_unknown: { outcome: 'uncertain_effect', failureCode: 'approval_outcome_unknown' },
+};
+
+export function settleDurableResearchApprovalStep(input: {
+  metadata: unknown;
+  stepId: string;
+  proposalId: string;
+  proposalStatus: string;
+  now?: Date;
+}): {
+  metadata: Record<string, unknown>;
+  coordinator: DurableResearchCoordinatorV1;
+  changed: boolean;
+} {
+  const metadata = researchMetadata(input.metadata);
+  const coordinator = requiredCoordinator(metadata);
+  const index = currentApprovalStepIndex(coordinator, input.stepId);
+  const current = coordinator.steps[index]!;
+  if (approvalStepProposalId(current) !== input.proposalId)
+    throw new DurableResearchCoordinatorError('research_approval_proposal_mismatch');
+  const settlement = APPROVAL_SETTLEMENT[input.proposalStatus];
+  if (current.outcome !== 'waiting_for_approval' || !settlement)
+    return { metadata, coordinator, changed: false };
+  const settledAt = (input.now ?? new Date()).toISOString();
+  const steps = [...coordinator.steps];
+  steps[index] = {
+    ...current,
+    outcome: settlement.outcome,
+    failureCode: settlement.failureCode,
+    operationRefs: uniqueStrings([
+      ...current.operationRefs,
+      `proposal:${input.proposalId}:${input.proposalStatus}`,
+    ]),
+    completedAt: settlement.outcome === 'completed' ? settledAt : current.completedAt,
+  };
+  const run = readResearchRun(metadata);
+  if (!run) throw new DurableResearchCoordinatorError('research_run_unavailable');
+  const appended = appendEvent(
+    metadata,
+    { ...coordinator, steps },
+    run.eventSequence,
+    {
+      type: settlement.outcome === 'completed' ? 'step_completed' : 'step_failed',
+      stepId: current.id,
+      createdAt: settledAt,
+      detail: `proposal:${input.proposalStatus}`,
+    },
+    run,
+  );
+  return {
+    metadata: { ...metadata, run: appended.run, durableCoordinator: appended.coordinator },
+    coordinator: appended.coordinator,
+    changed: true,
+  };
+}
+
 export function publicDurableResearchCoordinator(
   coordinator: DurableResearchCoordinatorV1,
 ): Record<string, unknown> {

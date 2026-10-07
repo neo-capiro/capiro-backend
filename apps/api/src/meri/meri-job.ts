@@ -10,7 +10,10 @@
  * Non-research kinds are dark: they can be created only when the tenant flag
  * `meri.jobs` is on (default off).
  */
-import { readDurableResearchCoordinator } from './meri-research-coordinator.js';
+import {
+  approvalStepProposalId,
+  readDurableResearchCoordinator,
+} from './meri-research-coordinator.js';
 import { readResearchRun, type ResearchRunState } from './meri-research-run-state.js';
 import { RESEARCH_OBSERVER_STATUS } from './research-observer-projection.js';
 
@@ -95,11 +98,21 @@ export function meriJobDeliverables(value: unknown): MeriJobDeliverable[] {
   });
 }
 
+/**
+ * The job waits on the user only once a current-revision approval step has a
+ * posted, undecided proposal card (Release D). An approval step admitted with
+ * the plan but never posted is not a wait; it used to leave old interrupted
+ * jobs showing "Waiting for you" indefinitely.
+ */
 function waitingForApproval(metadata: unknown): boolean {
   try {
+    const coordinator = readDurableResearchCoordinator(metadata);
     return (
-      readDurableResearchCoordinator(metadata)?.steps.some(
-        (step) => step.outcome === 'waiting_for_approval',
+      coordinator?.steps.some(
+        (step) =>
+          step.goalRevision === coordinator.goalRevision &&
+          step.outcome === 'waiting_for_approval' &&
+          approvalStepProposalId(step) !== null,
       ) ?? false
     );
   } catch {
@@ -111,8 +124,8 @@ function waitingForApproval(metadata: unknown): boolean {
  * Map the stored session onto the logical job status. Precedence: an explicit
  * stop, then terminal outcomes, clarification, live work and failure, and only
  * then an approval wait. Research never executes an approval-gated step (it is
- * a proposal), so that step waits from the start and must not mask a running
- * or failed run.
+ * a proposal); a completed job whose proposal card is posted and undecided
+ * waits for the user, and the wait never masks a running or failed run.
  */
 export function projectMeriJobStatus(
   session: { status: string; metadata: unknown },
@@ -122,7 +135,8 @@ export function projectMeriJobStatus(
   const state = run?.status;
   if (state === 'cancel_requested') return 'cancel_requested';
   if (state === 'cancelled' || column === 'cancelled') return 'cancelled';
-  if (state === 'complete' || column === 'complete') return 'completed';
+  if (state === 'complete' || column === 'complete')
+    return waitingForApproval(session.metadata) ? 'waiting_for_user' : 'completed';
   if (state === 'partial') return 'partial';
   if (state === 'awaiting_clarification' || column === 'awaiting_clarification')
     return 'waiting_for_user';

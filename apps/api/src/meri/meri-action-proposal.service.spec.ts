@@ -555,6 +555,35 @@ describe('MeriActionProposalService', () => {
     expect(h.tx.complianceCheck.create).toHaveBeenCalledTimes(1);
   });
 
+  it('a job posts an action that needs approval as a pending card (Release D)', async () => {
+    const h = harness({ row: null });
+    const result = await h.service.create(ctx, {
+      tool: 'send_email',
+      input: { to: 'person@example.com', subject: 'Subject', body: 'Body' },
+      surface: 'job',
+      requireApproval: true,
+    });
+    expect(result.disposition).toBe('pending_approval');
+    expect(h.getRow()).toMatchObject({ status: 'proposed', surface: 'job' });
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
+  it('a job never posts or runs an action that needs no approval (Release D)', async () => {
+    // A PASS action would execute inside create(); a job may only post a card.
+    const h = harness({ row: null });
+    h.setPolicy({ outcome: 'PASS', reasons: ['Internal artifact'], tier: 'low' });
+    await expect(
+      h.service.create(ctx, {
+        tool: 'send_email',
+        input: { to: 'person@example.com', subject: 'Subject', body: 'Body' },
+        surface: 'job',
+        requireApproval: true,
+      }),
+    ).rejects.toThrow('meri_action_approval_not_applicable');
+    expect(h.getRow()).toBeNull();
+    expect(h.tools.execute).not.toHaveBeenCalled();
+  });
+
   it('blocks changed stored payloads because the fingerprint no longer matches', async () => {
     const original = makeRow();
     const tampered = {
