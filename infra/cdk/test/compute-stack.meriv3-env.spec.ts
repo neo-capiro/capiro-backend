@@ -185,6 +185,11 @@ describe('MeriV3 runtime env (Stage 1 §4.2)', () => {
     expect(api.CLIO_RESEARCH_MAX_COST_USD).toBe('25');
   });
 
+  test('the API carries the job lease sweeper applied in capiro-dev-api:632', () => {
+    expect(api.MERI_JOB_SWEEPER_ENABLED).toBe('true');
+    expect(orchestrator).not.toHaveProperty('MERI_JOB_SWEEPER_ENABLED');
+  });
+
   test('the retired slug allow-list is not codified on either service', () => {
     expect(api).not.toHaveProperty('MERIV3_CANARY_TENANT_SLUGS');
     expect(orchestrator).not.toHaveProperty('MERIV3_CANARY_TENANT_SLUGS');
