@@ -11,6 +11,7 @@ export class PlannerSchedulerService implements OnModuleInit, OnModuleDestroy {
   private readonly taskCursors = new Map<string, string>();
   private readonly goalCursors = new Map<string, string>();
   private readonly timeCursors = new Map<string, string>();
+  private readonly budgetCursors = new Map<string, string>();
   constructor(
     private readonly prisma: PrismaService,
     private readonly planner: PlannerService,
@@ -20,7 +21,7 @@ export class PlannerSchedulerService implements OnModuleInit, OnModuleDestroy {
     this.timer = setInterval(() => void this.tick(), 60_000);
     this.timer.unref?.();
     this.logger.log(
-      'Planner configured date rules, goal and submission reminders armed (60-second polling)',
+      'Planner configured date rules, goal, submission and budget reminders armed (60-second polling)',
     );
   }
   onModuleDestroy() {
@@ -89,6 +90,19 @@ export class PlannerSchedulerService implements OnModuleInit, OnModuleDestroy {
           `Planner tenant ${tenantId} submission reminders failed; next cycle will retry`,
         );
       }
+      try {
+        const result = await this.planner.runScheduledBudgetWork(
+          tenantId,
+          now,
+          this.budgetCursors.get(tenantId),
+        );
+        if (result.nextCursor) this.budgetCursors.set(tenantId, result.nextCursor);
+        else this.budgetCursors.delete(tenantId);
+      } catch {
+        this.logger.warn(
+          `Planner tenant ${tenantId} budget reminders failed; next cycle will retry`,
+        );
+      }
     }
     this.tenantCursor =
       tenants.length < 20
@@ -98,5 +112,6 @@ export class PlannerSchedulerService implements OnModuleInit, OnModuleDestroy {
     if (this.taskCursors.size > 10000) this.taskCursors.clear();
     if (this.goalCursors.size > 10000) this.goalCursors.clear();
     if (this.timeCursors.size > 10000) this.timeCursors.clear();
+    if (this.budgetCursors.size > 10000) this.budgetCursors.clear();
   }
 }

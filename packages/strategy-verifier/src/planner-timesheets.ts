@@ -92,6 +92,8 @@ export interface PlannerTimesheet {
   nextWorkCursor?: string | null;
 }
 export interface PlannerTimeOptions {
+  /** Default currency for newly configured project budgets. Existing budgets keep their currency. */
+  budgetCurrency?: string;
   timeTrackingEnabled: boolean;
   billableEnabled: boolean;
   billableDefault: boolean;
@@ -132,6 +134,7 @@ export interface PlannerTimeReviewPage {
   billableMinutes: number;
 }
 export const PLANNER_DEFAULT_TIME_OPTIONS: PlannerTimeOptions = {
+  budgetCurrency: 'USD',
   timeTrackingEnabled: true,
   billableEnabled: true,
   billableDefault: false,

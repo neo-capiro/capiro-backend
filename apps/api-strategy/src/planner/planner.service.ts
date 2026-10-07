@@ -23,6 +23,14 @@ import {
   plannerTimeWorkKey,
   plannerTemplateSchedule,
   plannerDependencyCycle,
+  plannerDefaultBudget,
+  PLANNER_DEFAULT_BUDGET_ALERT,
+  plannerBudgetAmounts,
+  plannerMoneyFormat,
+  type PlannerBudgetData,
+  type PlannerBudgetAlert,
+  type PlannerProjectBudget,
+  type PlannerPortfolioBudgets,
   type PlannerBootstrap,
   type PlannerProject,
   type PlannerProjectData,
@@ -98,6 +106,12 @@ import {
 } from './planner-time-policy.js';
 import { plannerTimesheetWorkRows, type PlannerTimeWorkSource } from './planner-timesheet-work.js';
 import { plannerTimeExportQuery, type PlannerTimeExportQuery } from './planner-time-export.js';
+import {
+  plannerBudgetData,
+  plannerBudgetAlert,
+  plannerBudgetSummary,
+  plannerBudgetAlertDue,
+} from './planner-budgets.js';
 import {
   plannerTimeReviewView,
   plannerTimeReviewRows,
@@ -1510,7 +1524,7 @@ export class PlannerService {
       const goals = await tx.spPlannerResource.findMany({
         where: {
           tenantId: ctx.tenantId,
-          kind: { in: ['goal', 'timesheet'] },
+          kind: { in: ['goal', 'timesheet', 'project_budget_alert'] },
           id: { in: scanned.flatMap((r) => (r.event.resourceId ? [r.event.resourceId] : [])) },
         },
       });
@@ -1682,7 +1696,9 @@ export class PlannerService {
       : Prisma.sql`ARRAY[]::uuid[]`;
     const allowedGoals = goals
       .filter(
-        (g) => ['goal', 'timesheet'].includes(g.kind) && this.resourceAccess(g, projects, ctx),
+        (g) =>
+          ['goal', 'timesheet', 'project_budget_alert'].includes(g.kind) &&
+          this.resourceAccess(g, projects, ctx),
       )
       .map((g) => g.id);
     const goalIds = allowedGoals.length
@@ -1707,7 +1723,10 @@ export class PlannerService {
         throw new ForbiddenException('Active membership is required');
       const projects = await this.projects(tx, ctx);
       const goals = await tx.spPlannerResource.findMany({
-        where: { tenantId: ctx.tenantId, kind: { in: ['goal', 'timesheet'] } },
+        where: {
+          tenantId: ctx.tenantId,
+          kind: { in: ['goal', 'timesheet', 'project_budget_alert'] },
+        },
       });
       const rows = await tx.$queryRaw<{ id: string; eventId: string; unread: bigint }[]>`
         SELECT i.id, i.event_id AS "eventId", count(*) OVER() AS unread
@@ -1742,9 +1761,11 @@ export class PlannerService {
                 ? taskData(task).name
                 : projectData(project!).name,
             deepLink: event.resourceId
-              ? goals.find((g) => g.id === event.resourceId)!.kind === 'timesheet'
-                ? `/planner?scope=timesheets&week=${encodeURIComponent((goals.find((g) => g.id === event.resourceId)!.data as unknown as PlannerTimesheetData).weekOn)}&user=${encodeURIComponent(goals.find((g) => g.id === event.resourceId)!.ownerId)}`
-                : `/planner?scope=goals&goal=${encodeURIComponent(event.resourceId)}`
+              ? event.budgetThreshold
+                ? `/planner?scope=budget&project=${encodeURIComponent(event.budgetThreshold.projectId)}`
+                : goals.find((g) => g.id === event.resourceId)!.kind === 'timesheet'
+                  ? `/planner?scope=timesheets&week=${encodeURIComponent((goals.find((g) => g.id === event.resourceId)!.data as unknown as PlannerTimesheetData).weekOn)}&user=${encodeURIComponent(goals.find((g) => g.id === event.resourceId)!.ownerId)}`
+                  : `/planner?scope=goals&goal=${encodeURIComponent(event.resourceId)}`
               : event.taskId
                 ? `/planner?scope=mine&task=${encodeURIComponent(event.taskId)}`
                 : `/planner?scope=project&project=${encodeURIComponent(event.projectId!)}`,
@@ -1761,7 +1782,10 @@ export class PlannerService {
           throw new ForbiddenException('Active membership is required');
         const projects = await this.projects(tx, ctx);
         const goals = await tx.spPlannerResource.findMany({
-          where: { tenantId: ctx.tenantId, kind: { in: ['goal', 'timesheet'] } },
+          where: {
+            tenantId: ctx.tenantId,
+            kind: { in: ['goal', 'timesheet', 'project_budget_alert'] },
+          },
         });
         const rows = await tx.$queryRaw<{ id: string }[]>`
         UPDATE sp_planner_inbox i SET read = true FROM sp_planner_events e
@@ -1802,7 +1826,7 @@ export class PlannerService {
             where: {
               tenantId: ctx.tenantId,
               id: row.event.resourceId,
-              kind: { in: ['goal', 'timesheet'] },
+              kind: { in: ['goal', 'timesheet', 'project_budget_alert'] },
             },
           });
           if (!resource) throw missing();
@@ -1823,6 +1847,14 @@ export class PlannerService {
     projects: SpPlannerProject[],
     ctx: AuthTenantContext,
   ): PlannerRole | null {
+    if (['project_budget', 'project_budget_alert'].includes(row.kind)) {
+      const project = projects.find((p) => p.id === row.projectId);
+      return project &&
+        plannerProjectAccess(project, ctx.clerkUserId) === 'admin' &&
+        (row.kind !== 'project_budget_alert' || row.ownerId === ctx.clerkUserId)
+        ? 'admin'
+        : null;
+    }
     if (row.kind === 'timesheet') {
       const data = row.data as unknown as PlannerTimesheetData;
       return row.ownerId === ctx.clerkUserId || data.reviewerId === ctx.clerkUserId
@@ -2457,6 +2489,369 @@ export class PlannerService {
         return result;
       });
     });
+  }
+  /** Current source grants are checked again for every aggregate. Private financial
+   * configuration is never part of generic resource or project serialization. */
+  private async budgetViews(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    projects: SpPlannerProject[],
+    selectedIds: string[],
+  ): Promise<PlannerProjectBudget[]> {
+    const selected = projects.filter(
+      (p) => selectedIds.includes(p.id) && plannerProjectAccess(p, ctx.clerkUserId) === 'admin',
+    );
+    if (!selected.length) return [];
+    const ids = selected.map((p) => p.id),
+      names = new Map((await this.people(tx, ctx)).map((p) => [p.id, p.name]));
+    const resources = await tx.spPlannerResource.findMany({
+      where: {
+        tenantId: ctx.tenantId,
+        projectId: { in: ids },
+        kind: { in: ['project_budget', 'project_budget_alert'] },
+      },
+    });
+    const currency =
+      this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx)).budgetCurrency ?? 'USD';
+    const estimates = await tx.spPlannerTask.findMany({
+      where: { tenantId: ctx.tenantId, archived: false, projectIds: { hasSome: ids } },
+    });
+    const events = await tx.$queryRaw<SpPlannerEvent[]>`
+      SELECT e.id,e.tenant_id AS "tenantId",e.actor_id AS "actorId",e.task_id AS "taskId",e.project_id AS "projectId",
+        e.resource_id AS "resourceId",e.details,e.kind,e.text,e.minutes,e.created_at AS "createdAt"
+      FROM sp_planner_events e LEFT JOIN LATERAL (
+        SELECT details,removed FROM sp_planner_event_revisions WHERE tenant_id=${ctx.tenantId}::uuid AND event_id=e.id ORDER BY version DESC LIMIT 1
+      ) r ON true
+      WHERE e.tenant_id=${ctx.tenantId}::uuid AND e.kind='time' AND NOT COALESCE(r.removed,false)
+      AND COALESCE(r.details->'time'->>'projectId',e.details->'time'->>'projectId',e.project_id::text) IN (${Prisma.join(ids)})`;
+    const views = await plannerReadActivity(tx, ctx, events);
+    const tasks = await tx.spPlannerTask.findMany({
+      where: {
+        tenantId: ctx.tenantId,
+        id: { in: events.flatMap((e) => (e.taskId ? [e.taskId] : [])) },
+      },
+    });
+    const taskById = new Map(tasks.map((t) => [t.id, t]));
+    const visibleTime = views.filter(
+      (e) =>
+        !e.removed &&
+        e.time?.projectId &&
+        ids.includes(e.time.projectId) &&
+        (!e.taskId ||
+          (taskById.has(e.taskId) &&
+            plannerTaskAccess(taskById.get(e.taskId)!, projects, ctx.clerkUserId))),
+    );
+    return selected.map((project) => {
+      const row = resources.find((r) => r.kind === 'project_budget' && r.projectId === project.id);
+      const alert = resources.find(
+        (r) =>
+          r.kind === 'project_budget_alert' &&
+          r.projectId === project.id &&
+          r.ownerId === ctx.clerkUserId,
+      );
+      return plannerBudgetSummary({
+        projectId: project.id,
+        projectName: projectData(project).name,
+        version: row?.version ?? 0,
+        data: row ? (row.data as unknown as PlannerBudgetData) : plannerDefaultBudget(currency),
+        alert: alert
+          ? {
+              ...(alert.data as unknown as Omit<PlannerBudgetAlert, 'version'>),
+              version: alert.version,
+            }
+          : { ...PLANNER_DEFAULT_BUDGET_ALERT },
+        active: names,
+        estimates: estimates
+          .filter(
+            (t) =>
+              t.projectIds.includes(project.id) && plannerTaskAccess(t, projects, ctx.clerkUserId),
+          )
+          .map((t) => ({ userId: t.assigneeId, minutes: taskData(t).estimateMinutes })),
+        time: visibleTime
+          .filter((e) => e.time!.projectId === project.id)
+          .map((e) => ({ userId: e.actorId, minutes: e.minutes ?? 0, billable: e.time!.billable })),
+      });
+    });
+  }
+  async projectBudget(ctx: AuthTenantContext, id: string): Promise<PlannerProjectBudget> {
+    uuid(id);
+    return this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
+        if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId)) throw missing();
+        const projects = await this.projects(tx, ctx),
+          project = projects.find((p) => p.id === id);
+        requireRole(project ? plannerProjectAccess(project, ctx.clerkUserId) : null, 'admin');
+        return (await this.budgetViews(tx, ctx, projects, [id]))[0]!;
+      },
+      { timeoutMs: 15_000, isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+  async saveProjectBudget(
+    ctx: AuthTenantContext,
+    id: string,
+    raw: unknown,
+  ): Promise<PlannerProjectBudget> {
+    uuid(id);
+    const dto = object(raw);
+    keys(dto, ['version', 'data']);
+    if (
+      !Number.isInteger(dto.version) ||
+      Number(dto.version) < 0 ||
+      Number(dto.version) > 1_000_000
+    )
+      fail('An expected budget version is required');
+    return this.scope(
+      ctx,
+      async (tx) => {
+        const active = new Map((await this.people(tx, ctx)).map((p) => [p.id, p.name]));
+        if (!active.has(ctx.clerkUserId)) throw missing();
+        const projects = await this.projects(tx, ctx),
+          project = projects.find((p) => p.id === id);
+        requireRole(project ? plannerProjectAccess(project, ctx.clerkUserId) : null, 'admin');
+        if (project!.archived) fail('Restore the project before changing its budget');
+        const row = await tx.spPlannerResource.findFirst({
+          where: { tenantId: ctx.tenantId, projectId: id, kind: 'project_budget' },
+        });
+        if ((row?.version ?? 0) !== dto.version)
+          throw new ConflictException('The budget changed. Refresh before saving again.');
+        const currency =
+          this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx)).budgetCurrency ?? 'USD';
+        const data = plannerBudgetData(
+          dto.data,
+          row ? (row.data as unknown as PlannerBudgetData) : plannerDefaultBudget(currency),
+          active,
+        );
+        if (row)
+          await tx.spPlannerResource.update({
+            where: { tenantId: ctx.tenantId, id: row.id },
+            data: { data: json(data), version: { increment: 1 } },
+          });
+        else
+          await tx.spPlannerResource.create({
+            data: {
+              tenantId: ctx.tenantId,
+              ownerId: ctx.clerkUserId,
+              projectId: id,
+              kind: 'project_budget',
+              name: 'Project budget',
+              data: json(data),
+            },
+          });
+        return (await this.budgetViews(tx, ctx, projects, [id]))[0]!;
+      },
+      true,
+    );
+  }
+  async saveBudgetAlert(
+    ctx: AuthTenantContext,
+    id: string,
+    raw: unknown,
+  ): Promise<PlannerProjectBudget> {
+    uuid(id);
+    const dto = object(raw);
+    keys(dto, ['version', 'data']);
+    if (
+      !Number.isInteger(dto.version) ||
+      Number(dto.version) < 0 ||
+      Number(dto.version) > 1_000_000
+    )
+      fail('An expected alert version is required');
+    const data = plannerBudgetAlert(dto.data);
+    return this.scope(
+      ctx,
+      async (tx) => {
+        if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId)) throw missing();
+        const projects = await this.projects(tx, ctx),
+          project = projects.find((p) => p.id === id);
+        requireRole(project ? plannerProjectAccess(project, ctx.clerkUserId) : null, 'admin');
+        if (project!.archived) fail('Restore the project before changing its budget alert');
+        const row = await tx.spPlannerResource.findFirst({
+          where: {
+            tenantId: ctx.tenantId,
+            projectId: id,
+            ownerId: ctx.clerkUserId,
+            kind: 'project_budget_alert',
+          },
+        });
+        if ((row?.version ?? 0) !== dto.version)
+          throw new ConflictException('The alert changed. Refresh before saving again.');
+        if (row)
+          await tx.spPlannerResource.update({
+            where: { tenantId: ctx.tenantId, id: row.id },
+            data: { data: json(data), version: { increment: 1 } },
+          });
+        else
+          await tx.spPlannerResource.create({
+            data: {
+              tenantId: ctx.tenantId,
+              ownerId: ctx.clerkUserId,
+              projectId: id,
+              kind: 'project_budget_alert',
+              name: `Budget · ${projectData(project!).name}`,
+              data: json(data),
+            },
+          });
+        return (await this.budgetViews(tx, ctx, projects, [id]))[0]!;
+      },
+      true,
+    );
+  }
+  async portfolioBudgets(ctx: AuthTenantContext, id: string): Promise<PlannerPortfolioBudgets> {
+    uuid(id);
+    return this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
+        if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId)) throw missing();
+        const projects = await this.projects(tx, ctx),
+          row = await tx.spPlannerResource.findFirst({
+            where: { tenantId: ctx.tenantId, id, kind: 'portfolio' },
+          });
+        if (!row) throw missing();
+        requireRole(this.resourceAccess(row, projects, ctx), 'viewer');
+        const budgets = await this.budgetViews(
+          tx,
+          ctx,
+          projects,
+          (row.data as { projectIds?: string[] }).projectIds ?? [],
+        );
+        const currencies = new Map<string, PlannerPortfolioBudgets['currencies'][number]>();
+        for (const b of budgets) {
+          const total = currencies.get(b.data.currency) ?? {
+            currency: b.data.currency,
+            estimatedMinor: '0',
+            actualMinor: '0',
+            budgetMinor: '0',
+            unratedEstimatedMinutes: 0,
+            unratedActualMinutes: 0,
+          };
+          for (const key of ['estimatedMinor', 'actualMinor'] as const)
+            total[key] = (BigInt(total[key]) + BigInt(b[key])).toString();
+          if (b.data.measurement === 'cost')
+            total.budgetMinor = (
+              BigInt(total.budgetMinor) + BigInt(b.data.budgetMinor ?? '0')
+            ).toString();
+          total.unratedEstimatedMinutes += b.unratedEstimatedMinutes;
+          total.unratedActualMinutes += b.unratedActualMinutes;
+          currencies.set(total.currency, total);
+        }
+        return {
+          projects: budgets,
+          estimatedMinutes: budgets.reduce((n, b) => n + b.estimatedMinutes, 0),
+          actualMinutes: budgets.reduce((n, b) => n + b.actualMinutes, 0),
+          budgetMinutes: budgets.reduce(
+            (n, b) => n + (b.data.measurement === 'time' ? (b.data.budgetMinutes ?? 0) : 0),
+            0,
+          ),
+          currencies: [...currencies.values()].sort((a, b) => a.currency.localeCompare(b.currency)),
+        };
+      },
+      { timeoutMs: 15_000, isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
+  }
+  async runScheduledBudgetWork(tenantId: string, _now = new Date(), afterId?: string) {
+    uuid(tenantId);
+    if (afterId) uuid(afterId);
+    const scope: AuthTenantContext = { tenantId, clerkUserId: '', role: null };
+    const candidates = await this.scope(scope, (tx) =>
+      tx.spPlannerResource.findMany({
+        where: {
+          tenantId,
+          kind: 'project_budget_alert',
+          archived: false,
+          ...(afterId ? { id: { gt: afterId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: 51,
+      }),
+    );
+    let executed = 0,
+      failed = 0;
+    for (const candidate of candidates.slice(0, 50)) {
+      try {
+        executed += await this.scope(
+          scope,
+          async (tx) => {
+            const row = await tx.spPlannerResource.findFirst({
+              where: { tenantId, id: candidate.id, kind: 'project_budget_alert', archived: false },
+            });
+            if (
+              !row ||
+              !(row.data as { enabled?: boolean }).enabled ||
+              !(await this.people(tx, scope)).some((p) => p.id === row.ownerId)
+            )
+              return 0;
+            const author = { ...scope, clerkUserId: row.ownerId },
+              projects = await this.projects(tx, scope),
+              project = projects.find((p) => p.id === row.projectId);
+            if (!project || project.archived || !this.resourceAccess(row, projects, author))
+              return 0;
+            const budget = (await this.budgetViews(tx, author, projects, [project.id]))[0]!;
+            if (!plannerBudgetAlertDue(budget)) return 0;
+            const fingerprint = createHash('sha256')
+              .update(
+                JSON.stringify({
+                  alertVersion: row.version,
+                  budgetVersion: budget.version,
+                  data: budget.data,
+                  alert: budget.alert,
+                }),
+              )
+              .digest('hex');
+            if (
+              await tx.spPlannerBudgetAlertClaim.findFirst({
+                where: { tenantId, resourceId: row.id, ownerId: row.ownerId, fingerprint },
+              })
+            )
+              return 0;
+            const amounts = plannerBudgetAmounts(budget),
+              reference =
+                budget.alert.comparison === 'budget' ? amounts.budget! : amounts.estimated;
+            const display =
+              budget.data.measurement === 'cost'
+                ? plannerMoneyFormat(amounts.actual, budget.data.currency)
+                : `${(budget.actualMinutes / 60).toFixed(2)} hours`;
+            const event = await this.event(
+              tx,
+              author,
+              {
+                resourceId: row.id,
+                kind: 'budget_threshold',
+                text: `${projectData(project).name} reached ${budget.alert.percent}% of its ${budget.alert.comparison} · ${display}`,
+                details: {
+                  budgetThreshold: {
+                    projectId: project.id,
+                    measurement: budget.data.measurement,
+                    currency: budget.data.currency,
+                    actual: amounts.actual,
+                    reference,
+                    percent: budget.alert.percent,
+                    comparison: budget.alert.comparison,
+                  },
+                },
+              },
+              [row.ownerId],
+              true,
+            );
+            await tx.spPlannerBudgetAlertClaim.create({
+              data: {
+                tenantId,
+                resourceId: row.id,
+                ownerId: row.ownerId,
+                fingerprint,
+                eventId: event.id,
+              },
+            });
+            return 1;
+          },
+          true,
+        );
+      } catch {
+        failed++;
+        this.logger.warn(`Planner budget alert ${candidate.id} failed; next cycle will retry`);
+      }
+    }
+    return { executed, failed, nextCursor: candidates.length > 50 ? candidates[49]!.id : null };
   }
   private async timeSettingsRecord(tx: Tx, ctx: AuthTenantContext) {
     return tx.spPlannerResource.findFirst({

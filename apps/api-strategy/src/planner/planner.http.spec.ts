@@ -55,6 +55,10 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     timeExport: jest.fn(async () => ({ items: [], matched: 0, nextCursor: null })),
     transitionTimesheet: jest.fn(async () => ({ status: 'submitted' })),
     saveTimesheetWork: jest.fn(async () => ({ workRows: [] })),
+    projectBudget: jest.fn(async () => ({ version: 0 })),
+    saveProjectBudget: jest.fn(async () => ({ version: 1 })),
+    saveBudgetAlert: jest.fn(async () => ({ alert: { version: 1 } })),
+    portfolioBudgets: jest.fn(async () => ({ projects: [] })),
   };
   const attachments = {
     list: jest.fn(async () => []),
@@ -108,6 +112,10 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     ['patch', `tasks/${ID}`],
     ['post', 'projects'],
     ['patch', `projects/${ID}`],
+    ['get', `projects/${ID}/budget`],
+    ['patch', `projects/${ID}/budget`],
+    ['patch', `projects/${ID}/budget/alert`],
+    ['get', `portfolios/${ID}/budgets`],
     ['get', `tasks/${ID}/events`],
     ['post', `tasks/${ID}/events`],
     ['get', `projects/${ID}/events`],
@@ -143,6 +151,31 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .send(body)
       .expect(200);
     expect(planner.reviseEvent).toHaveBeenCalledWith(ctx, ID, body);
+  });
+  it('forwards private budget operations through the signed-in organization context', async () => {
+    const body = { version: 0, data: { measurement: 'time', budgetMinutes: 600 } };
+    await request(app.getHttpServer())
+      .get(`/strategy-api/planner/projects/${ID}/budget`)
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch(`/strategy-api/planner/projects/${ID}/budget`)
+      .set('x-planner-qa', 'allowed')
+      .send(body)
+      .expect(200);
+    await request(app.getHttpServer())
+      .patch(`/strategy-api/planner/projects/${ID}/budget/alert`)
+      .set('x-planner-qa', 'allowed')
+      .send(body)
+      .expect(200);
+    await request(app.getHttpServer())
+      .get(`/strategy-api/planner/portfolios/${ID}/budgets`)
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.projectBudget).toHaveBeenCalledWith(ctx, ID);
+    expect(planner.saveProjectBudget).toHaveBeenCalledWith(ctx, ID, body);
+    expect(planner.saveBudgetAlert).toHaveBeenCalledWith(ctx, ID, body);
+    expect(planner.portfolioBudgets).toHaveBeenCalledWith(ctx, ID);
   });
   it('forwards date ranges and revision-bound time export pages through the signed-in context', async () => {
     const query = {

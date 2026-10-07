@@ -1862,3 +1862,62 @@
     grid-template-columns: 1fr;
   }
 }
+.planner-budget-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.planner-budget-metrics article {
+  padding: 18px;
+  border: 1px solid var(--border-subtle, #e2e4e9);
+  border-radius: 12px;
+  display: grid;
+  gap: 8px;
+}
+.planner-budget-metrics strong {
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+.planner-budget progress {
+  width: 100%;
+  height: 12px;
+  accent-color: var(--accent, #7864d4);
+}
+.planner-budget-rate {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+.planner-budget-rate label {
+  flex: 1;
+}
+.planner-budget-notice {
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface-secondary, #f6f7fa);
+}
+.planner-budget-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.planner-budget-table th,
+.planner-budget-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-subtle, #e2e4e9);
+  white-space: nowrap;
+}
+.planner-budget-table caption {
+  text-align: left;
+  font-weight: 600;
+  padding: 12px;
+}
+.planner-portfolio-budget {
+  margin: 12px 0;
+}
+@media (max-width: 850px) {
+  .planner-budget-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

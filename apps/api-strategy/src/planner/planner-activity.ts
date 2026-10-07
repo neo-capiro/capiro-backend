@@ -35,6 +35,16 @@ export function plannerEventView(
     projectId: row.projectId,
     ...(row.resourceId ? { resourceId: row.resourceId } : {}),
     actorId: row.actorId,
+    ...(row.kind === 'budget_threshold' && (row.details as Record<string, unknown>)?.budgetThreshold
+      ? {
+          budgetThreshold: {
+            projectId: String(
+              ((row.details as Record<string, unknown>).budgetThreshold as Record<string, unknown>)
+                .projectId,
+            ),
+          },
+        }
+      : {}),
     ...((row.details as Record<string, unknown>)?.timesheet
       ? {
           timesheet: (row.details as Record<string, unknown>)
