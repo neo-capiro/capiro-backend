@@ -369,11 +369,16 @@ export class MeetingPrepJobService {
       // No provider payloads, source bodies or credentials in public errors.
       abort.abort(new Error('meeting_prep_stopped'));
       const message = error instanceof Error ? error.message : '';
-      const code = /deadline|budget/i.test(message)
-        ? 'PREP_DEADLINE_EXCEEDED'
-        : /access|assignment|client changed/i.test(message)
-          ? 'PREP_SCOPE_CHANGED'
-          : 'PREP_GENERATION_FAILED';
+      const code =
+        /meeting_prep_model_context_budget_exceeded|meeting_prep_model_capacity_not_configured/.test(
+          message,
+        )
+          ? 'PREP_INPUT_TOO_LARGE'
+          : /deadline/i.test(message)
+            ? 'PREP_DEADLINE_EXCEEDED'
+            : /access|assignment|client changed/i.test(message)
+              ? 'PREP_SCOPE_CHANGED'
+              : 'PREP_GENERATION_FAILED';
       await this.prisma.withTenantUser(job.tenantId, job.userId, (tx) =>
         tx.meetingPrepJob.updateMany({
           where: {

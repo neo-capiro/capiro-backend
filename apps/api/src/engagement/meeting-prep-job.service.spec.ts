@@ -129,4 +129,46 @@ describe('durable meeting prep jobs', () => {
     expect(await h.service.get(ctx as never, 'meeting')).toBeNull();
     expect(h.prisma.withTenantUser).not.toHaveBeenCalled();
   });
+
+  test.each([
+    ['meeting_prep_model_context_budget_exceeded', 'PREP_INPUT_TOO_LARGE'],
+    ['meeting_prep_deadline_exceeded', 'PREP_DEADLINE_EXCEEDED'],
+  ])('reports the actual failure without exposing provider data: %s', async (message, code) => {
+    const h = harness();
+    await h.service.submit(ctx as never, 'meeting', {});
+    const internal = h.service as unknown as {
+      crypto: { decrypt: () => string };
+      process: (job: unknown, token: string) => Promise<void>;
+    };
+    internal.crypto.decrypt = () => {
+      throw new Error(message);
+    };
+    await internal.process(
+      {
+        id: 'job',
+        tenantId: 'tenant',
+        userId: 'actor',
+        meetingId: 'meeting',
+        deadlineAt: new Date(Date.now() + 3600000),
+        input: {},
+      },
+      'lease',
+    );
+    expect(h.tx.meetingPrepJob.updateMany).toHaveBeenLastCalledWith({
+      where: {
+        id: 'job',
+        tenantId: 'tenant',
+        userId: 'actor',
+        leaseToken: 'lease',
+        status: 'running',
+      },
+      data: {
+        status: 'failed',
+        stage: 'failed',
+        errorCode: code,
+        leaseToken: null,
+        leaseUntil: null,
+      },
+    });
+  });
 });

@@ -4,7 +4,11 @@ import {
   generateComprehensiveMeetingPrep,
 } from './meeting-prep-comprehensive.js';
 import { MEETING_BRIEFING_SECTIONS, MEETING_PREP_POLICY } from './meeting-prep-policy.js';
-import { prepStageTimeout, withMeetingPrepExecution } from './meeting-prep-job-runtime.js';
+import {
+  prepStageTimeout,
+  withMeetingPrepExecution,
+  type MeetingPrepExecution,
+} from './meeting-prep-job-runtime.js';
 import { runWithMeetingGovernedContext } from './meeting-context-runtime.js';
 import type { PrepEvidenceSource } from './meeting-prep-grounding.js';
 
@@ -261,14 +265,15 @@ describe('bounded repair delivers the last renderable briefing', () => {
         key,
         {
           status: key === 'commitments' ? 'evidence_found' : 'no_evidence',
-          items: key === 'commitments' ? [{ text: 'Send the implementation timeline.', factIds }] : [],
+          items:
+            key === 'commitments' ? [{ text: 'Send the implementation timeline.', factIds }] : [],
           gap: key === 'commitments' ? '' : 'No evidence was found in the searched scope.',
         },
       ]),
     ),
     limitations: [],
   });
-  function run(complete: jest.Mock) {
+  function run(complete: jest.Mock, execution: Partial<MeetingPrepExecution> = {}) {
     return runWithMeetingGovernedContext(
       {
         kind: 'governed_packet',
@@ -301,11 +306,16 @@ describe('bounded repair delivers the last renderable briefing', () => {
             checkpoint: jest.fn(),
             loadCheckpoint: () => undefined,
             commit: jest.fn(),
+            ...execution,
           },
           () =>
             generateComprehensiveMeetingPrep(
               {
-                meeting: { id: 'meeting', subject: 'Client strategy', startsAt: '2026-09-12T15:00:00Z' },
+                meeting: {
+                  id: 'meeting',
+                  subject: 'Client strategy',
+                  startsAt: '2026-09-12T15:00:00Z',
+                },
                 client: null,
                 attendees: [],
                 congressionalDirectoryMatches: [],
@@ -314,7 +324,12 @@ describe('bounded repair delivers the last renderable briefing', () => {
                 tasks: [],
                 evidenceSources: [evidence],
               },
-              { provider: 'openai', apiKey: 'test-only', model: 'gpt-5', usedTenantKey: false } as never,
+              {
+                provider: 'openai',
+                apiKey: 'test-only',
+                model: 'gpt-5',
+                usedTenantKey: false,
+              } as never,
               { complete } as never,
             ),
         ),
@@ -342,8 +357,12 @@ describe('bounded repair delivers the last renderable briefing', () => {
     );
     const result = await run(complete);
     expect(reviews).toBe(3);
-    expect(result.briefing?.sections.commitments.items[0]?.text).toBe('Send the implementation timeline.');
-    expect(result.briefing?.limitations.join(' ')).toContain('still flagged 1 item(s) after 2 repair passes');
+    expect(result.briefing?.sections.commitments.items[0]?.text).toBe(
+      'Send the implementation timeline.',
+    );
+    expect(result.briefing?.limitations.join(' ')).toContain(
+      'still flagged 1 item(s) after 2 repair passes',
+    );
   });
 
   test('only a briefing that never renders is refused', async () => {
@@ -355,20 +374,151 @@ describe('bounded repair delivers the last renderable briefing', () => {
       ),
     );
     await expect(run(complete)).rejects.toThrow('could not be rendered');
-    expect(complete.mock.calls.filter(([r]) => r.jsonSchemaName.endsWith('repairing'))).toHaveLength(2);
+    expect(
+      complete.mock.calls.filter(([r]) => r.jsonSchemaName.endsWith('repairing')),
+    ).toHaveLength(2);
     // The model gets an actionable hint, not a raw error code.
     const repair = complete.mock.calls.find(([r]) => r.jsonSchemaName.endsWith('repairing'))![0];
     expect(JSON.parse(repair.userVolatile).reviewFeedback[0]).toContain('1-3 takeaways');
   });
 
+  test('hundreds of omissions cannot grow a repair beyond the full request budget', async () => {
+    const ledger = Array.from({ length: 400 }, (_, i) => ({
+      ...extractionFact,
+      text: `Commitment ${i}: ${'supported context '.repeat(30)}`,
+    }));
+    const extracted = parseBriefingFacts(ledger, [evidence]);
+    const complete = jest.fn(async (request) => {
+      const payload = JSON.parse(request.userVolatile);
+      expect(
+        Buffer.byteLength(
+          request.userVolatile + request.userStatic + JSON.stringify(request.jsonSchema),
+          'utf8',
+        ) +
+          4096 +
+          request.maxTokens,
+      ).toBeLessThanOrEqual(128000);
+      if (request.jsonSchemaName.endsWith('extracting'))
+        return reply({ facts: ledger, limitations: [] });
+      if (request.jsonSchemaName.endsWith('checking_coverage')) {
+        expect(payload.ledger[0]).not.toHaveProperty('quote');
+        expect(request.reasoningEffort).toBe('medium');
+        return reply({ omittedFactIds: payload.ledger.map((fact: { id: string }) => fact.id) });
+      }
+      expect(payload.facts[0]).not.toHaveProperty('quote');
+      return reply(renderable([extracted[0]!.id]));
+    });
+    const result = await run(complete);
+    expect(result.summary).toBe('The client is waiting on our timeline.');
+    expect(result.briefing?.coverage.partial).toBe(true);
+    expect(result.briefing?.facts[0]?.quote).toBe(extractionFact.quote);
+    expect(
+      complete.mock.calls.filter(([request]) => request.jsonSchemaName.endsWith('repairing')),
+    ).toHaveLength(2);
+  });
+
+  test.each([
+    'meeting_prep_model_context_budget_exceeded',
+    'openai completion failed after 1 attempts: fetch failed',
+  ])('keeps the completed draft when optional review fails: %s', async (message) => {
+    const extracted = parseBriefingFacts([extractionFact], [evidence]);
+    const complete = jest.fn(async (request) => {
+      if (request.jsonSchemaName.endsWith('checking_coverage')) throw new Error(message);
+      return reply(
+        request.jsonSchemaName.endsWith('extracting')
+          ? { facts: [extractionFact], limitations: [] }
+          : renderable([extracted[0]!.id]),
+      );
+    });
+    const result = await run(complete);
+    expect(result.summary).toBe('The client is waiting on our timeline.');
+    expect(result.briefing?.limitations.join(' ')).toContain(
+      'additional coverage review could not finish',
+    );
+    expect(result.briefing?.coverage.partial).toBe(true);
+  });
+
+  test.each(['meeting_prep_lease_lost', 'Meeting assignment changed during preparation.'])(
+    'does not retain a draft after a scope or lease failure: %s',
+    async (message) => {
+      const extracted = parseBriefingFacts([extractionFact], [evidence]);
+      const complete = jest.fn(async (request) => {
+        if (request.jsonSchemaName.endsWith('checking_coverage')) throw new Error(message);
+        return reply(
+          request.jsonSchemaName.endsWith('extracting')
+            ? { facts: [extractionFact], limitations: [] }
+            : renderable([extracted[0]!.id]),
+        );
+      });
+      await expect(run(complete)).rejects.toThrow(message);
+    },
+  );
+
+  test('cancellation still rejects a completed draft when review fails', async () => {
+    const controller = new AbortController();
+    const extracted = parseBriefingFacts([extractionFact], [evidence]);
+    const complete = jest.fn(async (request) => {
+      if (request.jsonSchemaName.endsWith('checking_coverage')) {
+        controller.abort(new Error('cancelled by user'));
+        throw new Error('openai completion failed after 1 attempts: aborted');
+      }
+      return reply(
+        request.jsonSchemaName.endsWith('extracting')
+          ? { facts: [extractionFact], limitations: [] }
+          : renderable([extracted[0]!.id]),
+      );
+    });
+    await expect(run(complete, { signal: controller.signal })).rejects.toThrow('cancelled by user');
+  });
+
+  test('resuming after a lost lease reuses encrypted draft and extraction checkpoints', async () => {
+    const checkpoints = new Map<string, unknown>();
+    const execution: Partial<MeetingPrepExecution> = {
+      checkpoint: jest.fn(async (stage, value) => {
+        if (value !== undefined) checkpoints.set(stage, structuredClone(value));
+      }),
+      loadCheckpoint: <T>(stage: string) => checkpoints.get(stage) as T | undefined,
+    };
+    const extracted = parseBriefingFacts([extractionFact], [evidence]);
+    const first = jest.fn(async (request) => {
+      if (request.jsonSchemaName.endsWith('checking_coverage'))
+        throw new Error('meeting_prep_lease_lost');
+      return reply(
+        request.jsonSchemaName.endsWith('extracting')
+          ? { facts: [extractionFact], limitations: [] }
+          : renderable([extracted[0]!.id]),
+      );
+    });
+    await expect(run(first, execution)).rejects.toThrow('meeting_prep_lease_lost');
+    expect(checkpoints.has('draft_ready')).toBe(true);
+    const resumed = jest.fn(async (request) => {
+      expect(request.jsonSchemaName).toBe('meeting_prep_checking_coverage');
+      return reply({ omittedFactIds: [] });
+    });
+    const result = await run(resumed, execution);
+    expect(resumed).toHaveBeenCalledTimes(1);
+    expect(result.summary).toBe('The client is waiting on our timeline.');
+  });
+
   test('an extraction batch that keeps truncating is halved instead of failing the job', async () => {
-    const second = { ...evidence, id: 'mail:m2', recordId: 'm2', excerpt: 'Ryan promised the pricing sheet by Monday.' };
-    const secondFact = { ...extractionFact, sourceId: 'mail:m2', text: 'Ryan promised the pricing sheet by Monday.', quote: 'Ryan promised the pricing sheet by Monday.' };
+    const second = {
+      ...evidence,
+      id: 'mail:m2',
+      recordId: 'm2',
+      excerpt: 'Ryan promised the pricing sheet by Monday.',
+    };
+    const secondFact = {
+      ...extractionFact,
+      sourceId: 'mail:m2',
+      text: 'Ryan promised the pricing sheet by Monday.',
+      quote: 'Ryan promised the pricing sheet by Monday.',
+    };
     const extracted = parseBriefingFacts([extractionFact, secondFact], [evidence, second]);
     const complete = jest.fn(async (request) => {
       const payload = JSON.parse(request.userVolatile);
       if (request.jsonSchemaName.endsWith('extracting')) {
-        if (payload.sources.length > 1) return { ...reply({}), truncated: true, stopReason: 'incomplete' };
+        if (payload.sources.length > 1)
+          return { ...reply({}), truncated: true, stopReason: 'incomplete' };
         const facts =
           payload.sources[0].id === 'mail:m1'
             ? [extractionFact]
@@ -377,25 +527,74 @@ describe('bounded repair delivers the last renderable briefing', () => {
               : [];
         return reply({ facts, limitations: [] });
       }
-      if (request.jsonSchemaName.endsWith('checking_coverage')) return reply({ omittedFactIds: [] });
+      if (request.jsonSchemaName.endsWith('checking_coverage'))
+        return reply({ omittedFactIds: [] });
       return reply(renderable(extracted.map((fact) => fact.id)));
     });
     const runTwo = () =>
       runWithMeetingGovernedContext(
-        { kind: 'governed_packet', mode: 'prep', meetingId: 'meeting', clientId: null, packetId: 'packet', traceHash: 'trace', modelContextBlock: '', coverage: { complete: true, requestedDomains: ['mail'], searchedDomains: ['mail'], missingDomains: [], partialDomains: [], recordsReturned: 2, paginationComplete: true, truncated: false, stopReason: 'complete' } },
+        {
+          kind: 'governed_packet',
+          mode: 'prep',
+          meetingId: 'meeting',
+          clientId: null,
+          packetId: 'packet',
+          traceHash: 'trace',
+          modelContextBlock: '',
+          coverage: {
+            complete: true,
+            requestedDomains: ['mail'],
+            searchedDomains: ['mail'],
+            missingDomains: [],
+            partialDomains: [],
+            recordsReturned: 2,
+            paginationComplete: true,
+            truncated: false,
+            stopReason: 'complete',
+          },
+        },
         () =>
           withMeetingPrepExecution(
-            { jobId: 'job', depth: 'standard', requestedAt: Date.parse('2026-09-12T15:00:00Z'), deadlineAt: Date.now() + 3600000, signal: new AbortController().signal, checkpoint: jest.fn(), loadCheckpoint: () => undefined, commit: jest.fn() },
+            {
+              jobId: 'job',
+              depth: 'standard',
+              requestedAt: Date.parse('2026-09-12T15:00:00Z'),
+              deadlineAt: Date.now() + 3600000,
+              signal: new AbortController().signal,
+              checkpoint: jest.fn(),
+              loadCheckpoint: () => undefined,
+              commit: jest.fn(),
+            },
             () =>
               generateComprehensiveMeetingPrep(
-                { meeting: { id: 'meeting', subject: 'Client strategy', startsAt: '2026-09-12T15:00:00Z' }, client: null, attendees: [], congressionalDirectoryMatches: [], recentMeetings: [], recentThreads: [], tasks: [], evidenceSources: [evidence, second] },
-                { provider: 'openai', apiKey: 'test-only', model: 'gpt-5', usedTenantKey: false } as never,
+                {
+                  meeting: {
+                    id: 'meeting',
+                    subject: 'Client strategy',
+                    startsAt: '2026-09-12T15:00:00Z',
+                  },
+                  client: null,
+                  attendees: [],
+                  congressionalDirectoryMatches: [],
+                  recentMeetings: [],
+                  recentThreads: [],
+                  tasks: [],
+                  evidenceSources: [evidence, second],
+                },
+                {
+                  provider: 'openai',
+                  apiKey: 'test-only',
+                  model: 'gpt-5',
+                  usedTenantKey: false,
+                } as never,
                 { complete } as never,
               ),
           ),
       );
     const result = await runTwo();
-    const extractions = complete.mock.calls.filter(([r]) => r.jsonSchemaName.endsWith('extracting'));
+    const extractions = complete.mock.calls.filter(([r]) =>
+      r.jsonSchemaName.endsWith('extracting'),
+    );
     // The registry always carries the meeting's own record, so the batch holds
     // three sources: whole batch (initial + full-allowance retry) -> halves
     // [meeting, m1] (two truncated attempts) and [m2] -> [meeting] and [m1].
@@ -403,6 +602,9 @@ describe('bounded repair delivers the last renderable briefing', () => {
     expect(extractions[0]![0].maxTokens).toBe(24_576);
     expect(extractions[0]![0].reasoningEffort).toBe('medium');
     expect(extractions[1]![0].maxTokens).toBe(32_768);
-    expect(result.briefing?.facts.map((fact) => fact.sourceId).sort()).toEqual(['mail:m1', 'mail:m2']);
+    expect(result.briefing?.facts.map((fact) => fact.sourceId).sort()).toEqual([
+      'mail:m1',
+      'mail:m2',
+    ]);
   });
 });
