@@ -91,7 +91,7 @@ export function validateResource(
       string(d.unit, 100, true);
     }
   } else if (kind === 'template') {
-    keys(d, ['description', 'privacy', 'members', 'project', 'tasks', 'layout']);
+    keys(d, ['description', 'privacy', 'members', 'project', 'tasks', 'layout', 'schedule']);
     sharing(d);
     const project = validateProject(d.project);
     for (const raw of array(d.tasks, 1000)) {
@@ -113,6 +113,27 @@ export function validateResource(
         );
     }
     if (project.clientId) fail('Templates cannot contain a client link');
+    if (d.schedule !== undefined) {
+      const schedule = object(d.schedule);
+      keys(schedule, ['anchor', 'skipWeekends', 'dates']);
+      enumValue(schedule.anchor, ['start', 'due']);
+      bool(schedule.skipWeekends);
+      const dates = array(schedule.dates, 1000);
+      if (dates.length !== array(d.tasks, 1000).length) fail('Template dates must match its tasks');
+      for (const raw of dates) {
+        const date = object(raw);
+        keys(date, ['startOffset', 'dueOffset']);
+        for (const value of [date.startOffset, date.dueOffset])
+          if (value !== null && (!Number.isInteger(value) || Math.abs(Number(value)) > 3650))
+            fail('Relative dates must be whole days within ten years');
+        if (
+          date.startOffset !== null &&
+          date.dueOffset !== null &&
+          Number(date.startOffset) > Number(date.dueOffset)
+        )
+          fail('Template start date must precede its due date');
+      }
+    }
     if (d.layout !== undefined) {
       const layout = array(d.layout, 1000);
       if (layout.length !== array(d.tasks, 1000).length)

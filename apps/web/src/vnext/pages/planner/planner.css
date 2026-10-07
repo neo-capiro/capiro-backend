@@ -688,6 +688,7 @@
   color: #aaa;
 }
 .planner-modal-overlay {
+  font-family: var(--capiro-type-family-sans, Inter, -apple-system, 'Segoe UI', sans-serif);
   position: fixed;
   inset: 0;
   background: #25263366;
@@ -697,6 +698,37 @@
   z-index: 1000;
   padding: 24px;
   backdrop-filter: blur(2px);
+}
+.planner-activity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.planner-activity-editor > label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+.planner-template-schedule {
+  border: 1px solid #e6e8ed;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+}
+.planner-template-offsets {
+  max-height: 320px;
+  overflow-y: auto;
+  margin-top: 12px;
+}
+.planner-template-offsets label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.planner-template-offsets input {
+  width: 90px;
 }
 .planner-modal,
 .planner-drawer {

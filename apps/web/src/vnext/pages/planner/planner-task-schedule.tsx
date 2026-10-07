@@ -208,6 +208,9 @@ export function PlannerTaskSchedule({
       {data.recurrence && (
         <p className="planner-help">
           One next task is created when this task is completed.
+          {
+            ' Subtasks and active attachments repeat; comments and logged time stay with this occurrence.'
+          }
           {data.recurrence.frequency === 'periodically' && ' The interval is in days.'}
           {next
             ? ` Next due date: ${next.dueOn}.`

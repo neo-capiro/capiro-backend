@@ -229,6 +229,19 @@ export function usePlannerMutations() {
     },
     onSuccess,
   });
+  const reviseEvent = useMutation({
+    mutationFn: async (input: {
+      id: string;
+      version: number;
+      text?: string;
+      minutes?: number;
+      removed?: boolean;
+    }) => {
+      const { id, ...body } = input;
+      return (await api.patch<PlannerEvent>(`${BASE}/events/${id}`, body)).data;
+    },
+    onSuccess,
+  });
   const resource = useMutation({
     mutationFn: async (input: {
       id?: string;
@@ -249,10 +262,11 @@ export function usePlannerMutations() {
     onSuccess,
   });
   const instantiate = useMutation({
-    mutationFn: async (input: { id: string; name: string }) =>
+    mutationFn: async (input: { id: string; name: string; anchorOn?: string }) =>
       (
         await api.post<PlannerProject>(`${BASE}/templates/${input.id}/instantiate`, {
           name: input.name,
+          ...(input.anchorOn ? { anchorOn: input.anchorOn } : {}),
         })
       ).data,
     onSuccess,
@@ -290,6 +304,7 @@ export function usePlannerMutations() {
     project,
     task,
     event,
+    reviseEvent,
     inbox,
     resource,
     instantiate,

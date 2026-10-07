@@ -8,6 +8,7 @@ import {
   type PlannerResourceKind,
   type PlannerFormData,
   type PlannerTemplateData,
+  plannerTemplateSchedule,
 } from '@capiro/strategy-verifier';
 const PROJECT = '20000000-0000-4000-8000-000000000001';
 const SECTION = '40000000-0000-4000-8000-000000000001';
@@ -64,6 +65,7 @@ const tasks: PlannerTask[] = [
   memberships: [{ projectId: PROJECT, sectionId: SECTION, position: i }],
 }));
 const events: PlannerEvent[] = [];
+const removedEventContents = new Map<string, { text: string; minutes: number | null }>();
 const resources: PlannerResource[] = [];
 const error = (message: string, status = 400) => {
   throw { response: { status, data: { message } } };
@@ -147,8 +149,9 @@ const api = {
     }
     if (path.endsWith('/duplicate') || path.endsWith('/instantiate')) {
       const sourceId = path.split('/').at(-2);
-      const template = resources.find((r) => r.id === sourceId)?.data as unknown as
+      let template = resources.find((r) => r.id === sourceId)?.data as unknown as
         PlannerTemplateData | undefined;
+      if (template?.schedule) template = plannerTemplateSchedule(template, String(body.anchorOn));
       const source = template?.project ?? projects.find((p) => p.id === sourceId)!;
       const sourceTasks =
         template?.tasks ?? tasks.filter((t) => t.memberships.some((m) => m.projectId === sourceId));
@@ -271,6 +274,9 @@ const api = {
         text: String(body.text),
         minutes: (body.minutes as number) ?? null,
         createdAt: new Date().toISOString(),
+        version: 0,
+        editedAt: null,
+        removed: false,
       };
       events.unshift(row);
       if (body.minutes) {
@@ -297,8 +303,39 @@ const api = {
   },
   async patch(
     path: string,
-    body: { data?: Record<string, unknown>; version?: number; archived?: boolean },
+    body: {
+      data?: Record<string, unknown>;
+      version?: number;
+      archived?: boolean;
+      text?: string;
+      minutes?: number;
+      removed?: boolean;
+    },
   ) {
+    if (path.includes('/events/')) {
+      const row = events.find((e) => e.id === path.split('/').at(-1));
+      if (!row) error('Activity unavailable', 404);
+      if ((row!.version ?? 0) !== body.version) error('Record changed', 409);
+      const priorMinutes = row!.removed ? 0 : (row!.minutes ?? 0);
+      if (body.removed === true) {
+        removedEventContents.set(row!.id, { text: row!.text, minutes: row!.minutes });
+        row!.text = '';
+        row!.minutes = null;
+        row!.removed = true;
+      } else if (body.removed === false) {
+        Object.assign(row!, removedEventContents.get(row!.id), { removed: false });
+      } else {
+        if (body.text !== undefined) row!.text = body.text;
+        if (body.minutes !== undefined) row!.minutes = body.minutes;
+      }
+      row!.version = (row!.version ?? 0) + 1;
+      row!.editedAt = new Date().toISOString();
+      if (row!.kind === 'time') {
+        const task = tasks.find((t) => t.id === row!.taskId);
+        if (task) task.actualMinutes += (row!.removed ? 0 : (row!.minutes ?? 0)) - priorMinutes;
+      }
+      return { data: structuredClone(row) };
+    }
     if (path.includes('/resources/')) {
       const row = resources.find((r) => r.id === path.split('/').at(-1));
       if (!row) error('Resource unavailable', 404);

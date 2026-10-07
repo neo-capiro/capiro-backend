@@ -58,6 +58,7 @@ import {
   shiftPlannerDate,
 } from './planner-views.js';
 import { PlannerManagement, PlannerProjectActivity } from './planner-management.js';
+import { PlannerActivity } from './planner-activity.js';
 import { PlannerImport } from './planner-import.js';
 import { plannerCsvCell } from './planner-csv.js';
 import { SavePlannerView } from './planner-saved-view.js';
@@ -931,6 +932,7 @@ export function PlannerPage() {
               projectId={project.id}
               bootstrap={data}
               canEdit={writable(project.access)}
+              access={project.access}
             />
           )}
         </div>
@@ -2048,16 +2050,17 @@ function TaskEditor({
                   {events.data?.pages
                     .flatMap((page) => page.items)
                     .map((event) => (
-                      <article className="planner-activity" key={event.id}>
-                        <header>
-                          <strong>
-                            {bootstrap.people.find((p) => p.id === event.actorId)?.name ??
-                              'Team member'}
-                          </strong>
-                          <time>{new Date(event.createdAt).toLocaleString()}</time>
-                        </header>
-                        <PlannerFormattedText text={event.text} />
-                      </article>
+                      <PlannerActivity
+                        key={event.id}
+                        event={event}
+                        author={
+                          bootstrap.people.find((p) => p.id === event.actorId)?.name ??
+                          'Team member'
+                        }
+                        me={bootstrap.me.id}
+                        access={task.access}
+                        mutation={actions.reviseEvent}
+                      />
                     ))}
                   {events.hasNextPage && (
                     <button
@@ -2158,7 +2161,13 @@ function PlannerInbox({ onOpen }: { onOpen: (id: string) => void }) {
                 if (item.event.taskId) onOpen(item.event.taskId);
               }}
             >
-              <strong>{item.event.text}</strong>
+              <strong>
+                {item.event.removed
+                  ? item.event.kind === 'time'
+                    ? 'Time entry removed'
+                    : 'Comment removed'
+                  : item.event.text}
+              </strong>
               <time>{new Date(item.event.createdAt).toLocaleString()}</time>
             </button>
             <button
