@@ -242,6 +242,15 @@ function quoteCorpusText(serialized: string): string {
 // the model would have paraphrased anyway.
 const QUOTED_SPAN_RE = /[“"]([^“”"]{40,600})[”"]/g;
 
+// A span the line labels, right before its opening quote, as a query or search
+// term ("query “…”", "searched for “…”", "keywords: “…”") is the agent's own
+// tool input, not source material: a research-limitations line reporting
+// `read_bill_text … query “…” was unavailable` held T5 run 11 (2026-10-07).
+// The label must end immediately before the quote, so "the query returned a
+// page that states “…”" is still checked.
+const QUERY_LABEL_BEFORE_QUOTE =
+  /\b(?:quer(?:y|ies)|search(?:ed|ing)?(?:\s+for)?|search\s+(?:terms?|phrases?|strings?)|keywords?|text\s+query)\s*[:=]?\s*$/i;
+
 /**
  * Flag a long direct quote the line attributes to source material when the
  * quoted span appears (whitespace/case-normalized) in NO tool result captured
@@ -259,6 +268,7 @@ export function checkQuoteSpans(output: string, ledger: ToolResultLedger): Audit
   for (const line of toLines(output)) {
     if (!QUOTE_ATTRIBUTION_CUE.test(line)) continue;
     for (const m of line.matchAll(QUOTED_SPAN_RE)) {
+      if (QUERY_LABEL_BEFORE_QUOTE.test(line.slice(Math.max(0, m.index! - 40), m.index!))) continue;
       // Writers put a sentence's comma or period inside the closing quote, and
       // mark a cut with an ellipsis; neither is part of the source text.
       const span = m[1]!
