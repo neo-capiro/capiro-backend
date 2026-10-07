@@ -2,7 +2,7 @@ import { cleanup, renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
-import { usePlannerEvents, usePlannerInbox } from './planner-api.js';
+import { usePlannerEvents, usePlannerInbox, usePlannerReportRows } from './planner-api.js';
 
 const fixture = vi.hoisted(() => ({ get: vi.fn(), userId: 'user_first' }));
 vi.mock('@clerk/clerk-react', () => ({
@@ -24,6 +24,44 @@ function wrapper() {
   );
 }
 describe('Planner activity pagination', () => {
+  it('binds report pages to the current dashboard version and authorized data revision', async () => {
+    fixture.get.mockImplementation(async (_path, config) => ({
+      data: {
+        items: [],
+        nextCursor: config.params.cursor ? null : 'next-report-row',
+        revision: 'a'.repeat(64),
+      },
+    }));
+    const { result, rerender } = renderHook(
+      ({ version, bucket }) => usePlannerReportRows('dashboard', 'widget', version, bucket),
+      {
+        initialProps: { version: 3, bucket: 'done' },
+        wrapper: wrapper(),
+      },
+    );
+    await waitFor(() => expect(result.current.hasNextPage).toBe(true));
+    await act(async () => {
+      await result.current.fetchNextPage();
+    });
+    expect(fixture.get).toHaveBeenLastCalledWith(
+      '/strategy-api/planner/reports/dashboard/widgets/widget',
+      {
+        params: {
+          rows: 'true',
+          version: '3',
+          bucket: 'done',
+          cursor: 'next-report-row',
+          revision: 'a'.repeat(64),
+        },
+      },
+    );
+    rerender({ version: 4, bucket: 'todo' });
+    await waitFor(() => expect(result.current.data?.pages).toHaveLength(1));
+    expect(fixture.get).toHaveBeenLastCalledWith(
+      '/strategy-api/planner/reports/dashboard/widgets/widget',
+      { params: { rows: 'true', version: '4', bucket: 'todo' } },
+    );
+  });
   it('keeps goal history and audience metadata separate from project/task activity', async () => {
     fixture.get.mockImplementation(async (path) => ({
       data: {

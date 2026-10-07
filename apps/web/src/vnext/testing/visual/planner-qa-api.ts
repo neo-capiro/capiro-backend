@@ -12,6 +12,7 @@ import {
   plannerGoalProgress,
   type PlannerGoalData,
   type PlannerGoalUpdateSection,
+  type PlannerReportWidget,
 } from '@capiro/strategy-verifier';
 const PROJECT = '20000000-0000-4000-8000-000000000001';
 const SECTION = '40000000-0000-4000-8000-000000000001';
@@ -120,6 +121,124 @@ const error = (message: string, status = 400) => {
 };
 const api = {
   async get(path: string, config?: { params?: Record<string, string> }) {
+    if (path.includes('/reports/')) {
+      const parts = path.split('/'),
+        dashboard = resources.find((r) => r.id === parts.at(-3));
+      if (!dashboard) error('Dashboard unavailable', 404);
+      if (config?.params?.version && Number(config.params.version) !== dashboard!.version)
+        error('Record changed', 409);
+      const widget = (dashboard!.data.widgets as PlannerReportWidget[]).find(
+        (w) => w.id === parts.at(-1),
+      );
+      if (!widget || widget.kind !== 'chart') error('Chart unavailable', 404);
+      const c = (widget as Extract<PlannerReportWidget, { kind: 'chart' }>).chart,
+        f = c.filters;
+      const sourceIds =
+        f.source.kind === 'portfolios'
+          ? resources
+              .filter((r) => f.source.ids.includes(r.id))
+              .flatMap((r) => r.data.projectIds as string[])
+          : f.source.ids;
+      const matching = tasks.filter(
+        (t) =>
+          !t.archived &&
+          c.entity === 'tasks' &&
+          (!dashboard!.projectId ||
+            t.memberships.some((m) => m.projectId === dashboard!.projectId)) &&
+          (f.source.kind === 'all' || t.memberships.some((m) => sourceIds.includes(m.projectId))) &&
+          (!f.statuses.length || f.statuses.includes(t.status)) &&
+          (!f.personIds.length || f.personIds.includes(t.assigneeId ?? 'unassigned')) &&
+          (!f.priorities.length || f.priorities.includes(t.priority)) &&
+          (!f.types.length || f.types.includes(t.subtype)) &&
+          (!f.tags.length || f.tags.some((tag) => t.tags.includes(tag))) &&
+          (f.includeSubtasks || !t.parentId) &&
+          f.custom.every((filter) =>
+            filter.values.some((v) => t.customValues[filter.fieldId] === v),
+          ) &&
+          ((!f.from && !f.through) ||
+            (() => {
+              const date =
+                f.dateField === 'due'
+                  ? t.dueOn
+                  : f.dateField === 'start'
+                    ? t.startOn
+                    : f.dateField === 'completed'
+                      ? t.completedAt?.slice(0, 10)
+                      : t.createdAt.slice(0, 10);
+              return date && (!f.from || date >= f.from) && (!f.through || date <= f.through);
+            })()),
+      );
+      const value = (t: PlannerTask) =>
+        c.metric === 'estimated_minutes'
+          ? t.estimateMinutes
+          : c.metric === 'actual_minutes'
+            ? t.actualMinutes
+            : c.metric === 'custom_number'
+              ? Number(t.customValues[c.metricFieldId!] ?? 0)
+              : 1;
+      const group = (t: PlannerTask) =>
+        c.group === 'none'
+          ? 'all'
+          : c.group === 'assignee'
+            ? (t.assigneeId ?? 'unassigned')
+            : c.group === 'priority'
+              ? t.priority
+              : c.group === 'created'
+                ? t.createdAt.slice(0, 7)
+                : c.group === 'due'
+                  ? (t.dueOn?.slice(0, 7) ?? 'undated')
+                  : t.status;
+      const buckets = [...new Set(matching.map(group))].map((key) => ({
+        key,
+        label: key,
+        value: matching.filter((t) => group(t) === key).reduce((n, t) => n + value(t), 0),
+        count: matching.filter((t) => group(t) === key).length,
+      }));
+      const revision = matching
+        .map((t) => `${t.id}:${t.version}:${value(t)}`)
+        .sort()
+        .join('|');
+      if (config?.params?.revision && config.params.revision !== revision)
+        error('Report changed; refresh.', 409);
+      const rows = matching
+        .filter(
+          (t) =>
+            (!config?.params?.bucket || group(t) === config.params.bucket) &&
+            (!config?.params?.cursor || t.id > config.params.cursor),
+        )
+        .sort((a, b) => a.id.localeCompare(b.id));
+      return {
+        data: {
+          total: matching.reduce((n, t) => n + value(t), 0),
+          matched: matching.length,
+          buckets,
+          dashboardVersion: dashboard!.version,
+          revision,
+          unit: c.metric.endsWith('_minutes')
+            ? 'minutes'
+            : c.metric === 'custom_number'
+              ? 'number'
+              : 'items',
+          overlapping: false,
+          unavailableSources: false,
+          unavailableFields: false,
+          ...(config?.params?.rows === 'true'
+            ? {
+                items: rows.slice(0, 100).map((t) => ({
+                  id: t.id,
+                  entity: 'tasks',
+                  name: t.name,
+                  status: t.status,
+                  personName: people.find((p) => p.id === t.assigneeId)?.name ?? null,
+                  dueOn: t.dueOn,
+                  value: value(t),
+                })),
+                nextCursor: rows.length > 100 ? rows[99]!.id : null,
+              }
+            : {}),
+        },
+      };
+    }
     if (path === '/api/clients')
       return { data: [{ id: '60000000-0000-4000-8000-000000000001', name: 'Synthetic client' }] };
     if (path === '/api/engagement/meetings')
@@ -362,6 +481,8 @@ const api = {
         ...goal!.data,
         status: body.status,
         ...(body.current === undefined ? {} : { current: body.current }),
+        ...(body.reminder === undefined ? {} : { reminder: body.reminder }),
+        ...(body.timeZone === undefined ? {} : { timeZone: body.timeZone }),
       };
       goal!.version++;
       const event = goalPoint(goal!, 'goal_status', {
@@ -411,6 +532,7 @@ const api = {
   async patch(
     path: string,
     body: {
+      name?: string;
       data?: Record<string, unknown>;
       version?: number;
       archived?: boolean;
@@ -458,6 +580,7 @@ const api = {
       if (!row) error('Resource unavailable', 404);
       if (row!.version !== body.version) error('Record changed', 409);
       Object.assign(row!, {
+        ...(body.name === undefined ? {} : { name: body.name }),
         data: { ...row!.data, ...body.data },
         version: row!.version + 1,
         ...(body.archived === undefined ? {} : { archived: body.archived }),

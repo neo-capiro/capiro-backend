@@ -31,6 +31,14 @@ export class PlannerController {
   @Get('queue') queue(@CurrentTenant() ctx: AuthTenantContext) {
     return this.planner.queue(ctx);
   }
+  @Get('reports/:id/widgets/:widgetId') reportWidget(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Param('widgetId') widgetId: string,
+    @Query() query: Record<string, string>,
+  ) {
+    return this.planner.reportWidget(ctx, id, widgetId, query);
+  }
   @Post('forms/:id/share') shareForm(
     @CurrentTenant() ctx: AuthTenantContext,
     @Param('id') id: string,

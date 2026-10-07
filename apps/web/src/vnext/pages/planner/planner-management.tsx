@@ -157,6 +157,8 @@ export function PlannerManagement({
   onTask,
   selectedGoalId,
   onGoal,
+  selectedPortfolioId,
+  onPortfolio,
 }: {
   kind: PlannerResourceKind;
   bootstrap: PlannerBootstrap;
@@ -165,6 +167,8 @@ export function PlannerManagement({
   onTask: (id: string) => void;
   selectedGoalId?: string | null;
   onGoal?: (id: string | null) => void;
+  selectedPortfolioId?: string | null;
+  onPortfolio?: (id: string | null) => void;
 }) {
   const query = usePlannerResources();
   const actions = usePlannerMutations();
@@ -199,6 +203,7 @@ export function PlannerManagement({
       (r) =>
         r.kind === kind &&
         r.archived === archived &&
+        (kind !== 'portfolio' || !selectedPortfolioId || r.id === selectedPortfolioId) &&
         (kind !== 'goal' ||
           ((!goalSearch || r.name.toLowerCase().includes(goalSearch.toLowerCase())) &&
             (!goalOwner || r.data.ownerId === goalOwner) &&
@@ -210,6 +215,14 @@ export function PlannerManagement({
     kind === 'goal' && [goalSearch, goalOwner, goalStatus, goalType, goalPeriod].some(Boolean);
   return (
     <div className="planner-management">
+      {kind === 'portfolio' && selectedPortfolioId && (
+        <div className="planner-report-actions">
+          <button onClick={() => onPortfolio?.(null)}>All portfolios</button>
+          {!query.isPending && !rows.length && (
+            <p role="alert">This portfolio is unavailable or your access changed.</p>
+          )}
+        </div>
+      )}
       <div className="planner-management-actions">
         <button
           className="planner-primary"

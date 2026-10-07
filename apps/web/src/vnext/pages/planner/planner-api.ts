@@ -17,6 +17,7 @@ import type {
   PlannerGoalData,
   PlannerGoalUpdateSection,
   PlannerGoalReminder,
+  PlannerReportResponse,
 } from '@capiro/strategy-verifier';
 import { plannerFormSubmissionBody, type PlannerFormFiles } from './planner-form-questions.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -129,6 +130,49 @@ export function usePlannerResources() {
   return useQuery({
     queryKey: [...key, 'resources'],
     queryFn: async () => (await api.get<PlannerResource[]>(`${BASE}/resources`)).data,
+    refetchInterval: 30_000,
+  });
+}
+export function usePlannerReport(dashboardId: string, widgetId: string, version: number) {
+  const api = useApi();
+  const key = usePlannerKey();
+  return useQuery({
+    queryKey: [...key, 'report', dashboardId, widgetId, version],
+    queryFn: async () =>
+      (
+        await api.get<PlannerReportResponse>(`${BASE}/reports/${dashboardId}/widgets/${widgetId}`, {
+          params: { version: String(version) },
+        })
+      ).data,
+    retry: false,
+    refetchInterval: 30_000,
+  });
+}
+export function usePlannerReportRows(
+  dashboardId: string,
+  widgetId: string,
+  version: number,
+  bucket?: string,
+) {
+  const api = useApi();
+  const key = usePlannerKey();
+  return useInfiniteQuery({
+    queryKey: [...key, 'report-rows', dashboardId, widgetId, version, bucket],
+    initialPageParam: null as { cursor: string; revision: string } | null,
+    queryFn: async ({ pageParam }) =>
+      (
+        await api.get<PlannerReportResponse>(`${BASE}/reports/${dashboardId}/widgets/${widgetId}`, {
+          params: {
+            rows: 'true',
+            version: String(version),
+            ...(bucket ? { bucket } : {}),
+            ...(pageParam ? pageParam : {}),
+          },
+        })
+      ).data,
+    getNextPageParam: (page) =>
+      page.nextCursor ? { cursor: page.nextCursor, revision: page.revision } : undefined,
+    retry: false,
     refetchInterval: 30_000,
   });
 }
