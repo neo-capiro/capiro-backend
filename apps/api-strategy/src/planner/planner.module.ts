@@ -9,10 +9,13 @@ import { PlannerPublicController } from './planner-public.controller.js';
 import { PlannerSchedulerService } from './planner-scheduler.service.js';
 import { PlannerFormFilesService } from './planner-form-files.service.js';
 import { PlannerPublicFormGuard } from './planner-public-form.guard.js';
+import { PlannerCapacityController } from './planner-capacity.controller.js';
+import { PlannerCapacityService } from './planner-capacity.service.js';
 
 @Module({
-  controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController],
+  controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController, PlannerCapacityController],
   providers: [
+    PlannerCapacityService,
     PlannerService,
     PlannerLinksService,
     PlannerAttachmentsService,

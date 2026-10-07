@@ -9,6 +9,7 @@ export * from './planner-timesheets.js';
 export * from './planner-budgets.js';
 export * from './planner-timers.js';
 export * from './planner-time-tree.js';
+export * from './planner-capacity.js';
 export {
   verifyPlan,
   validIso,
