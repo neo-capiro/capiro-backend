@@ -2389,6 +2389,7 @@ export class PlannerService {
     projects: SpPlannerProject[],
     ctx: AuthTenantContext,
   ): PlannerRole | null {
+    if (row.kind.startsWith('capacity_')) return null;
     if (['task_import_receipt', 'timer_session'].includes(row.kind)) return null;
     if (['project_budget', 'project_budget_alert'].includes(row.kind)) {
       const project = projects.find((p) => p.id === row.projectId);

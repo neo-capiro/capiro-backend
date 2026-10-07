@@ -76,8 +76,10 @@ import { PlannerTimeForm } from './planner-time-form.js';
 import { PlannerBudget } from './planner-budgets.js';
 import { PlannerTaskTimer, PlannerTimerWidget } from './planner-timers.js';
 import { PlannerTimeList, PlannerTaskTimeRollup } from './planner-time-list.js';
+import { PlannerCapacity } from './planner-capacity.js';
 import type { PlannerSavedViewData } from '@capiro/strategy-verifier';
 import './planner.css';
+import './planner-capacity.css';
 
 const VIEWS: { id: PlannerView; label: string; icon: typeof LayoutList }[] = [
   { id: 'list', label: 'List', icon: LayoutList },
@@ -138,11 +140,11 @@ export function PlannerPage() {
       ...(projectId ? { projectId } : scope === 'mine' ? { mine: 'true' } : {}),
       ...(archived ? { archived: 'true' } : {}),
     },
-    Boolean(bootstrap.data) && !['inbox', 'reporting', 'timesheets', 'budget'].includes(scope),
+    Boolean(bootstrap.data) && !['inbox', 'reporting', 'timesheets', 'budget', 'capacity'].includes(scope),
   );
   useEffect(() => {
     if (
-      !['inbox', 'reporting', 'timesheets', 'budget'].includes(scope) &&
+      !['inbox', 'reporting', 'timesheets', 'budget', 'capacity'].includes(scope) &&
       query.hasNextPage &&
       !query.isFetchingNextPage &&
       !query.isError
@@ -395,6 +397,7 @@ export function PlannerPage() {
       projects: 'Projects',
       inbox: 'Inbox',
       workload: 'Workload',
+      capacity: 'Capacity plans',
       reporting: 'Reporting',
       timesheets: 'Timesheets',
       portfolios: 'Portfolios',
@@ -446,6 +449,7 @@ export function PlannerPage() {
             { id: 'portfolios', label: 'Portfolios', icon: FolderKanban },
             { id: 'goals', label: 'Goals', icon: CheckCircle2 },
             { id: 'workload', label: 'Workload', icon: Users },
+            { id: 'capacity', label: 'Capacity plans', icon: Users },
             { id: 'reporting', label: 'Reporting', icon: ChartGantt },
             { id: 'timesheets', label: 'Timesheets', icon: Clock3 },
             { id: 'templates', label: 'Templates', icon: LayoutList },
@@ -599,6 +603,7 @@ export function PlannerPage() {
                 !managementKind &&
                 scope !== 'projects' &&
                 scope !== 'workload' &&
+                scope !== 'capacity' &&
                 scope !== 'reporting' &&
                 scope !== 'timesheets' &&
                 scope !== 'budget' &&
@@ -660,6 +665,8 @@ export function PlannerPage() {
             <PlannerBudget key={project.id} bootstrap={data} projectId={project.id} />
           ) : scope === 'workload' ? (
             <PlannerWorkload tasks={tasks} data={data} />
+          ) : scope === 'capacity' ? (
+            <PlannerCapacity key={plannerCacheKey.join('|')} bootstrap={data} selectedId={params.get('capacityPlan')} onSelect={(id) => updateParams({capacityPlan: id})} />
           ) : scope === 'reporting' ? (
             <PlannerReporting
               bootstrap={data}

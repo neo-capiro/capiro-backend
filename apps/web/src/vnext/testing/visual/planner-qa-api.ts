@@ -33,6 +33,10 @@ import {
   type PlannerBudgetData,
   type PlannerTimer,
   plannerTimeToday,
+  PLANNER_DEFAULT_CAPACITY_PLAN,
+  type PlannerCapacityCatalog,
+  type PlannerCapacityAllocation,
+  plannerCapacityDateShift,
 } from '@capiro/strategy-verifier';
 const PROJECT = '20000000-0000-4000-8000-000000000001';
 const SECTION = '40000000-0000-4000-8000-000000000001';
@@ -115,6 +119,93 @@ function qaTimerView(row: QaTimer) {
 }
 const removedEventContents = new Map<string, { text: string; minutes: number | null }>();
 const resources: PlannerResource[] = [];
+const QA_CAPACITY_PLAN = '80000000-0000-4000-8000-000000000001',
+  QA_TEAM = '80000000-0000-4000-8000-000000000002',
+  QA_PLACEHOLDER = '80000000-0000-4000-8000-000000000003';
+const capacityCatalog: PlannerCapacityCatalog = {
+  plans: [
+    {
+      id: QA_CAPACITY_PLAN,
+      name: 'Launch staffing',
+      ownerId: 'user_qa',
+      version: 1,
+      archived: false,
+      access: 'admin',
+      data: { ...PLANNER_DEFAULT_CAPACITY_PLAN, projectIds: [PROJECT], teamIds: [QA_TEAM] },
+    },
+  ],
+  teams: [
+    {
+      id: QA_TEAM,
+      name: 'Product team',
+      ownerId: 'user_qa',
+      version: 1,
+      archived: false,
+      access: 'admin',
+      data: {
+        privacy: 'private',
+        members: [],
+        peopleIds: ['user_qa', 'user_qa2'],
+        jobTitles: { user_qa: 'Product lead', user_qa2: 'Designer' },
+      },
+    },
+  ],
+  placeholders: [
+    {
+      id: QA_PLACEHOLDER,
+      name: 'Open engineer',
+      ownerId: 'user_qa',
+      version: 1,
+      archived: false,
+      access: 'admin',
+      data: { teamId: QA_TEAM, jobTitle: 'Engineer', weeklyMinutes: 1800 },
+    },
+  ],
+};
+const capacityAllocations: PlannerCapacityAllocation[] = [
+  {
+    id: '80000000-0000-4000-8000-000000000004',
+    name: 'Project allocation',
+    ownerId: 'user_qa',
+    version: 1,
+    archived: false,
+    access: 'admin',
+    projectId: PROJECT,
+    projectName: 'Product launch',
+    personName: 'Alex Morgan',
+    weeklyMinutes: 2400,
+    teamId: QA_TEAM,
+    jobTitle: 'Product lead',
+    data: {
+      userId: 'user_qa',
+      placeholderId: null,
+      startOn: plannerTimeToday('America/New_York'),
+      endOn: plannerCapacityDateShift(plannerTimeToday('America/New_York'), 13),
+      effort: { unit: 'percent', value: 50 },
+    },
+  },
+  {
+    id: '80000000-0000-4000-8000-000000000005',
+    name: 'Project allocation',
+    ownerId: 'user_qa',
+    version: 1,
+    archived: false,
+    access: 'admin',
+    projectId: PROJECT,
+    projectName: 'Product launch',
+    personName: 'Open engineer',
+    weeklyMinutes: 1800,
+    teamId: QA_TEAM,
+    jobTitle: 'Engineer',
+    data: {
+      userId: null,
+      placeholderId: QA_PLACEHOLDER,
+      startOn: plannerTimeToday('America/New_York'),
+      endOn: plannerCapacityDateShift(plannerTimeToday('America/New_York'), 13),
+      effort: { unit: 'hours', value: 45 },
+    },
+  },
+];
 const budgetConfigs = new Map<string, { version: number; data: PlannerBudgetData }>();
 const budgetAlerts = new Map<string, PlannerProjectBudget['alert']>();
 function projectBudget(id: string): PlannerProjectBudget {
@@ -394,6 +485,58 @@ const error = (message: string, status = 400) => {
 };
 const api = {
   async get(path: string, config?: { params?: Record<string, string> }) {
+    if (path.endsWith('/capacity')) return { data: structuredClone(capacityCatalog) };
+    if (path.includes('/capacity/plans/')) {
+      const plan = capacityCatalog.plans.find((p) => p.id === path.split('/').at(-1));
+      if (!plan) error('Plan unavailable', 404);
+      const params = config?.params ?? {},
+        data = plan!.data;
+      const projectIds = [
+        ...new Set([
+          ...data.projectIds,
+          ...resources
+            .filter((r) => data.portfolioIds.includes(r.id) && !r.archived)
+            .flatMap((r) => r.data.projectIds as string[]),
+        ]),
+      ];
+      const personIds = [
+        ...new Set([
+          ...data.peopleIds,
+          ...capacityCatalog.teams
+            .filter((t) => data.teamIds.includes(t.id) && !t.archived)
+            .flatMap((t) => [
+              ...t.data.peopleIds,
+              ...capacityCatalog.placeholders
+                .filter((p) => !p.archived && p.data.teamId === t.id)
+                .map((p) => p.id),
+            ]),
+        ]),
+      ];
+      const allocations = capacityAllocations.filter(
+        (a) =>
+          a.archived === (params.archived === 'true') &&
+          (projectIds.includes(a.projectId) ||
+            personIds.includes(a.data.userId ?? a.data.placeholderId!)),
+      );
+      const revision = JSON.stringify([plan, allocations]);
+      if (params.revision && params.revision !== revision) error('Capacity changed', 409);
+      return {
+        data: structuredClone({
+          plan,
+          allocations,
+          matched: allocations.length,
+          revision,
+          nextCursor: null,
+          projectIds: [...new Set([...projectIds, ...allocations.map((a) => a.projectId)])],
+          personIds: [
+            ...new Set([
+              ...personIds,
+              ...allocations.map((a) => a.data.userId ?? a.data.placeholderId!),
+            ]),
+          ],
+        }),
+      };
+    }
     if (path.endsWith('/time/tree')) {
       const params = config?.params ?? {};
       const roots = tasks.filter(
@@ -784,6 +927,63 @@ const api = {
     return { data: structuredClone(row) };
   },
   async post(path: string, body: Record<string, unknown>) {
+    if (path.includes('/capacity/')) {
+      const kind = path.split('/').at(-1)!;
+      if (kind === 'allocations') {
+        const plan = capacityCatalog.plans.find((p) => p.id === body.planId);
+        if (!plan || plan.version !== body.planVersion) error('Plan changed', 409);
+        const changed = (body.changes as any[]).map((c) => {
+          const old = capacityAllocations.find((a) => a.id === c.id);
+          if (old && old.version !== c.version) error('Allocation changed', 409);
+          const data = { ...old?.data, ...c.data };
+          if (c.shiftDays !== undefined) {
+            data.startOn = plannerCapacityDateShift(data.startOn, c.shiftDays);
+            data.endOn = plannerCapacityDateShift(data.endOn, c.shiftDays);
+          }
+          const placeholder = capacityCatalog.placeholders.find((p) => p.id === data.placeholderId);
+          const team = capacityCatalog.teams.find(
+            (t) => t.id === placeholder?.data.teamId || t.data.peopleIds.includes(data.userId),
+          );
+          const projectId = c.projectId ?? old?.projectId;
+          return {
+            ...old,
+            id: c.duplicateId ?? c.id,
+            name: 'Project allocation',
+            ownerId: 'user_qa',
+            version: c.duplicateId ? 1 : (old?.version ?? 0) + 1,
+            archived: c.archived ?? old?.archived ?? false,
+            access: 'admin',
+            data,
+            projectId,
+            projectName: projects.find((p) => p.id === projectId)?.name,
+            personName: placeholder?.name ?? people.find((p) => p.id === data.userId)?.name,
+            weeklyMinutes: placeholder?.data.weeklyMinutes ?? 2400,
+            teamId: team?.id ?? null,
+            jobTitle: placeholder?.data.jobTitle ?? team?.data.jobTitles[data.userId] ?? '',
+          } as PlannerCapacityAllocation;
+        });
+        for (const a of changed) {
+          const index = capacityAllocations.findIndex((row) => row.id === a.id);
+          index < 0 ? capacityAllocations.push(a) : capacityAllocations.splice(index, 1, a);
+        }
+        return { data: { allocations: structuredClone(changed) } };
+      }
+      const rows = capacityCatalog[kind as keyof PlannerCapacityCatalog] as any[];
+      if (!rows) error('Staffing unavailable', 404);
+      const old = rows.find((r) => r.id === body.id);
+      if (old && old.version !== body.version) error('Staffing changed', 409);
+      const row = {
+        ...old,
+        ...body,
+        version: (old?.version ?? 0) + 1,
+        ownerId: 'user_qa',
+        access: 'admin',
+        archived: body.archived ?? old?.archived ?? false,
+      };
+      const index = rows.findIndex((r) => r.id === body.id);
+      index < 0 ? rows.push(row) : rows.splice(index, 1, row);
+      return { data: structuredClone(row) };
+    }
     if (path.endsWith('/time/timers')) {
       const previous = [...timerSessions.values()].find((t) => t.startKey === body.startKey);
       if (previous) {
