@@ -259,13 +259,22 @@ export function researchReportPptxSpec(title: string, markdown: string): PptxSpe
     slides.some((slide) => slide.title === heading) ? `${heading} (cont.)` : heading;
   for (const [index, section] of reportSections(title, markdown).entries()) {
     let paragraphs = section.paragraphs;
-    if (index === 0 && section.heading === 'Summary') {
+    // The assembled report opens with its own top heading (the report's title,
+    // which may differ from the deliverable's) and the provenance lines. Read
+    // them by position: T12's second run titled its report differently and
+    // the provenance became a slide (session 0f4a4df2, 2026-10-07).
+    if (index === 0) {
       const provenance = paragraphs.filter((paragraph) => PROVENANCE_LINE.test(paragraph));
       const generated = provenance.find((line) => /^deep research report\b/i.test(line));
       if (generated) subtitle = generated;
       const topic = provenance.find((line) => /^topic:/i.test(line));
       paragraphs = paragraphs.filter((paragraph) => !PROVENANCE_LINE.test(paragraph));
-      if (!paragraphs.length && !section.bullets.length && !section.tables.length) {
+      if (
+        provenance.length &&
+        !paragraphs.length &&
+        !section.bullets.length &&
+        !section.tables.length
+      ) {
         // The title slide carries the date; the request itself goes in its notes.
         if (topic) titleNotes = topic;
         continue;
