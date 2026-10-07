@@ -128,10 +128,13 @@ import {
   type DocFormat,
 } from './meri-docgen.helpers.js';
 import {
-  computeNextRunAtAnchored,
+  computeNextScheduledRun,
+  parseScheduleLocalAnchor,
   parseTimeOfDayUtc,
+  readScheduleLocalAnchor,
   normalizeDeliveryEmail,
   validateScheduleRequest,
+  type ScheduleLocalAnchor,
 } from './meri-schedule.helpers.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { readTextArtifactCreation, type TextArtifactCreation } from './meri-text-artifact-receipt.js';
@@ -326,6 +329,8 @@ interface NormalizedScheduleEffect {
   intervalMinutes: number;
   allowList: string[];
   runAtMinutesUtc: number | null;
+  /** Release E: local wall-clock anchor (e.g. Mondays at 08:00 America/New_York). */
+  localAnchor: ScheduleLocalAnchor | null;
   clientId: string | null;
   emailRecipientIntent: 'none' | 'explicit' | 'owner_connection';
   emailTo: string | null;
@@ -352,6 +357,8 @@ function scheduleEffectFingerprint(
           intervalMinutes: effect.intervalMinutes,
           runAtMinutesUtc: effect.runAtMinutesUtc,
           toolAllowList: effect.allowList,
+          // Present only when set, so earlier schedules keep their fingerprints.
+          ...(effect.localAnchor ? { localAnchor: effect.localAnchor } : {}),
         },
         emailRecipient: {
           intent: effect.emailRecipientIntent,
@@ -1699,7 +1706,16 @@ export class MeriToolsService {
             'Minutes between runs (minimum 60). Use 1440 for daily, 10080 for weekly.',
           ),
           dailyAtUtc: str(
-            'Optional clock-anchored run time as "HH:MM" in 24h UTC (e.g. "13:00" for 8am ET). When set with intervalMinutes=1440, the task runs every day at that wall-clock time instead of drifting.',
+            'Optional clock-anchored run time as "HH:MM" in 24h UTC. Prefer localTime + timeZone, which stays correct across daylight saving time.',
+          ),
+          localTime: str(
+            'Optional local run time as "HH:MM" (24h) in timeZone, e.g. "08:00". Needs intervalMinutes 1440 (daily) or 10080 (weekly).',
+          ),
+          timeZone: str(
+            'IANA time zone for localTime, e.g. "America/New_York" (the default when localTime is set).',
+          ),
+          weekday: str(
+            'For a weekly schedule with localTime: the day it runs, e.g. "monday". Required for weekly, not allowed for daily.',
           ),
           clientId: str('Optional client UUID to scope every run to one client'),
           emailBriefing: {
@@ -7919,6 +7935,11 @@ export class MeriToolsService {
       existingTaskCount: 0,
     });
     if (!validation.ok) return { ok: false, error: validation.error! };
+    const localAnchor = parseScheduleLocalAnchor(
+      { localTime: input.localTime, timeZone: input.timeZone, weekday: input.weekday },
+      validation.intervalMinutes!,
+    );
+    if (localAnchor && 'error' in localAnchor) return { ok: false, error: localAnchor.error };
 
     const requestedClient =
       typeof input.clientId === 'string' && input.clientId.trim() ? input.clientId.trim() : null;
@@ -7951,7 +7972,8 @@ export class MeriToolsService {
       prompt: String(input.prompt).trim().slice(0, 8000),
       intervalMinutes: validation.intervalMinutes!,
       allowList: [...new Set(validation.allowList!)].sort(),
-      runAtMinutesUtc: parseTimeOfDayUtc(input.dailyAtUtc),
+      runAtMinutesUtc: localAnchor ? null : parseTimeOfDayUtc(input.dailyAtUtc),
+      localAnchor,
       clientId,
       emailRecipientIntent,
       emailTo,
@@ -8004,6 +8026,7 @@ export class MeriToolsService {
       JSON.stringify([...new Set(allowList)].sort()) === JSON.stringify(effect.allowList) &&
       (typeof metadata.runAtMinutesUtc === 'number' ? metadata.runAtMinutesUtc : null) ===
         effect.runAtMinutesUtc &&
+      JSON.stringify(readScheduleLocalAnchor(metadata)) === JSON.stringify(effect.localAnchor) &&
       (typeof metadata.clientId === 'string' ? metadata.clientId : null) === effect.clientId &&
       (typeof metadata.emailRecipientIntent === 'string'
         ? metadata.emailRecipientIntent
@@ -8192,13 +8215,19 @@ export class MeriToolsService {
     };
     if (actionProposalId) metadata.actionProposalId = actionProposalId;
     if (effect.runAtMinutesUtc != null) metadata.runAtMinutesUtc = effect.runAtMinutesUtc;
+    if (effect.localAnchor) {
+      metadata.localTime = effect.localAnchor.localTime;
+      metadata.timeZone = effect.localAnchor.timeZone;
+      if (effect.localAnchor.weekday != null) metadata.weekday = effect.localAnchor.weekday;
+    }
     if (effect.clientId) metadata.clientId = effect.clientId;
     if (effect.emailTo) metadata.emailTo = effect.emailTo;
 
-    const nextRunAt = computeNextRunAtAnchored(
+    const nextRunAt = computeNextScheduledRun(
       new Date(),
       effect.intervalMinutes,
       effect.runAtMinutesUtc,
+      effect.localAnchor,
     );
     let task: ScheduleTaskReceipt;
     let reconciled = false;

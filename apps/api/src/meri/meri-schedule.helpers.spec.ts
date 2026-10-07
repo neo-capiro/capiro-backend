@@ -1,5 +1,10 @@
 import {
   computeNextRunAt,
+  computeNextRunAtAnchored,
+  computeNextScheduledRun,
+  describeScheduleCadence,
+  parseScheduleLocalAnchor,
+  readScheduleLocalAnchor,
   DEFAULT_SCHEDULED_TOOL_ALLOWLIST,
   isAllowListSafe,
   isDue,
@@ -87,3 +92,81 @@ describe('clio-schedule helpers (W3)', () => {
     });
   });
 });
+
+describe('local wall-clock schedules (Release E, T10)', () => {
+  const monday8 = { localTime: '08:00', timeZone: 'America/New_York', weekday: 1 };
+
+  it('runs "every Monday at 8" at 8:00 Eastern on Mondays, not on the creation weekday', () => {
+    // Created on a Wednesday afternoon (EDT, UTC-4).
+    const from = new Date('2026-10-07T18:00:00.000Z');
+    expect(computeNextScheduledRun(from, 10080, null, monday8).toISOString()).toBe(
+      '2026-10-12T12:00:00.000Z',
+    );
+  });
+
+  it('keeps 8:00 local across the end of daylight saving time', () => {
+    // US DST ends Sunday 2026-11-01; Monday 8:00 EST is 13:00Z.
+    const from = new Date('2026-10-30T15:00:00.000Z');
+    expect(computeNextScheduledRun(from, 10080, null, monday8).toISOString()).toBe(
+      '2026-11-02T13:00:00.000Z',
+    );
+  });
+
+  it('moves to the next Monday once this Monday’s time has passed', () => {
+    const from = new Date('2026-10-12T12:30:00.000Z'); // Monday 08:30 EDT
+    expect(computeNextScheduledRun(from, 10080, null, monday8).toISOString()).toBe(
+      '2026-10-19T12:00:00.000Z',
+    );
+  });
+
+  it('runs daily at the local time, today if it is still ahead', () => {
+    const daily = { localTime: '08:00', timeZone: 'America/New_York', weekday: null };
+    expect(
+      computeNextScheduledRun(new Date('2026-10-07T11:00:00.000Z'), 1440, null, daily).toISOString(),
+    ).toBe('2026-10-07T12:00:00.000Z');
+    expect(
+      computeNextScheduledRun(new Date('2026-10-07T13:00:00.000Z'), 1440, null, daily).toISOString(),
+    ).toBe('2026-10-08T12:00:00.000Z');
+  });
+
+  it('without a local anchor behaves exactly as before', () => {
+    const from = new Date('2026-10-07T14:05:00.000Z');
+    expect(computeNextScheduledRun(from, 1440, 480, null)).toEqual(
+      computeNextRunAtAnchored(from, 1440, 480),
+    );
+  });
+
+  it('validates the anchor against the cadence', () => {
+    expect(parseScheduleLocalAnchor({ localTime: '8:00', weekday: 'Monday' }, 10080)).toEqual({
+      localTime: '08:00',
+      timeZone: 'America/New_York',
+      weekday: 1,
+    });
+    expect(parseScheduleLocalAnchor({}, 10080)).toBeNull();
+    expect(parseScheduleLocalAnchor({ localTime: '08:00' }, 10080)).toEqual({
+      error: 'A weekly schedule with a local time needs a weekday.',
+    });
+    expect(parseScheduleLocalAnchor({ localTime: '08:00', weekday: 'mon' }, 1440)).toEqual({
+      error: 'A daily schedule cannot name a weekday.',
+    });
+    expect(parseScheduleLocalAnchor({ localTime: '08:00' }, 60)).toEqual({
+      error: 'A local time needs a daily (1440) or weekly (10080) interval.',
+    });
+    expect(parseScheduleLocalAnchor({ localTime: '08:00', timeZone: 'Mars/Base' }, 1440)).toEqual({
+      error: 'timeZone must be an IANA time zone, e.g. "America/New_York".',
+    });
+    expect(parseScheduleLocalAnchor({ localTime: '25:00' }, 1440)).toEqual({
+      error: 'localTime must be "HH:MM" in 24h form.',
+    });
+  });
+
+  it('reads a stored anchor and describes the cadence for the proposal card', () => {
+    expect(readScheduleLocalAnchor({ localTime: '08:00', timeZone: 'America/New_York', weekday: 1 })).toEqual(
+      monday8,
+    );
+    expect(readScheduleLocalAnchor({ runAtMinutesUtc: 480 })).toBeNull();
+    expect(describeScheduleCadence(10080, monday8)).toBe('Mondays at 08:00 (America/New_York)');
+    expect(describeScheduleCadence(1440, null)).toBe('Every day');
+  });
+});
+
