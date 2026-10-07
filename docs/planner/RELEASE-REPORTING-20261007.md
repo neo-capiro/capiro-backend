@@ -1,6 +1,6 @@
 # Planner saved reporting
 
-Release candidate on `feat/planner-reporting-20261007`. Deployment and authenticated live verification remain pending.
+Live ninth release from `feat/planner-reporting-20261007`, PR [#2186](https://github.com/neo-capiro/capirov2/pull/2186). Source and immutable images: `93c53e16dec8fb0897f90a71699c3a4abff7feaa`.
 
 ## Behavior
 
@@ -22,6 +22,17 @@ Local browser QA with explicitly synthetic data verifies dashboard creation, sav
 
 ## Release boundary
 
-Serving baseline: Strategies 41 and web-vNext 452, both stable at one healthy running task and no pending tasks. Candidates must preserve each live serving definition apart from its immutable image and release identifier values. No Compute/CDK/IAM, canonical API, routing or migration task change is required. Record exact source images, rollout evidence, private live QA and recoverable cleanup here after verification. Full Asana work parity remains open.
+Strategies task definition **42** and web-vNext **453** are each the sole PRIMARY/COMPLETED deployment with one RUNNING/HEALTHY task and no pending tasks. Exact images:
+
+- Strategies: `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api-strategy@sha256:312ef952f0a990a309f2579d05ccac37fc7846ec4a83a8102bae06769e71e5b1`
+- Web: `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:64b233f4242386827de0eb7870e612189e31689c1c247b16ca53879857b932dd`
+
+Exact-source ARM64 CodeBuild runs `c6464adb-a968-4d2e-a072-e2e366319217` (Strategies) and `95dbb49a-2793-4db4-a255-551d166ed9aa` (web) succeeded. Public Strategies health and the web runtime release ID pass. The actual serving `capiro_app` role independently verifies all eight migration entries, nine forced-RLS tables, restricted grants and four immutable triggers (`reporting-schema-runtime-proof.log`). No migration was run for this release.
+
+Authenticated live QA creates three private dashboards, one private project, two tasks, a goal and a portfolio. All seven chart aggregates pass independently under the restricted application role: one task in the inclusive single-day filter, 150 estimated minutes, 45 corrected project minutes, 80% goal progress, one distinct portfolio project, numeric custom-field sum 30, and two delivery-date buckets. Category drill-down opens the correct task; goal and portfolio rows open their exact details. Reload preserves filters and widgets. Duplication, recoverable archive/restore, formatted notes and project-bounded reporting pass. Screenshots: `reporting-live-dashboard.png`, `reporting-live-charts.png`, `reporting-live-cleanup.png`.
+
+Read-only live proof rejects dashboard queries from another tenant and an ungranted viewer (`PLANNER_REPORTING_LIVE_PROOF_PASSED`). All three dashboards, the project, both tasks, the goal and portfolio are recoverably archived; scoped Inbox cleanup passes (`PLANNER_REPORTING_CLEANUP_PASSED`). The original eight unrelated unread items remain untouched. Proof logs and synthetic record identities are retained in ignored `artifacts/planner/` files.
+
+Serving definitions differ from Strategies **41** / web-vNext **452** only in immutable image and release identifier values. Roles, secrets, environment, network and routing remain identical. No Compute/CDK/IAM, canonical API or migration task changed. Rollback uses these preserved serving definitions and images; never run a reverse migration. Full Asana work parity remains open.
 
 Research: [Reporting dashboards](https://help.asana.com/s/article/reporting-with-dashboards?language=en_US), [universal reporting](https://help.asana.com/s/article/universal-reporting?language=en_US), [project dashboards](https://help.asana.com/s/article/project-dashboards?language=en-US), [timesheets reporting](https://help.asana.com/s/article/reporting-with-the-timesheets-and-budgets-add-on).
