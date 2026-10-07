@@ -4086,6 +4086,42 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(() => JSON.parse(result.reply)).not.toThrow();
     });
 
+    test('a steering re-plan inside the research run stream also runs as research (T7, 2026-10-07)', async () => {
+      for (const capability of CAPABILITIES) enroll(capability, 'enforce');
+      const plan = JSON.stringify({
+        version: 1,
+        title: 'Revised for the House version',
+        steps: [{ id: 'step-1', objective: 'Read the House version.', dependsOn: [] }],
+        clarifyingQuestions: [],
+      });
+      const complete = jest.fn().mockResolvedValue(response({ outputText: plan }));
+      const assistant = build(registry([]), complete);
+      const spies = logSpies(assistant);
+      const governed = {
+        operationId: 'research.generate-report',
+        contextPacket: { packetId: 'packet-replan' },
+      } as unknown as MeriGovernedTurnContext;
+      const result = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(governed, () =>
+          assistant.run(pilotContext, {
+            conversationId: 'research-replan',
+            clientId: 'client-1',
+            toolPolicy: 'none',
+            messages: [
+              {
+                role: 'user',
+                text: 'ORDERED STEERING INBOX THROUGH GOAL REVISION 1:\n1. House version only\n\nReturn a complete replacement plan.',
+              },
+            ],
+          }),
+        ),
+      );
+      expect(firstEvent(spies.log, 'meri.canary.turn').surface).toBe('research');
+      expect(eventsNamed(spies.log, 'meri.coverage.turn')).toHaveLength(0);
+      expect(result.reply).toBe(plan);
+      expect(() => JSON.parse(result.reply)).not.toThrow();
+    });
+
     test('a chat turn under a meri.chat governed context stays on the chat surface', async () => {
       enroll('COVERAGE_RETRIEVAL', 'enforce');
       const complete = jest.fn().mockResolvedValue(response({ outputText: 'H.R. 1 passed.' }));
