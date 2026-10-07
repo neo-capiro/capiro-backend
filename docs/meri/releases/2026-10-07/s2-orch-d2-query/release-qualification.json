@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-orch-d2-query-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-07T00:46:16.363366+00:00",
+  "candidates": [
+    {
+      "service": "meriv2-orchestrator",
+      "sourceSha": "16631b296f0de32b59fdba70451a5319977597cc",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/meriv2-orchestrator@sha256:e3db64c13a89efef589c92fb38447c698b993b2910b9e720448ddccd043e1d12",
+      "buildId": "capiro-build-web-dev:d8825661-5e25-4fbb-8ef7-2b850cb519f0"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Orchestrator roll from main 16631b296: the chat auditor picks up #2152 (D2 skips the agent's own labeled query).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
