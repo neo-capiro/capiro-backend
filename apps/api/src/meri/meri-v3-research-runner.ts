@@ -99,6 +99,19 @@ export interface ResearchChildRuntimeResult {
   schemaCorrections: 0 | 1;
 }
 
+/**
+ * The V3 runtime ends a reply with "\n\n> **Coverage note:** …" when the
+ * governed context's coverage is partial (appendMeriCoverageDisclosure in the
+ * orchestrator). A plan reply is JSON for the strict plan validator, not prose
+ * for a reader. A steering re-plan runs after research steps have made coverage
+ * partial, so both attempts returned a valid plan followed by that paragraph
+ * and failed plan_must_be_strict_json (T7, sessions 4b03e4f2 and 072dd25d,
+ * 2026-10-07). Only a trailing coverage note is removed.
+ */
+export function stripTrailingCoverageNote(reply: string): string {
+  return reply.replace(/\n+>\s*\*\*Coverage note:\*\*[^\n]*\s*$/i, '').trimEnd();
+}
+
 /** Reuse chat's provider-led Responses loop, credentials, tools and governance. */
 @Injectable()
 export class MeriV3ResearchRunner {
@@ -129,7 +142,7 @@ export class MeriV3ResearchRunner {
       'none',
       () => {},
     );
-    return result.reply;
+    return stripTrailingCoverageNote(result.reply);
   }
 
   async run(

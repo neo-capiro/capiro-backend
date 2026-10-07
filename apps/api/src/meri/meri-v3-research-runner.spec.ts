@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { TenantContext } from '@capiro/shared';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
-import { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
+import { MeriV3ResearchRunner, stripTrailingCoverageNote } from './meri-v3-research-runner.js';
 import type {
   MeriV3ChatClient,
   MeriV3ChatStreamEvent,
@@ -657,6 +657,36 @@ describe('MeriV3ResearchRunner primary runtime', () => {
     );
     expect(client.streamChat.mock.calls[0]?.[0].input).not.toHaveProperty('researchRun');
     expect(client.streamChat.mock.calls[0]?.[0].input).not.toHaveProperty('researchPlanExecution');
+  });
+
+  it('returns the plan JSON without the coverage note the runtime appends (T7, 2026-10-07)', async () => {
+    const planJson = JSON.stringify({ version: 1, title: 'Revised plan', steps: [] });
+    const note =
+      '> **Coverage note:** One or more evidence sources required for this request were incomplete, so exhaustive or negative claims should be treated as provisional.';
+    const { runner } = fixture([
+      {
+        type: 'done',
+        reply: `${planJson}\n\n${note}`,
+        runtime: 'meriv3',
+        model: 'configured-chat-model',
+        reasoningMode: 'standard',
+        reasoningEffort: null,
+        steps: [],
+        ledgerEntries: [],
+        citations: [],
+      } as MeriV3ChatStreamEvent,
+    ]);
+    const reply = await runner.plan(ctx, input, auth);
+    expect(reply).toBe(planJson);
+    expect(() => JSON.parse(reply)).not.toThrow();
+  });
+
+  it('strips only a trailing coverage note', () => {
+    const note = '> **Coverage note:** A required source was temporarily unavailable.';
+    expect(stripTrailingCoverageNote(`{"a":1}\n\n${note}\n`)).toBe('{"a":1}');
+    expect(stripTrailingCoverageNote('{"a":1}')).toBe('{"a":1}');
+    const middle = `Intro\n\n${note}\n\nMore text after the note.`;
+    expect(stripTrailingCoverageNote(middle)).toBe(middle);
   });
 
   it('rejects missing admitted execution authority before credentials or provider dispatch', async () => {
