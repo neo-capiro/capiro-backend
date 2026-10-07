@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-workspace-nocancel-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-07T02:56:51.537070+00:00",
+  "candidates": [
+    {
+      "service": "web-vnext",
+      "sourceSha": "9db60a09fb550adbe7d8044b414a8333e55178ad",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:a8f37de7d112d69b0dc91765f0d40ddf78e74ad4f0d4da49213e41e29c44b015",
+      "buildId": "capiro-build-web-dev:c8558b60-b491-4439-811e-67cf8951cf82"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Web-vnext roll from main 9db60a09f: the Meri workspace no longer cancels research it has just started (#2170); add menu stays below the top bar (#2168); Delegate this copy (#2167).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}

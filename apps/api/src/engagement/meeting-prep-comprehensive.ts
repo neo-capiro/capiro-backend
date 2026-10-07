@@ -508,7 +508,7 @@ export async function generateComprehensiveMeetingPrep(
         /^(meeting_prep_model_context_budget_exceeded|meeting_prep_provider_output_truncated|meeting_prep_deadline_exceeded)$/.test(
           message,
         ) ||
-        /^(openai|anthropic) completion failed\b/.test(message) ||
+        /^(openai|anthropic) (completion failed|request timed out)\b/.test(message) ||
         error instanceof SyntaxError
       )
     )

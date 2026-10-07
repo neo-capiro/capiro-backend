@@ -4,10 +4,32 @@ import {
   ResearchPlanValidationError,
   buildResearchPlanRepairPrompt,
   buildResearchPlanSystemPrompt,
+  describePlanReply,
   researchPlanStringProjection,
   validateResearchPlan,
   type ResearchPlanAdmissionContext,
 } from './meri-research-plan.js';
+
+describe('the shape of a rejected planner reply (logged, never its text)', () => {
+  it('tells prose or fences around a valid object from a cut-off reply', () => {
+    expect(describePlanReply('Here is the revised plan:\n```json\n{"version":1}\n```')).toMatchObject({
+      startsWithBrace: false,
+      endsWithBrace: false,
+      fenced: true,
+      charsBeforeFirstBrace: 34,
+      braceSliceParses: true,
+    });
+    expect(describePlanReply('{"version":1,"steps":[{"id":"a"')).toMatchObject({
+      startsWithBrace: true,
+      endsWithBrace: false,
+      braceSliceParses: false,
+    });
+    expect(describePlanReply({ version: 1 })).toEqual({ type: 'object' });
+    expect(JSON.stringify(describePlanReply('{"secret":"client text"} trailing'))).not.toContain(
+      'client text',
+    );
+  });
+});
 
 const context: ResearchPlanAdmissionContext = {
   scope: {

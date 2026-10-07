@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
   HttpException,
+  Logger,
 } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
@@ -23,10 +24,13 @@ import {
   type PlannerPerson,
   type PlannerEvent,
   type PlannerInboxItem,
+  type PlannerBellFeed,
   type PlannerActivityPage,
   type PlannerResource,
   type PlannerResourceKind,
   type PlannerRuleData,
+  type PlannerMyTasksData,
+  type PlannerPersonalRule,
   type PlannerFormData,
   type PlannerTemplateData,
   type PlannerPublicForm,
@@ -53,6 +57,7 @@ import {
 } from './planner.validation.js';
 import { RESOURCE_KINDS, validateResource, applyPlannerRule } from './planner-resources.js';
 import { plannerActualMinutes, plannerEventView, plannerReadActivity } from './planner-activity.js';
+import { plannerDateRuleReady, plannerScheduleHash } from './planner-date-rules.js';
 
 type Tx = Prisma.TransactionClient;
 type ActivityQuery = { paged?: string; cursor?: string; archived?: string };
@@ -130,6 +135,7 @@ function version(current: number, expected: number | undefined) {
 
 @Injectable()
 export class PlannerService {
+  private readonly logger = new Logger(PlannerService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly links: PlannerLinksService,
@@ -622,85 +628,106 @@ export class PlannerService {
           else if (data.approval !== 'pending') data.status = 'done';
           else if (data.status === 'done') data.approval = 'approved';
         }
-        const completedAt = data.status === 'done' ? (old?.completedAt ?? new Date()) : null;
-        const createNextRecurrence =
-          data.status === 'done' &&
-          Boolean(old) &&
-          taskData(old!).status !== 'done' &&
-          !old!.archived &&
-          dto.archived !== true &&
-          !(old!.data as Record<string, unknown>).recurrenceSuccessorId;
-        const nextSchedule = createNextRecurrence ? nextPlannerSchedule(data, completedAt!) : null;
-        const successorId = nextSchedule ? randomUUID() : undefined;
-        const recurrenceCopies = successorId
-          ? this.recurrenceCopies(all, newId, successorId, projects, ctx)
-          : new Map<string, string>();
-        const stored = {
-          data: storedTaskData(data, old ?? undefined, successorId),
-          projectIds: data.memberships.map((m) => m.projectId),
-          assigneeId: data.assigneeId,
-          parentId: data.parentId,
-          completedAt,
-        };
-        const row = old
-          ? await tx.spPlannerTask.update({
-              where: { id: old.id, tenantId: ctx.tenantId },
-              data: {
-                ...stored,
-                version: { increment: 1 },
-                ...(dto.archived === undefined ? {} : { archived: dto.archived }),
-              },
-            })
-          : await tx.spPlannerTask.create({
-              data: { ...stored, id: newId, tenantId: ctx.tenantId, ownerId: ctx.clerkUserId },
-            });
-        await this.event(
-          tx,
-          ctx,
-          {
-            taskId: row.id,
-            kind: old
-              ? dto.archived === undefined
-                ? 'updated'
-                : dto.archived
-                  ? 'archived'
-                  : 'restored'
-              : 'created',
-            text: old ? 'Updated task' : 'Created task',
-          },
-          [data.assigneeId, ...data.collaborators].filter((p): p is string => Boolean(p)),
-        );
-        if (nextSchedule && successorId) {
-          const next = validateTask({
-            ...data,
-            ...nextSchedule,
-            status: 'todo' as const,
-            approval: 'pending' as const,
-            dependencies: data.dependencies.map((id) => recurrenceCopies.get(id) ?? id),
-          });
-          const recurring = await tx.spPlannerTask.create({
-            data: {
-              id: successorId,
-              tenantId: ctx.tenantId,
-              ownerId: row.ownerId,
-              data: storedTaskData(next),
-              projectIds: row.projectIds,
-              assigneeId: data.assigneeId,
-              parentId: data.parentId,
-            },
-          });
-          await this.event(
-            tx,
-            ctx,
-            { taskId: recurring.id, kind: 'created', text: 'Created next recurring task' },
-            data.assigneeId ? [data.assigneeId] : [],
-          );
-          await this.copyRecurringContents(tx, ctx, all, recurrenceCopies);
-        }
+        const row = await this.persistTask(tx, ctx, newId, old, data, projects, all, dto);
         return this.taskView(tx, row, projects, ctx);
       },
       true,
     );
+  }
+  private async persistTask(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    newId: string,
+    old: SpPlannerTask | null,
+    data: PlannerTaskData,
+    projects: SpPlannerProject[],
+    all: SpPlannerTask[],
+    dto: { archived?: boolean },
+    auditText?: string,
+    notifyChanges = true,
+    now = new Date(),
+  ) {
+    const completedAt = data.status === 'done' ? (old?.completedAt ?? now) : null;
+    const createNextRecurrence =
+      data.status === 'done' &&
+      Boolean(old) &&
+      taskData(old!).status !== 'done' &&
+      !old!.archived &&
+      dto.archived !== true &&
+      !(old!.data as Record<string, unknown>).recurrenceSuccessorId;
+    const nextSchedule = createNextRecurrence ? nextPlannerSchedule(data, completedAt!) : null;
+    const successorId = nextSchedule ? randomUUID() : undefined;
+    const recurrenceCopies = successorId
+      ? this.recurrenceCopies(all, newId, successorId, projects, ctx)
+      : new Map<string, string>();
+    const stored = {
+      data: storedTaskData(data, old ?? undefined, successorId),
+      projectIds: data.memberships.map((m) => m.projectId),
+      assigneeId: data.assigneeId,
+      parentId: data.parentId,
+      completedAt,
+    };
+    const row = old
+      ? await tx.spPlannerTask.update({
+          where: { id: old.id, tenantId: ctx.tenantId },
+          data: {
+            ...stored,
+            version: { increment: 1 },
+            ...(dto.archived === undefined ? {} : { archived: dto.archived }),
+          },
+        })
+      : await tx.spPlannerTask.create({
+          data: { ...stored, id: newId, tenantId: ctx.tenantId, ownerId: ctx.clerkUserId },
+        });
+    await this.event(
+      tx,
+      ctx,
+      {
+        taskId: row.id,
+        kind: old
+          ? dto.archived === undefined
+            ? 'updated'
+            : dto.archived
+              ? 'archived'
+              : 'restored'
+          : 'created',
+        text: auditText ?? (old ? 'Updated task' : 'Created task'),
+      },
+      notifyChanges
+        ? [data.assigneeId, ...data.collaborators].filter((p): p is string => Boolean(p))
+        : [],
+    );
+    if (nextSchedule && successorId) {
+      const activePeople = new Set((await this.people(tx, ctx)).map((p) => p.id));
+      const next = validateTask({
+        ...data,
+        ...nextSchedule,
+        status: 'todo' as const,
+        approval: 'pending' as const,
+        assigneeId: data.assigneeId && activePeople.has(data.assigneeId) ? data.assigneeId : null,
+        collaborators: data.collaborators.filter((id) => activePeople.has(id)),
+        dependencies: data.dependencies.map((id) => recurrenceCopies.get(id) ?? id),
+      });
+      const recurring = await tx.spPlannerTask.create({
+        data: {
+          id: successorId,
+          tenantId: ctx.tenantId,
+          ownerId: row.ownerId,
+          data: storedTaskData(next),
+          projectIds: row.projectIds,
+          assigneeId: next.assigneeId,
+          parentId: data.parentId,
+        },
+      });
+      await this.event(
+        tx,
+        ctx,
+        { taskId: recurring.id, kind: 'created', text: 'Created next recurring task' },
+        notifyChanges && next.assigneeId ? [next.assigneeId] : [],
+      );
+      await this.copyRecurringContents(tx, ctx, all, recurrenceCopies);
+    }
+    return row;
   }
   private eventView(row: SpPlannerEvent): PlannerEvent {
     return plannerEventView(row);
@@ -833,17 +860,266 @@ export class PlannerService {
       minutes?: number;
     },
     recipients: string[],
+    includeActor = false,
   ) {
     const event = await tx.spPlannerEvent.create({
       data: { tenantId: ctx.tenantId, actorId: ctx.clerkUserId, ...input },
     });
     const people = new Set((await this.people(tx, ctx)).map((p) => p.id));
     for (const userId of new Set(recipients))
-      if (userId !== ctx.clerkUserId && people.has(userId))
+      if ((includeActor || userId !== ctx.clerkUserId) && people.has(userId))
         await tx.spPlannerInbox.create({
           data: { tenantId: ctx.tenantId, userId, eventId: event.id },
         });
     return this.eventView(event);
+  }
+  /** Internal scheduler entry point. Every Planner read/write stays tenant-scoped;
+   * one failed task rolls back its claim/actions/delivery without blocking others. */
+  async runScheduledWork(tenantId: string, now = new Date(), afterTaskId?: string) {
+    uuid(tenantId);
+    if (afterTaskId) uuid(afterTaskId);
+    const scope = { tenantId, clerkUserId: '', role: null };
+    const page = await this.scope(scope, async (tx) => {
+      const resources = await tx.spPlannerResource.findMany({
+        where: { tenantId, archived: false, kind: { in: ['rule', 'my_tasks'] } },
+      });
+      const projectIds: string[] = [],
+        owners: string[] = [];
+      for (const resource of resources) {
+        try {
+          const config = validateResource(resource.kind as PlannerResourceKind, resource.data);
+          if (
+            resource.kind === 'rule' &&
+            resource.projectId &&
+            config.enabled &&
+            ['due_approaching', 'overdue'].includes(String(config.trigger))
+          )
+            projectIds.push(resource.projectId);
+          if (
+            resource.kind === 'my_tasks' &&
+            !resource.projectId &&
+            (config.rules as PlannerPersonalRule[] | undefined)?.some((r) => r.enabled)
+          )
+            owners.push(resource.ownerId);
+        } catch {
+          /* A malformed configuration cannot block other configured work. */
+        }
+      }
+      if (!projectIds.length && !owners.length) return [];
+      return tx.spPlannerTask.findMany({
+        where: {
+          tenantId,
+          archived: false,
+          completedAt: null,
+          data: { path: ['dueOn'], not: Prisma.JsonNull },
+          OR: [
+            { parentId: null, projectIds: { hasSome: projectIds } },
+            { assigneeId: { in: owners } },
+          ],
+          ...(afterTaskId ? { id: { gt: afterTaskId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: 51,
+      });
+    });
+    let executed = 0,
+      failed = 0;
+    for (const task of page.slice(0, 50)) {
+      try {
+        executed += await this.scope(
+          scope,
+          async (tx) => {
+            let row = await tx.spPlannerTask.findFirst({
+              where: { tenantId, id: task.id, archived: false },
+            });
+            if (!row || taskData(row).status === 'done' || !taskData(row).dueOn) return 0;
+            const projects = await this.projects(tx, scope);
+            const people = new Set((await this.people(tx, scope)).map((p) => p.id));
+            const resources = await tx.spPlannerResource.findMany({
+              where: { tenantId, archived: false, kind: { in: ['rule', 'my_tasks'] } },
+              orderBy: { createdAt: 'asc' },
+            });
+            let count = 0;
+            for (const resource of resources) {
+              if (!people.has(resource.ownerId)) continue;
+              let config: Record<string, unknown>;
+              try {
+                config = validateResource(resource.kind as PlannerResourceKind, resource.data);
+              } catch {
+                continue;
+              }
+              const author = { tenantId, clerkUserId: resource.ownerId, role: null };
+              const personal = resource.kind === 'my_tasks';
+              const project = projects.find((p) => p.id === resource.projectId);
+              if (personal) {
+                if (resource.projectId || taskData(row).assigneeId !== resource.ownerId) continue;
+              } else if (
+                !project ||
+                project.archived ||
+                row.parentId ||
+                !['editor', 'admin'].includes(
+                  plannerProjectAccess(project, resource.ownerId) ?? '',
+                ) ||
+                !taskData(row).memberships.some((m) => m.projectId === project.id)
+              )
+                continue;
+              const rules = personal
+                ? ((config as unknown as PlannerMyTasksData).rules ?? [])
+                : [config as unknown as PlannerRuleData];
+              for (const rule of rules) {
+                const before = taskData(row);
+                if (
+                  !rule.enabled ||
+                  !['due_approaching', 'overdue'].includes(rule.trigger) ||
+                  !rule.schedule ||
+                  !plannerDateRuleReady(before, rule as PlannerPersonalRule, now)
+                )
+                  continue;
+                const personalRule = rule as PlannerPersonalRule;
+                const projectRule = rule as PlannerRuleData;
+                if (
+                  !['editor', 'admin'].includes(
+                    plannerTaskAccess(row, projects, resource.ownerId) ?? '',
+                  )
+                )
+                  continue;
+                if (!personal) {
+                  const c = projectRule.conditions;
+                  const section = before.memberships.find(
+                    (m) => m.projectId === project!.id,
+                  )?.sectionId;
+                  if (
+                    (c.status !== undefined && c.status !== before.status) ||
+                    (c.priority !== undefined && c.priority !== before.priority) ||
+                    (c.sectionId !== undefined && c.sectionId !== section) ||
+                    (projectRule.actions.assigneeId &&
+                      !people.has(projectRule.actions.assigneeId)) ||
+                    (projectRule.actions.sectionId &&
+                      !projectData(project!).sections.some(
+                        (s) => s.id === projectRule.actions.sectionId,
+                      ))
+                  )
+                    continue;
+                }
+                const fingerprint = plannerScheduleHash(
+                  personal
+                    ? [
+                        personalRule.id,
+                        rule.trigger,
+                        rule.schedule,
+                        personalRule.sectionId,
+                        personalRule.notify,
+                      ]
+                    : [rule.trigger, rule.schedule, projectRule.conditions, projectRule.actions],
+                );
+                const deadlineKey = plannerScheduleHash([
+                  before.dueOn,
+                  before.dueTime,
+                  before.timeZone ?? 'UTC',
+                ]);
+                const claim = await tx.spPlannerScheduleClaim.createMany({
+                  data: [
+                    { tenantId, resourceId: resource.id, taskId: row.id, fingerprint, deadlineKey },
+                  ],
+                  skipDuplicates: true,
+                });
+                if (!claim.count) continue;
+                count++;
+                if (personal && personalRule.sectionId !== undefined) {
+                  const settings = config as unknown as PlannerMyTasksData;
+                  const previous = settings.placements.find((p) => p.taskId === row!.id);
+                  if (previous?.sectionId !== personalRule.sectionId) {
+                    settings.placements = [
+                      ...settings.placements.filter((p) => p.taskId !== row!.id),
+                      {
+                        taskId: row.id,
+                        sectionId: personalRule.sectionId,
+                        position:
+                          previous?.position ??
+                          Math.max(-1, ...settings.placements.map((p) => p.position)) + 1,
+                      },
+                    ];
+                    await tx.spPlannerResource.update({
+                      where: { tenantId, id: resource.id },
+                      data: { data: json(settings), version: { increment: 1 } },
+                    });
+                  }
+                } else if (!personal) {
+                  const { sectionId, notify: _notify, ...patch } = projectRule.actions;
+                  const next = validateTask({
+                    ...before,
+                    ...patch,
+                    ...(sectionId === undefined
+                      ? {}
+                      : {
+                          memberships: before.memberships.map((m) =>
+                            m.projectId === project!.id ? { ...m, sectionId } : m,
+                          ),
+                        }),
+                  });
+                  if (
+                    next.subtype === 'approval' &&
+                    next.status === 'done' &&
+                    next.approval === 'pending'
+                  )
+                    next.approval = 'approved';
+                  if (JSON.stringify(next) !== JSON.stringify(before)) {
+                    const all =
+                      next.status === 'done' && before.recurrence
+                        ? await tx.spPlannerTask.findMany({ where: { tenantId } })
+                        : [];
+                    row = await this.persistTask(
+                      tx,
+                      author,
+                      row.id,
+                      row,
+                      next,
+                      projects,
+                      all,
+                      {},
+                      `Applied rule: ${resource.name}`,
+                      false,
+                      now,
+                    );
+                  }
+                }
+                const notify = personal ? personalRule.notify : projectRule.actions.notify;
+                if (notify) {
+                  const current = taskData(row);
+                  const recipients = personal
+                    ? [resource.ownerId]
+                    : [current.assigneeId ?? row.ownerId, ...current.collaborators];
+                  await this.event(
+                    tx,
+                    author,
+                    {
+                      taskId: row.id,
+                      kind: 'reminder',
+                      text:
+                        rule.trigger === 'overdue'
+                          ? 'Task is overdue'
+                          : rule.schedule.amount === 0
+                            ? 'Task is due'
+                            : 'Task due date is approaching',
+                    },
+                    recipients.filter(
+                      (id) => people.has(id) && Boolean(plannerTaskAccess(row!, projects, id)),
+                    ),
+                    true,
+                  );
+                }
+              }
+            }
+            return count;
+          },
+          true,
+        );
+      } catch {
+        failed++;
+        this.logger.warn(`Planner scheduled task ${task.id} rolled back; next cycle will retry`);
+      }
+    }
+    return { executed, failed, nextCursor: page.length > 50 ? page[49]!.id : null };
   }
   async events(
     ctx: AuthTenantContext,
@@ -1132,6 +1408,84 @@ export class PlannerService {
       true,
     );
   }
+  /** Same grants as inbox/task views; applied in SQL before counting or limiting.
+   * Revoked rows can neither inflate the badge nor hide newer authorized work. */
+  private notificationWhere(ctx: AuthTenantContext, projects: SpPlannerProject[]) {
+    const allowed = projects
+      .filter((p) => plannerProjectAccess(p, ctx.clerkUserId))
+      .map((p) => p.id);
+    const ids = allowed.length
+      ? Prisma.sql`ARRAY[${Prisma.join(allowed)}]::uuid[]`
+      : Prisma.sql`ARRAY[]::uuid[]`;
+    return Prisma.sql`i.tenant_id = ${ctx.tenantId}::uuid AND i.user_id = ${ctx.clerkUserId}
+      AND NOT i.read AND NOT i.archived AND e.tenant_id = ${ctx.tenantId}::uuid
+      AND (e.task_id IS NOT NULL OR e.project_id IS NOT NULL)
+      AND (e.project_id IS NULL OR e.project_id = ANY(${ids}))
+      AND (e.task_id IS NULL OR EXISTS (
+        SELECT 1 FROM sp_planner_tasks t WHERE t.tenant_id = ${ctx.tenantId}::uuid AND t.id = e.task_id
+        AND (t.data->>'assigneeId' = ${ctx.clerkUserId}
+          OR (t.owner_id = ${ctx.clerkUserId} AND jsonb_array_length(t.data->'memberships') = 0)
+          OR t.data->'collaborators' @> jsonb_build_array(${ctx.clerkUserId}::text)
+          OR t.project_ids && ${ids})
+      ))`;
+  }
+  async notifications(ctx: AuthTenantContext): Promise<PlannerBellFeed> {
+    return this.scope(ctx, async (tx) => {
+      if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId))
+        throw new ForbiddenException('Active membership is required');
+      const projects = await this.projects(tx, ctx);
+      const rows = await tx.$queryRaw<{ id: string; eventId: string; unread: bigint }[]>`
+        SELECT i.id, i.event_id AS "eventId", count(*) OVER() AS unread
+        FROM sp_planner_inbox i JOIN sp_planner_events e ON e.tenant_id = i.tenant_id AND e.id = i.event_id
+        WHERE ${this.notificationWhere(ctx, projects)}
+        ORDER BY e.created_at DESC, i.id DESC LIMIT 100`;
+      const events = await tx.spPlannerEvent.findMany({
+        where: { tenantId: ctx.tenantId, id: { in: rows.map((r) => r.eventId) } },
+      });
+      const projected = await plannerReadActivity(tx, ctx, events);
+      const byId = new Map(projected.map((e) => [e.id, e]));
+      const tasks = await tx.spPlannerTask.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          id: { in: events.flatMap((e) => (e.taskId ? [e.taskId] : [])) },
+        },
+      });
+      return {
+        unread: Number(rows[0]?.unread ?? 0),
+        items: rows.map((row) => {
+          const event = byId.get(row.eventId)!;
+          const task = tasks.find((t) => t.id === event.taskId);
+          const project = projects.find((p) => p.id === event.projectId);
+          return {
+            id: row.id,
+            read: false,
+            archived: false,
+            event,
+            title: task ? taskData(task).name : projectData(project!).name,
+            deepLink: event.taskId
+              ? `/planner?scope=mine&task=${encodeURIComponent(event.taskId)}`
+              : `/planner?scope=project&project=${encodeURIComponent(event.projectId!)}`,
+          };
+        }),
+      };
+    });
+  }
+  async readAllNotifications(ctx: AuthTenantContext) {
+    return this.scope(
+      ctx,
+      async (tx) => {
+        if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId))
+          throw new ForbiddenException('Active membership is required');
+        const projects = await this.projects(tx, ctx);
+        const rows = await tx.$queryRaw<{ id: string }[]>`
+        UPDATE sp_planner_inbox i SET read = true FROM sp_planner_events e
+        WHERE e.id = i.event_id AND e.tenant_id = i.tenant_id AND ${this.notificationWhere(ctx, projects)}
+        RETURNING i.id`;
+        return { read: rows.length };
+      },
+      true,
+    );
+  }
   async updateInbox(ctx: AuthTenantContext, id: string, raw: unknown) {
     uuid(id);
     const dto = object(raw);
@@ -1143,8 +1497,20 @@ export class PlannerService {
       async (tx) => {
         const row = await tx.spPlannerInbox.findFirst({
           where: { id, tenantId: ctx.tenantId, userId: ctx.clerkUserId },
+          include: { event: true },
         });
         if (!row) throw missing();
+        const projects = await this.projects(tx, ctx);
+        if (row.event.taskId) {
+          const task = await tx.spPlannerTask.findFirst({
+            where: { tenantId: ctx.tenantId, id: row.event.taskId },
+          });
+          requireRole(task ? plannerTaskAccess(task, projects, ctx.clerkUserId) : null, 'viewer');
+        }
+        if (row.event.projectId) {
+          const project = projects.find((p) => p.id === row.event.projectId);
+          requireRole(project ? plannerProjectAccess(project, ctx.clerkUserId) : null, 'viewer');
+        }
         await tx.spPlannerInbox.update({
           where: { id, tenantId: ctx.tenantId, userId: ctx.clerkUserId },
           data: dto as { read?: boolean; archived?: boolean },

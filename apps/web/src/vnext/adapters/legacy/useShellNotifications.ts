@@ -3,13 +3,17 @@ import { useNotifications } from '../../../pages/workspace/api.js';
 import { useLwNotifications } from '../../pages/legiwatch/lib/wave1-api.js';
 import { useBizDevBellAlerts } from '../../pages/business-development/bell-alerts.js';
 import { useMe } from '../../../lib/me.js';
+import {
+  usePlannerNotifications,
+  usePlannerNotificationsEnabled,
+} from '../../pages/planner/planner-notifications.js';
 
 export interface ShellNotificationsViewModel {
   loading: boolean;
   /** True only when EVERY enabled feed is unavailable — one failing feed
    *  degrades the badge to the surviving sources rather than hiding the bell. */
   unavailable: boolean;
-  /** Combined workspace + committee/hearing + Business Development unread count. */
+  /** Combined authorized unread count across the enabled sources. */
   unread: number;
   /** Figma `722:2522` only renders the count chip when there is something unread. */
   showBadge: boolean;
@@ -21,7 +25,7 @@ export interface ShellNotificationsViewModel {
  * the badge is count-only and details open in a dedicated surface, so this
  * adapter deliberately exposes no item list.
  *
- * The count merges THREE real feeds that share one React Query cache with their
+ * The count merges four feeds that share one React Query cache with their
  * detail surfaces:
  *  - workspace notifications (`/workspace-api/notifications`) — invites etc.
  *  - committee/hearing notifications (`/api/legiwatch/live-hearings/notifications`)
@@ -29,6 +33,8 @@ export interface ShellNotificationsViewModel {
  *    unread-only) — ONLY when `/api/me` reports
  *    `features.businessDevelopmentWatch === true`; otherwise zero Phase 5
  *    requests are made. Stored alerts only: no provider calls or polling here.
+ *  - Planner's ACL-filtered inbox (`/strategy-api/planner/notifications`),
+ *    enabled only for the signed-in organization outside impersonation.
  *
  * The workspace feed 403s for users without a tenant claim; that is not an
  * error state. A failure in any single feed never masks the others — the
@@ -40,16 +46,21 @@ export function useShellNotifications(): ShellNotificationsViewModel {
   const meData = useMe().data;
   const bdWatchOn = meData?.features.businessDevelopmentWatch === true;
   const bd = useBizDevBellAlerts(meData?.tenant.id, bdWatchOn);
+  const plannerOn = usePlannerNotificationsEnabled();
+  const planner = usePlannerNotifications();
 
   return useMemo(() => {
     const wsFailed = workspace.isError;
     const lwFailed = committee.isError;
     const bdFailed = bdWatchOn && bd.isError;
+    const plannerFailed = plannerOn && planner.isError;
     const loading =
       (!wsFailed && workspace.isLoading) ||
       (!lwFailed && committee.isLoading) ||
-      (bdWatchOn && !bdFailed && bd.isLoading);
-    const unavailable = wsFailed && lwFailed && (!bdWatchOn || bdFailed);
+      (bdWatchOn && !bdFailed && bd.isLoading) ||
+      (plannerOn && !plannerFailed && planner.isLoading);
+    const unavailable =
+      wsFailed && lwFailed && (!bdWatchOn || bdFailed) && (!plannerOn || plannerFailed);
 
     const wsUnread =
       !wsFailed && Number.isFinite(workspace.data?.unread)
@@ -60,7 +71,11 @@ export function useShellNotifications(): ShellNotificationsViewModel {
         ? Math.max(0, committee.data!.unread)
         : 0;
     const bdUnread = bdWatchOn && !bdFailed ? Math.max(0, bd.data?.unreadCount ?? 0) : 0;
-    const unread = wsUnread + lwUnread + bdUnread;
+    const plannerUnread =
+      plannerOn && !plannerFailed && Number.isFinite(planner.data?.unread)
+        ? Math.max(0, planner.data!.unread)
+        : 0;
+    const unread = wsUnread + lwUnread + bdUnread + plannerUnread;
 
     return {
       loading,
@@ -80,5 +95,9 @@ export function useShellNotifications(): ShellNotificationsViewModel {
     bd.data,
     bd.isError,
     bd.isLoading,
+    plannerOn,
+    planner.data,
+    planner.isError,
+    planner.isLoading,
   ]);
 }
