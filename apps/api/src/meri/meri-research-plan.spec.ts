@@ -187,6 +187,47 @@ describe('typed research plan admission', () => {
     });
   });
 
+  it('rejects a new plan step that depends on an approval step, and still admits a stored one', () => {
+    // t5-check-3: a read step depended on the approval step, which research
+    // never executes, so the read could never become ready.
+    const plan = validPlan();
+    plan.steps.splice(1, 0, {
+      id: 'propose-follow-up-email',
+      objective: 'Propose the follow-up email for approval.',
+      dependsOn: ['verify-client-record'],
+      requiredEvidenceDomains: ['client_context'],
+      allowedCapabilities: ['send_email'],
+      effect: 'approval_required',
+      completionCondition: 'A proposal exists; nothing is sent before approval.',
+      budget: { toolCalls: 1, tokens: 1_000 },
+    });
+    plan.steps[2]!.dependsOn = ['propose-follow-up-email'];
+    plan.budget = { toolCalls: 4, tokens: 8_000 };
+
+    const newPlan = { ...context, approvalStepsMustBeFinal: true };
+    let issues: string[] = [];
+    try {
+      validateResearchPlan(plan, newPlan);
+    } catch (error) {
+      expect(error).toBeInstanceOf(ResearchPlanValidationError);
+      issues = (error as ResearchPlanValidationError).issues;
+    }
+    expect(issues).toEqual(['step_depends_on_approval:check-public-status:propose-follow-up-email']);
+    // A plan admitted before this rule must still pass the dispatch re-check.
+    expect(validateResearchPlan(plan, context).steps).toHaveLength(3);
+
+    plan.steps[2]!.dependsOn = ['verify-client-record'];
+    expect(validateResearchPlan(plan, newPlan).steps[1]).toMatchObject({
+      effect: 'approval_required',
+    });
+  });
+
+  it('tells the planner that an approval step must be a final step', () => {
+    expect(buildResearchPlanSystemPrompt('Meri', context)).toContain(
+      'An approval_required step must be a final step: no step may depend on it.',
+    );
+  });
+
   it('rejects overallocated, underdeclared, non-finite, and oversized budgets', () => {
     const over = validPlan();
     over.steps[1]!.budget.tokens = RESEARCH_PLAN_LIMITS.maxTotalTokens;

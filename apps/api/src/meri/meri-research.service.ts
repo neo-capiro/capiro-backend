@@ -4758,8 +4758,11 @@ export class MeriResearchService {
           reply: describePlanReply(reply),
         })}`,
       );
+    // A newly proposed plan may not hang work off an approval step (it never
+    // runs); stored plans are re-checked at dispatch without this rule.
+    const proposalContext = { ...admissionContext, approvalStepsMustBeFinal: true };
     try {
-      return validateResearchPlan(raw, admissionContext);
+      return validateResearchPlan(raw, proposalContext);
     } catch (error) {
       if (!(error instanceof ResearchPlanValidationError)) throw error;
       logInvalid('first', raw, error.issues);
@@ -4767,7 +4770,7 @@ export class MeriResearchService {
       const repair = buildResearchPlanRepairPrompt(system, raw, error);
       const repairedRaw = await complete(repair.system, `${user}\n\n${repair.user}`);
       try {
-        return validateResearchPlan(repairedRaw, admissionContext);
+        return validateResearchPlan(repairedRaw, proposalContext);
       } catch (repairError) {
         if (!(repairError instanceof ResearchPlanValidationError)) throw repairError;
         logInvalid('repair', repairedRaw, repairError.issues);
