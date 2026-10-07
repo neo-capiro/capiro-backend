@@ -11,6 +11,7 @@ import {
 } from './meeting-prep-job-runtime.js';
 import { runWithMeetingGovernedContext } from './meeting-context-runtime.js';
 import type { PrepEvidenceSource } from './meeting-prep-grounding.js';
+import { LlmCompletionService } from './llm-completion.service.js';
 
 const source: PrepEvidenceSource = {
   id: 'mail:old',
@@ -341,6 +342,84 @@ describe('bounded repair delivers the last renderable briefing', () => {
     truncated: false,
     stopReason: 'end_turn',
     raw: {},
+  });
+
+  test('retries an HTML provider envelope only for its extraction batch', async () => {
+    const extracted = parseBriefingFacts([extractionFact], [evidence]);
+    let providerCalls = 0;
+    const fetchImpl = jest.fn(async (_url, init) => {
+      const body = JSON.parse(init.body);
+      if (++providerCalls === 1)
+        return {
+          status: 502,
+          json: async () => {
+            throw new SyntaxError('Unexpected token <, <!DOCTYPE is not valid JSON');
+          },
+        } as unknown as Response;
+      const value = body.text.format.name.endsWith('extracting')
+        ? { facts: [extractionFact], limitations: [] }
+        : body.text.format.name.endsWith('checking_coverage')
+          ? { omittedFactIds: [] }
+          : renderable([extracted[0]!.id]);
+      return {
+        status: 200,
+        headers: { get: () => null },
+        json: async () => ({ status: 'completed', output_text: JSON.stringify(value) }),
+      } as unknown as Response;
+    });
+    const llm = new LlmCompletionService({ fetchImpl: fetchImpl as typeof fetch });
+    const complete = jest.fn((request) => llm.complete(request));
+    const result = await run(complete);
+    expect(result.summary).toBe('The client is waiting on our timeline.');
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(complete.mock.calls[1]![0].timeoutMs).toBeLessThanOrEqual(
+      complete.mock.calls[0]![0].timeoutMs,
+    );
+  });
+
+  test('bounds a repeated transport error to two attempts without restarting other stages', async () => {
+    const complete = jest.fn(async () => {
+      throw new Error('openai completion failed after 1 attempts: fetch failed');
+    });
+    await expect(run(complete)).rejects.toThrow('fetch failed');
+    expect(complete).toHaveBeenCalledTimes(2);
+  });
+
+  test('scope revocation at the retry checkpoint prevents a second provider request', async () => {
+    const complete = jest.fn(async () => {
+      throw new Error('openai completion failed after 1 attempts: fetch failed');
+    });
+    let checkpoints = 0;
+    await expect(
+      run(complete, {
+        checkpoint: async () => {
+          if (++checkpoints === 2)
+            throw new Error('Meeting assignment changed during preparation.');
+        },
+      }),
+    ).rejects.toThrow('assignment changed');
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  test('a retry checkpoint cannot extend the original extraction stage budget', async () => {
+    let now = Date.now();
+    const clock = jest.spyOn(Date, 'now').mockImplementation(() => now);
+    const complete = jest.fn(async () => {
+      throw new Error('openai completion failed after 1 attempts: fetch failed');
+    });
+    let checkpoints = 0;
+    try {
+      await expect(
+        run(complete, {
+          checkpoint: async () => {
+            if (++checkpoints === 2) now += MEETING_PREP_POLICY.extractionMs + 1;
+          },
+        }),
+      ).rejects.toThrow('provider_stage_timed_out');
+      expect(complete).toHaveBeenCalledTimes(1);
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   test('a review that keeps flagging omissions ends with the briefing plus a disclosed limitation, not a failure', async () => {
