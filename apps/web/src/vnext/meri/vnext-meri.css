@@ -2596,7 +2596,11 @@
   bottom: calc(100% + 10px);
   left: 0;
   width: min(330px, calc(100vw - 32px));
-  max-height: calc(100vh - 130px);
+  /* The menu opens upward from the composer at the bottom of the window. Keep
+     it below the 60px top bar as well as above the composer (~130px): at 130px
+     alone a 960px-tall window put "Delegate this" under the top bar, which took
+     the click (T7 browser check, 2026-10-07). The menu scrolls past this. */
+  max-height: calc(100vh - 220px);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
