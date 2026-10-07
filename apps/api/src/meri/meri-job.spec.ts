@@ -30,7 +30,11 @@ describe('Meri job status projection (Stage 2 §5.1)', () => {
     ['planning', 'plan', run('running', { phase: 'plan' }), 'planning'],
     ['gathering evidence', 'researching', run('running'), 'executing'],
     ['writing the report', 'researching', run('running', { stage: RESEARCH_OBSERVER_STATUS.writingReport }), 'finalizing'],
+    ['checking the report', 'researching', run('running', { stage: RESEARCH_OBSERVER_STATUS.checkingReport }), 'finalizing'],
     ['saving the report', 'researching', run('running', { stage: RESEARCH_OBSERVER_STATUS.savingReport }), 'finalizing'],
+    // The observer's fallback note covers provider thinking and the bounded
+    // child reviews, i.e. most of evidence gathering, not the end of the run.
+    ['provider thinking while gathering', 'researching', run('running', { stage: RESEARCH_OBSERVER_STATUS.preparingReport }), 'executing'],
     ['clarifying questions', 'awaiting_clarification', run('awaiting_clarification', { phase: 'plan' }), 'waiting_for_user'],
     ['a stop that has not been observed', 'researching', run('cancel_requested'), 'cancel_requested'],
     ['an observed stop', 'cancelled', run('cancelled'), 'cancelled'],
