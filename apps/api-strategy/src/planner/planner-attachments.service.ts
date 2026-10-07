@@ -17,18 +17,13 @@ import type { PlannerAttachment, PlannerTaskData, PlannerRole } from '@capiro/st
 import type { Prisma, SpPlannerAttachment } from '../../generated/prisma-client/index.js';
 import { plannerTaskAccess } from './planner.service.js';
 import { fail, uuid, object, keys } from './planner.validation.js';
-export const PLANNER_ATTACHMENT_LIMIT = 25 * 1024 * 1024;
-export function plannerAttachmentName(name: unknown) {
-  if (
-    typeof name !== 'string' ||
-    !name.trim() ||
-    name.length > 255 ||
-    /[\x00-\x1f\x7f/\\]/.test(name)
-  )
-    fail('Invalid attachment filename');
-  return name;
-}
-export type PlannerUpload = { buffer: Buffer; originalname: string; size: number };
+import {
+  PLANNER_ATTACHMENT_LIMIT,
+  plannerAttachmentName,
+  type PlannerUpload,
+} from './planner-files.js';
+export { PLANNER_ATTACHMENT_LIMIT, plannerAttachmentName } from './planner-files.js';
+export type { PlannerUpload } from './planner-files.js';
 const rank: Record<PlannerRole, number> = { viewer: 0, commenter: 1, editor: 2, admin: 3 };
 @Injectable()
 export class PlannerAttachmentsService {

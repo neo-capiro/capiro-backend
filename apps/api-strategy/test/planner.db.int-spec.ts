@@ -875,7 +875,18 @@ describeDb('Planner real PostgreSQL integration', () => {
     expect(await service.publicForm(first)).toEqual({
       name: 'Public intake',
       description: 'Describe the request',
-      fields: form.data.fields,
+      confirmationMessage: undefined,
+      allowAnotherSubmission: undefined,
+      fields: [
+        {
+          id: fieldId,
+          label: 'Request',
+          type: 'text',
+          required: true,
+          options: [],
+          maxLength: 500,
+        },
+      ],
     });
     const stored = await prisma.withTenant(owner.tenantId, (tx) =>
       tx.spPlannerResource.findFirst({ where: { id: form.id } }),

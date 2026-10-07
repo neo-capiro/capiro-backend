@@ -1,10 +1,24 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+  UseInterceptors,
+  UploadedFiles,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { PlannerService } from './planner.service.js';
 import { PlannerContextGuard } from './planner-context.guard.js';
+import { PlannerFormUploadInterceptor } from './planner-form-upload.js';
+import type { PlannerFormUpload } from './planner-files.js';
 
 /** Work Planner has its own project ACLs; it does not inherit the PPBE rollout flag. */
 @Controller('planner')
@@ -159,11 +173,14 @@ export class PlannerController {
   ) {
     return this.planner.instantiateTemplate(ctx, id, dto);
   }
-  @Post('forms/:id/submit') submit(
+  @Post('forms/:id/submit')
+  @UseInterceptors(PlannerFormUploadInterceptor)
+  submit(
     @CurrentTenant() ctx: AuthTenantContext,
     @Param('id') id: string,
     @Body() dto: unknown,
+    @UploadedFiles() files: PlannerFormUpload[] = [],
   ) {
-    return this.planner.submitForm(ctx, id, dto);
+    return this.planner.submitForm(ctx, id, dto, files);
   }
 }

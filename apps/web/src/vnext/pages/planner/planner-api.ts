@@ -13,7 +13,9 @@ import type {
   PlannerResource,
   PlannerResourceKind,
   PlannerAttachment,
+  PlannerFormQuestion,
 } from '@capiro/strategy-verifier';
+import { plannerFormSubmissionBody, type PlannerFormFiles } from './planner-form-questions.js';
 import { useApi } from '../../../lib/use-api.js';
 import { useImpersonation } from '../../../state/impersonation.js';
 
@@ -272,8 +274,20 @@ export function usePlannerMutations() {
     onSuccess,
   });
   const submitForm = useMutation({
-    mutationFn: async (input: { id: string; answers: Record<string, unknown> }) =>
-      (await api.post<PlannerTask>(`${BASE}/forms/${input.id}/submit`, input.answers)).data,
+    mutationFn: async (input: {
+      id: string;
+      answers: Record<string, unknown>;
+      fields?: PlannerFormQuestion[];
+      files?: PlannerFormFiles;
+    }) =>
+      (
+        await api.post<PlannerTask>(
+          `${BASE}/forms/${input.id}/submit`,
+          input.fields
+            ? plannerFormSubmissionBody(input.fields, input.answers, input.files)
+            : input.answers,
+        )
+      ).data,
     onSuccess,
   });
   const shareForm = useMutation({

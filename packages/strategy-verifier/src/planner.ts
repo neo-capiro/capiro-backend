@@ -177,7 +177,9 @@ export interface PlannerResource {
 export interface PlannerPublicForm {
   name: string;
   description: string;
-  fields: PlannerFormData['fields'];
+  fields: PlannerFormQuestion[];
+  confirmationMessage?: string;
+  allowAnotherSubmission?: boolean;
 }
 export interface PlannerResourceSharing {
   description: string;
@@ -228,18 +230,44 @@ export interface PlannerRuleData {
     notify?: boolean;
   };
 }
+export interface PlannerFormQuestion {
+  id: string;
+  label: string;
+  description?: string;
+  type:
+    'text' | 'paragraph' | 'email' | 'date' | 'number' | 'select' | 'multi_select' | 'attachment';
+  required: boolean;
+  options: string[];
+  /** A branch is visible if its visible parent contains any selected response. */
+  showWhen?: { questionId: string; values: string[] };
+  multiple?: boolean;
+  maxLength?: number;
+}
+export interface PlannerFormField extends PlannerFormQuestion {
+  taskField:
+    | 'name'
+    | 'description'
+    | 'startOn'
+    | 'dueOn'
+    | 'priority'
+    | 'estimateMinutes'
+    | 'custom'
+    | 'attachments'
+    | null;
+  customFieldId?: string;
+}
 export interface PlannerFormData {
   description: string;
   enabled: boolean;
-  fields: {
-    id: string;
-    label: string;
-    type: 'text' | 'paragraph' | 'date' | 'number' | 'select';
-    required: boolean;
-    options: string[];
-    taskField: 'name' | 'description' | 'dueOn' | 'priority' | 'estimateMinutes';
-  }[];
+  fields: PlannerFormField[];
   defaults: Pick<PlannerTaskData, 'assigneeId' | 'priority' | 'status' | 'estimateMinutes'>;
+  sectionId?: string | null;
+  titleFieldId?: string | null;
+  copyAnswersToDescription?: boolean;
+  confirmationMessage?: string;
+  allowAnotherSubmission?: boolean;
+  addSubmitterAsCollaborator?: boolean;
+  audience?: 'organization' | 'public';
 }
 export interface PlannerSavedViewData {
   scope: 'mine' | 'project';

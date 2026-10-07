@@ -747,6 +747,21 @@
 .planner-drawer [role='dialog'] {
   outline: 0;
 }
+.planner-modal [role='dialog'] {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+.planner-modal form {
+  min-height: 0;
+}
+.planner-modal .planner-dialog-head,
+.planner-modal .planner-dialog-footer {
+  flex-shrink: 0;
+}
+.planner-modal .planner-dialog-body {
+  min-height: 0;
+}
 .planner-modal form,
 .planner-drawer form {
   display: flex;
@@ -1334,4 +1349,59 @@
   overflow-x: auto;
   background: #f5f3fa;
   padding: 12px;
+}
+.planner-form-questions {
+  display: grid;
+  gap: 20px;
+  margin: 20px 0;
+}
+.planner-form-choices {
+  border: 1px solid #e0dcea;
+  border-radius: 8px;
+  padding: 14px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.planner-form-choices legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+.planner-form-choices label,
+.planner-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.planner-form-builder-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.planner-form-question {
+  min-width: 0;
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid #e0dcea;
+  border-radius: 10px;
+  display: grid;
+  gap: 14px;
+}
+.planner-form-question > legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+.planner-form-question .planner-head-actions {
+  justify-content: flex-end;
+}
+.planner-form-preview {
+  padding: 18px;
+  border: 1px solid #d9d3f7;
+  border-radius: 10px;
+  background: #f8f7fc;
+}
+.planner-form-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
