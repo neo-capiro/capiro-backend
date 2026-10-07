@@ -2,7 +2,7 @@
 
 Owner request, October 6, 2026: reproduce Asana's work functionality as a **Planner** tab on `os.capiro.ai`. Planner is owned by **api-strategy**, at `/strategy-api/planner`. Use the existing Strategies service, Aurora cluster, Clerk membership resolution, and tenant-scoped Prisma client.
 
-Approved integrations: Dashboard Work Queue; links to client records and Engagement meetings. Workspace document integration is explicitly excluded. Ask the owner before adding any other Capiro integration (including Meri or Strategy execution).
+Approved integrations: Dashboard Work Queue; links to client records and Engagement meetings; Planner updates and reminders in Capiro's main notification bell as well as Planner Inbox. The notification-bell work is queued for the next release. Workspace document integration is explicitly excluded. Ask the owner before adding any other Capiro integration (including Meri or Strategy execution).
 
 Owner decision: Planner uses the signed-in organization. An impersonation header is rejected by a Planner-specific guard; shared Strategies authentication is unchanged.
 
@@ -28,7 +28,7 @@ Canonical client/meeting authorization remains with the canonical APIs. Forward 
 
 ## Status
 
-The working core, private My Tasks sections/order, paginated inbox/activity, due/start times, time zones, weekday/yearly/completion-based repeats and repeat end dates are live. The following limits still require parity work: scheduled due-date rules and reminders, recurrence subtask/attachment copying, editing/removing comments and time entries, form custom-field questions and branching, relative template dates, goal hierarchies, and deeper reporting/timesheet dashboards. Do not claim exact full Asana parity from these releases.
+The working core, private My Tasks sections/order, paginated inbox/activity, timed schedules and repeats, comment/time corrections, recurring hierarchy/attachment copying and relative template dates are live. The following limits still require parity work: scheduled due-date rules and reminders, main notification-bell integration, form custom-field questions and branching, goal hierarchies, and deeper reporting/timesheet dashboards. Do not claim exact full Asana parity from these releases.
 
 My Tasks settings are an owner-only resource; they cannot be attached to a shared project. Personal moves/order change the private settings version and leave shared task/project data untouched. Placements accept only the owner's assigned tasks and are redacted after reassignment. Settings editing captures its opening version so a competing update cannot be overwritten silently. Inbox/activity pages use database cursors with deterministic timestamp/ID ordering, avoiding timestamp precision loss. A revoked inbox page still advances by scanned rows; the cursor exposes only the user's opaque notification ID. Legacy callers retain the original array response unless they request `paged=true`.
 
@@ -44,7 +44,7 @@ The second release passed 90 focused API checks (including 21 real PostgreSQL ca
 
 The timed-schedule release passed 130 focused API checks (23 real PostgreSQL), 22 web checks, typechecks and production builds. Signed-in verification passed persistence of times/zones/repeat choices, correct selected weekdays and durations, reopen protection and stopping at the repeat end date. All three synthetic occurrences and their private project are recoverably archived. Immutable images and recovery constraints are in [RELEASE-SCHEDULING-20261006.md](RELEASE-SCHEDULING-20261006.md).
 
-The next qualified candidate adds append-only comment/time corrections, recurrence hierarchy/attachment copying and relative template schedules. It passed 140 API checks (29 real PostgreSQL), 28 web checks, typechecks, production builds and a fresh six-migration rehearsal. It is not yet live. Qualification and the required migration/promotion checks are in [RELEASE-COLLABORATION-20261006.md](RELEASE-COLLABORATION-20261006.md).
+The collaboration release adds append-only comment/time corrections, recurrence hierarchy/attachment copying and relative template schedules. It passed 140 API checks (29 real PostgreSQL), 28 web checks, typechecks, production builds and a fresh six-migration rehearsal. Production migration and restricted runtime-role proof passed before promotion. Strategies revision 36 and web-vNext revision 445 are stable. Signed-in checks passed persistent corrections/removal/restoration, recurring child/dependency/file copying, independent attachment archive state and working-day template preview/creation. All eight synthetic tasks, two private projects and the template are recoverably archived; My Tasks and the Dashboard Work Queue are clear. Exact images, proof and recovery constraints are in [RELEASE-COLLABORATION-20261006.md](RELEASE-COLLABORATION-20261006.md).
 
 The Assets CDK diff contains the intended attachment policy and an unrelated auto-delete-provider runtime change (Node 22 to 24). Release only the policy using the existing stack template; preserve the rest of the live template.
 
