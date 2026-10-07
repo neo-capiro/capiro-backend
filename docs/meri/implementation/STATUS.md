@@ -1,6 +1,38 @@
 # Meri File01 checkpoint — C0/C1 complete, C2 active
 
-**Start a new session with [HANDOVER-2026-10-06-finish-plan.md](HANDOVER-2026-10-06-finish-plan.md)**: the program-level handoff that lists everything left in the plan, in order, with code starting points. It points to the evening, pm and morning session handovers for detail. Served at the time it was written: API 625 (`41aead03c`, a LegiWatch roll containing Meri's 623), orchestrator 167, web-vnext 431; `meri_unavailable` since the drill: 0; #2032 is conflicting with main and needs a rebase before 2026-10-12.
+**Start a new session with [HANDOVER-2026-10-07.md](HANDOVER-2026-10-07.md)**, then the program-level [HANDOVER-2026-10-06-finish-plan.md](HANDOVER-2026-10-06-finish-plan.md). The finish plan still controls; the 2026-10-07 handover says what this session did against its §3 and what is next.
+
+**Stage 2 progress, October 7, 2026 (about 04:30 UTC, lead agent).** Finish-plan §3.1 to §3.4 are done or awaiting Neo's verdicts. Evidence: [releases/2026-10-07](../releases/2026-10-07/README.md).
+
+- **Served.**
+
+  | Service | Revision | Source | Rollback |
+  | --- | --- | --- | --- |
+  | API | 644 | `f40dbebff` | 643 |
+  | Orchestrator | 173 | `88c71b410` | 172 |
+  | web-vnext | 448 | `9db60a09f` | 447 |
+
+  The sweeper is on (`MERI_JOB_SWEEPER_ENABLED`, configuration revision 632, codified in #2157). No migration was applied, and `meri_unavailable` since the drill is 0.
+- **§3.1 `search_memory`.** Fixed in #2143. A uuid-to-text cast under FORCE row-level security blocked the index, and a silent lexical fallback marked every read partial. Reads now take about 0.1 s, and the run 10 report opens in 6.5 s instead of 133 s.
+- **Real tasks.** These pass their automatic checks; Neo's verdicts are pending.
+  - **T5:** run 12, `a31f24a0`.
+  - **T6:** rerun, `1f84c6ee`.
+  - **T12:** rerun, `0f4a4df2`.
+  - **T7:** in the browser, steer, close and reopen (`2e542eed`) and stop (`adaacd76`).
+- **Release C.** Excel and PowerPoint deliverables are shipped, with read-back before delivery: #2146, #2147, #2156, #2160, #2166, #2167.
+- **Defects found by the tasks and fixed.** One PR each:
+  - #2149: bill-text results exceeded the tool cap.
+  - #2152: D2 held a brief for quoting Meri's own query.
+  - #2156: a workbook denied it existed.
+  - #2160, #2166: 16 slides for a six-slide request.
+  - #2168: "Delegate this" was under the top bar at 960 px.
+  - **#2170:** the Meri workspace cancelled every research run 28 ms after creating it. This was present since 2026-09-28.
+  - #2181: steering re-plans failed strict JSON.
+- **Decisions for Neo:**
+  - Document-listing re-checks withhold every earlier report when a file is added to the client (handover §3.2).
+  - Steering late in a run ends partial on the session budget (handover §3.1).
+- **#2032.** Rebased and MERGEABLE. #2035 is unchanged. Both merge on or after 2026-10-12.
+- **Not yet.** The worker-loss check: attempt 1 was inconclusive because the load balancer drains in-flight streams for 300 s. The T4 rerun with a PPTX input. Release D onward.
 
 **Stage 2 progress, October 6, 2026 (about 22:30 UTC, lead agent, evening).** T5 run 8's refusal was four defects in a row; all four are fixed and deployed, and T5 now **publishes**. Run 10's office brief was held for review by D2, and reading it was very slow. The re-check is now faster and D2 matches decoded text. The real latency source, `search_memory` at 18 to 36 s per call, is open. The federal backfill had stalled; it is fixed and resumed. Evidence: [releases/2026-10-06](../releases/2026-10-06/README.md), evening section.
 
