@@ -303,8 +303,38 @@ export async function generateComprehensiveMeetingPrep(
         maxTokens: attempt.maxTokens,
         reasoningEffort: attempt.reasoningEffort,
       });
+    const callProvider = async (attempt: typeof request): Promise<LlmCompletionResult> => {
+      // A gateway can return HTML instead of the provider JSON envelope. Retry
+      // only this extraction request once, within its ORIGINAL stage budget.
+      const stageDeadline = Date.now() + attempt.timeoutMs;
+      for (let retry = 0; ; retry++) {
+        const remaining = stageDeadline - Date.now();
+        if (remaining <= 0) throw new Error('meeting_prep_provider_stage_timed_out');
+        try {
+          return await llm.complete({
+            ...attempt,
+            timeoutMs: Math.min(attempt.timeoutMs, remaining, prepStageTimeout(timeout, reserve)),
+          });
+        } catch (error) {
+          execution!.signal.throwIfAborted();
+          if (
+            stage !== 'extracting' ||
+            retry !== 0 ||
+            !(error instanceof Error) ||
+            !/^(openai|anthropic) completion failed after 1 attempts:/.test(error.message) ||
+            stageDeadline <= Date.now()
+          )
+            throw error;
+          // Revalidate the actor, assignment, runtime gate and worker lease.
+          await execution!.checkpoint(stage);
+          prepStageTimeout(timeout, reserve);
+          requestHashes.push(requestHash(attempt));
+          logger.warn('Briefing extraction transport failed; retrying this batch once.');
+        }
+      }
+    };
     requestHashes.push(requestHash(request));
-    let result = await llm.complete(request);
+    let result = await callProvider(request);
     usage.inputTokens += result.usage.inputTokens;
     usage.outputTokens += result.usage.outputTokens;
     usage.cacheReadTokens = (usage.cacheReadTokens ?? 0) + (result.usage.cacheReadTokens ?? 0);
@@ -331,7 +361,7 @@ export async function generateComprehensiveMeetingPrep(
       };
       granted = retry.tokens;
       requestHashes.push(requestHash(attempt));
-      result = await llm.complete(attempt);
+      result = await callProvider(attempt);
       usage.inputTokens += result.usage.inputTokens;
       usage.outputTokens += result.usage.outputTokens;
     }
