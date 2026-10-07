@@ -11,3 +11,9 @@ Each release candidate changes only the two tested comprehensive-preparation sou
 Native ARM64 build records and network-disabled packaged behavior probes are recorded alongside this report as they complete. The packaged probe covers both the previous 400-omission repair case and the HTML-response retry through the actual shared transport. Exact packaged migration names/checksums must match source. Guarded promotion, exact task/image health readback, and application-scoped recovery acceptance remain required.
 
 Review is by the Codex release agent under the user's explicit authorization to merge and ship to AWS, without a claim of separate human review. The recovery must resume the existing failed job through `MeetingPrepJobService.resume` when its original deadline permits, reusing only checkpoints whose source/model/policy hashes still match. A completed prep must be readable through `EngagementService.getMeeting` before success is reported.
+
+## Deployed follow-up
+
+Both native ARM64 builds succeeded, with `PREP_TRANSPORT_RETRY_PASS`, the earlier oversized-repair behavioral probe, and exact packaged migration parity. The guarded operator promoted worker 141 and API 640, verified their immutable image digests and task/configuration hashes, and confirmed both desired instances and healthy ALB targets. Startup checks found no module or dependency errors.
+
+At 02:47:26 UTC the normal job service resumed the failed job under its original tenant/actor scope. The original deadline of 03:20:47 UTC was retained. Eight saved extraction batches remained available, and the resumed worker advanced to ten completed batches by 02:49:26 UTC. The recovery observer tracks extraction and draft checkpoints and verifies the final artifact through the meeting-detail service; a running job alone is not final acceptance.
