@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-memory-releasec-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-07T00:03:15.203002+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "e3b25d2db25bc64d561c1a8fe66835e1338e7cb8",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:04316cab0742794f496d4b47f9e4ffa63212d478f50672eaac2c4bf6bb63315b",
+      "buildId": "capiro-build-web-dev:c9763db8-5eb9-4cfa-977d-451426b4932d"
+    }
+  ],
+  "schemaChange": false,
+  "change": "API roll from main e3b25d2db: governed memory semantic join on a pre-cast id (search_memory 18 s to 70 ms, #2143) and Release C Excel/PowerPoint deliverables with read-back (#2146); also carries LegiWatch #2133/#2140 and Krisp #2142.",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
