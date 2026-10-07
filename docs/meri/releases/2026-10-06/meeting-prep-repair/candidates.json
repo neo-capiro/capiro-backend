@@ -1,0 +1,20 @@
+[
+  {
+    "service": "engagement-api",
+    "baselineTask": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:137",
+    "baselineSha": "786e4d4940bcddc6c48d31f112c69d82275529ae",
+    "baselineImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:1d398563b254b8d16061e04ca9561c492b32191313a6fe9bc99f116f20f59158",
+    "sourceSha": "1c980e25407bed85270c313fc0e1bfc6b02c613a",
+    "branch": "codex/prep-repair-engagement-api-20261006",
+    "featureSha": "530ebf6d5f4a8d7e73c283afda77f71c559bfa34"
+  },
+  {
+    "service": "api",
+    "baselineTask": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:636",
+    "baselineSha": "ca8c114efcfcdd1a536ec55b140d4d6732d9933a",
+    "baselineImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:03e72d8938ad9e074c0f51c6014bf16fe46638f1579e85abb2e5af20f1792a4f",
+    "sourceSha": "250fcab8fdc8e051d52000c9d25a091d9d99936a",
+    "branch": "codex/prep-repair-api-20261006",
+    "featureSha": "530ebf6d5f4a8d7e73c283afda77f71c559bfa34"
+  }
+]
