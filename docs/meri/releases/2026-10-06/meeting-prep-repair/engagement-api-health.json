@@ -1,0 +1,31 @@
+{
+  "at": "2026-10-07T02:20:14.276Z",
+  "service": "engagement-api",
+  "rollouts": [
+    {
+      "status": "PRIMARY",
+      "task": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:139",
+      "running": 2,
+      "pending": 0,
+      "rollout": "COMPLETED"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "54230780b6eb4751b96ebeb0e27d7395",
+      "status": "RUNNING",
+      "health": "HEALTHY",
+      "digest": "sha256:a9141b640df6879202d14833fe4ad1b2c0f72a80ca7189f2e679b882f2f854dd",
+      "applicationStarted": true,
+      "startupErrors": []
+    },
+    {
+      "id": "6b501abff0d24c278a6612ebfe92903b",
+      "status": "RUNNING",
+      "health": "HEALTHY",
+      "digest": "sha256:a9141b640df6879202d14833fe4ad1b2c0f72a80ca7189f2e679b882f2f854dd",
+      "applicationStarted": true,
+      "startupErrors": []
+    }
+  ]
+}
