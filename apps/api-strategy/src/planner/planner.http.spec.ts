@@ -52,6 +52,7 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     saveTimePreferences: jest.fn(async () => ({ ok: true })),
     timesheet: jest.fn(async () => ({ items: [], matched: 0 })),
     timeReview: jest.fn(async () => []),
+    timeExport: jest.fn(async () => ({ items: [], matched: 0, nextCursor: null })),
     transitionTimesheet: jest.fn(async () => ({ status: 'submitted' })),
     saveTimesheetWork: jest.fn(async () => ({ workRows: [] })),
   };
@@ -94,6 +95,7 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     ['get', 'time/preferences'],
     ['patch', 'time/preferences'],
     ['get', 'timesheets'],
+    ['get', 'time/entries'],
     ['get', 'timesheets/review'],
     ['post', 'timesheets/status'],
     ['post', 'timesheets/work'],
@@ -141,6 +143,22 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .send(body)
       .expect(200);
     expect(planner.reviseEvent).toHaveBeenCalledWith(ctx, ID, body);
+  });
+  it('forwards date ranges and revision-bound time export pages through the signed-in context', async () => {
+    const query = {
+      scope: 'project',
+      projectId: ID,
+      fromOn: '2026-10-01',
+      throughOn: '2026-10-31',
+      cursor: ID,
+      revision: 'a'.repeat(64),
+    };
+    await request(app.getHttpServer())
+      .get('/strategy-api/planner/time/entries')
+      .query(query)
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.timeExport).toHaveBeenCalledWith(ctx, query);
   });
   it('routes weekly time and guarded status actions through the signed-in context', async () => {
     await request(app.getHttpServer())

@@ -38,6 +38,8 @@ import {
   PLANNER_DEFAULT_MY_TASKS,
   plannerTaskOverdue,
   plannerDueTimestamp,
+  plannerWeekOn,
+  plannerTimeToday,
 } from '@capiro/strategy-verifier';
 import { useApi } from '../../../lib/use-api.js';
 import {
@@ -70,6 +72,7 @@ import { PlannerMyTasksSettings } from './planner-my-tasks.js';
 import { PlannerTaskSchedule } from './planner-task-schedule.js';
 import { PlannerReporting } from './planner-reporting.js';
 import { PlannerTimesheets } from './planner-timesheets.js';
+import { PlannerTimeExportButton } from './planner-time-export.js';
 import { PlannerTimeForm } from './planner-time-form.js';
 import type { PlannerSavedViewData } from '@capiro/strategy-verifier';
 import './planner.css';
@@ -672,6 +675,14 @@ export function PlannerPage() {
                 ))}
               </div>
               <div className="planner-toolbar">
+                {project && (
+                  <PlannerTimeExportButton
+                    key={project.id}
+                    target={{ scope: 'project', projectId: project.id }}
+                    week={plannerWeekOn(plannerTimeToday(data.timeOptions?.timeZone ?? 'UTC'))}
+                    label={`Time allocated to ${project.name}`}
+                  />
+                )}
                 <label className="planner-search">
                   <Search size={16} />
                   <input

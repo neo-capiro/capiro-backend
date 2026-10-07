@@ -28,6 +28,7 @@ import { PlannerTimeOptionsFields } from './planner-time-options.js';
 import { PlannerTimesheetWork } from './planner-timesheet-work.js';
 import { PlannerTimeReview } from './planner-time-review.js';
 import { PlannerTimesheetHistory } from './planner-timesheet-history.js';
+import { PlannerTimeExportButton } from './planner-time-export.js';
 import { PlannerFormattedText } from './planner-rich-text.js';
 import { plannerCsvCell } from './planner-csv.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -212,6 +213,15 @@ export function PlannerTimesheets({
   return (
     <section className="planner-timesheets">
       <div className="planner-tabs">
+        {config.data?.canManage && (
+          <PlannerTimeExportButton
+            key={`${scope}:${week}`}
+            target={{ scope: 'organization' }}
+            week={week}
+            buttonLabel="Export organization time"
+            label="All organization time you can currently access through Planner project and task permissions."
+          />
+        )}
         <button type="button" aria-pressed={!reviewing} onClick={() => setReviewing(false)}>
           Timesheet
         </button>
@@ -404,6 +414,12 @@ export function PlannerTimesheets({
                   : actionLabels[a]}
               </button>
             ))}
+            <PlannerTimeExportButton
+              key={`${scope}:${week}:${userId}`}
+              target={{ scope: 'personal', userId }}
+              week={week}
+              label={`Time logged by ${person(userId)}`}
+            />
             {exporting ? (
               <button type="button" onClick={() => controller.current?.abort()}>
                 Cancel export

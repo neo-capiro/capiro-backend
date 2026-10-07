@@ -53,6 +53,8 @@ import {
   type PlannerTimePreferences,
   type PlannerTimesheetWorkRef,
   type PlannerTimeReviewPage,
+  type PlannerTimeExportPage,
+  type PlannerTimeExportEntry,
 } from '@capiro/strategy-verifier';
 import {
   Prisma,
@@ -95,6 +97,7 @@ import {
   requirePlannerTimePolicy,
 } from './planner-time-policy.js';
 import { plannerTimesheetWorkRows, type PlannerTimeWorkSource } from './planner-timesheet-work.js';
+import { plannerTimeExportQuery, type PlannerTimeExportQuery } from './planner-time-export.js';
 import {
   plannerTimeReviewView,
   plannerTimeReviewRows,
@@ -3074,6 +3077,134 @@ export class PlannerService {
         return this.timesheetView(tx, ctx, userId, weekOn);
       },
       true,
+    );
+  }
+  async timeExport(
+    ctx: AuthTenantContext,
+    raw: PlannerTimeExportQuery,
+  ): Promise<PlannerTimeExportPage> {
+    const query = plannerTimeExportQuery(raw);
+    // Every query in a page sees the same entries, corrections and source grants.
+    return this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
+        const people = await this.people(tx, ctx),
+          names = new Map(people.map((p) => [p.id, p.name]));
+        if (!names.has(ctx.clerkUserId)) throw missing();
+        const config = await this.timeSettingsRecord(tx, ctx);
+        const reviewers =
+          (config?.data as { reviewers?: Record<string, string> } | undefined)?.reviewers ?? {};
+        const assigned = Object.keys(reviewers)
+          .filter((id) => reviewers[id] === ctx.clerkUserId && names.has(id))
+          .sort();
+        const projects = await this.projects(tx, ctx);
+        const selected = projects.find((p) => p.id === query.projectId);
+        let users: string[];
+        if (query.scope === 'project') {
+          requireRole(selected ? plannerProjectAccess(selected, ctx.clerkUserId) : null, 'viewer');
+          users = []; // Project grants permit its time history, including departed submitters.
+        } else if (query.scope === 'organization') {
+          if (ctx.role !== 'org:admin')
+            throw new ForbiddenException('Organization admin access is required');
+          users = [];
+        } else if (query.scope === 'review') users = assigned;
+        else {
+          const userId = query.userId ?? ctx.clerkUserId;
+          if (!names.has(userId) || (userId !== ctx.clerkUserId && !assigned.includes(userId)))
+            throw missing();
+          users = [userId];
+        }
+        const events =
+          !['project', 'organization'].includes(query.scope) && !users.length
+            ? []
+            : await tx.$queryRaw<SpPlannerEvent[]>`
+        SELECT e.id,e.tenant_id AS "tenantId",e.actor_id AS "actorId",e.task_id AS "taskId",e.project_id AS "projectId",
+          e.resource_id AS "resourceId",e.details,e.kind,e.text,e.minutes,e.created_at AS "createdAt"
+        FROM sp_planner_events e LEFT JOIN LATERAL (
+          SELECT details,removed FROM sp_planner_event_revisions WHERE tenant_id=${ctx.tenantId}::uuid AND event_id=e.id ORDER BY version DESC LIMIT 1
+        ) r ON true
+        WHERE e.tenant_id=${ctx.tenantId}::uuid AND e.kind='time' AND NOT COALESCE(r.removed,false)
+        AND COALESCE(r.details->'time'->>'workedOn',e.details->'time'->>'workedOn',to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD')) >= ${query.fromOn}
+        AND COALESCE(r.details->'time'->>'workedOn',e.details->'time'->>'workedOn',to_char(e.created_at AT TIME ZONE 'UTC','YYYY-MM-DD')) <= ${query.throughOn}
+        ${
+          query.scope === 'project'
+            ? Prisma.sql`AND COALESCE(r.details->'time'->>'projectId',e.details->'time'->>'projectId',e.project_id::text) = ${query.projectId}`
+            : query.scope === 'organization'
+              ? Prisma.empty
+              : Prisma.sql`AND e.actor_id IN (${Prisma.join(users)})`
+        }`;
+        const views = await plannerReadActivity(tx, ctx, events);
+        const tasks = await tx.spPlannerTask.findMany({
+          where: {
+            tenantId: ctx.tenantId,
+            id: { in: events.flatMap((e) => (e.taskId ? [e.taskId] : [])) },
+          },
+        });
+        const taskById = new Map(tasks.map((t) => [t.id, t])),
+          projectById = new Map(projects.map((p) => [p.id, p]));
+        const items: PlannerTimeExportEntry[] = [];
+        let unavailableEntries = false;
+        for (const e of views) {
+          const time = e.time!,
+            task = taskById.get(e.taskId ?? ''),
+            project = projectById.get(time.projectId ?? e.projectId ?? '');
+          const readable = task
+            ? plannerTaskAccess(task, projects, ctx.clerkUserId)
+            : project
+              ? plannerProjectAccess(project, ctx.clerkUserId)
+              : null;
+          if (
+            !readable ||
+            (time.projectId && (!project || !plannerProjectAccess(project, ctx.clerkUserId)))
+          ) {
+            // Organization export reveals only readable work, without counts
+            // or existence indicators for unrelated private entries.
+            if (query.scope !== 'organization') unavailableEntries = true;
+            continue;
+          }
+          items.push({
+            ...e,
+            time,
+            taskName: task ? taskData(task).name : null,
+            projectName: project ? projectData(project).name : null,
+            canEdit: false,
+            submitterName: names.get(e.actorId) ?? 'Former member',
+            taskStatus: task ? (taskData(task).status === 'done' ? 'Completed' : 'Open') : null,
+          });
+        }
+        items.sort(
+          (a, b) => a.time.workedOn.localeCompare(b.time.workedOn) || a.id.localeCompare(b.id),
+        );
+        const revision = createHash('sha256')
+          .update(
+            JSON.stringify({
+              scope: query.scope,
+              fromOn: query.fromOn,
+              throughOn: query.throughOn,
+              users,
+              projectId: query.projectId,
+              items,
+              unavailableEntries,
+            }),
+          )
+          .digest('hex');
+        if (query.revision && query.revision !== revision)
+          throw new ConflictException('Time or access changed during export. Start a new export.');
+        const start = query.cursor ? items.findIndex((e) => e.id === query.cursor) + 1 : 0;
+        if (query.cursor && !start) fail('Export cursor is no longer available');
+        return {
+          fromOn: query.fromOn,
+          throughOn: query.throughOn,
+          revision,
+          matched: items.length,
+          unavailableEntries,
+          totalMinutes: items.reduce((n, e) => n + (e.minutes ?? 0), 0),
+          billableMinutes: items.reduce((n, e) => n + (e.time.billable ? (e.minutes ?? 0) : 0), 0),
+          items: items.slice(start, start + 100),
+          nextCursor: items.length > start + 100 ? items[start + 99]!.id : null,
+        };
+      },
+      { timeoutMs: 15_000, isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
   }
   async timeReview(
