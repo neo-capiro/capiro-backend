@@ -740,6 +740,64 @@ export async function persistScheduledTaskResultAndAlert(
   return result;
 }
 
+/**
+ * Release E: a scheduled run that produced no briefing posts that fact to the
+ * owner's inbox instead of finishing silently, so a failure is never read as
+ * "no change". Same occurrence-keyed alert id as a result (at most one alert
+ * per occurrence) and the same current-authority check; returns null and
+ * writes nothing when the owner no longer has authority.
+ */
+export async function persistScheduledTaskFailureAlert(
+  tx: Prisma.TransactionClient,
+  task: ScheduledTaskIdentity,
+  claim: ScheduledTaskExecutionClaim,
+  input: { taskName: string; reason: string },
+): Promise<{ alertId: string } | null> {
+  const authorization = await authorizeScheduledTaskExecution(tx, task, claim);
+  if (authorization.boundary === 'authority_denied' || authorization.boundary === 'wall_denied')
+    return null;
+  const alertId = claim.occurrenceId;
+  await tx.$executeRawUnsafe(
+    `INSERT INTO clio_proactive_alerts (
+       id, tenant_id, owner_user_id, alert_type, title, body, priority,
+       source_type, source_id, metadata_jsonb
+     ) VALUES (
+       $1::uuid, $2::uuid, $3::uuid, 'scheduled_task', $4, $5, 'normal',
+       'scheduled_task', $6, $7::jsonb
+     )
+     ON CONFLICT (id) DO NOTHING`,
+    alertId,
+    task.tenantId,
+    task.ownerUserId,
+    `Scheduled task did not finish: ${input.taskName}`,
+    scheduledRunFailureBody(input.reason, claim.nextRunAt),
+    claim.occurrenceId,
+    JSON.stringify({
+      taskId: task.id,
+      ownerUserId: task.ownerUserId,
+      occurrenceId: claim.occurrenceId,
+      runAt: claim.receipt.claimedAt,
+      failed: true,
+      reason: input.reason,
+    }),
+  );
+  return { alertId };
+}
+
+export function scheduledRunFailureBody(reason: string, nextRunAt: Date): string {
+  return [
+    `This run produced no briefing (${reason}). It is not a "no change" result.`,
+    `The next run is scheduled for ${nextRunAt.toISOString()}.`,
+  ].join(' ');
+}
+
+/** Release E: a briefing cut short says so at the top instead of reading as complete. */
+export function scheduledRunStopNote(reason: 'provider_error' | 'round_cap'): string {
+  return reason === 'round_cap'
+    ? 'Note: this run reached its step limit before finishing, so this briefing may be incomplete.'
+    : 'Note: the model provider failed partway through this run, so this briefing is incomplete.';
+}
+
 /** Load only the exact current alert referenced by the fenced occurrence. */
 export async function readScheduledTaskSavedResult(
   tx: Prisma.TransactionClient,

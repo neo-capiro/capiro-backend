@@ -4,6 +4,9 @@ import {
   executeAuthorizedScheduledTaskEffect,
   executeScheduledTaskEffect,
   parseScheduledTaskDurableReceipt,
+  persistScheduledTaskFailureAlert,
+  scheduledRunFailureBody,
+  scheduledRunStopNote,
   type ScheduledTaskExecutionClaim,
 } from './meri-schedule-execution-boundary.js';
 
@@ -163,5 +166,47 @@ describe('scheduled task durable execution boundary', () => {
       sink,
     )).rejects.toThrow('guard database unavailable');
     expect(sink).not.toHaveBeenCalled();
+  });
+});
+
+describe('honest scheduled runs (Release E)', () => {
+  it('posts a failure to the owner inbox instead of finishing silently', async () => {
+    const tx = transaction({});
+    const insert = jest.fn().mockResolvedValue(1);
+    (tx as unknown as { $executeRawUnsafe: jest.Mock }).$executeRawUnsafe = insert;
+    await expect(
+      persistScheduledTaskFailureAlert(tx, task, claim, {
+        taskName: 'Monday brief',
+        reason: 'the model provider failed',
+      }),
+    ).resolves.toEqual({ alertId: receipt.occurrenceId });
+    const [sql, id, tenantId, ownerUserId, title, body, sourceId, metadata] = insert.mock.calls[0]!;
+    expect(sql).toContain("'scheduled_task'");
+    expect(sql).toContain('ON CONFLICT (id) DO NOTHING');
+    expect([id, tenantId, ownerUserId, sourceId]).toEqual([
+      receipt.occurrenceId,
+      task.tenantId,
+      task.ownerUserId,
+      receipt.occurrenceId,
+    ]);
+    expect(title).toBe('Scheduled task did not finish: Monday brief');
+    expect(body).toBe(scheduledRunFailureBody('the model provider failed', claim.nextRunAt));
+    expect(body).toContain('It is not a "no change" result.');
+    expect(JSON.parse(metadata as string)).toMatchObject({ failed: true });
+  });
+
+  it('writes nothing for an owner who lost authority', async () => {
+    const tx = transaction({ active: false });
+    const insert = jest.fn();
+    (tx as unknown as { $executeRawUnsafe: jest.Mock }).$executeRawUnsafe = insert;
+    await expect(
+      persistScheduledTaskFailureAlert(tx, task, claim, { taskName: 'x', reason: 'y' }),
+    ).resolves.toBeNull();
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it('marks a briefing cut short', () => {
+    expect(scheduledRunStopNote('round_cap')).toMatch(/step limit.*may be incomplete/);
+    expect(scheduledRunStopNote('provider_error')).toMatch(/failed partway.*incomplete/);
   });
 });
