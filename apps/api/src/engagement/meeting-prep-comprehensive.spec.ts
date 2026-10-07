@@ -499,6 +499,8 @@ describe('bounded repair delivers the last renderable briefing', () => {
   test.each([
     'meeting_prep_model_context_budget_exceeded',
     'openai completion failed after 1 attempts: fetch failed',
+    'openai request timed out after 90s',
+    'anthropic request timed out after 90s',
   ])('keeps the completed draft when optional review fails: %s', async (message) => {
     const extracted = parseBriefingFacts([extractionFact], [evidence]);
     const complete = jest.fn(async (request) => {
