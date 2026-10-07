@@ -134,7 +134,10 @@ export const PROPOSED_CAPIRO_RULES: readonly ComplianceRule[] = [
     outcome: 'WARN',
     tier: 'high',
     code: 'standing_automation',
-    matches: (toolName) => toolName === 'schedule_task' || toolName === 'cancel_scheduled_task',
+    matches: (toolName) =>
+      toolName === 'schedule_task' ||
+      toolName === 'cancel_scheduled_task' ||
+      toolName === 'update_scheduled_task',
   },
   {
     id: 'research_portfolio_watch.requires_approval',

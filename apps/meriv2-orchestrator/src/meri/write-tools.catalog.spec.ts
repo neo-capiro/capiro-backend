@@ -25,6 +25,7 @@ const EXPECTED_WRITE_TOOLS = [
   'create_powerpoint',
   'schedule_task',
   'cancel_scheduled_task',
+  'update_scheduled_task',
   'create_client',
   'create_task',
   'update_task',
@@ -43,10 +44,10 @@ const EXPECTED_WRITE_TOOLS = [
 ].sort();
 
 describe('WRITE_DELEGATED_TOOLS catalog', () => {
-  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (34 tools)', () => {
+  it('matches apps/api SIDE_EFFECTING_TOOLS exactly (35 tools)', () => {
     const names = WRITE_DELEGATED_TOOLS.map((t) => t.name).sort();
     expect(names).toEqual(EXPECTED_WRITE_TOOLS);
-    expect(WRITE_DELEGATED_TOOLS).toHaveLength(34);
+    expect(WRITE_DELEGATED_TOOLS).toHaveLength(35);
   });
 
   it('is ALL write (readOnly:false) — the gate must fire for every one', () => {

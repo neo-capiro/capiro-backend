@@ -18,6 +18,7 @@ const TOOL_LABELS: Record<string, string> = {
   update_task: 'Update task',
   schedule_task: 'Schedule recurring task',
   cancel_scheduled_task: 'Cancel scheduled task',
+  update_scheduled_task: 'Pause, resume, or run a scheduled task',
   confirm_memory: 'Confirm memory',
   correct_memory: 'Correct memory',
   forget_memory: 'Forget memory',
@@ -114,6 +115,7 @@ export function buildMeriActionPreview(args: {
     'emailBriefing',
     'scope',
     'memoryItemId',
+    'action',
   ]) {
     const value = input[key];
     if (Array.isArray(value)) {

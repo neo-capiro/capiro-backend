@@ -314,6 +314,7 @@ const TOOL_LABELS: Record<string, string> = {
   reply_email: 'Proposed an email reply',
   schedule_task: 'Proposed a scheduled task',
   cancel_scheduled_task: 'Proposed cancelling a scheduled task',
+  update_scheduled_task: 'Proposed pausing, resuming, or running a scheduled task',
   // Pre-approved (PASS) write tools — these run immediately, so the trace names
   // the completed action rather than a proposal.
   save_note: 'Save a note',

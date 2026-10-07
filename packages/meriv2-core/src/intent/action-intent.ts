@@ -121,6 +121,11 @@ const ACTIONS: Record<
     verbs: /\b(cancel|delete|remove)\b/i,
     nouns: /\b(task|reminder|schedule)\b/i,
   },
+  update_scheduled_task: {
+    category: 'task_change',
+    verbs: /\b(pause|resume|restart|run)\b/i,
+    nouns: /\b(task|reminder|schedule|scheduled|brief|briefing|automation)\b/i,
+  },
   create_client: {
     category: 'client_change',
     verbs: /\b(create|add)\b/i,

@@ -424,6 +424,7 @@ export const TOOL_EVIDENCE_PROFILES: Readonly<Record<string, ToolEvidenceProfile
   create_powerpoint: CAPIRO_DERIVED,
   schedule_task: CAPIRO_DERIVED,
   cancel_scheduled_task: CAPIRO_DERIVED,
+  update_scheduled_task: CAPIRO_DERIVED,
   create_client: CAPIRO_DERIVED,
   create_task: CAPIRO_DERIVED,
   update_task: CAPIRO_DERIVED,
