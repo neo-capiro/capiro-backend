@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, Link } from 'react-router-dom';
 import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PlannerPublicFormPage } from './PlannerPublicFormPage.js';
@@ -20,6 +20,7 @@ function showForm() {
     <StrictMode>
       <QueryClientProvider client={client}>
         <MemoryRouter initialEntries={['/planner/forms/synthetic-capability']}>
+          <Link to="/planner/forms/another-synthetic-capability">Next synthetic form</Link>
           <Routes>
             <Route path="/planner/forms/:token" element={<PlannerPublicFormPage />} />
           </Routes>
@@ -124,5 +125,39 @@ describe('Public Planner intake', () => {
       expect(screen.getByRole('alert')).toHaveTextContent('unavailable or has been closed'),
     );
     expect(screen.queryByRole('button', { name: 'Submit request' })).not.toBeInTheDocument();
+  });
+  it('clears draft answers when navigating to another capability', async () => {
+    fixture.get.mockImplementation(async (path) => ({
+      data: {
+        name: path.includes('another-') ? 'Second form' : 'First form',
+        description: 'Synthetic',
+        fields: [
+          {
+            id: 'name',
+            label: 'Request',
+            type: 'text',
+            taskField: 'name',
+            required: false,
+            options: [],
+          },
+        ],
+      },
+    }));
+    fixture.post.mockResolvedValue({ data: { received: true } });
+    showForm();
+    await screen.findByRole('heading', { name: 'First form' });
+    fireEvent.input(screen.getByRole('textbox', { name: 'Request' }), {
+      target: { value: 'Draft for the first form only' },
+    });
+    fireEvent.click(screen.getByRole('link', { name: 'Next synthetic form' }));
+    await screen.findByRole('heading', { name: 'Second form' });
+    expect(screen.getByRole('textbox', { name: 'Request' })).toHaveValue('');
+    fireEvent.click(screen.getByRole('button', { name: 'Submit request' }));
+    await screen.findByRole('heading', { name: 'Request received' });
+    expect(fixture.post).toHaveBeenCalledWith(
+      'https://qa.invalid/strategy-api/planner/public/forms/another-synthetic-capability',
+      {},
+      { timeout: 30000 },
+    );
   });
 });
