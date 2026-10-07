@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-deck-provenance-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-07T02:53:14.273744+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "3471cac58f5f898c3c02c390c935b9e25231aa1b",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:8ec41c4922cd9e6ade71e1063e23cc7328db11a9029a543fa14f41b67668c0f2",
+      "buildId": "capiro-build-web-dev:8246d9b0-72b4-4b89-aa5b-82aee0ff6cd9"
+    }
+  ],
+  "schemaChange": false,
+  "change": "API roll from main 3471cac58: a deck reads the report's provenance lines by position (#2166).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
