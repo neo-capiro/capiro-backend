@@ -1804,3 +1804,60 @@
   padding: 10px 8px;
   border-bottom: 1px solid #eee;
 }
+.planner-timesheets {
+  display: grid;
+  gap: 1rem;
+}
+.planner-timesheet-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+}
+.planner-timesheet-heading h3 {
+  margin: 0 0 0.4rem;
+}
+.planner-timesheet-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+.planner-timesheet-summary > div {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid #e8e6ef;
+  border-radius: 12px;
+}
+.planner-timesheet-summary strong {
+  font-size: 1.7rem;
+}
+.planner-table-scroll {
+  overflow-x: auto;
+}
+.planner-time-form {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem 0;
+}
+.planner-timesheets .planner-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.planner-timesheets .planner-table th,
+.planner-timesheets .planner-table td {
+  padding: 0.6rem;
+  border-bottom: 1px solid #eceaf2;
+  vertical-align: top;
+}
+.planner-timesheets .planner-table caption {
+  text-align: left;
+  padding: 0.6rem;
+  font-weight: 600;
+}
+@media (max-width: 700px) {
+  .planner-timesheet-summary {
+    grid-template-columns: 1fr;
+  }
+}

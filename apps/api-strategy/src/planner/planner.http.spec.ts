@@ -46,6 +46,11 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     notifications: jest.fn(async () => ({ items: [], unread: 0 })),
     readAllNotifications: jest.fn(async () => ({ read: 0 })),
     updateInbox: jest.fn(async () => ({ ok: true })),
+    timeSettings: jest.fn(async () => ({ version: 0, canManage: false, reviewers: {} })),
+    saveTimeSettings: jest.fn(async () => ({ ok: true })),
+    timesheet: jest.fn(async () => ({ items: [], matched: 0 })),
+    timeReview: jest.fn(async () => []),
+    transitionTimesheet: jest.fn(async () => ({ status: 'submitted' })),
   };
   const attachments = {
     list: jest.fn(async () => []),
@@ -81,6 +86,11 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
   it.each([
     ['get', 'bootstrap'],
     ['get', 'queue'],
+    ['get', 'time/settings'],
+    ['patch', 'time/settings'],
+    ['get', 'timesheets'],
+    ['get', 'timesheets/review'],
+    ['post', 'timesheets/status'],
     ['post', `forms/${ID}/share`],
     ['post', `projects/${ID}/duplicate`],
     ['post', `projects/${ID}/reorder`],
@@ -125,6 +135,31 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .send(body)
       .expect(200);
     expect(planner.reviseEvent).toHaveBeenCalledWith(ctx, ID, body);
+  });
+  it('routes weekly time and guarded status actions through the signed-in context', async () => {
+    await request(app.getHttpServer())
+      .get('/strategy-api/planner/timesheets')
+      .query({ week: '2026-10-05', userId: 'submitter' })
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.timesheet).toHaveBeenCalledWith(ctx, {
+      week: '2026-10-05',
+      userId: 'submitter',
+    });
+    const dto = {
+      week: '2026-10-05',
+      userId: 'submitter',
+      version: 1,
+      revision: 'a'.repeat(64),
+      action: 'submit',
+      notes: '',
+    };
+    await request(app.getHttpServer())
+      .post('/strategy-api/planner/timesheets/status')
+      .set('x-planner-qa', 'allowed')
+      .send(dto)
+      .expect(201);
+    expect(planner.transitionTimesheet).toHaveBeenCalledWith(ctx, dto);
   });
   it('forwards reporting drill-down cursors, category and expected version through the signed-in tenant guard', async () => {
     await request(app.getHttpServer())

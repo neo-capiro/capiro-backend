@@ -5,6 +5,7 @@ export * from './planner-template.js';
 export * from './planner-form.js';
 export * from './planner-goals.js';
 export * from './planner-reporting.js';
+export * from './planner-timesheets.js';
 export {
   verifyPlan,
   validIso,

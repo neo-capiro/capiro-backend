@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { PlannerEvent, PlannerRole } from '@capiro/strategy-verifier';
+import type { PlannerEvent, PlannerRole, PlannerTimeDetails } from '@capiro/strategy-verifier';
 import { PlannerFormattedText, PlannerRichText } from './planner-rich-text.js';
 import { plannerError, type usePlannerMutations } from './planner-api.js';
 
@@ -23,14 +23,20 @@ export function PlannerActivity({
     version: number;
     text: string;
     minutes: number | null;
+    time?: PlannerTimeDetails;
   } | null>(null);
   const [error, setError] = useState<unknown>(null);
   const own = event.actorId === me;
   const canEdit =
-    own &&
-    ((event.kind === 'comment' && access !== 'viewer') ||
-      (event.kind === 'time' && ['admin', 'editor'].includes(access)));
-  const revise = async (patch: { text?: string; minutes?: number; removed?: boolean }) => {
+    (own && event.kind === 'comment' && access !== 'viewer') ||
+    (event.kind === 'time' &&
+      (event.timeEditable ?? (own && ['admin', 'editor'].includes(access))));
+  const revise = async (patch: {
+    text?: string;
+    minutes?: number;
+    removed?: boolean;
+    time?: Partial<PlannerTimeDetails>;
+  }) => {
     setError(null);
     try {
       await mutation.mutateAsync({
@@ -60,20 +66,65 @@ export function PlannerActivity({
             onChange={(text) => setDraft((old) => old && { ...old, text })}
           />
           {event.kind === 'time' && (
-            <label>
-              Minutes
-              <input
-                aria-label="Edit logged minutes"
-                type="number"
-                min={1}
-                max={1440}
-                value={draft.minutes ?? ''}
-                onChange={(e) => {
-                  const minutes = Number(e.target.value);
-                  setDraft((old) => old && { ...old, minutes });
-                }}
-              />
-            </label>
+            <div>
+              <label>
+                Minutes
+                <input
+                  aria-label="Edit logged minutes"
+                  type="number"
+                  min={1}
+                  max={1440}
+                  value={draft.minutes ?? ''}
+                  onChange={(e) => {
+                    const minutes = Number(e.target.value);
+                    setDraft((old) => old && { ...old, minutes });
+                  }}
+                />
+              </label>
+              {draft.time && (
+                <>
+                  <label>
+                    Work date
+                    <input
+                      aria-label="Edit work date"
+                      type="date"
+                      value={draft.time.workedOn}
+                      onInput={(e) => {
+                        const value = e.currentTarget.value;
+                        setDraft((old) =>
+                          old && old.time
+                            ? { ...old, time: { ...old.time, workedOn: value } }
+                            : old,
+                        );
+                      }}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
+                        setDraft((old) =>
+                          old && old.time
+                            ? { ...old, time: { ...old.time, workedOn: value } }
+                            : old,
+                        );
+                      }}
+                    />
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={draft.time.billable}
+                      onChange={(e) => {
+                        const value = e.target.checked;
+                        setDraft((old) =>
+                          old && old.time
+                            ? { ...old, time: { ...old.time, billable: value } }
+                            : old,
+                        );
+                      }}
+                    />
+                    Billable time
+                  </label>
+                </>
+              )}
+            </div>
           )}
           <div className="planner-activity-actions">
             <button
@@ -87,7 +138,9 @@ export function PlannerActivity({
               onClick={() =>
                 void revise({
                   text: draft.text,
-                  ...(event.kind === 'time' ? { minutes: draft.minutes! } : {}),
+                  ...(event.kind === 'time'
+                    ? { minutes: draft.minutes!, ...(draft.time ? { time: draft.time } : {}) }
+                    : {}),
                 })
               }
             >
@@ -111,7 +164,14 @@ export function PlannerActivity({
         </p>
       ) : (
         <>
-          {event.kind === 'time' && <p className="planner-muted">{event.minutes} minutes logged</p>}
+          {event.kind === 'time' && (
+            <p className="planner-muted">
+              {event.minutes} minutes logged
+              {event.time
+                ? ` · ${event.time.workedOn} · ${event.time.billable ? 'Billable' : 'Non-billable'}`
+                : ''}
+            </p>
+          )}
           <PlannerFormattedText text={event.text} />
         </>
       )}
@@ -136,6 +196,7 @@ export function PlannerActivity({
                     version: event.version ?? 0,
                     text: event.text,
                     minutes: event.minutes,
+                    ...(event.time ? { time: event.time } : {}),
                   });
                 }}
               >

@@ -115,6 +115,7 @@ model SpPlannerEventRevision {
   text String
   minutes Int?
   removed Boolean @default(false)
+  details Json @default("{}")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   event SpPlannerEvent @relation(fields: [tenantId, eventId], references: [tenantId, id])
   @@unique([tenantId, eventId, version])

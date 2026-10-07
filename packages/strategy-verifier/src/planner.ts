@@ -90,6 +90,9 @@ export interface PlannerEvent {
   taskId: string | null;
   projectId: string | null;
   resourceId?: string | null;
+  time?: import('./planner-timesheets.js').PlannerTimeDetails;
+  timeEditable?: boolean;
+  timesheet?: { weekOn: string; userId: string };
   goalSnapshot?: PlannerGoalSnapshot;
   goalUpdate?: { title: string; sections: PlannerGoalUpdateSection[] };
   actorId: string;
@@ -103,12 +106,15 @@ export interface PlannerEvent {
     | 'restored'
     | 'reminder'
     | 'goal_status'
-    | 'goal_progress';
+    | 'goal_progress'
+    | 'timesheet_status';
   text: string;
   minutes: number | null;
   createdAt: string;
   version?: number;
   editedAt?: string | null;
+  editedBy?: string | null;
+  recordedBy?: string;
   removed?: boolean;
 }
 export interface PlannerInboxItem {

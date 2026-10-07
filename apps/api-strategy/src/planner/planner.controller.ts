@@ -31,6 +31,33 @@ export class PlannerController {
   @Get('queue') queue(@CurrentTenant() ctx: AuthTenantContext) {
     return this.planner.queue(ctx);
   }
+  @Get('time/settings') timeSettings(@CurrentTenant() ctx: AuthTenantContext) {
+    return this.planner.timeSettings(ctx);
+  }
+  @Patch('time/settings') saveTimeSettings(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.saveTimeSettings(ctx, dto);
+  }
+  @Get('timesheets/review') timeReview(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Query() query: Record<string, string>,
+  ) {
+    return this.planner.timeReview(ctx, query);
+  }
+  @Get('timesheets') timesheet(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Query() query: Record<string, string>,
+  ) {
+    return this.planner.timesheet(ctx, query);
+  }
+  @Post('timesheets/status') transitionTimesheet(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.transitionTimesheet(ctx, dto);
+  }
   @Get('reports/:id/widgets/:widgetId') reportWidget(
     @CurrentTenant() ctx: AuthTenantContext,
     @Param('id') id: string,

@@ -18,6 +18,10 @@ import type {
   PlannerGoalUpdateSection,
   PlannerGoalReminder,
   PlannerReportResponse,
+  PlannerTimeDetails,
+  PlannerTimesheet,
+  PlannerTimesheetAction,
+  PlannerTimeSettings,
 } from '@capiro/strategy-verifier';
 import { plannerFormSubmissionBody, type PlannerFormFiles } from './planner-form-questions.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -29,6 +33,42 @@ export function usePlannerKey() {
   return ['planner', orgId, userId, actAsTenantSlug] as const;
 }
 const BASE = '/strategy-api/planner';
+export function usePlannerTimesheet(week: string, userId?: string) {
+  const api = useApi(),
+    key = usePlannerKey();
+  return useInfiniteQuery({
+    queryKey: [...key, 'timesheet', week, userId],
+    initialPageParam: null as { cursor: string; revision: string } | null,
+    queryFn: async ({ pageParam }) =>
+      (
+        await api.get<PlannerTimesheet>(`${BASE}/timesheets`, {
+          params: { week, ...(userId ? { userId } : {}), ...pageParam },
+        })
+      ).data,
+    getNextPageParam: (page) =>
+      page.nextCursor ? { cursor: page.nextCursor, revision: page.revision } : undefined,
+    refetchInterval: 30_000,
+  });
+}
+export function usePlannerTimeReview(week: string, enabled: boolean) {
+  const api = useApi(),
+    key = usePlannerKey();
+  return useQuery({
+    queryKey: [...key, 'time-review', week],
+    enabled,
+    queryFn: async () =>
+      (await api.get<PlannerTimesheet[]>(`${BASE}/timesheets/review`, { params: { week } })).data,
+    refetchInterval: 30_000,
+  });
+}
+export function usePlannerTimeSettings() {
+  const api = useApi(),
+    key = usePlannerKey();
+  return useQuery({
+    queryKey: [...key, 'time-settings'],
+    queryFn: async () => (await api.get<PlannerTimeSettings>(`${BASE}/time/settings`)).data,
+  });
+}
 export function usePlannerBootstrap() {
   const api = useApi();
   const key = usePlannerKey();
@@ -265,6 +305,8 @@ export function usePlannerMutations() {
       text: string;
       minutes?: number;
       mentions?: string[];
+      time?: Partial<PlannerTimeDetails>;
+      loggerId?: string;
     }) => {
       const { taskId, projectId, resourceId, ...body } = input;
       return (
@@ -290,6 +332,7 @@ export function usePlannerMutations() {
       text?: string;
       minutes?: number;
       removed?: boolean;
+      time?: Partial<PlannerTimeDetails>;
     }) => {
       const { id, ...body } = input;
       return (await api.patch<PlannerEvent>(`${BASE}/events/${id}`, body)).data;
@@ -394,6 +437,22 @@ export function usePlannerMutations() {
       api.post(`${BASE}/projects/${input.projectId}/reorder`, { tasks: input.tasks }),
     onSuccess,
   });
+  const timesheet = useMutation({
+    mutationFn: async (input: {
+      week: string;
+      userId: string;
+      version: number;
+      revision: string;
+      action: PlannerTimesheetAction;
+      notes: string;
+    }) => (await api.post<PlannerTimesheet>(`${BASE}/timesheets/status`, input)).data,
+    onSuccess,
+  });
+  const timeSettings = useMutation({
+    mutationFn: async (input: { version: number; reviewers: Record<string, string> }) =>
+      (await api.patch(`${BASE}/time/settings`, input)).data,
+    onSuccess,
+  });
   return {
     project,
     task,
@@ -408,6 +467,8 @@ export function usePlannerMutations() {
     shareForm,
     duplicateProject,
     reorder,
+    timesheet,
+    timeSettings,
   };
 }
 export function plannerError(error: unknown): string {

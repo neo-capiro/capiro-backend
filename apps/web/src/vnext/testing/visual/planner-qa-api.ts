@@ -13,6 +13,10 @@ import {
   type PlannerGoalData,
   type PlannerGoalUpdateSection,
   type PlannerReportWidget,
+  type PlannerTimeDetails,
+  type PlannerTimesheet,
+  plannerWeekOn,
+  plannerWeekDate,
 } from '@capiro/strategy-verifier';
 const PROJECT = '20000000-0000-4000-8000-000000000001';
 const SECTION = '40000000-0000-4000-8000-000000000001';
@@ -71,6 +75,86 @@ const tasks: PlannerTask[] = [
 const events: PlannerEvent[] = [];
 const removedEventContents = new Map<string, { text: string; minutes: number | null }>();
 const resources: PlannerResource[] = [];
+const timeSettings = {
+  version: 1,
+    canManage: false,
+  reviewers: { user_qa: 'user_qa2' } as Record<string, string>,
+};
+const timeSheets = new Map<
+  string,
+  { version: number; status: PlannerTimesheet['status']; notes: string; history: PlannerEvent[] }
+>();
+function timeSheet(week: string, userId = 'user_qa'): PlannerTimesheet {
+  const weekOn = plannerWeekOn(week),
+    key = userId + weekOn,
+    stored = timeSheets.get(key);
+  const entries = events.filter(
+    (e) =>
+      e.kind === 'time' &&
+      !e.removed &&
+      e.actorId === userId &&
+      (e.time?.workedOn ?? e.createdAt.slice(0, 10)) >= weekOn &&
+      (e.time?.workedOn ?? e.createdAt.slice(0, 10)) < plannerWeekDate(weekOn, 7),
+  );
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const date = plannerWeekDate(weekOn, i),
+      rows = entries.filter((e) => e.time?.workedOn === date);
+    return {
+      date,
+      totalMinutes: rows.reduce((n, e) => n + (e.minutes ?? 0), 0),
+      billableMinutes: rows
+        .filter((e) => e.time?.billable)
+        .reduce((n, e) => n + (e.minutes ?? 0), 0),
+    };
+  });
+  const status = stored?.status ?? 'draft';
+  return {
+    id: stored ? key : null,
+    userId,
+    weekOn,
+    throughOn: plannerWeekDate(weekOn, 6),
+    reviewerId: timeSettings.reviewers[userId] ?? null,
+    status,
+    version: stored?.version ?? 0,
+    revision: String(stored?.version ?? 0).padStart(64, '0'),
+    notes: stored?.notes ?? '',
+    correctedAfterApproval: false,
+    totalMinutes: days.reduce((n, d) => n + d.totalMinutes, 0),
+    billableMinutes: days.reduce((n, d) => n + d.billableMinutes, 0),
+    days,
+    matched: entries.length,
+    unavailableEntries: false,
+    items: entries.map((e) => ({
+      ...e,
+      time: e.time!,
+      taskName: tasks.find((t) => t.id === e.taskId)?.name ?? null,
+      projectName: projects.find((p) => p.id === (e.time?.projectId ?? e.projectId))?.name ?? null,
+      canEdit: status === 'draft' || status === 'rejected',
+    })),
+    nextCursor: null,
+    actions:
+      status === 'submitted'
+        ? ['recall_submission']
+        : status === 'approved'
+          ? []
+          : entries.length && timeSettings.reviewers[userId]
+            ? ['submit']
+            : [],
+    history: stored?.history ?? [],
+  };
+}
+function touchTime(userId: string, date: string) {
+  const key = userId + plannerWeekOn(date),
+    old = timeSheets.get(key);
+  if (old?.status === 'submitted' || old?.status === 'approved')
+    error('Recall this timesheet before editing time', 403);
+  timeSheets.set(key, {
+    version: (old?.version ?? 0) + 1,
+    status: old?.status ?? 'draft',
+    notes: old?.notes ?? '',
+    history: old?.history ?? [],
+  });
+}
 function goalPoint(
   row: PlannerResource,
   kind: PlannerEvent['kind'] = 'goal_progress',
@@ -121,6 +205,15 @@ const error = (message: string, status = 400) => {
 };
 const api = {
   async get(path: string, config?: { params?: Record<string, string> }) {
+    if (path.endsWith('/time/settings')) return { data: structuredClone(timeSettings) };
+    if (path.endsWith('/timesheets/review')) return { data: [] };
+    if (path.endsWith('/timesheets'))
+      return {
+        data: timeSheet(
+          config?.params?.week ?? new Date().toISOString().slice(0, 10),
+          config?.params?.userId,
+        ),
+      };
     if (path.includes('/reports/')) {
       const parts = path.split('/'),
         dashboard = resources.find((r) => r.id === parts.at(-3));
@@ -332,6 +425,33 @@ const api = {
     return { data: structuredClone(row) };
   },
   async post(path: string, body: Record<string, unknown>) {
+    if (path.endsWith('/timesheets/status')) {
+      const week = String(body.week),
+        userId = String(body.userId),
+        key = userId + plannerWeekOn(week),
+        sheet = timeSheet(week, userId);
+      if (body.version !== sheet.version || body.revision !== sheet.revision)
+        error('Record changed', 409);
+      const status = body.action === 'submit' ? 'submitted' : 'draft';
+      const event: PlannerEvent = {
+        id: crypto.randomUUID(),
+        taskId: null,
+        projectId: null,
+        actorId: 'user_qa',
+        kind: 'timesheet_status',
+        text: `${status === 'submitted' ? 'Submitted' : 'Recalled'} timesheet · ${sheet.weekOn}`,
+        timesheet: { weekOn: sheet.weekOn, userId },
+        createdAt: new Date().toISOString(),
+        minutes: null,
+      };
+      timeSheets.set(key, {
+        version: sheet.version + 1,
+        status,
+        notes: String(body.notes),
+        history: [event, ...sheet.history],
+      });
+      return { data: timeSheet(week, userId) };
+    }
     if (path.endsWith('/reorder')) {
       const projectId = path.split('/').at(-2);
       for (const [i, item] of (body.tasks as { id: string; version: number }[]).entries()) {
@@ -492,6 +612,18 @@ const api = {
       return { data: { goal: structuredClone(goal), event: structuredClone(event) } };
     }
     if (path.endsWith('/events')) {
+      const time =
+        body.kind === 'time'
+          ? ({
+              workedOn: new Date().toISOString().slice(0, 10),
+              timeZone: 'UTC',
+              billable: false,
+              projectId: path.includes('/projects/') ? path.split('/').at(-2) : null,
+              category: '',
+              ...(body.time as Partial<PlannerTimeDetails>),
+            } as PlannerTimeDetails)
+          : undefined;
+      if (time) touchTime(String(body.loggerId ?? 'user_qa'), time.workedOn);
       const row: PlannerEvent = {
         id: crypto.randomUUID(),
         taskId: path.includes('/tasks/') ? path.split('/').at(-2)! : null,
@@ -505,6 +637,7 @@ const api = {
         version: 0,
         editedAt: null,
         removed: false,
+        ...(time ? { time, timeEditable: true } : {}),
       };
       events.unshift(row);
       if (body.minutes) {
@@ -540,8 +673,16 @@ const api = {
       minutes?: number;
       removed?: boolean;
       following?: boolean;
+      time?: Partial<PlannerTimeDetails>;
+      reviewers?: Record<string, string>;
     },
   ) {
+    if (path.endsWith('/time/settings')) {
+      if (body.version !== timeSettings.version) error('Record changed', 409);
+      timeSettings.reviewers = body.reviewers ?? {};
+      timeSettings.version++;
+      return { data: { ok: true } };
+    }
     if (path.endsWith('/follow')) {
       const goal = resources.find((r) => r.id === path.split('/').at(-2));
       if (!goal) error('Goal unavailable', 404);
@@ -555,6 +696,11 @@ const api = {
       const row = events.find((e) => e.id === path.split('/').at(-1));
       if (!row) error('Activity unavailable', 404);
       if ((row!.version ?? 0) !== body.version) error('Record changed', 409);
+      if (row!.kind === 'time' && row!.time) {
+        for (const date of new Set([row!.time.workedOn, body.time?.workedOn ?? row!.time.workedOn]))
+          touchTime(row!.actorId, date);
+        if (body.time) row!.time = { ...row!.time, ...body.time };
+      }
       const priorMinutes = row!.removed ? 0 : (row!.minutes ?? 0);
       if (body.removed === true) {
         removedEventContents.set(row!.id, { text: row!.text, minutes: row!.minutes });
@@ -569,6 +715,7 @@ const api = {
       }
       row!.version = (row!.version ?? 0) + 1;
       row!.editedAt = new Date().toISOString();
+      row!.editedBy = 'user_qa';
       if (row!.kind === 'time') {
         const task = tasks.find((t) => t.id === row!.taskId);
         if (task) task.actualMinutes += (row!.removed ? 0 : (row!.minutes ?? 0)) - priorMinutes;

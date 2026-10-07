@@ -18,6 +18,7 @@ import {
   Archive,
   Download,
   RefreshCw,
+  Clock3,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
@@ -68,6 +69,8 @@ import { PlannerRichText, PlannerFormattedText } from './planner-rich-text.js';
 import { PlannerMyTasksSettings } from './planner-my-tasks.js';
 import { PlannerTaskSchedule } from './planner-task-schedule.js';
 import { PlannerReporting } from './planner-reporting.js';
+import { PlannerTimesheets } from './planner-timesheets.js';
+import { PlannerTimeForm } from './planner-time-form.js';
 import type { PlannerSavedViewData } from '@capiro/strategy-verifier';
 import './planner.css';
 
@@ -130,12 +133,11 @@ export function PlannerPage() {
       ...(projectId ? { projectId } : scope === 'mine' ? { mine: 'true' } : {}),
       ...(archived ? { archived: 'true' } : {}),
     },
-    Boolean(bootstrap.data) && scope !== 'inbox' && scope !== 'reporting',
+    Boolean(bootstrap.data) && !['inbox', 'reporting', 'timesheets'].includes(scope),
   );
   useEffect(() => {
     if (
-      scope !== 'inbox' &&
-      scope !== 'reporting' &&
+      !['inbox', 'reporting', 'timesheets'].includes(scope) &&
       query.hasNextPage &&
       !query.isFetchingNextPage &&
       !query.isError
@@ -379,6 +381,7 @@ export function PlannerPage() {
       inbox: 'Inbox',
       workload: 'Workload',
       reporting: 'Reporting',
+      timesheets: 'Timesheets',
       portfolios: 'Portfolios',
       goals: 'Goals',
       templates: 'Templates',
@@ -429,6 +432,7 @@ export function PlannerPage() {
             { id: 'goals', label: 'Goals', icon: CheckCircle2 },
             { id: 'workload', label: 'Workload', icon: Users },
             { id: 'reporting', label: 'Reporting', icon: ChartGantt },
+            { id: 'timesheets', label: 'Timesheets', icon: Clock3 },
             { id: 'templates', label: 'Templates', icon: LayoutList },
             { id: 'rules', label: 'Rules', icon: Settings2 },
             { id: 'forms', label: 'Forms', icon: LayoutList },
@@ -568,6 +572,7 @@ export function PlannerPage() {
                 scope !== 'projects' &&
                 scope !== 'workload' &&
                 scope !== 'reporting' &&
+                scope !== 'timesheets' &&
                 (!project || writable(project.access)) &&
                 !archived && (
                   <button
@@ -619,6 +624,7 @@ export function PlannerPage() {
               onOpen={openTask}
               onGoal={(id) => updateParams({ scope: 'goals', goal: id, task: null, project: null })}
               onProject={(id) => go('project', id)}
+              onTimesheet={(week, userId) => setParams({ scope: 'timesheets', week, user: userId })}
             />
           ) : scope === 'workload' ? (
             <PlannerWorkload tasks={tasks} data={data} />
@@ -628,6 +634,15 @@ export function PlannerPage() {
               selectedId={params.get('report')}
               onSelect={(id) => updateParams({ report: id })}
               projectId={project?.id}
+            />
+          ) : scope === 'timesheets' ? (
+            <PlannerTimesheets
+              bootstrap={data}
+              week={params.get('week')}
+              userId={params.get('user')}
+              onSelect={(week, userId) =>
+                setParams({ scope: 'timesheets', week, ...(userId ? { user: userId } : {}) })
+              }
             />
           ) : managementKind ? (
             <PlannerManagement
@@ -1591,7 +1606,6 @@ function TaskEditor({
   );
   const [comment, setComment] = useState('');
   const [mentions, setMentions] = useState<string[]>([]);
-  const [minutes, setMinutes] = useState(30);
   const [subtask, setSubtask] = useState('');
   const [dependencySearch, setDependencySearch] = useState('');
   const dependencyQuery = usePlannerTasks({ search: dependencySearch });
@@ -2002,30 +2016,13 @@ function TaskEditor({
                     <span className="planner-muted">{task.actualMinutes} minutes logged</span>
                   </h3>
                   {canEdit && (
-                    <div className="planner-config-row">
-                      <input
-                        aria-label="Log minutes"
-                        type="number"
-                        min={1}
-                        max={1440}
-                        value={minutes}
-                        onChange={(e) => setMinutes(Number(e.target.value))}
-                      />
-                      <button
-                        type="button"
-                        disabled={actions.event.isPending}
-                        onClick={() =>
-                          actions.event.mutate({
-                            taskId: task.id,
-                            kind: 'time',
-                            text: 'Logged time',
-                            minutes,
-                          })
-                        }
-                      >
-                        Log time
-                      </button>
-                    </div>
+                    <PlannerTimeForm
+                      projects={bootstrap.projects}
+                      task={task}
+                      onSave={(input) =>
+                        actions.event.mutateAsync({ taskId: task.id, kind: 'time', ...input })
+                      }
+                    />
                   )}
                   <h3>Activity & comments</h3>
                   {task.access !== 'viewer' && (
@@ -2173,10 +2170,12 @@ function PlannerInbox({
   onOpen,
   onGoal,
   onProject,
+  onTimesheet,
 }: {
   onOpen: (id: string) => void;
   onGoal: (id: string) => void;
   onProject: (id: string) => void;
+  onTimesheet: (week: string, userId: string) => void;
 }) {
   const [archive, setArchive] = useState(false);
   const query = usePlannerInbox(archive);
@@ -2201,7 +2200,9 @@ function PlannerInbox({
             <button
               onClick={() => {
                 actions.inbox.mutate({ id: item.id, read: true });
-                if (item.event.resourceId) onGoal(item.event.resourceId);
+                if (item.event.timesheet)
+                  onTimesheet(item.event.timesheet.weekOn, item.event.timesheet.userId);
+                else if (item.event.resourceId) onGoal(item.event.resourceId);
                 else if (item.event.taskId) onOpen(item.event.taskId);
                 else if (item.event.projectId) onProject(item.event.projectId);
               }}
