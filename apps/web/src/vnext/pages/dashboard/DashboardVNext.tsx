@@ -14,6 +14,9 @@ import { useMarkLwNotificationRead } from '../legiwatch/lib/wave1-api.js';
 import { resolveNewsOutletMark } from './news-outlet-logos.js';
 import type { NewsLookback } from '../../../pages/dashboard/news-preferences.js';
 import './dashboard.css';
+import { usePlannerQueue } from '../planner/planner-api.js';
+import type { PlannerTask } from '@capiro/strategy-verifier';
+import { PLANNER_STATUS_LABELS } from '@capiro/strategy-verifier';
 
 type WireFilter = 'all' | 'x' | 'news';
 type WireItem =
@@ -44,9 +47,15 @@ function useAttentionPerPage() {
 
 export function DashboardVNext() {
   const markLwRead = useMarkLwNotificationRead();
+  const planner = usePlannerQueue();
+  const plannerQueue = {
+    items: planner.data ?? [],
+    unavailable: planner.isError,
+  };
   return (
     <DashboardVNextView
       model={useDashboardVNextModel()}
+      plannerQueue={plannerQueue}
       onClearAttention={(item, finish, fail) => {
         // Committee/hearing rows are durable: mark read FIRST, navigate only
         // on success so the bell badge + this module agree after a reload.
@@ -65,8 +74,10 @@ export function DashboardVNext() {
 export function DashboardVNextView({
   model,
   onClearAttention,
+  plannerQueue,
 }: {
   model: DashboardVNextModel;
+  plannerQueue?: { items: PlannerTask[]; unavailable: boolean };
   /** Connected wrapper supplies the lw read-then-navigate behavior. Optional
    *  so fixture renders of the pure view need no QueryClient. */
   onClearAttention?: (item: AttentionItem, finish: () => void, fail: () => void) => void;
@@ -276,7 +287,7 @@ export function DashboardVNextView({
             if (key === 'today' && model.visibility.today) {
               return <ChronologicalSpine key="today" model={model} selectedAttentionId={selectedAttentionId} onSelectAttention={setSelectedAttentionId} />;
             }
-            if (key === 'work' && model.visibility.work) return <WorkQueue key="work" model={model} />;
+            if (key === 'work' && model.visibility.work) return <WorkQueue key="work" model={model} plannerQueue={plannerQueue} />;
             return null;
           })}
         </div>
@@ -391,7 +402,7 @@ function SpineGroup({ label, events, today = false, week = false, model, selecte
   );
 }
 
-function WorkQueue({ model }: { model: DashboardVNextModel }) {
+function WorkQueue({ model, plannerQueue }: { model: DashboardVNextModel; plannerQueue?: { items: PlannerTask[]; unavailable: boolean } }) {
   const limit = model.density === 'presentation' ? 3 : model.density === 'compact' ? 5 : 4;
   const rows = model.workQueue.items.slice(0, limit);
   return (
@@ -399,6 +410,9 @@ function WorkQueue({ model }: { model: DashboardVNextModel }) {
       {/* v3: no header count pill — the total folds into the "View all"
           link text instead, matching the handoff's card restraint rule. */}
       <header className="dashv2-card__head dashv2-work__head"><h2>Work Queue</h2><span className="dashv2-triage__spacer"/><Link className="dashv2-link" to="/workspace">View all {model.workQueue.total}</Link></header>
+      {plannerQueue && <Link className="dashv2-link" to="/planner?scope=mine">Open Planner →</Link>}
+      {plannerQueue?.unavailable && <p className="dashv2-empty">Planner tasks are temporarily unavailable.</p>}
+      {plannerQueue?.items.slice(0, 2).map(task => <Link key={`planner-${task.id}`} className="dashv2-work-row" to={`/planner?task=${task.id}`}><span className="dashv2-work-row__kind">TASK</span><span className="dashv2-work-row__title">{task.name}</span><span className="dashv2-pill dashv2-pill--gray">{PLANNER_STATUS_LABELS[task.status]}</span></Link>)}
       {rows.length === 0 ? <div className="dashv2-empty">No open drafts</div> : rows.map((item) => (
         <Link key={item.id} className="dashv2-work-row" to={item.href}>
           <span className="dashv2-work-row__kind">{item.kind}</span>

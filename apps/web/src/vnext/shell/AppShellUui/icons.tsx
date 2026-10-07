@@ -52,6 +52,7 @@ export const NAV_ICON_BY_ROUTE_ID: Readonly<Record<string, IconName>> = {
   portfolio: 'briefcase',
   'engagement-manager': 'mail',
   workspace: 'grid',
+  planner: 'target',
   strategies: 'target',
   directory: 'users',
   intelligence: 'stars',

@@ -51,6 +51,10 @@ const VNextClientCrmRoute = lazy(async () => ({
   default: (await import('../pages/client-crm/VNextClientCrmRoute.js')).VNextClientCrmRoute,
 }));
 
+const PlannerPage = lazy(async () => ({
+  default: (await import('../pages/planner/PlannerPage.js')).PlannerPage,
+}));
+
 // Lazy like Client CRM: the District Nexus page reaches the MapLibre engine,
 // which must never be eagerly reachable (bundle-boundaries.test.ts).
 const VNextDistrictNexusPage = lazy(async () => ({
@@ -118,6 +122,10 @@ export function VNextRouter() {
 }
 
 function VNextRouterBranches({ location }: { location: ReturnType<typeof useLocation> }) {
+
+  if (location.pathname === '/planner') {
+    return <Suspense fallback={<div className="capiro-vnext-route-loading">Loading Planner…</div>}><PlannerPage /></Suspense>;
+  }
 
   // Portfolio: the client CRM profile at /clients?clientId=<id> and, with no
   // clientId, the Portfolio index (PORTFOLIO-HANDOFF §7.1). vNext owns /clients

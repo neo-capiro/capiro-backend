@@ -1,0 +1,149 @@
+import { Test } from '@nestjs/testing';
+import type { INestApplication, ExecutionContext } from '@nestjs/common';
+import request from 'supertest';
+import { PlannerController } from './planner.controller.js';
+import { PlannerAttachmentsController } from './planner-attachments.controller.js';
+import { PlannerPublicController } from './planner-public.controller.js';
+import { PlannerService } from './planner.service.js';
+import { PlannerAttachmentsService } from './planner-attachments.service.js';
+import { TenantGuard } from '../auth/tenant.guard.js';
+const ID = '30000000-0000-4000-8000-000000000001';
+const ctx = {
+  tenantId: '10000000-0000-4000-8000-000000000001',
+  clerkUserId: 'user_http_qa',
+  role: 'org:member',
+};
+/** Contract tests replace JWT verification only. Real grant/storage tests live in planner.db.int-spec.ts. */
+describe('Planner HTTP routing and tenant guard coverage', () => {
+  let app: INestApplication;
+  const planner = {
+    bootstrap: jest.fn(async () => ({
+      me: { id: ctx.clerkUserId, name: 'QA' },
+      people: [],
+      projects: [],
+    })),
+    tasks: jest.fn(async () => ({ items: [], nextCursor: null })),
+    task: jest.fn(async () => ({ id: ID })),
+    saveTask: jest.fn(async () => ({ id: ID, version: 2 })),
+    saveProject: jest.fn(async () => ({ id: ID })),
+    resources: jest.fn(async () => []),
+    saveResource: jest.fn(async () => ({ id: ID })),
+    instantiateTemplate: jest.fn(async () => ({ id: ID })),
+    submitForm: jest.fn(async () => ({ id: ID })),
+    shareForm: jest.fn(async () => ({ token: null })),
+    publicForm: jest.fn(async () => ({ name: 'Intake', description: '', fields: [] })),
+    submitPublicForm: jest.fn(async () => ({ received: true })),
+    duplicateProject: jest.fn(async () => ({ id: ID })),
+    queue: jest.fn(async () => []),
+    reorderTasks: jest.fn(async () => ({ ok: true })),
+    events: jest.fn(async () => []),
+    addEvent: jest.fn(async () => ({ id: ID })),
+    inbox: jest.fn(async () => []),
+    updateInbox: jest.fn(async () => ({ ok: true })),
+  };
+  const attachments = {
+    list: jest.fn(async () => []),
+    upload: jest.fn(async () => ({ id: ID })),
+    archive: jest.fn(async () => ({ id: ID })),
+    download: jest.fn(),
+  };
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController],
+      providers: [
+        { provide: PlannerService, useValue: planner },
+        { provide: PlannerAttachmentsService, useValue: attachments },
+      ],
+    })
+      .overrideGuard(TenantGuard)
+      .useValue({
+        canActivate(context: ExecutionContext) {
+          const req = context.switchToHttp().getRequest();
+          if (req.headers['x-planner-qa'] !== 'allowed') return false;
+          req.tenantContext = ctx;
+          return true;
+        },
+      })
+      .compile();
+    app = module.createNestApplication();
+    app.setGlobalPrefix('strategy-api');
+    await app.init();
+  });
+  afterAll(async () => {
+    await app?.close();
+  });
+  it.each([
+    ['get', 'bootstrap'],
+    ['get', 'queue'],
+    ['post', `forms/${ID}/share`],
+    ['post', `projects/${ID}/duplicate`],
+    ['post', `projects/${ID}/reorder`],
+    ['get', 'tasks'],
+    ['get', `tasks/${ID}`],
+    ['post', 'tasks'],
+    ['patch', `tasks/${ID}`],
+    ['post', 'projects'],
+    ['patch', `projects/${ID}`],
+    ['get', `tasks/${ID}/events`],
+    ['post', `tasks/${ID}/events`],
+    ['get', `projects/${ID}/events`],
+    ['post', `projects/${ID}/events`],
+    ['get', 'inbox'],
+    ['patch', `inbox/${ID}`],
+    ['get', 'resources'],
+    ['post', 'resources'],
+    ['patch', `resources/${ID}`],
+    ['post', `templates/${ID}/instantiate`],
+    ['post', `forms/${ID}/submit`],
+    ['get', `tasks/${ID}/attachments`],
+    ['post', `tasks/${ID}/attachments`],
+    ['patch', `tasks/${ID}/attachments/${ID}`],
+    ['get', `tasks/${ID}/attachments/${ID}/download`],
+  ])('guards %s /strategy-api/planner/%s', async (method, path) => {
+    const agent = request(app.getHttpServer());
+    await agent[method as 'get'](`/strategy-api/planner/${path}`).expect(403);
+  });
+  it('forwards tenant identity, version patches and the requesting bearer only to link validation', async () => {
+    const body = { version: 1, data: { clientId: ID, name: 'HTTP task' } };
+    await request(app.getHttpServer())
+      .patch(`/strategy-api/planner/tasks/${ID}`)
+      .set('x-planner-qa', 'allowed')
+      .set('Authorization', 'Bearer synthetic-qa-only')
+      .send(body)
+      .expect(200);
+    expect(planner.saveTask).toHaveBeenCalledWith(ctx, ID, body, 'Bearer synthetic-qa-only');
+    await request(app.getHttpServer())
+      .get('/strategy-api/planner/tasks?mine=true&cursor=' + ID)
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.tasks).toHaveBeenCalledWith(ctx, { mine: 'true', cursor: ID });
+  });
+  it('does not expose Planner at the canonical API prefix', async () => {
+    await request(app.getHttpServer())
+      .get('/api/planner/bootstrap')
+      .set('x-planner-qa', 'allowed')
+      .expect(404);
+  });
+  it('rejects an unsupported impersonated tenant before reaching Planner business code', async () => {
+    planner.bootstrap.mockClear();
+    await request(app.getHttpServer())
+      .get('/strategy-api/planner/bootstrap')
+      .set('x-planner-qa', 'allowed')
+      .set('x-capiro-impersonate-tenant', 'other-tenant')
+      .expect(403);
+    expect(planner.bootstrap).not.toHaveBeenCalled();
+  });
+  it('allows only the explicit anonymous form routes without the signed-in tenant guard', async () => {
+    await request(app.getHttpServer())
+      .get('/strategy-api/planner/public/forms/synthetic-capability')
+      .expect(200);
+    expect(planner.publicForm).toHaveBeenCalledWith('synthetic-capability');
+    await request(app.getHttpServer())
+      .post('/strategy-api/planner/public/forms/synthetic-capability')
+      .send({ answer: 'Request' })
+      .expect(201);
+    expect(planner.submitPublicForm).toHaveBeenCalledWith('synthetic-capability', {
+      answer: 'Request',
+    });
+  });
+});

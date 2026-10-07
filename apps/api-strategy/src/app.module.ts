@@ -11,6 +11,7 @@ import { ReferenceModule } from './reference/reference.module.js';
 import { MeriModule } from './meri/meri.module.js';
 import { AgentsModule } from './agents/agents.module.js';
 import { ContextModule } from './context/context.module.js';
+import { PlannerModule } from './planner/planner.module.js';
 
 /**
  * Root module for the api-strategy service.
@@ -37,6 +38,7 @@ import { ContextModule } from './context/context.module.js';
     MeriModule,
     AgentsModule,
     ContextModule,
+    PlannerModule,
   ],
 })
 export class AppModule {}

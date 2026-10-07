@@ -104,6 +104,7 @@ export const VNEXT_ROUTE_MANIFEST: VNextRouteDefinition[] = [
     ],
   },
   { id: 'workspace', label: 'Workspace', path: '/workspace', availability: 'existing' },
+  { id: 'planner', label: 'Planner', path: '/planner', availability: 'existing' },
   {
     id: 'strategies',
     label: 'Strategies',

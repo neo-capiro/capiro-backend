@@ -29,6 +29,105 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Planner is owned by this service. Project configuration and extensible task
+// fields are typed JSON documents; identity, scope, concurrency and indexes are
+// relational. Membership/dependency mutations serialize under a tenant lock.
+model SpPlannerProject {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  ownerId   String @map("owner_id")
+  data      Json
+  version   Int @default(1)
+  archived  Boolean @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  @@index([tenantId, archived])
+  @@map("sp_planner_projects")
+}
+
+model SpPlannerTask {
+  id          String @id @default(uuid()) @db.Uuid
+  tenantId    String @map("tenant_id") @db.Uuid
+  ownerId     String @map("owner_id")
+  assigneeId  String? @map("assignee_id")
+  parentId    String? @map("parent_id") @db.Uuid
+  projectIds  String[] @map("project_ids") @db.Uuid
+  data        Json
+  version     Int @default(1)
+  archived    Boolean @default(false)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  attachments SpPlannerAttachment[]
+  @@unique([tenantId, id])
+  @@index([tenantId, archived, assigneeId])
+  @@index([tenantId, parentId])
+  @@index([projectIds], type: Gin)
+  @@map("sp_planner_tasks")
+}
+
+model SpPlannerAttachment {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  taskId String @map("task_id") @db.Uuid
+  uploadedBy String @map("uploaded_by")
+  fileName String @map("file_name")
+  sizeBytes Int @map("size_bytes")
+  objectKey String @map("object_key")
+  archived Boolean @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  task SpPlannerTask @relation(fields:[tenantId,taskId],references:[tenantId,id])
+  @@index([tenantId,taskId,archived])
+  @@map("sp_planner_attachments")
+}
+
+model SpPlannerEvent {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  actorId   String @map("actor_id")
+  taskId    String? @map("task_id") @db.Uuid
+  projectId String? @map("project_id") @db.Uuid
+  kind      String
+  text      String
+  minutes   Int?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  recipients SpPlannerInbox[]
+  @@unique([tenantId, id])
+  @@index([tenantId, taskId, createdAt])
+  @@index([tenantId, projectId, createdAt])
+  @@map("sp_planner_events")
+}
+
+model SpPlannerInbox {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  userId    String @map("user_id")
+  eventId   String @map("event_id") @db.Uuid
+  read      Boolean @default(false)
+  archived  Boolean @default(false)
+  event     SpPlannerEvent @relation(fields: [tenantId, eventId], references: [tenantId, id])
+  @@unique([eventId, userId])
+  @@index([tenantId, userId, archived])
+  @@map("sp_planner_inbox")
+}
+
+model SpPlannerResource {
+  id        String @id @default(uuid()) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  ownerId   String @map("owner_id")
+  projectId String? @map("project_id") @db.Uuid
+  kind      String
+  name      String
+  data      Json
+  version   Int @default(1)
+  archived  Boolean @default(false)
+  shareTokenHash String? @map("share_token_hash")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  @@index([tenantId, kind, archived])
+  @@map("sp_planner_resources")
+}
+
 // ---- Enums --------------------------------------------------------------------
 
 enum SpStrategyType {

@@ -118,6 +118,7 @@ export class AssetsStack extends cdk.Stack {
       roleName: `capiro-${cfg.envName}-api-strategy-task-role`,
     });
     this.grantClientLogoRead(this.strategyReportTaskRole);
+    this.grantPlannerAttachmentAccess(this.strategyReportTaskRole);
 
     new cdk.CfnOutput(this, 'AssetsBucketName', {
       value: this.bucket.bucketName,
@@ -126,6 +127,22 @@ export class AssetsStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'StrategyReportTaskRoleArn', {
       value: this.strategyReportTaskRole.roleArn,
     });
+  }
+
+  /** Planner-owned uploads and authorized downloads, isolated from document keys. */
+  grantPlannerAttachmentAccess(grantee: iam.IGrantable): void {
+    grantee.grantPrincipal.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:GetObject', 's3:PutObject', 's3:DeleteObject'],
+        resources: [`${this.bucket.bucketArn}/tenants/*/planner/tasks/*/*`],
+      }),
+    );
+    grantee.grantPrincipal.addToPrincipalPolicy(
+      new iam.PolicyStatement({
+        actions: ['kms:GenerateDataKey', 'kms:Decrypt'],
+        resources: [this.key.keyArn],
+      }),
+    );
   }
 
   /** Read-only access to confirmed per-client logo objects used in reports. */
