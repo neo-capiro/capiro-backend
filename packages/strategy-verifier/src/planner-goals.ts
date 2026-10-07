@@ -1,4 +1,12 @@
-import type { PlannerGoalData, PlannerGoalProgress, PlannerResource } from './planner.js';
+import type {
+  PlannerGoalData,
+  PlannerGoalProgress,
+  PlannerResource,
+  PlannerGoalReminder,
+} from './planner.js';
+import { plannerDateInZone, plannerScheduledInstant } from './planner-schedule.js';
+
+export const PLANNER_GOAL_GRADING_DAYS = 7;
 
 export const PLANNER_WEIGHTED_GOAL_MODES = [
   'subgoal_percentage',
@@ -48,8 +56,14 @@ export function plannerGoalWeights(data: PlannerGoalData, visibleIds = plannerGo
   const total = weights.reduce((sum, item) => sum + item.weight, 0);
   return weights.map((item) => ({ ...item, weight: total ? (item.weight / total) * 100 : 0 }));
 }
-const percentage = (value: number, target: number) =>
-  Math.min(100, Math.max(0, (value / target) * 100));
+export function plannerGoalPercentage(
+  data: Pick<PlannerGoalData, 'current' | 'target' | 'startValue'>,
+  value = data.current,
+) {
+  const start = data.startValue ?? 0;
+  const distance = data.target - start;
+  return distance ? Math.min(100, Math.max(0, ((value - start) / distance) * 100)) : 0;
+}
 type GoalTask = { id: string; status: string; kind: string; projectIds: string[] };
 
 /** Inputs have already been filtered by current access; never traverse hidden records here. */
@@ -152,10 +166,10 @@ export function plannerGoalProgress(
     }
     result.set(id, {
       value,
-      percentage: percentage(
-        value,
-        data.progress === 'manual' || data.progress === 'subgoal_total' ? data.target : 100,
-      ),
+      percentage:
+        data.progress === 'manual' || data.progress === 'subgoal_total'
+          ? plannerGoalPercentage(data, value)
+          : Math.min(100, Math.max(0, value)),
       sources,
     });
     for (const parent of dependents.get(id) ?? []) {
@@ -165,4 +179,60 @@ export function plannerGoalProgress(
     }
   }
   return result;
+}
+
+function goalReminderStep(reminder: PlannerGoalReminder, today: string): number {
+  const anchor = new Date(`${reminder.anchorOn}T12:00:00Z`),
+    date = new Date(`${today}T12:00:00Z`);
+  if (reminder.cadence === 'weekly' || reminder.cadence === 'biweekly')
+    return Math.floor(
+      (date.getTime() - anchor.getTime()) / (86400000 * (reminder.cadence === 'weekly' ? 7 : 14)),
+    );
+  return Math.floor(
+    ((date.getUTCFullYear() - anchor.getUTCFullYear()) * 12 +
+      date.getUTCMonth() -
+      anchor.getUTCMonth()) /
+      (reminder.cadence === 'monthly' ? 1 : 3),
+  );
+}
+function goalReminderOccurrence(
+  reminder: PlannerGoalReminder,
+  step: number,
+): { date: string; instant: Date } {
+  const anchor = new Date(`${reminder.anchorOn}T12:00:00Z`),
+    date = new Date(anchor);
+  if (reminder.cadence === 'weekly' || reminder.cadence === 'biweekly')
+    date.setUTCDate(date.getUTCDate() + step * (reminder.cadence === 'weekly' ? 7 : 14));
+  else {
+    date.setUTCDate(1);
+    date.setUTCMonth(date.getUTCMonth() + step * (reminder.cadence === 'monthly' ? 1 : 3));
+    const last = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+    date.setUTCDate(Math.min(anchor.getUTCDate(), last));
+  }
+  const value = date.toISOString().slice(0, 10);
+  return { date: value, instant: plannerScheduledInstant(value, reminder.time, reminder.timeZone) };
+}
+/** Return only the most recent due occurrence; retries use its stable date as a receipt key. */
+export function plannerGoalReminderDue(
+  reminder: PlannerGoalReminder,
+  now: Date,
+): { date: string; instant: Date } | null {
+  let step = goalReminderStep(reminder, plannerDateInZone(now, reminder.timeZone));
+  if (step < 0) return null;
+  let candidate = goalReminderOccurrence(reminder, step);
+  if (candidate.instant.getTime() > now.getTime()) {
+    if (--step < 0) return null;
+    candidate = goalReminderOccurrence(reminder, step);
+  }
+  return candidate;
+}
+export function plannerGoalNextReminder(
+  reminder: PlannerGoalReminder,
+  now: Date,
+): { date: string; instant: Date } {
+  let step = Math.max(0, goalReminderStep(reminder, plannerDateInZone(now, reminder.timeZone)));
+  let candidate = goalReminderOccurrence(reminder, step);
+  if (candidate.instant.getTime() <= now.getTime())
+    candidate = goalReminderOccurrence(reminder, step + 1);
+  return candidate;
 }

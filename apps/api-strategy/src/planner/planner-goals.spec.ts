@@ -1,5 +1,10 @@
 import type { PlannerGoalData, PlannerResource } from '@capiro/strategy-verifier';
-import { plannerGoalCycle, plannerGoalProgress, plannerGoalWeights } from './planner-goals.js';
+import {
+  plannerGoalCycle,
+  plannerGoalProgress,
+  plannerGoalWeights,
+  plannerGoalPercentage,
+} from './planner-goals.js';
 import { validateResource } from './planner-resources.js';
 
 const id = (n: number) => `21000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
@@ -126,6 +131,49 @@ describe('Planner goal progress and graph contracts', () => {
       ),
     ).toBe(false);
     expect(plannerGoalProgress(goals, new Set(), []).size).toBe(3000);
+  });
+  it('measures increasing and decreasing intervals from their original starting value', () => {
+    const increasing = goalData({ startValue: 100, target: 200, current: 150 });
+    const decreasing = goalData({ startValue: 100, target: 0, current: 25, direction: 'decrease' });
+    expect(plannerGoalPercentage(increasing)).toBe(50);
+    expect(plannerGoalPercentage(decreasing)).toBe(75);
+    expect(plannerGoalPercentage(decreasing, 120)).toBe(0);
+    expect(plannerGoalPercentage(decreasing, -10)).toBe(100);
+    const result = plannerGoalProgress(
+      [
+        goal(1, decreasing),
+        goal(2, { current: 25 }),
+        goal(3, { progress: 'subgoal_percentage', subgoalIds: [id(1), id(2)] }),
+        goal(4, {
+          progress: 'subgoal_total',
+          subgoalIds: [id(1), id(2)],
+          startValue: 100,
+          target: 0,
+          direction: 'decrease',
+        }),
+      ],
+      new Set(),
+      [],
+    );
+    expect(result.get(id(3))?.percentage).toBe(50);
+    expect(result.get(id(4))).toMatchObject({ value: 50, percentage: 50 });
+  });
+  it('validates directional intervals while keeping legacy measurements compatible', () => {
+    expect(
+      validateResource('goal', goalData({ startValue: 100, target: 0, direction: 'decrease' })),
+    ).toBeDefined();
+    expect(validateResource('goal', goalData({ startValue: -100, target: 0 }))).toBeDefined();
+    for (const patch of [
+      { startValue: 100, target: 100 },
+      { startValue: 0, target: 100, direction: 'decrease' },
+      { startValue: 100, target: 0, direction: 'increase' },
+      { startValue: NaN },
+      { target: 0 },
+      { progress: 'project_task_completion', direction: 'decrease' },
+      { progress: 'project_task_completion', startValue: 10 },
+    ])
+      expect(() => validateResource('goal', goalData(patch as Partial<PlannerGoalData>))).toThrow();
+    expect(validateResource('goal', goalData())).toBeDefined();
   });
   it('validates complete custom weights, source identities, supported modes and date ordering', () => {
     const valid = goalData({

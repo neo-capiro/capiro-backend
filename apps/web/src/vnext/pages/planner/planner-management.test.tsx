@@ -13,9 +13,19 @@ vi.mock('./planner-api.js', () => ({
   usePlannerMutations: () => ({
     resource: { isPending: false, error: null, mutate: mocks.save, reset: vi.fn() },
     instantiate: { error: null },
+    goalUpdate: { isPending: false, error: null, mutateAsync: vi.fn() },
+    followGoal: { isPending: false, error: null, mutateAsync: vi.fn() },
+    event: { isPending: false, error: null, mutateAsync: vi.fn() },
+    reviseEvent: { isPending: false, mutateAsync: vi.fn() },
     shareForm: { isPending: false, error: null, mutateAsync: mocks.share },
   }),
-  usePlannerEvents: vi.fn(),
+  usePlannerEvents: () => ({
+    data: {
+      pages: [{ items: [], nextCursor: null, goalContext: { audienceCount: 1, following: false } }],
+    },
+    isPending: false,
+    error: null,
+  }),
   plannerError: String,
 }));
 const form: PlannerResource = {

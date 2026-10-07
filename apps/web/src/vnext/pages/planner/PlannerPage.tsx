@@ -593,7 +593,11 @@ export function PlannerPage() {
               )}
             </div>
           ) : scope === 'inbox' ? (
-            <PlannerInbox onOpen={openTask} />
+            <PlannerInbox
+              onOpen={openTask}
+              onGoal={(id) => updateParams({ scope: 'goals', goal: id, task: null, project: null })}
+              onProject={(id) => go('project', id)}
+            />
           ) : scope === 'workload' ? (
             <PlannerWorkload tasks={tasks} data={data} />
           ) : scope === 'reporting' ? (
@@ -2136,7 +2140,15 @@ function TaskEditor({
   );
 }
 
-function PlannerInbox({ onOpen }: { onOpen: (id: string) => void }) {
+function PlannerInbox({
+  onOpen,
+  onGoal,
+  onProject,
+}: {
+  onOpen: (id: string) => void;
+  onGoal: (id: string) => void;
+  onProject: (id: string) => void;
+}) {
   const [archive, setArchive] = useState(false);
   const query = usePlannerInbox(archive);
   const actions = usePlannerMutations();
@@ -2160,7 +2172,9 @@ function PlannerInbox({ onOpen }: { onOpen: (id: string) => void }) {
             <button
               onClick={() => {
                 actions.inbox.mutate({ id: item.id, read: true });
-                if (item.event.taskId) onOpen(item.event.taskId);
+                if (item.event.resourceId) onGoal(item.event.resourceId);
+                else if (item.event.taskId) onOpen(item.event.taskId);
+                else if (item.event.projectId) onProject(item.event.projectId);
               }}
             >
               <strong>
@@ -2188,7 +2202,7 @@ function PlannerInbox({ onOpen }: { onOpen: (id: string) => void }) {
       )}
       {!query.isPending && !query.error && !query.hasNextPage && items.length === 0 && (
         <Empty title="You’re all caught up">
-          Updates to tasks you follow or own will appear here.
+          Updates to tasks and goals you follow or own will appear here.
         </Empty>
       )}
     </div>

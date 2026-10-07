@@ -1,5 +1,7 @@
 # Planner
 
+Goal updates/history/reminders and starting/decreasing measurements are implemented and qualifying for the next narrow release. See [RELEASE-GOAL-ACTIVITY-20261007.md](RELEASE-GOAL-ACTIVITY-20261007.md) for behavior, privacy, reminder delivery and qualification status. Full parity remains open.
+
 Owner request, October 6, 2026: reproduce Asana's work functionality as a **Planner** tab on `os.capiro.ai`. Planner is owned by **api-strategy**, at `/strategy-api/planner`. Use the existing Strategies service, Aurora cluster, Clerk membership resolution, and tenant-scoped Prisma client.
 
 Approved integrations: Dashboard Work Queue; links to client records and Engagement meetings; Planner updates and reminders in Capiro's main notification bell as well as Planner Inbox. All are live. Workspace document integration is explicitly excluded. Ask the owner before adding any other Capiro integration (including Meri or Strategy execution).

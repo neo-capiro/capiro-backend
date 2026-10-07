@@ -88,6 +88,10 @@ model SpPlannerEvent {
   actorId   String @map("actor_id")
   taskId    String? @map("task_id") @db.Uuid
   projectId String? @map("project_id") @db.Uuid
+  resourceId String? @map("resource_id") @db.Uuid
+  details Json @default("{}")
+  resource SpPlannerResource? @relation(fields: [tenantId,resourceId], references: [tenantId,id], onDelete: Restrict, onUpdate: Cascade)
+  goalReminderClaims SpPlannerGoalReminderClaim[]
   kind      String
   text      String
   minutes   Int?
@@ -95,8 +99,10 @@ model SpPlannerEvent {
   recipients SpPlannerInbox[]
   revisions SpPlannerEventRevision[]
   @@unique([tenantId, id])
+  @@unique([tenantId, resourceId, id])
   @@index([tenantId, taskId, createdAt])
   @@index([tenantId, projectId, createdAt])
+  @@index([tenantId, resourceId, createdAt])
   @@map("sp_planner_events")
 }
 
@@ -142,6 +148,8 @@ model SpPlannerResource {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
   scheduleClaims SpPlannerScheduleClaim[]
+  events SpPlannerEvent[]
+  goalReminderClaims SpPlannerGoalReminderClaim[]
   @@unique([tenantId, id])
   @@index([tenantId, kind, archived])
   @@map("sp_planner_resources")
@@ -160,6 +168,23 @@ model SpPlannerScheduleClaim {
   task SpPlannerTask @relation(fields: [tenantId, taskId], references: [tenantId, id])
   @@unique([tenantId, resourceId, taskId, fingerprint, deadlineKey], map: "sp_planner_schedule_claims_execution_key")
   @@map("sp_planner_schedule_claims")
+}
+
+// Append-only goal reminder delivery receipts. Created with the event and Inbox rows.
+model SpPlannerGoalReminderClaim {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  resourceId String @map("resource_id") @db.Uuid
+  ownerId String @map("owner_id")
+  kind String
+  fingerprint String @db.Char(64)
+  deadlineKey String @map("deadline_key") @db.Char(64)
+  eventId String @map("event_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  resource SpPlannerResource @relation(fields: [tenantId,resourceId], references: [tenantId,id])
+  event SpPlannerEvent @relation(fields: [tenantId,resourceId,eventId], references: [tenantId,resourceId,id], onDelete: Restrict, onUpdate: Cascade)
+  @@unique([tenantId,resourceId,ownerId,kind,fingerprint,deadlineKey], map:"sp_planner_goal_reminder_claims_delivery_key")
+  @@map("sp_planner_goal_reminder_claims")
 }
 
 // ---- Enums --------------------------------------------------------------------

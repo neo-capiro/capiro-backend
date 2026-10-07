@@ -166,6 +166,45 @@ describe('Planner fourth notification source', () => {
     expect(fixture.navigate).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: /Synthetic launch task/ })).toBeTruthy();
   });
+  it('opens goal updates through a typed local goal link after persisting the read', async () => {
+    const original = fixture.get.getMockImplementation()!;
+    fixture.get.mockImplementation((url) =>
+      url === path
+        ? Promise.resolve({
+            data: {
+              unread: 1,
+              items: read
+                ? []
+                : [
+                    {
+                      ...item,
+                      title: 'Synthetic goal update',
+                      event: {
+                        ...item.event,
+                        taskId: null,
+                        resourceId: '21000000-0000-4000-8000-000000000001',
+                        kind: 'goal_status',
+                      },
+                    },
+                  ],
+            },
+          })
+        : original(url),
+    );
+    view();
+    await open();
+    fireEvent.click(await screen.findByRole('button', { name: /Synthetic goal update/ }));
+    await waitFor(() =>
+      expect(fixture.patch).toHaveBeenCalledWith('/strategy-api/planner/inbox/same-id', {
+        read: true,
+      }),
+    );
+    await waitFor(() =>
+      expect(fixture.navigate).toHaveBeenCalledWith(
+        '/planner?scope=goals&goal=21000000-0000-4000-8000-000000000001',
+      ),
+    );
+  });
   it('single-flight protection prevents two rapid read requests', async () => {
     let resolve!: (value: unknown) => void;
     fixture.patch.mockImplementation(

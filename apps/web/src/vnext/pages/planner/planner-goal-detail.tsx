@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { plannerGoalPercentage } from '@capiro/strategy-verifier';
 import type {
   PlannerBootstrap,
   PlannerGoalData,
@@ -29,8 +30,7 @@ export function PlannerGoalDetail({
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const data = goal.data as unknown as PlannerGoalData;
   const percentage =
-    goal.goalProgress?.percentage ??
-    (data.progress === 'manual' ? (data.current / data.target) * 100 : 0);
+    goal.goalProgress?.percentage ?? (data.progress === 'manual' ? plannerGoalPercentage(data) : 0);
   const linkedGoals = (ids: string[]) =>
     ids
       .map((id) => goals.find((g) => g.kind === 'goal' && g.id === id))
@@ -38,7 +38,7 @@ export function PlannerGoalDetail({
   const parents = linkedGoals(goal.parentGoalIds ?? []),
     children = linkedGoals(data.subgoalIds ?? []);
   return (
-    <div className="planner-dialog-body planner-goal-detail">
+    <div className="planner-goal-detail">
       <p className="planner-muted">
         {
           ({ company: 'Company', team: 'Team', individual: 'Individual' } as const)[
@@ -64,7 +64,7 @@ export function PlannerGoalDetail({
         {copyState === 'copied' ? 'Link copied' : 'Copy goal link'}
       </button>
       {copyState === 'failed' && (
-        <p role="alert">Unable to copy the link. Copy this page�s address from your browser.</p>
+        <p role="alert">Unable to copy the link. Copy the page address from your browser.</p>
       )}
       <p>
         {PLANNER_GOAL_STATUS_LABELS[data.status]}
@@ -79,6 +79,13 @@ export function PlannerGoalDetail({
           ? ` · ${goal.goalProgress?.value ?? data.current} / ${data.target} ${data.unit}`
           : ''}
       </p>
+      {(data.progress === 'manual' || data.progress === 'subgoal_total') &&
+        ((data.startValue ?? 0) !== 0 || data.direction === 'decrease') && (
+          <p className="planner-muted">
+            Starting at {data.startValue ?? 0} {data.unit} ·{' '}
+            {data.direction === 'decrease' ? 'Decreasing value' : 'Increasing value'}
+          </p>
+        )}
       {data.description.trim() && <PlannerFormattedText text={data.description} />}
       {!!parents.length && (
         <section aria-label="Parent goals">

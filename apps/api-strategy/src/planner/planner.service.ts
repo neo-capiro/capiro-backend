@@ -15,6 +15,8 @@ import {
   nextPlannerSchedule,
   plannerDueTimestamp,
   plannerCalendarDate,
+  PLANNER_GOAL_GRADING_DAYS,
+  plannerScheduledInstant,
   plannerTemplateSchedule,
   plannerDependencyCycle,
   type PlannerBootstrap,
@@ -66,7 +68,13 @@ import {
   plannerGoalProgress,
   plannerGoalSourceIds,
   plannerGoalWeights,
+  plannerGoalReminderDue,
 } from './planner-goals.js';
+import {
+  plannerGoalSnapshotDetails,
+  plannerGoalActivityView,
+  validatePlannerGoalUpdate,
+} from './planner-goal-activity.js';
 import {
   plannerPublicForm,
   plannerFormTaskValues,
@@ -301,6 +309,12 @@ export class PlannerService {
           )
             requireRole(plannerProjectAccess(old, ctx.clerkUserId), 'admin');
         }
+        const beforeGoals =
+          old &&
+          (dto.archived !== undefined ||
+            ['members', 'privacy'].some((k) => Object.hasOwn(dto.data, k)))
+            ? await this.captureGoalViews(tx, ctx, await this.projects(tx, ctx))
+            : [];
         const data = validateProject({
           ...(old ? projectData(old) : PLANNER_DEFAULT_PROJECT),
           ...dto.data,
@@ -375,6 +389,16 @@ export class PlannerService {
           },
           data.members.map((m) => m.userId),
         );
+        if (beforeGoals.length) {
+          const currentProjects = await this.projects(tx, ctx);
+          await this.recordGoalChanges(
+            tx,
+            ctx,
+            beforeGoals,
+            await this.captureGoalViews(tx, ctx, currentProjects),
+            currentProjects,
+          );
+        }
         return this.projectView(row, ctx);
       },
       true,
@@ -672,6 +696,15 @@ export class PlannerService {
     notifyChanges = true,
     now = new Date(),
   ) {
+    const affectsGoals =
+      !old ||
+      dto.archived !== undefined ||
+      ['status', 'subtype', 'memberships', 'collaborators', 'assigneeId'].some(
+        (k) =>
+          JSON.stringify((taskData(old) as unknown as Record<string, unknown>)[k]) !==
+          JSON.stringify((data as unknown as Record<string, unknown>)[k]),
+      );
+    const beforeGoals = affectsGoals ? await this.captureGoalViews(tx, ctx, projects) : [];
     const completedAt = data.status === 'done' ? (old?.completedAt ?? now) : null;
     const createNextRecurrence =
       data.status === 'done' &&
@@ -752,6 +785,14 @@ export class PlannerService {
       );
       await this.copyRecurringContents(tx, ctx, all, recurrenceCopies);
     }
+    if (beforeGoals.length)
+      await this.recordGoalChanges(
+        tx,
+        ctx,
+        beforeGoals,
+        await this.captureGoalViews(tx, ctx, projects),
+        projects,
+      );
     return row;
   }
   private eventView(row: SpPlannerEvent): PlannerEvent {
@@ -880,6 +921,8 @@ export class PlannerService {
     input: {
       taskId?: string;
       projectId?: string;
+      resourceId?: string;
+      details?: Record<string, unknown>;
       kind: PlannerEvent['kind'];
       text: string;
       minutes?: number;
@@ -887,10 +930,16 @@ export class PlannerService {
     recipients: string[],
     includeActor = false,
   ) {
+    const { details, ...activity } = input;
     const event = await tx.spPlannerEvent.create({
-      data: { tenantId: ctx.tenantId, actorId: ctx.clerkUserId, ...input },
+      data: {
+        tenantId: ctx.tenantId,
+        actorId: ctx.clerkUserId,
+        ...activity,
+        ...(details ? { details: json(details) } : {}),
+      },
     });
-    const people = new Set((await this.people(tx, ctx)).map((p) => p.id));
+    const people = new Set(recipients.length ? (await this.people(tx, ctx)).map((p) => p.id) : []);
     for (const userId of new Set(recipients))
       if ((includeActor || userId !== ctx.clerkUserId) && people.has(userId))
         await tx.spPlannerInbox.create({
@@ -1148,20 +1197,20 @@ export class PlannerService {
   }
   async events(
     ctx: AuthTenantContext,
-    target: { taskId?: string; projectId?: string },
+    target: { taskId?: string; projectId?: string; resourceId?: string },
   ): Promise<PlannerEvent[]>;
   async events(
     ctx: AuthTenantContext,
-    target: { taskId?: string; projectId?: string },
+    target: { taskId?: string; projectId?: string; resourceId?: string },
     query: ActivityQuery,
   ): Promise<PlannerEvent[] | PlannerActivityPage<PlannerEvent>>;
   async events(
     ctx: AuthTenantContext,
-    target: { taskId?: string; projectId?: string },
+    target: { taskId?: string; projectId?: string; resourceId?: string },
     query: ActivityQuery = {},
   ) {
     const paged = activityQuery(query);
-    if (Boolean(target.taskId) === Boolean(target.projectId))
+    if ([target.taskId, target.projectId, target.resourceId].filter(Boolean).length !== 1)
       fail('One activity target is required');
     return this.scope(ctx, async (tx) => {
       if (target.taskId) {
@@ -1183,6 +1232,18 @@ export class PlannerService {
         if (!p) throw missing();
         requireRole(plannerProjectAccess(p, ctx.clerkUserId), 'viewer');
       }
+      let goalContext: { audienceCount: number; following: boolean } | undefined;
+      if (target.resourceId) {
+        uuid(target.resourceId);
+        const row = await this.goalRecord(tx, ctx, target.resourceId, 'viewer');
+        const projects = await this.projects(tx, ctx);
+        goalContext = {
+          audienceCount: (await this.goalRecipients(tx, ctx, row, projects)).length,
+          following: ((row.data as unknown as PlannerGoalData).followers ?? []).includes(
+            ctx.clerkUserId,
+          ),
+        };
+      }
       const where = { tenantId: ctx.tenantId, ...target };
       if (
         query.cursor &&
@@ -1195,17 +1256,26 @@ export class PlannerService {
         ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
         take: paged ? 101 : 100,
       });
-      const items = await plannerReadActivity(tx, ctx, rows.slice(0, 100));
-      return paged ? { items, nextCursor: rows.length > 100 ? rows[99]!.id : null } : items;
+      const items = await this.activityViews(tx, ctx, rows.slice(0, 100));
+      return paged
+        ? {
+            items,
+            nextCursor: rows.length > 100 ? rows[99]!.id : null,
+            ...(goalContext ? { goalContext } : {}),
+          }
+        : items;
     });
   }
   async addEvent(
     ctx: AuthTenantContext,
-    target: { taskId?: string; projectId?: string },
+    target: { taskId?: string; projectId?: string; resourceId?: string },
     raw: unknown,
   ) {
     const dto = object(raw);
     keys(dto, ['kind', 'text', 'minutes', 'mentions']);
+    if ([target.taskId, target.projectId, target.resourceId].filter(Boolean).length !== 1)
+      fail('One activity target is required');
+    if (target.resourceId && dto.kind !== 'comment') fail('Goals accept comments through activity');
     const mentions = dto.mentions ?? [];
     if (
       !Array.isArray(mentions) ||
@@ -1257,6 +1327,12 @@ export class PlannerService {
           );
           recipients = [p.ownerId, ...projectData(p).members.map((m) => m.userId)];
           mentionAccess = (id) => Boolean(plannerProjectAccess(p, id));
+        } else if (target.resourceId) {
+          uuid(target.resourceId);
+          const row = await this.goalRecord(tx, ctx, target.resourceId, 'commenter');
+          recipients = await this.goalRecipients(tx, ctx, row, projects);
+          mentionAccess = (id) =>
+            Boolean(this.resourceAccess(row, projects, { ...ctx, clerkUserId: id }));
         } else fail('An activity target is required');
         return this.event(
           tx,
@@ -1318,7 +1394,18 @@ export class PlannerService {
           .filter((task) => plannerTaskAccess(task, projects, ctx.clerkUserId))
           .map((task) => task.id),
       );
+      const goals = await tx.spPlannerResource.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          kind: 'goal',
+          id: { in: scanned.flatMap((r) => (r.event.resourceId ? [r.event.resourceId] : [])) },
+        },
+      });
+      const allowedGoals = new Set(
+        goals.filter((g) => this.resourceAccess(g, projects, ctx)).map((g) => g.id),
+      );
       for (const row of scanned) {
+        if (row.event.resourceId && !allowedGoals.has(row.event.resourceId)) continue;
         if (row.event.taskId) {
           if (!allowedTasks.has(row.event.taskId)) continue;
         }
@@ -1334,7 +1421,7 @@ export class PlannerService {
         });
       }
       const allowedInbox = new Set(result.map((item) => item.id));
-      const projected = await plannerReadActivity(
+      const projected = await this.activityViews(
         tx,
         ctx,
         scanned.filter((row) => allowedInbox.has(row.id)).map((row) => row.event),
@@ -1392,6 +1479,8 @@ export class PlannerService {
         } else if (original.projectId) {
           const project = projects.find((p) => p.id === original.projectId);
           requireRole(project ? plannerProjectAccess(project, ctx.clerkUserId) : null, 'commenter');
+        } else if (original.resourceId) {
+          await this.goalRecord(tx, ctx, original.resourceId, 'commenter');
         } else throw missing();
         const previous = await tx.spPlannerEventRevision.findFirst({
           where: { tenantId: ctx.tenantId, eventId: original.id },
@@ -1435,16 +1524,27 @@ export class PlannerService {
   }
   /** Same grants as inbox/task views; applied in SQL before counting or limiting.
    * Revoked rows can neither inflate the badge nor hide newer authorized work. */
-  private notificationWhere(ctx: AuthTenantContext, projects: SpPlannerProject[]) {
+  private notificationWhere(
+    ctx: AuthTenantContext,
+    projects: SpPlannerProject[],
+    goals: SpPlannerResource[],
+  ) {
     const allowed = projects
       .filter((p) => plannerProjectAccess(p, ctx.clerkUserId))
       .map((p) => p.id);
     const ids = allowed.length
       ? Prisma.sql`ARRAY[${Prisma.join(allowed)}]::uuid[]`
       : Prisma.sql`ARRAY[]::uuid[]`;
+    const allowedGoals = goals
+      .filter((g) => g.kind === 'goal' && this.resourceAccess(g, projects, ctx))
+      .map((g) => g.id);
+    const goalIds = allowedGoals.length
+      ? Prisma.sql`ARRAY[${Prisma.join(allowedGoals)}]::uuid[]`
+      : Prisma.sql`ARRAY[]::uuid[]`;
     return Prisma.sql`i.tenant_id = ${ctx.tenantId}::uuid AND i.user_id = ${ctx.clerkUserId}
       AND NOT i.read AND NOT i.archived AND e.tenant_id = ${ctx.tenantId}::uuid
-      AND (e.task_id IS NOT NULL OR e.project_id IS NOT NULL)
+      AND (e.task_id IS NOT NULL OR e.project_id IS NOT NULL OR e.resource_id IS NOT NULL)
+      AND (e.resource_id IS NULL OR e.resource_id = ANY(${goalIds}))
       AND (e.project_id IS NULL OR e.project_id = ANY(${ids}))
       AND (e.task_id IS NULL OR EXISTS (
         SELECT 1 FROM sp_planner_tasks t WHERE t.tenant_id = ${ctx.tenantId}::uuid AND t.id = e.task_id
@@ -1459,15 +1559,18 @@ export class PlannerService {
       if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId))
         throw new ForbiddenException('Active membership is required');
       const projects = await this.projects(tx, ctx);
+      const goals = await tx.spPlannerResource.findMany({
+        where: { tenantId: ctx.tenantId, kind: 'goal' },
+      });
       const rows = await tx.$queryRaw<{ id: string; eventId: string; unread: bigint }[]>`
         SELECT i.id, i.event_id AS "eventId", count(*) OVER() AS unread
         FROM sp_planner_inbox i JOIN sp_planner_events e ON e.tenant_id = i.tenant_id AND e.id = i.event_id
-        WHERE ${this.notificationWhere(ctx, projects)}
+        WHERE ${this.notificationWhere(ctx, projects, goals)}
         ORDER BY e.created_at DESC, i.id DESC LIMIT 100`;
       const events = await tx.spPlannerEvent.findMany({
         where: { tenantId: ctx.tenantId, id: { in: rows.map((r) => r.eventId) } },
       });
-      const projected = await plannerReadActivity(tx, ctx, events);
+      const projected = await this.activityViews(tx, ctx, events);
       const byId = new Map(projected.map((e) => [e.id, e]));
       const tasks = await tx.spPlannerTask.findMany({
         where: {
@@ -1486,10 +1589,16 @@ export class PlannerService {
             read: false,
             archived: false,
             event,
-            title: task ? taskData(task).name : projectData(project!).name,
-            deepLink: event.taskId
-              ? `/planner?scope=mine&task=${encodeURIComponent(event.taskId)}`
-              : `/planner?scope=project&project=${encodeURIComponent(event.projectId!)}`,
+            title: event.resourceId
+              ? goals.find((g) => g.id === event.resourceId)!.name
+              : task
+                ? taskData(task).name
+                : projectData(project!).name,
+            deepLink: event.resourceId
+              ? `/planner?scope=goals&goal=${encodeURIComponent(event.resourceId)}`
+              : event.taskId
+                ? `/planner?scope=mine&task=${encodeURIComponent(event.taskId)}`
+                : `/planner?scope=project&project=${encodeURIComponent(event.projectId!)}`,
           };
         }),
       };
@@ -1502,9 +1611,12 @@ export class PlannerService {
         if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId))
           throw new ForbiddenException('Active membership is required');
         const projects = await this.projects(tx, ctx);
+        const goals = await tx.spPlannerResource.findMany({
+          where: { tenantId: ctx.tenantId, kind: 'goal' },
+        });
         const rows = await tx.$queryRaw<{ id: string }[]>`
         UPDATE sp_planner_inbox i SET read = true FROM sp_planner_events e
-        WHERE e.id = i.event_id AND e.tenant_id = i.tenant_id AND ${this.notificationWhere(ctx, projects)}
+        WHERE e.id = i.event_id AND e.tenant_id = i.tenant_id AND ${this.notificationWhere(ctx, projects, goals)}
         RETURNING i.id`;
         return { read: rows.length };
       },
@@ -1536,6 +1648,7 @@ export class PlannerService {
           const project = projects.find((p) => p.id === row.event.projectId);
           requireRole(project ? plannerProjectAccess(project, ctx.clerkUserId) : null, 'viewer');
         }
+        if (row.event.resourceId) await this.goalRecord(tx, ctx, row.event.resourceId, 'viewer');
         await tx.spPlannerInbox.update({
           where: { id, tenantId: ctx.tenantId, userId: ctx.clerkUserId },
           data: dto as { read?: boolean; archived?: boolean },
@@ -1568,6 +1681,297 @@ export class PlannerService {
       (data.privacy === 'team' ? 'editor' : null)
     );
   }
+  private async goalRecord(tx: Tx, ctx: AuthTenantContext, id: string, minimum: PlannerRole) {
+    const row = await tx.spPlannerResource.findFirst({
+      where: { tenantId: ctx.tenantId, id, kind: 'goal' },
+    });
+    if (!row) throw missing();
+    requireRole(this.resourceAccess(row, await this.projects(tx, ctx), ctx), minimum);
+    return row;
+  }
+  private async goalRecipients(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    row: SpPlannerResource,
+    projects: SpPlannerProject[],
+  ) {
+    const data = row.data as unknown as PlannerGoalData;
+    const active = new Set((await this.people(tx, ctx)).map((p) => p.id));
+    return [...new Set([row.ownerId, data.ownerId, ...(data.followers ?? [])])].filter(
+      (id): id is string =>
+        !!id && active.has(id) && !!this.resourceAccess(row, projects, { ...ctx, clerkUserId: id }),
+    );
+  }
+  private async activityViews(tx: Tx, ctx: AuthTenantContext, rows: SpPlannerEvent[]) {
+    const events = await plannerReadActivity(tx, ctx, rows);
+    if (!rows.some((r) => r.resourceId && (r.details as Record<string, unknown>)?.goalSnapshot))
+      return events;
+    const projects = await this.projects(tx, ctx);
+    const goals = await tx.spPlannerResource.findMany({
+      where: { tenantId: ctx.tenantId, kind: 'goal' },
+    });
+    const tasks = await this.goalTasks(tx, ctx);
+    const allowed = {
+      goals: goals.filter((g) => this.resourceAccess(g, projects, ctx)).map((g) => g.id),
+      projects: projects.filter((p) => plannerProjectAccess(p, ctx.clerkUserId)).map((p) => p.id),
+      tasks: tasks.filter((t) => plannerTaskAccess(t, projects, ctx.clerkUserId)).map((t) => t.id),
+    };
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    return events.map((e) => plannerGoalActivityView(e, byId.get(e.id)!.details, allowed));
+  }
+  private async captureGoalViews(tx: Tx, ctx: AuthTenantContext, projects: SpPlannerProject[]) {
+    const goals = await tx.spPlannerResource.findMany({
+      where: { tenantId: ctx.tenantId, kind: 'goal' },
+    });
+    if (!goals.some((g) => !g.archived && this.resourceAccess(g, projects, ctx))) return [];
+    return this.resourceViews(goals, projects, ctx, await this.goalTasks(tx, ctx));
+  }
+  private async recordGoalChanges(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    before: PlannerResource[],
+    after: PlannerResource[],
+    projects: SpPlannerProject[],
+    skipIds = new Set<string>(),
+    actorId = ctx.clerkUserId,
+  ) {
+    const prior = new Map(before.map((g) => [g.id, g]));
+    const activeProjects = new Set(
+      projects
+        .filter((p) => !p.archived && plannerProjectAccess(p, ctx.clerkUserId))
+        .map((p) => p.id),
+    );
+    const events: Prisma.SpPlannerEventCreateManyInput[] = [];
+    for (const goal of after.filter((g) => !g.archived && !skipIds.has(g.id))) {
+      const previous = prior.get(goal.id);
+      // Connected-work changes preserve the original target and unit in each point.
+      const details = plannerGoalSnapshotDetails(goal, after, activeProjects);
+      if (
+        previous &&
+        JSON.stringify(
+          plannerGoalSnapshotDetails(previous, before, activeProjects).goalSnapshot,
+        ) === JSON.stringify(details.goalSnapshot) &&
+        JSON.stringify(previous.goalProgress?.sources) ===
+          JSON.stringify(goal.goalProgress?.sources) &&
+        ((goal.data as unknown as PlannerGoalData).progress !== 'task_completion' ||
+          JSON.stringify(previous.data.projectIds) === JSON.stringify(goal.data.projectIds))
+      )
+        continue;
+      events.push({
+        tenantId: ctx.tenantId,
+        resourceId: goal.id,
+        actorId,
+        kind: 'goal_progress',
+        text: previous ? 'Goal progress updated' : 'Goal created',
+        details: json(details),
+      });
+    }
+    if (events.length) await tx.spPlannerEvent.createMany({ data: events });
+  }
+  async followGoal(ctx: AuthTenantContext, id: string, raw: unknown) {
+    uuid(id);
+    const dto = object(raw);
+    keys(dto, ['version', 'following']);
+    if (typeof dto.following !== 'boolean') fail('Choose whether to follow this goal');
+    return this.scope(
+      ctx,
+      async (tx) => {
+        const row = await this.goalRecord(tx, ctx, id, 'viewer');
+        version(row.version, dto.version as number | undefined);
+        if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId))
+          throw new ForbiddenException('Active membership is required');
+        if (row.archived && dto.following) fail('Restore the goal before following it');
+        const data = row.data as unknown as PlannerGoalData;
+        const followers = (data.followers ?? []).filter((id) => id !== ctx.clerkUserId);
+        if (dto.following) followers.push(ctx.clerkUserId);
+        if (followers.length > 1000) fail('This goal has reached its follower limit');
+        await tx.spPlannerResource.update({
+          where: { tenantId: ctx.tenantId, id },
+          data: { data: json({ ...data, followers }), version: { increment: 1 } },
+        });
+        return { following: dto.following };
+      },
+      true,
+    );
+  }
+  async postGoalUpdate(ctx: AuthTenantContext, id: string, raw: unknown) {
+    uuid(id);
+    const dto = validatePlannerGoalUpdate(raw);
+    return this.scope(
+      ctx,
+      async (tx) => {
+        const row = await this.goalRecord(tx, ctx, id, 'editor');
+        version(row.version, dto.version as number | undefined);
+        if (row.archived) fail('Restore the goal before posting an update');
+        if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId))
+          throw new ForbiddenException('Active membership is required');
+        const beforeViews = await this.captureGoalViews(tx, ctx, await this.projects(tx, ctx));
+        const previous = row.data as unknown as PlannerGoalData;
+        if (dto.current !== undefined && previous.progress !== 'manual')
+          fail('Automatic goal progress comes from connected work');
+        if (
+          (dto.reminder !== undefined || dto.timeZone !== undefined) &&
+          previous.ownerId !== ctx.clerkUserId
+        )
+          throw new ForbiddenException('Only the responsible goal owner can set reminders');
+        const data = validateResource('goal', {
+          ...previous,
+          status: dto.status,
+          ...(dto.current === undefined ? {} : { current: dto.current }),
+          ...(dto.reminder === undefined ? {} : { reminder: dto.reminder }),
+          ...(dto.timeZone === undefined ? {} : { timeZone: dto.timeZone }),
+        });
+        const saved = await tx.spPlannerResource.update({
+          where: { tenantId: ctx.tenantId, id },
+          data: { data: json(data), version: { increment: 1 } },
+        });
+        const projects = await this.projects(tx, ctx);
+        const goals = await tx.spPlannerResource.findMany({
+          where: { tenantId: ctx.tenantId, kind: 'goal' },
+        });
+        const views = this.resourceViews(goals, projects, ctx, await this.goalTasks(tx, ctx));
+        const view = views.find((g) => g.id === id)!;
+        await this.recordGoalChanges(tx, ctx, beforeViews, views, projects, new Set([id]));
+        const details = {
+          ...plannerGoalSnapshotDetails(
+            view,
+            views,
+            new Set(
+              projects
+                .filter((p) => !p.archived && plannerProjectAccess(p, ctx.clerkUserId))
+                .map((p) => p.id),
+            ),
+          ),
+          goalUpdate: { title: dto.title, sections: dto.sections },
+        };
+        const event = await this.event(
+          tx,
+          ctx,
+          {
+            resourceId: id,
+            kind: 'goal_status',
+            text: dto.text,
+            details: details as unknown as Record<string, unknown>,
+          },
+          await this.goalRecipients(tx, ctx, saved, projects),
+        );
+        const stored = await tx.spPlannerEvent.findFirst({
+          where: { tenantId: ctx.tenantId, id: event.id },
+        });
+        return { goal: view, event: (await this.activityViews(tx, ctx, [stored!]))[0]! };
+      },
+      true,
+    );
+  }
+  /** Goal cadence and grading notices share the existing approved Inbox/bell.
+   * Each goal commits its immutable delivery receipt with the event and inbox row. */
+  async runScheduledGoalWork(tenantId: string, now = new Date(), afterGoalId?: string) {
+    uuid(tenantId);
+    if (afterGoalId) uuid(afterGoalId);
+    const scope: AuthTenantContext = { tenantId, clerkUserId: '', role: null };
+    const page = await this.scope(scope, (tx) =>
+      tx.spPlannerResource.findMany({
+        where: {
+          tenantId,
+          kind: 'goal',
+          archived: false,
+          ...(afterGoalId ? { id: { gt: afterGoalId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: 51,
+      }),
+    );
+    let executed = 0,
+      failed = 0;
+    for (const candidate of page.slice(0, 50)) {
+      try {
+        executed += await this.scope(
+          scope,
+          async (tx) => {
+            const row = await tx.spPlannerResource.findFirst({
+              where: { tenantId, id: candidate.id, kind: 'goal', archived: false },
+            });
+            if (!row) return 0;
+            const data = validateResource('goal', row.data) as unknown as PlannerGoalData;
+            if (!data.ownerId || !['on_track', 'at_risk', 'off_track'].includes(data.status))
+              return 0;
+            const author = { ...scope, clerkUserId: data.ownerId };
+            if (!(await this.people(tx, author)).some((p) => p.id === data.ownerId)) return 0;
+            const projects = await this.projects(tx, author);
+            if (!['editor', 'admin'].includes(this.resourceAccess(row, projects, author) ?? ''))
+              return 0;
+            const deliveries: {
+              kind: 'update' | 'grading';
+              fingerprint: string;
+              deadlineKey: string;
+              text: string;
+            }[] = [];
+            if (data.reminder) {
+              const due = plannerGoalReminderDue(data.reminder, now);
+              if (due)
+                deliveries.push({
+                  kind: 'update',
+                  fingerprint: plannerScheduleHash([
+                    data.reminder.cadence,
+                    data.reminder.anchorOn,
+                    data.reminder.time,
+                    data.reminder.timeZone,
+                  ]),
+                  deadlineKey: plannerScheduleHash([due.date]),
+                  text: 'Time to post a goal status update',
+                });
+            }
+            if (data.dueOn) {
+              const date = new Date(`${data.dueOn}T12:00:00Z`);
+              date.setUTCDate(date.getUTCDate() - PLANNER_GOAL_GRADING_DAYS);
+              const zone = data.timeZone ?? data.reminder?.timeZone ?? 'UTC';
+              const instant = plannerScheduledInstant(
+                date.toISOString().slice(0, 10),
+                '09:00',
+                zone,
+              );
+              if (instant.getTime() <= now.getTime())
+                deliveries.push({
+                  kind: 'grading',
+                  fingerprint: plannerScheduleHash([data.dueOn, zone, 'one-week-before-09:00']),
+                  deadlineKey: plannerScheduleHash([data.dueOn]),
+                  text: 'Your goal is nearing its due date. Review its progress and close it when ready.',
+                });
+            }
+            let count = 0;
+            for (const delivery of deliveries) {
+              const key = {
+                tenantId,
+                resourceId: row.id,
+                ownerId: data.ownerId,
+                kind: delivery.kind,
+                fingerprint: delivery.fingerprint,
+                deadlineKey: delivery.deadlineKey,
+              };
+              if (await tx.spPlannerGoalReminderClaim.findFirst({ where: key })) continue;
+              const event = await this.event(
+                tx,
+                author,
+                { resourceId: row.id, kind: 'reminder', text: delivery.text },
+                [data.ownerId],
+                true,
+              );
+              await tx.spPlannerGoalReminderClaim.create({ data: { ...key, eventId: event.id } });
+              count++;
+            }
+            return count;
+          },
+          true,
+        );
+      } catch {
+        failed++;
+        this.logger.warn(
+          `Planner goal ${candidate.id} scheduled work failed; next cycle will retry`,
+        );
+      }
+    }
+    return { executed, failed, nextCursor: page.length > 50 ? page[49]!.id : null };
+  }
   private resourceView(
     row: SpPlannerResource,
     projects: SpPlannerProject[],
@@ -1586,6 +1990,10 @@ export class PlannerService {
           : projects.some((p) => p.id === id && plannerProjectAccess(p, ctx.clerkUserId)),
       );
     if (row.kind === 'goal') {
+      if (Array.isArray(data.followers))
+        data.followers = data.followers.filter((id) =>
+          this.resourceAccess(row, projects, { ...ctx, clerkUserId: String(id) }),
+        );
       if (Array.isArray(data.subgoalIds))
         data.subgoalIds = data.subgoalIds.filter((id) => goalIds.has(id));
       if (Array.isArray(data.taskIds)) data.taskIds = data.taskIds.filter((id) => taskIds.has(id));
@@ -1892,6 +2300,46 @@ export class PlannerService {
         if (kind === 'goal' && data.ownerId && !people.has(String(data.ownerId)))
           fail('Goal owner must be an active team member');
         if (kind === 'goal') {
+          const config = data as unknown as PlannerGoalData;
+          const before = old?.data as unknown as PlannerGoalData | undefined;
+          const patch = object(dto.data ?? {});
+          if (
+            Object.hasOwn(patch, 'followers') &&
+            JSON.stringify(config.followers ?? []) !== JSON.stringify(before?.followers ?? [])
+          ) {
+            if (old) requireRole(this.resourceAccess(old, projects, ctx), 'admin');
+            for (const userId of config.followers ?? []) {
+              if (!people.has(userId)) fail('Goal followers must be active team members');
+              const candidate = {
+                ...(old ?? { ownerId: ctx.clerkUserId, kind: 'goal', projectId }),
+                data: json(data),
+              } as SpPlannerResource;
+              requireRole(
+                this.resourceAccess(candidate, projects, { ...ctx, clerkUserId: userId }),
+                'viewer',
+              );
+            }
+          } else if (before?.followers) data.followers = before.followers;
+          const changingOwner = !!before && config.ownerId !== before.ownerId;
+          if (changingOwner) {
+            if (config.ownerId !== ctx.clerkUserId && patch.reminder != null)
+              throw new ForbiddenException(
+                'The new responsible owner must configure their own reminders',
+              );
+            data.reminder =
+              config.ownerId === ctx.clerkUserId && Object.hasOwn(patch, 'reminder')
+                ? config.reminder
+                : null;
+          }
+          if (
+            (Object.hasOwn(patch, 'reminder') &&
+              (!changingOwner || data.reminder != null) &&
+              JSON.stringify(data.reminder ?? null) !== JSON.stringify(before?.reminder ?? null)) ||
+            (Object.hasOwn(patch, 'timeZone') && data.timeZone !== before?.timeZone)
+          ) {
+            if (config.ownerId !== ctx.clerkUserId)
+              throw new ForbiddenException('Only the responsible goal owner can set reminders');
+          }
           const graph = [
             ...goalRows.filter((g) => g.id !== old?.id),
             { id: old?.id ?? newGoalId!, data },
@@ -1961,14 +2409,22 @@ export class PlannerService {
                 data: json(data),
               },
             });
-        return kind === 'goal'
-          ? this.resourceViews(
-              [...goalRows.filter((g) => g.id !== row.id), row],
-              projects,
-              ctx,
-              goalTasks,
-            ).find((g) => g.id === row.id)!
-          : this.resourceView(row, projects, ctx);
+        if (kind !== 'goal') return this.resourceView(row, projects, ctx);
+        const views = this.resourceViews(
+          [...goalRows.filter((g) => g.id !== row.id), row],
+          projects,
+          ctx,
+          goalTasks,
+        );
+        const result = views.find((g) => g.id === row.id)!;
+        await this.recordGoalChanges(
+          tx,
+          ctx,
+          this.resourceViews(goalRows, projects, ctx, goalTasks),
+          views,
+          projects,
+        );
+        return result;
       },
       true,
     );
@@ -2502,6 +2958,10 @@ export class PlannerService {
     taskId?: string,
   ) {
     const data = await this.formTaskData(tx, ctx, form, projects, answers, isPublic, files);
+    // The already-authorized form owner supplies the automation's rollup grants.
+    // Anonymous submissions still return only their receipt, never goal contents.
+    const historyContext = isPublic ? { ...ctx, clerkUserId: form.ownerId } : ctx;
+    const beforeGoals = await this.captureGoalViews(tx, historyContext, projects);
     const project = projects.find(
       (candidate) => candidate.id === form.projectId && !candidate.archived,
     )!;
@@ -2532,6 +2992,16 @@ export class PlannerService {
       project.ownerId,
       ...(data.assigneeId ? [data.assigneeId] : []),
     ]);
+    if (beforeGoals.length)
+      await this.recordGoalChanges(
+        tx,
+        historyContext,
+        beforeGoals,
+        await this.captureGoalViews(tx, historyContext, projects),
+        projects,
+        new Set(),
+        ctx.clerkUserId,
+      );
     return row;
   }
 }

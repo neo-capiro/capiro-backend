@@ -89,9 +89,21 @@ export interface PlannerEvent {
   id: string;
   taskId: string | null;
   projectId: string | null;
+  resourceId?: string | null;
+  goalSnapshot?: PlannerGoalSnapshot;
+  goalUpdate?: { title: string; sections: PlannerGoalUpdateSection[] };
   actorId: string;
   kind:
-    'created' | 'updated' | 'comment' | 'status' | 'time' | 'archived' | 'restored' | 'reminder';
+    | 'created'
+    | 'updated'
+    | 'comment'
+    | 'status'
+    | 'time'
+    | 'archived'
+    | 'restored'
+    | 'reminder'
+    | 'goal_status'
+    | 'goal_progress';
   text: string;
   minutes: number | null;
   createdAt: string;
@@ -115,6 +127,7 @@ export interface PlannerBellFeed {
   unread: number;
 }
 export interface PlannerActivityPage<T> {
+  goalContext?: { audienceCount: number; following: boolean };
   items: T[];
   nextCursor: string | null;
 }
@@ -206,6 +219,11 @@ export interface PlannerGoalData extends PlannerPortfolioData {
   current: number;
   target: number;
   unit: string;
+  startValue?: number;
+  direction?: 'increase' | 'decrease';
+  followers?: string[];
+  reminder?: PlannerGoalReminder | null;
+  timeZone?: string;
   subgoalIds?: string[];
   taskIds?: string[];
   startOn?: string | null;
@@ -213,6 +231,28 @@ export interface PlannerGoalData extends PlannerPortfolioData {
   goalType?: 'company' | 'team' | 'individual';
   weightMode?: 'equal' | 'custom';
   weights?: { sourceId: string; weight: number }[];
+}
+export interface PlannerGoalUpdateSection {
+  id: string;
+  title: string;
+  text: string;
+}
+export interface PlannerGoalReminder {
+  cadence: 'weekly' | 'biweekly' | 'monthly' | 'quarterly';
+  anchorOn: string;
+  time: string;
+  timeZone: string;
+}
+/** Historical numeric values are present only when current access covers every captured source. */
+export interface PlannerGoalSnapshot {
+  status: PlannerGoalData['status'];
+  measurement: PlannerGoalData['progress'];
+  target: number;
+  startValue: number;
+  direction: 'increase' | 'decrease';
+  unit: string;
+  value?: number;
+  percentage?: number;
 }
 export interface PlannerGoalProgress {
   value: number;

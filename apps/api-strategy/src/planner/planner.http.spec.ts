@@ -38,6 +38,8 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     reorderTasks: jest.fn(async () => ({ ok: true })),
     events: jest.fn(async () => []),
     addEvent: jest.fn(async () => ({ id: ID })),
+    followGoal: jest.fn(async () => ({ following: true })),
+    postGoalUpdate: jest.fn(async () => ({ goal: { id: ID }, event: { id: ID } })),
     reviseEvent: jest.fn(async () => ({ id: ID, version: 1 })),
     inbox: jest.fn(async () => []),
     notifications: jest.fn(async () => ({ items: [], unread: 0 })),
@@ -92,6 +94,10 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     ['get', `projects/${ID}/events`],
     ['post', `projects/${ID}/events`],
     ['patch', `events/${ID}`],
+    ['get', `goals/${ID}/events`],
+    ['post', `goals/${ID}/events`],
+    ['post', `goals/${ID}/updates`],
+    ['patch', `goals/${ID}/follow`],
     ['get', 'inbox'],
     ['get', 'notifications'],
     ['post', 'notifications/read-all'],
@@ -117,6 +123,27 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .send(body)
       .expect(200);
     expect(planner.reviseEvent).toHaveBeenCalledWith(ctx, ID, body);
+  });
+  it('routes goal activity, structured updates and self-following through the signed-in organization', async () => {
+    const agent = request(app.getHttpServer());
+    await agent
+      .get(`/strategy-api/planner/goals/${ID}/events?paged=true`)
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.events).toHaveBeenCalledWith(ctx, { resourceId: ID }, { paged: 'true' });
+    const body = { version: 3, title: 'Goal update', status: 'on_track', sections: [] };
+    await agent
+      .post(`/strategy-api/planner/goals/${ID}/updates`)
+      .set('x-planner-qa', 'allowed')
+      .send(body)
+      .expect(201);
+    expect(planner.postGoalUpdate).toHaveBeenCalledWith(ctx, ID, body);
+    await agent
+      .patch(`/strategy-api/planner/goals/${ID}/follow`)
+      .set('x-planner-qa', 'allowed')
+      .send({ version: 3, following: true })
+      .expect(200);
+    expect(planner.followGoal).toHaveBeenCalledWith(ctx, ID, { version: 3, following: true });
   });
   it('forwards tenant identity, version patches and the requesting bearer only to link validation', async () => {
     const body = { version: 1, data: { clientId: ID, name: 'HTTP task' } };

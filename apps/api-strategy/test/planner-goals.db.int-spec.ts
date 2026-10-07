@@ -82,6 +82,19 @@ describeDb('Planner goals PostgreSQL access and concurrency', () => {
     expect(updated.parentGoalIds).toContain(parent.id);
     expect((await read(owner, parent.id)).goalProgress?.percentage).toBe(60);
   });
+  it('persists decreasing zero-target metrics and propagates their interval progress', async () => {
+    const child = await goal({
+      startValue: 100,
+      target: 0,
+      current: 70,
+      direction: 'decrease',
+      unit: 'incidents',
+    });
+    expect(child.goalProgress).toMatchObject({ value: 70, percentage: 30 });
+    const parent = await goal({ progress: 'subgoal_percentage', subgoalIds: [child.id] });
+    await service.saveResource(owner, child.id, { version: child.version, data: { current: 20 } });
+    expect((await read(owner, parent.id)).goalProgress?.percentage).toBe(80);
+  });
   it('redacts private child and parent goals without granting access, preserving hidden references during edits', async () => {
     const child = await goal({ current: 50 });
     const parent = await goal({

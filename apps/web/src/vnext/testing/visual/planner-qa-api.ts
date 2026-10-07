@@ -11,6 +11,7 @@ import {
   plannerTemplateSchedule,
   plannerGoalProgress,
   type PlannerGoalData,
+  type PlannerGoalUpdateSection,
 } from '@capiro/strategy-verifier';
 const PROJECT = '20000000-0000-4000-8000-000000000001';
 const SECTION = '40000000-0000-4000-8000-000000000001';
@@ -69,6 +70,51 @@ const tasks: PlannerTask[] = [
 const events: PlannerEvent[] = [];
 const removedEventContents = new Map<string, { text: string; minutes: number | null }>();
 const resources: PlannerResource[] = [];
+function goalPoint(
+  row: PlannerResource,
+  kind: PlannerEvent['kind'] = 'goal_progress',
+  update?: { title: string; sections: PlannerGoalUpdateSection[] },
+) {
+  const data = row.data as unknown as PlannerGoalData;
+  const progress = plannerGoalProgress(
+    resources,
+    new Set(projects.filter((p) => !p.archived).map((p) => p.id)),
+    tasks
+      .filter((t) => !t.archived)
+      .map((t) => ({
+        id: t.id,
+        status: t.status,
+        kind: t.subtype,
+        projectIds: t.memberships.map((m) => m.projectId),
+      })),
+  ).get(row.id);
+  const event: PlannerEvent = {
+    id: crypto.randomUUID(),
+    taskId: null,
+    projectId: null,
+    resourceId: row.id,
+    actorId: 'user_qa',
+    kind,
+    text: update
+      ? [update.title, ...update.sections.map((s) => `## ${s.title}\n${s.text}`)].join('\n\n')
+      : 'Goal progress updated',
+    minutes: null,
+    createdAt: new Date().toISOString(),
+    goalSnapshot: {
+      status: data.status,
+      measurement: data.progress,
+      target: data.target,
+      startValue: data.startValue ?? 0,
+      direction: data.direction ?? 'increase',
+      unit: data.unit,
+      value: progress?.value ?? data.current,
+      percentage: progress?.percentage ?? 0,
+    },
+    ...(update ? { goalUpdate: update } : {}),
+  };
+  events.unshift(event);
+  return event;
+}
 const error = (message: string, status = 400) => {
   throw { response: { status, data: { message } } };
 };
@@ -117,7 +163,9 @@ const api = {
     if (path.endsWith('/attachments')) return { data: [] };
     if (path.endsWith('/events')) {
       const target = path.split('/').at(-2);
-      const matching = events.filter((e) => e.taskId === target || e.projectId === target);
+      const matching = events.filter(
+        (e) => e.taskId === target || e.projectId === target || e.resourceId === target,
+      );
       const offset = config?.params?.cursor
         ? matching.findIndex((e) => e.id === config.params!.cursor) + 1
         : 0;
@@ -125,6 +173,18 @@ const api = {
         data:
           config?.params?.paged === 'true'
             ? {
+                ...(path.includes('/goals/')
+                  ? {
+                      goalContext: {
+                        audienceCount: 1,
+                        following:
+                          (
+                            resources.find((r) => r.id === target)?.data.followers as
+                              string[] | undefined
+                          )?.includes('user_qa') ?? false,
+                      },
+                    }
+                  : {}),
                 items: structuredClone(matching.slice(offset, offset + 100)),
                 nextCursor: matching.length > offset + 100 ? matching[offset + 99]!.id : null,
               }
@@ -251,6 +311,7 @@ const api = {
         access: 'admin',
       } as unknown as PlannerResource;
       resources.push(row);
+      if (row.kind === 'goal') goalPoint(row);
       return { data: structuredClone(row) };
     }
     if (path.endsWith('/submit')) {
@@ -293,11 +354,28 @@ const api = {
       projects.push(row);
       return { data: structuredClone(row) };
     }
+    if (path.endsWith('/updates')) {
+      const goal = resources.find((r) => r.id === path.split('/').at(-2));
+      if (!goal) error('Goal unavailable', 404);
+      if (goal!.version !== body.version) error('Record changed', 409);
+      goal!.data = {
+        ...goal!.data,
+        status: body.status,
+        ...(body.current === undefined ? {} : { current: body.current }),
+      };
+      goal!.version++;
+      const event = goalPoint(goal!, 'goal_status', {
+        title: String(body.title),
+        sections: body.sections as PlannerGoalUpdateSection[],
+      });
+      return { data: { goal: structuredClone(goal), event: structuredClone(event) } };
+    }
     if (path.endsWith('/events')) {
       const row: PlannerEvent = {
         id: crypto.randomUUID(),
         taskId: path.includes('/tasks/') ? path.split('/').at(-2)! : null,
         projectId: path.includes('/projects/') ? path.split('/').at(-2)! : null,
+        resourceId: path.includes('/goals/') ? path.split('/').at(-2)! : null,
         actorId: 'user_qa',
         kind: body.kind as PlannerEvent['kind'],
         text: String(body.text),
@@ -339,8 +417,18 @@ const api = {
       text?: string;
       minutes?: number;
       removed?: boolean;
+      following?: boolean;
     },
   ) {
+    if (path.endsWith('/follow')) {
+      const goal = resources.find((r) => r.id === path.split('/').at(-2));
+      if (!goal) error('Goal unavailable', 404);
+      if (goal!.version !== body.version) error('Record changed', 409);
+      const followers = ((goal!.data.followers ?? []) as string[]).filter((id) => id !== 'user_qa');
+      goal!.data.followers = body.following ? [...followers, 'user_qa'] : followers;
+      goal!.version++;
+      return { data: { following: body.following } };
+    }
     if (path.includes('/events/')) {
       const row = events.find((e) => e.id === path.split('/').at(-1));
       if (!row) error('Activity unavailable', 404);
