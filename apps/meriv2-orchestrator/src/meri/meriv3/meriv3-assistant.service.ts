@@ -530,7 +530,14 @@ function incompleteSynthesisPartialReply(ledgerEntries: LedgerEntry[]): string {
  */
 function turnSurface(dto: MeriV3ChatInput): CanaryTurnSurface {
   if (dto.researchRun) return 'research';
-  return currentGovernedMeriContext()?.operationId === 'meri.research' ? 'research' : 'chat';
+  // A steering re-plan (and a legacy-plan migration) runs inside the research
+  // run's stream, governed as 'research.generate-report', with no lease. As
+  // 'chat' it got appended limitations and every re-plan failed strict JSON
+  // (T7, sessions 4b03e4f2 and 886e0f30, 2026-10-07).
+  const operationId = currentGovernedMeriContext()?.operationId;
+  return operationId === 'meri.research' || operationId === 'research.generate-report'
+    ? 'research'
+    : 'chat';
 }
 
 /**
