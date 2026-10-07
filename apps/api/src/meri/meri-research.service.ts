@@ -152,7 +152,9 @@ import {
 import {
   admitResearchToolBudget,
   completeResearchToolAttempt,
+  extendResearchProviderAttemptsForGoalRevision,
   readResearchToolBudget,
+  researchProviderAttemptCeiling,
   reserveResearchProviderAttempt,
   reserveResearchToolAttempt,
   settleResearchProviderAttempt,
@@ -838,10 +840,15 @@ export class MeriResearchService {
         await this.assertResearchPublicationAuthorized(tx, ctx, current);
         let reserved;
         try {
+          const limits = this.researchProviderBudgetLimits(run);
           reserved = reserveResearchProviderAttempt({
             metadata: current.metadata,
             run,
-            limits: this.researchProviderBudgetLimits(run),
+            // Keep the attempt allowance a steer granted (steerRun).
+            limits: {
+              ...limits,
+              maxAttempts: researchProviderAttemptCeiling(limits.maxAttempts, current.metadata),
+            },
             binding: input,
             price: researchProviderPrice(input.kind, input.model),
           });
@@ -1377,7 +1384,20 @@ export class MeriResearchService {
         readyToStart: true,
         failureReason: undefined,
       };
-      const metadata = { ...queued.metadata, run: interrupted };
+      // The revised goal gets its own provider-attempt allowance, granted here
+      // so the re-plan's own planner call can reserve. Tokens and cost stay
+      // session-wide. Without it a steer after the first run's bounded children
+      // ended partial on attempts alone (session 0b61fbff, 2026-10-07).
+      let metadata: Record<string, unknown>;
+      try {
+        metadata = extendResearchProviderAttemptsForGoalRevision(
+          { ...queued.metadata, run: interrupted },
+          this.researchProviderAttemptAllowance(),
+        ).metadata;
+      } catch (error) {
+        if (error instanceof ResearchProviderBudgetError) throw new ConflictException(error.code);
+        throw error;
+      }
       const changed = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.clioResearchSession.updateMany({
           where: {
@@ -4551,6 +4571,13 @@ export class MeriResearchService {
     }
     throw new ConflictException(
       'Research child state changed concurrently; retry with the same child identity.',
+    );
+  }
+
+  /** Provider attempts allowed per goal revision (CLIO_RESEARCH_MAX_PROVIDER_ATTEMPTS). */
+  private researchProviderAttemptAllowance(): number {
+    return Math.floor(
+      positiveNumberOr(this.config.get('CLIO_RESEARCH_MAX_PROVIDER_ATTEMPTS', { infer: true }), 23),
     );
   }
 

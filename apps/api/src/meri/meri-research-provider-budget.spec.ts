@@ -1,7 +1,10 @@
 import type { ResearchPlanV1 } from './meri-research-plan.js';
 import {
+  MAX_RESEARCH_PROVIDER_ATTEMPTS,
   admitResearchProviderBudget,
+  extendResearchProviderAttemptsForGoalRevision,
   readResearchProviderBudget,
+  researchProviderAttemptCeiling,
   reserveResearchProviderAttempt,
   reserveResearchToolAttempt,
   settleResearchProviderAttempt,
@@ -280,5 +283,59 @@ describe('persisted aggregate research provider budget', () => {
       chargedTokens: 1_000,
     });
     expect(jev.budget.attempts.map((attempt) => attempt.kind)).toEqual(['openai_responses', 'jev']);
+  });
+
+  test('a steering re-plan gives the revised goal its own attempt allowance, never more tokens or cost', () => {
+    // Session 0b61fbff (2026-10-07): a steer at 64 s ended partial because the
+    // revised run inherited the first run's spent attempts, with tokens and
+    // cost far from their ceilings.
+    const wide = limits({ maxTokens: 10_000, maxCostMicros: 1_000_000 });
+    let metadata: unknown = {};
+    for (const id of ['attempt-1', 'attempt-2', 'attempt-3']) {
+      metadata = reserveResearchProviderAttempt({
+        metadata,
+        run: run(),
+        limits: wide,
+        binding: binding(id),
+        price,
+        now,
+        reservationId: `reservation-${id}`,
+      }).metadata;
+    }
+    expect(() =>
+      reserveResearchProviderAttempt({
+        metadata,
+        run: run(),
+        limits: wide,
+        binding: binding('attempt-4'),
+        price,
+        now,
+      }),
+    ).toThrow('research_provider_budget_attempts_exhausted');
+
+    const extended = extendResearchProviderAttemptsForGoalRevision(metadata, 3);
+    expect(extended.budget?.limits).toEqual({ ...wide, maxAttempts: 6 });
+    // A reservation asks for at least the stored ceiling, so it does not
+    // narrow the revised allowance back to the configured value.
+    const ceiling = researchProviderAttemptCeiling(wide.maxAttempts, extended.metadata);
+    expect(ceiling).toBe(6);
+    const next = reserveResearchProviderAttempt({
+      metadata: extended.metadata,
+      run: run(),
+      limits: { ...wide, maxAttempts: ceiling },
+      binding: binding('attempt-4'),
+      price,
+      now,
+    });
+    expect(next.budget).toMatchObject({ chargedAttempts: 4, limits: { maxAttempts: 6 } });
+
+    expect(
+      extendResearchProviderAttemptsForGoalRevision(metadata, 500).budget?.limits.maxAttempts,
+    ).toBe(MAX_RESEARCH_PROVIDER_ATTEMPTS);
+    expect(extendResearchProviderAttemptsForGoalRevision({}, 3)).toEqual({
+      metadata: {},
+      budget: null,
+    });
+    expect(researchProviderAttemptCeiling(23, {})).toBe(23);
   });
 });

@@ -1,6 +1,10 @@
 import { MeriResearchService } from './meri-research.service';
 import { admitDurableResearchCoordinator } from './meri-research-coordinator';
-import { admitResearchToolBudget } from './meri-research-tool-budget';
+import {
+  admitResearchToolBudget,
+  readResearchProviderBudget,
+  reserveResearchProviderAttempt,
+} from './meri-research-tool-budget';
 import type { ResearchPlanV1 } from './meri-research-plan';
 import type { ResearchRunState } from './meri-research-run-state';
 import { createMeriOtelRuntime } from '@capiro/meriv2-core/observability/otel';
@@ -48,7 +52,7 @@ const plan: ResearchPlanV1 = {
   clarifyingQuestions: [],
 };
 
-function fixture() {
+function fixture(withMetadata: (metadata: Record<string, unknown>) => Record<string, unknown> = (m) => m) {
   const run: ResearchRunState = {
     id: 'run-1',
     leaseEpoch: 1,
@@ -82,7 +86,7 @@ function fixture() {
     clarifyingAnswers: {},
     reportArtifactId: null,
     sources: null,
-    metadata: admitted.metadata,
+    metadata: withMetadata(admitted.metadata),
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -135,6 +139,52 @@ describe('MeriResearchService coordinator HTTP contract', () => {
   afterEach(async () => {
     await setMeriOtelRuntime(undefined);
   });
+  it('gives an accepted steer its own provider-attempt allowance, never more tokens or cost', async () => {
+    // Session 0b61fbff (2026-10-07): the revised run inherited the first run's
+    // spent attempts and ended partial with tokens and cost far from spent.
+    const limits = {
+      maxAttempts: 2,
+      maxTokens: 10_000,
+      maxCostMicros: 1_000_000,
+      deadlineAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+    };
+    const f = fixture((metadata) => {
+      let next: unknown = metadata;
+      for (const attemptId of ['attempt-1', 'attempt-2']) {
+        next = reserveResearchProviderAttempt({
+          metadata: next,
+          run: { id: 'run-1', leaseEpoch: 1 },
+          limits,
+          binding: {
+            logicalOperationId: attemptId,
+            attemptId,
+            retryOfAttemptId: null,
+            kind: 'openai_responses',
+            phase: 'acquisition',
+            provider: 'openai',
+            model: 'gpt-4.1',
+            maxInputTokens: 100,
+            maxOutputTokens: 200,
+          },
+          price: { inputPerM: 2, outputPerM: 8 },
+          reservationId: `reservation-${attemptId}`,
+        }).metadata;
+      }
+      return next as Record<string, unknown>;
+    });
+    await f.service.steerRun(ctx, 'session-1', {
+      version: 1,
+      requestId: 'steer-house-only',
+      expectedGoalRevision: 0,
+      message: 'Use the House version only.',
+    });
+    // The configured default allowance (23) on top of the 2 attempts charged.
+    expect(readResearchProviderBudget(f.getSession().metadata)).toMatchObject({
+      chargedAttempts: 2,
+      limits: { ...limits, maxAttempts: 25 },
+    });
+  });
+
   it('persists one ordered steering receipt, fences the old run, and resumes the event cursor', async () => {
     const f = fixture();
     const accepted = await f.service.steerRun(ctx, 'session-1', {

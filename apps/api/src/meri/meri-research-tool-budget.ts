@@ -289,6 +289,37 @@ export function admitResearchProviderBudget(
   return { metadata: { ...metadata, researchProviderBudget: budget }, budget };
 }
 
+/**
+ * A steering re-plan gives the revised goal its own provider-attempt allowance:
+ * the attempt ceiling becomes the attempts already charged plus `allowance`,
+ * bounded by the ledger size. Tokens, cost and the deadline stay session-wide,
+ * so total spend is still capped by the first admission.
+ */
+export function extendResearchProviderAttemptsForGoalRevision(
+  value: unknown,
+  allowance: number,
+): { metadata: Record<string, unknown>; budget: ResearchProviderBudgetV1 | null } {
+  const metadata = researchMetadata(value);
+  const current = readResearchProviderBudget(metadata);
+  if (!current || !positiveBoundedInteger(allowance)) return { metadata, budget: current };
+  const maxAttempts = Math.min(
+    MAX_RESEARCH_PROVIDER_ATTEMPTS,
+    Math.max(current.limits.maxAttempts, current.chargedAttempts + allowance),
+  );
+  const budget = { ...current, limits: { ...current.limits, maxAttempts } };
+  return { metadata: { ...metadata, researchProviderBudget: budget }, budget };
+}
+
+/**
+ * The attempt ceiling a reservation requests. Admission only narrows limits,
+ * so asking for the configured value alone would undo a goal revision's
+ * allowance; ask for at least the stored ceiling instead.
+ */
+export function researchProviderAttemptCeiling(configured: number, value: unknown): number {
+  const stored = readResearchProviderBudget(value)?.limits.maxAttempts ?? 0;
+  return Math.min(MAX_RESEARCH_PROVIDER_ATTEMPTS, Math.max(configured, stored));
+}
+
 export function reserveResearchProviderAttempt(input: {
   metadata: unknown;
   run: Pick<ResearchRunState, 'id' | 'leaseEpoch'>;
