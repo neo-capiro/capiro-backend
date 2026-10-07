@@ -26,3 +26,7 @@ The guarded operator promoted engagement worker revision 139 and API revision 63
 The failed job's absolute deadline was not extended. Once the worker rollout finished, the normal `MeetingPrepJobService.submit` created a fresh standard-depth job for the original tenant, actor, meeting, and focus; its idempotency key prevents duplicate operator submission. Application authorization remains in force throughout generation and persistence. The isolated recovery task monitors this job and will verify the saved prep through `EngagementService.getMeeting`; generation is not yet accepted merely because deployment succeeded.
 
 The separate automatic-notetaker record for this meeting ended without a recording or transcript. That historical capture is not represented as repaired by the preparation fix, and no substitute meeting notes or debrief were fabricated.
+
+## Live retry finding
+
+The first live retry failed at 02:26:38 UTC after eight completed extraction batches, before synthesis. The worker log shows OpenAI returning an HTML document instead of JSON at 02:25:32 UTC; the no-retry transport policy then fell back to another provider and the job ultimately failed. This run does not validate artifact recovery. The separate transport fix and subsequent acceptance are tracked in [meeting-prep-retry/qualification.md](../meeting-prep-retry/qualification.md).
