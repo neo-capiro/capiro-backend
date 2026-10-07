@@ -370,7 +370,7 @@ export interface PlannerSavedViewData {
   status: string;
   assigneeId: string;
   priority: string;
-  sort: 'position' | 'due' | 'name' | 'priority';
+  sort: 'position' | 'due' | 'name' | 'priority' | 'estimated' | 'actual';
   groupBy?: 'section' | 'status' | 'priority' | 'assignee' | 'none';
 }
 export interface PlannerCapacityData {

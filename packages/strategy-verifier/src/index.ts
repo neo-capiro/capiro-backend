@@ -8,6 +8,7 @@ export * from './planner-reporting.js';
 export * from './planner-timesheets.js';
 export * from './planner-budgets.js';
 export * from './planner-timers.js';
+export * from './planner-time-tree.js';
 export {
   verifyPlan,
   validIso,

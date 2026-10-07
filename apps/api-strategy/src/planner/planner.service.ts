@@ -64,6 +64,9 @@ import {
   type PlannerTimeExportPage,
   type PlannerTimeExportEntry,
   type PlannerTimer,
+  type PlannerTimeTreePage,
+  type PlannerTimeTreeNode,
+  plannerTimeRollups,
 } from '@capiro/strategy-verifier';
 import {
   Prisma,
@@ -488,6 +491,110 @@ export class PlannerService {
         return this.projectView(row, ctx);
       },
       true,
+    );
+  }
+  async timeTree(
+    ctx: AuthTenantContext,
+    query: {
+      projectId?: string;
+      taskId?: string;
+      mine?: string;
+      archived?: string;
+      cursor?: string;
+      revision?: string;
+    },
+  ): Promise<PlannerTimeTreePage> {
+    keys(query, ['projectId', 'taskId', 'mine', 'archived', 'cursor', 'revision']);
+    if (query.projectId) uuid(query.projectId);
+    if (query.taskId) uuid(query.taskId);
+    if (query.cursor) uuid(query.cursor);
+    for (const value of [query.mine, query.archived])
+      if (value !== undefined && !['true', 'false'].includes(value))
+        fail('Invalid time tree scope');
+    if (query.cursor && !query.revision) fail('Time tree paging requires its revision');
+    if (query.revision && !/^[a-f0-9]{64}$/.test(query.revision))
+      fail('Invalid time tree revision');
+    return this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
+        if (!(await this.people(tx, ctx)).some((person) => person.id === ctx.clerkUserId))
+          throw missing();
+        const projects = await this.projects(tx, ctx);
+        if (
+          query.projectId &&
+          !projects.some(
+            (p) => p.id === query.projectId && plannerProjectAccess(p, ctx.clerkUserId),
+          )
+        )
+          throw missing();
+        const rows = (
+          await tx.spPlannerTask.findMany({
+            where: { tenantId: ctx.tenantId },
+            orderBy: { id: 'asc' },
+          })
+        ).filter((row) => plannerTaskAccess(row, projects, ctx.clerkUserId));
+        if (query.taskId && !rows.some((row) => row.id === query.taskId)) throw missing();
+        const roots = rows.filter(
+          (row) =>
+            row.archived === (query.archived === 'true') &&
+            (!query.taskId || row.id === query.taskId) &&
+            (!query.projectId || row.projectIds.includes(query.projectId)) &&
+            (query.mine !== 'true' || row.assigneeId === ctx.clerkUserId),
+        );
+        // Traverse only accessible, active links. A private/archived bridge cannot leak its subtree.
+        const children = new Map<string, SpPlannerTask[]>();
+        for (const row of rows) {
+          if (!row.parentId || row.archived) continue;
+          const siblings = children.get(row.parentId) ?? [];
+          siblings.push(row);
+          children.set(row.parentId, siblings);
+        }
+        const selected = new Map<string, SpPlannerTask>(),
+          pending = [...roots];
+        while (pending.length) {
+          const row = pending.pop()!;
+          if (selected.has(row.id)) continue;
+          selected.set(row.id, row);
+          pending.push(...(children.get(row.id) ?? []));
+        }
+        const minutes = await plannerActualMinutes(tx, ctx, [...selected.keys()]);
+        const scopedIds = new Set(roots.map((row) => row.id));
+        const nodes: PlannerTimeTreeNode[] = [...selected.values()]
+          .sort((a, b) => a.id.localeCompare(b.id))
+          .map((row) => ({
+            id: row.id,
+            parentId: row.parentId && selected.has(row.parentId) ? row.parentId : null,
+            version: row.version,
+            scoped: scopedIds.has(row.id),
+            estimateMinutes: taskData(row).estimateMinutes,
+            actualMinutes: minutes.get(row.id) ?? 0,
+          }));
+        plannerTimeRollups(nodes);
+        const revision = createHash('sha256')
+          .update(
+            JSON.stringify([
+              ctx.clerkUserId,
+              query.projectId ?? null,
+              query.taskId ?? null,
+              query.mine === 'true',
+              query.archived === 'true',
+              nodes,
+            ]),
+          )
+          .digest('hex');
+        if (query.revision && query.revision !== revision)
+          throw new ConflictException('Task time or access changed. Refresh the time tree.');
+        const start = query.cursor ? nodes.findIndex((node) => node.id === query.cursor) + 1 : 0;
+        if (query.cursor && start === 0) fail('Invalid time tree cursor');
+        const page = nodes.slice(start, start + 100);
+        return {
+          nodes: page,
+          revision,
+          matched: nodes.length,
+          nextCursor: start + page.length < nodes.length ? page.at(-1)!.id : null,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeoutMs: 15_000 },
     );
   }
   async tasks(

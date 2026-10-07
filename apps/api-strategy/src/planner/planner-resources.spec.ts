@@ -18,6 +18,23 @@ const rule: PlannerRuleData = {
   actions: { priority: 'high', assigneeId: 'user_owner' },
 };
 describe('Planner rules and management validation', () => {
+  it('preserves estimated/actual time sorting in saved views', () => {
+    const view = {
+      scope: 'mine',
+      projectId: null,
+      view: 'list',
+      search: '',
+      status: 'all',
+      assigneeId: '',
+      priority: '',
+      groupBy: 'section',
+    };
+    for (const sort of ['estimated', 'actual'])
+      expect(validateResource('saved_view', { ...view, sort })).toEqual({ ...view, sort });
+    expect(() => validateResource('saved_view', { ...view, sort: 'injected' })).toThrow(
+      BadRequestException,
+    );
+  });
   it('rejects mismatched, inverted and non-integer relative template dates', () => {
     const template = {
       description: '',

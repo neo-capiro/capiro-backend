@@ -54,7 +54,6 @@ import {
   plannerError,
 } from './planner-api.js';
 import {
-  PlannerList,
   PlannerBoard,
   PlannerCalendar,
   PlannerTimeline,
@@ -76,6 +75,7 @@ import { PlannerTimeExportButton } from './planner-time-export.js';
 import { PlannerTimeForm } from './planner-time-form.js';
 import { PlannerBudget } from './planner-budgets.js';
 import { PlannerTaskTimer, PlannerTimerWidget } from './planner-timers.js';
+import { PlannerTimeList, PlannerTaskTimeRollup } from './planner-time-list.js';
 import type { PlannerSavedViewData } from '@capiro/strategy-verifier';
 import './planner.css';
 
@@ -292,6 +292,12 @@ export function PlannerPage() {
           plannerDueTimestamp(a) - plannerDueTimestamp(b) || a.createdAt.localeCompare(b.createdAt)
         );
       if (sort === 'name') return a.name.localeCompare(b.name);
+      if (sort === 'estimated' || sort === 'actual')
+        return (
+          (sort === 'estimated'
+            ? b.estimateMinutes - a.estimateMinutes
+            : b.actualMinutes - a.actualMinutes) || a.name.localeCompare(b.name)
+        );
       if (sort === 'priority')
         return (
           ['high', 'medium', 'low', 'none'].indexOf(a.priority) -
@@ -761,6 +767,8 @@ export function PlannerPage() {
                   <option value="due">Due date</option>
                   <option value="name">Name</option>
                   <option value="priority">Priority</option>
+                  <option value="estimated">Estimated time (highest first)</option>
+                  <option value="actual">Actual time (highest first)</option>
                 </select>
                 <button onClick={exportTasks} aria-label="Export visible tasks">
                   <Download size={16} />
@@ -820,8 +828,14 @@ export function PlannerPage() {
               ) : view === 'timeline' || view === 'gantt' ? (
                 <PlannerTimeline {...viewProps} gantt={view === 'gantt'} />
               ) : (
-                <PlannerList
+                <PlannerTimeList
                   {...viewProps}
+                  scope={{
+                    ...(projectId ? { projectId } : scope === 'mine' ? { mine: 'true' } : {}),
+                    ...(archived ? { archived: 'true' } : {}),
+                  }}
+                  complete={!query.hasNextPage && !query.isFetchingNextPage}
+                  timeSort={sort === 'estimated' || sort === 'actual' ? sort : undefined}
                   groupBy={groupBy}
                   onReorder={
                     scope === 'mine' &&
@@ -2055,6 +2069,7 @@ function TaskEditor({
                     </h3>
                   )}
                   <PlannerTaskTimer task={task} bootstrap={bootstrap} onOpen={navigateTask} />
+                  <PlannerTaskTimeRollup task={task} />
                   {canEdit && bootstrap.timeOptions?.timeTrackingEnabled !== false && (
                     <PlannerTimeForm
                       projects={bootstrap.projects}

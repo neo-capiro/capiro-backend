@@ -394,6 +394,49 @@ const error = (message: string, status = 400) => {
 };
 const api = {
   async get(path: string, config?: { params?: Record<string, string> }) {
+    if (path.endsWith('/time/tree')) {
+      const params = config?.params ?? {};
+      const roots = tasks.filter(
+        (task) =>
+          task.archived === (params.archived === 'true') &&
+          (!params.taskId || task.id === params.taskId) &&
+          (params.mine !== 'true' || task.assigneeId === 'user_qa') &&
+          (!params.projectId || task.memberships.some((m) => m.projectId === params.projectId)),
+      );
+      const rootIds = new Set(roots.map((task) => task.id)),
+        selected = new Map<string, PlannerTask>(),
+        pending = [...roots];
+      while (pending.length) {
+        const task = pending.pop()!;
+        if (selected.has(task.id)) continue;
+        selected.set(task.id, task);
+        pending.push(...tasks.filter((child) => !child.archived && child.parentId === task.id));
+      }
+      const nodes = [...selected.values()]
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .map((task) => ({
+          id: task.id,
+          parentId: task.parentId && selected.has(task.parentId) ? task.parentId : null,
+          version: task.version,
+          scoped: rootIds.has(task.id),
+          estimateMinutes: task.estimateMinutes,
+          actualMinutes: task.actualMinutes,
+        }));
+      let hash = 2166136261;
+      for (const char of JSON.stringify(nodes))
+        hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+      const revision = (hash >>> 0).toString(16).padStart(8, '0').repeat(8);
+      if (params.revision && params.revision !== revision) error('Task time changed', 409);
+      const start = params.cursor ? nodes.findIndex((node) => node.id === params.cursor) + 1 : 0;
+      return {
+        data: {
+          nodes: nodes.slice(start, start + 100),
+          revision,
+          matched: nodes.length,
+          nextCursor: start + 100 < nodes.length ? nodes[start + 99]!.id : null,
+        },
+      };
+    }
     if (path.endsWith('/time/timer')) {
       const row = [...timerSessions.values()].find((t) => t.status === 'running');
       return { data: row ? qaTimerView(row) : null };

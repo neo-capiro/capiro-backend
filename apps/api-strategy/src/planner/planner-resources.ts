@@ -349,7 +349,7 @@ export function validateResource(
     enumValue(d.status, ['all', 'open', 'todo', 'in_progress', 'blocked', 'done']);
     string(d.assigneeId, 200);
     enumValue(d.priority, ['', 'none', 'low', 'medium', 'high']);
-    enumValue(d.sort, ['position', 'due', 'name', 'priority']);
+    enumValue(d.sort, ['position', 'due', 'name', 'priority', 'estimated', 'actual']);
     if (d.groupBy !== undefined)
       enumValue(d.groupBy, ['section', 'status', 'priority', 'assignee', 'none']);
   } else if (kind === 'my_tasks') {
