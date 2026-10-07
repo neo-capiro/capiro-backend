@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { ModalOverlay, Modal, Dialog, Heading } from 'react-aria-components';
 import { Plus, X } from 'lucide-react';
 import {
@@ -27,6 +27,12 @@ import {
 import { PlannerRichText, PlannerFormattedText } from './planner-rich-text.js';
 import { PlannerActivity } from './planner-activity.js';
 import { PlannerTemplateScheduleEditor } from './planner-template-schedule.js';
+import { PlannerFormBuilder, plannerDuplicateFormData } from './planner-form-builder.js';
+import {
+  PlannerFormQuestions,
+  plannerFormSubmissionError,
+  type PlannerFormFiles,
+} from './planner-form-questions.js';
 
 const editable = (role: string) => ['admin', 'editor'].includes(role);
 const sharing = { description: '', privacy: 'private', members: [] };
@@ -71,10 +77,14 @@ export function plannerResourceDefaults(kind: PlannerResourceKind): Record<strin
         type: 'paragraph',
         required: false,
         options: [],
-        taskField: 'description',
+        taskField: null,
       },
     ],
     defaults: { assigneeId: null, status: 'todo', priority: 'none', estimateMinutes: 0 },
+    copyAnswersToDescription: true,
+    audience: 'organization',
+    allowAnotherSubmission: true,
+    addSubmitterAsCollaborator: false,
   };
 }
 function Field({ name, children }: { name: string; children: React.ReactNode }) {
@@ -307,9 +317,30 @@ export function PlannerManagement({
                     </button>
                   )}
                   {kind === 'form' && !archived && editable(row.access) && (
+                    <button
+                      disabled={actions.resource.isPending}
+                      onClick={() =>
+                        actions.resource.mutate({
+                          kind: 'form',
+                          projectId: row.projectId,
+                          name: `${row.name} copy`.slice(0, 500),
+                          data: plannerDuplicateFormData(
+                            row.data as unknown as PlannerFormData,
+                          ) as unknown as Record<string, unknown>,
+                        })
+                      }
+                    >
+                      Duplicate form
+                    </button>
+                  )}
+                  {kind === 'form' && !archived && editable(row.access) && (
                     <>
                       <button
-                        disabled={actions.shareForm.isPending || row.data.enabled !== true}
+                        disabled={
+                          actions.shareForm.isPending ||
+                          row.data.enabled !== true ||
+                          row.data.audience === 'organization'
+                        }
                         onClick={async () => {
                           try {
                             const result = await actions.shareForm.mutateAsync({
@@ -976,151 +1007,19 @@ function ResourceEditor({
                 </Field>
               </div>
               <p className="planner-muted">
-                Date rules run automatically once per due schedule on unfinished top-level
-                tasks. Calendar days use the task’s time zone (UTC when unset). Reminders appear in
-                Planner Inbox and Capiro’s bell. Other rules run once per task change, in creation
-                order.
+                Date rules run automatically once per due schedule on unfinished top-level tasks.
+                Calendar days use the task’s time zone (UTC when unset). Reminders appear in Planner
+                Inbox and Capiro’s bell. Other rules run once per task change, in creation order.
               </p>
             </>
           )}
           {kind === 'form' && (
-            <>
-              <Field name="Accepting submissions">
-                <input
-                  type="checkbox"
-                  checked={form.enabled}
-                  onChange={(e) => edit({ enabled: e.target.checked })}
-                />
-              </Field>
-              <h3>Questions</h3>
-              {form.fields.map((f, i) => (
-                <div className="planner-form-question" key={f.id}>
-                  <Field name={`Question ${i + 1}`}>
-                    <input
-                      required
-                      value={f.label}
-                      onChange={(e) =>
-                        edit({
-                          fields: form.fields.map((old) =>
-                            old.id === f.id ? { ...old, label: e.target.value } : old,
-                          ),
-                        })
-                      }
-                    />
-                  </Field>
-                  <Field name="Task field">
-                    <select
-                      value={f.taskField}
-                      onChange={(e) => {
-                        const taskField = e.target.value as typeof f.taskField;
-                        edit({
-                          fields: form.fields.map((old) =>
-                            old.id === f.id
-                              ? {
-                                  ...old,
-                                  taskField,
-                                  type: (
-                                    {
-                                      name: 'text',
-                                      description: 'paragraph',
-                                      dueOn: 'date',
-                                      priority: 'select',
-                                      estimateMinutes: 'number',
-                                    } as const
-                                  )[taskField],
-                                  required: taskField === 'name' || old.required,
-                                  options:
-                                    taskField === 'priority'
-                                      ? ['none', 'low', 'medium', 'high']
-                                      : [],
-                                }
-                              : old,
-                          ),
-                        });
-                      }}
-                    >
-                      {['name', 'description', 'dueOn', 'priority', 'estimateMinutes'].map((k) => (
-                        <option key={k}>{k}</option>
-                      ))}
-                    </select>
-                  </Field>
-                  <label>
-                    <input
-                      type="checkbox"
-                      disabled={f.taskField === 'name'}
-                      checked={f.required}
-                      onChange={(e) =>
-                        edit({
-                          fields: form.fields.map((old) =>
-                            old.id === f.id ? { ...old, required: e.target.checked } : old,
-                          ),
-                        })
-                      }
-                    />{' '}
-                    Required
-                  </label>
-                  {f.taskField !== 'name' && (
-                    <button
-                      type="button"
-                      onClick={() => edit({ fields: form.fields.filter((old) => old.id !== f.id) })}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button
-                type="button"
-                disabled={form.fields.length >= 5}
-                onClick={() => {
-                  const taskField = (
-                    ['description', 'dueOn', 'priority', 'estimateMinutes'] as const
-                  ).find((k) => !form.fields.some((f) => f.taskField === k));
-                  if (!taskField) return;
-                  edit({
-                    fields: [
-                      ...form.fields,
-                      {
-                        id: crypto.randomUUID(),
-                        label: taskField,
-                        type: (
-                          {
-                            description: 'paragraph',
-                            dueOn: 'date',
-                            priority: 'select',
-                            estimateMinutes: 'number',
-                          } as const
-                        )[taskField],
-                        required: false,
-                        options: taskField === 'priority' ? ['none', 'low', 'medium', 'high'] : [],
-                        taskField,
-                      },
-                    ],
-                  });
-                }}
-              >
-                <Plus size={15} />
-                Add question
-              </button>
-              <Field name="Default assignee">
-                <select
-                  value={form.defaults.assigneeId ?? ''}
-                  onChange={(e) =>
-                    edit({ defaults: { ...form.defaults, assigneeId: e.target.value || null } })
-                  }
-                >
-                  <option value="">Unassigned</option>
-                  {bootstrap.people.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <p className="planner-muted">
-                Team members with access to this project can submit requests, including viewers.
-              </p>
-            </>
+            <PlannerFormBuilder
+              form={form}
+              edit={edit}
+              project={bootstrap.projects.find((project) => project.id === projectId)}
+              people={bootstrap.people}
+            />
           )}
           <Alert error={actions.resource.error} />
         </div>
@@ -1148,68 +1047,88 @@ function FormSubmission({
 }) {
   const form = resource.data as unknown as PlannerFormData;
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [files, setFiles] = useState<PlannerFormFiles>({});
+  const [error, setError] = useState<string | null>(null);
+  const [received, setReceived] = useState<string | null>(null);
+  const [draft, setDraft] = useState(0);
+  const sending = useRef(false);
   const actions = usePlannerMutations();
   return (
     <ModalFrame title={resource.name} onClose={onClose}>
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          try {
-            const task = await actions.submitForm.mutateAsync({ id: resource.id, answers });
-            onSaved(task.id);
-          } catch {}
-        }}
-      >
+      {received ? (
         <div className="planner-dialog-body">
-          <p>{form.description}</p>
-          {form.fields.map((f) => (
-            <Field key={f.id} name={f.label}>
-              {f.type === 'paragraph' ? (
-                <textarea
-                  rows={4}
-                  required={f.required}
-                  onChange={(e) => {
-                    const value = e.currentTarget.value;
-                    setAnswers((old) => ({ ...old, [f.id]: value }));
-                  }}
-                />
-              ) : f.type === 'select' ? (
-                <select
-                  required={f.required}
-                  defaultValue=""
-                  onChange={(e) => {
-                    const value = e.currentTarget.value;
-                    setAnswers((old) => ({ ...old, [f.id]: value }));
-                  }}
-                >
-                  <option value="">Choose…</option>
-                  {f.options.map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type={f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text'}
-                  required={f.required}
-                  min={f.type === 'number' ? 0 : undefined}
-                  onInput={(e) => {
-                    const value = e.currentTarget.value;
-                    const answer =
-                      f.type === 'number' ? (value === '' ? null : Number(value)) : value;
-                    setAnswers((old) => ({ ...old, [f.id]: answer }));
-                  }}
-                />
-              )}
-            </Field>
-          ))}
-          <Alert error={actions.submitForm.error} />
+          <h3>Request received</h3>
+          <p className="planner-form-message">
+            {form.confirmationMessage || 'Your response has been sent to the team.'}
+          </p>
+          <div className="planner-head-actions">
+            <button type="button" className="planner-primary" onClick={() => onSaved(received)}>
+              Open created task
+            </button>
+            {form.allowAnotherSubmission && (
+              <button
+                type="button"
+                onClick={() => {
+                  setReceived(null);
+                  setAnswers({});
+                  setFiles({});
+                  setError(null);
+                  setDraft((old) => old + 1);
+                  actions.submitForm.reset();
+                }}
+              >
+                Submit another response
+              </button>
+            )}
+          </div>
         </div>
-        <footer className="planner-dialog-footer">
-          <button className="planner-primary" disabled={actions.submitForm.isPending}>
-            Submit request
-          </button>
-        </footer>
-      </form>
+      ) : (
+        <form
+          key={draft}
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (sending.current) return;
+            const problem = plannerFormSubmissionError(form.fields, answers, files);
+            setError(problem);
+            if (problem) return;
+            sending.current = true;
+            try {
+              const task = await actions.submitForm.mutateAsync({
+                id: resource.id,
+                fields: form.fields,
+                answers,
+                files,
+              });
+              setReceived(task.id);
+            } catch {
+            } finally {
+              sending.current = false;
+            }
+          }}
+        >
+          <div className="planner-dialog-body">
+            <p className="planner-form-message">{form.description}</p>
+            <PlannerFormQuestions
+              fields={form.fields}
+              answers={answers}
+              setAnswers={setAnswers}
+              files={files}
+              setFiles={setFiles}
+            />
+            {error && (
+              <p role="alert" className="planner-error">
+                {error}
+              </p>
+            )}
+            <Alert error={actions.submitForm.error} />
+          </div>
+          <footer className="planner-dialog-footer">
+            <button className="planner-primary" disabled={actions.submitForm.isPending}>
+              {actions.submitForm.isPending ? 'Sending…' : 'Submit request'}
+            </button>
+          </footer>
+        </form>
+      )}
     </ModalFrame>
   );
 }

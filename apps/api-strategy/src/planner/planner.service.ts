@@ -5,6 +5,8 @@ import {
   NotFoundException,
   HttpException,
   Logger,
+  Optional,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
@@ -58,6 +60,17 @@ import {
 import { RESOURCE_KINDS, validateResource, applyPlannerRule } from './planner-resources.js';
 import { plannerActualMinutes, plannerEventView, plannerReadActivity } from './planner-activity.js';
 import { plannerDateRuleReady, plannerScheduleHash } from './planner-date-rules.js';
+import {
+  plannerPublicForm,
+  plannerFormTaskValues,
+  validatePlannerFormProject,
+} from './planner-form.js';
+import { plannerFormAnswers, plannerFormFiles } from './planner-form-upload.js';
+import { plannerAttachmentName, type PlannerFormUpload } from './planner-files.js';
+import {
+  PlannerFormFilesService,
+  type PlannerPreparedFormFile,
+} from './planner-form-files.service.js';
 
 type Tx = Prisma.TransactionClient;
 type ActivityQuery = { paged?: string; cursor?: string; archived?: string };
@@ -139,6 +152,7 @@ export class PlannerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly links: PlannerLinksService,
+    @Optional() private readonly formFiles?: PlannerFormFilesService,
   ) {}
 
   private scope<T>(ctx: AuthTenantContext, run: (tx: Tx) => Promise<T>, write = false): Promise<T> {
@@ -1722,6 +1736,8 @@ export class PlannerService {
           fail('Goal owner must be an active team member');
         if (kind === 'rule' || kind === 'form') {
           const p = projects.find((p) => p.id === projectId)!;
+          if (kind === 'form' && dto.archived !== true)
+            validatePlannerFormProject(data as unknown as PlannerFormData, projectData(p));
           const config = kind === 'rule' ? object(data.actions) : object(data.defaults);
           if (config.assigneeId && !people.has(String(config.assigneeId)))
             fail('Assignee must be an active team member');
@@ -1750,6 +1766,9 @@ export class PlannerService {
                 data: json(data),
                 version: { increment: 1 },
                 ...(dto.archived === undefined ? {} : { archived: dto.archived as boolean }),
+                ...(kind === 'form' && data.audience === 'organization'
+                  ? { shareTokenHash: null }
+                  : {}),
               },
             })
           : await tx.spPlannerResource.create({
@@ -2005,6 +2024,16 @@ export class PlannerService {
         if (!form) throw missing();
         requireRole(this.resourceAccess(form, projects, ctx), 'editor');
         version(form.version, dto.version as number | undefined);
+        if (dto.enabled) {
+          const config = validateResource('form', form.data) as unknown as PlannerFormData;
+          if (config.audience === 'organization')
+            fail('Change form access to Anyone with the link before publishing');
+          const project = projects.find(
+            (candidate) => candidate.id === form.projectId && !candidate.archived,
+          );
+          if (!project) throw missing();
+          validatePlannerFormProject(config, projectData(project));
+        }
         const token = dto.enabled ? `${ctx.tenantId}.${randomBytes(32).toString('hex')}` : null;
         await tx.spPlannerResource.update({
           where: { id, tenantId: ctx.tenantId },
@@ -2044,9 +2073,18 @@ export class PlannerService {
       !project ||
       !people.has(form.ownerId) ||
       !['admin', 'editor'].includes(plannerProjectAccess(project, form.ownerId) ?? '') ||
-      !(form.data as unknown as PlannerFormData).enabled
+      !(form.data as unknown as PlannerFormData).enabled ||
+      (form.data as unknown as PlannerFormData).audience === 'organization'
     )
       throw missing();
+    try {
+      validatePlannerFormProject(
+        validateResource('form', form.data) as unknown as PlannerFormData,
+        projectData(project),
+      );
+    } catch {
+      throw missing();
+    }
     return form;
   }
   async publicForm(token: string): Promise<PlannerPublicForm> {
@@ -2055,12 +2093,16 @@ export class PlannerService {
       const form = await this.publicFormRecord(tx, ctx, hash, await this.projects(tx, ctx));
       const config = validateResource('form', form.data) as unknown as PlannerFormData;
       // Public reads contain only the intake questions. No project or person identity.
-      return { name: form.name, description: config.description, fields: config.fields };
+      return plannerPublicForm(form.name, config);
     });
   }
-  async submitPublicForm(token: string, raw: unknown) {
+  async submitPublicForm(token: string, raw: unknown, files: PlannerFormUpload[] = []) {
     const { ctx, hash } = this.publicFormScope(token);
-    const answers = object(raw);
+    const answers = plannerFormAnswers(raw);
+    if (files.length)
+      return this.uploadedFormSubmission(ctx, answers, files, true, (tx, projects) =>
+        this.publicFormRecord(tx, ctx, hash, projects),
+      );
     return this.scope(
       ctx,
       async (tx) => {
@@ -2091,9 +2133,23 @@ export class PlannerService {
       true,
     );
   }
-  async submitForm(ctx: AuthTenantContext, id: string, raw: unknown) {
+  async submitForm(
+    ctx: AuthTenantContext,
+    id: string,
+    raw: unknown,
+    files: PlannerFormUpload[] = [],
+  ) {
     uuid(id);
-    const answers = object(raw);
+    const answers = plannerFormAnswers(raw);
+    if (files.length)
+      return this.uploadedFormSubmission(ctx, answers, files, false, async (tx, projects) => {
+        const form = await tx.spPlannerResource.findFirst({
+          where: { id, tenantId: ctx.tenantId, kind: 'form', archived: false },
+        });
+        if (!form) throw missing();
+        requireRole(this.resourceAccess(form, projects, ctx), 'viewer');
+        return form;
+      });
     return this.scope(
       ctx,
       async (tx) => {
@@ -2109,13 +2165,101 @@ export class PlannerService {
       true,
     );
   }
-  private async createFormTask(
+  private uploadedFormSubmission(
+    ctx: AuthTenantContext,
+    answers: Record<string, unknown>,
+    files: PlannerFormUpload[],
+    isPublic: true,
+    findForm: (tx: Tx, projects: SpPlannerProject[]) => Promise<SpPlannerResource>,
+  ): Promise<{ received: boolean }>;
+  private uploadedFormSubmission(
+    ctx: AuthTenantContext,
+    answers: Record<string, unknown>,
+    files: PlannerFormUpload[],
+    isPublic: false,
+    findForm: (tx: Tx, projects: SpPlannerProject[]) => Promise<SpPlannerResource>,
+  ): Promise<PlannerTask>;
+  private async uploadedFormSubmission(
+    ctx: AuthTenantContext,
+    answers: Record<string, unknown>,
+    files: PlannerFormUpload[],
+    isPublic: boolean,
+    findForm: (tx: Tx, projects: SpPlannerProject[]) => Promise<SpPlannerResource>,
+  ) {
+    if (!this.formFiles)
+      throw new ServiceUnavailableException('Planner attachment storage is not configured');
+    const preflight = await this.scope(ctx, async (tx) => {
+      const projects = await this.projects(tx, ctx);
+      const form = await findForm(tx, projects);
+      const config = validateResource('form', form.data) as unknown as PlannerFormData;
+      const selected = plannerFormFiles(config, answers, files);
+      await this.formTaskData(
+        tx,
+        ctx,
+        form,
+        projects,
+        answers,
+        isPublic,
+        selected.map((file) => ({
+          fieldId: file.fieldname,
+          fileName: plannerAttachmentName(file.originalname),
+        })),
+      );
+      if (isPublic) await this.publicFormQuota(tx, ctx, form.id);
+      return { id: form.id, version: form.version, selected };
+    });
+    const taskId = randomUUID();
+    const prepared = preflight.selected.length
+      ? await this.formFiles.prepare(ctx.tenantId, taskId, preflight.selected)
+      : [];
+    try {
+      return await this.scope(
+        ctx,
+        async (tx) => {
+          const projects = await this.projects(tx, ctx);
+          const form = await findForm(tx, projects);
+          if (form.id !== preflight.id) throw missing();
+          version(form.version, preflight.version);
+          if (isPublic) await this.publicFormQuota(tx, ctx, form.id);
+          const actor = isPublic ? { ...ctx, clerkUserId: `public_form:${form.id}` } : ctx;
+          const row = await this.createFormTask(
+            tx,
+            actor,
+            form,
+            projects,
+            answers,
+            isPublic,
+            prepared,
+            taskId,
+          );
+          return isPublic ? { received: true } : this.taskView(tx, row, projects, ctx);
+        },
+        true,
+      );
+    } catch (error) {
+      await this.formFiles.remove(prepared);
+      throw error;
+    }
+  }
+  private async publicFormQuota(tx: Tx, ctx: AuthTenantContext, formId: string) {
+    const recent = await tx.spPlannerEvent.count({
+      where: {
+        tenantId: ctx.tenantId,
+        actorId: `public_form:${formId}`,
+        createdAt: { gte: new Date(Date.now() - 60_000) },
+      },
+    });
+    if (recent >= 10)
+      throw new HttpException('This form is receiving many requests. Try again shortly.', 429);
+  }
+  private async formTaskData(
     tx: Tx,
     ctx: AuthTenantContext,
     form: SpPlannerResource,
     projects: SpPlannerProject[],
     answers: Record<string, unknown>,
     isPublic: boolean,
+    files: { fieldId: string; fileName: string }[] = [],
   ) {
     const config = validateResource('form', form.data) as unknown as PlannerFormData;
     if (!config.enabled) fail('This form is closed');
@@ -2131,36 +2275,52 @@ export class PlannerService {
       throw new ForbiddenException('Active membership is required');
     if (config.defaults.assigneeId && !people.has(config.defaults.assigneeId))
       fail('The form’s default assignee is no longer active');
-    const values: Record<string, unknown> = {};
-    for (const field of config.fields) {
-      const value = answers[field.id];
-      if (value === undefined || value === null || value === '') {
-        if (field.required) fail(`${field.label} is required`);
-        continue;
-      }
-      if (field.type === 'number' && (typeof value !== 'number' || !Number.isFinite(value)))
-        fail('Expected a numeric answer');
-      if (field.type !== 'number' && (typeof value !== 'string' || value.length > 50000))
-        fail('Expected a text answer');
-      if (field.type === 'select' && !field.options.includes(String(value)))
-        fail('Invalid form choice');
-      values[field.taskField] = value;
-    }
+    const fileNames: Record<string, string[]> = {};
+    for (const file of files) (fileNames[file.fieldId] ??= []).push(file.fileName);
+    const values = plannerFormTaskValues(
+      config,
+      projectData(project),
+      form.name,
+      answers,
+      Object.fromEntries(Object.entries(fileNames).map(([id, names]) => [id, names.length])),
+      fileNames,
+    );
     let data = validateTask({
       ...PLANNER_DEFAULT_TASK,
       ...config.defaults,
       ...values,
+      collaborators: !isPublic && config.addSubmitterAsCollaborator ? [ctx.clerkUserId] : [],
       memberships: [
         {
           projectId: project.id,
-          sectionId: projectData(project).sections[0]?.id ?? null,
+          sectionId:
+            config.sectionId === undefined
+              ? (projectData(project).sections[0]?.id ?? null)
+              : config.sectionId,
           position: 0,
         },
       ],
     });
     data = await this.runRules(tx, ctx, data, null, projects, people);
+    return data;
+  }
+  private async createFormTask(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    form: SpPlannerResource,
+    projects: SpPlannerProject[],
+    answers: Record<string, unknown>,
+    isPublic: boolean,
+    files: PlannerPreparedFormFile[] = [],
+    taskId?: string,
+  ) {
+    const data = await this.formTaskData(tx, ctx, form, projects, answers, isPublic, files);
+    const project = projects.find(
+      (candidate) => candidate.id === form.projectId && !candidate.archived,
+    )!;
     const row = await tx.spPlannerTask.create({
       data: {
+        ...(taskId ? { id: taskId } : {}),
         tenantId: ctx.tenantId,
         ownerId: isPublic ? form.ownerId : ctx.clerkUserId,
         assigneeId: data.assigneeId,
@@ -2169,6 +2329,18 @@ export class PlannerService {
         completedAt: data.status === 'done' ? new Date() : null,
       },
     });
+    if (files.length)
+      await tx.spPlannerAttachment.createMany({
+        data: files.map((file) => ({
+          id: file.id,
+          tenantId: ctx.tenantId,
+          taskId: row.id,
+          uploadedBy: ctx.clerkUserId,
+          fileName: file.fileName,
+          sizeBytes: file.sizeBytes,
+          objectKey: file.objectKey,
+        })),
+      });
     await this.event(tx, ctx, { taskId: row.id, kind: 'created', text: `Submitted ${form.name}` }, [
       project.ownerId,
       ...(data.assigneeId ? [data.assigneeId] : []),

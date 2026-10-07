@@ -182,8 +182,62 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .post('/strategy-api/planner/public/forms/synthetic-capability')
       .send({ answer: 'Request' })
       .expect(201);
-    expect(planner.submitPublicForm).toHaveBeenCalledWith('synthetic-capability', {
-      answer: 'Request',
-    });
+    expect(planner.submitPublicForm).toHaveBeenCalledWith(
+      'synthetic-capability',
+      {
+        answer: 'Request',
+      },
+      [],
+    );
+  });
+  it('passes multipart answers and attachment question identities through signed-in and public intake', async () => {
+    for (const path of [`forms/${ID}/submit`, 'public/forms/synthetic-capability']) {
+      const call = request(app.getHttpServer()).post(`/strategy-api/planner/${path}`);
+      if (!path.startsWith('public')) call.set('x-planner-qa', 'allowed');
+      await call
+        .field('answers', JSON.stringify({ answer: 'Synthetic request' }))
+        .attach(ID, Buffer.from('synthetic'), 'example.txt')
+        .expect(201);
+    }
+    const files = expect.arrayContaining([
+      expect.objectContaining({
+        fieldname: ID,
+        originalname: 'example.txt',
+        size: 9,
+        buffer: Buffer.from('synthetic'),
+      }),
+    ]);
+    expect(planner.submitForm).toHaveBeenLastCalledWith(
+      ctx,
+      ID,
+      { answers: '{"answer":"Synthetic request"}' },
+      files,
+    );
+    expect(planner.submitPublicForm).toHaveBeenLastCalledWith(
+      'synthetic-capability',
+      { answers: '{"answer":"Synthetic request"}' },
+      files,
+    );
+  });
+  it('rejects excess files and fields, and checks a revoked capability before accepting uploads', async () => {
+    const files = request(app.getHttpServer())
+      .post('/strategy-api/planner/public/forms/synthetic-capability')
+      .field('answers', '{}');
+    for (let index = 0; index < 11; index++) files.attach(ID, Buffer.from('one'), `${index}.txt`);
+    await files.expect(400);
+    await request(app.getHttpServer())
+      .post('/strategy-api/planner/public/forms/synthetic-capability')
+      .field('answers', '{}')
+      .field('unexpected', 'extra')
+      .expect(400);
+    planner.publicForm.mockRejectedValueOnce(
+      new (await import('@nestjs/common')).NotFoundException(),
+    );
+    planner.submitPublicForm.mockClear();
+    await request(app.getHttpServer())
+      .post('/strategy-api/planner/public/forms/revoked')
+      .attach(ID, Buffer.from('one'), 'one.txt')
+      .expect(404);
+    expect(planner.submitPublicForm).not.toHaveBeenCalled();
   });
 });

@@ -17,6 +17,7 @@ import {
   validateTask,
   validatePlannerFieldValue,
 } from './planner.validation.js';
+import { validatePlannerForm } from './planner-form.js';
 
 export const RESOURCE_KINDS: PlannerResourceKind[] = [
   'portfolio',
@@ -211,42 +212,7 @@ export function validateResource(
     )
       fail('Explicit reminders require a date rule');
   } else if (kind === 'form') {
-    keys(d, ['description', 'enabled', 'fields', 'defaults']);
-    string(d.description, 50000);
-    bool(d.enabled);
-    const fields = array(d.fields, 20);
-    for (const raw of fields) {
-      const f = object(raw);
-      keys(f, ['id', 'label', 'type', 'required', 'options', 'taskField']);
-      uuid(f.id);
-      string(f.label, 200, true);
-      bool(f.required);
-      enumValue(f.type, ['text', 'paragraph', 'date', 'number', 'select']);
-      enumValue(f.taskField, ['name', 'description', 'dueOn', 'priority', 'estimateMinutes']);
-      const options = array(f.options);
-      options.forEach((o) => string(o, 200, true));
-      distinct(options);
-      const expected = {
-        name: ['text'],
-        description: ['paragraph', 'text'],
-        dueOn: ['date'],
-        priority: ['select'],
-        estimateMinutes: ['number'],
-      }[String(f.taskField)]!;
-      enumValue(f.type, expected);
-      if (
-        f.taskField === 'priority' &&
-        options.some((o) => !['none', 'low', 'medium', 'high'].includes(String(o)))
-      )
-        fail('Invalid priority option');
-    }
-    distinct(fields.map((f) => object(f).id));
-    distinct(fields.map((f) => object(f).taskField));
-    if (!fields.some((f) => object(f).taskField === 'name' && object(f).required === true))
-      fail('Forms require a task name question');
-    const defaults = object(d.defaults);
-    keys(defaults, ['assigneeId', 'priority', 'status', 'estimateMinutes']);
-    validateTask({ ...PLANNER_DEFAULT_TASK, name: 'Form default', ...defaults });
+    return validatePlannerForm(d) as unknown as Record<string, unknown>;
   } else if (kind === 'saved_view') {
     keys(d, [
       'scope',

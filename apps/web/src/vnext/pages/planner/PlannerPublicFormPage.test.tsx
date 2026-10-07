@@ -30,6 +30,38 @@ function showForm() {
   );
 }
 describe('Public Planner intake', () => {
+  it('shows configured confirmation, clears another response, and submits one request during repeated synchronous submits', async () => {
+    fixture.get.mockResolvedValue({
+      data: {
+        name: 'Custom confirmation',
+        description: '',
+        confirmationMessage: 'Thanks. We will review this.',
+        allowAnotherSubmission: true,
+        fields: [{ id: 'request', label: 'Request', type: 'text', required: true, options: [] }],
+      },
+    });
+    let resolve: (value: unknown) => void = () => {};
+    fixture.post.mockImplementation(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    showForm();
+    await screen.findByRole('heading', { name: 'Custom confirmation' });
+    fireEvent.input(screen.getByLabelText('Request *'), { target: { value: 'Synthetic request' } });
+    const form = screen.getByRole('button', { name: 'Submit request' }).closest('form')!;
+    act(() => {
+      fireEvent.submit(form);
+      fireEvent.submit(form);
+    });
+    await waitFor(() => expect(fixture.post).toHaveBeenCalledTimes(1));
+    await act(async () => resolve({ data: { received: true } }));
+    await screen.findByText('Thanks. We will review this.');
+    fireEvent.click(screen.getByRole('button', { name: 'Submit another response' }));
+    expect(screen.getByLabelText('Request *')).toHaveValue('');
+    expect(screen.queryByRole('heading', { name: 'Request received' })).not.toBeInTheDocument();
+  });
   it('retains batched text, paragraph, choice, date and numeric answers after input events end', async () => {
     fixture.get.mockResolvedValue({
       data: {
