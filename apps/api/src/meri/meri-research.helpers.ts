@@ -69,13 +69,22 @@ export function buildPlanSystemPrompt(productName: string): string {
   ].join('\n');
 }
 
-export function buildPlanUserPrompt(topic: string, clientContext: string | null): string {
+export function buildPlanUserPrompt(
+  topic: string,
+  clientContext: string | null,
+  deliverable: { format: string; title: string } | null = null,
+): string {
   const parts = [`Research topic from the lobbyist:\n${topic.trim()}`];
   if (clientContext && clientContext.trim()) {
     parts.push(
       `\nThis research is associated with the following client context:\n${clientContext.trim()}`,
     );
   }
+  const block = researchDeliverableBlock(deliverable);
+  if (block)
+    parts.push(
+      `\n${block}\n- Plan only the research. Do not add an approval_required step to create, export or file this document.`,
+    );
   parts.push('\nProduce the plan JSON now.');
   return parts.join('\n');
 }
@@ -194,9 +203,13 @@ export function buildResearchUserPrompt(input: {
   clarifyingQuestions: string[];
   clarifyingAnswers: Record<string, string>;
   clientContext: string | null;
+  /** Set for a deliverable job: the file Capiro renders from this report. */
+  deliverable?: { format: string; title: string } | null;
 }): string {
   const lines: string[] = [];
   lines.push(`RESEARCH TOPIC:\n${input.topic.trim()}`);
+  const deliverable = researchDeliverableBlock(input.deliverable ?? null);
+  if (deliverable) lines.push(`\n${deliverable}`);
 
   if (input.clientContext && input.clientContext.trim()) {
     lines.push(`\nCLIENT CONTEXT:\n${input.clientContext.trim()}`);
@@ -216,6 +229,44 @@ export function buildResearchUserPrompt(input: {
   lines.push(
     '\nResearch this thoroughly using your tools, then write the full report. Begin by gathering evidence.',
   );
+  return lines.join('\n');
+}
+
+const DELIVERABLE_NAMES: Record<string, string> = {
+  docx: 'a Word document',
+  xlsx: 'an Excel workbook',
+  pptx: 'a PowerPoint deck',
+};
+
+/**
+ * What a deliverable job's research must know about its file. Capiro renders
+ * the finished report as the requested Office file and files it after the
+ * user's one confirmation, so the report IS the file's content. Without this a
+ * T6 report said, inside the workbook made from it, that it "could not
+ * generate or file an Excel workbook" (session 5d71c8d3, 2026-10-07).
+ */
+export function researchDeliverableBlock(
+  deliverable: { format: string; title: string } | null,
+): string | null {
+  const name = deliverable ? DELIVERABLE_NAMES[deliverable.format] : undefined;
+  if (!deliverable || !name) return null;
+  const lines = [
+    'DELIVERABLE (this research runs as a delegated job):',
+    `- When your report is finished, Capiro turns it into ${name} titled "${deliverable.title}" and files it into the client's Files after the user confirms. The report you write is that file's content.`,
+    '- Do not create, export, attach or file the document yourself, do not propose a step that creates it, and do not say that it could not be created, generated or filed.',
+  ];
+  if (deliverable.format === 'xlsx')
+    lines.push(
+      '- Put every set of comparable figures in a markdown pipe table: a header row, one row per item, units in the header or the cells. Each table becomes its own sheet named after the section heading above it, so give each table its own short section heading. Keep prose brief; it goes on a separate Report sheet.',
+    );
+  else if (deliverable.format === 'pptx')
+    lines.push(
+      '- Each section becomes a slide and a long section continues onto more slides, so write short sections with short headings and at most six brief bullets each. A table becomes its own slide. Match the slide count the user asked for when they named one.',
+    );
+  else
+    lines.push(
+      '- Write it as the document the user asked for, at the length they asked for (about 500 words per page).',
+    );
   return lines.join('\n');
 }
 

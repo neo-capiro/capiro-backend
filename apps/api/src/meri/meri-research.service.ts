@@ -191,12 +191,27 @@ import {
   type ResearchChildTaskV1,
 } from './meri-research-child-task.js';
 
-import { meriJobView, type MeriJobDeliverable, type MeriJobKind } from './meri-job.js';
+import {
+  meriJobDeliverables,
+  meriJobView,
+  type MeriJobDeliverable,
+  type MeriJobKind,
+} from './meri-job.js';
 import {
   MeriJobDeliverableRequestError,
   requestedJobDeliverables,
 } from './meri-job-deliverables.js';
 import { meriJobsEnabled } from '../common/tenant-flags.js';
+
+/** The file a deliverable job renders from its report, for the plan and research prompts. */
+function promptDeliverable(session: {
+  kind?: string | null;
+  deliverables?: unknown;
+}): { format: string; title: string } | null {
+  if (session.kind !== 'deliverable') return null;
+  const deliverable = meriJobDeliverables(session.deliverables)[0];
+  return deliverable ? { format: deliverable.format, title: deliverable.title } : null;
+}
 
 const PRODUCT_NAME = 'Meri';
 
@@ -2685,7 +2700,7 @@ export class MeriResearchService {
     const system = buildResearchPlanSystemPrompt(PRODUCT_NAME, admissionContext);
     const handoff = readResearchHandoff(session.metadata);
     const user = [
-      buildPlanUserPrompt(session.topic, clientContext),
+      buildPlanUserPrompt(session.topic, clientContext, promptDeliverable(session)),
       researchHandoffPrompt(handoff, session.id),
     ]
       .filter(Boolean)
@@ -2903,6 +2918,7 @@ export class MeriResearchService {
         clarifyingQuestions,
         clarifyingAnswers,
         clientContext,
+        deliverable: promptDeliverable(session),
       }),
       `ADMITTED RESEARCH PLAN CONTRACT v${admittedPlan.version}:\n${JSON.stringify(admittedPlan)}`,
       researchHandoffPrompt(handoff, session.id),
@@ -2932,6 +2948,7 @@ export class MeriResearchService {
           clarifyingQuestions: asStringArray(acceptedSession.clarifyingQuestions),
           clarifyingAnswers: asStringRecord(acceptedSession.clarifyingAnswers),
           clientContext,
+          deliverable: promptDeliverable(acceptedSession),
         }),
         `ADMITTED RESEARCH PLAN CONTRACT v${acceptedPlan.version}:\n${JSON.stringify(acceptedPlan)}`,
         researchHandoffPrompt(acceptedHandoff, acceptedSession.id),
@@ -4768,7 +4785,7 @@ export class MeriResearchService {
       const currentPlan = researchMetadata(session.metadata).researchPlan;
       const system = buildResearchPlanSystemPrompt(PRODUCT_NAME, context);
       const user = [
-        buildPlanUserPrompt(session.topic, clientContext),
+        buildPlanUserPrompt(session.topic, clientContext, promptDeliverable(session)),
         `CURRENT ADMITTED PLAN (replace it; do not expand its tool-call budget):\n${JSON.stringify(currentPlan)}`,
         `ORDERED STEERING INBOX THROUGH GOAL REVISION ${coordinator.goalRevision}:\n${pendingSteering
           .map((message) => `${message.sequence}. ${message.message}`)
@@ -4932,7 +4949,7 @@ export class MeriResearchService {
     const legacyPlan = asStringArray(session.plan);
     const system = buildResearchPlanSystemPrompt(PRODUCT_NAME, context);
     const user = [
-      buildPlanUserPrompt(session.topic, clientContext),
+      buildPlanUserPrompt(session.topic, clientContext, promptDeliverable(session)),
       legacyPlan.length
         ? `Legacy UI plan (uncertified; migrate it rather than trusting it):\n${legacyPlan
             .map((step, index) => `${index + 1}. ${step}`)

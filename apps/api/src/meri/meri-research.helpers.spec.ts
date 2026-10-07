@@ -15,6 +15,7 @@ import {
   parsePlanProposal,
   renderReportToBrowserHtml,
   renderReportToWordHtml,
+  researchDeliverableBlock,
   sanitizeStringList,
   MAX_CLARIFYING_QUESTIONS,
   MAX_PLAN_ITEMS,
@@ -221,6 +222,38 @@ describe('clio-research helpers', () => {
       expect(u).toContain('1. status');
       expect(u).toContain('Client: Acme Defense');
       expect(u).toContain('Q: Scope?\nA: Federal');
+      expect(u).not.toContain('DELIVERABLE');
+    });
+    it('tells a deliverable job that Capiro renders and files its report as the file', () => {
+      const base = {
+        topic: 'FY27 marks for 0604234N',
+        plan: ['marks'],
+        clarifyingQuestions: [],
+        clarifyingAnswers: {},
+        clientContext: null,
+      };
+      const excel = buildResearchUserPrompt({
+        ...base,
+        deliverable: { format: 'xlsx', title: 'FY27 House and Senate marks' },
+      });
+      expect(excel).toContain('DELIVERABLE (this research runs as a delegated job):');
+      expect(excel).toContain(
+        'turns it into an Excel workbook titled "FY27 House and Senate marks"',
+      );
+      expect(excel).toContain('do not say that it could not be created, generated or filed');
+      expect(excel).toContain('markdown pipe table');
+      const deck = researchDeliverableBlock({ format: 'pptx', title: 'Q3 update' })!;
+      expect(deck).toContain('a PowerPoint deck');
+      expect(deck).toContain('at most six brief bullets');
+      expect(researchDeliverableBlock({ format: 'docx', title: 'Brief' })).toContain(
+        'about 500 words per page',
+      );
+      expect(researchDeliverableBlock({ format: 'pdf', title: 'x' })).toBeNull();
+      expect(researchDeliverableBlock(null)).toBeNull();
+      const plan = buildPlanUserPrompt('topic', null, { format: 'docx', title: 'Brief' });
+      expect(plan).toContain('a Word document titled "Brief"');
+      expect(plan).toContain('Do not add an approval_required step to create, export or file');
+      expect(buildPlanUserPrompt('topic', null)).not.toContain('DELIVERABLE');
     });
   });
 
