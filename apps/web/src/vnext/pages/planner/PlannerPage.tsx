@@ -1939,17 +1939,19 @@ function TaskEditor({
                   placeholder="Separate tags with commas"
                 />
               </Label>
-              <div className="planner-form-grid">
-                <Label name="Estimated minutes">
-                  <input
-                    type="number"
-                    min={0}
-                    disabled={!canEdit}
-                    value={data.estimateMinutes}
-                    onChange={(e) => edit({ estimateMinutes: Number(e.target.value) })}
-                  />
-                </Label>
-              </div>
+              {bootstrap.timeOptions?.timeTrackingEnabled !== false && (
+                <div className="planner-form-grid">
+                  <Label name="Estimated minutes">
+                    <input
+                      type="number"
+                      min={0}
+                      disabled={!canEdit}
+                      value={data.estimateMinutes}
+                      onChange={(e) => edit({ estimateMinutes: Number(e.target.value) })}
+                    />
+                  </Label>
+                </div>
+              )}
               <CapiroLinkPicker
                 clientId={data.clientId}
                 meetingId={data.meetingId}
@@ -2011,14 +2013,18 @@ function TaskEditor({
                       </button>
                     </div>
                   )}
-                  <h3>
-                    Time tracking{' '}
-                    <span className="planner-muted">{task.actualMinutes} minutes logged</span>
-                  </h3>
-                  {canEdit && (
+                  {bootstrap.timeOptions?.timeTrackingEnabled !== false && (
+                    <h3>
+                      Time tracking{' '}
+                      <span className="planner-muted">{task.actualMinutes} minutes logged</span>
+                    </h3>
+                  )}
+                  {canEdit && bootstrap.timeOptions?.timeTrackingEnabled !== false && (
                     <PlannerTimeForm
                       projects={bootstrap.projects}
                       task={task}
+                      options={bootstrap.timeOptions}
+                      canManage={bootstrap.timeAdmin}
                       onSave={(input) =>
                         actions.event.mutateAsync({ taskId: task.id, kind: 'time', ...input })
                       }
@@ -2092,6 +2098,8 @@ function TaskEditor({
                         me={bootstrap.me.id}
                         access={task.access}
                         mutation={actions.reviseEvent}
+                        timeOptions={bootstrap.timeOptions}
+                        timeAdmin={bootstrap.timeAdmin}
                       />
                     ))}
                   {events.hasNextPage && (

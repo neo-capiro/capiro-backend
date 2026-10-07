@@ -1,6 +1,8 @@
 import {
   PLANNER_DEFAULT_PROJECT,
   PLANNER_DEFAULT_TASK,
+  PLANNER_DEFAULT_TIME_OPTIONS,
+  plannerTimeDateBounds,
   type PlannerProject,
   type PlannerTask,
   type PlannerEvent,
@@ -15,6 +17,7 @@ import {
   type PlannerReportWidget,
   type PlannerTimeDetails,
   type PlannerTimesheet,
+  type PlannerTimeOptions,
   plannerWeekOn,
   plannerWeekDate,
 } from '@capiro/strategy-verifier';
@@ -77,9 +80,18 @@ const removedEventContents = new Map<string, { text: string; minutes: number | n
 const resources: PlannerResource[] = [];
 const timeSettings = {
   version: 1,
-    canManage: false,
+  canManage: new URLSearchParams(window.location.search).get('qaRole') === 'admin',
   reviewers: { user_qa: 'user_qa2' } as Record<string, string>,
+  options: structuredClone(PLANNER_DEFAULT_TIME_OPTIONS),
 };
+function timeAllowed(date: string) {
+  const bounds = plannerTimeDateBounds(timeSettings.options, timeSettings.canManage);
+  return (
+    timeSettings.options.timeTrackingEnabled &&
+    (!bounds.minOn || date >= bounds.minOn) &&
+    (!bounds.maxOn || date <= bounds.maxOn)
+  );
+}
 const timeSheets = new Map<
   string,
   { version: number; status: PlannerTimesheet['status']; notes: string; history: PlannerEvent[] }
@@ -116,7 +128,7 @@ function timeSheet(week: string, userId = 'user_qa'): PlannerTimesheet {
     reviewerId: timeSettings.reviewers[userId] ?? null,
     status,
     version: stored?.version ?? 0,
-    revision: String(stored?.version ?? 0).padStart(64, '0'),
+    revision: `${timeSettings.version.toString(16).padStart(8, '0')}${(stored?.version ?? 0).toString(16).padStart(56, '0')}`,
     notes: stored?.notes ?? '',
     correctedAfterApproval: false,
     totalMinutes: days.reduce((n, d) => n + d.totalMinutes, 0),
@@ -129,7 +141,9 @@ function timeSheet(week: string, userId = 'user_qa'): PlannerTimesheet {
       time: e.time!,
       taskName: tasks.find((t) => t.id === e.taskId)?.name ?? null,
       projectName: projects.find((p) => p.id === (e.time?.projectId ?? e.projectId))?.name ?? null,
-      canEdit: status === 'draft' || status === 'rejected',
+      canEdit:
+        (timeSettings.canManage || status === 'draft' || status === 'rejected') &&
+        timeAllowed(e.time!.workedOn),
     })),
     nextCursor: null,
     actions:
@@ -137,16 +151,26 @@ function timeSheet(week: string, userId = 'user_qa'): PlannerTimesheet {
         ? ['recall_submission']
         : status === 'approved'
           ? []
-          : entries.length && timeSettings.reviewers[userId]
+          : entries.length &&
+              (timeSettings.reviewers[userId] || timeSettings.options.approvalProcess === 'simple')
             ? ['submit']
             : [],
     history: stored?.history ?? [],
+    canLogTime:
+      (timeSettings.canManage || status === 'draft' || status === 'rejected') &&
+      timeAllowed(weekOn),
+    timeNotice: timeAllowed(weekOn)
+      ? null
+      : 'Time is unavailable under the organization time settings.',
+    approvalProcess: timeSettings.options.approvalProcess,
   };
 }
 function touchTime(userId: string, date: string) {
   const key = userId + plannerWeekOn(date),
     old = timeSheets.get(key);
-  if (old?.status === 'submitted' || old?.status === 'approved')
+  if (!timeAllowed(date))
+    error('This date is unavailable under the organization time settings', 403);
+  if (!timeSettings.canManage && (old?.status === 'submitted' || old?.status === 'approved'))
     error('Recall this timesheet before editing time', 403);
   timeSheets.set(key, {
     version: (old?.version ?? 0) + 1,
@@ -341,7 +365,15 @@ const api = {
         ],
       };
     if (path.endsWith('/bootstrap'))
-      return { data: { me: people[0], people, projects: structuredClone(projects) } };
+      return {
+        data: {
+          me: people[0],
+          people,
+          projects: structuredClone(projects),
+          timeOptions: structuredClone(timeSettings.options),
+          timeAdmin: timeSettings.canManage,
+        },
+      };
     if (path.endsWith('/inbox'))
       return { data: config?.params?.paged === 'true' ? { items: [], nextCursor: null } : [] };
     if (path.endsWith('/resources')) {
@@ -675,11 +707,14 @@ const api = {
       following?: boolean;
       time?: Partial<PlannerTimeDetails>;
       reviewers?: Record<string, string>;
+      options?: Partial<PlannerTimeOptions>;
     },
   ) {
     if (path.endsWith('/time/settings')) {
+      if (!timeSettings.canManage) error('Organization admin required', 403);
       if (body.version !== timeSettings.version) error('Record changed', 409);
       timeSettings.reviewers = body.reviewers ?? {};
+      timeSettings.options = { ...timeSettings.options, ...body.options };
       timeSettings.version++;
       return { data: { ok: true } };
     }

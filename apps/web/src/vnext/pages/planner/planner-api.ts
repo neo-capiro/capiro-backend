@@ -22,6 +22,7 @@ import type {
   PlannerTimesheet,
   PlannerTimesheetAction,
   PlannerTimeSettings,
+  PlannerTimeOptions,
 } from '@capiro/strategy-verifier';
 import { plannerFormSubmissionBody, type PlannerFormFiles } from './planner-form-questions.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -67,6 +68,7 @@ export function usePlannerTimeSettings() {
   return useQuery({
     queryKey: [...key, 'time-settings'],
     queryFn: async () => (await api.get<PlannerTimeSettings>(`${BASE}/time/settings`)).data,
+    refetchInterval: 30_000,
   });
 }
 export function usePlannerBootstrap() {
@@ -449,8 +451,11 @@ export function usePlannerMutations() {
     onSuccess,
   });
   const timeSettings = useMutation({
-    mutationFn: async (input: { version: number; reviewers: Record<string, string> }) =>
-      (await api.patch(`${BASE}/time/settings`, input)).data,
+    mutationFn: async (input: {
+      version: number;
+      reviewers: Record<string, string>;
+      options?: Partial<PlannerTimeOptions>;
+    }) => (await api.patch(`${BASE}/time/settings`, input)).data,
     onSuccess,
   });
   return {

@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import type { PlannerEvent, PlannerRole, PlannerTimeDetails } from '@capiro/strategy-verifier';
+import {
+  PLANNER_DEFAULT_TIME_OPTIONS,
+  plannerTimeDateBounds,
+  type PlannerEvent,
+  type PlannerRole,
+  type PlannerTimeDetails,
+  type PlannerTimeOptions,
+} from '@capiro/strategy-verifier';
 import { PlannerFormattedText, PlannerRichText } from './planner-rich-text.js';
 import { plannerError, type usePlannerMutations } from './planner-api.js';
 
@@ -9,6 +16,8 @@ export function PlannerActivity({
   me,
   access,
   mutation,
+  timeOptions = PLANNER_DEFAULT_TIME_OPTIONS,
+  timeAdmin = false,
 }: {
   event: PlannerEvent;
   author: string;
@@ -18,6 +27,8 @@ export function PlannerActivity({
     ReturnType<typeof usePlannerMutations>['reviseEvent'],
     'mutateAsync' | 'isPending'
   >;
+  timeOptions?: PlannerTimeOptions;
+  timeAdmin?: boolean;
 }) {
   const [draft, setDraft] = useState<{
     version: number;
@@ -27,9 +38,14 @@ export function PlannerActivity({
   } | null>(null);
   const [error, setError] = useState<unknown>(null);
   const own = event.actorId === me;
+  const bounds = plannerTimeDateBounds(timeOptions, timeAdmin);
+  const dateAllowed = (date?: string) =>
+    !date || ((!bounds.minOn || date >= bounds.minOn) && (!bounds.maxOn || date <= bounds.maxOn));
   const canEdit =
     (own && event.kind === 'comment' && access !== 'viewer') ||
     (event.kind === 'time' &&
+      timeOptions.timeTrackingEnabled &&
+      dateAllowed(event.time?.workedOn) &&
       (event.timeEditable ?? (own && ['admin', 'editor'].includes(access))));
   const revise = async (patch: {
     text?: string;
@@ -88,6 +104,8 @@ export function PlannerActivity({
                     <input
                       aria-label="Edit work date"
                       type="date"
+                      min={bounds.minOn ?? undefined}
+                      max={bounds.maxOn ?? undefined}
                       value={draft.time.workedOn}
                       onInput={(e) => {
                         const value = e.currentTarget.value;
@@ -111,6 +129,7 @@ export function PlannerActivity({
                     <input
                       type="checkbox"
                       checked={draft.time.billable}
+                      disabled={!timeOptions.billableEnabled && !draft.time.billable}
                       onChange={(e) => {
                         const value = e.target.checked;
                         setDraft((old) =>
@@ -133,7 +152,11 @@ export function PlannerActivity({
                 mutation.isPending ||
                 !draft.text.trim() ||
                 (event.kind === 'time' &&
-                  (!Number.isInteger(draft.minutes) || draft.minutes! < 1 || draft.minutes! > 1440))
+                  (!canEdit ||
+                    !dateAllowed(draft.time?.workedOn) ||
+                    !Number.isInteger(draft.minutes) ||
+                    draft.minutes! < 1 ||
+                    draft.minutes! > 1440))
               }
               onClick={() =>
                 void revise({

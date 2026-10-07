@@ -5,11 +5,14 @@ import {
   plannerCalendarDate,
   plannerWeekOn,
   plannerWeekDate,
+  plannerTimeToday,
+  PLANNER_DEFAULT_TIME_OPTIONS,
   type PlannerBootstrap,
   type PlannerTimesheet,
   type PlannerTimesheetAction,
   type PlannerTimeEntry,
   type PlannerTimeSettings,
+  type PlannerTimeOptions,
 } from '@capiro/strategy-verifier';
 import {
   usePlannerTimesheet,
@@ -22,8 +25,8 @@ import {
   plannerError,
 } from './planner-api.js';
 import { PlannerTimeForm } from './planner-time-form.js';
+import { PlannerTimeOptionsFields } from './planner-time-options.js';
 import { PlannerFormattedText } from './planner-rich-text.js';
-import { plannerToday } from './planner-views.js';
 import { plannerCsvCell } from './planner-csv.js';
 import { useApi } from '../../../lib/use-api.js';
 
@@ -50,17 +53,17 @@ function Frame({
       isOpen
       isDismissable
       onOpenChange={(open) => !open && onClose()}
-      className="planner-overlay"
+      className="planner-modal-overlay"
     >
       <Modal className="planner-modal">
         <Dialog aria-label={title}>
-          <header>
+          <header className="planner-dialog-head">
             <Heading slot="title">{title}</Heading>
             <button type="button" aria-label={`Close ${title}`} onClick={onClose}>
               ×
             </button>
           </header>
-          {children}
+          <div className="planner-dialog-body">{children}</div>
         </Dialog>
       </Modal>
     </ModalOverlay>
@@ -126,12 +129,16 @@ export function PlannerTimesheets({
   userId: string | null;
   onSelect: (week: string, userId: string | null) => void;
 }) {
-  const week = plannerWeekOn(plannerCalendarDate(givenWeek) ? givenWeek! : plannerToday());
+  const today = plannerTimeToday(
+    bootstrap.timeOptions?.timeZone ?? PLANNER_DEFAULT_TIME_OPTIONS.timeZone,
+  );
+  const week = plannerWeekOn(plannerCalendarDate(givenWeek) ? givenWeek! : today);
   const userId = onUser ?? bootstrap.me.id;
   const [reviewing, setReviewing] = useState(false),
     [adding, setAdding] = useState(false),
     [editing, setEditing] = useState<PlannerTimeEntry | null>(null),
-    [settings, setSettings] = useState<PlannerTimeSettings | null>(null);
+    [settings, setSettings] = useState<PlannerTimeSettings | null>(null),
+    [categoryText, setCategoryText] = useState('');
   const [action, setAction] = useState<{
       sheet: PlannerTimesheet;
       action: PlannerTimesheetAction;
@@ -211,8 +218,15 @@ export function PlannerTimesheets({
           Time review
         </button>
         {config.data?.canManage && (
-          <button type="button" onClick={() => setSettings(structuredClone(config.data!))}>
-            Time reviewers
+          <button
+            type="button"
+            onClick={() => {
+              const options = config.data?.options ?? PLANNER_DEFAULT_TIME_OPTIONS;
+              setSettings(structuredClone({ ...config.data!, options }));
+              setCategoryText(options.categories.join('\n'));
+            }}
+          >
+            Time settings
           </button>
         )}
       </div>
@@ -238,7 +252,21 @@ export function PlannerTimesheets({
         <button type="button" onClick={() => onSelect(plannerWeekDate(week, 7), onUser)}>
           Next week
         </button>
-        <button type="button" onClick={() => onSelect(plannerWeekOn(plannerToday()), onUser)}>
+        <button
+          type="button"
+          onClick={() =>
+            onSelect(
+              plannerWeekOn(
+                plannerTimeToday(
+                  config.data?.options?.timeZone ??
+                    bootstrap.timeOptions?.timeZone ??
+                    PLANNER_DEFAULT_TIME_OPTIONS.timeZone,
+                ),
+              ),
+              onUser,
+            )
+          }
+        >
           This week
         </button>
       </div>
@@ -312,7 +340,10 @@ export function PlannerTimesheets({
                 {person(userId)} · {sheet.weekOn}–{sheet.throughOn}
               </h3>
               <p>
-                {sheet.status} · Reviewer: {person(sheet.reviewerId)}
+                {sheet.status} ·{' '}
+                {sheet.approvalProcess === 'simple'
+                  ? 'Submission without approval'
+                  : `Reviewer: ${person(sheet.reviewerId)}`}
               </p>
             </div>
             {userId !== bootstrap.me.id && (
@@ -381,9 +412,10 @@ export function PlannerTimesheets({
               type="button"
               onClick={() => setAdding(true)}
               disabled={
-                !config.data?.canManage &&
-                (sheet.status === 'approved' ||
-                  (sheet.status === 'submitted' && userId === bootstrap.me.id))
+                sheet.canLogTime === false ||
+                (!config.data?.canManage &&
+                  (sheet.status === 'approved' ||
+                    (sheet.status === 'submitted' && userId === bootstrap.me.id)))
               }
             >
               Add time
@@ -410,9 +442,14 @@ export function PlannerTimesheets({
               </button>
             )}
           </div>
-          {!sheet.reviewerId && (
+          {sheet.timeNotice && (
+            <p role="status" className="planner-muted">
+              {sheet.timeNotice}
+            </p>
+          )}
+          {!sheet.reviewerId && sheet.approvalProcess !== 'simple' && (
             <p className="planner-muted">
-              An organization admin can assign your reviewer in Time reviewers.
+              An organization admin can assign your reviewer in Time settings.
             </p>
           )}
           <div className="planner-table-scroll">
@@ -510,11 +547,19 @@ export function PlannerTimesheets({
           bootstrap={bootstrap}
           week={week}
           userId={userId}
+          options={config.data?.options ?? bootstrap.timeOptions}
+          canManage={config.data?.canManage ?? bootstrap.timeAdmin}
           onClose={() => setAdding(false)}
         />
       )}
       {editing && (
-        <EditTime bootstrap={bootstrap} entry={editing} onClose={() => setEditing(null)} />
+        <EditTime
+          bootstrap={bootstrap}
+          entry={editing}
+          options={config.data?.options ?? bootstrap.timeOptions}
+          canManage={config.data?.canManage ?? bootstrap.timeAdmin}
+          onClose={() => setEditing(null)}
+        />
       )}
       {action && (
         <Frame title={actionLabels[action.action]} onClose={() => setAction(null)}>
@@ -559,7 +604,14 @@ export function PlannerTimesheets({
         </Frame>
       )}
       {settings && (
-        <Frame title="Time reviewers" onClose={() => setSettings(null)}>
+        <Frame title="Time settings" onClose={() => setSettings(null)}>
+          <PlannerTimeOptionsFields
+            value={settings.options}
+            onChange={(options) => setSettings((old) => (old ? { ...old, options } : old))}
+            categories={categoryText}
+            onCategories={setCategoryText}
+          />
+          <h3>Reviewers</h3>
           <p>
             Reviewer assignments allow weekly review. Existing task and project access still
             controls which entries a reviewer can see and correct.
@@ -603,12 +655,22 @@ export function PlannerTimesheets({
             disabled={mutations.timeSettings.isPending}
             onClick={() =>
               void mutations.timeSettings
-                .mutateAsync({ version: settings.version, reviewers: settings.reviewers })
+                .mutateAsync({
+                  version: settings.version,
+                  reviewers: settings.reviewers,
+                  options: {
+                    ...settings.options,
+                    categories: categoryText
+                      .split(/\r?\n/)
+                      .map((v) => v.trim())
+                      .filter(Boolean),
+                  },
+                })
                 .then(() => setSettings(null))
                 .catch(() => {})
             }
           >
-            Save reviewers
+            Save time settings
           </button>
         </Frame>
       )}
@@ -618,10 +680,14 @@ export function PlannerTimesheets({
 function EditTime({
   bootstrap,
   entry,
+  options,
+  canManage,
   onClose,
 }: {
   bootstrap: PlannerBootstrap;
   entry: PlannerTimeEntry;
+  options?: PlannerTimeOptions;
+  canManage?: boolean;
   onClose: () => void;
 }) {
   const query = usePlannerTask(entry.taskId),
@@ -640,6 +706,8 @@ function EditTime({
           task={query.data}
           projectId={!entry.taskId ? (entry.projectId ?? undefined) : undefined}
           initial={entry}
+          options={options}
+          canManage={canManage}
           onSave={async (input) => {
             await mutations.reviseEvent.mutateAsync({
               id: entry.id,
@@ -658,11 +726,15 @@ function AddTime({
   bootstrap,
   week,
   userId,
+  options = PLANNER_DEFAULT_TIME_OPTIONS,
+  canManage,
   onClose,
 }: {
   bootstrap: PlannerBootstrap;
   week: string;
   userId: string;
+  options?: PlannerTimeOptions;
+  canManage?: boolean;
   onClose: () => void;
 }) {
   const [search, setSearch] = useState(''),
@@ -688,7 +760,9 @@ function AddTime({
           }}
         >
           <option value="task">Task</option>
-          <option value="project">General project work</option>
+          <option value="project" disabled={!options.generalWorkEnabled}>
+            General project work
+          </option>
         </select>
       </label>
       {kind === 'task' && (
@@ -741,6 +815,8 @@ function AddTime({
           task={kind === 'task' ? task : undefined}
           projectId={kind === 'project' ? target : undefined}
           workedOn={week}
+          options={options}
+          canManage={canManage}
           onSave={async (input) => {
             await mutations.event.mutateAsync({
               ...input,

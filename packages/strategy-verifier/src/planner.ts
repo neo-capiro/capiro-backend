@@ -150,6 +150,8 @@ export interface PlannerBootstrap {
   me: PlannerPerson;
   people: PlannerPerson[];
   projects: PlannerProject[];
+  timeOptions?: import('./planner-timesheets.js').PlannerTimeOptions;
+  timeAdmin?: boolean;
 }
 export interface PlannerTaskPage {
   items: PlannerTask[];

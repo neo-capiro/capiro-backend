@@ -4,6 +4,10 @@ import { MemoryRouter } from 'react-router-dom';
 import {
   PLANNER_DEFAULT_PROJECT,
   PLANNER_DEFAULT_TASK,
+  PLANNER_DEFAULT_TIME_OPTIONS,
+  plannerTimeDateBounds,
+  plannerTimeToday,
+  plannerWeekDate,
   type PlannerBootstrap,
   type PlannerTimeEntry,
   type PlannerTimesheet,
@@ -115,6 +119,131 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 describe('Planner dated time controls and weekly review', () => {
+  it('captures settings versions, preserves multiline category input and sends the edited options', async () => {
+    mocks.config = {
+      data: {
+        canManage: true,
+        version: 4,
+        reviewers: { owner: 'reviewer' },
+        options: structuredClone(PLANNER_DEFAULT_TIME_OPTIONS),
+      },
+    };
+    const node = () => (
+      <PlannerTimesheets bootstrap={bootstrap} week="2026-10-05" userId={null} onSelect={vi.fn()} />
+    );
+    const rendered = view(node());
+    fireEvent.click(screen.getByRole('button', { name: 'Time settings' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'New entries are billable by default' }));
+    fireEvent.change(screen.getByLabelText('Configured time categories'), {
+      target: { value: 'Research\n' },
+    });
+    expect(screen.getByLabelText('Configured time categories')).toHaveValue('Research\n');
+    fireEvent.change(screen.getByLabelText('Configured time categories'), {
+      target: { value: ' Research\nDelivery\n' },
+    });
+    fireEvent.change(screen.getByLabelText('Submission workflow'), { target: { value: 'simple' } });
+    mocks.config = {
+      data: {
+        ...mocks.config.data,
+        version: 9,
+        options: { ...PLANNER_DEFAULT_TIME_OPTIONS, categories: ['Other edit'] },
+      },
+    };
+    rendered.rerender(<MemoryRouter>{node()}</MemoryRouter>);
+    expect(screen.getByLabelText('Configured time categories')).toHaveValue(
+      ' Research\nDelivery\n',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save time settings' }));
+    await waitFor(() =>
+      expect(mocks.save).toHaveBeenCalledWith({
+        version: 4,
+        reviewers: { owner: 'reviewer' },
+        options: {
+          ...PLANNER_DEFAULT_TIME_OPTIONS,
+          billableDefault: true,
+          approvalProcess: 'simple',
+          categories: ['Research', 'Delivery'],
+        },
+      }),
+    );
+  });
+  it('uses configured billable defaults and organization dates with native date limits', () => {
+    const options = {
+      ...PLANNER_DEFAULT_TIME_OPTIONS,
+      billableDefault: true,
+      categories: ['Delivery'],
+      timeZone: 'Pacific/Kiritimati',
+      pastLockWeeks: 0,
+      futureWeeks: 0,
+    };
+    view(
+      <PlannerTimeForm
+        projects={bootstrap.projects}
+        projectId="project-one"
+        options={options}
+        onSave={vi.fn()}
+      />,
+    );
+    const bounds = plannerTimeDateBounds(options);
+    expect(screen.getByLabelText('Work date')).toHaveValue(plannerTimeToday(options.timeZone));
+    expect(screen.getByLabelText('Work date')).toHaveAttribute('min', bounds.minOn!);
+    expect(screen.getByLabelText('Work date')).toHaveAttribute('max', bounds.maxOn!);
+    expect(screen.getByRole('checkbox', { name: 'Billable time' })).toBeChecked();
+    expect(screen.getByRole('combobox', { name: 'Time category' })).toBeInTheDocument();
+    fireEvent.input(screen.getByLabelText('Work date'), {
+      target: { value: plannerWeekDate(bounds.maxOn!, 1) },
+    });
+    expect(screen.getByRole('button', { name: 'Log time' })).toBeDisabled();
+  });
+  it('preserves historical retired labels and lets old billable entries become non-billable', () => {
+    const options = {
+      ...PLANNER_DEFAULT_TIME_OPTIONS,
+      billableEnabled: false,
+      categories: ['Delivery'],
+    };
+    view(
+      <PlannerTimeForm
+        projects={bootstrap.projects}
+        initial={entry()}
+        options={options}
+        onSave={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole('option', { name: 'Planning (no longer configured)' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Time category' })).toHaveValue('Planning');
+    const billable = screen.getByRole('checkbox', { name: 'Billable time' });
+    expect(billable).toBeChecked();
+    expect(billable).toBeEnabled();
+    fireEvent.click(billable);
+    expect(billable).not.toBeChecked();
+    expect(billable).toBeDisabled();
+  });
+  it('shows policy notices and simple submission without a missing-reviewer prompt', () => {
+    mocks.query.data.pages = [
+      {
+        ...sheet(),
+        reviewerId: null,
+        approvalProcess: 'simple',
+        canLogTime: false,
+        timeNotice: 'Time tracking is disabled.',
+      },
+    ];
+    view(
+      <PlannerTimesheets
+        bootstrap={bootstrap}
+        week="2026-10-05"
+        userId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Add time' })).toBeDisabled();
+    expect(screen.getByText('Time tracking is disabled.')).toBeInTheDocument();
+    expect(screen.getByText(/Submission without approval/)).toBeInTheDocument();
+    expect(screen.queryByText(/Ask an organization admin/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Submit timesheet' })).toBeEnabled();
+  });
   it('saves native calendar input, billable attribution, category and description', async () => {
     const save = vi.fn().mockResolvedValue({});
     view(<PlannerTimeForm projects={bootstrap.projects} projectId="project-one" onSave={save} />);

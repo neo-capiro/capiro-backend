@@ -1345,6 +1345,8 @@ export function PlannerProjectActivity({
             me={bootstrap.me.id}
             access={access}
             mutation={actions.reviseEvent}
+            timeOptions={bootstrap.timeOptions}
+            timeAdmin={bootstrap.timeAdmin}
           />
         ))}
       {query.hasNextPage && (

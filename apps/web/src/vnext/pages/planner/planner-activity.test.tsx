@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
-import type { PlannerEvent } from '@capiro/strategy-verifier';
+import { PLANNER_DEFAULT_TIME_OPTIONS, type PlannerEvent } from '@capiro/strategy-verifier';
 import { PlannerActivity } from './planner-activity.js';
 
 afterEach(cleanup);
@@ -32,6 +32,36 @@ function props(
   };
 }
 describe('Planner activity corrections', () => {
+  it('disables an open time correction after time tracking is turned off without discarding its draft', () => {
+    const event = {
+      ...original,
+      kind: 'time' as const,
+      text: 'Historical work',
+      minutes: 30,
+      timeEditable: true,
+      time: {
+        workedOn: '2026-10-07',
+        timeZone: 'UTC',
+        billable: false,
+        projectId: null,
+        category: '',
+      },
+    };
+    const initial = props(event);
+    const { rerender } = render(<PlannerActivity {...initial} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit time entry' }));
+    fireEvent.change(screen.getByLabelText('Edit logged minutes'), { target: { value: '45' } });
+    rerender(
+      <PlannerActivity
+        {...initial}
+        timeOptions={{ ...PLANNER_DEFAULT_TIME_OPTIONS, timeTrackingEnabled: false }}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    expect(screen.getByLabelText('Edit logged minutes')).toHaveValue(45);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel edit' }));
+    expect(screen.queryByRole('button', { name: 'Remove time entry' })).toBeNull();
+  });
   it('keeps the opening version and draft when a concurrent correction rejects a save', async () => {
     const mutation = vi.fn().mockRejectedValue({ response: { status: 409 } });
     const initial = props(original, mutation);

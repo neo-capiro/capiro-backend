@@ -19,6 +19,7 @@ import {
   plannerScheduledInstant,
   plannerWeekOn,
   plannerWeekDate,
+  plannerTimeToday,
   plannerTemplateSchedule,
   plannerDependencyCycle,
   type PlannerBootstrap,
@@ -84,6 +85,11 @@ import {
   requirePlannerTimeEditable,
   requirePlannerTimesheetVersion,
 } from './planner-timesheets.js';
+import {
+  plannerTimeOptions,
+  plannerTimeDateNotice,
+  requirePlannerTimePolicy,
+} from './planner-time-policy.js';
 import { plannerDateRuleReady, plannerScheduleHash } from './planner-date-rules.js';
 import {
   plannerGoalCycle,
@@ -311,7 +317,13 @@ export class PlannerService {
       const projects = (await this.projects(tx, ctx))
         .filter((p) => plannerProjectAccess(p, ctx.clerkUserId))
         .map((p) => this.projectView(p, ctx));
-      return { me, people, projects };
+      return {
+        me,
+        people,
+        projects,
+        timeOptions: this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx)),
+        timeAdmin: ctx.role === 'org:admin',
+      };
     });
   }
   async saveProject(
@@ -582,6 +594,11 @@ export class PlannerService {
           } as unknown as PlannerTaskData['recurrence'];
         }
         let data = validateTask(candidate);
+        if (
+          data.estimateMinutes !== (old ? taskData(old).estimateMinutes : 0) &&
+          !this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx)).timeTrackingEnabled
+        )
+          throw new ForbiddenException('Time tracking is disabled for this organization');
         if (old) {
           const previous = taskData(old);
           // Preserve properties omitted from an ACL-redacted response. A caller
@@ -1394,7 +1411,18 @@ export class PlannerService {
             Boolean(this.resourceAccess(row, projects, { ...ctx, clerkUserId: id }));
         } else fail('An activity target is required');
         const timeOwnerId = typeof dto.loggerId === 'string' ? dto.loggerId : ctx.clerkUserId;
-        if (time) await this.touchTimesheet(tx, ctx, timeOwnerId, plannerWeekOn(time.workedOn));
+        if (time) {
+          const options = this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx));
+          const supplied = dto.time === undefined ? {} : object(dto.time);
+          if (supplied.workedOn === undefined) time.workedOn = plannerTimeToday(options.timeZone);
+          if (supplied.timeZone === undefined) time.timeZone = options.timeZone;
+          if (supplied.billable === undefined)
+            time.billable = options.billableEnabled && options.billableDefault;
+          if (target.projectId && !options.generalWorkEnabled)
+            throw new ForbiddenException('General project time is disabled for this organization');
+          requirePlannerTimePolicy(time, options, ctx.role === 'org:admin');
+          await this.touchTimesheet(tx, ctx, timeOwnerId, plannerWeekOn(time.workedOn));
+        }
         return this.event(
           tx,
           ctx,
@@ -1580,6 +1608,12 @@ export class PlannerService {
           if (!original.taskId && time.projectId !== original.projectId)
             fail('General project time must stay in its project');
           this.validateTimeProject(time, targetTask, projects, ctx, beforeTime!.projectId);
+          requirePlannerTimePolicy(
+            time,
+            this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx)),
+            ctx.role === 'org:admin',
+            beforeTime,
+          );
           for (const week of new Set([
             plannerWeekOn(beforeTime!.workedOn),
             plannerWeekOn(time.workedOn),
@@ -1823,6 +1857,7 @@ export class PlannerService {
         },
       });
       const config = await this.timeSettingsRecord(tx, ctx);
+      const timeOptions = this.storedTimeOptions(config);
       const reviewers =
         (config?.data as { reviewers?: Record<string, string> } | undefined)?.reviewers ?? {};
       const tasks = await tx.spPlannerTask.findMany({
@@ -1856,7 +1891,8 @@ export class PlannerService {
           ['editor', 'admin'].includes(role ?? '') &&
           (!project ||
             ['editor', 'admin'].includes(plannerProjectAccess(project, ctx.clerkUserId) ?? '')) &&
-          plannerTimeEditable(sheet, event.actorId, ctx.clerkUserId, ctx.role === 'org:admin');
+          plannerTimeEditable(sheet, event.actorId, ctx.clerkUserId, ctx.role === 'org:admin') &&
+          !plannerTimeDateNotice(event.time!.workedOn, timeOptions, ctx.role === 'org:admin');
         if (
           event.time!.projectId &&
           (!project || !plannerProjectAccess(project, ctx.clerkUserId))
@@ -2294,6 +2330,9 @@ export class PlannerService {
       where: { tenantId: ctx.tenantId, kind: 'time_settings' },
     });
   }
+  private storedTimeOptions(row: SpPlannerResource | null) {
+    return plannerTimeOptions((row?.data as { options?: unknown } | undefined)?.options);
+  }
   async timeSettings(ctx: AuthTenantContext): Promise<PlannerTimeSettings> {
     return this.scope(ctx, async (tx) => {
       const people = new Set((await this.people(tx, ctx)).map((p) => p.id));
@@ -2304,6 +2343,7 @@ export class PlannerService {
       return {
         version: row?.version ?? 0,
         canManage: ctx.role === 'org:admin',
+        options: this.storedTimeOptions(row),
         reviewers: Object.fromEntries(
           Object.entries(reviewers).filter(
             ([user, reviewer]) => people.has(user) && people.has(reviewer),
@@ -2314,7 +2354,7 @@ export class PlannerService {
   }
   async saveTimeSettings(ctx: AuthTenantContext, raw: unknown) {
     const dto = object(raw);
-    keys(dto, ['version', 'reviewers']);
+    keys(dto, ['version', 'reviewers', 'options']);
     const reviewers = object(dto.reviewers);
     if (Object.keys(reviewers).length > 1000) fail('Too many reviewer assignments');
     return this.scope(
@@ -2334,7 +2374,8 @@ export class PlannerService {
             fail('Choose an active reviewer other than the submitter');
         const old = await this.timeSettingsRecord(tx, ctx);
         requirePlannerTimesheetVersion(dto.version, old?.version ?? 0);
-        const data = json({ reviewers });
+        const options = plannerTimeOptions(dto.options, this.storedTimeOptions(old));
+        const data = json({ reviewers, options });
         if (old)
           await tx.spPlannerResource.update({
             where: { id: old.id, tenantId: ctx.tenantId },
@@ -2467,6 +2508,8 @@ export class PlannerService {
     const row = await this.timeSheetRecord(tx, ctx, userId, weekOn);
     const data = await this.timeSheetData(tx, ctx, userId, weekOn, row);
     await this.timeSheetReadable(tx, ctx, userId, data);
+    const config = await this.timeSettingsRecord(tx, ctx);
+    const timeOptions = this.storedTimeOptions(config);
     const throughOn = plannerWeekDate(weekOn, 6),
       nextOn = plannerWeekDate(weekOn, 7);
     // Working dates come from the latest immutable snapshot, never a task's due date.
@@ -2518,7 +2561,8 @@ export class PlannerService {
           ['editor', 'admin'].includes(role) &&
           (!project ||
             ['editor', 'admin'].includes(plannerProjectAccess(project, ctx.clerkUserId) ?? '')) &&
-          plannerTimeEditable(data, userId, ctx.clerkUserId, ctx.role === 'org:admin'),
+          plannerTimeEditable(data, userId, ctx.clerkUserId, ctx.role === 'org:admin') &&
+          !plannerTimeDateNotice(time.workedOn, timeOptions, ctx.role === 'org:admin'),
       });
       const day = days.find((d) => d.date === time.workedOn)!;
       day.totalMinutes += e.minutes ?? 0;
@@ -2528,7 +2572,14 @@ export class PlannerService {
       (a, b) => a.time.workedOn.localeCompare(b.time.workedOn) || a.id.localeCompare(b.id),
     );
     const revision = createHash('sha256')
-      .update(JSON.stringify({ version: row?.version ?? 0, data, items }))
+      .update(
+        JSON.stringify({
+          version: row?.version ?? 0,
+          timeSettingsVersion: config?.version ?? 0,
+          data,
+          items,
+        }),
+      )
       .digest('hex');
     if (query.revision && query.revision !== revision)
       throw new ConflictException('Time or access changed. Refresh this timesheet.');
@@ -2543,10 +2594,17 @@ export class PlannerService {
       : [];
     const reviewerActive =
       data.reviewerId && (await this.people(tx, ctx)).some((p) => p.id === data.reviewerId);
-    const actions = plannerTimesheetActions(data, userId, ctx.clerkUserId).filter(
+    const actions = plannerTimesheetActions(
+      data,
+      userId,
+      ctx.clerkUserId,
+      timeOptions.approvalProcess,
+    ).filter(
       (action) =>
         !['submit', 'approve'].includes(action) ||
-        (reviewerActive && !unavailableEntries && items.length > 0),
+        ((reviewerActive || (action === 'submit' && timeOptions.approvalProcess === 'simple')) &&
+          !unavailableEntries &&
+          items.length > 0),
     );
     return {
       id: row?.id ?? null,
@@ -2568,6 +2626,11 @@ export class PlannerService {
       nextCursor: items.length > start + 100 ? items[start + 99]!.id : null,
       actions,
       history: history.map((e) => plannerEventView(e)),
+      canLogTime:
+        plannerTimeEditable(data, userId, ctx.clerkUserId, ctx.role === 'org:admin') &&
+        !plannerTimeDateNotice(weekOn, timeOptions, ctx.role === 'org:admin'),
+      timeNotice: plannerTimeDateNotice(weekOn, timeOptions, ctx.role === 'org:admin'),
+      approvalProcess: timeOptions.approvalProcess,
     };
   }
   async timesheet(
@@ -2682,7 +2745,7 @@ export class PlannerService {
               },
             },
           },
-          [userId, view.reviewerId!],
+          [userId, view.reviewerId].filter((id): id is string => !!id),
         );
         return this.timesheetView(tx, ctx, userId, weekOn);
       },

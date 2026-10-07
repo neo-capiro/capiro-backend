@@ -18,7 +18,7 @@ No additional Capiro integration or shared authentication change is included. Pl
 
 266 Strategies checks across 25 suites and 91 web checks across 16 suites pass. Nine new real PostgreSQL cases run under the restricted application role and forced row security. They verify working dates, billable allocation, cross-week corrections, all approval transitions and locks, stale versions/revisions, reviewer logging on behalf, general-project time, private source restrictions, assignment revocation, 121-entry totals and paging, stable legacy metadata and administrator corrections after approval.
 
-Web tests cover native date inputs, metadata drafts, captured settings/status versions, complete 101-row CSV contents, formula escaping, export cancellation and access failures. Shared, Strategies and web-vNext production builds and web typechecks pass. A fresh nine-migration rehearsal preserves nine forced-RLS tables, restricted grants and four immutable triggers.
+Web tests cover native date inputs, metadata drafts, captured status versions, complete 101-row CSV contents, formula escaping, export cancellation and access failures. Shared, Strategies and web-vNext production builds and web typechecks pass. A fresh nine-migration rehearsal preserves nine forced-RLS tables, restricted grants and four immutable triggers.
 
 Local browser checks with synthetic data verify 90 billable minutes on the chosen date/project, correction to 75 non-billable minutes on another date, submission, recall and immutable status history. The fixture represents a standard submitter; reviewer and administrator state transitions are verified by real database tests. Screenshots are retained in ignored `artifacts/planner/timesheets-local-*.png` files.
 

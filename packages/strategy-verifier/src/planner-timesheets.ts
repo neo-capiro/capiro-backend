@@ -43,11 +43,64 @@ export interface PlannerTimesheet {
   nextCursor: string | null;
   actions: PlannerTimesheetAction[];
   history: PlannerEvent[];
+  canLogTime?: boolean;
+  timeNotice?: string | null;
+  approvalProcess?: 'simple' | 'full';
 }
+export interface PlannerTimeOptions {
+  timeTrackingEnabled: boolean;
+  billableEnabled: boolean;
+  billableDefault: boolean;
+  generalWorkEnabled: boolean;
+  approvalProcess: 'simple' | 'full';
+  categories: string[];
+  pastLockWeeks: number | null;
+  futureWeeks: number | null;
+  timeZone: string;
+}
+export const PLANNER_DEFAULT_TIME_OPTIONS: PlannerTimeOptions = {
+  timeTrackingEnabled: true,
+  billableEnabled: true,
+  billableDefault: false,
+  generalWorkEnabled: true,
+  approvalProcess: 'full',
+  categories: [],
+  pastLockWeeks: null,
+  futureWeeks: null,
+  timeZone: 'UTC',
+};
 export interface PlannerTimeSettings {
   version: number;
   canManage: boolean;
   reviewers: Record<string, string>;
+  options: PlannerTimeOptions;
+}
+export function plannerTimeToday(timeZone: string, now = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const part = (name: string) => parts.find((p) => p.type === name)!.value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+export function plannerTimeDateBounds(
+  options: PlannerTimeOptions,
+  admin = false,
+  now = new Date(),
+) {
+  const week = plannerWeekOn(plannerTimeToday(options.timeZone, now));
+  return {
+    minOn:
+      !admin && options.pastLockWeeks !== null
+        ? plannerWeekDate(week, -options.pastLockWeeks * 7)
+        : null,
+    maxOn:
+      options.futureWeeks !== null
+        ? plannerWeekDate(week, (options.futureWeeks + 1) * 7 - 1)
+        : null,
+  };
 }
 /** Calendar arithmetic deliberately stays independent of the viewer's zone. */
 export function plannerWeekOn(date: string): string {
