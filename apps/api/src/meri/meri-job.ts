@@ -52,11 +52,16 @@ export interface MeriJobView {
   awaitingStart: boolean;
 }
 
+/**
+ * Only the stages set once the report is being written, checked or saved.
+ * `preparingReport` is excluded: the observer projection uses it as the
+ * fallback for provider thinking and any unlisted progress note, including the
+ * bounded child reviews, so it covers most of evidence gathering.
+ */
 const FINALIZING_STAGES = new Set<string>([
   RESEARCH_OBSERVER_STATUS.writingReport,
   RESEARCH_OBSERVER_STATUS.checkingReport,
   RESEARCH_OBSERVER_STATUS.savingReport,
-  RESEARCH_OBSERVER_STATUS.preparingReport,
 ]);
 
 export function isMeriJobKind(value: unknown): value is MeriJobKind {
