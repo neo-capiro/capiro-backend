@@ -9,6 +9,7 @@ import type {
   PlannerTaskPage,
   PlannerEvent,
   PlannerInboxItem,
+  PlannerActivityPage,
   PlannerResource,
   PlannerResourceKind,
   PlannerAttachment,
@@ -79,19 +80,37 @@ export function usePlannerEvents(taskId?: string, projectId?: string) {
   const api = useApi();
   const key = usePlannerKey();
   const path = taskId ? `tasks/${taskId}` : `projects/${projectId}`;
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: [...key, 'events', path],
     enabled: Boolean(taskId || projectId),
-    queryFn: async () => (await api.get<PlannerEvent[]>(`${BASE}/${path}/events`)).data,
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) =>
+      (
+        await api.get<PlannerActivityPage<PlannerEvent>>(`${BASE}/${path}/events`, {
+          params: { paged: 'true', ...(pageParam ? { cursor: pageParam } : {}) },
+        })
+      ).data,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
     refetchInterval: 15_000,
   });
 }
-export function usePlannerInbox() {
+export function usePlannerInbox(archived = false) {
   const api = useApi();
   const key = usePlannerKey();
-  return useQuery({
-    queryKey: [...key, 'inbox'],
-    queryFn: async () => (await api.get<PlannerInboxItem[]>(`${BASE}/inbox`)).data,
+  return useInfiniteQuery({
+    queryKey: [...key, 'inbox', archived],
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) =>
+      (
+        await api.get<PlannerActivityPage<PlannerInboxItem>>(`${BASE}/inbox`, {
+          params: {
+            paged: 'true',
+            archived: String(archived),
+            ...(pageParam ? { cursor: pageParam } : {}),
+          },
+        })
+      ).data,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
     refetchInterval: 20_000,
   });
 }

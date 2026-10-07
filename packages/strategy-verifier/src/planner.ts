@@ -87,6 +87,10 @@ export interface PlannerInboxItem {
   read: boolean;
   archived: boolean;
 }
+export interface PlannerActivityPage<T> {
+  items: T[];
+  nextCursor: string | null;
+}
 export interface PlannerAttachment {
   id: string;
   taskId: string;
@@ -106,7 +110,19 @@ export interface PlannerTaskPage {
   nextCursor: string | null;
 }
 export type PlannerResourceKind =
-  'portfolio' | 'goal' | 'template' | 'rule' | 'form' | 'saved_view' | 'capacity';
+  'portfolio' | 'goal' | 'template' | 'rule' | 'form' | 'saved_view' | 'capacity' | 'my_tasks';
+export interface PlannerMyTasksData {
+  sections: PlannerSection[];
+  placements: { taskId: string; sectionId: string | null; position: number }[];
+}
+export const PLANNER_DEFAULT_MY_TASKS: PlannerMyTasksData = {
+  sections: [
+    { id: '51000000-0000-4000-8000-000000000001', name: 'Today' },
+    { id: '51000000-0000-4000-8000-000000000002', name: 'Upcoming' },
+    { id: '51000000-0000-4000-8000-000000000003', name: 'Later' },
+  ],
+  placements: [],
+};
 export interface PlannerResource {
   id: string;
   kind: PlannerResourceKind;

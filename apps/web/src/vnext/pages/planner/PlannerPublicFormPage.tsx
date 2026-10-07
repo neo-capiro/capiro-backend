@@ -26,6 +26,10 @@ export function PlannerPublicFormPage() {
   const submit = useMutation({
     mutationFn: async () => axios.post(path, answers, { timeout: 30_000 }),
   });
+  useEffect(() => {
+    setAnswers({});
+    submit.reset();
+  }, [token, submit.reset]);
   return (
     <main className="planner-root planner-public-form">
       <div className="planner-public-card">
@@ -42,6 +46,7 @@ export function PlannerPublicFormPage() {
         ) : (
           form.data && (
             <form
+              key={token}
               onSubmit={(e) => {
                 e.preventDefault();
                 submit.mutate();
@@ -60,13 +65,19 @@ export function PlannerPublicFormPage() {
                       rows={5}
                       required={f.required}
                       maxLength={50_000}
-                      onChange={(e) => setAnswers((old) => ({ ...old, [f.id]: e.target.value }))}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
+                        setAnswers((old) => ({ ...old, [f.id]: value }));
+                      }}
                     />
                   ) : f.type === 'select' ? (
                     <select
                       required={f.required}
                       defaultValue=""
-                      onChange={(e) => setAnswers((old) => ({ ...old, [f.id]: e.target.value }))}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value;
+                        setAnswers((old) => ({ ...old, [f.id]: value }));
+                      }}
                     >
                       <option value="">Choose…</option>
                       {f.options.map((o) => (
@@ -79,17 +90,12 @@ export function PlannerPublicFormPage() {
                       type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}
                       maxLength={f.taskField === 'name' ? 500 : 50_000}
                       min={f.type === 'number' ? 0 : undefined}
-                      onInput={(e) =>
-                        setAnswers((old) => ({
-                          ...old,
-                          [f.id]:
-                            f.type === 'number'
-                              ? e.currentTarget.value === ''
-                                ? null
-                                : Number(e.currentTarget.value)
-                              : e.currentTarget.value,
-                        }))
-                      }
+                      onInput={(e) => {
+                        const value = e.currentTarget.value;
+                        const answer =
+                          f.type === 'number' ? (value === '' ? null : Number(value)) : value;
+                        setAnswers((old) => ({ ...old, [f.id]: answer }));
+                      }}
                     />
                   )}
                 </label>

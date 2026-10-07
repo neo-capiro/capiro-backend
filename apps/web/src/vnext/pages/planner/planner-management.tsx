@@ -1044,13 +1044,19 @@ function FormSubmission({
                 <textarea
                   rows={4}
                   required={f.required}
-                  onChange={(e) => setAnswers((old) => ({ ...old, [f.id]: e.target.value }))}
+                  onChange={(e) => {
+                    const value = e.currentTarget.value;
+                    setAnswers((old) => ({ ...old, [f.id]: value }));
+                  }}
                 />
               ) : f.type === 'select' ? (
                 <select
                   required={f.required}
                   defaultValue=""
-                  onChange={(e) => setAnswers((old) => ({ ...old, [f.id]: e.target.value }))}
+                  onChange={(e) => {
+                    const value = e.currentTarget.value;
+                    setAnswers((old) => ({ ...old, [f.id]: value }));
+                  }}
                 >
                   <option value="">Choose…</option>
                   {f.options.map((o) => (
@@ -1062,13 +1068,12 @@ function FormSubmission({
                   type={f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text'}
                   required={f.required}
                   min={f.type === 'number' ? 0 : undefined}
-                  onInput={(e) =>
-                    setAnswers((old) => ({
-                      ...old,
-                      [f.id]:
-                        f.type === 'number' ? Number(e.currentTarget.value) : e.currentTarget.value,
-                    }))
-                  }
+                  onInput={(e) => {
+                    const value = e.currentTarget.value;
+                    const answer =
+                      f.type === 'number' ? (value === '' ? null : Number(value)) : value;
+                    setAnswers((old) => ({ ...old, [f.id]: answer }));
+                  }}
                 />
               )}
             </Field>
@@ -1123,13 +1128,22 @@ export function PlannerProjectActivity({
           <button disabled={actions.event.isPending || !text.trim()}>Post update</button>
         </form>
       )}
-      {query.data?.map((e) => (
-        <article key={e.id}>
-          <strong>{bootstrap.people.find((p) => p.id === e.actorId)?.name ?? 'Team member'}</strong>
-          <time>{new Date(e.createdAt).toLocaleString()}</time>
-          <PlannerFormattedText text={e.text} />
-        </article>
-      ))}
+      {query.data?.pages
+        .flatMap((page) => page.items)
+        .map((e) => (
+          <article key={e.id}>
+            <strong>
+              {bootstrap.people.find((p) => p.id === e.actorId)?.name ?? 'Team member'}
+            </strong>
+            <time>{new Date(e.createdAt).toLocaleString()}</time>
+            <PlannerFormattedText text={e.text} />
+          </article>
+        ))}
+      {query.hasNextPage && (
+        <button disabled={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>
+          {query.isFetchingNextPage ? 'Loading older updates…' : 'Load older updates'}
+        </button>
+      )}
     </details>
   );
 }

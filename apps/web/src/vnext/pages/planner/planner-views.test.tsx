@@ -28,6 +28,48 @@ const task: PlannerTask = {
 };
 afterEach(cleanup);
 describe('Planner task views', () => {
+  it('organizes personal sections without patching shared task membership', () => {
+    const onMove = vi.fn();
+    const onPatch = vi.fn();
+    const personal = {
+      sections: [{ id: 'personal-focus', name: 'Focus' }],
+      placements: [],
+      onMove,
+    };
+    render(
+      <PlannerList
+        tasks={[task]}
+        people={[]}
+        personal={personal}
+        onOpen={vi.fn()}
+        onPatch={onPatch}
+        disabled={false}
+      />,
+    );
+    expect(screen.getByRole('region', { name: 'Recently assigned' })).toHaveTextContent(
+      'Verify dates',
+    );
+    fireEvent.change(screen.getByRole('combobox', { name: 'Personal section for Verify dates' }), {
+      target: { value: 'personal-focus' },
+    });
+    expect(onMove).toHaveBeenCalledWith(task, 'personal-focus');
+    expect(onPatch).not.toHaveBeenCalled();
+    cleanup();
+    render(
+      <PlannerBoard
+        tasks={[task]}
+        people={[]}
+        personal={personal}
+        onOpen={vi.fn()}
+        onPatch={onPatch}
+        disabled={false}
+      />,
+    );
+    fireEvent.dragStart(screen.getByRole('button', { name: 'Verify dates' }).closest('article')!);
+    fireEvent.drop(screen.getByRole('region', { name: 'Focus' }));
+    expect(onMove).toHaveBeenLastCalledWith(task, 'personal-focus');
+    expect(onPatch).not.toHaveBeenCalled();
+  });
   it('moves timeline dates with the keyboard and resizes the due date independently', () => {
     const scheduled = { ...task, startOn: '2026-10-14' };
     const onPatch = vi.fn();

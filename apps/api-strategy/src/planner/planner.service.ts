@@ -20,6 +20,7 @@ import {
   type PlannerPerson,
   type PlannerEvent,
   type PlannerInboxItem,
+  type PlannerActivityPage,
   type PlannerResource,
   type PlannerResourceKind,
   type PlannerRuleData,
@@ -50,6 +51,19 @@ import {
 import { RESOURCE_KINDS, validateResource, applyPlannerRule } from './planner-resources.js';
 
 type Tx = Prisma.TransactionClient;
+type ActivityQuery = { paged?: string; cursor?: string; archived?: string };
+function activityQuery(query: ActivityQuery, inbox = false) {
+  keys(query, inbox ? ['paged', 'cursor', 'archived'] : ['paged', 'cursor']);
+  if (query.paged !== undefined && !['true', 'false'].includes(query.paged))
+    fail('Invalid activity pagination');
+  if (query.cursor !== undefined) {
+    uuid(query.cursor);
+    if (query.paged !== 'true') fail('A cursor requires paginated activity');
+  }
+  if (query.archived !== undefined && !['true', 'false'].includes(query.archived))
+    fail('Invalid inbox filter');
+  return query.paged === 'true';
+}
 const RANK: Record<PlannerRole, number> = { viewer: 0, commenter: 1, editor: 2, admin: 3 };
 const json = (data: unknown) => JSON.parse(JSON.stringify(data)) as Prisma.InputJsonValue;
 const projectData = (row: SpPlannerProject) => row.data as unknown as PlannerProjectData;
@@ -723,7 +737,23 @@ export class PlannerService {
         });
     return this.eventView(event);
   }
-  async events(ctx: AuthTenantContext, target: { taskId?: string; projectId?: string }) {
+  async events(
+    ctx: AuthTenantContext,
+    target: { taskId?: string; projectId?: string },
+  ): Promise<PlannerEvent[]>;
+  async events(
+    ctx: AuthTenantContext,
+    target: { taskId?: string; projectId?: string },
+    query: ActivityQuery,
+  ): Promise<PlannerEvent[] | PlannerActivityPage<PlannerEvent>>;
+  async events(
+    ctx: AuthTenantContext,
+    target: { taskId?: string; projectId?: string },
+    query: ActivityQuery = {},
+  ) {
+    const paged = activityQuery(query);
+    if (Boolean(target.taskId) === Boolean(target.projectId))
+      fail('One activity target is required');
     return this.scope(ctx, async (tx) => {
       if (target.taskId) {
         uuid(target.taskId);
@@ -744,12 +774,20 @@ export class PlannerService {
         if (!p) throw missing();
         requireRole(plannerProjectAccess(p, ctx.clerkUserId), 'viewer');
       }
+      const where = { tenantId: ctx.tenantId, ...target };
+      if (
+        query.cursor &&
+        !(await tx.spPlannerEvent.findFirst({ where: { ...where, id: query.cursor } }))
+      )
+        fail('Activity cursor is no longer available');
       const rows = await tx.spPlannerEvent.findMany({
-        where: { tenantId: ctx.tenantId, ...target },
-        orderBy: { createdAt: 'desc' },
-        take: 100,
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+        take: paged ? 101 : 100,
       });
-      return rows.map((row) => this.eventView(row));
+      const items = rows.slice(0, 100).map((row) => this.eventView(row));
+      return paged ? { items, nextCursor: rows.length > 100 ? rows[99]!.id : null } : items;
     });
   }
   async addEvent(
@@ -826,22 +864,54 @@ export class PlannerService {
       true,
     );
   }
-  async inbox(ctx: AuthTenantContext): Promise<PlannerInboxItem[]> {
+  async inbox(ctx: AuthTenantContext): Promise<PlannerInboxItem[]>;
+  async inbox(
+    ctx: AuthTenantContext,
+    query: ActivityQuery,
+  ): Promise<PlannerInboxItem[] | PlannerActivityPage<PlannerInboxItem>>;
+  async inbox(ctx: AuthTenantContext, query: ActivityQuery = {}) {
+    const paged = activityQuery(query, true);
     return this.scope(ctx, async (tx) => {
       const projects = await this.projects(tx, ctx);
+      const where = {
+        tenantId: ctx.tenantId,
+        userId: ctx.clerkUserId,
+        ...(query.archived !== undefined ? { archived: query.archived === 'true' } : {}),
+      };
+      // Cursors contain only this user's opaque notification ID. The event and
+      // target are never serialized into a cursor for a revoked project grant.
+      if (
+        query.cursor &&
+        !(await tx.spPlannerInbox.findFirst({ where: { ...where, id: query.cursor } }))
+      )
+        fail('Inbox cursor is no longer available');
       const rows = await tx.spPlannerInbox.findMany({
-        where: { tenantId: ctx.tenantId, userId: ctx.clerkUserId },
+        where,
         include: { event: true },
-        orderBy: { event: { createdAt: 'desc' } },
-        take: 100,
+        orderBy: [{ event: { createdAt: 'desc' } }, { id: 'desc' }],
+        ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+        take: paged ? 101 : 100,
       });
       const result: PlannerInboxItem[] = [];
-      for (const row of rows) {
+      const scanned = rows.slice(0, 100);
+      const tasks = await tx.spPlannerTask.findMany({
+        where: {
+          tenantId: ctx.tenantId,
+          id: {
+            in: [
+              ...new Set(scanned.flatMap((row) => (row.event.taskId ? [row.event.taskId] : []))),
+            ],
+          },
+        },
+      });
+      const allowedTasks = new Set(
+        tasks
+          .filter((task) => plannerTaskAccess(task, projects, ctx.clerkUserId))
+          .map((task) => task.id),
+      );
+      for (const row of scanned) {
         if (row.event.taskId) {
-          const task = await tx.spPlannerTask.findFirst({
-            where: { id: row.event.taskId, tenantId: ctx.tenantId },
-          });
-          if (!task || !plannerTaskAccess(task, projects, ctx.clerkUserId)) continue;
+          if (!allowedTasks.has(row.event.taskId)) continue;
         }
         if (row.event.projectId) {
           const p = projects.find((p) => p.id === row.event.projectId);
@@ -854,7 +924,11 @@ export class PlannerService {
           archived: row.archived,
         });
       }
-      return result;
+      // Advance by scanned rows even when every visible grant on this page was
+      // revoked. A later authorized update must still be reachable.
+      return paged
+        ? { items: result, nextCursor: rows.length > 100 ? rows[99]!.id : null }
+        : result;
     });
   }
   async updateInbox(ctx: AuthTenantContext, id: string, raw: unknown) {
@@ -885,12 +959,13 @@ export class PlannerService {
     projects: SpPlannerProject[],
     ctx: AuthTenantContext,
   ): PlannerRole | null {
+    if (row.kind === 'my_tasks' || row.kind === 'saved_view')
+      return row.ownerId === ctx.clerkUserId ? 'admin' : null;
     if (row.projectId) {
       const project = projects.find((p) => p.id === row.projectId);
       return project ? plannerProjectAccess(project, ctx.clerkUserId) : null;
     }
     if (row.ownerId === ctx.clerkUserId) return 'admin';
-    if (row.kind === 'saved_view') return null;
     if (row.kind === 'capacity') return ctx.role === 'org:admin' ? 'admin' : 'viewer';
     const data = row.data as {
       privacy?: string;
@@ -933,9 +1008,27 @@ export class PlannerService {
         where: { tenantId: ctx.tenantId },
         orderBy: { createdAt: 'asc' },
       });
+      const own = rows.filter((row) => row.kind === 'my_tasks' && row.ownerId === ctx.clerkUserId);
+      const assigned = own.length
+        ? await tx.spPlannerTask.findMany({
+            where: { tenantId: ctx.tenantId, assigneeId: ctx.clerkUserId },
+          })
+        : [];
+      const visible = new Set(
+        assigned
+          .filter((task) => plannerTaskAccess(task, projects, ctx.clerkUserId))
+          .map((task) => task.id),
+      );
       return rows
         .filter((row) => this.resourceAccess(row, projects, ctx))
-        .map((row) => this.resourceView(row, projects, ctx));
+        .map((row) => {
+          const result = this.resourceView(row, projects, ctx);
+          if (row.kind === 'my_tasks')
+            result.data.placements = (result.data.placements as { taskId: string }[]).filter((p) =>
+              visible.has(p.taskId),
+            );
+          return result;
+        });
     });
   }
   async saveResource(ctx: AuthTenantContext, id: string | null, raw: unknown) {
@@ -962,6 +1055,23 @@ export class PlannerService {
         ) as string | null;
         if (projectId) uuid(projectId);
         if (old && old.projectId !== projectId) fail('Resource project cannot change');
+        if (['my_tasks', 'saved_view'].includes(kind) && projectId)
+          fail('Personal settings cannot belong to a shared project');
+        if (kind === 'my_tasks') {
+          if (dto.archived !== undefined) fail('Personal settings cannot be archived');
+          if (
+            !old &&
+            (await tx.spPlannerResource.findFirst({
+              where: {
+                tenantId: ctx.tenantId,
+                ownerId: ctx.clerkUserId,
+                kind: 'my_tasks',
+                archived: false,
+              },
+            }))
+          )
+            throw new ConflictException('My tasks settings already exist. Refresh before saving.');
+        }
         if (['rule', 'form'].includes(kind) && !projectId)
           fail('Rules and forms require a project');
         if (projectId) {
@@ -1023,6 +1133,23 @@ export class PlannerService {
           if (!people.has(String(data.userId))) fail('Capacity belongs to an active team member');
           if (data.userId !== ctx.clerkUserId && ctx.role !== 'org:admin')
             throw new ForbiddenException('Only team admins can set another person’s capacity');
+        }
+        if (kind === 'my_tasks') {
+          const placements = data.placements as { taskId: string }[];
+          const assigned = await tx.spPlannerTask.findMany({
+            where: {
+              tenantId: ctx.tenantId,
+              assigneeId: ctx.clerkUserId,
+              id: { in: placements.map((p) => p.taskId) },
+            },
+          });
+          const visible = new Set(
+            assigned
+              .filter((task) => plannerTaskAccess(task, projects, ctx.clerkUserId))
+              .map((task) => task.id),
+          );
+          if (placements.some((p) => !visible.has(p.taskId)))
+            fail('My tasks sections can contain only your assigned work');
         }
         if (kind === 'goal' && data.ownerId && !people.has(String(data.ownerId)))
           fail('Goal owner must be an active team member');

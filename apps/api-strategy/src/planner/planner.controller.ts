@@ -88,8 +88,9 @@ export class PlannerController {
   @Get('tasks/:id/events') taskEvents(
     @CurrentTenant() ctx: AuthTenantContext,
     @Param('id') id: string,
+    @Query() query: { paged?: string; cursor?: string },
   ) {
-    return this.planner.events(ctx, { taskId: id });
+    return this.planner.events(ctx, { taskId: id }, query);
   }
   @Post('tasks/:id/events') addTaskEvent(
     @CurrentTenant() ctx: AuthTenantContext,
@@ -101,8 +102,9 @@ export class PlannerController {
   @Get('projects/:id/events') projectEvents(
     @CurrentTenant() ctx: AuthTenantContext,
     @Param('id') id: string,
+    @Query() query: { paged?: string; cursor?: string },
   ) {
-    return this.planner.events(ctx, { projectId: id });
+    return this.planner.events(ctx, { projectId: id }, query);
   }
   @Post('projects/:id/events') addProjectEvent(
     @CurrentTenant() ctx: AuthTenantContext,
@@ -111,8 +113,11 @@ export class PlannerController {
   ) {
     return this.planner.addEvent(ctx, { projectId: id }, dto);
   }
-  @Get('inbox') inbox(@CurrentTenant() ctx: AuthTenantContext) {
-    return this.planner.inbox(ctx);
+  @Get('inbox') inbox(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Query() query: { paged?: string; cursor?: string; archived?: string },
+  ) {
+    return this.planner.inbox(ctx, query);
   }
   @Patch('inbox/:id') updateInbox(
     @CurrentTenant() ctx: AuthTenantContext,
