@@ -2,7 +2,7 @@
 
 Owner request, October 6, 2026: reproduce Asana's work functionality as a **Planner** tab on `os.capiro.ai`. Planner is owned by **api-strategy**, at `/strategy-api/planner`. Use the existing Strategies service, Aurora cluster, Clerk membership resolution, and tenant-scoped Prisma client.
 
-Approved integrations: Dashboard Work Queue; links to client records and Engagement meetings; Planner updates and reminders in Capiro's main notification bell as well as Planner Inbox. The notification-bell work is queued for the next release. Workspace document integration is explicitly excluded. Ask the owner before adding any other Capiro integration (including Meri or Strategy execution).
+Approved integrations: Dashboard Work Queue; links to client records and Engagement meetings; Planner updates and reminders in Capiro's main notification bell as well as Planner Inbox. The notification-bell/date-rule candidate is qualified and awaiting release. Workspace document integration is explicitly excluded. Ask the owner before adding any other Capiro integration (including Meri or Strategy execution).
 
 Owner decision: Planner uses the signed-in organization. An impersonation header is rejected by a Planner-specific guard; shared Strategies authentication is unchanged.
 
@@ -45,6 +45,8 @@ The second release passed 90 focused API checks (including 21 real PostgreSQL ca
 The timed-schedule release passed 130 focused API checks (23 real PostgreSQL), 22 web checks, typechecks and production builds. Signed-in verification passed persistence of times/zones/repeat choices, correct selected weekdays and durations, reopen protection and stopping at the repeat end date. All three synthetic occurrences and their private project are recoverably archived. Immutable images and recovery constraints are in [RELEASE-SCHEDULING-20261006.md](RELEASE-SCHEDULING-20261006.md).
 
 The collaboration release adds append-only comment/time corrections, recurrence hierarchy/attachment copying and relative template schedules. It passed 140 API checks (29 real PostgreSQL), 28 web checks, typechecks, production builds and a fresh six-migration rehearsal. Production migration and restricted runtime-role proof passed before promotion. Strategies revision 36 and web-vNext revision 445 are stable. Signed-in checks passed persistent corrections/removal/restoration, recurring child/dependency/file copying, independent attachment archive state and working-day template preview/creation. All eight synthetic tasks, two private projects and the template are recoverably archived; My Tasks and the Dashboard Work Queue are clear. Exact images, proof and recovery constraints are in [RELEASE-COLLABORATION-20261006.md](RELEASE-COLLABORATION-20261006.md).
+
+The next qualified candidate adds the approved main notification-bell connection, project date rules/reminders and private My Tasks date rules/section moves. It passed 157 API checks (36 real PostgreSQL), 56 web checks, typechecks/builds and a fresh seven-migration rehearsal with eight-table isolation/privilege assertions. It is not yet live. See [RELEASE-REMINDERS-20261006.md](RELEASE-REMINDERS-20261006.md) for the execution, promotion and recovery contract.
 
 The Assets CDK diff contains the intended attachment policy and an unrelated auto-delete-provider runtime change (Node 22 to 24). Release only the policy using the existing stack template; preserve the rest of the live template.
 

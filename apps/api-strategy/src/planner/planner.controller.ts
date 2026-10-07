@@ -126,6 +126,12 @@ export class PlannerController {
   ) {
     return this.planner.inbox(ctx, query);
   }
+  @Get('notifications') notifications(@CurrentTenant() ctx: AuthTenantContext) {
+    return this.planner.notifications(ctx);
+  }
+  @Post('notifications/read-all') readAllNotifications(@CurrentTenant() ctx: AuthTenantContext) {
+    return this.planner.readAllNotifications(ctx);
+  }
   @Patch('inbox/:id') updateInbox(
     @CurrentTenant() ctx: AuthTenantContext,
     @Param('id') id: string,

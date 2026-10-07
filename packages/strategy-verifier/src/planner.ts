@@ -90,7 +90,8 @@ export interface PlannerEvent {
   taskId: string | null;
   projectId: string | null;
   actorId: string;
-  kind: 'created' | 'updated' | 'comment' | 'status' | 'time' | 'archived' | 'restored';
+  kind:
+    'created' | 'updated' | 'comment' | 'status' | 'time' | 'archived' | 'restored' | 'reminder';
   text: string;
   minutes: number | null;
   createdAt: string;
@@ -103,6 +104,15 @@ export interface PlannerInboxItem {
   event: PlannerEvent;
   read: boolean;
   archived: boolean;
+}
+export interface PlannerBellItem extends PlannerInboxItem {
+  title: string;
+  deepLink: string;
+}
+export interface PlannerBellFeed {
+  items: PlannerBellItem[];
+  /** Current authorized, unarchived unread total, independent of the row limit. */
+  unread: number;
 }
 export interface PlannerActivityPage<T> {
   items: T[];
@@ -131,6 +141,18 @@ export type PlannerResourceKind =
 export interface PlannerMyTasksData {
   sections: PlannerSection[];
   placements: { taskId: string; sectionId: string | null; position: number }[];
+  rules?: PlannerPersonalRule[];
+}
+export interface PlannerDateRule {
+  trigger: 'due_approaching' | 'overdue';
+  schedule: { amount: number; unit: 'days' | 'hours' | 'minutes' };
+}
+export interface PlannerPersonalRule extends PlannerDateRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  sectionId?: string | null;
+  notify: boolean;
 }
 export const PLANNER_DEFAULT_MY_TASKS: PlannerMyTasksData = {
   sections: [
@@ -186,7 +208,13 @@ export interface PlannerTemplateData extends PlannerResourceSharing {
 }
 export interface PlannerRuleData {
   enabled: boolean;
-  trigger: 'created' | 'status_changed' | 'section_changed' | 'priority_changed';
+  trigger:
+    | 'created'
+    | 'status_changed'
+    | 'section_changed'
+    | 'priority_changed'
+    | PlannerDateRule['trigger'];
+  schedule?: PlannerDateRule['schedule'];
   conditions: {
     status?: PlannerStatus;
     priority?: PlannerTaskData['priority'];
@@ -197,6 +225,7 @@ export interface PlannerRuleData {
     priority?: PlannerTaskData['priority'];
     sectionId?: string | null;
     assigneeId?: string | null;
+    notify?: boolean;
   };
 }
 export interface PlannerFormData {

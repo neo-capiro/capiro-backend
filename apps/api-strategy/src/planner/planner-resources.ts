@@ -174,12 +174,21 @@ export function validateResource(
         fail('Template graph cannot form a cycle');
     }
   } else if (kind === 'rule') {
-    keys(d, ['enabled', 'trigger', 'conditions', 'actions']);
+    keys(d, ['enabled', 'trigger', 'conditions', 'actions', 'schedule']);
     bool(d.enabled);
-    enumValue(d.trigger, ['created', 'status_changed', 'section_changed', 'priority_changed']);
+    enumValue(d.trigger, [
+      'created',
+      'status_changed',
+      'section_changed',
+      'priority_changed',
+      'due_approaching',
+      'overdue',
+    ]);
+    if (['due_approaching', 'overdue'].includes(String(d.trigger))) validateDateRule(d);
+    else if (d.schedule !== undefined) fail('Only date rules have a schedule');
     for (const [key, allowed] of [
       ['conditions', ['status', 'priority', 'sectionId']],
-      ['actions', ['status', 'priority', 'sectionId', 'assigneeId']],
+      ['actions', ['status', 'priority', 'sectionId', 'assigneeId', 'notify']],
     ] as const) {
       const props = object(d[key]);
       keys(props, [...allowed]);
@@ -190,8 +199,17 @@ export function validateResource(
       if (props.sectionId !== undefined && props.sectionId !== null) uuid(props.sectionId);
       if (props.assigneeId !== undefined && props.assigneeId !== null)
         string(props.assigneeId, 200, true);
+      if (props.notify !== undefined) bool(props.notify);
     }
-    if (!Object.keys(object(d.actions)).length) fail('A rule requires an action');
+    if (
+      !Object.entries(object(d.actions)).some(([key, value]) => key !== 'notify' || value === true)
+    )
+      fail('A rule requires an action');
+    if (
+      !['due_approaching', 'overdue'].includes(String(d.trigger)) &&
+      object(d.actions).notify !== undefined
+    )
+      fail('Explicit reminders require a date rule');
   } else if (kind === 'form') {
     keys(d, ['description', 'enabled', 'fields', 'defaults']);
     string(d.description, 50000);
@@ -253,7 +271,7 @@ export function validateResource(
     if (d.groupBy !== undefined)
       enumValue(d.groupBy, ['section', 'status', 'priority', 'assignee', 'none']);
   } else if (kind === 'my_tasks') {
-    keys(d, ['sections', 'placements']);
+    keys(d, ['sections', 'placements', 'rules']);
     const sections = array(d.sections, 100);
     for (const raw of sections) {
       const s = object(raw);
@@ -273,6 +291,27 @@ export function validateResource(
       if (!Number.isInteger(p.position)) fail('Personal task order must use whole numbers');
     }
     distinct(placements.map((p) => object(p).taskId));
+    if (d.rules !== undefined) {
+      const rules = array(d.rules, 100);
+      for (const raw of rules) {
+        const rule = object(raw);
+        keys(rule, ['id', 'name', 'enabled', 'trigger', 'schedule', 'sectionId', 'notify']);
+        uuid(rule.id);
+        string(rule.name, 200, true);
+        bool(rule.enabled);
+        bool(rule.notify);
+        validateDateRule(rule);
+        if (
+          rule.sectionId !== undefined &&
+          rule.sectionId !== null &&
+          !sections.some((s) => object(s).id === rule.sectionId)
+        )
+          fail('Personal rule section is unavailable');
+        if (rule.sectionId === undefined && !rule.notify)
+          fail('A personal rule requires an action');
+      }
+      distinct(rules.map((r) => object(r).id));
+    }
   } else if (kind === 'capacity') {
     keys(d, ['userId', 'weeklyMinutes']);
     string(d.userId, 200, true);
@@ -280,6 +319,15 @@ export function validateResource(
     if (!Number.isInteger(d.weeklyMinutes)) fail('Capacity must use whole minutes');
   } else fail('Unknown resource kind');
   return d;
+}
+function validateDateRule(rule: Record<string, unknown>) {
+  enumValue(rule.trigger, ['due_approaching', 'overdue']);
+  const schedule = object(rule.schedule);
+  keys(schedule, ['amount', 'unit']);
+  enumValue(schedule.unit, ['days', 'hours', 'minutes']);
+  const max = { days: 365, hours: 8760, minutes: 525600 }[String(schedule.unit)]!;
+  number(schedule.amount, max);
+  if (!Number.isInteger(schedule.amount)) fail('Date rule offset must use whole numbers');
 }
 /** Each rule runs once per direct task mutation, in creation order. No recursive rule dispatch. */
 export function applyPlannerRule(
@@ -298,7 +346,8 @@ export function applyPlannerRule(
     priority_changed: !!before && before.priority !== data.priority,
     section_changed: !!before && previous?.sectionId !== current.sectionId,
   };
-  if (!triggers[rule.trigger]) return data;
+  if (!Object.hasOwn(triggers, rule.trigger) || !triggers[rule.trigger as keyof typeof triggers])
+    return data;
   const c = rule.conditions;
   if (
     (c.status !== undefined && c.status !== data.status) ||
@@ -306,7 +355,7 @@ export function applyPlannerRule(
     (c.sectionId !== undefined && c.sectionId !== current.sectionId)
   )
     return data;
-  const { sectionId, ...patch } = rule.actions;
+  const { sectionId, notify: _notify, ...patch } = rule.actions;
   return {
     ...data,
     ...patch,

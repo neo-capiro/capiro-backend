@@ -6,9 +6,16 @@ import { PlannerAttachmentsService } from './planner-attachments.service.js';
 import { PlannerAttachmentsController } from './planner-attachments.controller.js';
 import { PlannerContextGuard } from './planner-context.guard.js';
 import { PlannerPublicController } from './planner-public.controller.js';
+import { PlannerSchedulerService } from './planner-scheduler.service.js';
 
 @Module({
   controllers: [PlannerController, PlannerAttachmentsController, PlannerPublicController],
-  providers: [PlannerService, PlannerLinksService, PlannerAttachmentsService, PlannerContextGuard],
+  providers: [
+    PlannerService,
+    PlannerLinksService,
+    PlannerAttachmentsService,
+    PlannerContextGuard,
+    PlannerSchedulerService,
+  ],
 })
 export class PlannerModule {}
