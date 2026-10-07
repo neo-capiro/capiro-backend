@@ -1421,12 +1421,20 @@ export function VNextMeriWorkspace() {
     return '/meri/new';
   }, [activeConversationId, conversations]);
 
+  // Leaving Meri detaches the live stream; it never cancels durable work. A
+  // delegated job keeps running ("Jobs continue in the background when you
+  // close this tab") and Stop stays the only explicit cancel. This cleanup used
+  // to call handleStop with handleStop as its dependency: its identity changes
+  // when research starts streaming, so React ran the cleanup mid-session and
+  // every new research run or delegated job was cancelled within milliseconds
+  // (T7 browser check, 2026-10-07). invalidateRouteStream is stable, so this
+  // runs on unmount only.
   useEffect(
     () => () => {
-      controller.handleStop();
+      controller.invalidateRouteStream();
       setMeriSurfaceMode('closed');
     },
-    [controller.handleStop],
+    [controller.invalidateRouteStream],
   );
 
   if (me.isLoading || !routeReady) {
