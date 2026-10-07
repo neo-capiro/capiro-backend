@@ -802,6 +802,12 @@ export class ComputeStack extends cdk.Stack {
       // Applied as configuration revision capiro-dev-api:564 (DRIFT-FINDINGS).
       CLIO_RESEARCH_MAX_TOTAL_TOKENS: '4000000',
       CLIO_RESEARCH_MAX_COST_USD: '25',
+      // Stage 2 job lease sweeper (Neo's OK 2026-10-06, applied after T5 passed
+      // on 2026-10-07): every replica reclaims leases expired 60 s past the
+      // 120 s lease every 60 s; running jobs become interrupted and ready to
+      // start, cancel requests become cancelled. Applied as configuration
+      // revision capiro-dev-api:632 (DRIFT-FINDINGS).
+      MERI_JOB_SWEEPER_ENABLED: 'true',
       // Business Development Phase 3 Jev controls are deliberately dark in
       // the managed baseline. A reviewed deployment may register a task
       // definition with a tenant-scoped shadow override, but a later CDK

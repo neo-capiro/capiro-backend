@@ -336,3 +336,23 @@ within a 1,000-query monthly live budget inside the shared 28,000 soft budget.
 No IAM change: the execution role already reads `capiro/dev/*` through
 `CapiroDevRuntimeSecretsRead`. Codified in `compute-stack.ts` (serve secrets
 and the execution-role secret patterns) in the same PR as this entry.
+
+## Meri job lease sweeper on the API serve task (2026-10-07 UTC, Neo's OK of 2026-10-06; after a T5 pass)
+
+Configuration revision (deployment plan §2.5), environment only, same image digest
+(`sha256:2bdab129…`, `16631b296`): `capiro-dev-api:631` → `capiro-dev-api:632`.
+
+| Variable | Before | After |
+| --- | --- | --- |
+| `MERI_JOB_SWEEPER_ENABLED` | unset | `true` |
+
+Why: Stage 2 Release B jobs hold a 120 s lease. When the API task running a job
+is replaced, nothing else moved the job, so it stayed `running` forever. The
+sweeper (`apps/api/src/meri/meri-job-lease-sweeper.ts`) runs every 60 s on every
+replica. It moves a lease expired for more than 60 s from `running` to
+`interrupted` with `readyToStart`, and from `cancel_requested` to `cancelled`.
+It cannot resume a job itself, because every V3 turn needs the user's session
+token, so the open web client resumes it (#2083). Neo approved it on 2026-10-06
+for after the first T5 pass. T5 run 12 (`a31f24a0`) passed at 00:57 UTC. Both
+replicas logged `meri_job_sweeper_enabled` at 00:59:32 UTC. Codified in
+`compute-stack.ts` (API environment) in the same PR as this entry.
