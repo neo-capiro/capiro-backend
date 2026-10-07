@@ -2,15 +2,16 @@
 // Signs in as neo@capiro.ai in capiro-internal, opens a conversation per case
 // with the case's client selected, sends each turn through the ordinary stream
 // endpoint the web app uses, saves everything, and runs the automatic checks.
-// One turn at a time. Never approves or dismisses anything.
+// One turn at a time. It approves only through an explicit case action, and
+// approve_send_to_tester approves only a card addressed to the tester alone (T8).
 //
 //   node evals/meri/simple/run-cases.mjs --cases 01,05 --out C:/dev/main/outputs/meri-simple-20261005/capiro-internal
 import { mkdirSync, writeFileSync, appendFileSync, readdirSync, readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { cases as originals } from './original-cases.mjs';
 import { internalCases, QA_CLIENT } from './capiro-internal-cases.mjs';
-import { withTestAccount, withSecondReviewer, TENANT } from './auth.mjs';
-import { runChecks } from './checks.mjs';
+import { withTestAccount, withSecondReviewer, TENANT, TEST_ACCOUNT } from './auth.mjs';
+import { runChecks, sendToTesterGate } from './checks.mjs';
 import { turnCostMicros } from './cost.mjs';
 
 const arg = (name, fallback) => {
@@ -97,6 +98,20 @@ async function runAction(session, step, clientId, clientName) {
     if (rows.length !== 1) throw new Error(`PROPOSAL_MATCH_${rows.length}`);
     const id = rows[0].proposalId ?? rows[0].id;
     return { action: step.action, id, result: await session.json(`/api/clio/action-proposals/${id}/approve`, 'POST', {}) };
+  }
+  if (step.action === 'approve_send_to_tester') {
+    // T8: the only external effect allowed is delivery to the tester's own
+    // mailbox. Anything else is dismissed, never approved, and fails the case.
+    const listed = (await session.json(`/api/clio/action-proposals?conversationId=${step.conversationId}`)) ?? [];
+    const rows = Array.isArray(listed) ? listed : listed.items ?? [];
+    const gate = sendToTesterGate(rows, TEST_ACCOUNT);
+    if (!gate.ok) {
+      if (gate.proposal?.status === 'proposed')
+        await session.json(`/api/clio/action-proposals/${gate.proposal.proposalId}/dismiss`, 'POST', {});
+      throw new Error(gate.reason);
+    }
+    const id = gate.proposal.proposalId;
+    return { action: step.action, id, gate: 'tester_only', result: await session.json(`/api/clio/action-proposals/${id}/approve`, 'POST', {}) };
   }
   if (step.action === 'revoke_item') {
     const item = await findItem(session, clientId, step.match);
