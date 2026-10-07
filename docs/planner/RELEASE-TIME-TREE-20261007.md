@@ -1,0 +1,41 @@
+# Planner subtask time rollups
+
+Eighteenth release, [PR #2201](https://github.com/neo-capiro/capirov2/pull/2201), from `feat/planner-subtask-time-rollups-20261007`. Live on stable, healthy Strategies 51 / web-vNext 464, both built from `3a1ae011ae98c37bf07381d470079ae1a93c82f9`. The final evidence commit changes documentation only.
+
+## Behavior and access
+
+The Planner list shows estimated and actual time in hours:minutes. Collapsed parents include all accessible active descendants; expanding a parent shows its own time and individual child rows. Section and overall totals count overlapping ancestors and descendants once. Expansion loads children independently of the task search and project filters, including accessible personal subtasks outside the project. Estimated/actual sorting uses complete rolled totals and stays stable while expanding. Saved views retain these sort choices. Task details show a separate descendant summary above the task's own time entry controls and history.
+
+`GET /strategy-api/planner/time/tree` accepts project, personal, archived and single-task scopes. Each read uses a repeatable-read tenant transaction, rechecks active membership and current project/task permissions, and returns only authorized compact identities/time values. Private or archived bridges cannot reveal an otherwise unscoped subtree. Organization admins have no private-work bypass. Immutable corrections/removals determine actual time. Revision-bound 100-node pages and a final permission/revision verification prevent partial or mixed totals; the browser hides cached totals after a failed access check.
+
+Task APIs, time entries, time CSV transfers, budgets and reports retain each task's own contributions. The display rollup does not copy child time into a parent event or inflate costs. This release adds no schema migration, shared authentication changes or new Capiro integration.
+
+## Qualification
+
+405 distinct Strategies checks across 39 suites and 167 web checks across 24 suites pass across the regression and final focused runs. A saved-view test fixture used an incorrect resource-kind literal in the first broad run; it was corrected and its ten checks pass. The final API run passes 90 checks in four affected suites; the final web run passes 22 checks in three affected suites.
+
+Six restricted-role PostgreSQL cases cover nested/out-of-project totals, corrections/removals, private and archived bridges, unrelated organization admins, cross-tenant row security, inactive membership, changed grants/estimates, single-task qualification, 206-node paging and captured-revision conflicts. Four pure graph checks include 12,000 nested tasks, overlapping root deduplication, invalid input, cycles and safe-integer bounds. Browser-component checks cover expansion/collapse, exact task/history opening, independent completion, filters/groups, stable rolled-time sorting, complete qualified paging, stale/revoked cache clearing and initiating-organization isolation.
+
+Shared, Strategies and web production builds and web typecheck pass. Synthetic browser QA verifies collapsed/expanded totals and the task summary: a 60-minute parent and 45-minute personal child show 1:45 including subtasks while the parent's own history remains 60 minutes. Evidence: `artifacts/planner/time-tree-local-collapsed.png`, `time-tree-local-expanded.png` and `time-tree-local-task-summary.png`.
+
+## Release and live verification
+
+Both exact-source ARM64 CodeBuild jobs succeed. Strategies build `capiro-build-web-dev:ea30f2b9-e4b8-48df-b68c-21c72eae6c60` produces `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api-strategy@sha256:6209ceb50d05143f20ecf509052590e7c67072603efe22246fddb6d30162ea56`. Web build `capiro-build-web-dev:7707e6a6-5076-403b-b0fa-201e418a548a` produces `967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:1455eef76d51a4ca3e53e20bcff4a7d699855291e18e04332f8397cd92d51e1b`. Two earlier web attempts hit Docker Hub rate limits before compilation. The successful retry uses the publishers' public ECR mirrors for the unchanged pinned Node 22.23.3 and unprivileged Nginx 1.27.1 Alpine versions; no Dockerfile or application source change was required.
+
+Strategies task `43f254bd389e49b180d4da5d23d4d7dd` and web task `198e6f27490043bd908b3e6635a4fa0f` are running and healthy with matching immutable digests. Both services have one completed primary deployment, one desired/running task and no pending tasks. Public Strategies health returns `ok: true`; public runtime configuration identifies the exact web source. Candidate definitions preserve every baseline field except immutable image and release identifiers. No canonical API, Compute, routing, IAM, authentication or CDK changes were deployed. Rollback restores Strategies 50 / web-vNext 463; no schema rollback is needed.
+
+Read-only preflight and serving-role proofs pass as `PLANNER_TIME_TREE_SCHEMA_PROOF_PASSED`: 28 migration files with recorded checksums, twelve Planner migrations, eleven forced-RLS tables and six immutable-history protections under the actual non-super/non-bypass `capiro_app` role. No migration was needed.
+
+The signed-in UI creates one private synthetic project with no additional members or record links, a self-assigned parent and two self-assigned personal children outside the project. Estimates of 60/30/15 and actual entries of 60/45/30 minutes yield 1:45 estimated and 2:15 actual. All time is non-billable, December 21 in UTC; only the parent's own entry is allocated to the project. `PLANNER_TIME_TREE_PROOF_LIVE_PROOF_PASSED` independently verifies each own entry, complete authorized topology, stable revisions and deduplicated totals in project, single-task and My tasks scopes. The authenticated browser reload preserves those totals, expansion shows individual values, the actual-time cell opens the exact child and task details show the descendant summary separately from the parent's 60-minute history. Horizontal table navigation at the normal viewport reaches the time columns.
+
+Correcting the first child from 45 to 20 minutes updates every qualified scope to 110 minutes (1:50), while the parent retains its own 60 minutes. A page reload preserves the corrected value. `PLANNER_TIME_TREE_CORRECTED_LIVE_PROOF_PASSED` verifies the immutable correction, updated topology revisions and the QA week's version advancing from three to four.
+
+All three synthetic time entries are removed through normal recoverable correction flows; all three tasks and the private project are archived. `PLANNER_TIME_TREE_CLEANUP_LIVE_PROOF_PASSED` verifies each archive and latest removed revision, zero own task time and the QA week restored to zero minutes at version seven. The original current week remains 85 minutes at version two with unchanged daily totals, status, reviewer and entries. Hashes of all eleven pre-existing owner time events/revisions, private preferences and organization settings are unchanged. Preferences remain version four with automatic weekly selection off, organization settings remain empty, Planner unread stays zero and the eight unrelated main-bell items remain unread. Planner is left on clean My tasks.
+
+Evidence: `artifacts/planner/time-tree-live-before.png`, `time-tree-live-collapsed.png`, `time-tree-live-expanded.png`, `time-tree-live-task-summary.png`, `time-tree-live-ready.png` and the schema/baseline/scope/total/correction/cleanup proof logs.
+
+## Remaining parity
+
+Full parity remains open: shared capacity plans/allocations/placeholders, capacity-derived estimates/costs, workload cost comparisons, saved cost charts, CSV hierarchy/dependency mappings and further rules/templates. The latest primary-source audit also identifies descendant date rollups, hide-completed/sort controls for dense subtasks and Excel project export for implementation and deployed verification. See [PARITY-AUDIT-20261007.md](PARITY-AUDIT-20261007.md). External integrations require the owner's separate approval.
+
+Primary references: [Asana time tracking](https://help.asana.com/s/article/time-tracking-in-asana?language=en_US), [task actual-time definition](https://developers.asana.com/go/reference/tasks), [descendant date rollups](https://developers.asana.com/reference/rolluptask) and [release notes](https://help.asana.com/s/article/release-notes?language=en_US).

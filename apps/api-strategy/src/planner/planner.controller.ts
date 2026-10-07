@@ -37,6 +37,12 @@ export class PlannerController {
   @Get('time/timer') timer(@CurrentTenant() ctx: AuthTenantContext) {
     return this.planner.timer(ctx);
   }
+  @Get('time/tree') timeTree(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Query() query: Record<string, string>,
+  ) {
+    return this.planner.timeTree(ctx, query);
+  }
   @Post('time/timers') startTimer(@CurrentTenant() ctx: AuthTenantContext, @Body() dto: unknown) {
     return this.planner.startTimer(ctx, dto);
   }

@@ -49,6 +49,12 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     updateInbox: jest.fn(async () => ({ ok: true })),
     timeSettings: jest.fn(async () => ({ version: 0, canManage: false, reviewers: {} })),
     timer: jest.fn(async () => ({ id: ID, version: 1 })),
+    timeTree: jest.fn(async () => ({
+      nodes: [],
+      revision: 'a'.repeat(64),
+      matched: 0,
+      nextCursor: null,
+    })),
     startTimer: jest.fn(async () => ({ id: ID, version: 1 })),
     stopTimer: jest.fn(async () => ({ id: ID, version: 2 })),
     discardTimer: jest.fn(async () => ({ id: ID, version: 2 })),
@@ -146,6 +152,7 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     ['patch', `tasks/${ID}/attachments/${ID}`],
     ['get', `tasks/${ID}/attachments/${ID}/download`],
     ['get', 'time/timer'],
+    ['get', 'time/tree'],
     ['post', 'time/timers'],
     ['post', `time/timers/${ID}/stop`],
     ['post', `time/timers/${ID}/discard`],
@@ -239,6 +246,22 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .set('x-planner-qa', 'allowed')
       .expect(200);
     expect(planner.timeExport).toHaveBeenCalledWith(ctx, query);
+  });
+  it('forwards complete time-tree scope and revision paging through the signed-in context', async () => {
+    const query = {
+      projectId: ID,
+      taskId: ID,
+      mine: 'true',
+      archived: 'true',
+      cursor: ID,
+      revision: 'b'.repeat(64),
+    };
+    await request(app.getHttpServer())
+      .get('/strategy-api/planner/time/tree')
+      .query(query)
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.timeTree).toHaveBeenLastCalledWith(ctx, query);
   });
   it('routes weekly time and guarded status actions through the signed-in context', async () => {
     await request(app.getHttpServer())

@@ -606,6 +606,50 @@
   padding: 10px 8px;
   border-bottom: 1px solid var(--planner-line);
 }
+.planner-hierarchy-list {
+  min-width: 900px;
+}
+.planner-hierarchy-list .planner-list-head,
+.planner-hierarchy-list .planner-list-row {
+  grid-template-columns: minmax(240px, 2.6fr) minmax(100px, 1fr) 85px 75px 105px 90px 90px;
+}
+.planner-time-list {
+  min-width: 0;
+}
+.planner-section-time {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+  color: #697285;
+}
+.planner-section-time > span {
+  color: #9499a4;
+}
+.planner-expand-spacer {
+  width: 18px;
+  flex-shrink: 0;
+}
+.planner-task-name > .planner-expand-task {
+  width: 18px;
+  flex-shrink: 0;
+  padding: 2px;
+}
+.planner-subtask-status {
+  padding: 8px 24px;
+  font-size: 12px;
+}
+.planner-time-cell {
+  font-variant-numeric: tabular-nums;
+  border: 0;
+  background: none;
+  color: var(--planner-accent);
+  padding: 4px;
+}
+.planner-task-time-rollup {
+  font-size: 12px;
+  color: var(--planner-muted);
+}
 .planner-list section h3,
 .planner-column h3 {
   font-size: 12px;
