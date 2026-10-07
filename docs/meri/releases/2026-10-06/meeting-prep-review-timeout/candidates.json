@@ -1,0 +1,11 @@
+[
+  {
+    "service": "engagement-api",
+    "baselineTask": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:141",
+    "baselineSha": "601c7b45476e8efdd2c34172ba2de25c88dc8631",
+    "baselineImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:caf11ea79a2b79b0c7e7846c14e0adadd06a39361c664a619defe55d875dfe1a",
+    "sourceSha": "ae744c83829394dd745cf7accc413ae518ae695c",
+    "branch": "codex/prep-review-timeout-engagement-api-20261006",
+    "featureSha": "6ab537d0498db8a94fb97e02e1d1e509f679488f"
+  }
+]

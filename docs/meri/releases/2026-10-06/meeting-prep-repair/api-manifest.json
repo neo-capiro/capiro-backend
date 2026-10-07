@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "account": "967807252336",
+  "region": "us-east-1",
+  "cluster": "capiro-dev",
+  "service": "api",
+  "preparedAt": "2026-10-07T02:15:51.161Z",
+  "qualification": {
+    "schemaVersion": 1,
+    "service": "api",
+    "sourceSha": "250fcab8fdc8e051d52000c9d25a091d9d99936a",
+    "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1513075beafac550c5d2f3230002e89a1ca4ded6b57a3b886d2548f3020689b9",
+    "status": "qualified",
+    "reviewer": "Codex release agent under explicit user authorization to merge and ship to AWS; 66 focused tests, full API typecheck, native packaged behavioral probe and exact baseline compatibility reviewed",
+    "reviewedAt": "2026-10-07T02:14:37.607Z",
+    "expiresAt": "2026-10-07T14:14:37.608Z",
+    "schemaChange": false,
+    "evidence": [
+      "https://github.com/neo-capiro/capirov2/blob/b3d2b118e6822840388a2f1c4e94beb3c5f83669/docs/meri/releases/2026-10-06/meeting-prep-repair/qualification.md"
+    ],
+    "checks": [
+      {
+        "name": "build",
+        "status": "passed",
+        "sourceSha": "250fcab8fdc8e051d52000c9d25a091d9d99936a",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1513075beafac550c5d2f3230002e89a1ca4ded6b57a3b886d2548f3020689b9",
+        "url": "https://github.com/neo-capiro/capirov2/blob/b3d2b118e6822840388a2f1c4e94beb3c5f83669/docs/meri/releases/2026-10-06/meeting-prep-repair/qualification.md"
+      },
+      {
+        "name": "automated-tests",
+        "status": "passed",
+        "sourceSha": "250fcab8fdc8e051d52000c9d25a091d9d99936a",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1513075beafac550c5d2f3230002e89a1ca4ded6b57a3b886d2548f3020689b9",
+        "url": "https://github.com/neo-capiro/capirov2/blob/b3d2b118e6822840388a2f1c4e94beb3c5f83669/docs/meri/releases/2026-10-06/meeting-prep-repair/qualification.md"
+      },
+      {
+        "name": "retirement-compatibility",
+        "status": "passed",
+        "sourceSha": "250fcab8fdc8e051d52000c9d25a091d9d99936a",
+        "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1513075beafac550c5d2f3230002e89a1ca4ded6b57a3b886d2548f3020689b9",
+        "url": "https://github.com/neo-capiro/capirov2/blob/b3d2b118e6822840388a2f1c4e94beb3c5f83669/docs/meri/releases/2026-10-06/meeting-prep-repair/qualification.md"
+      }
+    ]
+  },
+  "baseline": {
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:636",
+    "serviceHash": "d1adb8db928b80819673f0bfe3218cf9d5590cebbfd00c78aa4ead1e6324d86e",
+    "configHash": "973748a2b134b388a6027df6c5c099055a7e24f7b746eafbaae8cebad077258a",
+    "taskHash": "e36febe07030a0b47d8137ca368a7ed448e512c82e41bc8a056c1914b3d8e304",
+    "imageDigest": "sha256:03e72d8938ad9e074c0f51c6014bf16fe46638f1579e85abb2e5af20f1792a4f",
+    "desiredCount": 2
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-plan-log-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-07T03:18:46.204876+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "4f0139e2262de789a9b8488045f20819840946bd",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:e3b777df9f385b8dd4fcc929cba7a74862ad689d60a1fe5bb94248788f0c61a5",
+      "buildId": "capiro-build-web-dev:b28952a4-cfca-4580-986f-ca6f524f9552"
+    }
+  ],
+  "schemaChange": false,
+  "change": "API roll from main 4f0139e22: deck provenance by position (#2166) and the planner-reply shape log (#2174); carries meeting-prep #2169 and others.",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}

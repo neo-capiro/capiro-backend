@@ -1,0 +1,1 @@
+{"checkedAt":"2026-10-07T02:58:21.560Z","status":"passed","elapsedMs":4375,"sourceSha":"5f7d600daafe1e368d7491a204295ed5a50f9305","provider":"openai","model":"gpt-6.1-sol","usedTenantKey":true,"recapCharacters":673,"actionItemCount":1,"usage":{"inputTokens":2663,"outputTokens":202},"persistedArtifacts":false,"source":"synthetic text only"}
