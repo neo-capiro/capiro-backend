@@ -16,6 +16,30 @@ export interface PlannerTimesheetData {
   status: PlannerTimesheetStatus;
   notes: string;
   correctedAfterApproval: boolean;
+  work?: PlannerTimesheetWorkRef[];
+  excludedTasks?: string[];
+}
+export interface PlannerTimesheetWorkRef {
+  taskId: string | null;
+  projectId: string | null;
+}
+export interface PlannerTimesheetWorkRow extends PlannerTimesheetWorkRef {
+  key: string;
+  taskName: string | null;
+  projectName: string | null;
+  origin: 'tracked' | 'added' | 'automatic';
+  totalMinutes: number;
+  billableMinutes: number;
+  days: { date: string; totalMinutes: number; billableMinutes: number }[];
+  canLogTime: boolean;
+  canRemove: boolean;
+}
+export interface PlannerTimePreferences {
+  version: number;
+  autoAddDueTasks: boolean;
+}
+export function plannerTimeWorkKey(work: PlannerTimesheetWorkRef): string {
+  return `${work.taskId ?? 'project'}:${work.projectId ?? 'personal'}`;
 }
 export interface PlannerTimeEntry extends PlannerEvent {
   time: PlannerTimeDetails;
@@ -46,6 +70,9 @@ export interface PlannerTimesheet {
   canLogTime?: boolean;
   timeNotice?: string | null;
   approvalProcess?: 'simple' | 'full';
+  workRows?: PlannerTimesheetWorkRow[];
+  matchedWork?: number;
+  nextWorkCursor?: string | null;
 }
 export interface PlannerTimeOptions {
   timeTrackingEnabled: boolean;
