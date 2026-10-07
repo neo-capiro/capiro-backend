@@ -4,6 +4,7 @@ import type {
   PlannerTask,
   PlannerPerson,
   PlannerStatus,
+  PlannerMyTasksData,
 } from '@capiro/strategy-verifier';
 import { PLANNER_STATUS_LABELS } from '@capiro/strategy-verifier';
 import { Check, Circle, Flag, MessageSquare } from 'lucide-react';
@@ -31,6 +32,7 @@ export type TaskViewProps = {
   onOpen: (id: string) => void;
   onPatch: (task: PlannerTask, data: Partial<PlannerTask>) => void;
   disabled: boolean;
+  personal?: PlannerMyTasksData & { onMove: (task: PlannerTask, sectionId: string | null) => void };
 };
 export function TaskCheck({
   task,
@@ -64,7 +66,9 @@ export function PlannerList(
           ? (task.assigneeId ?? '')
           : groupBy === 'none'
             ? ''
-            : (task.memberships.find((m) => m.projectId === props.project?.id)?.sectionId ?? '');
+            : props.personal
+              ? (props.personal.placements.find((p) => p.taskId === task.id)?.sectionId ?? '')
+              : (task.memberships.find((m) => m.projectId === props.project?.id)?.sectionId ?? '');
   const groups =
     groupBy === 'status'
       ? Object.entries(PLANNER_STATUS_LABELS).map(([id, name]) => ({ id, name }))
@@ -80,9 +84,11 @@ export function PlannerList(
             ]
           : groupBy === 'none'
             ? [{ id: '', name: 'Tasks' }]
-            : props.project
-              ? [...props.project.sections, { id: '', name: 'Unsectioned' }]
-              : [{ id: '', name: 'Tasks' }];
+            : props.personal
+              ? [{ id: '', name: 'Recently assigned' }, ...props.personal.sections]
+              : props.project
+                ? [...props.project.sections, { id: '', name: 'Unsectioned' }]
+                : [{ id: '', name: 'Tasks' }];
   return (
     <div className="planner-list" role="table" aria-label="Tasks">
       <div className="planner-list-head" role="row">
@@ -141,6 +147,23 @@ export function PlannerList(
                     {task.subtype === 'milestone' && <Flag size={14} />} {task.name}
                     {task.parentId && <small>Subtask</small>}
                   </button>
+                  {props.personal && (
+                    <select
+                      aria-label={`Personal section for ${task.name}`}
+                      value={
+                        props.personal.placements.find((p) => p.taskId === task.id)?.sectionId ?? ''
+                      }
+                      disabled={props.disabled}
+                      onChange={(e) => props.personal!.onMove(task, e.target.value || null)}
+                    >
+                      <option value="">Recently assigned</option>
+                      {props.personal.sections.map((section) => (
+                        <option key={section.id} value={section.id}>
+                          {section.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </span>
                 <span role="cell">
                   {props.people.find((p) => p.id === task.assigneeId)?.name ?? 'Unassigned'}
@@ -175,19 +198,25 @@ export function PlannerList(
   );
 }
 export function PlannerBoard(props: TaskViewProps) {
-  const columns = props.project?.sections.length
-    ? props.project.sections.map((s) => ({ id: s.id, name: s.name }))
-    : Object.entries(PLANNER_STATUS_LABELS).map(([id, name]) => ({ id, name }));
-  if (props.project?.sections.length) columns.push({ id: '', name: 'Unsectioned' });
+  const columns = props.personal
+    ? [{ id: '', name: 'Recently assigned' }, ...props.personal.sections]
+    : props.project?.sections.length
+      ? props.project.sections.map((s) => ({ id: s.id, name: s.name }))
+      : Object.entries(PLANNER_STATUS_LABELS).map(([id, name]) => ({ id, name }));
+  if (!props.personal && props.project?.sections.length)
+    columns.push({ id: '', name: 'Unsectioned' });
   const [dragging, setDragging] = useState<string | null>(null);
   return (
     <div className="planner-board">
       {columns.map((column) => {
         const tasks = props.tasks.filter((t) =>
-          props.project?.sections.length
-            ? (t.memberships.find((m) => m.projectId === props.project!.id)?.sectionId ?? '') ===
+          props.personal
+            ? (props.personal.placements.find((p) => p.taskId === t.id)?.sectionId ?? '') ===
               column.id
-            : t.status === column.id,
+            : props.project?.sections.length
+              ? (t.memberships.find((m) => m.projectId === props.project!.id)?.sectionId ?? '') ===
+                column.id
+              : t.status === column.id,
         );
         return (
           <section
@@ -199,6 +228,11 @@ export function PlannerBoard(props: TaskViewProps) {
               e.preventDefault();
               const task = props.tasks.find((t) => t.id === dragging);
               if (!task || props.disabled) return;
+              if (props.personal) {
+                props.personal.onMove(task, column.id || null);
+                setDragging(null);
+                return;
+              }
               props.onPatch(
                 task,
                 props.project?.sections.length
@@ -222,7 +256,10 @@ export function PlannerBoard(props: TaskViewProps) {
               <article
                 key={task.id}
                 className="planner-board-card"
-                draggable={!props.disabled && !['viewer', 'commenter'].includes(task.access)}
+                draggable={
+                  !props.disabled &&
+                  (Boolean(props.personal) || !['viewer', 'commenter'].includes(task.access))
+                }
                 onDragStart={() => setDragging(task.id)}
                 onDragEnd={() => setDragging(null)}
               >

@@ -4,6 +4,7 @@ import type { PlannerLinksService } from '../src/planner/planner-links.service.j
 import type { AuthTenantContext } from '../src/auth/tenant-context.js';
 import { PLANNER_DEFAULT_TASK, PLANNER_DEFAULT_PROJECT } from '@capiro/strategy-verifier';
 import { Prisma } from '../generated/prisma-client/index.js';
+import { randomUUID } from 'node:crypto';
 
 const testUrl = process.env.PLANNER_TEST_DATABASE_URL;
 if (testUrl) {
@@ -31,6 +32,243 @@ describeDb('Planner real PostgreSQL integration', () => {
   });
   afterAll(async () => {
     await prisma?.$disconnect();
+  });
+  it('keeps personal sections private, versioned, and independent of shared project membership', async () => {
+    const p = await service.saveProject(owner, null, {
+      data: {
+        name: 'Shared section unaffected',
+        privacy: 'team',
+        sections: [{ id: randomUUID(), name: 'Shared inbox' }],
+      },
+    });
+    const sectionId = p.sections[0]!.id;
+    const t = await service.saveTask(owner, null, {
+      data: {
+        name: 'My task placement',
+        assigneeId: owner.clerkUserId,
+        memberships: [{ projectId: p.id, sectionId, position: 7 }],
+      },
+    });
+    const personalSection = randomUUID();
+    const existing = (await service.resources(owner)).find((r) => r.kind === 'my_tasks');
+    const config = await service.saveResource(owner, existing?.id ?? null, {
+      kind: 'my_tasks',
+      version: existing?.version,
+      name: 'My tasks settings',
+      data: {
+        sections: [{ id: personalSection, name: 'Focus' }],
+        placements: [{ taskId: t.id, sectionId: personalSection, position: 0 }],
+      },
+    });
+    expect((await service.task(owner, t.id)).memberships).toEqual(t.memberships);
+    expect((await service.task(owner, t.id)).version).toBe(t.version);
+    expect((await service.resources(viewer)).some((r) => r.id === config.id)).toBe(false);
+    await expect(
+      service.saveResource(viewer, config.id, {
+        version: config.version,
+        name: 'Cannot change settings',
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      service.saveResource(owner, null, {
+        kind: 'my_tasks',
+        name: 'Duplicate settings',
+        data: config.data,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      service.saveResource(owner, config.id, {
+        version: config.version - 1,
+        name: 'Stale settings',
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      service.saveResource(owner, null, {
+        kind: 'saved_view',
+        projectId: p.id,
+        name: 'Shared personal view',
+        data: {},
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    const otherTask = await service.saveTask(viewer, null, {
+      data: { name: 'Other assigned work', assigneeId: viewer.clerkUserId },
+    });
+    await expect(
+      service.saveResource(owner, config.id, {
+        version: config.version,
+        data: { placements: [{ taskId: otherTask.id, sectionId: personalSection, position: 0 }] },
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    await service.saveTask(owner, t.id, {
+      version: t.version,
+      data: { assigneeId: viewer.clerkUserId },
+    });
+    expect(
+      (await service.resources(owner)).find((r) => r.id === config.id)!.data.placements,
+    ).toEqual([]);
+    const cleared = await service.saveResource(owner, config.id, {
+      version: config.version,
+      data: { placements: [] },
+    });
+    expect(cleared.version).toBe(config.version + 1);
+  });
+  it('pages activity without losing tied timestamps or duplicating rows after a new update', async () => {
+    const t = await service.saveTask(owner, null, { data: { name: 'Activity pagination' } });
+    const ids = Array.from({ length: 201 }, () => randomUUID())
+      .sort()
+      .reverse();
+    await prisma.withTenant(owner.tenantId, (tx) =>
+      tx.spPlannerEvent.createMany({
+        data: ids.map((id) => ({
+          id,
+          tenantId: owner.tenantId,
+          actorId: owner.clerkUserId,
+          taskId: t.id,
+          kind: 'comment',
+          text: `Page ${id}`,
+          createdAt: new Date('2030-01-01T00:00:00.123Z'),
+        })),
+      }),
+    );
+    const first = await service.events(owner, { taskId: t.id }, { paged: 'true' });
+    if (Array.isArray(first)) throw new Error('Expected paginated activity');
+    expect(first.items.map((e) => e.id)).toEqual(ids.slice(0, 100));
+    const newest = await prisma.withTenant(owner.tenantId, (tx) =>
+      tx.spPlannerEvent.create({
+        data: {
+          tenantId: owner.tenantId,
+          actorId: owner.clerkUserId,
+          taskId: t.id,
+          kind: 'comment',
+          text: 'Arrived between pages',
+          createdAt: new Date('2031-01-01T00:00:00Z'),
+        },
+      }),
+    );
+    const second = await service.events(
+      owner,
+      { taskId: t.id },
+      { paged: 'true', cursor: first.nextCursor! },
+    );
+    if (Array.isArray(second)) throw new Error('Expected paginated activity');
+    expect(second.items.map((e) => e.id)).toEqual(ids.slice(100, 200));
+    const third = await service.events(
+      owner,
+      { taskId: t.id },
+      { paged: 'true', cursor: second.nextCursor! },
+    );
+    if (Array.isArray(third)) throw new Error('Expected paginated activity');
+    expect(third.items[0]!.id).toBe(ids[200]);
+    expect(third.nextCursor).toBeNull();
+    const collected = [...first.items, ...second.items, ...third.items].map((e) => e.id);
+    expect(new Set(collected).size).toBe(collected.length);
+    expect(collected).not.toContain(newest.id);
+    expect(await service.events(owner, { taskId: t.id })).toHaveLength(100);
+    const other = await service.saveTask(owner, null, {
+      data: { name: 'Different activity target' },
+    });
+    await expect(
+      service.events(owner, { taskId: other.id }, { paged: 'true', cursor: first.nextCursor! }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.events(outsider, { taskId: t.id }, { paged: 'true', cursor: first.nextCursor! }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+  it('advances an entirely revoked inbox page and isolates archived and other-user cursors', async () => {
+    const p = await service.saveProject(owner, null, {
+      data: {
+        name: 'Revoked paginated inbox',
+        members: [{ userId: viewer.clerkUserId, role: 'viewer' }],
+      },
+    });
+    const revoked = await service.saveTask(owner, null, {
+      data: {
+        name: 'Hidden after revocation',
+        memberships: [{ projectId: p.id, sectionId: null, position: 0 }],
+      },
+    });
+    const visible = await service.saveTask(owner, null, {
+      data: { name: 'Older authorized update', assigneeId: viewer.clerkUserId },
+    });
+    const hiddenEvents: string[] = Array.from({ length: 100 }, () => randomUUID());
+    const visibleEvent = randomUUID();
+    const archivedEvent = randomUUID();
+    const newestTime = Date.now() + 315360000000;
+    await prisma.withTenant(owner.tenantId, async (tx) => {
+      await tx.spPlannerInbox.updateMany({
+        where: { tenantId: owner.tenantId, userId: viewer.clerkUserId },
+        data: { archived: true },
+      });
+      await tx.spPlannerEvent.createMany({
+        data: [
+          ...hiddenEvents.map((id) => ({
+            id,
+            tenantId: owner.tenantId,
+            actorId: owner.clerkUserId,
+            taskId: revoked.id,
+            kind: 'comment',
+            text: 'Private revoked update',
+            createdAt: new Date(newestTime),
+          })),
+          {
+            id: visibleEvent,
+            tenantId: owner.tenantId,
+            actorId: owner.clerkUserId,
+            taskId: visible.id,
+            kind: 'comment',
+            text: 'Older authorized update',
+            createdAt: new Date(newestTime - 1),
+          },
+          {
+            id: archivedEvent,
+            tenantId: owner.tenantId,
+            actorId: owner.clerkUserId,
+            taskId: visible.id,
+            kind: 'comment',
+            text: 'Archived authorized update',
+            createdAt: new Date(newestTime + 1),
+          },
+        ],
+      });
+      await tx.spPlannerInbox.createMany({
+        data: [...hiddenEvents, visibleEvent, archivedEvent].map((eventId) => ({
+          tenantId: owner.tenantId,
+          userId: viewer.clerkUserId,
+          eventId,
+          archived: eventId === archivedEvent,
+        })),
+      });
+    });
+    await service.saveProject(owner, p.id, { version: p.version, data: { members: [] } });
+    const first = await service.inbox(viewer, { paged: 'true', archived: 'false' });
+    if (Array.isArray(first)) throw new Error('Expected paginated inbox');
+    expect(first.items).toEqual([]);
+    expect(first.nextCursor).not.toBeNull();
+    const second = await service.inbox(viewer, {
+      paged: 'true',
+      archived: 'false',
+      cursor: first.nextCursor!,
+    });
+    if (Array.isArray(second)) throw new Error('Expected paginated inbox');
+    expect(second.items[0]!.event.id).toBe(visibleEvent);
+    expect(
+      second.items.some(
+        (item) => hiddenEvents.includes(item.event.id) || item.event.id === archivedEvent,
+      ),
+    ).toBe(false);
+    await expect(
+      service.inbox(owner, { paged: 'true', cursor: first.nextCursor! }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.inbox(
+        { ...viewer, tenantId: '10000000-0000-4000-8000-000000000002' },
+        { paged: 'true', cursor: first.nextCursor! },
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+    const archive = await service.inbox(viewer, { paged: 'true', archived: 'true' });
+    if (Array.isArray(archive)) throw new Error('Expected paginated inbox');
+    expect(archive.items.some((item) => item.event.id === archivedEvent)).toBe(true);
+    expect(archive.items.every((item) => item.archived)).toBe(true);
   });
   it('persists projects/tasks/comments and filters private work on every read', async () => {
     const p = await service.saveProject(owner, null, {

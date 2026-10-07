@@ -14,6 +14,34 @@ const rule: PlannerRuleData = {
   actions: { priority: 'high', assigneeId: 'user_owner' },
 };
 describe('Planner rules and management validation', () => {
+  it('rejects dangling or duplicated personal placements and sharing fields', () => {
+    const personal = {
+      sections: [{ id: P, name: 'Today' }],
+      placements: [{ taskId: P, sectionId: P, position: 0 }],
+    };
+    expect(validateResource('my_tasks', personal)).toEqual(personal);
+    expect(() => validateResource('my_tasks', { ...personal, privacy: 'team' })).toThrow(
+      BadRequestException,
+    );
+    expect(() =>
+      validateResource('my_tasks', {
+        ...personal,
+        placements: [...personal.placements, ...personal.placements],
+      }),
+    ).toThrow(BadRequestException);
+    expect(() =>
+      validateResource('my_tasks', {
+        ...personal,
+        placements: [{ taskId: P, sectionId: 'missing', position: 0 }],
+      }),
+    ).toThrow(BadRequestException);
+    expect(() =>
+      validateResource('my_tasks', {
+        ...personal,
+        placements: [{ taskId: P, sectionId: P, position: 1.5 }],
+      }),
+    ).toThrow(BadRequestException);
+  });
   it('runs only when the trigger and all conditions match', () => {
     expect(applyPlannerRule(task, task, P, rule)).toEqual(task);
     expect(applyPlannerRule({ ...task, status: 'in_progress' }, task, P, rule)).toMatchObject({

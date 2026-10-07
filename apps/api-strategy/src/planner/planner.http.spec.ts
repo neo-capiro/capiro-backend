@@ -124,6 +124,31 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .set('x-planner-qa', 'allowed')
       .expect(404);
   });
+  it('forwards activity cursors and the archived inbox filter through guarded routes', async () => {
+    await request(app.getHttpServer())
+      .get(`/strategy-api/planner/tasks/${ID}/events?paged=true&cursor=${ID}`)
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.events).toHaveBeenLastCalledWith(
+      ctx,
+      { taskId: ID },
+      { paged: 'true', cursor: ID },
+    );
+    await request(app.getHttpServer())
+      .get(`/strategy-api/planner/projects/${ID}/events?paged=true`)
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.events).toHaveBeenLastCalledWith(ctx, { projectId: ID }, { paged: 'true' });
+    await request(app.getHttpServer())
+      .get(`/strategy-api/planner/inbox?paged=true&archived=true&cursor=${ID}`)
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    expect(planner.inbox).toHaveBeenLastCalledWith(ctx, {
+      paged: 'true',
+      archived: 'true',
+      cursor: ID,
+    });
+  });
   it('rejects an unsupported impersonated tenant before reaching Planner business code', async () => {
     planner.bootstrap.mockClear();
     await request(app.getHttpServer())

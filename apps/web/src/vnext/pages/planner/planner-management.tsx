@@ -1123,13 +1123,22 @@ export function PlannerProjectActivity({
           <button disabled={actions.event.isPending || !text.trim()}>Post update</button>
         </form>
       )}
-      {query.data?.map((e) => (
-        <article key={e.id}>
-          <strong>{bootstrap.people.find((p) => p.id === e.actorId)?.name ?? 'Team member'}</strong>
-          <time>{new Date(e.createdAt).toLocaleString()}</time>
-          <PlannerFormattedText text={e.text} />
-        </article>
-      ))}
+      {query.data?.pages
+        .flatMap((page) => page.items)
+        .map((e) => (
+          <article key={e.id}>
+            <strong>
+              {bootstrap.people.find((p) => p.id === e.actorId)?.name ?? 'Team member'}
+            </strong>
+            <time>{new Date(e.createdAt).toLocaleString()}</time>
+            <PlannerFormattedText text={e.text} />
+          </article>
+        ))}
+      {query.hasNextPage && (
+        <button disabled={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>
+          {query.isFetchingNextPage ? 'Loading older updates…' : 'Load older updates'}
+        </button>
+      )}
     </details>
   );
 }

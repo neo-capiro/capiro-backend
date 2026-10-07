@@ -26,6 +26,7 @@ export const RESOURCE_KINDS: PlannerResourceKind[] = [
   'form',
   'saved_view',
   'capacity',
+  'my_tasks',
 ];
 function string(value: unknown, max = 5000, required = false) {
   if (typeof value !== 'string' || value.length > max || (required && !value.trim()))
@@ -230,6 +231,27 @@ export function validateResource(
     enumValue(d.sort, ['position', 'due', 'name', 'priority']);
     if (d.groupBy !== undefined)
       enumValue(d.groupBy, ['section', 'status', 'priority', 'assignee', 'none']);
+  } else if (kind === 'my_tasks') {
+    keys(d, ['sections', 'placements']);
+    const sections = array(d.sections, 100);
+    for (const raw of sections) {
+      const s = object(raw);
+      keys(s, ['id', 'name']);
+      uuid(s.id);
+      string(s.name, 200, true);
+    }
+    distinct(sections.map((s) => object(s).id));
+    const placements = array(d.placements, 10000);
+    for (const raw of placements) {
+      const p = object(raw);
+      keys(p, ['taskId', 'sectionId', 'position']);
+      uuid(p.taskId);
+      if (p.sectionId !== null && !sections.some((s) => object(s).id === p.sectionId))
+        fail('Personal section is unavailable');
+      number(p.position, 1000000);
+      if (!Number.isInteger(p.position)) fail('Personal task order must use whole numbers');
+    }
+    distinct(placements.map((p) => object(p).taskId));
   } else if (kind === 'capacity') {
     keys(d, ['userId', 'weeklyMinutes']);
     string(d.userId, 200, true);

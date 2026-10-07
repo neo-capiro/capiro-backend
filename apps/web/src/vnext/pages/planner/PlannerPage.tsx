@@ -27,11 +27,13 @@ import type {
   PlannerBootstrap,
   PlannerView,
   PlannerStatus,
+  PlannerMyTasksData,
 } from '@capiro/strategy-verifier';
 import {
   PLANNER_DEFAULT_PROJECT,
   PLANNER_DEFAULT_TASK,
   PLANNER_STATUS_LABELS,
+  PLANNER_DEFAULT_MY_TASKS,
 } from '@capiro/strategy-verifier';
 import { useApi } from '../../../lib/use-api.js';
 import {
@@ -59,6 +61,7 @@ import { plannerCsvCell } from './planner-csv.js';
 import { SavePlannerView } from './planner-saved-view.js';
 import { PlannerAttachments } from './planner-attachments.js';
 import { PlannerRichText, PlannerFormattedText } from './planner-rich-text.js';
+import { PlannerMyTasksSettings } from './planner-my-tasks.js';
 import type { PlannerSavedViewData } from '@capiro/strategy-verifier';
 import './planner.css';
 
@@ -107,6 +110,9 @@ export function PlannerPage() {
   const bootstrap = usePlannerBootstrap();
   const mutations = usePlannerMutations();
   const resources = usePlannerResources();
+  const personalResource = resources.data?.find((r) => r.kind === 'my_tasks' && !r.archived);
+  const personalData =
+    (personalResource?.data as unknown as PlannerMyTasksData) ?? PLANNER_DEFAULT_MY_TASKS;
   const scope = params.get('scope') ?? 'mine';
   const projectId = params.get('project') ?? undefined;
   const project = bootstrap.data?.projects.find((p) => p.id === projectId);
@@ -133,6 +139,11 @@ export function PlannerPage() {
   const [newTask, setNewTask] = useState(false);
   const [importing, setImporting] = useState(false);
   const [savingView, setSavingView] = useState(false);
+  const [personalEditor, setPersonalEditor] = useState<{
+    data: PlannerMyTasksData;
+    id?: string;
+    version?: number;
+  } | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState('done');
@@ -154,6 +165,68 @@ export function PlannerPage() {
     setSelected([]);
   };
   const openTask = (id: string) => updateParams({ task: id });
+  const savePersonal = async (
+    data: PlannerMyTasksData,
+    baseline: { id?: string; version?: number } = {
+      id: personalResource?.id,
+      version: personalResource?.version,
+    },
+  ) => {
+    await mutations.resource.mutateAsync({
+      ...baseline,
+      kind: 'my_tasks',
+      name: 'My tasks settings',
+      data: { ...data },
+    });
+  };
+  const movePersonal = async (task: PlannerTask, sectionId: string | null) => {
+    setError(null);
+    try {
+      await savePersonal({
+        ...personalData,
+        placements: [
+          ...personalData.placements.filter((p) => p.taskId !== task.id),
+          {
+            taskId: task.id,
+            sectionId,
+            position: Math.max(-1, ...personalData.placements.map((p) => p.position)) + 1,
+          },
+        ],
+      });
+    } catch (error) {
+      setError(error);
+    }
+  };
+  const reorderPersonal = async (id: string, targetId: string) => {
+    const ordered = [...tasks].sort(
+      (a, b) =>
+        (personalData.placements.find((p) => p.taskId === a.id)?.position ?? 1000000) -
+          (personalData.placements.find((p) => p.taskId === b.id)?.position ?? 1000000) ||
+        a.createdAt.localeCompare(b.createdAt),
+    );
+    const moving = ordered.find((t) => t.id === id);
+    if (!moving) return;
+    const next = ordered.filter((t) => t.id !== id);
+    next.splice(
+      next.findIndex((t) => t.id === targetId),
+      0,
+      moving,
+    );
+    const positions = new Map(next.map((t, index) => [t.id, index]));
+    const existing = new Map(personalData.placements.map((p) => [p.taskId, p]));
+    for (const task of next)
+      existing.set(task.id, {
+        taskId: task.id,
+        sectionId: existing.get(task.id)?.sectionId ?? null,
+        position: positions.get(task.id)!,
+      });
+    setError(null);
+    try {
+      await savePersonal({ ...personalData, placements: [...existing.values()] });
+    } catch (error) {
+      setError(error);
+    }
+  };
   const reorder = async (id: string, targetId: string) => {
     if (!project) return;
     const ordered = [...tasks].sort(
@@ -199,6 +272,12 @@ export function PlannerPage() {
         return (
           ['high', 'medium', 'low', 'none'].indexOf(a.priority) -
           ['high', 'medium', 'low', 'none'].indexOf(b.priority)
+        );
+      if (scope === 'mine' && !projectId)
+        return (
+          (personalData.placements.find((p) => p.taskId === a.id)?.position ?? 1000000) -
+            (personalData.placements.find((p) => p.taskId === b.id)?.position ?? 1000000) ||
+          a.createdAt.localeCompare(b.createdAt)
         );
       return (
         (a.memberships.find((m) => m.projectId === projectId)?.position ?? 0) -
@@ -282,7 +361,14 @@ export function PlannerPage() {
     project,
     onOpen: openTask,
     onPatch: patchTask,
-    disabled: mutations.task.isPending,
+    disabled:
+      mutations.task.isPending ||
+      (scope === 'mine' &&
+        !projectId &&
+        (resources.isPending || resources.isError || mutations.resource.isPending)),
+    ...(scope === 'mine' && !projectId
+      ? { personal: { ...personalData, onMove: movePersonal } }
+      : {}),
   };
   return (
     <main className="planner-root" data-vnext-module="planner">
@@ -564,7 +650,9 @@ export function PlannerPage() {
                   value={sort}
                   onChange={(e) => setSort(e.target.value)}
                 >
-                  <option value="position">Project order</option>
+                  <option value="position">
+                    {scope === 'mine' && !projectId ? 'My task order' : 'Project order'}
+                  </option>
                   <option value="due">Due date</option>
                   <option value="name">Name</option>
                   <option value="priority">Priority</option>
@@ -589,6 +677,23 @@ export function PlannerPage() {
                   <button onClick={() => setImporting(true)}>Import CSV</button>
                 )}
                 {!archived && <button onClick={() => setSavingView(true)}>Save view</button>}
+                {scope === 'mine' && !projectId && (
+                  <button
+                    disabled={
+                      resources.isPending || resources.isError || mutations.resource.isPending
+                    }
+                    onClick={() => {
+                      mutations.resource.reset();
+                      setPersonalEditor({
+                        data: structuredClone(personalData),
+                        id: personalResource?.id,
+                        version: personalResource?.version,
+                      });
+                    }}
+                  >
+                    My tasks settings
+                  </button>
+                )}
               </div>
               {query.isPending ? (
                 <p role="status">Loading tasks…</p>
@@ -614,16 +719,35 @@ export function PlannerPage() {
                   {...viewProps}
                   groupBy={groupBy}
                   onReorder={
-                    project &&
-                    writable(project.access) &&
+                    scope === 'mine' &&
+                    !projectId &&
                     sort === 'position' &&
                     !query.hasNextPage &&
                     !archived &&
-                    tasks.length <= 1000
-                      ? reorder
-                      : undefined
+                    !resources.isPending &&
+                    !resources.isError
+                      ? reorderPersonal
+                      : project &&
+                          writable(project.access) &&
+                          sort === 'position' &&
+                          !query.hasNextPage &&
+                          !archived &&
+                          tasks.length <= 1000
+                        ? reorder
+                        : undefined
                   }
                   disabled={viewProps.disabled || mutations.reorder.isPending}
+                />
+              )}
+              {personalEditor && (
+                <PlannerMyTasksSettings
+                  data={personalEditor.data}
+                  onSave={(data) =>
+                    savePersonal(data, { id: personalEditor.id, version: personalEditor.version })
+                  }
+                  onClose={() => setPersonalEditor(null)}
+                  pending={mutations.resource.isPending}
+                  error={mutations.resource.error ? plannerError(mutations.resource.error) : null}
                 />
               )}
               {query.isFetchingNextPage && (
@@ -1949,18 +2073,31 @@ function TaskEditor({
                     </>
                   )}
                   <ErrorText error={events.error} />
-                  {events.data?.map((event) => (
-                    <article className="planner-activity" key={event.id}>
-                      <header>
-                        <strong>
-                          {bootstrap.people.find((p) => p.id === event.actorId)?.name ??
-                            'Team member'}
-                        </strong>
-                        <time>{new Date(event.createdAt).toLocaleString()}</time>
-                      </header>
-                      <PlannerFormattedText text={event.text} />
-                    </article>
-                  ))}
+                  {events.data?.pages
+                    .flatMap((page) => page.items)
+                    .map((event) => (
+                      <article className="planner-activity" key={event.id}>
+                        <header>
+                          <strong>
+                            {bootstrap.people.find((p) => p.id === event.actorId)?.name ??
+                              'Team member'}
+                          </strong>
+                          <time>{new Date(event.createdAt).toLocaleString()}</time>
+                        </header>
+                        <PlannerFormattedText text={event.text} />
+                      </article>
+                    ))}
+                  {events.hasNextPage && (
+                    <button
+                      type="button"
+                      disabled={events.isFetchingNextPage}
+                      onClick={() => events.fetchNextPage()}
+                    >
+                      {events.isFetchingNextPage
+                        ? 'Loading older activity…'
+                        : 'Load older activity'}
+                    </button>
+                  )}
                 </>
               )}
               <ErrorText error={mutation.error || actions.task.error || actions.event.error} />
@@ -2023,9 +2160,10 @@ function TaskEditor({
 }
 
 function PlannerInbox({ onOpen }: { onOpen: (id: string) => void }) {
-  const query = usePlannerInbox();
-  const actions = usePlannerMutations();
   const [archive, setArchive] = useState(false);
+  const query = usePlannerInbox(archive);
+  const actions = usePlannerMutations();
+  const items = query.data?.pages.flatMap((page) => page.items) ?? [];
   return (
     <div className="planner-inbox">
       <div className="planner-tabs">
@@ -2040,29 +2178,32 @@ function PlannerInbox({ onOpen }: { onOpen: (id: string) => void }) {
       {query.isPending ? (
         <p role="status">Loading inbox…</p>
       ) : (
-        query.data
-          ?.filter((item) => item.archived === archive)
-          .map((item) => (
-            <article className={`planner-inbox-item ${item.read ? '' : 'is-unread'}`} key={item.id}>
-              <button
-                onClick={() => {
-                  actions.inbox.mutate({ id: item.id, read: true });
-                  if (item.event.taskId) onOpen(item.event.taskId);
-                }}
-              >
-                <strong>{item.event.text}</strong>
-                <time>{new Date(item.event.createdAt).toLocaleString()}</time>
-              </button>
-              <button
-                disabled={actions.inbox.isPending}
-                onClick={() => actions.inbox.mutate({ id: item.id, archived: !item.archived })}
-              >
-                {archive ? 'Restore' : 'Archive'}
-              </button>
-            </article>
-          ))
+        items.map((item) => (
+          <article className={`planner-inbox-item ${item.read ? '' : 'is-unread'}`} key={item.id}>
+            <button
+              onClick={() => {
+                actions.inbox.mutate({ id: item.id, read: true });
+                if (item.event.taskId) onOpen(item.event.taskId);
+              }}
+            >
+              <strong>{item.event.text}</strong>
+              <time>{new Date(item.event.createdAt).toLocaleString()}</time>
+            </button>
+            <button
+              disabled={actions.inbox.isPending}
+              onClick={() => actions.inbox.mutate({ id: item.id, archived: !item.archived })}
+            >
+              {archive ? 'Restore' : 'Archive'}
+            </button>
+          </article>
+        ))
       )}
-      {query.data?.filter((item) => item.archived === archive).length === 0 && (
+      {query.hasNextPage && (
+        <button disabled={query.isFetchingNextPage} onClick={() => query.fetchNextPage()}>
+          {query.isFetchingNextPage ? 'Loading older updates…' : 'Load older updates'}
+        </button>
+      )}
+      {!query.isPending && !query.error && !query.hasNextPage && items.length === 0 && (
         <Empty title="You’re all caught up">
           Updates to tasks you follow or own will appear here.
         </Empty>

@@ -80,11 +80,26 @@ const api = {
       };
     if (path.endsWith('/bootstrap'))
       return { data: { me: people[0], people, projects: structuredClone(projects) } };
-    if (path.endsWith('/inbox')) return { data: [] };
+    if (path.endsWith('/inbox'))
+      return { data: config?.params?.paged === 'true' ? { items: [], nextCursor: null } : [] };
     if (path.endsWith('/resources')) return { data: structuredClone(resources) };
     if (path.endsWith('/attachments')) return { data: [] };
-    if (path.endsWith('/events'))
-      return { data: structuredClone(events.filter((e) => e.taskId === path.split('/').at(-2))) };
+    if (path.endsWith('/events')) {
+      const target = path.split('/').at(-2);
+      const matching = events.filter((e) => e.taskId === target || e.projectId === target);
+      const offset = config?.params?.cursor
+        ? matching.findIndex((e) => e.id === config.params!.cursor) + 1
+        : 0;
+      return {
+        data:
+          config?.params?.paged === 'true'
+            ? {
+                items: structuredClone(matching.slice(offset, offset + 100)),
+                nextCursor: matching.length > offset + 100 ? matching[offset + 99]!.id : null,
+              }
+            : structuredClone(matching.slice(0, 100)),
+      };
+    }
     if (path.endsWith('/tasks'))
       return {
         data: {
