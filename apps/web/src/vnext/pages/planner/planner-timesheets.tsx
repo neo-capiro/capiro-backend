@@ -26,6 +26,7 @@ import {
 } from './planner-api.js';
 import { PlannerTimeForm } from './planner-time-form.js';
 import { PlannerTimeOptionsFields } from './planner-time-options.js';
+import { PlannerTimesheetWork } from './planner-timesheet-work.js';
 import { PlannerFormattedText } from './planner-rich-text.js';
 import { plannerCsvCell } from './planner-csv.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -407,6 +408,15 @@ export function PlannerTimesheets({
               </tbody>
             </table>
           </div>
+          {sheet.workRows !== undefined && (
+            <PlannerTimesheetWork
+              key={`${scope}:${week}:${userId}`}
+              bootstrap={bootstrap}
+              sheet={sheet}
+              options={config.data?.options ?? bootstrap.timeOptions}
+              canManage={config.data?.canManage ?? bootstrap.timeAdmin}
+            />
+          )}
           <div className="planner-actions">
             <button
               type="button"

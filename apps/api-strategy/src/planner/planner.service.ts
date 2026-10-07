@@ -20,6 +20,7 @@ import {
   plannerWeekOn,
   plannerWeekDate,
   plannerTimeToday,
+  plannerTimeWorkKey,
   plannerTemplateSchedule,
   plannerDependencyCycle,
   type PlannerBootstrap,
@@ -49,6 +50,8 @@ import {
   type PlannerTimesheetData,
   type PlannerTimeSettings,
   type PlannerTimeEntry,
+  type PlannerTimePreferences,
+  type PlannerTimesheetWorkRef,
 } from '@capiro/strategy-verifier';
 import {
   Prisma,
@@ -90,6 +93,7 @@ import {
   plannerTimeDateNotice,
   requirePlannerTimePolicy,
 } from './planner-time-policy.js';
+import { plannerTimesheetWorkRows, type PlannerTimeWorkSource } from './planner-timesheet-work.js';
 import { plannerDateRuleReady, plannerScheduleHash } from './planner-date-rules.js';
 import {
   plannerGoalCycle,
@@ -2330,6 +2334,53 @@ export class PlannerService {
       where: { tenantId: ctx.tenantId, kind: 'time_settings' },
     });
   }
+  private timePreferencesRecord(tx: Tx, ctx: AuthTenantContext, userId = ctx.clerkUserId) {
+    return tx.spPlannerResource.findFirst({
+      where: { tenantId: ctx.tenantId, ownerId: userId, kind: 'time_preferences' },
+    });
+  }
+  async timePreferences(ctx: AuthTenantContext): Promise<PlannerTimePreferences> {
+    return this.scope(ctx, async (tx) => {
+      if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId)) throw missing();
+      const row = await this.timePreferencesRecord(tx, ctx);
+      return {
+        version: row?.version ?? 0,
+        autoAddDueTasks:
+          (row?.data as { autoAddDueTasks?: boolean } | undefined)?.autoAddDueTasks === true,
+      };
+    });
+  }
+  async saveTimePreferences(ctx: AuthTenantContext, raw: unknown) {
+    const dto = object(raw);
+    keys(dto, ['version', 'autoAddDueTasks']);
+    if (typeof dto.autoAddDueTasks !== 'boolean') fail('Choose whether to auto-add due tasks');
+    return this.scope(
+      ctx,
+      async (tx) => {
+        if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId)) throw missing();
+        const row = await this.timePreferencesRecord(tx, ctx);
+        requirePlannerTimesheetVersion(dto.version, row?.version ?? 0);
+        const data = json({ autoAddDueTasks: dto.autoAddDueTasks });
+        if (row)
+          await tx.spPlannerResource.update({
+            where: { tenantId: ctx.tenantId, id: row.id },
+            data: { data, version: { increment: 1 } },
+          });
+        else
+          await tx.spPlannerResource.create({
+            data: {
+              tenantId: ctx.tenantId,
+              ownerId: ctx.clerkUserId,
+              kind: 'time_preferences',
+              name: 'Personal timesheet settings',
+              data,
+            },
+          });
+        return { ok: true };
+      },
+      true,
+    );
+  }
   private storedTimeOptions(row: SpPlannerResource | null) {
     return plannerTimeOptions((row?.data as { options?: unknown } | undefined)?.options);
   }
@@ -2498,18 +2549,51 @@ export class PlannerService {
       requireRole(project ? plannerProjectAccess(project, ctx.clerkUserId) : null, 'editor');
     }
   }
+  private timeWorkSource(
+    ref: PlannerTimesheetWorkRef,
+    tasks: SpPlannerTask[],
+    projects: SpPlannerProject[],
+    ctx: AuthTenantContext,
+  ): PlannerTimeWorkSource | null {
+    const task = ref.taskId ? tasks.find((t) => t.id === ref.taskId) : null;
+    const project = ref.projectId ? projects.find((p) => p.id === ref.projectId) : null;
+    if ((ref.taskId && !task) || (ref.projectId && !project) || (!task && !project)) return null;
+    const taskRole = task ? plannerTaskAccess(task, projects, ctx.clerkUserId) : null;
+    const projectRole = project ? plannerProjectAccess(project, ctx.clerkUserId) : null;
+    if ((task && !taskRole) || (project && !projectRole)) return null;
+    const editable = (role: PlannerRole | null) => role === 'editor' || role === 'admin';
+    return {
+      ...ref,
+      taskName: task ? taskData(task).name : null,
+      projectName: project ? projectData(project).name : null,
+      canLogTime:
+        (!task || (!task.archived && editable(taskRole))) &&
+        (!project || (!project.archived && editable(projectRole))) &&
+        (!task ||
+          (ref.projectId
+            ? task.projectIds.includes(ref.projectId)
+            : !task.projectIds.length ||
+              task.projectIds.some((id) => {
+                const p = projects.find((p) => p.id === id);
+                return p && !p.archived && editable(plannerProjectAccess(p, ctx.clerkUserId));
+              }))),
+    };
+  }
   private async timesheetView(
     tx: Tx,
     ctx: AuthTenantContext,
     userId: string,
     weekOn: string,
-    query: { cursor?: string; revision?: string } = {},
+    query: { cursor?: string; workCursor?: string; revision?: string; allWork?: boolean } = {},
   ): Promise<PlannerTimesheet> {
     const row = await this.timeSheetRecord(tx, ctx, userId, weekOn);
     const data = await this.timeSheetData(tx, ctx, userId, weekOn, row);
     await this.timeSheetReadable(tx, ctx, userId, data);
     const config = await this.timeSettingsRecord(tx, ctx);
     const timeOptions = this.storedTimeOptions(config);
+    const preferences = await this.timePreferencesRecord(tx, ctx, userId);
+    const autoAddDueTasks =
+      (preferences?.data as { autoAddDueTasks?: boolean } | undefined)?.autoAddDueTasks === true;
     const throughOn = plannerWeekDate(weekOn, 6),
       nextOn = plannerWeekDate(weekOn, 7);
     // Working dates come from the latest immutable snapshot, never a task's due date.
@@ -2526,7 +2610,28 @@ export class PlannerService {
     const tasks = await tx.spPlannerTask.findMany({
       where: {
         tenantId: ctx.tenantId,
-        id: { in: events.flatMap((e) => (e.taskId ? [e.taskId] : [])) },
+        OR: [
+          {
+            id: {
+              in: [
+                ...events.flatMap((e) => (e.taskId ? [e.taskId] : [])),
+                ...(data.work ?? []).flatMap((w) => (w.taskId ? [w.taskId] : [])),
+              ],
+            },
+          },
+          ...(autoAddDueTasks
+            ? [
+                {
+                  assigneeId: userId,
+                  archived: false,
+                  AND: [
+                    { data: { path: ['dueOn'], gte: weekOn } },
+                    { data: { path: ['dueOn'], lte: throughOn } },
+                  ],
+                },
+              ]
+            : []),
+        ],
       },
     });
     const days = Array.from({ length: 7 }, (_, i) => ({
@@ -2571,13 +2676,63 @@ export class PlannerService {
     items.sort(
       (a, b) => a.time.workedOn.localeCompare(b.time.workedOn) || a.id.localeCompare(b.id),
     );
+    const canEditWeek =
+      plannerTimeEditable(data, userId, ctx.clerkUserId, ctx.role === 'org:admin') &&
+      !plannerTimeDateNotice(weekOn, timeOptions, ctx.role === 'org:admin');
+    const manual = (data.work ?? [])
+      .map((w) => this.timeWorkSource(w, tasks, projects, ctx))
+      .filter((w): w is PlannerTimeWorkSource => !!w);
+    const automatic = autoAddDueTasks
+      ? tasks
+          .filter(
+            (t) =>
+              !t.archived &&
+              t.assigneeId === userId &&
+              taskData(t).dueOn &&
+              taskData(t).dueOn! >= weekOn &&
+              taskData(t).dueOn! <= throughOn,
+          )
+          .map((t) => {
+            const projectIds = t.projectIds.filter((id) =>
+              projects.some(
+                (p) => p.id === id && !p.archived && plannerProjectAccess(p, ctx.clerkUserId),
+              ),
+            );
+            return this.timeWorkSource(
+              { taskId: t.id, projectId: projectIds.length === 1 ? projectIds[0]! : null },
+              tasks,
+              projects,
+              ctx,
+            );
+          })
+          .filter((w): w is PlannerTimeWorkSource => !!w)
+      : [];
+    const workRows = plannerTimesheetWorkRows(
+      days.map((d) => d.date),
+      items,
+      manual,
+      automatic,
+      data.excludedTasks ?? [],
+      canEditWeek,
+      (e) =>
+        this.timeWorkSource(
+          { taskId: e.taskId, projectId: e.time.projectId },
+          tasks,
+          projects,
+          ctx,
+        )!,
+    );
+    for (const work of workRows)
+      if (!work.taskId && !timeOptions.generalWorkEnabled) work.canLogTime = false;
     const revision = createHash('sha256')
       .update(
         JSON.stringify({
           version: row?.version ?? 0,
           timeSettingsVersion: config?.version ?? 0,
+          timePreferencesVersion: preferences?.version ?? 0,
           data,
           items,
+          workRows,
         }),
       )
       .digest('hex');
@@ -2585,6 +2740,10 @@ export class PlannerService {
       throw new ConflictException('Time or access changed. Refresh this timesheet.');
     const start = query.cursor ? items.findIndex((e) => e.id === query.cursor) + 1 : 0;
     if (query.cursor && !start) fail('Timesheet cursor is no longer available');
+    const workStart = query.workCursor
+      ? workRows.findIndex((w) => w.key === query.workCursor) + 1
+      : 0;
+    if (query.workCursor && !workStart) fail('Timesheet work cursor is no longer available');
     const history = row
       ? await tx.spPlannerEvent.findMany({
           where: { tenantId: ctx.tenantId, resourceId: row.id, kind: 'timesheet_status' },
@@ -2626,18 +2785,25 @@ export class PlannerService {
       nextCursor: items.length > start + 100 ? items[start + 99]!.id : null,
       actions,
       history: history.map((e) => plannerEventView(e)),
-      canLogTime:
-        plannerTimeEditable(data, userId, ctx.clerkUserId, ctx.role === 'org:admin') &&
-        !plannerTimeDateNotice(weekOn, timeOptions, ctx.role === 'org:admin'),
+      canLogTime: canEditWeek,
       timeNotice: plannerTimeDateNotice(weekOn, timeOptions, ctx.role === 'org:admin'),
       approvalProcess: timeOptions.approvalProcess,
+      workRows: query.allWork ? workRows : workRows.slice(workStart, workStart + 100),
+      matchedWork: workRows.length,
+      nextWorkCursor: workRows.length > workStart + 100 ? workRows[workStart + 99]!.key : null,
     };
   }
   async timesheet(
     ctx: AuthTenantContext,
-    query: { week?: string; userId?: string; cursor?: string; revision?: string },
+    query: {
+      week?: string;
+      userId?: string;
+      cursor?: string;
+      workCursor?: string;
+      revision?: string;
+    },
   ) {
-    keys(query, ['week', 'userId', 'cursor', 'revision']);
+    keys(query, ['week', 'userId', 'cursor', 'workCursor', 'revision']);
     const weekOn = plannerTimesheetWeek(query.week),
       userId = query.userId ?? ctx.clerkUserId;
     if (typeof userId !== 'string' || userId.length > 200) fail('Invalid time submitter');
@@ -2645,9 +2811,99 @@ export class PlannerService {
       uuid(query.cursor);
       if (!query.revision) fail('Timesheet paging requires its data revision');
     }
+    if (query.workCursor && (query.workCursor.length > 80 || !query.revision))
+      fail('Work paging requires a cursor and data revision');
     if (query.revision && !/^[a-f0-9]{64}$/.test(query.revision))
       fail('Invalid timesheet revision');
     return this.scope(ctx, (tx) => this.timesheetView(tx, ctx, userId, weekOn, query));
+  }
+  async saveTimesheetWork(ctx: AuthTenantContext, raw: unknown) {
+    const dto = object(raw);
+    keys(dto, ['week', 'userId', 'version', 'revision', 'action', 'work']);
+    const weekOn = plannerTimesheetWeek(dto.week),
+      userId = dto.userId ?? ctx.clerkUserId;
+    if (typeof userId !== 'string' || !userId || userId.length > 200)
+      fail('Invalid time submitter');
+    if (typeof dto.revision !== 'string' || !/^[a-f0-9]{64}$/.test(dto.revision))
+      fail('A current timesheet revision is required');
+    if (!['add', 'remove'].includes(String(dto.action)))
+      fail('Choose whether to add or remove work');
+    const rawWork = object(dto.work);
+    keys(rawWork, ['taskId', 'projectId']);
+    const work: PlannerTimesheetWorkRef = {
+      taskId: rawWork.taskId === null ? null : uuid(rawWork.taskId),
+      projectId: rawWork.projectId === null ? null : uuid(rawWork.projectId),
+    };
+    if (!work.taskId && !work.projectId) fail('Choose a task or project');
+    return this.scope(
+      ctx,
+      async (tx) => {
+        const view = await this.timesheetView(tx, ctx, userId, weekOn, {
+          revision: dto.revision as string,
+          allWork: true,
+        });
+        requirePlannerTimesheetVersion(dto.version, view.version);
+        if (!view.canLogTime) throw new ForbiddenException('This week is locked for time changes');
+        const row = await this.timeSheetRecord(tx, ctx, userId, weekOn),
+          data = await this.timeSheetData(tx, ctx, userId, weekOn, row);
+        const storedWork = data.work ?? [],
+          key = plannerTimeWorkKey(work);
+        let selected: PlannerTimesheetWorkRef[],
+          excluded = data.excludedTasks ?? [];
+        if (dto.action === 'remove') {
+          const found = view.workRows!.find((w) => w.key === key);
+          if (!found) throw missing();
+          if (!found.canRemove)
+            throw new ForbiddenException(
+              'Remove all time entries for this work before removing its row',
+            );
+          selected = storedWork.filter((w) => plannerTimeWorkKey(w) !== key);
+          if (work.taskId) excluded = [...new Set([...excluded, work.taskId])];
+        } else {
+          const projects = await this.projects(tx, ctx);
+          const tasks = work.taskId
+            ? await tx.spPlannerTask.findMany({
+                where: { tenantId: ctx.tenantId, id: work.taskId },
+              })
+            : [];
+          const source = this.timeWorkSource(work, tasks, projects, ctx);
+          if (!source) throw missing();
+          if (!source.canLogTime) throw new ForbiddenException('This work cannot accept time');
+          const task = tasks[0];
+          if (task && task.projectIds.length && !work.projectId)
+            fail('Choose a project for this task');
+          if (
+            !task &&
+            !this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx)).generalWorkEnabled
+          )
+            throw new ForbiddenException('General project time is disabled for this organization');
+          selected = storedWork.some((w) => plannerTimeWorkKey(w) === key)
+            ? storedWork
+            : [...storedWork, work];
+          if (work.taskId) excluded = excluded.filter((id) => id !== work.taskId);
+        }
+        if (selected.length > 500 || excluded.length > 2000)
+          fail('Too many weekly work selections');
+        const next = json({ ...data, work: selected, excludedTasks: excluded });
+        if (row)
+          await tx.spPlannerResource.update({
+            where: { tenantId: ctx.tenantId, id: row.id },
+            data: { data: next, version: { increment: 1 } },
+          });
+        else
+          await tx.spPlannerResource.create({
+            data: {
+              tenantId: ctx.tenantId,
+              ownerId: userId,
+              kind: 'timesheet',
+              name: `Timesheet · ${weekOn}`,
+              data: next,
+            },
+          });
+        return this.timesheetView(tx, ctx, userId, weekOn);
+      },
+      true,
+    );
   }
   async timeReview(ctx: AuthTenantContext, query: { week?: string }) {
     keys(query, ['week']);
@@ -2664,7 +2920,7 @@ export class PlannerService {
       const result = [];
       for (const user of users) {
         const view = await this.timesheetView(tx, ctx, user, weekOn);
-        result.push({ ...view, items: [], history: [] });
+        result.push({ ...view, items: [], history: [], workRows: [] });
       }
       return result;
     });
@@ -2697,7 +2953,15 @@ export class PlannerService {
             recall_approval: 'submitted',
           } as Record<string, PlannerTimesheetData['status']>
         )[String(dto.action)]!;
+        const previous = await this.timeSheetData(
+          tx,
+          ctx,
+          userId,
+          weekOn,
+          await this.timeSheetRecord(tx, ctx, userId, weekOn),
+        );
         const data: PlannerTimesheetData = {
+          ...previous,
           weekOn,
           reviewerId: view.reviewerId,
           status,

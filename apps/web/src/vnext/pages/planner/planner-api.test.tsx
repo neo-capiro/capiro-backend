@@ -2,7 +2,12 @@ import { cleanup, renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
-import { usePlannerEvents, usePlannerInbox, usePlannerReportRows } from './planner-api.js';
+import {
+  usePlannerEvents,
+  usePlannerInbox,
+  usePlannerReportRows,
+  usePlannerTimesheetWork,
+} from './planner-api.js';
 
 const fixture = vi.hoisted(() => ({ get: vi.fn(), userId: 'user_first' }));
 vi.mock('@clerk/clerk-react', () => ({
@@ -24,6 +29,36 @@ function wrapper() {
   );
 }
 describe('Planner activity pagination', () => {
+  it('binds weekly work pages to a captured data revision and isolates the next revision', async () => {
+    fixture.get.mockImplementation(async (_path, config) => ({
+      data: {
+        workRows: [],
+        nextWorkCursor: config.params.workCursor ? null : 'task:project',
+        revision: config.params.revision,
+      },
+    }));
+    const { result, rerender } = renderHook(
+      ({ revision }) => usePlannerTimesheetWork('2026-10-05', 'owner', revision),
+      { initialProps: { revision: 'a'.repeat(64) }, wrapper: wrapper() },
+    );
+    await waitFor(() => expect(result.current.hasNextPage).toBe(true));
+    await act(async () => {
+      await result.current.fetchNextPage();
+    });
+    expect(fixture.get).toHaveBeenLastCalledWith('/strategy-api/planner/timesheets', {
+      params: {
+        week: '2026-10-05',
+        userId: 'owner',
+        revision: 'a'.repeat(64),
+        workCursor: 'task:project',
+      },
+    });
+    rerender({ revision: 'b'.repeat(64) });
+    await waitFor(() => expect(result.current.data?.pages).toHaveLength(1));
+    expect(fixture.get).toHaveBeenLastCalledWith('/strategy-api/planner/timesheets', {
+      params: { week: '2026-10-05', userId: 'owner', revision: 'b'.repeat(64) },
+    });
+  });
   it('binds report pages to the current dashboard version and authorized data revision', async () => {
     fixture.get.mockImplementation(async (_path, config) => ({
       data: {

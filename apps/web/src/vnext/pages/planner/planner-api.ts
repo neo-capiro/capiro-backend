@@ -23,6 +23,8 @@ import type {
   PlannerTimesheetAction,
   PlannerTimeSettings,
   PlannerTimeOptions,
+  PlannerTimePreferences,
+  PlannerTimesheetWorkRef,
 } from '@capiro/strategy-verifier';
 import { plannerFormSubmissionBody, type PlannerFormFiles } from './planner-form-questions.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -59,6 +61,32 @@ export function usePlannerTimeReview(week: string, enabled: boolean) {
     enabled,
     queryFn: async () =>
       (await api.get<PlannerTimesheet[]>(`${BASE}/timesheets/review`, { params: { week } })).data,
+    refetchInterval: 30_000,
+  });
+}
+export function usePlannerTimesheetWork(week: string, userId: string, revision?: string) {
+  const api = useApi(),
+    key = usePlannerKey();
+  return useInfiniteQuery({
+    queryKey: [...key, 'timesheet-work', week, userId, revision],
+    enabled: !!revision,
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam }) =>
+      (
+        await api.get<PlannerTimesheet>(`${BASE}/timesheets`, {
+          params: { week, userId, revision, ...(pageParam ? { workCursor: pageParam } : {}) },
+        })
+      ).data,
+    getNextPageParam: (page) => page.nextWorkCursor ?? undefined,
+    retry: false,
+  });
+}
+export function usePlannerTimePreferences() {
+  const api = useApi(),
+    key = usePlannerKey();
+  return useQuery({
+    queryKey: [...key, 'time-preferences'],
+    queryFn: async () => (await api.get<PlannerTimePreferences>(`${BASE}/time/preferences`)).data,
     refetchInterval: 30_000,
   });
 }
@@ -458,6 +486,22 @@ export function usePlannerMutations() {
     }) => (await api.patch(`${BASE}/time/settings`, input)).data,
     onSuccess,
   });
+  const timePreferences = useMutation({
+    mutationFn: async (input: PlannerTimePreferences) =>
+      (await api.patch(`${BASE}/time/preferences`, input)).data,
+    onSuccess,
+  });
+  const timesheetWork = useMutation({
+    mutationFn: async (input: {
+      week: string;
+      userId: string;
+      version: number;
+      revision: string;
+      action: 'add' | 'remove';
+      work: PlannerTimesheetWorkRef;
+    }) => (await api.post<PlannerTimesheet>(`${BASE}/timesheets/work`, input)).data,
+    onSuccess,
+  });
   return {
     project,
     task,
@@ -474,6 +518,8 @@ export function usePlannerMutations() {
     reorder,
     timesheet,
     timeSettings,
+    timePreferences,
+    timesheetWork,
   };
 }
 export function plannerError(error: unknown): string {

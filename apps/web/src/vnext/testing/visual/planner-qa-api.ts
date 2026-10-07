@@ -18,6 +18,9 @@ import {
   type PlannerTimeDetails,
   type PlannerTimesheet,
   type PlannerTimeOptions,
+  type PlannerTimesheetWorkRef,
+  type PlannerTimesheetWorkRow,
+  plannerTimeWorkKey,
   plannerWeekOn,
   plannerWeekDate,
 } from '@capiro/strategy-verifier';
@@ -96,6 +99,9 @@ const timeSheets = new Map<
   string,
   { version: number; status: PlannerTimesheet['status']; notes: string; history: PlannerEvent[] }
 >();
+const timePreferences = { version: 1, autoAddDueTasks: false };
+const selectedWork = new Map<string, PlannerTimesheetWorkRef[]>();
+const excludedWork = new Map<string, string[]>();
 function timeSheet(week: string, userId = 'user_qa'): PlannerTimesheet {
   const weekOn = plannerWeekOn(week),
     key = userId + weekOn,
@@ -120,6 +126,63 @@ function timeSheet(week: string, userId = 'user_qa'): PlannerTimesheet {
     };
   });
   const status = stored?.status ?? 'draft';
+  const editable =
+    (timeSettings.canManage || status === 'draft' || status === 'rejected') && timeAllowed(weekOn);
+  const workRows = new Map<string, PlannerTimesheetWorkRow>();
+  const addWork = (work: PlannerTimesheetWorkRef, origin: PlannerTimesheetWorkRow['origin']) => {
+    const rowKey = plannerTimeWorkKey(work);
+    if (workRows.has(rowKey)) return;
+    const rows = entries.filter(
+      (e) => e.taskId === work.taskId && e.time?.projectId === work.projectId,
+    );
+    const workDays = days.map((d) => ({
+      ...d,
+      totalMinutes: rows
+        .filter((e) => e.time?.workedOn === d.date)
+        .reduce((n, e) => n + (e.minutes ?? 0), 0),
+      billableMinutes: rows
+        .filter((e) => e.time?.workedOn === d.date && e.time.billable)
+        .reduce((n, e) => n + (e.minutes ?? 0), 0),
+    }));
+    workRows.set(rowKey, {
+      ...work,
+      key: rowKey,
+      origin,
+      taskName: tasks.find((t) => t.id === work.taskId)?.name ?? null,
+      projectName: projects.find((p) => p.id === work.projectId)?.name ?? null,
+      totalMinutes: workDays.reduce((n, d) => n + d.totalMinutes, 0),
+      billableMinutes: workDays.reduce((n, d) => n + d.billableMinutes, 0),
+      days: workDays,
+      canLogTime: editable && (!!work.taskId || timeSettings.options.generalWorkEnabled),
+      canRemove: editable && !rows.length,
+    });
+  };
+  for (const entry of entries)
+    addWork(
+      { taskId: entry.taskId, projectId: entry.time?.projectId ?? entry.projectId },
+      'tracked',
+    );
+  for (const work of selectedWork.get(key) ?? []) addWork(work, 'added');
+  if (timePreferences.autoAddDueTasks)
+    for (const task of tasks.filter(
+      (t) =>
+        !t.archived &&
+        t.assigneeId === userId &&
+        t.dueOn &&
+        t.dueOn >= weekOn &&
+        t.dueOn <= plannerWeekDate(weekOn, 6),
+    ))
+      if (
+        ![...workRows.values()].some((w) => w.taskId === task.id) &&
+        !(excludedWork.get(key) ?? []).includes(task.id)
+      )
+        addWork(
+          {
+            taskId: task.id,
+            projectId: task.memberships.length === 1 ? task.memberships[0]!.projectId : null,
+          },
+          'automatic',
+        );
   return {
     id: stored ? key : null,
     userId,
@@ -128,7 +191,7 @@ function timeSheet(week: string, userId = 'user_qa'): PlannerTimesheet {
     reviewerId: timeSettings.reviewers[userId] ?? null,
     status,
     version: stored?.version ?? 0,
-    revision: `${timeSettings.version.toString(16).padStart(8, '0')}${(stored?.version ?? 0).toString(16).padStart(56, '0')}`,
+    revision: `${timeSettings.version.toString(16).padStart(8, '0')}${timePreferences.version.toString(16).padStart(8, '0')}${(stored?.version ?? 0).toString(16).padStart(48, '0')}`,
     notes: stored?.notes ?? '',
     correctedAfterApproval: false,
     totalMinutes: days.reduce((n, d) => n + d.totalMinutes, 0),
@@ -163,6 +226,9 @@ function timeSheet(week: string, userId = 'user_qa'): PlannerTimesheet {
       ? null
       : 'Time is unavailable under the organization time settings.',
     approvalProcess: timeSettings.options.approvalProcess,
+    workRows: [...workRows.values()],
+    matchedWork: workRows.size,
+    nextWorkCursor: null,
   };
 }
 function touchTime(userId: string, date: string) {
@@ -229,6 +295,7 @@ const error = (message: string, status = 400) => {
 };
 const api = {
   async get(path: string, config?: { params?: Record<string, string> }) {
+    if (path.endsWith('/time/preferences')) return { data: structuredClone(timePreferences) };
     if (path.endsWith('/time/settings')) return { data: structuredClone(timeSettings) };
     if (path.endsWith('/timesheets/review')) return { data: [] };
     if (path.endsWith('/timesheets'))
@@ -457,6 +524,40 @@ const api = {
     return { data: structuredClone(row) };
   },
   async post(path: string, body: Record<string, unknown>) {
+    if (path.endsWith('/timesheets/work')) {
+      const week = String(body.week),
+        userId = String(body.userId),
+        sheet = timeSheet(week, userId),
+        key = userId + sheet.weekOn,
+        work = body.work as PlannerTimesheetWorkRef;
+      if (body.version !== sheet.version || body.revision !== sheet.revision)
+        error('Work changed', 409);
+      if (!sheet.canLogTime) error('This week is locked', 403);
+      const workKey = plannerTimeWorkKey(work),
+        old = selectedWork.get(key) ?? [];
+      if (body.action === 'remove') {
+        if (!sheet.workRows?.find((r) => r.key === workKey)?.canRemove)
+          error('Remove time entries first', 403);
+        selectedWork.set(
+          key,
+          old.filter((r) => plannerTimeWorkKey(r) !== workKey),
+        );
+        if (work.taskId)
+          excludedWork.set(key, [...new Set([...(excludedWork.get(key) ?? []), work.taskId])]);
+      } else {
+        selectedWork.set(
+          key,
+          old.some((r) => plannerTimeWorkKey(r) === workKey) ? old : [...old, work],
+        );
+        if (work.taskId)
+          excludedWork.set(
+            key,
+            (excludedWork.get(key) ?? []).filter((id) => id !== work.taskId),
+          );
+      }
+      touchTime(userId, sheet.weekOn);
+      return { data: timeSheet(week, userId) };
+    }
     if (path.endsWith('/timesheets/status')) {
       const week = String(body.week),
         userId = String(body.userId),
@@ -708,8 +809,15 @@ const api = {
       time?: Partial<PlannerTimeDetails>;
       reviewers?: Record<string, string>;
       options?: Partial<PlannerTimeOptions>;
+      autoAddDueTasks?: boolean;
     },
   ) {
+    if (path.endsWith('/time/preferences')) {
+      if (body.version !== timePreferences.version) error('Settings changed', 409);
+      timePreferences.autoAddDueTasks = !!body.autoAddDueTasks;
+      timePreferences.version++;
+      return { data: { ok: true } };
+    }
     if (path.endsWith('/time/settings')) {
       if (!timeSettings.canManage) error('Organization admin required', 403);
       if (body.version !== timeSettings.version) error('Record changed', 409);

@@ -34,6 +34,15 @@ export class PlannerController {
   @Get('time/settings') timeSettings(@CurrentTenant() ctx: AuthTenantContext) {
     return this.planner.timeSettings(ctx);
   }
+  @Get('time/preferences') timePreferences(@CurrentTenant() ctx: AuthTenantContext) {
+    return this.planner.timePreferences(ctx);
+  }
+  @Patch('time/preferences') saveTimePreferences(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.saveTimePreferences(ctx, dto);
+  }
   @Patch('time/settings') saveTimeSettings(
     @CurrentTenant() ctx: AuthTenantContext,
     @Body() dto: unknown,
@@ -57,6 +66,12 @@ export class PlannerController {
     @Body() dto: unknown,
   ) {
     return this.planner.transitionTimesheet(ctx, dto);
+  }
+  @Post('timesheets/work') saveTimesheetWork(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.saveTimesheetWork(ctx, dto);
   }
   @Get('reports/:id/widgets/:widgetId') reportWidget(
     @CurrentTenant() ctx: AuthTenantContext,
