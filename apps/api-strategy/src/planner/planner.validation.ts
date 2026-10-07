@@ -1,6 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
 import {
   plannerCalendarDate,
+  plannerTime,
+  plannerTimeZone,
+  plannerScheduledInstant,
   type PlannerProjectData,
   type PlannerTaskData,
   type PlannerField,
@@ -106,6 +109,25 @@ export function validateTask(value: unknown): PlannerTaskData {
   choice(data.subtype, ['task', 'milestone', 'approval']);
   choice(data.approval, ['pending', 'approved', 'rejected', 'changes_requested']);
   dates(data.startOn, data.dueOn);
+  for (const [time, date] of [
+    [data.startTime, data.startOn],
+    [data.dueTime, data.dueOn],
+  ]) {
+    if (time !== undefined && time !== null && (!plannerTime(time) || !date))
+      fail('A time requires a date and a valid HH:mm value');
+  }
+  if (data.timeZone !== undefined && data.timeZone !== null && !plannerTimeZone(data.timeZone))
+    fail('Use a valid IANA time zone');
+  if ((data.startTime || data.dueTime) && !data.timeZone) fail('Timed tasks require a time zone');
+  if (
+    data.startTime &&
+    data.dueTime &&
+    data.startOn &&
+    data.dueOn &&
+    plannerScheduledInstant(String(data.startOn), String(data.startTime), String(data.timeZone)) >
+      plannerScheduledInstant(String(data.dueOn), String(data.dueTime), String(data.timeZone))
+  )
+    fail('Start time must not follow due time');
   nullableId(data.parentId);
   nullableId(data.clientId);
   nullableId(data.meetingId);
@@ -146,10 +168,33 @@ export function validateTask(value: unknown): PlannerTaskData {
   integer(data.estimateMinutes);
   if (data.recurrence !== null) {
     const recurrence = object(data.recurrence);
-    keys(recurrence, ['frequency', 'interval']);
-    choice(recurrence.frequency, ['daily', 'weekly', 'monthly']);
+    keys(recurrence, ['frequency', 'interval', 'basedOn', 'weekdays', 'endsOn', 'anchorOn']);
+    choice(recurrence.frequency, ['daily', 'weekly', 'monthly', 'yearly', 'periodically']);
     integer(recurrence.interval, 1, 365);
     if (!data.dueOn) fail('Recurring tasks require a due date');
+    if (recurrence.basedOn !== undefined)
+      choice(recurrence.basedOn, ['due_date', 'completion_date']);
+    if (recurrence.frequency === 'periodically' && recurrence.basedOn === 'due_date')
+      fail('Periodic tasks repeat from their completion date');
+    if (recurrence.weekdays !== undefined) {
+      const weekdays = list(recurrence.weekdays, 7);
+      distinct(weekdays);
+      for (const day of weekdays) integer(day, 0, 6);
+      if (weekdays.length && recurrence.frequency !== 'weekly')
+        fail('Choose weekdays only for weekly repeats');
+    }
+    if (
+      recurrence.endsOn !== undefined &&
+      recurrence.endsOn !== null &&
+      (!plannerCalendarDate(recurrence.endsOn) || String(recurrence.endsOn) < String(data.dueOn))
+    )
+      fail('Repeat end date must be on or after the due date');
+    if (
+      recurrence.anchorOn !== undefined &&
+      (!plannerCalendarDate(recurrence.anchorOn) ||
+        String(recurrence.anchorOn) > String(data.dueOn))
+    )
+      fail('Repeat anchor must be on or before the due date');
   }
   return data as unknown as PlannerTaskData;
 }

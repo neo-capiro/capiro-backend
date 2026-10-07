@@ -49,8 +49,9 @@ export function PlannerImport({
           <div className="planner-dialog-body">
             <p>
               Import up to 100 tasks into {project?.name ?? 'your personal tasks'}. Dates use
-              YYYY-MM-DD. Columns: Task, Description, Assignee, Start date, Due date, Priority,
-              Status, Section.
+              YYYY-MM-DD; optional times use HH:mm and an IANA time zone such as America/New_York.
+              Columns: Task, Description, Assignee, Start date, Due date, Start time, Due time, Time
+              zone, Priority, Status, Section.
             </p>
             <label className="planner-field">
               <span>CSV file</span>

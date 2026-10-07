@@ -9,7 +9,8 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import {
   PLANNER_DEFAULT_PROJECT,
   PLANNER_DEFAULT_TASK,
-  nextPlannerDate,
+  nextPlannerSchedule,
+  plannerDueTimestamp,
   plannerDependencyCycle,
   type PlannerBootstrap,
   type PlannerProject,
@@ -67,8 +68,27 @@ function activityQuery(query: ActivityQuery, inbox = false) {
 const RANK: Record<PlannerRole, number> = { viewer: 0, commenter: 1, editor: 2, admin: 3 };
 const json = (data: unknown) => JSON.parse(JSON.stringify(data)) as Prisma.InputJsonValue;
 const projectData = (row: SpPlannerProject) => row.data as unknown as PlannerProjectData;
-const taskData = (row: SpPlannerTask) => row.data as unknown as PlannerTaskData;
+const taskData = (row: SpPlannerTask): PlannerTaskData => {
+  const {
+    recurrenceSuccessorId: _successor,
+    deadlineAt: _deadline,
+    ...data
+  } = row.data as Record<string, unknown>;
+  return { ...PLANNER_DEFAULT_TASK, ...data } as unknown as PlannerTaskData;
+};
 const missing = () => new NotFoundException('Planner record not found');
+const storedTaskData = (data: PlannerTaskData, previous?: SpPlannerTask, successorId?: string) => {
+  const previousSuccessor = previous
+    ? (previous.data as Record<string, unknown>).recurrenceSuccessorId
+    : undefined;
+  return json({
+    ...data,
+    ...(data.dueOn ? { deadlineAt: new Date(plannerDueTimestamp(data)).toISOString() } : {}),
+    ...(successorId || previousSuccessor
+      ? { recurrenceSuccessorId: successorId ?? previousSuccessor }
+      : {}),
+  });
+};
 export function plannerProjectAccess(
   project: Pick<SpPlannerProject, 'ownerId' | 'data'>,
   userId: string,
@@ -294,7 +314,7 @@ export class PlannerService {
             if (JSON.stringify(next) !== JSON.stringify(td))
               await tx.spPlannerTask.update({
                 where: { id: task.id, tenantId: ctx.tenantId },
-                data: { data: json(next), version: { increment: 1 } },
+                data: { data: storedTaskData(next, task), version: { increment: 1 } },
               });
           }
         }
@@ -416,7 +436,11 @@ export class PlannerService {
       const ids = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM sp_planner_tasks
         WHERE tenant_id = ${ctx.tenantId}::uuid AND assignee_id = ${ctx.clerkUserId}
           AND archived = false AND data->>'status' <> 'done'
-        ORDER BY NULLIF(data->>'dueOn', '') ASC NULLS LAST, created_at ASC LIMIT 5`;
+        ORDER BY COALESCE(NULLIF(data->>'deadlineAt', '')::timestamptz,
+          (NULLIF(data->>'dueOn', '')::date +
+          COALESCE(NULLIF(data->>'dueTime', ''), '23:59:59.999')::time)
+          AT TIME ZONE COALESCE(NULLIF(data->>'timeZone', ''), 'UTC')) ASC NULLS LAST,
+          created_at ASC LIMIT 5`;
       const rows = await tx.spPlannerTask.findMany({
         where: { tenantId: ctx.tenantId, id: { in: ids.map((t) => t.id) } },
       });
@@ -456,7 +480,20 @@ export class PlannerService {
           requireRole(plannerTaskAccess(old, projects, ctx.clerkUserId), 'editor');
           version(old.version, dto.version);
         }
-        let data = validateTask({ ...(old ? taskData(old) : PLANNER_DEFAULT_TASK), ...dto.data });
+        const candidate = { ...(old ? taskData(old) : PLANNER_DEFAULT_TASK), ...dto.data };
+        if (
+          old &&
+          Object.hasOwn(dto.data, 'dueOn') &&
+          candidate.dueOn &&
+          candidate.dueOn !== taskData(old).dueOn &&
+          candidate.recurrence
+        ) {
+          candidate.recurrence = {
+            ...object(candidate.recurrence),
+            anchorOn: candidate.dueOn,
+          } as unknown as PlannerTaskData['recurrence'];
+        }
+        let data = validateTask(candidate);
         if (old) {
           const previous = taskData(old);
           // Preserve properties omitted from an ACL-redacted response. A caller
@@ -589,9 +626,16 @@ export class PlannerService {
         }
         const completedAt = data.status === 'done' ? (old?.completedAt ?? new Date()) : null;
         const createNextRecurrence =
-          data.status === 'done' && Boolean(old) && taskData(old!).status !== 'done';
+          data.status === 'done' &&
+          Boolean(old) &&
+          taskData(old!).status !== 'done' &&
+          !old!.archived &&
+          dto.archived !== true &&
+          !(old!.data as Record<string, unknown>).recurrenceSuccessorId;
+        const nextSchedule = createNextRecurrence ? nextPlannerSchedule(data, completedAt!) : null;
+        const successorId = nextSchedule ? randomUUID() : undefined;
         const stored = {
-          data: json(data),
+          data: storedTaskData(data, old ?? undefined, successorId),
           projectIds: data.memberships.map((m) => m.projectId),
           assigneeId: data.assigneeId,
           parentId: data.parentId,
@@ -625,28 +669,20 @@ export class PlannerService {
           },
           [data.assigneeId, ...data.collaborators].filter((p): p is string => Boolean(p)),
         );
-        if (createNextRecurrence && data.recurrence && data.dueOn) {
-          const nextDue = nextPlannerDate(
-            data.dueOn,
-            data.recurrence.frequency,
-            data.recurrence.interval,
-          );
-          const nextStart = data.startOn
-            ? nextPlannerDate(data.startOn, data.recurrence.frequency, data.recurrence.interval)
-            : null;
-          const next = {
+        if (nextSchedule && successorId) {
+          const next = validateTask({
             ...data,
+            ...nextSchedule,
             status: 'todo' as const,
             approval: 'pending' as const,
-            dueOn: nextDue,
-            startOn: nextStart,
             dependencies: [],
-          };
+          });
           const recurring = await tx.spPlannerTask.create({
             data: {
+              id: successorId,
               tenantId: ctx.tenantId,
               ownerId: row.ownerId,
-              data: json(next),
+              data: storedTaskData(next),
               projectIds: row.projectIds,
               assigneeId: data.assigneeId,
               parentId: data.parentId,
@@ -1334,12 +1370,15 @@ export class PlannerService {
           await tx.spPlannerTask.update({
             where: { id: row.id, tenantId: ctx.tenantId },
             data: {
-              data: json({
-                ...taskData(row),
-                memberships: taskData(row).memberships.map((m) =>
-                  m.projectId === projectId ? { ...m, position: i * 1000 } : m,
-                ),
-              }),
+              data: storedTaskData(
+                {
+                  ...taskData(row),
+                  memberships: taskData(row).memberships.map((m) =>
+                    m.projectId === projectId ? { ...m, position: i * 1000 } : m,
+                  ),
+                },
+                row,
+              ),
               version: { increment: 1 },
             },
           });
@@ -1406,7 +1445,7 @@ export class PlannerService {
         projectIds: [project.id],
         assigneeId: data.assigneeId,
         parentId: data.parentId,
-        data: json(data),
+        data: storedTaskData(data),
       };
     });
     if (taskRows.length) await tx.spPlannerTask.createMany({ data: taskRows });
@@ -1589,7 +1628,7 @@ export class PlannerService {
         ownerId: isPublic ? form.ownerId : ctx.clerkUserId,
         assigneeId: data.assigneeId,
         projectIds: [project.id],
-        data: json(data),
+        data: storedTaskData(data),
         completedAt: data.status === 'done' ? new Date() : null,
       },
     });
