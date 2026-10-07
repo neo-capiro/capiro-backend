@@ -37,7 +37,8 @@ export class PlannerSchedulerService implements OnModuleInit, OnModuleDestroy {
   async tickOnce(now = new Date()) {
     // The canonical membership table requires its existing system lookup policy.
     // Discover IDs only, then leave this transaction. NEVER read Planner withSystem:
-    // its forced-RLS policies deliberately have no bypass branch.
+    // tenant scoping is required, including for the new append-only tables
+    // whose policies deliberately have no bypass branch.
     const tenants = await this.prisma.withSystem(
       (tx) => tx.$queryRaw<{ tenantId: string }[]>`
       SELECT DISTINCT tenant_id::text AS "tenantId" FROM tenant_memberships

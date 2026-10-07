@@ -76,6 +76,45 @@ describeDb('Planner reminder and bell real PostgreSQL', () => {
       },
     });
   }
+  it('delivers a zero-offset timed reminder once when the first available poll is after its deadline', async () => {
+    const project = await service.saveProject(owner, null, { data: { name: 'Due instant rule' } });
+    const task = await service.saveTask(owner, null, {
+      data: {
+        name: 'Due instant task',
+        assigneeId: owner.clerkUserId,
+        dueOn: '2042-11-01',
+        dueTime: '16:00',
+        timeZone: 'UTC',
+        memberships: [{ projectId: project.id, sectionId: null, position: 0 }],
+      },
+    });
+    await service.saveResource(owner, null, {
+      kind: 'rule',
+      projectId: project.id,
+      name: 'Due now',
+      data: {
+        enabled: true,
+        trigger: 'due_approaching',
+        schedule: { amount: 0, unit: 'minutes' },
+        conditions: {},
+        actions: { notify: true },
+      },
+    });
+    expect(
+      (await service.runScheduledWork(tenantId, new Date('2042-11-01T15:59:59.999Z'))).executed,
+    ).toBe(0);
+    expect(
+      (await service.runScheduledWork(tenantId, new Date('2042-11-01T16:00:00.345Z'))).executed,
+    ).toBe(1);
+    expect(
+      (await service.runScheduledWork(tenantId, new Date('2042-11-01T16:05:00Z'))).executed,
+    ).toBe(0);
+    const bell = await service.notifications(owner);
+    expect(bell.unread).toBe(1);
+    expect(bell.items[0]!.event.taskId).toBe(task.id);
+    expect(bell.items[0]!.event.kind).toBe('reminder');
+    expect(bell.items[0]!.event.text).toBe('Task is due');
+  });
   it('shares corrected activity and a full authorized unread total while filtering revoked rows before LIMIT', async () => {
     const p = await service.saveProject(owner, null, {
       data: {

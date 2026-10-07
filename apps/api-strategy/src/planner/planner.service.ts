@@ -1098,7 +1098,9 @@ export class PlannerService {
                       text:
                         rule.trigger === 'overdue'
                           ? 'Task is overdue'
-                          : 'Task due date is approaching',
+                          : rule.schedule.amount === 0
+                            ? 'Task is due'
+                            : 'Task due date is approaching',
                     },
                     recipients.filter(
                       (id) => people.has(id) && Boolean(plannerTaskAccess(row!, projects, id)),

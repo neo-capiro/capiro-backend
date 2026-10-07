@@ -34,5 +34,11 @@ export function plannerDateRuleReady(
     const minutes = rule.schedule.amount * (rule.schedule.unit === 'hours' ? 60 : 1);
     threshold = deadline + direction * minutes * 60_000;
   }
-  return now.getTime() >= threshold && (rule.trigger === 'overdue' || now.getTime() <= deadline);
+  // A zero-offset timed trigger has no before-deadline window. Treat that
+  // instant as a durable due trigger so polling/cursor delays cannot miss it.
+  const dueInstant = rule.trigger === 'due_approaching' && threshold === deadline;
+  return (
+    now.getTime() >= threshold &&
+    (rule.trigger === 'overdue' || dueInstant || now.getTime() <= deadline)
+  );
 }

@@ -43,6 +43,39 @@ describe('Planner scheduled date rules', () => {
       ),
     ).toBe(true);
   });
+  it.each(['days', 'hours', 'minutes'] as const)(
+    'catches a zero-%s timed reminder after the due instant instead of requiring an exact poll',
+    (unit) => {
+      const zero: PlannerDateRule = {
+        trigger: 'due_approaching',
+        schedule: { amount: 0, unit },
+      };
+      const timed = { ...task, dueTime: '09:00' };
+      expect(plannerDateRuleReady(timed, zero, new Date('2026-11-02T13:59:59.999Z'))).toBe(false);
+      expect(plannerDateRuleReady(timed, zero, new Date('2026-11-02T14:00:00.345Z'))).toBe(true);
+      expect(plannerDateRuleReady(timed, zero, new Date('2026-11-02T14:05:00Z'))).toBe(true);
+    },
+  );
+  it.each(['hours', 'minutes'] as const)(
+    'catches a zero-%s untimed reminder after the end-of-day deadline',
+    (unit) => {
+      const zero: PlannerDateRule = {
+        trigger: 'due_approaching',
+        schedule: { amount: 0, unit },
+      };
+      expect(plannerDateRuleReady(task, zero, new Date('2026-11-03T04:59:59Z'))).toBe(false);
+      expect(plannerDateRuleReady(task, zero, new Date('2026-11-03T05:00:00.345Z'))).toBe(true);
+    },
+  );
+  it('keeps a positive-offset approaching reminder bounded by its deadline', () => {
+    expect(
+      plannerDateRuleReady(
+        { ...task, dueTime: '09:00' },
+        approaching,
+        new Date('2026-11-02T14:00:00.345Z'),
+      ),
+    ).toBe(false);
+  });
   it('bounds offsets and personal actions and rejects reminder schedules on direct-change triggers', () => {
     const rule = { ...approaching, enabled: true, conditions: {}, actions: { notify: true } };
     expect(validateResource('rule', rule)).toEqual(rule);
