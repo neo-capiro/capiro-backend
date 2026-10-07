@@ -189,6 +189,53 @@ describe('durable per-step research coordinator', () => {
     );
   });
 
+  it('never offers an approval step as executable work once every read step is done', () => {
+    const first = admitted();
+    let state = activateDurableResearchCoordinator({
+      metadata: first.metadata,
+      run: { ...run(), eventSequence: first.coordinator.events.at(-1)!.sequence },
+      deadlineAt: '2026-09-28T00:30:00.000Z',
+    });
+    for (const [index, tool] of ['get_bill_status', 'search_memory'].entries()) {
+      const reserved = reserveDurableResearchStep({
+        metadata: state.metadata,
+        run: state.run,
+        reservationId: `reservation-${index}`,
+        providerCallId: `call-${index}`,
+        kind: 'dispatch',
+        tool,
+        toolVersion: `sha256:${String(index).repeat(64)}`,
+        toolInput: { query: `read ${index}` },
+        now: new Date(`2026-09-28T00:01:0${index}.000Z`),
+      });
+      state = completeDurableResearchStep({
+        metadata: reserved.metadata,
+        run: reserved.run,
+        reservationId: `reservation-${index}`,
+        receiptId: `receipt-${index}`,
+        resultRef: `private-result-${index}`,
+        now: new Date(`2026-09-28T00:01:0${index + 5}.000Z`),
+      });
+    }
+
+    // Only 'prepare-follow-up' (approval_required, waiting_for_approval) is
+    // left. Research never executes it, so a read outside the plan has no
+    // executable step rather than being routed to the approval step.
+    expect(() =>
+      reserveDurableResearchStep({
+        metadata: state.metadata,
+        run: state.run,
+        reservationId: 'reservation-extra',
+        providerCallId: 'call-extra',
+        kind: 'dispatch',
+        tool: 'get_pe_report_language',
+        toolVersion: `sha256:${'f'.repeat(64)}`,
+        toolInput: { pe: '0603203F' },
+        now: new Date('2026-09-28T00:02:00.000Z'),
+      }),
+    ).toThrow('research_step_no_executable_work');
+  });
+
   it('re-reads a completed step while a later step is ready, and keeps first reads in order', () => {
     const first = admitted();
     const active = activateDurableResearchCoordinator({

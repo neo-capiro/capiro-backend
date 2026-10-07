@@ -759,18 +759,15 @@ function nextExecutableStepIndex(coordinator: DurableResearchCoordinatorV1, tool
       )
       .map((step) => step.id),
   );
+  // Only safe reads are executable here; an approval step is a proposal that
+  // research never executes, so routing a read to it can only be refused.
   const ready = coordinator.steps
     .map((step, index) => ({ step, index }))
     .filter(
       ({ step }) =>
         step.goalRevision === coordinator.goalRevision &&
-        [
-          'pending',
-          'retryable_failure',
-          'reserved',
-          'waiting_for_approval',
-          'uncertain_effect',
-        ].includes(step.outcome) &&
+        step.effect === 'safe_read' &&
+        ['pending', 'retryable_failure', 'reserved', 'uncertain_effect'].includes(step.outcome) &&
         step.dependsOn.every((dependency) => completed.has(dependency)),
     );
   const matched = ready.find(({ step }) => step.allowedCapabilities.includes(tool));

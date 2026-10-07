@@ -71,6 +71,12 @@ export interface ResearchPlanCapability {
 export interface ResearchPlanAdmissionContext {
   scope: ResearchPlanScopeV1;
   capabilities: readonly ResearchPlanCapability[];
+  /**
+   * Set for a newly proposed plan only. Research never executes an approval
+   * step, so a step that depends on one can never run. Stored plans admitted
+   * before this rule are re-checked at dispatch without it.
+   */
+  approvalStepsMustBeFinal?: boolean;
 }
 
 export class ResearchPlanValidationError extends Error {
@@ -237,6 +243,17 @@ export function validateResearchPlan(
   }
 
   validateGraph(steps, issues);
+  if (context.approvalStepsMustBeFinal) {
+    const approvalSteps = new Set(
+      steps.filter((step) => step.effect === 'approval_required').map((step) => step.id),
+    );
+    for (const step of steps) {
+      for (const dependency of step.dependsOn) {
+        if (approvalSteps.has(dependency))
+          issues.push(`step_depends_on_approval:${step.id}:${dependency}`);
+      }
+    }
+  }
   const allocatedToolCalls = steps.reduce((sum, step) => sum + step.budget.toolCalls, 0);
   const allocatedTokens = steps.reduce((sum, step) => sum + step.budget.tokens, 0);
   if (budget.toolCalls !== allocatedToolCalls) issues.push('budget_tool_calls_must_equal_step_allocations');
@@ -280,6 +297,7 @@ export function buildResearchPlanSystemPrompt(
     `Currently available read capabilities: ${readCapabilities.join(', ') || '(none)'}.`,
     `Currently available approval-gated capabilities: ${approvalCapabilities.join(', ') || '(none)'}.`,
     'A read step has effect "read" and may name only read capabilities. A business-action step has effect "approval_required", must name an approval-gated capability, and is only a proposal: research will not execute it.',
+    'An approval_required step must be a final step: no step may depend on it.',
     `Total allocations must equal the sum of step allocations and must not exceed ${RESEARCH_PLAN_LIMITS.maxTotalToolCalls} tool calls or ${RESEARCH_PLAN_LIMITS.maxTotalTokens} tokens. Every allocation is a positive integer.`,
     'Step IDs must be stable lowercase kebab-case and unique. dependsOn contains only step IDs in this plan and the graph must be acyclic.',
     `String limits: title at most ${RESEARCH_PLAN_LIMITS.maxTitleChars} characters; step IDs at most ${RESEARCH_PLAN_LIMITS.maxIdChars}; objective, completionCondition, and each clarifying question at most ${RESEARCH_PLAN_LIMITS.maxStringChars}. Write each objective and completionCondition as one or two short sentences.`,
