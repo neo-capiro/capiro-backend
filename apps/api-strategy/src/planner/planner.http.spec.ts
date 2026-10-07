@@ -48,6 +48,10 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     readAllNotifications: jest.fn(async () => ({ read: 0 })),
     updateInbox: jest.fn(async () => ({ ok: true })),
     timeSettings: jest.fn(async () => ({ version: 0, canManage: false, reviewers: {} })),
+    timer: jest.fn(async () => ({ id: ID, version: 1 })),
+    startTimer: jest.fn(async () => ({ id: ID, version: 1 })),
+    stopTimer: jest.fn(async () => ({ id: ID, version: 2 })),
+    discardTimer: jest.fn(async () => ({ id: ID, version: 2 })),
     saveTimeSettings: jest.fn(async () => ({ ok: true })),
     timePreferences: jest.fn(async () => ({ version: 0, autoAddDueTasks: false })),
     saveTimePreferences: jest.fn(async () => ({ ok: true })),
@@ -141,6 +145,10 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
     ['post', `tasks/${ID}/attachments`],
     ['patch', `tasks/${ID}/attachments/${ID}`],
     ['get', `tasks/${ID}/attachments/${ID}/download`],
+    ['get', 'time/timer'],
+    ['post', 'time/timers'],
+    ['post', `time/timers/${ID}/stop`],
+    ['post', `time/timers/${ID}/discard`],
   ])('guards %s /strategy-api/planner/%s', async (method, path) => {
     const agent = request(app.getHttpServer());
     await agent[method as 'get'](`/strategy-api/planner/${path}`).expect(403);
@@ -153,6 +161,33 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
       .send(body)
       .expect(200);
     expect(planner.reviseEvent).toHaveBeenCalledWith(ctx, ID, body);
+  });
+  it('routes native timer operations only through the signed-in organization context', async () => {
+    const start = { startKey: ID, taskId: ID, time: { billable: true } },
+      stop = { version: 1 };
+    await request(app.getHttpServer())
+      .get('/strategy-api/planner/time/timer')
+      .set('x-planner-qa', 'allowed')
+      .expect(200);
+    await request(app.getHttpServer())
+      .post('/strategy-api/planner/time/timers')
+      .set('x-planner-qa', 'allowed')
+      .send(start)
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/strategy-api/planner/time/timers/${ID}/stop`)
+      .set('x-planner-qa', 'allowed')
+      .send(stop)
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/strategy-api/planner/time/timers/${ID}/discard`)
+      .set('x-planner-qa', 'allowed')
+      .send(stop)
+      .expect(201);
+    expect(planner.timer).toHaveBeenCalledWith(ctx);
+    expect(planner.startTimer).toHaveBeenCalledWith(ctx, start);
+    expect(planner.stopTimer).toHaveBeenCalledWith(ctx, ID, stop);
+    expect(planner.discardTimer).toHaveBeenCalledWith(ctx, ID, stop);
   });
   it('forwards a reviewed time import and caller authorization through the signed-in organization', async () => {
     const body = { importKey: ID, data: { name: 'Reviewed CSV' }, actualMinutes: 90 };

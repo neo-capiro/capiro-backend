@@ -7,6 +7,7 @@ export * from './planner-goals.js';
 export * from './planner-reporting.js';
 export * from './planner-timesheets.js';
 export * from './planner-budgets.js';
+export * from './planner-timers.js';
 export {
   verifyPlan,
   validIso,

@@ -34,6 +34,26 @@ export class PlannerController {
   @Get('time/settings') timeSettings(@CurrentTenant() ctx: AuthTenantContext) {
     return this.planner.timeSettings(ctx);
   }
+  @Get('time/timer') timer(@CurrentTenant() ctx: AuthTenantContext) {
+    return this.planner.timer(ctx);
+  }
+  @Post('time/timers') startTimer(@CurrentTenant() ctx: AuthTenantContext, @Body() dto: unknown) {
+    return this.planner.startTimer(ctx, dto);
+  }
+  @Post('time/timers/:id/stop') stopTimer(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.stopTimer(ctx, id, dto);
+  }
+  @Post('time/timers/:id/discard') discardTimer(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.discardTimer(ctx, id, dto);
+  }
   @Get('time/preferences') timePreferences(@CurrentTenant() ctx: AuthTenantContext) {
     return this.planner.timePreferences(ctx);
   }

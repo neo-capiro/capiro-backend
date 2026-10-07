@@ -75,6 +75,7 @@ import { PlannerTimesheets } from './planner-timesheets.js';
 import { PlannerTimeExportButton } from './planner-time-export.js';
 import { PlannerTimeForm } from './planner-time-form.js';
 import { PlannerBudget } from './planner-budgets.js';
+import { PlannerTaskTimer, PlannerTimerWidget } from './planner-timers.js';
 import type { PlannerSavedViewData } from '@capiro/strategy-verifier';
 import './planner.css';
 
@@ -1128,6 +1129,7 @@ export function PlannerPage() {
           onClose={() => setSavingView(false)}
         />
       )}
+      <PlannerTimerWidget key={plannerCacheKey.join(':')} bootstrap={data} onOpen={openTask} />
       {params.get('task') && (
         <ExistingTaskDialog
           id={params.get('task')!}
@@ -2052,6 +2054,7 @@ function TaskEditor({
                       <span className="planner-muted">{task.actualMinutes} minutes logged</span>
                     </h3>
                   )}
+                  <PlannerTaskTimer task={task} bootstrap={bootstrap} onOpen={navigateTask} />
                   {canEdit && bootstrap.timeOptions?.timeTrackingEnabled !== false && (
                     <PlannerTimeForm
                       projects={bootstrap.projects}

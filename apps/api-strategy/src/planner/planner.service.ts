@@ -63,6 +63,7 @@ import {
   type PlannerTimeReviewPage,
   type PlannerTimeExportPage,
   type PlannerTimeExportEntry,
+  type PlannerTimer,
 } from '@capiro/strategy-verifier';
 import {
   Prisma,
@@ -106,6 +107,7 @@ import {
 } from './planner-time-policy.js';
 import { plannerTimesheetWorkRows, type PlannerTimeWorkSource } from './planner-timesheet-work.js';
 import { plannerTimeExportQuery, type PlannerTimeExportQuery } from './planner-time-export.js';
+import { plannerTimerDays, type PlannerTimerData } from './planner-timers.js';
 import {
   plannerBudgetData,
   plannerBudgetAlert,
@@ -1452,6 +1454,343 @@ export class PlannerService {
         : items;
     });
   }
+  private async timerMember(tx: Tx, ctx: AuthTenantContext) {
+    if (!(await this.people(tx, ctx)).some((p) => p.id === ctx.clerkUserId)) throw missing();
+  }
+  private async timerView(
+    tx: Tx,
+    ctx: AuthTenantContext,
+    row: SpPlannerResource,
+    now: Date,
+  ): Promise<PlannerTimer> {
+    const data = row.data as unknown as PlannerTimerData;
+    const projects = await this.projects(tx, ctx);
+    const task = await tx.spPlannerTask.findFirst({
+      where: { tenantId: ctx.tenantId, id: data.taskId },
+    });
+    const access = task ? plannerTaskAccess(task, projects, ctx.clerkUserId) : null;
+    const options = this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx));
+    const allocation = data.time.projectId
+      ? projects.find((p) => p.id === data.time.projectId)
+      : null;
+    const allocationReadable =
+      !data.time.projectId || !!(allocation && plannerProjectAccess(allocation, ctx.clerkUserId));
+    return {
+      id: row.id,
+      version: row.version,
+      status: data.status,
+      startedAt: data.startedAt,
+      endedAt: data.endedAt,
+      serverNow: now.toISOString(),
+      elapsedMilliseconds:
+        data.status === 'running'
+          ? Math.max(0, now.getTime() - Date.parse(data.startedAt))
+          : data.elapsedMilliseconds,
+      taskId: access ? data.taskId : null,
+      taskName: access && task ? taskData(task).name : null,
+      time: access
+        ? { ...data.time, projectId: allocationReadable ? data.time.projectId : null }
+        : null,
+      canStop:
+        data.status === 'running' &&
+        ['editor', 'admin'].includes(access ?? '') &&
+        options.timeTrackingEnabled,
+      notice: !access
+        ? 'This timer’s task is no longer available. You can discard the timer.'
+        : !['editor', 'admin'].includes(access)
+          ? 'Editing access is required to log this timer.'
+          : !options.timeTrackingEnabled
+            ? 'Time tracking is disabled for this organization.'
+            : !allocationReadable
+              ? 'Choose a current task project before logging this timer.'
+              : null,
+      minutes: data.minutes,
+    };
+  }
+  async timer(ctx: AuthTenantContext): Promise<PlannerTimer | null> {
+    return this.scope(ctx, async (tx) => {
+      await this.timerMember(tx, ctx);
+      const row = await tx.spPlannerResource.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          ownerId: ctx.clerkUserId,
+          kind: 'timer_session',
+          archived: false,
+        },
+      });
+      return row ? this.timerView(tx, ctx, row, new Date()) : null;
+    });
+  }
+  async startTimer(ctx: AuthTenantContext, raw: unknown, clock?: Date): Promise<PlannerTimer> {
+    const dto = object(raw);
+    keys(dto, ['startKey', 'taskId', 'time']);
+    const startKey = uuid(dto.startKey).toLowerCase(),
+      taskId = uuid(dto.taskId).toLowerCase();
+    const supplied = dto.time === undefined ? {} : object(dto.time);
+    keys(supplied, ['timeZone', 'billable', 'projectId', 'category']);
+    // Opaque receipts are scoped to this organization and person even if a caller reuses a key.
+    const bytes = createHash('sha256')
+      .update(JSON.stringify(['planner-timer:v1', ctx.tenantId, ctx.clerkUserId, startKey]))
+      .digest();
+    bytes[6] = (bytes[6]! & 15) | 80;
+    bytes[8] = (bytes[8]! & 63) | 128;
+    const hex = bytes.toString('hex').slice(0, 32);
+    const id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    const startHash = createHash('sha256')
+      .update(JSON.stringify([taskId, dto.time ?? null]))
+      .digest('hex');
+    return this.scope(
+      ctx,
+      async (tx) => {
+        await this.timerMember(tx, ctx);
+        const now = clock ?? new Date(),
+          projects = await this.projects(tx, ctx);
+        const task = await tx.spPlannerTask.findFirst({
+          where: { tenantId: ctx.tenantId, id: taskId },
+        });
+        if (!task) throw missing();
+        requireRole(plannerTaskAccess(task, projects, ctx.clerkUserId), 'editor');
+        const existing = await tx.spPlannerResource.findFirst({
+          where: { tenantId: ctx.tenantId, id },
+        });
+        if (existing) {
+          if (existing.kind !== 'timer_session' || existing.ownerId !== ctx.clerkUserId)
+            throw missing();
+          if ((existing.data as unknown as PlannerTimerData).startHash !== startHash)
+            throw new ConflictException(
+              'This timer start key was already used for different values',
+            );
+          return this.timerView(tx, ctx, existing, now);
+        }
+        if (task.archived) fail('Restore the task before starting a timer');
+        if (
+          await tx.spPlannerResource.findFirst({
+            where: {
+              tenantId: ctx.tenantId,
+              ownerId: ctx.clerkUserId,
+              kind: 'timer_session',
+              archived: false,
+            },
+          })
+        )
+          throw new ConflictException('Stop or discard your running timer before starting another');
+        const options = this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx));
+        const time = plannerTimeDetails({
+          timeZone: options.timeZone,
+          billable: options.billableEnabled && options.billableDefault,
+          ...supplied,
+        });
+        time.workedOn = plannerTimeToday(time.timeZone, now);
+        if (supplied.projectId === undefined) {
+          if (task.projectIds.length > 1) fail('Choose one task project for this timer');
+          time.projectId = task.projectIds[0] ?? null;
+        }
+        if (task.projectIds.length && !time.projectId)
+          fail('Choose one task project for this timer');
+        this.validateTimeProject(time, task, projects, ctx);
+        requirePlannerTimePolicy(time, options, ctx.role === 'org:admin');
+        const weekOn = plannerWeekOn(time.workedOn),
+          sheet = await this.timeSheetRecord(tx, ctx, ctx.clerkUserId, weekOn);
+        const sheetData = await this.timeSheetData(tx, ctx, ctx.clerkUserId, weekOn, sheet);
+        await this.timeSheetReadable(tx, ctx, ctx.clerkUserId, sheetData);
+        requirePlannerTimeEditable(
+          sheetData,
+          ctx.clerkUserId,
+          ctx.clerkUserId,
+          ctx.role === 'org:admin',
+        );
+        const { workedOn: _date, ...details } = time;
+        const data: PlannerTimerData = {
+          taskId,
+          startedAt: now.toISOString(),
+          endedAt: null,
+          status: 'running',
+          time: details,
+          startHash,
+          stopHash: null,
+          elapsedMilliseconds: 0,
+          minutes: 0,
+          eventIds: [],
+        };
+        const row = await tx.spPlannerResource.create({
+          data: {
+            id,
+            tenantId: ctx.tenantId,
+            ownerId: ctx.clerkUserId,
+            kind: 'timer_session',
+            name: 'Task timer',
+            data: json(data),
+          },
+        });
+        return this.timerView(tx, ctx, row, now);
+      },
+      true,
+    );
+  }
+  async stopTimer(
+    ctx: AuthTenantContext,
+    id: string,
+    raw: unknown,
+    clock?: Date,
+  ): Promise<PlannerTimer> {
+    uuid(id);
+    const dto = object(raw);
+    keys(dto, ['version', 'time']);
+    if (!Number.isInteger(dto.version) || Number(dto.version) < 1)
+      fail('An expected timer version is required');
+    const supplied = dto.time === undefined ? {} : object(dto.time);
+    keys(supplied, ['projectId', 'billable', 'category']);
+    const stopHash = createHash('sha256')
+      .update(JSON.stringify(['stop', dto.version, dto.time ?? null]))
+      .digest('hex');
+    return this.scope(
+      ctx,
+      async (tx) => {
+        await this.timerMember(tx, ctx);
+        const row = await tx.spPlannerResource.findFirst({
+          where: { tenantId: ctx.tenantId, id, ownerId: ctx.clerkUserId, kind: 'timer_session' },
+        });
+        if (!row) throw missing();
+        const data = row.data as unknown as PlannerTimerData,
+          now = clock ?? new Date();
+        const projects = await this.projects(tx, ctx),
+          task = await tx.spPlannerTask.findFirst({
+            where: { tenantId: ctx.tenantId, id: data.taskId },
+          });
+        if (!task) throw missing();
+        requireRole(plannerTaskAccess(task, projects, ctx.clerkUserId), 'editor');
+        if (data.status !== 'running') {
+          if (data.status !== 'stopped' || data.stopHash !== stopHash)
+            throw new ConflictException('This timer has already ended');
+          return this.timerView(tx, ctx, row, now);
+        }
+        version(row.version, dto.version as number);
+        const days = plannerTimerDays(new Date(data.startedAt), now, data.time.timeZone);
+        const options = this.storedTimeOptions(await this.timeSettingsRecord(tx, ctx));
+        const time = plannerTimeDetails({
+          ...data.time,
+          ...supplied,
+          workedOn: plannerTimeToday(data.time.timeZone, now),
+        });
+        if (task.projectIds.length && !time.projectId)
+          fail('Choose one task project for this timer');
+        this.validateTimeProject(time, task, projects, ctx);
+        // A zero-duration stop still honors the current organization policy.
+        requirePlannerTimePolicy(time, options, ctx.role === 'org:admin');
+        const weeks = new Set<string>();
+        for (const day of days) {
+          requirePlannerTimePolicy(
+            { ...time, workedOn: day.workedOn },
+            options,
+            ctx.role === 'org:admin',
+          );
+          weeks.add(plannerWeekOn(day.workedOn));
+        }
+        for (const week of weeks) await this.touchTimesheet(tx, ctx, ctx.clerkUserId, week);
+        const events: Prisma.SpPlannerEventCreateManyInput[] = [];
+        for (const day of days)
+          for (let remaining = day.minutes; remaining > 0; remaining -= 1440)
+            events.push({
+              id: randomUUID(),
+              tenantId: ctx.tenantId,
+              taskId: task.id,
+              actorId: ctx.clerkUserId,
+              kind: 'time',
+              text: 'Tracked with timer',
+              minutes: Math.min(remaining, 1440),
+              details: json({
+                time: { ...time, workedOn: day.workedOn },
+                recordedBy: ctx.clerkUserId,
+                timer: { id: row.id, startedAt: data.startedAt, endedAt: now.toISOString() },
+              }),
+            });
+        if (events.length) {
+          await tx.spPlannerEvent.createMany({ data: events });
+          const taskValues = taskData(task),
+            people = new Set((await this.people(tx, ctx)).map((p) => p.id));
+          const recipients = [
+            ...new Set([taskValues.assigneeId, task.ownerId, ...taskValues.collaborators]),
+          ].filter(
+            (user): user is string => !!user && user !== ctx.clerkUserId && people.has(user),
+          );
+          if (recipients.length)
+            await tx.spPlannerInbox.createMany({
+              data: events.flatMap((e) =>
+                recipients.map((userId) => ({
+                  id: randomUUID(),
+                  tenantId: ctx.tenantId,
+                  userId,
+                  eventId: e.id!,
+                })),
+              ),
+            });
+        }
+        const { workedOn: _date, ...details } = time;
+        const next: PlannerTimerData = {
+          ...data,
+          status: 'stopped',
+          endedAt: now.toISOString(),
+          time: details,
+          stopHash,
+          elapsedMilliseconds: now.getTime() - Date.parse(data.startedAt),
+          minutes: days.reduce((n, d) => n + d.minutes, 0),
+          eventIds: events.map((e) => e.id!),
+        };
+        const saved = await tx.spPlannerResource.update({
+          where: { tenantId: ctx.tenantId, id },
+          data: { data: json(next), archived: true, version: { increment: 1 } },
+        });
+        return this.timerView(tx, ctx, saved, now);
+      },
+      true,
+    );
+  }
+  async discardTimer(
+    ctx: AuthTenantContext,
+    id: string,
+    raw: unknown,
+    clock?: Date,
+  ): Promise<PlannerTimer> {
+    uuid(id);
+    const dto = object(raw);
+    keys(dto, ['version']);
+    if (!Number.isInteger(dto.version) || Number(dto.version) < 1)
+      fail('An expected timer version is required');
+    const stopHash = createHash('sha256')
+      .update(JSON.stringify(['discard', dto.version]))
+      .digest('hex');
+    return this.scope(
+      ctx,
+      async (tx) => {
+        await this.timerMember(tx, ctx);
+        const row = await tx.spPlannerResource.findFirst({
+          where: { tenantId: ctx.tenantId, id, ownerId: ctx.clerkUserId, kind: 'timer_session' },
+        });
+        if (!row) throw missing();
+        const data = row.data as unknown as PlannerTimerData,
+          now = clock ?? new Date();
+        if (data.status !== 'running') {
+          if (data.status !== 'discarded' || data.stopHash !== stopHash)
+            throw new ConflictException('This timer has already ended');
+          return this.timerView(tx, ctx, row, now);
+        }
+        version(row.version, dto.version as number);
+        const next: PlannerTimerData = {
+          ...data,
+          status: 'discarded',
+          endedAt: now.toISOString(),
+          stopHash,
+          elapsedMilliseconds: Math.max(0, now.getTime() - Date.parse(data.startedAt)),
+        };
+        const saved = await tx.spPlannerResource.update({
+          where: { tenantId: ctx.tenantId, id },
+          data: { data: json(next), archived: true, version: { increment: 1 } },
+        });
+        return this.timerView(tx, ctx, saved, now);
+      },
+      true,
+    );
+  }
   async addEvent(
     ctx: AuthTenantContext,
     target: { taskId?: string; projectId?: string; resourceId?: string },
@@ -1943,7 +2282,7 @@ export class PlannerService {
     projects: SpPlannerProject[],
     ctx: AuthTenantContext,
   ): PlannerRole | null {
-    if (row.kind === 'task_import_receipt') return null;
+    if (['task_import_receipt', 'timer_session'].includes(row.kind)) return null;
     if (['project_budget', 'project_budget_alert'].includes(row.kind)) {
       const project = projects.find((p) => p.id === row.projectId);
       return project &&

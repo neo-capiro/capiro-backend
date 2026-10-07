@@ -1019,6 +1019,57 @@
   padding: 24px;
   backdrop-filter: blur(2px);
 }
+.planner-timer-widget {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: min(360px, calc(100vw - 40px));
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid #dedbe8;
+  border-radius: 14px;
+  background: white;
+  box-shadow: 0 8px 32px #25263324;
+  z-index: 900;
+}
+.planner-timer-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.planner-timer-task {
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.planner-timer-clock {
+  display: block;
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  margin-top: 12px;
+}
+.planner-timer-fields {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e6e8ed;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+.planner-timer-fields select,
+.planner-timer-fields input {
+  min-width: 0;
+  max-width: 100%;
+}
+.planner-task-timer {
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid #e6e8ed;
+  border-radius: 10px;
+}
+.planner-task-timer > button {
+  margin-top: 10px;
+}
 .planner-activity-actions {
   display: flex;
   flex-wrap: wrap;
