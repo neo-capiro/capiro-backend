@@ -16,6 +16,7 @@ export function plannerEventView(
     id: row.id,
     taskId: row.taskId,
     projectId: row.projectId,
+    ...(row.resourceId ? { resourceId: row.resourceId } : {}),
     actorId: row.actorId,
     kind: row.kind as PlannerEvent['kind'],
     text: removed ? '' : (revision?.text ?? row.text),

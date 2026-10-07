@@ -7,6 +7,11 @@ describe('Planner scheduler tenant discovery and lifecycle', () => {
     const query = jest.fn(async (_sql: unknown) => [{ tenantId: tenant }]);
     const prisma = { withSystem: jest.fn(async (run) => run({ $queryRaw: query })) };
     const planner = {
+      runScheduledGoalWork: jest.fn(async (_tenantId: string, _now: Date, _cursor?: string) => ({
+        executed: 0,
+        failed: 0,
+        nextCursor: null as string | null,
+      })),
       runScheduledWork: jest.fn(async (_tenantId: string, _now: Date, _cursor?: string) => ({
         executed: 1,
         failed: 0,
@@ -31,18 +36,17 @@ describe('Planner scheduler tenant discovery and lifecycle', () => {
     expect(sql.join('')).toContain('tenant_memberships');
     expect(sql.join('')).not.toContain('sp_planner');
     expect(planner.runScheduledWork).toHaveBeenCalledWith(tenant, now, undefined);
+    expect(planner.runScheduledGoalWork).toHaveBeenCalledWith(tenant, now, undefined);
   });
   it('retains task cursors, isolates a failed tenant and retries discovery after failure', async () => {
     const { service, planner, query } = fixture();
     const second = '10000000-0000-4000-8000-000000000002';
     query.mockResolvedValue([{ tenantId: tenant }, { tenantId: second }]);
-    planner.runScheduledWork
-      .mockRejectedValueOnce(new Error('isolated'))
-      .mockResolvedValue({
-        executed: 1,
-        failed: 0,
-        nextCursor: '30000000-0000-4000-8000-000000000001',
-      });
+    planner.runScheduledWork.mockRejectedValueOnce(new Error('isolated')).mockResolvedValue({
+      executed: 1,
+      failed: 0,
+      nextCursor: '30000000-0000-4000-8000-000000000001',
+    });
     await service.tickOnce();
     await service.tickOnce();
     expect(planner.runScheduledWork).toHaveBeenCalledWith(

@@ -7,6 +7,8 @@ import type {
 import {
   PLANNER_DEFAULT_TASK,
   plannerCalendarDate,
+  plannerTime,
+  plannerTimeZone,
   plannerDependencyCycle,
 } from '@capiro/strategy-verifier';
 import {
@@ -84,6 +86,11 @@ export function validateResource(
             'current',
             'target',
             'unit',
+            'startValue',
+            'direction',
+            'followers',
+            'reminder',
+            'timeZone',
             'subgoalIds',
             'taskIds',
             'startOn',
@@ -119,10 +126,42 @@ export function validateResource(
         'subgoal_percentage',
         'subgoal_total',
       ]);
-      number(d.current);
-      number(d.target);
-      if (Number(d.target) <= 0) fail('A goal needs a positive target');
+      for (const value of [d.current, d.target, d.startValue ?? 0])
+        if (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > 1_000_000)
+          fail('Invalid goal measurement value');
+      if (d.direction !== undefined) enumValue(d.direction, ['increase', 'decrease']);
+      if (d.progress === 'manual' || d.progress === 'subgoal_total') {
+        const start = Number(d.startValue ?? 0),
+          target = Number(d.target);
+        if ((d.direction ?? 'increase') === 'increase' ? target <= start : target >= start)
+          fail(
+            (d.direction ?? 'increase') === 'increase'
+              ? 'An increasing goal needs a target above its starting value'
+              : 'A decreasing goal needs a target below its starting value',
+          );
+      } else {
+        if (Number(d.target) <= 0) fail('A goal needs a positive target');
+        if ((d.startValue ?? 0) !== 0 || (d.direction ?? 'increase') !== 'increase')
+          fail('Automatic percentage progress starts at zero and increases');
+      }
       string(d.unit, 100, true);
+      if (d.followers !== undefined) {
+        const followers = array(d.followers, 1000);
+        followers.forEach((id) => string(id, 200, true));
+        distinct(followers);
+      }
+      if (d.timeZone !== undefined && !plannerTimeZone(d.timeZone)) fail('Invalid goal time zone');
+      if (d.reminder !== undefined && d.reminder !== null) {
+        const reminder = object(d.reminder);
+        keys(reminder, ['cadence', 'anchorOn', 'time', 'timeZone']);
+        enumValue(reminder.cadence, ['weekly', 'biweekly', 'monthly', 'quarterly']);
+        if (
+          !plannerCalendarDate(reminder.anchorOn) ||
+          !plannerTime(reminder.time) ||
+          !plannerTimeZone(reminder.timeZone)
+        )
+          fail('Invalid goal reminder schedule');
+      }
       if (d.startOn !== undefined && d.startOn !== null && !plannerCalendarDate(d.startOn))
         fail('Invalid goal start date');
       if (d.startOn && d.dueOn && String(d.startOn) > String(d.dueOn))

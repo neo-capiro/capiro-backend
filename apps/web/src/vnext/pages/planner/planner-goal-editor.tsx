@@ -134,6 +134,7 @@ export function PlannerGoalEditor({
           <input
             type="date"
             value={goal.startOn ?? ''}
+            onInput={(e) => edit({ startOn: e.currentTarget.value || null })}
             onChange={(e) => edit({ startOn: e.target.value || null })}
           />
         </Field>
@@ -141,6 +142,7 @@ export function PlannerGoalEditor({
           <input
             type="date"
             value={goal.dueOn ?? ''}
+            onInput={(e) => edit({ dueOn: e.currentTarget.value || null })}
             onChange={(e) => edit({ dueOn: e.target.value || null })}
           />
         </Field>
@@ -167,7 +169,7 @@ export function PlannerGoalEditor({
                 weights: [],
                 ...(progress === 'manual' || progress === 'subgoal_total'
                   ? {}
-                  : { target: 100, unit: '%' }),
+                  : { target: 100, unit: '%', startValue: 0, direction: 'increase' }),
               });
             }}
           >
@@ -182,7 +184,7 @@ export function PlannerGoalEditor({
           <Field name="Current value">
             <input
               type="number"
-              min={0}
+              min={-1000000}
               max={1000000}
               step="any"
               value={goal.current}
@@ -192,11 +194,31 @@ export function PlannerGoalEditor({
         )}
         {numeric && (
           <>
+            <Field name="Goal direction">
+              <select
+                value={goal.direction ?? 'increase'}
+                onChange={(e) => edit({ direction: e.target.value as 'increase' | 'decrease' })}
+              >
+                <option value="increase">Increase value</option>
+                <option value="decrease">Decrease value</option>
+              </select>
+            </Field>
+            <Field name="Starting value">
+              <input
+                type="number"
+                required
+                min={-1000000}
+                max={1000000}
+                step="any"
+                value={goal.startValue ?? 0}
+                onChange={(e) => edit({ startValue: Number(e.target.value) })}
+              />
+            </Field>
             <Field name="Target">
               <input
                 type="number"
                 required
-                min={0.001}
+                min={-1000000}
                 max={1000000}
                 step="any"
                 value={goal.target}

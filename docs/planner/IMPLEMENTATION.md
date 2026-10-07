@@ -1,5 +1,7 @@
 # Planner
 
+Goal updates/history/reminders and starting/decreasing measurements are live on Strategies 41 / web-vNext 452. Structured immutable posts, corrected comments, original progress snapshots, authorized followers and owner cadence/closing reminders use the approved Inbox/bell. All eight migrations and nine forced-RLS tables are verified under the actual application role. 225 API and 73 web checks, production builds, exact-source ARM64 builds and private live QA pass. Test goals and their notifications are recoverably archived; the original eight unrelated unread items are preserved. See [RELEASE-GOAL-ACTIVITY-20261007.md](RELEASE-GOAL-ACTIVITY-20261007.md). Full parity remains open.
+
 Owner request, October 6, 2026: reproduce Asana's work functionality as a **Planner** tab on `os.capiro.ai`. Planner is owned by **api-strategy**, at `/strategy-api/planner`. Use the existing Strategies service, Aurora cluster, Clerk membership resolution, and tenant-scoped Prisma client.
 
 Approved integrations: Dashboard Work Queue; links to client records and Engagement meetings; Planner updates and reminders in Capiro's main notification bell as well as Planner Inbox. All are live. Workspace document integration is explicitly excluded. Ask the owner before adding any other Capiro integration (including Meri or Strategy execution).

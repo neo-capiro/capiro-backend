@@ -140,6 +140,34 @@ export class PlannerController {
   ) {
     return this.planner.inbox(ctx, query);
   }
+  @Get('goals/:id/events') goalEvents(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Query() query: { paged?: string; cursor?: string },
+  ) {
+    return this.planner.events(ctx, { resourceId: id }, query);
+  }
+  @Post('goals/:id/events') addGoalComment(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.addEvent(ctx, { resourceId: id }, dto);
+  }
+  @Post('goals/:id/updates') postGoalUpdate(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.postGoalUpdate(ctx, id, dto);
+  }
+  @Patch('goals/:id/follow') followGoal(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Param('id') id: string,
+    @Body() dto: unknown,
+  ) {
+    return this.planner.followGoal(ctx, id, dto);
+  }
   @Get('notifications') notifications(@CurrentTenant() ctx: AuthTenantContext) {
     return this.planner.notifications(ctx);
   }

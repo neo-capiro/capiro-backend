@@ -19,6 +19,7 @@ import {
   plannerTemplateSchedule,
   plannerCalendarDate,
   plannerGoalSourceIds,
+  plannerGoalPercentage,
   plannerGoalWeights,
 } from '@capiro/strategy-verifier';
 import {
@@ -32,6 +33,7 @@ import { PlannerActivity } from './planner-activity.js';
 import { PlannerTemplateScheduleEditor } from './planner-template-schedule.js';
 import { PlannerGoalEditor, PLANNER_GOAL_STATUS_LABELS } from './planner-goal-editor.js';
 import { PlannerGoalDetail } from './planner-goal-detail.js';
+import { PlannerGoalActivity } from './planner-goal-activity.js';
 import { PlannerFormBuilder, plannerDuplicateFormData } from './planner-form-builder.js';
 import {
   PlannerFormQuestions,
@@ -54,6 +56,8 @@ export function plannerResourceDefaults(kind: PlannerResourceKind): Record<strin
       current: 0,
       target: 100,
       unit: '%',
+      startValue: 0,
+      direction: 'increase',
       subgoalIds: [],
       taskIds: [],
       startOn: null,
@@ -327,7 +331,7 @@ export function PlannerManagement({
             const percentage =
               row.goalProgress?.percentage ??
               (row.data.progress === 'manual'
-                ? (Number(row.data.current) / Math.max(1, Number(row.data.target))) * 100
+                ? plannerGoalPercentage(row.data as unknown as PlannerGoalData)
                 : 0);
             return (
               <article className="planner-management-card" key={row.id}>
@@ -463,6 +467,8 @@ export function PlannerManagement({
                         const data = structuredClone(row.data) as unknown as PlannerGoalData;
                         data.privacy = 'private';
                         data.members = [];
+                        data.followers = [];
+                        data.reminder = null;
                         data.ownerId = bootstrap.me.id;
                         data.projectIds = data.projectIds.filter((id) =>
                           bootstrap.projects.some((p) => p.id === id && !p.archived),
@@ -572,27 +578,34 @@ export function PlannerManagement({
       )}
       {goalDetail && kind === 'goal' && (
         <ModalFrame title="Goal details" onClose={() => openGoal(null)}>
-          <PlannerGoalDetail
-            key={goalDetail.id}
-            goal={goalDetail}
-            goals={query.data ?? []}
-            bootstrap={bootstrap}
-            tasks={tasks}
-            onGoal={openGoal}
-            onProject={(id) => {
-              openGoal(null);
-              onProject(id);
-            }}
-            onTask={(id) => {
-              openGoal(null);
-              onTask(id);
-            }}
-            onEdit={() => {
-              actions.resource.reset();
-              setEditor(goalDetail);
-              openGoal(null);
-            }}
-          />
+          <div className="planner-dialog-body planner-goal-body">
+            <PlannerGoalDetail
+              key={goalDetail.id}
+              goal={goalDetail}
+              goals={query.data ?? []}
+              bootstrap={bootstrap}
+              tasks={tasks}
+              onGoal={openGoal}
+              onProject={(id) => {
+                openGoal(null);
+                onProject(id);
+              }}
+              onTask={(id) => {
+                openGoal(null);
+                onTask(id);
+              }}
+              onEdit={() => {
+                actions.resource.reset();
+                setEditor(goalDetail);
+                openGoal(null);
+              }}
+            />
+            <PlannerGoalActivity
+              key={`activity:${goalDetail.id}`}
+              goal={goalDetail}
+              bootstrap={bootstrap}
+            />
+          </div>
         </ModalFrame>
       )}
       {using && kind === 'template' && (

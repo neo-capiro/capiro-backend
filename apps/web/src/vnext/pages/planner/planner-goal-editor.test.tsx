@@ -79,6 +79,14 @@ const selectMultiple = (name: string, ids: string[]) => {
 };
 afterEach(cleanup);
 describe('Planner goal editing and progress detail', () => {
+  it('retains native date input changes and clears dates explicitly', () => {
+    render(<Editor initial={data()} />);
+    fireEvent.input(screen.getByLabelText('Start date'), { target: { value: '2043-01-01' } });
+    fireEvent.input(screen.getByLabelText('Due date'), { target: { value: '2043-01-08' } });
+    expect(current()).toMatchObject({ startOn: '2043-01-01', dueOn: '2043-01-08' });
+    fireEvent.input(screen.getByLabelText('Due date'), { target: { value: '' } });
+    expect(current().dueOn).toBeNull();
+  });
   it('changes progress sources without discarding related work and resets percentage settings', () => {
     render(
       <Editor
@@ -89,6 +97,8 @@ describe('Planner goal editing and progress detail', () => {
           current: 40,
           target: 1000,
           unit: 'USD',
+          startValue: 100,
+          direction: 'increase',
         })}
       />,
     );
@@ -99,6 +109,8 @@ describe('Planner goal editing and progress detail', () => {
       progress: 'project_task_completion',
       target: 100,
       unit: '%',
+      startValue: 0,
+      direction: 'increase',
       subgoalIds: ['child'],
       taskIds: ['retained'],
       projectIds: ['first'],
@@ -140,6 +152,32 @@ describe('Planner goal editing and progress detail', () => {
     ).toHaveProperty('selected', true);
     selectMultiple('Connected tasks', ['retained']);
     expect(current().taskIds).toEqual(['retained']);
+  });
+  it('shows decreasing progress from a nonzero start toward a zero target', () => {
+    const g = resource('current', {
+      current: 25,
+      startValue: 100,
+      target: 0,
+      direction: 'decrease',
+      unit: 'incidents',
+    });
+    render(
+      <PlannerGoalDetail
+        goal={g}
+        goals={goals}
+        bootstrap={bootstrap}
+        tasks={[]}
+        onGoal={() => {}}
+        onProject={() => {}}
+        onTask={() => {}}
+        onEdit={() => {}}
+      />,
+    );
+    expect(screen.getByRole('progressbar', { name: 'current progress' })).toHaveAttribute(
+      'value',
+      '75',
+    );
+    expect(screen.getByText(/Starting at 100 incidents/)).toBeInTheDocument();
   });
   it('shows authoritative progress and contribution navigation even when task pages are empty', () => {
     const g = resource('current', {

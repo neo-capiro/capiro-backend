@@ -1422,3 +1422,74 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.planner-goal-updates {
+  border-top: 1px solid var(--planner-line, #dce1e8);
+}
+.planner-goal-composer {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-surface-muted, #f5f7fb);
+  border-radius: 10px;
+}
+.planner-goal-composer fieldset {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--planner-line, #dce1e8);
+  border-radius: 8px;
+  padding: 12px;
+}
+.planner-goal-history svg {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+}
+.planner-goal-history svg text {
+  fill: currentColor;
+  font-size: 11px;
+}
+.planner-goal-grid {
+  stroke: currentColor;
+  opacity: 0.15;
+}
+.planner-goal-trend {
+  fill: none;
+  stroke: var(--planner-accent, #625ee8);
+  stroke-width: 2.5;
+}
+.planner-goal-point {
+  fill: var(--planner-accent, #625ee8);
+}
+.planner-goal-history-table {
+  overflow-x: auto;
+  max-height: 360px;
+}
+.planner-goal-history-table caption {
+  padding: 8px 0;
+  text-align: left;
+}
+
+.planner-modal .planner-goal-body {
+  flex: 1;
+}
+.planner-goal-updates {
+  margin-top: 24px;
+  padding-top: 16px;
+}
+.planner-modal .planner-goal-updates form {
+  display: block;
+  max-height: none;
+}
+.planner-modal .planner-goal-updates form.planner-goal-composer {
+  display: grid;
+}
+.planner-goal-history .planner-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.planner-goal-history th,
+.planner-goal-history td {
+  text-align: left;
+  padding: 10px 8px;
+  border-bottom: 1px solid #eee;
+}

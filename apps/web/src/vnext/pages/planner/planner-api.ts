@@ -14,6 +14,9 @@ import type {
   PlannerResourceKind,
   PlannerAttachment,
   PlannerFormQuestion,
+  PlannerGoalData,
+  PlannerGoalUpdateSection,
+  PlannerGoalReminder,
 } from '@capiro/strategy-verifier';
 import { plannerFormSubmissionBody, type PlannerFormFiles } from './planner-form-questions.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -78,13 +81,17 @@ export function usePlannerTask(id: string | null) {
     queryFn: async () => (await api.get<PlannerTask>(`${BASE}/tasks/${id}`)).data,
   });
 }
-export function usePlannerEvents(taskId?: string, projectId?: string) {
+export function usePlannerEvents(taskId?: string, projectId?: string, resourceId?: string) {
   const api = useApi();
   const key = usePlannerKey();
-  const path = taskId ? `tasks/${taskId}` : `projects/${projectId}`;
+  const path = resourceId
+    ? `goals/${resourceId}`
+    : taskId
+      ? `tasks/${taskId}`
+      : `projects/${projectId}`;
   return useInfiniteQuery({
     queryKey: [...key, 'events', path],
-    enabled: Boolean(taskId || projectId),
+    enabled: Boolean(taskId || projectId || resourceId),
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) =>
       (
@@ -209,15 +216,16 @@ export function usePlannerMutations() {
     mutationFn: async (input: {
       taskId?: string;
       projectId?: string;
+      resourceId?: string;
       kind: 'comment' | 'time' | 'status';
       text: string;
       minutes?: number;
       mentions?: string[];
     }) => {
-      const { taskId, projectId, ...body } = input;
+      const { taskId, projectId, resourceId, ...body } = input;
       return (
         await api.post<PlannerEvent>(
-          `${BASE}/${taskId ? `tasks/${taskId}` : `projects/${projectId}`}/events`,
+          `${BASE}/${resourceId ? `goals/${resourceId}` : taskId ? `tasks/${taskId}` : `projects/${projectId}`}/events`,
           body,
         )
       ).data;
@@ -260,6 +268,34 @@ export function usePlannerMutations() {
           ? api.patch<PlannerResource>(`${BASE}/resources/${id}`, body)
           : api.post<PlannerResource>(`${BASE}/resources`, body))
       ).data;
+    },
+    onSuccess,
+  });
+  const goalUpdate = useMutation({
+    mutationFn: async (input: {
+      id: string;
+      version: number;
+      status: PlannerGoalData['status'];
+      current?: number;
+      title: string;
+      sections: PlannerGoalUpdateSection[];
+      reminder?: PlannerGoalReminder | null;
+      timeZone?: string;
+    }) => {
+      const { id, ...body } = input;
+      return (
+        await api.post<{ goal: PlannerResource; event: PlannerEvent }>(
+          `${BASE}/goals/${id}/updates`,
+          body,
+        )
+      ).data;
+    },
+    onSuccess,
+  });
+  const followGoal = useMutation({
+    mutationFn: async (input: { id: string; version: number; following: boolean }) => {
+      const { id, ...body } = input;
+      return (await api.patch<{ following: boolean }>(`${BASE}/goals/${id}/follow`, body)).data;
     },
     onSuccess,
   });
@@ -321,6 +357,8 @@ export function usePlannerMutations() {
     reviseEvent,
     inbox,
     resource,
+    goalUpdate,
+    followGoal,
     instantiate,
     submitForm,
     shareForm,

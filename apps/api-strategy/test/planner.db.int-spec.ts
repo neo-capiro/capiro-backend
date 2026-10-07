@@ -836,7 +836,7 @@ describeDb('Planner real PostgreSQL integration', () => {
       const tableRights = await tx.$queryRaw<
         { relname: string; relforcerowsecurity: boolean; can_delete: boolean }[]
       >`SELECT relname, relforcerowsecurity, has_table_privilege('capiro_app', oid, 'DELETE') AS can_delete FROM pg_class WHERE relkind='r' AND relname LIKE 'sp_planner_%' ORDER BY relname`;
-      expect(tableRights).toHaveLength(8);
+      expect(tableRights).toHaveLength(9);
       expect(tableRights.every((row) => row.relforcerowsecurity && !row.can_delete)).toBe(true);
     });
   });

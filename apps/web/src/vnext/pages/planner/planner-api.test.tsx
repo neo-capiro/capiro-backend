@@ -24,6 +24,26 @@ function wrapper() {
   );
 }
 describe('Planner activity pagination', () => {
+  it('keeps goal history and audience metadata separate from project/task activity', async () => {
+    fixture.get.mockImplementation(async (path) => ({
+      data: {
+        items: [{ id: path }],
+        nextCursor: null,
+        goalContext: { audienceCount: 3, following: true },
+      },
+    }));
+    const { result } = renderHook(() => usePlannerEvents(undefined, undefined, 'goal-first'), {
+      wrapper: wrapper(),
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(fixture.get).toHaveBeenCalledWith('/strategy-api/planner/goals/goal-first/events', {
+      params: { paged: 'true' },
+    });
+    expect(result.current.data!.pages[0]!.goalContext).toEqual({
+      audienceCount: 3,
+      following: true,
+    });
+  });
   it('retains earlier activity when loading the next cursor and isolates a different task', async () => {
     fixture.get.mockImplementation(async (path, config) => ({
       data: config.params.cursor
