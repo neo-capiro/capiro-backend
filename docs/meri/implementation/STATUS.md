@@ -1,6 +1,6 @@
 # Meri File01 checkpoint — C0/C1 complete, C2 active
 
-**Start a new session with [HANDOVER-2026-10-07.md](HANDOVER-2026-10-07.md)**, then the program-level [HANDOVER-2026-10-06-finish-plan.md](HANDOVER-2026-10-06-finish-plan.md). The finish plan still controls; the 2026-10-07 handover says what this session did against its §3 and what is next.
+**Start a new session with [HANDOVER-2026-10-07-finish-plan.md](HANDOVER-2026-10-07-finish-plan.md)** (written 2026-10-07, about 13:45 UTC). It replaces [HANDOVER-2026-10-06-finish-plan.md](HANDOVER-2026-10-06-finish-plan.md) as the program-level plan, records the open-source register outcome (no new adoptions), and corrects the 2026-10-07 handover's steering diagnosis (the limit hit was the 23-attempt provider cap, not tokens or dollars; its §3.2 b). [HANDOVER-2026-10-07.md](HANDOVER-2026-10-07.md) still holds how that session's pieces were tested.
 
 **Stage 2 progress, October 7, 2026 (about 04:30 UTC, lead agent).** Finish-plan §3.1 to §3.4 are done or awaiting Neo's verdicts. Evidence: [releases/2026-10-07](../releases/2026-10-07/README.md).
 
