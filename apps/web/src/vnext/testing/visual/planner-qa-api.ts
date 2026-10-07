@@ -31,6 +31,8 @@ import {
   plannerRatedCost,
   type PlannerProjectBudget,
   type PlannerBudgetData,
+  type PlannerTimer,
+  plannerTimeToday,
 } from '@capiro/strategy-verifier';
 const PROJECT = '20000000-0000-4000-8000-000000000001';
 const SECTION = '40000000-0000-4000-8000-000000000001';
@@ -88,6 +90,29 @@ const tasks: PlannerTask[] = [
 }));
 const events: PlannerEvent[] = [];
 const taskImports = new Map<string, { hash: string; taskId: string }>();
+type QaTimer = PlannerTimer & { startKey: string; startHash: string; stopHash?: string };
+const timerSessions = new Map<string, QaTimer>();
+try {
+  for (const row of JSON.parse(sessionStorage.getItem('planner-qa-timers') ?? '[]') as QaTimer[])
+    timerSessions.set(row.id, row);
+} catch {
+  /* A stale synthetic fixture can be reset without touching live records. */
+}
+function saveQaTimers() {
+  sessionStorage.setItem('planner-qa-timers', JSON.stringify([...timerSessions.values()]));
+}
+function qaTimerView(row: QaTimer) {
+  const { startKey: _key, startHash: _hash, stopHash: _stop, ...timer } = row;
+  const now = new Date();
+  return {
+    ...timer,
+    serverNow: now.toISOString(),
+    elapsedMilliseconds:
+      timer.status === 'running'
+        ? Math.max(0, now.getTime() - Date.parse(timer.startedAt))
+        : timer.elapsedMilliseconds,
+  };
+}
 const removedEventContents = new Map<string, { text: string; minutes: number | null }>();
 const resources: PlannerResource[] = [];
 const budgetConfigs = new Map<string, { version: number; data: PlannerBudgetData }>();
@@ -369,6 +394,10 @@ const error = (message: string, status = 400) => {
 };
 const api = {
   async get(path: string, config?: { params?: Record<string, string> }) {
+    if (path.endsWith('/time/timer')) {
+      const row = [...timerSessions.values()].find((t) => t.status === 'running');
+      return { data: row ? qaTimerView(row) : null };
+    }
     if (path.endsWith('/budget')) return { data: projectBudget(path.split('/').at(-2)!) };
     if (path.endsWith('/time/preferences')) return { data: structuredClone(timePreferences) };
     if (path.endsWith('/time/settings')) return { data: structuredClone(timeSettings) };
@@ -712,6 +741,94 @@ const api = {
     return { data: structuredClone(row) };
   },
   async post(path: string, body: Record<string, unknown>) {
+    if (path.endsWith('/time/timers')) {
+      const previous = [...timerSessions.values()].find((t) => t.startKey === body.startKey);
+      if (previous) {
+        if (previous.startHash !== JSON.stringify(body)) error('Timer start changed', 409);
+        return { data: qaTimerView(previous) };
+      }
+      if ([...timerSessions.values()].some((t) => t.status === 'running'))
+        error('Stop your running timer first', 409);
+      const task = tasks.find((t) => t.id === body.taskId);
+      if (!task) error('Task unavailable', 404);
+      const now = new Date().toISOString();
+      const row: QaTimer = {
+        id: crypto.randomUUID(),
+        version: 1,
+        status: 'running',
+        startedAt: now,
+        endedAt: null,
+        serverNow: now,
+        elapsedMilliseconds: 0,
+        minutes: 0,
+        taskId: task!.id,
+        taskName: task!.name,
+        canStop: true,
+        notice: null,
+        time: {
+          timeZone: timeSettings.options.timeZone,
+          billable: timeSettings.options.billableEnabled && timeSettings.options.billableDefault,
+          projectId: task!.memberships[0]?.projectId ?? null,
+          category: '',
+          ...(body.time as object),
+        },
+        startKey: String(body.startKey),
+        startHash: JSON.stringify(body),
+      };
+      timerSessions.set(row.id, row);
+      saveQaTimers();
+      return { data: qaTimerView(row) };
+    }
+    if (path.includes('/time/timers/') && (path.endsWith('/stop') || path.endsWith('/discard'))) {
+      const row = timerSessions.get(path.split('/').at(-2)!);
+      if (!row) error('Timer unavailable', 404);
+      const hash = JSON.stringify([path.endsWith('/stop') ? 'stop' : 'discard', body]);
+      if (row!.status !== 'running') {
+        if (row!.stopHash !== hash) error('Timer already ended', 409);
+        return { data: qaTimerView(row!) };
+      }
+      if (row!.version !== body.version) error('Timer changed', 409);
+      const now = new Date(),
+        elapsed = Math.max(0, now.getTime() - Date.parse(row!.startedAt)),
+        logging = path.endsWith('/stop');
+      const time = {
+        ...row!.time!,
+        ...(body.time as object),
+        workedOn: plannerTimeToday(row!.time!.timeZone, now),
+      };
+      if (logging) {
+        touchTime('user_qa', time.workedOn);
+        const minutes = Math.ceil(elapsed / 60_000);
+        const task = tasks.find((t) => t.id === row!.taskId)!;
+        if (minutes) {
+          events.unshift({
+            id: crypto.randomUUID(),
+            taskId: task.id,
+            projectId: null,
+            actorId: 'user_qa',
+            recordedBy: 'user_qa',
+            kind: 'time',
+            text: 'Tracked with timer',
+            minutes,
+            time,
+            timeEditable: true,
+            createdAt: now.toISOString(),
+            version: 0,
+          });
+          task.actualMinutes += minutes;
+        }
+        row!.minutes = minutes;
+        row!.time = { ...time };
+      }
+      row!.status = logging ? 'stopped' : 'discarded';
+      row!.endedAt = now.toISOString();
+      row!.elapsedMilliseconds = elapsed;
+      row!.canStop = false;
+      row!.stopHash = hash;
+      row!.version++;
+      saveQaTimers();
+      return { data: qaTimerView(row!) };
+    }
     if (path.endsWith('/tasks/import')) {
       const key = String(body.importKey),
         hash = JSON.stringify(body),
