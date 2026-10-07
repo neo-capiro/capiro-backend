@@ -179,6 +179,11 @@ export function billTextCursor(
  * Passages of current bill versions that match a web-style query
  * (`"exact phrase"`, `or`, `-exclude`), best first, at most two per bill.
  * Windows overlap by 400 characters, so a phrase never falls between two.
+ *
+ * Paged by BILL: `$3` bills per page from offset `$4`, ranked by each bill's
+ * best passage. Every row carries `totalBills`, the exact number of matching
+ * bills (the window count runs before LIMIT), so a caller can say how many
+ * there are and page through all of them.
  */
 export const BILL_TEXT_PASSAGE_SEARCH_SQL = `
 WITH q AS (SELECT websearch_to_tsquery('english', $1) AS query),
@@ -199,20 +204,29 @@ ranked AS (
          row_number() OVER (PARTITION BY cur.bill_id ORDER BY h.rank DESC, h.start_offset) AS rn
     FROM hits h JOIN current_bills cur ON cur.revision_id = h.revision_id
 ),
+bills AS (
+  SELECT bill_id, max(rank) AS best_rank FROM ranked GROUP BY bill_id
+),
+page AS (
+  SELECT bill_id, best_rank, count(*) OVER () AS total_bills
+    FROM bills ORDER BY best_rank DESC, bill_id LIMIT $3 OFFSET $4
+),
 best AS (
-  SELECT * FROM ranked WHERE rn <= 2 ORDER BY rank DESC, bill_id, start_offset LIMIT $3
+  SELECT r.*, p.best_rank, p.total_bills
+    FROM ranked r JOIN page p ON p.bill_id = r.bill_id
+   WHERE r.rn <= 2
 )
 SELECT b.bill_id AS "billId", b.version_code AS "versionCode", b.revision_id AS "revisionId",
        r.extraction_hash AS "extractionHash", b.start_offset AS "startOffset",
-       b.end_offset AS "endOffset", b.rank::float8 AS "rank",
+       b.end_offset AS "endOffset", b.rank::float8 AS "rank", b.total_bills::int AS "totalBills",
        ts_headline('english', substr(r.extracted_text, b.start_offset + 1, b.end_offset - b.start_offset),
-                   q.query, 'MaxFragments=2, MaxWords=45, MinWords=15, FragmentDelimiter=" … ", StartSel="«", StopSel="»"') AS "snippet",
+                   q.query, 'MaxFragments=1, MaxWords=35, MinWords=12, StartSel="«", StopSel="»"') AS "snippet",
        cb.title AS "title"
   FROM best b
   JOIN federal_evidence_revision r ON r.id = b.revision_id
   LEFT JOIN congress_bill cb ON cb.id = b.bill_id
   CROSS JOIN q
- ORDER BY b.rank DESC, b.bill_id, b.start_offset`;
+ ORDER BY b.best_rank DESC, b.bill_id, b.rank DESC, b.start_offset`;
 
 export interface BillTextSearchRow {
   billId: string;
@@ -222,6 +236,8 @@ export interface BillTextSearchRow {
   startOffset: number;
   endOffset: number;
   rank: number;
+  /** Matching bills across all pages (absent on rows from older callers). */
+  totalBills?: number;
   snippet: string;
   title: string | null;
 }
@@ -261,4 +277,84 @@ export function groupBillTextSearchRows(rows: readonly BillTextSearchRow[]) {
     bills.set(row.billId, bill);
   }
   return [...bills.values()];
+}
+
+export const BILL_TEXT_BILLS_PER_PAGE = 8;
+export const BILL_TEXT_MAX_BILLS_PER_PAGE = 10;
+/**
+ * The orchestrator projects any tool result over 12,000 characters down to a
+ * few rows and metadata, which showed the model a partial list with a total
+ * that disagreed with it. A text-search page stays under this budget whole.
+ */
+export const BILL_TEXT_RESPONSE_BUDGET = 10_500;
+
+/**
+ * One page of a bill-text search as the tool returns it: bills best first, an
+ * exact `totalBills`, and the page to ask for next. If the page would exceed
+ * the response budget, second passages go first, then the lowest-ranked bills,
+ * and the response says so.
+ */
+export function billTextSearchResponse(
+  rows: readonly BillTextSearchRow[],
+  request: { textQuery: string; page: number; perPage: number; generatedAt: string },
+) {
+  const results = groupBillTextSearchRows(rows);
+  const listed = results.length;
+  const totalBills = rows.length
+    ? (rows[0]!.totalBills ?? null)
+    : request.page === 1
+      ? 0
+      : null;
+  const build = (omittedBills: number, morePassages: boolean) => {
+    const shown = (request.page - 1) * request.perPage + listed;
+    const hasMore = totalBills !== null && shown < totalBills;
+    const notes = [
+      results.length
+        ? 'Bills whose stored text matches, best first, with matching passages (« » marks the match). Read a passage in context with read_bill_text and its readCursor. Stored text covers 119th-Congress bills.'
+        : request.page > 1
+          ? 'No more matching bills on this page.'
+          : 'No stored bill text matches. Stored text covers 119th-Congress bills; try other wording before concluding no bill addresses the topic.',
+      ...(totalBills !== null && totalBills > 0
+        ? [`${totalBills} bill${totalBills === 1 ? '' : 's'} match in all.${hasMore ? ` Ask for page ${request.page + 1} for more.` : ''}`]
+        : []),
+      ...(morePassages
+        ? ['Only the best passage is shown for some bills; read_bill_text with the bill and query finds the rest.']
+        : []),
+      ...(omittedBills
+        ? [`${omittedBills} lower-ranked bill${omittedBills === 1 ? ' on this page was' : 's on this page were'} left out to fit; narrow the query or ask with a smaller limit to see ${omittedBills === 1 ? 'it' : 'them'}.`]
+        : []),
+    ];
+    return {
+      tool: 'search_congress_bills',
+      generatedAt: request.generatedAt,
+      mode: 'bill_text',
+      textQuery: request.textQuery,
+      results,
+      total: results.length,
+      totalBills,
+      page: request.page,
+      perPage: request.perPage,
+      hasMore,
+      ...(hasMore ? { nextPage: request.page + 1 } : {}),
+      ...(omittedBills ? { omittedBills } : {}),
+      note: notes.join(' '),
+    };
+  };
+  let morePassages = false;
+  let response = build(0, false);
+  for (let index = results.length - 1; index >= 0; index -= 1) {
+    if (JSON.stringify(response).length <= BILL_TEXT_RESPONSE_BUDGET) return response;
+    if (results[index]!.passages.length > 1) {
+      results[index]!.passages.length = 1;
+      morePassages = true;
+      response = build(0, morePassages);
+    }
+  }
+  let omitted = 0;
+  while (results.length > 1 && JSON.stringify(response).length > BILL_TEXT_RESPONSE_BUDGET) {
+    results.pop();
+    omitted += 1;
+    response = build(omitted, morePassages);
+  }
+  return response;
 }

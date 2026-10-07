@@ -26,10 +26,12 @@ import { MeriPdfRenderError } from './meri-docgen-pdf.js';
 import { EngagementTaskStatus, Prisma, type PrismaClient } from '@prisma/client';
 import { lookupStateBillLive, type StateBillLiveOutcome } from './meri-state-bill-live.js';
 import {
+  BILL_TEXT_BILLS_PER_PAGE,
+  BILL_TEXT_MAX_BILLS_PER_PAGE,
   BILL_TEXT_PAGE_CHARS,
   BILL_TEXT_PASSAGE_SEARCH_SQL,
   billTextCursor,
-  groupBillTextSearchRows,
+  billTextSearchResponse,
   locateBillTextPassages,
   type BillTextSearchRow,
 } from './meri-bill-text-search.js';
@@ -1131,7 +1133,7 @@ export class MeriToolsService {
       search_congress_bills: obj({
         query: str('Keyword search, or a bill designation/id ("H.R. 8800", "119-hr-8800")'),
         textQuery: str(
-          'Search inside stored bill TEXT (119th Congress) instead of titles: words, "an exact phrase", or, -exclude. Returns matching bills with passages and a readCursor for read_bill_text.',
+          'Search inside stored bill TEXT (119th Congress) instead of titles: words, "an exact phrase", or, -exclude. Returns up to 8 matching bills per page (limit 1-10), best first, with passages, a readCursor for read_bill_text, the exact totalBills, and nextPage when more bills match.',
         ),
         policyArea: str('Policy area filter'),
         congress: int('Congress number, e.g. 118 or 119'),
@@ -3752,24 +3754,27 @@ export class MeriToolsService {
     const page = clampInt(input.page, 1, 100, 1);
     const textQuery = optionalString(input, 'textQuery', 300);
     if (textQuery) {
+      // Paged by bill and bounded in size so the whole page reaches the model
+      // (the orchestrator projects results over 12,000 characters to metadata).
+      const perPage = clampInt(
+        input.limit,
+        1,
+        BILL_TEXT_MAX_BILLS_PER_PAGE,
+        BILL_TEXT_BILLS_PER_PAGE,
+      );
       const rows = await this.prisma.$queryRawUnsafe<BillTextSearchRow[]>(
         BILL_TEXT_PASSAGE_SEARCH_SQL,
         textQuery,
         Number.isSafeInteger(congressNum) ? congressNum : null,
-        Math.min(100, limit * 2),
+        perPage,
+        (page - 1) * perPage,
       );
-      const results = groupBillTextSearchRows(rows);
-      return {
-        tool: 'search_congress_bills',
-        generatedAt: new Date().toISOString(),
-        mode: 'bill_text',
+      return billTextSearchResponse(rows, {
         textQuery,
-        results,
-        total: results.length,
-        note: results.length
-          ? 'Bills whose stored text matches, best first, with matching passages (« » marks the match). Read a passage in context with read_bill_text and its readCursor. Stored text covers 119th-Congress bills.'
-          : 'No stored bill text matches. Stored text covers 119th-Congress bills; try other wording before concluding no bill addresses the topic.',
-      };
+        page,
+        perPage,
+        generatedAt: new Date().toISOString(),
+      });
     }
 
     // Direct lookup when the query is itself a bill designation/id — a title

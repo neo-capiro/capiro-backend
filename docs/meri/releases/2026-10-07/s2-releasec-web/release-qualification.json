@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-releasec-web-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-07T00:20:12.275784+00:00",
+  "candidates": [
+    {
+      "service": "web-vnext",
+      "sourceSha": "d6efc8adc9ce841b0639bd03b7b2a6977858ede9",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/web-vnext@sha256:c7d70e424eba6c70ac66671745e75b940b8a3930bdbd6f9974b542c618abb984",
+      "buildId": "capiro-build-web-dev:18fd9fcb-a90d-458b-914f-aa461acb62d9"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Web-vnext roll from main: Delegate this asks for Word, Excel or PowerPoint by the request wording, and the deliverable card downloads and labels by format (#2147); carries other workstreams' web changes on main (planner #2141 and others).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
