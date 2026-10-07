@@ -41,8 +41,10 @@ import {
   claimScheduledTaskExecution,
   executeAuthorizedScheduledTaskEffect,
   markScheduledTaskResearchStarted,
+  persistScheduledTaskFailureAlert,
   persistScheduledTaskResultAndAlert,
   readScheduledTaskSavedResult,
+  scheduledRunStopNote,
   reconcileScheduledTaskClaim,
   recordScheduledTaskEmailOutcome,
   renewScheduledTaskExecutionLease,
@@ -86,7 +88,7 @@ type AuthorizedEffect = <T>(
 >;
 
 type ScheduledResearchResult =
-  | { text: string; toolsUsed: string[] }
+  | { text: string; toolsUsed: string[]; stopped?: 'provider_error' | 'round_cap' }
   | { blocked: Exclude<ScheduledTaskExecutionBoundary, 'runnable'> }
   | null;
 
@@ -168,11 +170,7 @@ async function runResearch(
   logger: Logger,
   prisma: any,
   executeAuthorized: AuthorizedEffect,
-): Promise<
-  | { text: string; toolsUsed: string[] }
-  | { blocked: Exclude<ScheduledTaskExecutionBoundary, 'runnable'> }
-  | null
-> {
+): Promise<ScheduledResearchResult> {
   // Filter the full Meri tool schema list to the task's allow-list, and harden:
   // never attach a tool that isn't read-only-safe (defense in depth on top of
   // isAllowListSafe, which we also check before calling this).
@@ -220,12 +218,12 @@ async function runResearch(
         logger.warn(
           `[task ${task.id}] anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`,
         );
-        return lastText ? { text: lastText, toolsUsed } : null;
+        return lastText ? { text: lastText, toolsUsed, stopped: 'provider_error' } : null;
       }
       json = await res.json();
     } catch (err) {
       logger.warn(`[task ${task.id}] anthropic call failed: ${(err as Error).message}`);
-      return lastText ? { text: lastText, toolsUsed } : null;
+      return lastText ? { text: lastText, toolsUsed, stopped: 'provider_error' } : null;
     }
 
     // Phase 1 M5.0 (H-1): meter this round — one ai_usage_events row per
@@ -300,8 +298,8 @@ async function runResearch(
   }
 
   // Hit the round cap — return whatever text we have (the model usually emits a
-  // summary in the last text block before requesting more tools).
-  return lastText ? { text: lastText, toolsUsed } : null;
+  // summary in the last text block before requesting more tools), marked as cut short.
+  return lastText ? { text: lastText, toolsUsed, stopped: 'round_cap' } : null;
 }
 
 export async function runScheduledTasks(options: ScheduledTaskRunnerOptions = {}): Promise<void> {
@@ -524,6 +522,17 @@ export async function runScheduledTasks(options: ScheduledTaskRunnerOptions = {}
         executeAuthorizedScheduledTaskEffect(authorizeCurrent, (authority) =>
           effect(tenantContext(task, authority)),
         );
+      // Release E: a run that produced no briefing says so in the owner's
+      // inbox; it is never left to read as "no change". Best effort.
+      const alertFailure = async (reason: string) => {
+        try {
+          await prisma.withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
+            persistScheduledTaskFailureAlert(tx, identity, claim, { taskName: task.name, reason }),
+          );
+        } catch (err) {
+          logger.warn(`[task ${task.id}] failure alert not saved: ${(err as Error).message}`);
+        }
+      };
       const stopAtBoundary = async (
         boundary: Exclude<ScheduledTaskExecutionBoundary, 'runnable'>,
       ) => {
@@ -580,6 +589,7 @@ export async function runScheduledTasks(options: ScheduledTaskRunnerOptions = {}
             logger.warn(
               `[task ${task.id}] credential resolution failed: ${(err as Error).message}`,
             );
+            await alertFailure('the model credential could not be loaded');
             await finish('error');
             failed += 1;
             continue;
@@ -591,6 +601,7 @@ export async function runScheduledTasks(options: ScheduledTaskRunnerOptions = {}
           const resolved = credentialEffect.value;
           if (!resolved?.apiKey) {
             logger.warn(`[task ${task.id}] no Anthropic credential; skipping`);
+            await alertFailure('no model credential is configured');
             await finish('error');
             failed += 1;
             continue;
@@ -619,6 +630,7 @@ export async function runScheduledTasks(options: ScheduledTaskRunnerOptions = {}
             continue;
           }
           if (!result || !result.text) {
+            await alertFailure('the model returned no briefing');
             await finish('error');
             failed += 1;
             continue;
@@ -628,7 +640,10 @@ export async function runScheduledTasks(options: ScheduledTaskRunnerOptions = {}
             await prisma.withTenantUser(task.tenant_id, task.owner_user_id, (tx: any) =>
               persistScheduledTaskResultAndAlert(tx, identity, claim, {
                 taskName: task.name,
-                text: result.text,
+                // A briefing cut short says so at the top (Release E).
+                text: result.stopped
+                  ? `${scheduledRunStopNote(result.stopped)}\n\n${result.text}`
+                  : result.text,
                 toolsUsed: result.toolsUsed,
               }),
             );
