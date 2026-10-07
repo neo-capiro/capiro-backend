@@ -1,0 +1,20 @@
+[
+  {
+    "service": "engagement-api",
+    "baselineTask": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-engagement-api:139",
+    "baselineSha": "1c980e25407bed85270c313fc0e1bfc6b02c613a",
+    "baselineImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/engagement-api@sha256:a9141b640df6879202d14833fe4ad1b2c0f72a80ca7189f2e679b882f2f854dd",
+    "sourceSha": "601c7b45476e8efdd2c34172ba2de25c88dc8631",
+    "branch": "codex/prep-transport-retry-engagement-api-20261006",
+    "featureSha": "66f2b85ab4e8d4aa39f597147c9d20f7a968b44f"
+  },
+  {
+    "service": "api",
+    "baselineTask": "arn:aws:ecs:us-east-1:967807252336:task-definition/capiro-dev-api:638",
+    "baselineSha": "250fcab8fdc8e051d52000c9d25a091d9d99936a",
+    "baselineImage": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:1513075beafac550c5d2f3230002e89a1ca4ded6b57a3b886d2548f3020689b9",
+    "sourceSha": "5f7d600daafe1e368d7491a204295ed5a50f9305",
+    "branch": "codex/prep-transport-retry-api-20261006",
+    "featureSha": "66f2b85ab4e8d4aa39f597147c9d20f7a968b44f"
+  }
+]
