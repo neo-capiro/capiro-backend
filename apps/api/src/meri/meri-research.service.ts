@@ -167,6 +167,7 @@ import {
   activateDurableResearchCoordinator,
   admitDurableResearchCoordinator,
   applyDurableResearchReplan,
+  approvalStepProposalId,
   completeDurableResearchStep,
   failDurableResearchStep,
   finishDurableResearchReauthorization,
@@ -174,10 +175,19 @@ import {
   publicDurableResearchCoordinator,
   queueDurableResearchSteering,
   readDurableResearchCoordinator,
+  recordDurableResearchApprovalProposal,
   requestDurableResearchCancellation,
   reserveDurableResearchStep,
+  settleDurableResearchApprovalStep,
   DurableResearchCoordinatorError,
 } from './meri-research-coordinator.js';
+import type { MeriActionProposalService } from './meri-action-proposal.service.js';
+import {
+  buildJobApprovalDraftPrompt,
+  jobApprovalTool,
+  parseJobApprovalDraft,
+  pendingJobApprovalSteps,
+} from './meri-job-approvals.js';
 import {
   ResearchChildTaskError,
   boundResearchChildGoal,
@@ -194,6 +204,7 @@ import {
 
 import {
   meriJobDeliverables,
+  meriJobKind,
   meriJobView,
   type MeriJobDeliverable,
   type MeriJobKind,
@@ -333,6 +344,180 @@ export class MeriResearchService {
     private readonly turnMaintenance?: MeriTurnMaintenance,
   ) {}
 
+  /** Release D: posts a job's approval-step cards. Absent means no card is ever posted. */
+  private jobApprovals?: MeriActionProposalService;
+
+  attachJobApprovalProposals(proposals: MeriActionProposalService): void {
+    this.jobApprovals = proposals;
+  }
+
+  /**
+   * Release D: settle each posted approval step from its proposal's current
+   * status (owner-scoped read) with a compare-and-swap. Execution stays with
+   * the proposal authority; this only records the outcome on the job.
+   */
+  private async settleJobApprovals<T extends { id: string; metadata: Prisma.JsonValue | null }>(
+    ctx: TenantContext,
+    session: T,
+  ): Promise<T> {
+    let coordinator;
+    try {
+      coordinator = readDurableResearchCoordinator(session.metadata);
+    } catch {
+      return session;
+    }
+    const waiting = (coordinator?.steps ?? []).flatMap((step) => {
+      const proposalId = approvalStepProposalId(step);
+      return step.goalRevision === coordinator!.goalRevision &&
+        step.outcome === 'waiting_for_approval' &&
+        proposalId
+        ? [{ stepId: step.id, proposalId }]
+        : [];
+    });
+    if (!waiting.length) return session;
+    let metadata: unknown = session.metadata;
+    let changed = false;
+    for (const { stepId, proposalId } of waiting) {
+      const proposal = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.meriActionProposal.findFirst({
+          where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId },
+          select: { status: true },
+        }),
+      );
+      if (!proposal) continue;
+      try {
+        const settled = settleDurableResearchApprovalStep({
+          metadata,
+          stepId,
+          proposalId,
+          proposalStatus: proposal.status,
+        });
+        if (settled.changed) {
+          metadata = settled.metadata;
+          changed = true;
+        }
+      } catch (error) {
+        this.logger.warn(
+          `meri.job.approval.settle_failed ${JSON.stringify({ sessionId: session.id, stepId, code: error instanceof DurableResearchCoordinatorError ? error.code : 'unknown' })}`,
+        );
+      }
+    }
+    if (!changed) return session;
+    const updated = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioResearchSession.updateMany({
+        where: {
+          id: session.id,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          metadata: { equals: session.metadata ?? {} },
+        },
+        data: { metadata: metadata as Prisma.InputJsonObject, updatedAt: new Date() },
+      }),
+    );
+    // A concurrent writer won; the next read settles from its state.
+    return updated.count ? { ...session, metadata: metadata as Prisma.JsonValue } : session;
+  }
+
+  /**
+   * Release D: before the report is saved, post the existing proposal card for
+   * each final approval step whose reads completed. One bounded drafting call
+   * per step (same provider path as planning), the input validated by the
+   * proposal service, and a card only for an action that needs approval.
+   * Jobs only; a plain research run never posts. Failures are logged and leave
+   * the step unposted, which is not a wait.
+   */
+  private async postJobApprovalProposals(
+    ctx: TenantContext,
+    session: Awaited<ReturnType<MeriResearchService['ensureSession']>>,
+    auth: ResearchRuntimeAuth,
+    report: string,
+  ): Promise<Array<{ stepId: string; proposalId: string }>> {
+    if (!this.jobApprovals || meriJobKind(session.kind) === 'research') return [];
+    const current = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.clioResearchSession.findFirst({
+        where: { id: session.id, tenantId: ctx.tenantId, userId: ctx.userId },
+        select: { metadata: true },
+      }),
+    );
+    let steps;
+    try {
+      steps = pendingJobApprovalSteps(current?.metadata);
+    } catch {
+      return [];
+    }
+    if (!steps.length) return [];
+    const handoff = readResearchHandoff(session.metadata);
+    const schemas = new Map(
+      this.tools.anthropicToolSchemas().map((schema) => [schema.name, schema.input_schema]),
+    );
+    const notPosted = (stepId: string, code: string) =>
+      this.logger.warn(
+        `meri.job.approval.not_posted ${JSON.stringify({ sessionId: session.id, stepId, code })}`,
+      );
+    const posted: Array<{ stepId: string; proposalId: string }> = [];
+    for (const step of steps) {
+      const tool = jobApprovalTool(step, (name) => this.tools.isSideEffecting(name));
+      if (!tool) {
+        notPosted(step.id, 'job_approval_tool_ambiguous');
+        continue;
+      }
+      try {
+        const prompt = buildJobApprovalDraftPrompt({
+          objective: step.objective,
+          tool,
+          inputSchema: schemas.get(tool) ?? { type: 'object' },
+          report,
+        });
+        const raw = await this.completeStructured(ctx, session, auth, prompt.system, prompt.user);
+        const created = await this.jobApprovals.create(ctx, {
+          tool,
+          input: parseJobApprovalDraft(raw),
+          ...(handoff?.conversationId ? { conversationId: handoff.conversationId } : {}),
+          surface: 'job',
+          requireApproval: true,
+        });
+        if (created.disposition === 'pending_approval' || created.disposition === 'blocked')
+          posted.push({ stepId: step.id, proposalId: created.proposal.proposalId });
+        else notPosted(step.id, `job_approval_disposition_${created.disposition}`);
+      } catch (error) {
+        notPosted(
+          step.id,
+          error instanceof Error && 'code' in error && typeof error.code === 'string'
+            ? error.code
+            : error instanceof Error
+              ? error.message.slice(0, 120)
+              : 'unknown',
+        );
+      }
+    }
+    return posted;
+  }
+
+  /** One structured completion on the planning provider path (no tools). */
+  private async completeStructured(
+    ctx: TenantContext,
+    session: { id: string; topic: string; clientId: string | null; metadata: Prisma.JsonValue | null },
+    auth: ResearchRuntimeAuth,
+    system: string,
+    user: string,
+  ): Promise<string> {
+    const useV3 = Boolean(this.v3Research && (await this.v3Research.enabled(ctx)));
+    return useV3
+      ? this.v3Research!.plan(
+          ctx,
+          {
+            sessionId: session.id,
+            topic: session.topic,
+            clientId: session.clientId,
+            system,
+            user,
+            handoff: readResearchHandoff(session.metadata),
+          },
+          auth,
+        )
+      : this.anthropicComplete(ctx, session.id, auth, system, user);
+  }
+
   // ── Session CRUD ─────────────────────────────────────────────────────────
 
   async listSessions(ctx: TenantContext, conversationId?: string) {
@@ -364,9 +549,10 @@ export class MeriResearchService {
       }),
     );
     const visible = await Promise.all(
-      sessions.map(async (session) => {
+      sessions.map(async (listed) => {
         try {
-          await this.ensureSession(ctx, session.id);
+          await this.ensureSession(ctx, listed.id);
+          const session = await this.settleJobApprovals(ctx, listed);
           const metadata = researchMetadata(session.metadata);
           return {
             ...session,
@@ -484,7 +670,7 @@ export class MeriResearchService {
   }
 
   async getSession(ctx: TenantContext, id: string) {
-    const session = await this.ensureSession(ctx, id);
+    const session = await this.settleJobApprovals(ctx, await this.ensureSession(ctx, id));
 
     // Attach the report artifact body when complete.
     let report: { id: string; title: string; bodyText: string | null; metadata?: unknown } | null =
@@ -4031,10 +4217,31 @@ export class MeriResearchService {
       ...(held ? { heldForReview: true } : {}),
     };
 
+    // Release D: a held report never posts a card; otherwise post each final
+    // approval step's card while the run still holds its lease, and record it
+    // on the step in the same write that saves the report.
+    const postedApprovals = held
+      ? []
+      : await this.postJobApprovalProposals(ctx, session, result.runAuth, reportBody);
     const artifactId = randomUUID();
     const reportMessageId = handoff?.conversationId ? randomUUID() : null;
     const persisted = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const currentMetadata = await this.fenceRun(tx, ctx, session.id, result.runAuth);
+      let approvalMetadata: unknown = withoutProducerInputManifest(
+        researchMetadata(currentMetadata),
+      );
+      for (const posted of postedApprovals) {
+        try {
+          approvalMetadata = recordDurableResearchApprovalProposal({
+            metadata: approvalMetadata,
+            ...posted,
+          }).metadata;
+        } catch (error) {
+          this.logger.warn(
+            `meri.job.approval.record_failed ${JSON.stringify({ sessionId: session.id, ...posted, code: error instanceof DurableResearchCoordinatorError ? error.code : 'unknown' })}`,
+          );
+        }
+      }
       if (
         session.clientId &&
         !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, session.clientId))
@@ -4164,7 +4371,7 @@ export class MeriResearchService {
           reportArtifactId: artifact.id,
           sources: sources as unknown as Prisma.InputJsonValue,
           metadata: {
-            ...withoutProducerInputManifest(researchMetadata(currentMetadata)),
+            ...researchMetadata(approvalMetadata),
             backingConversationId: conversationId,
             ...(result.citations ? { citations: result.citations } : {}),
             run: terminalResearchRun(

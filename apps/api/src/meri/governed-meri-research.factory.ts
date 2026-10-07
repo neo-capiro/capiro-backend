@@ -20,6 +20,7 @@ import type { MeriToolsService } from './meri-tools.service.js';
 import type { MeriV3ResearchRunner } from './meri-v3-research-runner.js';
 import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import type { MeriTurnMaintenance } from './meri-turn-maintenance.js';
+import type { MeriActionProposalService } from './meri-action-proposal.service.js';
 
 type ResearchContextLoader = (
   ctx: TenantContext,
@@ -61,8 +62,11 @@ export function createGovernedMeriResearchService(
   evaluation?: EvaluationCaptureService,
   v3Research?: MeriV3ResearchRunner,
   turnMaintenance?: MeriTurnMaintenance,
+  // Release D: posts job approval-step cards; absent means none is ever posted.
+  actionProposals?: MeriActionProposalService,
 ): MeriResearchService {
   const service = new MeriResearchService(prisma, config, tools, aiCredentials, reviews, v3Research, turnMaintenance);
+  if (actionProposals) service.attachJobApprovalProposals(actionProposals);
   const internal = service as unknown as ResearchServiceInternals;
   const legacyClientContext = internal.clientContext.bind(service);
   const originalStreamPlan = service.streamPlan.bind(service);

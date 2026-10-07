@@ -179,6 +179,7 @@ import { MeriOtelLifecycleProvider } from './meri-otel-lifecycle.provider.js';
         EvaluationCaptureService,
         MeriV3ResearchRunner,
         MERI_TURN_MAINTENANCE,
+        MeriActionProposalService,
       ],
     },
     MeriDocgenService,
