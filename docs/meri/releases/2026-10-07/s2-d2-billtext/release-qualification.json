@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-d2-billtext-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-07T00:36:25.610413+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "16631b296f0de32b59fdba70451a5319977597cc",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:2bdab129119220593a69fa44547c964590d51624185ddba2085cbb779f88b746",
+      "buildId": "capiro-build-web-dev:d59ec1a8-2390-4d41-bbc6-d769a1ec5f13"
+    }
+  ],
+  "schemaChange": false,
+  "change": "API roll from main 16631b296: bill-text search paged by bill under the tool-result cap (#2149) and D2 skips the agent's own labeled query (#2152).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
