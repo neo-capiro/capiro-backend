@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import JSZip from 'jszip';
 import type { TenantContext } from '@capiro/shared';
-import { MeriDocgenService } from './meri-docgen.service';
+import { bulletFontSize, MeriDocgenService } from './meri-docgen.service';
 import {
   deliverableFileName,
   MeriDeliverableReadBackError,
@@ -203,10 +203,90 @@ describe('report to PowerPoint', () => {
     const spec = researchReportPptxSpec('Deck', markdown);
     const background = spec.slides.filter((slide) => slide.title.startsWith('Background'));
     expect(background.length).toBeGreaterThan(1);
-    expect(background.every((slide) => slide.bullets.length <= 6)).toBe(true);
+    expect(background.every((slide) => slide.bullets.length <= 8)).toBe(true);
+    expect(
+      background.every((slide) => slide.bullets.reduce((n, b) => n + b.length, 0) <= 1_300),
+    ).toBe(true);
     expect(background.flatMap((slide) => slide.bullets).join(' ')).toContain('Point 8');
     const data = spec.slides.filter((slide) => slide.title.startsWith('Data'));
     expect(data.map((slide) => slide.table?.rows.length)).toEqual([10, 10, 3]);
+  });
+
+  // T12 (session 6904f9d7, 2026-10-07): six report sections became 16 slides,
+  // one for the provenance header and six for the source register.
+  const ASSEMBLED = [
+    '# Quarterly update',
+    '',
+    '*Deep research report · generated 2026-10-07*',
+    '',
+    '**Topic:** Make a six-slide quarterly update deck for this client.',
+    '',
+    ...['Executive Summary', 'Objectives', 'Engagement', 'Evidence', 'Gaps', 'Actions'].flatMap(
+      (heading, i) => [
+        `## ${heading}`,
+        ...Array.from({ length: 5 }, (_, j) => `- Point ${i}.${j} ${'x'.repeat(150)}`),
+        '',
+      ],
+    ),
+    '## Sources consulted',
+    ...Array.from(
+      { length: 26 },
+      (_, i) =>
+        `- [${i + 1}] Source ${i + 1} — ${'a long description of what this source says. '.repeat(4)}`,
+    ),
+  ].join('\n');
+
+  it('puts the provenance on the title slide and the request in its notes', () => {
+    const spec = researchReportPptxSpec('Quarterly update', ASSEMBLED);
+    expect(spec.subtitle).toBe('Deep research report · generated 2026-10-07');
+    expect(spec.titleNotes).toBe('Topic: Make a six-slide quarterly update deck for this client.');
+    expect(spec.slides.map((slide) => slide.title)).not.toContain('Summary');
+  });
+
+  it('keeps a six-section report to six slides plus a compact source register', () => {
+    const spec = researchReportPptxSpec('Quarterly update', ASSEMBLED);
+    expect(spec.slides.map((slide) => slide.title)).toEqual([
+      'Executive Summary',
+      'Objectives',
+      'Engagement',
+      'Evidence',
+      'Gaps',
+      'Actions',
+      'Sources consulted',
+      'Sources consulted (cont.)',
+      'Sources consulted (cont.)',
+    ]);
+    const sources = spec.slides.filter((slide) => slide.title.startsWith('Sources'));
+    expect(sources[0]!.bullets[0]).toBe('[1] Source 1');
+    expect(sources.map((slide) => slide.bullets.length)).toEqual([12, 12, 2]);
+    // Every full source entry is kept, in the speaker notes.
+    const notes = sources.map((slide) => slide.notes).join('\n');
+    for (let i = 1; i <= 26; i += 1)
+      expect(notes).toContain(`[${i}] Source ${i} — a long description`);
+  });
+
+  it('writes the speaker notes into the deck', async () => {
+    const spec = researchReportPptxSpec('Quarterly update', ASSEMBLED);
+    const zip = await JSZip.loadAsync(await docgen.buildPptx(spec));
+    const notes = Object.keys(zip.files).filter((name) =>
+      /^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(name),
+    );
+    expect(notes.length).toBeGreaterThanOrEqual(4);
+    const all = (await Promise.all(notes.map((name) => zip.file(name)!.async('string')))).join('');
+    expect(all).toContain('[26] Source 26');
+    expect(all).toContain('Topic: Make a six-slide quarterly update deck');
+    await expect(
+      readBackDeliverable('pptx', await docgen.buildPptx(spec), {
+        title: spec.title,
+        slides: spec.slides.length + 1,
+      }),
+    ).resolves.toMatchObject({ parts: 10 });
+  });
+
+  it('sizes slide text down before a section has to continue', () => {
+    expect(bulletFontSize(['x'.repeat(600)])).toBe(16);
+    expect(bulletFontSize(['x'.repeat(500), 'y'.repeat(400)])).toBe(14);
+    expect(bulletFontSize(['x'.repeat(1_250)])).toBe(12);
   });
 });
 

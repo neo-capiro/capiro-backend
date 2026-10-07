@@ -66,11 +66,15 @@ export interface SlideSpec {
   imageArtifactIds: string[];
   /** Embedded images (resolved; also present in stored specs on re-render). */
   images: DocImage[];
+  /** Speaker notes (full text that would not fit on the slide). */
+  notes?: string;
 }
 
 export interface PptxSpec {
   title: string;
   subtitle: string | null;
+  /** Speaker notes for the title slide. */
+  titleNotes?: string;
   slides: SlideSpec[];
 }
 
@@ -260,13 +264,22 @@ export function normalizePptxSpec(input: unknown): PptxSpec {
     const images = imageList(sv.images);
     if (!slideTitle && bullets.length === 0 && !table && !imageArtifactIds.length && !images.length)
       continue;
-    slides.push({ title: slideTitle || 'Slide', bullets, table, imageArtifactIds, images });
+    const notes = str(sv.notes, MAX_TEXT_BYTES);
+    slides.push({
+      title: slideTitle || 'Slide',
+      bullets,
+      table,
+      imageArtifactIds,
+      images,
+      ...(notes ? { notes } : {}),
+    });
     if (slides.length >= MAX_SLIDES) break;
   }
   if (slides.length === 0) {
     throw new Error('PowerPoint spec has no usable slides');
   }
-  return { title, subtitle, slides };
+  const titleNotes = str(v.titleNotes, MAX_TEXT_BYTES);
+  return { title, subtitle, ...(titleNotes ? { titleNotes } : {}), slides };
 }
 
 /** Produce a filesystem-safe filename stem from a document title. */
