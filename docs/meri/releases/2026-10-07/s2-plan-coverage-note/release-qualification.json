@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-plan-coverage-note-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-07T03:45:34.206780+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "f40dbebffe852cefebb338ad0c05aab2447aede2",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:d78e1a82234f7bfa916cc3666dc1739f7fc52234d734da22d826910390137a7d",
+      "buildId": "capiro-build-web-dev:4c73fdef-3a60-4c7c-a87b-6803e0212e3c"
+    }
+  ],
+  "schemaChange": false,
+  "change": "API roll from main: a steering re-plan strips the runtime's trailing coverage note before strict validation (#2177).",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
