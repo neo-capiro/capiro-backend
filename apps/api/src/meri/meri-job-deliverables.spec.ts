@@ -236,6 +236,25 @@ describe('report to PowerPoint', () => {
     ),
   ].join('\n');
 
+  it('reads the provenance by position when the report title differs from the deliverable', () => {
+    const retitled = ASSEMBLED.replace(
+      '# Quarterly update',
+      '# Research for a sourced quarterly update',
+    );
+    const spec = researchReportPptxSpec('Quarterly update', retitled);
+    expect(spec.subtitle).toBe('Deep research report · generated 2026-10-07');
+    expect(spec.slides[0]!.title).toBe('Executive Summary');
+    expect(spec.slides.map((slide) => slide.title)).not.toContain(
+      'Research for a sourced quarterly update',
+    );
+  });
+
+  it('keeps a first section that has content besides provenance', () => {
+    const spec = researchReportPptxSpec('FY27 marks comparison', MARKS_REPORT);
+    expect(spec.slides[0]!.title).toBe('Summary');
+    expect(spec.subtitle).toBeNull();
+  });
+
   it('puts the provenance on the title slide and the request in its notes', () => {
     const spec = researchReportPptxSpec('Quarterly update', ASSEMBLED);
     expect(spec.subtitle).toBe('Deep research report · generated 2026-10-07');
