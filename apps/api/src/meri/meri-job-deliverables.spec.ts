@@ -10,6 +10,7 @@ import type { TenantContext } from '@capiro/shared';
 import { bulletFontSize, MeriDocgenService } from './meri-docgen.service';
 import {
   deliverableFileName,
+  deliverablesWithPlanTitle,
   MeriDeliverableReadBackError,
   MeriJobDeliverableRequestError,
   readBackDeliverable,
@@ -91,6 +92,23 @@ describe('deliverable requests', () => {
     ['deliverable', [{ format: 'docx' }, { format: 'xlsx' }]],
   ] as const)('refuses kind %s with %j', (kind, raw) => {
     expect(() => requestedJobDeliverables(kind, raw, 'x')).toThrow(MeriJobDeliverableRequestError);
+  });
+
+  it('names an untitled deliverable after the admitted plan, not the cut-off request', () => {
+    // "Delegate this" sends no title, so the file was named after the request
+    // text cut at the title limit (HANDOVER-2026-10-07 §3.4).
+    const placeholder = 'Draft a two-page office brief on H.R. 5929 for the client, covering the House-r';
+    const stored = requestedJobDeliverables('deliverable', [{ format: 'docx' }], placeholder);
+    expect(deliverablesWithPlanTitle(stored, placeholder, ' H.R. 5929 office brief ')).toEqual([
+      { format: 'docx', title: 'H.R. 5929 office brief', artifactId: null },
+    ]);
+  });
+
+  it('keeps an explicitly requested title and reports no change', () => {
+    const stored = requestedJobDeliverables('deliverable', [{ format: 'xlsx', title: 'Marks' }], 'x');
+    expect(deliverablesWithPlanTitle(stored, 'x', 'Plan title')).toBeNull();
+    expect(deliverablesWithPlanTitle([], 'x', 'Plan title')).toBeNull();
+    expect(deliverablesWithPlanTitle(stored, 'Marks', '   ')).toBeNull();
   });
 });
 

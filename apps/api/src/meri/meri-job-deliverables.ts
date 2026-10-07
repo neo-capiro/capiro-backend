@@ -8,7 +8,7 @@ import {
   type PptxSpec,
   type WordSpec,
 } from './meri-docgen.helpers.js';
-import type { MeriJobDeliverable, MeriJobKind } from './meri-job.js';
+import { meriJobDeliverables, type MeriJobDeliverable, type MeriJobKind } from './meri-job.js';
 
 /**
  * Stage 2 deliverables (program plan §5.3). A deliverable job asks for one
@@ -64,6 +64,29 @@ export function requestedJobDeliverables(
       typeof row.title === 'string' && row.title.trim() ? row.title.trim() : fallbackTitle;
     return { format: row.format, title: title.slice(0, 200), artifactId: null };
   });
+}
+
+/**
+ * A deliverable requested without a title carries the request text, cut at the
+ * title limit, as a placeholder ("Delegate this" sends none). Once a plan is
+ * admitted, name it after the plan instead. An explicitly requested title is
+ * kept. Returns null when nothing changes.
+ */
+export function deliverablesWithPlanTitle(
+  value: unknown,
+  placeholder: string,
+  planTitle: string,
+): MeriJobDeliverable[] | null {
+  const deliverables = meriJobDeliverables(value);
+  const title = planTitle.trim().slice(0, 200);
+  if (!title) return null;
+  let changed = false;
+  const next = deliverables.map((deliverable) => {
+    if (deliverable.title !== placeholder || deliverable.title === title) return deliverable;
+    changed = true;
+    return { ...deliverable, title };
+  });
+  return changed ? next : null;
 }
 
 /** Markdown emphasis, links and code markers become plain text for Office text runs. */

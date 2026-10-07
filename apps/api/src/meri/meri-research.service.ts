@@ -199,6 +199,7 @@ import {
   type MeriJobKind,
 } from './meri-job.js';
 import {
+  deliverablesWithPlanTitle,
   MeriJobDeliverableRequestError,
   requestedJobDeliverables,
 } from './meri-job-deliverables.js';
@@ -2802,10 +2803,20 @@ export class MeriResearchService {
             : 'Plan ready; research can begin',
         ),
       };
+      // An untitled deliverable was named after the request text; name it after
+      // the admitted plan instead (an explicitly requested title is kept).
+      const titledDeliverables = deliverablesWithPlanTitle(
+        session.deliverables,
+        session.title,
+        clampTitle(admitted.title),
+      );
       await tx.clioResearchSession.update({
         where: { id: session.id },
         data: {
           title: clampTitle(admitted.title),
+          ...(titledDeliverables
+            ? { deliverables: titledDeliverables as unknown as Prisma.InputJsonValue }
+            : {}),
           plan: stringPlan as Prisma.InputJsonValue,
           clarifyingQuestions: admitted.clarifyingQuestions as Prisma.InputJsonValue,
           status: 'awaiting_clarification',
