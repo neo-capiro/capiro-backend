@@ -384,6 +384,31 @@ describe('D2 — quote/source-span gate', () => {
     const out = `The bill states "the Secretary shall terminate the program no later than fiscal year 2027 absent certification".`;
     expect(checkQuoteSpans(out, split)).toHaveLength(1);
   });
+  it('does NOT flag the agent quoting its own tool query (T5 run 11, 2026-10-07)', () => {
+    const out =
+      '- **Internal bill-text read:** `read_bill_text`, bill `119-hr-5929`, query “critical minerals Department of Defense environmental review,” was unavailable.';
+    expect(checkQuoteSpans(out, ledger)).toEqual([]);
+    expect(
+      checkQuoteSpans(
+        'The report notes I searched for "Department of Defense critical minerals environmental review waiver" and found none.',
+        ledger,
+      ),
+    ).toEqual([]);
+    expect(
+      checkQuoteSpans(
+        'Stored-text search read keywords: "critical minerals supply chain resiliency act 2026 reported".',
+        ledger,
+      ),
+    ).toEqual([]);
+  });
+  it('still flags a fabricated source quote on a line that also mentions a query', () => {
+    const out =
+      'The query returned the committee report, which states "the Secretary shall terminate the program no later than fiscal year 2027 absent certification".';
+    expect(checkQuoteSpans(out, ledger)).toHaveLength(1);
+    const research =
+      'The research states "the Secretary shall terminate the program no later than fiscal year 2027 absent certification".';
+    expect(checkQuoteSpans(research, ledger)).toHaveLength(1);
+  });
   it('does NOT flag short scare quotes or coined terms (precision guard)', () => {
     expect(checkQuoteSpans('The bill text calls this a "skinny budget" approach.', ledger)).toEqual(
       [],
