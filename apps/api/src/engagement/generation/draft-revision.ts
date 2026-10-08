@@ -7,7 +7,8 @@ export const REVISION_OUTPUT_CONTRACT = [
   'Return the smallest replacements needed to fulfill EVERY part of the latest editing instruction. Do not return a new subject or body. Leave unaffected text out of edits.',
   "All edits refer to the original draft, never to another edit's replacement. Include separate edits for every occurrence the user asks to change. Edits must not overlap.",
   'Copy find literally, including whitespace and HTML. Preserve HTML tags, links, and attributes unless the user requests a formatting change. To insert text, replace a small adjacent anchor with that anchor plus the insertion.',
-  'For example, replacing "government affairs" with "Lobbying Firm" means find="government affairs", replacement="Lobbying Firm". Removing dashes requires an edit for each dash, with only nearby punctuation/spacing repaired as needed.',
+  'For a phrase replacement, copy the ENTIRE source phrase and the exact replacement from the latest editing instruction. Do not substitute a shorter matching phrase or retain words the requested replacement already includes. Output-contract examples never override the user’s actual wording.',
+  'For punctuation removal, include an edit for each requested occurrence and repair only its adjacent punctuation or spacing. Preserve unrelated hyphens and punctuation.',
 ].join('\n');
 
 export const REVISION_JSON_SCHEMA = {

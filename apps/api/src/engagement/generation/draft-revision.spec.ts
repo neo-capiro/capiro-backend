@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { applyDraftRevision } from './draft-revision.js';
+import { applyDraftRevision, REVISION_OUTPUT_CONTRACT } from './draft-revision.js';
 
 export const MIA_DRAFT = {
   subject: 'Meeting with Amalgent Therapeutics',
@@ -20,6 +20,13 @@ export const MIA_EDITS = [
 const output = (edits: unknown[]) => JSON.stringify({ edits, contextNote: '' });
 
 describe('targeted draft revisions', () => {
+  test('the output contract defers to the user’s entire phrase instead of suggesting a partial replacement', () => {
+    expect(REVISION_OUTPUT_CONTRACT).toContain('ENTIRE source phrase');
+    expect(REVISION_OUTPUT_CONTRACT).toContain('from the latest editing instruction');
+    expect(REVISION_OUTPUT_CONTRACT).toContain('Preserve unrelated hyphens');
+    expect(REVISION_OUTPUT_CONTRACT).not.toContain('government affairs');
+    expect(REVISION_OUTPUT_CONTRACT).not.toContain('Lobbying Firm');
+  });
   test('Mia: removes harsh dashes and uses Lobbying Firm without regenerating the email', () => {
     const revised = applyDraftRevision(output(MIA_EDITS), MIA_DRAFT);
     expect(revised).toEqual({
