@@ -213,7 +213,7 @@ describe('Release D: job approval cards', () => {
       proposalId: 'proposal-1',
     }).metadata;
     const f = fixture({ kind: 'deliverable', metadata: recorded, proposalStatus: 'succeeded' });
-    const snapshot = (await f.service.getCoordinatorSnapshot(ctx, 'session-1')) as {
+    const snapshot = (await f.service.getCoordinatorSnapshot(ctx, 'session-1')) as unknown as {
       coordinator: { steps: Array<{ id: string; outcome: string }> };
     };
     expect(snapshot.coordinator.steps.find((step) => step.id === 'propose-summary-email')?.outcome).toBe(
