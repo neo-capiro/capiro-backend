@@ -61,6 +61,69 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 describe('Hierarchy time values and distinct section totals', () => {
+  it('does not repeat a separately grouped child inside an expanded parent', () => {
+    render(
+      <PlannerHierarchyList
+        {...props}
+        tasks={[parent, { ...child, status: 'done' }]}
+        groupBy="status"
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Expand first-level subtasks' }));
+    expect(screen.getAllByRole('button', { name: 'Child' })).toHaveLength(1);
+    expect(
+      within(screen.getByRole('region', { name: 'Done' })).getByRole('button', { name: 'Child' }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText('Total task time')).toHaveTextContent('Actual 2:15');
+  });
+  it('changes only first-level expansion while preserving deeper choices and totals', () => {
+    render(<PlannerHierarchyList {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Expand first-level subtasks' }));
+    expect(screen.getByRole('button', { name: 'Child' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Leaf' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Expand subtasks of Child' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse first-level subtasks' }));
+    expect(screen.queryByRole('button', { name: 'Child' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Expand first-level subtasks' }));
+    expect(screen.getByRole('button', { name: 'Leaf' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all groups' }));
+    expect(screen.queryByRole('button', { name: 'Parent' })).toBeNull();
+    expect(screen.getByLabelText('Total task time')).toHaveTextContent('Actual 2:15');
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all groups' }));
+    expect(screen.getByRole('button', { name: 'Leaf' })).toBeTruthy();
+  });
+  it('uses restored personal layout state and emits a captured preference change without modifying tasks', () => {
+    const save = vi.fn();
+    const layout = {
+      data: {
+        scope: 'mine' as const,
+        projectId: null,
+        view: 'list' as const,
+        expandedTaskIds: ['parent', 'child'],
+        collapsedGroupIds: [],
+        hideUnscheduled: false,
+      },
+      disabled: false,
+      save,
+    };
+    const { rerender } = render(<PlannerHierarchyList {...props} layout={layout} />);
+    expect(screen.getByRole('button', { name: 'Leaf' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse first-level subtasks' }));
+    expect(save).toHaveBeenLastCalledWith({ expandedTaskIds: ['child'] });
+    expect(props.onPatch).not.toHaveBeenCalled();
+    rerender(
+      <PlannerHierarchyList
+        {...props}
+        layout={{
+          ...layout,
+          data: { ...layout.data, expandedTaskIds: [], collapsedGroupIds: ['section:'] },
+        }}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Parent' })).toBeNull();
+    rerender(<PlannerHierarchyList {...props} layout={{ ...layout, disabled: true }} />);
+    expect(screen.getByRole('button', { name: 'Collapse first-level subtasks' })).toBeDisabled();
+  });
   it('sorts by full collapsed time and keeps that order while expanding', () => {
     const other = {
       ...parent,

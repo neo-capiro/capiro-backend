@@ -12,6 +12,7 @@ import {
   plannerTaskOverdue,
 } from '@capiro/strategy-verifier';
 import { Check, Circle, Flag, MessageSquare } from 'lucide-react';
+import type { PlannerLayoutControls } from './planner-view-preferences.js';
 
 export function plannerToday(): string {
   const date = new Date();
@@ -41,6 +42,7 @@ export function shiftPlannerDate(date: string, days: number): string {
   return value.toISOString().slice(0, 10);
 }
 export type TaskViewProps = {
+  layout?: PlannerLayoutControls;
   tasks: PlannerTask[];
   people: PlannerPerson[];
   project?: PlannerProject;
@@ -214,88 +216,125 @@ export function PlannerBoard(props: TaskViewProps) {
   if (!props.personal && props.project?.sections.length)
     columns.push({ id: '', name: 'Unsectioned' });
   const [dragging, setDragging] = useState<string | null>(null);
+  const [localCollapsed, setLocalCollapsed] = useState<string[]>([]);
+  const collapsed = props.layout?.data.collapsedGroupIds ?? localCollapsed;
+  const saveCollapsed = (ids: string[]) =>
+    props.layout ? props.layout.save({ collapsedGroupIds: ids }) : setLocalCollapsed(ids);
+  const columnKey = (id: string) =>
+    `${props.personal || props.project?.sections.length ? 'section' : 'status'}:${id}`;
   return (
-    <div className="planner-board">
-      {columns.map((column) => {
-        const tasks = props.tasks.filter((t) =>
-          props.personal
-            ? (props.personal.placements.find((p) => p.taskId === t.id)?.sectionId ?? '') ===
-              column.id
-            : props.project?.sections.length
-              ? (t.memberships.find((m) => m.projectId === props.project!.id)?.sectionId ?? '') ===
+    <div>
+      <div className="planner-layout-controls">
+        <button type="button" disabled={props.layout?.disabled} onClick={() => saveCollapsed([])}>
+          Expand all columns
+        </button>
+        <button
+          type="button"
+          disabled={props.layout?.disabled}
+          onClick={() => saveCollapsed(columns.map((c) => columnKey(c.id)))}
+        >
+          Collapse all columns
+        </button>
+      </div>
+      <div className="planner-board">
+        {columns.map((column) => {
+          const tasks = props.tasks.filter((t) =>
+            props.personal
+              ? (props.personal.placements.find((p) => p.taskId === t.id)?.sectionId ?? '') ===
                 column.id
-              : t.status === column.id,
-        );
-        return (
-          <section
-            key={column.id}
-            className="planner-column"
-            aria-label={column.name}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              const task = props.tasks.find((t) => t.id === dragging);
-              if (!task || props.disabled) return;
-              if (props.personal) {
-                props.personal.onMove(task, column.id || null);
-                setDragging(null);
-                return;
-              }
-              props.onPatch(
-                task,
-                props.project?.sections.length
-                  ? {
-                      memberships: task.memberships.map((m) =>
-                        m.projectId === props.project!.id
-                          ? { ...m, sectionId: column.id || null, position: tasks.length }
-                          : m,
-                      ),
-                    }
-                  : { status: column.id as PlannerStatus },
-              );
-              setDragging(null);
-            }}
-          >
-            <h3>
-              {column.name}
-              <span>{tasks.length}</span>
-            </h3>
-            {tasks.map((task) => (
-              <article
-                key={task.id}
-                className="planner-board-card"
-                draggable={
-                  !props.disabled &&
-                  (Boolean(props.personal) || !['viewer', 'commenter'].includes(task.access))
+              : props.project?.sections.length
+                ? (t.memberships.find((m) => m.projectId === props.project!.id)?.sectionId ??
+                    '') === column.id
+                : t.status === column.id,
+          );
+          const closed = collapsed.includes(columnKey(column.id));
+          return (
+            <section
+              key={column.id}
+              className={`planner-column ${closed ? 'is-collapsed' : ''}`}
+              aria-label={column.name}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                const task = props.tasks.find((t) => t.id === dragging);
+                if (!task || props.disabled) return;
+                if (props.personal) {
+                  props.personal.onMove(task, column.id || null);
+                  setDragging(null);
+                  return;
                 }
-                onDragStart={() => setDragging(task.id)}
-                onDragEnd={() => setDragging(null)}
-              >
-                <div className="planner-task-name">
-                  <TaskCheck {...props} task={task} />
-                  <button type="button" onClick={() => props.onOpen(task.id)}>
-                    {task.name}
-                  </button>
-                </div>
-                <div className="planner-card-meta">
-                  <span className={`planner-tag planner-priority-${task.priority}`}>
-                    {task.priority === 'none' ? 'No priority' : task.priority}
-                  </span>
-                  <span className={plannerTaskOverdue(task) ? 'planner-overdue' : ''}>
-                    {plannerDueLabel(task)}
-                  </span>
-                </div>
-                <div className="planner-card-meta">
-                  <span>
-                    {props.people.find((p) => p.id === task.assigneeId)?.name ?? 'Unassigned'}
-                  </span>
-                  <MessageSquare size={14} />
-                </div>
-              </article>
-            ))}
-          </section>
-        );
-      })}
+                props.onPatch(
+                  task,
+                  props.project?.sections.length
+                    ? {
+                        memberships: task.memberships.map((m) =>
+                          m.projectId === props.project!.id
+                            ? { ...m, sectionId: column.id || null, position: tasks.length }
+                            : m,
+                        ),
+                      }
+                    : { status: column.id as PlannerStatus },
+                );
+                setDragging(null);
+              }}
+            >
+              <h3>
+                <button
+                  type="button"
+                  aria-label={`${closed ? 'Expand' : 'Collapse'} column ${column.name}`}
+                  aria-expanded={!closed}
+                  disabled={props.layout?.disabled}
+                  onClick={() =>
+                    saveCollapsed(
+                      closed
+                        ? collapsed.filter((id) => id !== columnKey(column.id))
+                        : [...collapsed, columnKey(column.id)],
+                    )
+                  }
+                >
+                  {closed ? '▸' : '▾'}
+                </button>
+                {column.name}
+                <span>{tasks.length}</span>
+              </h3>
+              {!closed &&
+                tasks.map((task) => (
+                  <article
+                    key={task.id}
+                    className="planner-board-card"
+                    draggable={
+                      !props.disabled &&
+                      (Boolean(props.personal) || !['viewer', 'commenter'].includes(task.access))
+                    }
+                    onDragStart={() => setDragging(task.id)}
+                    onDragEnd={() => setDragging(null)}
+                  >
+                    <div className="planner-task-name">
+                      <TaskCheck {...props} task={task} />
+                      <button type="button" onClick={() => props.onOpen(task.id)}>
+                        {task.name}
+                      </button>
+                    </div>
+                    <div className="planner-card-meta">
+                      <span className={`planner-tag planner-priority-${task.priority}`}>
+                        {task.priority === 'none' ? 'No priority' : task.priority}
+                      </span>
+                      <span className={plannerTaskOverdue(task) ? 'planner-overdue' : ''}>
+                        {plannerDueLabel(task)}
+                      </span>
+                    </div>
+                    <div className="planner-card-meta">
+                      <span>
+                        {props.people.find((p) => p.id === task.assigneeId)?.name ?? 'Unassigned'}
+                      </span>
+                      <MessageSquare size={14} />
+                    </div>
+                  </article>
+                ))}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -403,17 +442,47 @@ export function PlannerTimeline(props: TaskViewProps & { gantt: boolean }) {
     x: number;
     edge: 'move' | 'start' | 'due';
   } | null>(null);
-  const dated = props.tasks
-    .filter((t) => t.dueOn)
-    .sort((a, b) => (a.startOn ?? a.dueOn!).localeCompare(b.startOn ?? b.dueOn!));
-  if (!dated.length)
-    return (
-      <p className="planner-empty">Give your tasks start and due dates to plan this timeline.</p>
+  const [localExpanded, setLocalExpanded] = useState<string[]>([]);
+  const [localHidden, setLocalHidden] = useState(false);
+  const expanded = props.layout?.data.expandedTaskIds ?? localExpanded;
+  const hideUnscheduled = props.layout?.data.hideUnscheduled ?? localHidden;
+  const ids = new Set(props.tasks.map((t) => t.id));
+  const roots = props.tasks
+    .filter((t) => !t.parentId || !ids.has(t.parentId))
+    .sort(
+      (a, b) =>
+        (a.startOn ?? a.dueOn ?? '9999-99-99').localeCompare(
+          b.startOn ?? b.dueOn ?? '9999-99-99',
+        ) || a.id.localeCompare(b.id),
     );
+  const rootIds = new Set(roots.map((t) => t.id));
+  const byParent = new Map<string, PlannerTask[]>();
+  for (const task of props.tasks)
+    if (task.parentId) {
+      const siblings = byParent.get(task.parentId) ?? [];
+      siblings.push(task);
+      byParent.set(task.parentId, siblings);
+    }
+  const children = (id: string) => byParent.get(id) ?? [];
+  const visible = roots.flatMap((t) => [t, ...(expanded.includes(t.id) ? children(t.id) : [])]);
+  const dated = visible.filter((t) => t.dueOn);
+  const unscheduled = visible.filter((t) => !t.dueOn);
+  const saveExpanded = (next: string[]) =>
+    props.layout ? props.layout.save({ expandedTaskIds: next }) : setLocalExpanded(next);
+  const toggle = (id: string) =>
+    saveExpanded(expanded.includes(id) ? expanded.filter((x) => x !== id) : [...expanded, id]);
+  const firstLevel = (open: boolean) => {
+    const next = new Set(expanded);
+    for (const task of roots.filter((t) => children(t.id).length))
+      open ? next.add(task.id) : next.delete(task.id);
+    saveExpanded([...next]);
+  };
   const day = 86_400_000;
   const timestamp = (date: string) => new Date(`${date}T12:00:00Z`).getTime();
-  const start = Math.min(...dated.map((t) => timestamp(t.startOn ?? t.dueOn!)));
-  const end = Math.max(...dated.map((t) => timestamp(t.dueOn!)));
+  const start = dated.length
+    ? Math.min(...dated.map((t) => timestamp(t.startOn ?? t.dueOn!)))
+    : timestamp(plannerToday());
+  const end = dated.length ? Math.max(...dated.map((t) => timestamp(t.dueOn!))) : start;
   const length = Math.max(14, Math.round((end - start) / day) + 1);
   const scale = Math.max(2, Math.min(70, 1200 / length));
   const width = length * scale;
@@ -427,161 +496,237 @@ export function PlannerTimeline(props: TaskViewProps & { gantt: boolean }) {
     props.onPatch(task, { startOn, dueOn });
   };
   return (
-    <div className="planner-timeline-scroll">
-      <div className="planner-timeline" style={{ width: width + 260, position: 'relative' }}>
-        <div className="planner-timeline-head">
-          <span>Task</span>
-          <div style={{ width }}>
-            {Array.from({ length: Math.ceil(length / tickStep) }, (_, i) => (
-              <span key={i} style={{ width: scale * tickStep }}>
-                {new Date(start + i * tickStep * day).toLocaleDateString(undefined, {
-                  day: 'numeric',
-                  month: i % 7 === 0 ? 'short' : undefined,
-                })}
-              </span>
-            ))}
+    <div className="planner-task-timeline">
+      <div className="planner-layout-controls">
+        <button type="button" disabled={props.layout?.disabled} onClick={() => firstLevel(true)}>
+          Expand first-level subtasks
+        </button>
+        <button type="button" disabled={props.layout?.disabled} onClick={() => firstLevel(false)}>
+          Collapse first-level subtasks
+        </button>
+        <label>
+          <input
+            type="checkbox"
+            checked={hideUnscheduled}
+            disabled={props.layout?.disabled}
+            onChange={(e) =>
+              props.layout
+                ? props.layout.save({ hideUnscheduled: e.target.checked })
+                : setLocalHidden(e.target.checked)
+            }
+          />{' '}
+          Hide unscheduled tasks
+        </label>
+      </div>
+      {!dated.length && (
+        <p className="planner-muted">Give your tasks start and due dates to plan this timeline.</p>
+      )}
+      <div className="planner-timeline-scroll">
+        <div className="planner-timeline" style={{ width: width + 260, position: 'relative' }}>
+          <div className="planner-timeline-head">
+            <span>Task</span>
+            <div style={{ width }}>
+              {Array.from({ length: Math.ceil(length / tickStep) }, (_, i) => (
+                <span key={i} style={{ width: scale * tickStep }}>
+                  {new Date(start + i * tickStep * day).toLocaleDateString(undefined, {
+                    day: 'numeric',
+                    month: i % 7 === 0 ? 'short' : undefined,
+                  })}
+                </span>
+              ))}
+            </div>
           </div>
+          {dated.map((task) => {
+            const left = Math.round((timestamp(task.startOn ?? task.dueOn!) - start) / day) * scale;
+            const span = Math.max(
+              1,
+              Math.round((timestamp(task.dueOn!) - timestamp(task.startOn ?? task.dueOn!)) / day) +
+                1,
+            );
+            return (
+              <div className="planner-timeline-row" key={task.id}>
+                <div className="planner-timeline-label">
+                  {rootIds.has(task.id) && children(task.id).length > 0 && (
+                    <button
+                      type="button"
+                      aria-label={`${expanded.includes(task.id) ? 'Collapse' : 'Expand'} subtasks of ${task.name}`}
+                      aria-expanded={expanded.includes(task.id)}
+                      disabled={props.layout?.disabled}
+                      onClick={() => toggle(task.id)}
+                    >
+                      {expanded.includes(task.id) ? '▾' : '▸'}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => props.onOpen(task.id)}>
+                    {task.name}
+                  </button>
+                  {rootIds.has(task.id) ? (
+                    children(task.id).length > 0 && (
+                      <small>{children(task.id).length} subtasks</small>
+                    )
+                  ) : (
+                    <small>Subtask</small>
+                  )}
+                </div>
+                <div
+                  style={{ width }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (drag) {
+                      const moved = dated.find((t) => t.id === drag.id);
+                      if (moved)
+                        schedule(moved, Math.round((e.clientX - drag.x) / scale), drag.edge);
+                      setDrag(null);
+                    }
+                  }}
+                >
+                  <button
+                    type="button"
+                    className={`planner-timeline-bar planner-status-${task.status}`}
+                    style={{ left, width: Math.max(12, span * scale - 4) }}
+                    onClick={() => props.onOpen(task.id)}
+                    draggable={!props.disabled && !['viewer', 'commenter'].includes(task.access)}
+                    onDragStart={(e) => setDrag({ id: task.id, x: e.clientX, edge: 'move' })}
+                    onDragEnd={() => setDrag(null)}
+                    onKeyDown={(e) => {
+                      if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                        e.preventDefault();
+                        schedule(task, e.key === 'ArrowLeft' ? -1 : 1, e.shiftKey ? 'due' : 'move');
+                      }
+                    }}
+                    title="Drag to move. Arrow keys move one day; Shift + arrow keys adjust the due date."
+                  >
+                    {task.name}
+                  </button>
+                  {!props.disabled && editableTask(task) && (
+                    <>
+                      <button
+                        type="button"
+                        className="planner-timeline-handle"
+                        aria-label={`Resize start of ${task.name}`}
+                        style={{ left }}
+                        draggable
+                        onDragStart={(e) => setDrag({ id: task.id, x: e.clientX, edge: 'start' })}
+                        onDragEnd={() => setDrag(null)}
+                        onKeyDown={(e) => {
+                          if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                            e.preventDefault();
+                            schedule(task, e.key === 'ArrowLeft' ? -1 : 1, 'start');
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="planner-timeline-handle"
+                        aria-label={`Resize due date of ${task.name}`}
+                        style={{ left: left + span * scale - 12 }}
+                        draggable
+                        onDragStart={(e) => setDrag({ id: task.id, x: e.clientX, edge: 'due' })}
+                        onDragEnd={() => setDrag(null)}
+                        onKeyDown={(e) => {
+                          if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                            e.preventDefault();
+                            schedule(task, e.key === 'ArrowLeft' ? -1 : 1, 'due');
+                          }
+                        }}
+                      />
+                    </>
+                  )}
+                  {props.gantt && task.dependencies.length > 0 && (
+                    <span
+                      className="planner-timeline-deps"
+                      style={{ left }}
+                      title={task.dependencies
+                        .map((id) => props.tasks.find((t) => t.id === id)?.name ?? 'Dependency')
+                        .join(', ')}
+                    >
+                      ↳ {task.dependencies.length} dependencies
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {props.gantt && (
+            <svg
+              className="planner-gantt-connectors"
+              width={width}
+              height={dated.length * 56}
+              style={{ position: 'absolute', left: 260, top: 42, pointerEvents: 'none' }}
+              aria-label="Task dependency connections"
+            >
+              <defs>
+                <marker
+                  id="planner-arrow"
+                  markerWidth="6"
+                  markerHeight="6"
+                  refX="5"
+                  refY="3"
+                  orient="auto"
+                >
+                  <path d="M0,0 L6,3 L0,6" fill="#857aa8" />
+                </marker>
+              </defs>
+              {dated.flatMap((task, i) =>
+                task.dependencies.map((id) => {
+                  const j = dated.findIndex((t) => t.id === id);
+                  if (j < 0) return null;
+                  const predecessor = dated[j]!;
+                  const x1 =
+                    (Math.round((timestamp(predecessor.dueOn!) - start) / day) + 1) * scale;
+                  const x2 =
+                    Math.round((timestamp(task.startOn ?? task.dueOn!) - start) / day) * scale;
+                  const y1 = j * 56 + 22,
+                    y2 = i * 56 + 22;
+                  const bend = Math.max(x1 + 12, x2 - 12);
+                  return (
+                    <path
+                      key={`${task.id}:${id}`}
+                      d={`M${x1},${y1} H${bend} V${y2} H${x2}`}
+                      stroke="#857aa8"
+                      strokeWidth="1.5"
+                      fill="none"
+                      markerEnd="url(#planner-arrow)"
+                    >
+                      <title>
+                        {predecessor.name} → {task.name}
+                      </title>
+                    </path>
+                  );
+                }),
+              )}
+            </svg>
+          )}
         </div>
-        {dated.map((task) => {
-          const left = Math.round((timestamp(task.startOn ?? task.dueOn!) - start) / day) * scale;
-          const span = Math.max(
-            1,
-            Math.round((timestamp(task.dueOn!) - timestamp(task.startOn ?? task.dueOn!)) / day) + 1,
-          );
-          return (
-            <div className="planner-timeline-row" key={task.id}>
+      </div>
+      {!hideUnscheduled && (
+        <section className="planner-unscheduled" aria-label="Unscheduled tasks">
+          <h3>Unscheduled · {unscheduled.length}</h3>
+          {unscheduled.map((task) => (
+            <div className="planner-subtask" key={task.id}>
+              {rootIds.has(task.id) && children(task.id).length > 0 && (
+                <button
+                  type="button"
+                  aria-label={`${expanded.includes(task.id) ? 'Collapse' : 'Expand'} subtasks of ${task.name}`}
+                  disabled={props.layout?.disabled}
+                  aria-expanded={expanded.includes(task.id)}
+                  onClick={() => toggle(task.id)}
+                >
+                  {expanded.includes(task.id) ? '▾' : '▸'}
+                </button>
+              )}
               <button type="button" onClick={() => props.onOpen(task.id)}>
                 {task.name}
               </button>
-              <div
-                style={{ width }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (drag) {
-                    const moved = dated.find((t) => t.id === drag.id);
-                    if (moved) schedule(moved, Math.round((e.clientX - drag.x) / scale), drag.edge);
-                    setDrag(null);
-                  }
-                }}
-              >
-                <button
-                  type="button"
-                  className={`planner-timeline-bar planner-status-${task.status}`}
-                  style={{ left, width: Math.max(12, span * scale - 4) }}
-                  onClick={() => props.onOpen(task.id)}
-                  draggable={!props.disabled && !['viewer', 'commenter'].includes(task.access)}
-                  onDragStart={(e) => setDrag({ id: task.id, x: e.clientX, edge: 'move' })}
-                  onDragEnd={() => setDrag(null)}
-                  onKeyDown={(e) => {
-                    if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                      e.preventDefault();
-                      schedule(task, e.key === 'ArrowLeft' ? -1 : 1, e.shiftKey ? 'due' : 'move');
-                    }
-                  }}
-                  title="Drag to move. Arrow keys move one day; Shift + arrow keys adjust the due date."
-                >
-                  {task.name}
-                </button>
-                {!props.disabled && editableTask(task) && (
-                  <>
-                    <button
-                      type="button"
-                      className="planner-timeline-handle"
-                      aria-label={`Resize start of ${task.name}`}
-                      style={{ left }}
-                      draggable
-                      onDragStart={(e) => setDrag({ id: task.id, x: e.clientX, edge: 'start' })}
-                      onDragEnd={() => setDrag(null)}
-                      onKeyDown={(e) => {
-                        if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                          e.preventDefault();
-                          schedule(task, e.key === 'ArrowLeft' ? -1 : 1, 'start');
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="planner-timeline-handle"
-                      aria-label={`Resize due date of ${task.name}`}
-                      style={{ left: left + span * scale - 12 }}
-                      draggable
-                      onDragStart={(e) => setDrag({ id: task.id, x: e.clientX, edge: 'due' })}
-                      onDragEnd={() => setDrag(null)}
-                      onKeyDown={(e) => {
-                        if (['ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                          e.preventDefault();
-                          schedule(task, e.key === 'ArrowLeft' ? -1 : 1, 'due');
-                        }
-                      }}
-                    />
-                  </>
-                )}
-                {props.gantt && task.dependencies.length > 0 && (
-                  <span
-                    className="planner-timeline-deps"
-                    style={{ left }}
-                    title={task.dependencies
-                      .map((id) => props.tasks.find((t) => t.id === id)?.name ?? 'Dependency')
-                      .join(', ')}
-                  >
-                    ↳ {task.dependencies.length} dependencies
-                  </span>
-                )}
-              </div>
+              {!rootIds.has(task.id) && <small>Subtask</small>}
             </div>
-          );
-        })}
-        {props.gantt && (
-          <svg
-            className="planner-gantt-connectors"
-            width={width}
-            height={dated.length * 56}
-            style={{ position: 'absolute', left: 260, top: 42, pointerEvents: 'none' }}
-            aria-label="Task dependency connections"
-          >
-            <defs>
-              <marker
-                id="planner-arrow"
-                markerWidth="6"
-                markerHeight="6"
-                refX="5"
-                refY="3"
-                orient="auto"
-              >
-                <path d="M0,0 L6,3 L0,6" fill="#857aa8" />
-              </marker>
-            </defs>
-            {dated.flatMap((task, i) =>
-              task.dependencies.map((id) => {
-                const j = dated.findIndex((t) => t.id === id);
-                if (j < 0) return null;
-                const predecessor = dated[j]!;
-                const x1 = (Math.round((timestamp(predecessor.dueOn!) - start) / day) + 1) * scale;
-                const x2 =
-                  Math.round((timestamp(task.startOn ?? task.dueOn!) - start) / day) * scale;
-                const y1 = j * 56 + 22,
-                  y2 = i * 56 + 22;
-                const bend = Math.max(x1 + 12, x2 - 12);
-                return (
-                  <path
-                    key={`${task.id}:${id}`}
-                    d={`M${x1},${y1} H${bend} V${y2} H${x2}`}
-                    stroke="#857aa8"
-                    strokeWidth="1.5"
-                    fill="none"
-                    markerEnd="url(#planner-arrow)"
-                  >
-                    <title>
-                      {predecessor.name} → {task.name}
-                    </title>
-                  </path>
-                );
-              }),
-            )}
-          </svg>
-        )}
-      </div>
+          ))}
+          {!unscheduled.length && (
+            <p className="planner-muted">No unscheduled tasks in this view.</p>
+          )}
+        </section>
+      )}
     </div>
   );
 }

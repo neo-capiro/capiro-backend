@@ -2409,6 +2409,14 @@ export class PlannerService {
         : null;
     }
     if (row.kind === 'time_settings') return ctx.role === 'org:admin' ? 'admin' : null;
+    if (row.kind === 'view_preferences') {
+      if (row.ownerId !== ctx.clerkUserId) return null;
+      const scope = row.data as { projectId?: string | null };
+      return !scope.projectId ||
+        projects.some((p) => p.id === scope.projectId && plannerProjectAccess(p, ctx.clerkUserId))
+        ? 'admin'
+        : null;
+    }
     if (row.kind === 'my_tasks' || row.kind === 'saved_view')
       return row.ownerId === ctx.clerkUserId ? 'admin' : null;
     if (row.kind === 'capacity' && !row.projectId)
@@ -4656,7 +4664,7 @@ export class PlannerService {
         ) as string | null;
         if (projectId) uuid(projectId);
         if (old && old.projectId !== projectId) fail('Resource project cannot change');
-        if (['my_tasks', 'saved_view'].includes(kind) && projectId)
+        if (['my_tasks', 'saved_view', 'view_preferences'].includes(kind) && projectId)
           fail('Personal settings cannot belong to a shared project');
         if (kind === 'my_tasks') {
           if (dto.archived !== undefined) fail('Personal settings cannot be archived');
@@ -4782,7 +4790,32 @@ export class PlannerService {
           const p = projects.find((p) => p.id === referencedId);
           requireRole(p ? plannerProjectAccess(p, ctx.clerkUserId) : null, 'viewer');
         }
-        if (kind === 'saved_view' && data.projectId) {
+        if (kind === 'view_preferences') {
+          if (
+            old &&
+            ['scope', 'projectId', 'view'].some((key) => object(old.data)[key] !== data[key])
+          )
+            fail('A layout preference remains with its original scope and view');
+          if (
+            (!old || (old.archived && dto.archived === false)) &&
+            (await tx.spPlannerResource.findFirst({
+              where: {
+                tenantId: ctx.tenantId,
+                ownerId: ctx.clerkUserId,
+                kind,
+                archived: false,
+                AND: ['scope', 'projectId', 'view'].map((key) => ({
+                  data: {
+                    path: [key],
+                    equals: data[key] === null ? Prisma.JsonNull : (data[key] as string),
+                  },
+                })),
+              },
+            }))
+          )
+            throw new ConflictException('Layout preferences already exist. Refresh before saving.');
+        }
+        if (['saved_view', 'view_preferences'].includes(kind) && data.projectId) {
           const p = projects.find((p) => p.id === data.projectId);
           requireRole(p ? plannerProjectAccess(p, ctx.clerkUserId) : null, 'viewer');
         }
