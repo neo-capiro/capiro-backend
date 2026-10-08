@@ -29,6 +29,7 @@ import {
 } from './planner-capacity-api.js';
 import { PlannerCapacityEditor, type CapacityEditor } from './planner-capacity-editor.js';
 import { PlannerAllocationBar } from './planner-capacity-bar.js';
+import { PlannerCapacityLimits, type CapacityLimitsDraft } from './planner-capacity-limits.js';
 import { usePlannerResources, plannerError, usePlannerKey } from './planner-api.js';
 import { useApi } from '../../../lib/use-api.js';
 import { plannerToday } from './planner-views.js';
@@ -100,6 +101,7 @@ export function PlannerCapacity({
     };
   }, []);
   const [archived, setArchived] = useState(false),
+    [limits, setLimits] = useState<CapacityLimitsDraft | null>(null),
     [editor, setEditor] = useState<CapacityEditor | null>(null),
     [selected, setSelected] = useState<string[]>([]),
     [staffing, setStaffing] = useState(false),
@@ -118,6 +120,7 @@ export function PlannerCapacity({
   useEffect(() => {
     setSelected([]);
     setEditor(null);
+    setLimits(null);
     setError(null);
   }, [scopeKey, selectedId, archived]);
   useEffect(() => {
@@ -139,6 +142,7 @@ export function PlannerCapacity({
     !plan.archived &&
     plan.access === 'admin' &&
     !mutations.allocations.isPending &&
+    !mutations.weeklyCapacities.isPending &&
     !mutations.record.isPending;
   const canCreate =
     canEdit && bootstrap.projects.some((p) => !p.archived && plannerCanManageAllocations(p));
@@ -208,7 +212,10 @@ export function PlannerCapacity({
               : '';
       const capacityResource = resources.isError
         ? undefined
-        : resources.data?.find((r) => r.kind === 'capacity' && !r.archived && r.data.userId === id);
+        : resources.data
+            ?.filter((r) => r.kind === 'capacity' && !r.archived && !r.projectId)
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .find((r) => r.data.userId === id);
       return {
         id,
         name,
@@ -217,6 +224,7 @@ export function PlannerCapacity({
         jobTitle,
         person,
         weeklyMinutes:
+          page?.weeklyCapacities?.find((p) => p.id === id)?.weeklyMinutes ??
           person?.data.weeklyMinutes ??
           Number(capacityResource?.data.weeklyMinutes ?? items[0]?.weeklyMinutes ?? 2400),
       };
@@ -243,6 +251,15 @@ export function PlannerCapacity({
     } catch (err) {
       setError(err);
     }
+  };
+  const openLimits = (ids: string[]) => {
+    if (!page || page.plan.archived || archived) return;
+    setLimits({
+      revision: page.revision,
+      people: (page.weeklyCapacities ?? [])
+        .filter((p) => ids.includes(p.id))
+        .map((p) => ({ ...p, name: names.get(p.id) ?? 'Member' })),
+    });
   };
   const selectRowForTransfer = (items: PlannerCapacityAllocation[]) => {
     if (!canEdit || archived || !items.length) return;
@@ -468,6 +485,14 @@ export function PlannerCapacity({
                 <Download size={15} />
                 {exporting ? 'Verifying export…' : 'Export allocations'}
               </button>
+              {!plan.archived && !archived && page.weeklyCapacities?.some((p) => p.canEdit) && (
+                <button
+                  disabled={mutations.weeklyCapacities.isPending || planQuery.isFetching}
+                  onClick={() => openLimits(page.personIds)}
+                >
+                  Weekly capacity
+                </button>
+              )}
               {canCreate && (
                 <button
                   className="planner-primary"
@@ -564,6 +589,7 @@ export function PlannerCapacity({
                 <option value="hours">Hours</option>
                 <option value="percent">Percent</option>
                 <option value="count">People / projects</option>
+                <option value="personMonths">Person-months</option>
               </select>
             </label>
           </div>
@@ -739,6 +765,67 @@ export function PlannerCapacity({
                   <span key={c.start}>{c.label}</span>
                 ))}
               </div>
+              {view.tab === 'projects' &&
+                (page.portfolios ?? []).map((portfolio) => {
+                  const items = filtered.filter((a) => portfolio.projectIds.includes(a.projectId));
+                  const totals = plannerCapacitySummary(items, start, through);
+                  return (
+                    <div
+                      className="planner-capacity-row planner-capacity-portfolio"
+                      key={`portfolio:${portfolio.id}`}
+                      style={{
+                        gridTemplateColumns: `210px repeat(${columns.length}, minmax(108px, 1fr))`,
+                      }}
+                    >
+                      <div className="planner-capacity-sticky planner-capacity-person">
+                        <strong>{portfolio.name}</strong>
+                        <small>
+                          Portfolio · {hours(totals.minutes)} · {totals.personMonths.toFixed(2)}{' '}
+                          person-months
+                        </small>
+                        <small>
+                          {totals.people} people · {totals.projects} projects staffed
+                        </small>
+                      </div>
+                      {columns.map((c) => {
+                        const active = items.filter(
+                          (a) => !a.archived && a.data.startOn <= c.end && a.data.endOn >= c.start,
+                        );
+                        const minutes = active.reduce(
+                          (n, a) => n + plannerCapacityMinutes(a, c.start, c.end),
+                          0,
+                        );
+                        const capacity =
+                          ([
+                            ...new Map(active.map((a) => [personId(a), a.weeklyMinutes])).values(),
+                          ].reduce((n, v) => n + v, 0) /
+                            5) *
+                          plannerCapacityWorkdays(c.start, c.end).length;
+                        const label =
+                          view.unit === 'hours'
+                            ? hours(minutes)
+                            : view.unit === 'personMonths'
+                              ? `${(minutes / ((2400 * 52) / 12)).toFixed(2)} pm`
+                              : view.unit === 'count'
+                                ? String(new Set(active.map((a) => personId(a))).size)
+                                : capacity
+                                  ? `${Math.round((minutes / capacity) * 100)}%`
+                                  : minutes
+                                    ? 'No capacity'
+                                    : '0%';
+                        return (
+                          <div
+                            key={c.start}
+                            className="planner-capacity-cell"
+                            aria-label={`${portfolio.name} ${c.start} portfolio effort`}
+                          >
+                            <strong>{label}</strong>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
               {rows.map((row, index) => (
                 <div key={row.id}>
                   {row.group && (index === 0 || rows[index - 1]?.group !== row.group) && (
@@ -761,7 +848,11 @@ export function PlannerCapacity({
                       </small>
                       {((view.tab === 'projects' && onProject) ||
                         (canCreate && !archived) ||
-                        (canEdit && !archived && row.items.length > 0)) && (
+                        (canEdit && !archived && row.items.length > 0) ||
+                        (view.tab === 'people' &&
+                          !archived &&
+                          !plan.archived &&
+                          page.weeklyCapacities?.some((p) => p.id === row.id && p.canEdit))) && (
                         <MenuTrigger>
                           <Button
                             className="planner-capacity-row-menu"
@@ -779,6 +870,16 @@ export function PlannerCapacity({
                                   View project details
                                 </MenuItem>
                               )}
+                              {view.tab === 'people' &&
+                                !archived &&
+                                !plan.archived &&
+                                page.weeklyCapacities?.some(
+                                  (p) => p.id === row.id && p.canEdit,
+                                ) && (
+                                  <MenuItem id="capacity" onAction={() => openLimits([row.id])}>
+                                    Adjust weekly capacity
+                                  </MenuItem>
+                                )}
                               {canCreate &&
                                 !archived &&
                                 (view.tab === 'people' ||
@@ -844,19 +945,21 @@ export function PlannerCapacity({
                       const label =
                         view.unit === 'hours'
                           ? hours(minutes)
-                          : view.unit === 'count'
-                            ? String(
-                                new Set(
-                                  active.map((a) =>
-                                    view.tab === 'people' ? a.projectId : personId(a),
-                                  ),
-                                ).size,
-                              )
-                            : capacity
-                              ? `${Math.round((minutes / capacity) * 100)}%`
-                              : minutes
-                                ? 'No capacity'
-                                : '0%';
+                          : view.unit === 'personMonths'
+                            ? `${(minutes / ((2400 * 52) / 12)).toFixed(2)} pm`
+                            : view.unit === 'count'
+                              ? String(
+                                  new Set(
+                                    active.map((a) =>
+                                      view.tab === 'people' ? a.projectId : personId(a),
+                                    ),
+                                  ).size,
+                                )
+                              : capacity
+                                ? `${Math.round((minutes / capacity) * 100)}%`
+                                : minutes
+                                  ? 'No capacity'
+                                  : '0%';
                       return (
                         <div
                           key={c.start}
@@ -1113,6 +1216,16 @@ export function PlannerCapacity({
             </div>
           )}
         </>
+      )}
+      {limits && plan && (
+        <PlannerCapacityLimits
+          key={`${selectedId}:${limits.revision}`}
+          draft={limits}
+          onClose={() => setLimits(null)}
+          onSave={(revision, changes) =>
+            mutations.weeklyCapacities.mutateAsync({ planId: plan.id, revision, changes })
+          }
+        />
       )}
       {editor && catalog && (
         <PlannerCapacityEditor

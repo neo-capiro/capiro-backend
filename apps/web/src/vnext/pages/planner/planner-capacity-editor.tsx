@@ -24,7 +24,7 @@ export type CapacityEditor =
       row?: PlannerCapacityAllocation;
       initial?: { projectId?: string; data: Partial<PlannerCapacityAllocationData> };
     };
-function Frame({
+export function Frame({
   title,
   onClose,
   children,

@@ -512,13 +512,51 @@ const api = {
             ]),
         ]),
       ];
-      const allocations = capacityAllocations.filter(
-        (a) =>
-          a.archived === (params.archived === 'true') &&
-          (projectIds.includes(a.projectId) ||
-            personIds.includes(a.data.userId ?? a.data.placeholderId!)),
-      );
-      const revision = JSON.stringify([plan, allocations]);
+      const allocations = capacityAllocations
+        .filter(
+          (a) =>
+            a.archived === (params.archived === 'true') &&
+            (projectIds.includes(a.projectId) ||
+              personIds.includes(a.data.userId ?? a.data.placeholderId!)),
+        )
+        .map((a) => ({
+          ...a,
+          weeklyMinutes: a.data.placeholderId
+            ? (capacityCatalog.placeholders.find((p) => p.id === a.data.placeholderId)?.data
+                .weeklyMinutes ?? 2400)
+            : Number(
+                resources
+                  .filter((r) => r.kind === 'capacity' && !r.archived && !r.projectId)
+                  .sort((a, b) => a.id.localeCompare(b.id))
+                  .find((r) => r.data.userId === a.data.userId)?.data.weeklyMinutes ?? 2400,
+              ),
+        }));
+      const allPersonIds = [
+        ...new Set([
+          ...personIds,
+          ...allocations.map((a) => a.data.userId ?? a.data.placeholderId!),
+        ]),
+      ];
+      const weeklyCapacities = allPersonIds.map((id) => ({
+        id,
+        weeklyMinutes:
+          capacityCatalog.placeholders.find((p) => p.id === id)?.data.weeklyMinutes ??
+          Number(
+            resources.find((r) => r.kind === 'capacity' && !r.archived && r.data.userId === id)
+              ?.data.weeklyMinutes ?? 2400,
+          ),
+        canEdit: true,
+      }));
+      const portfolios = resources
+        .filter((r) => data.portfolioIds.includes(r.id) && !r.archived)
+        .map((r) => ({
+          id: r.id,
+          name: r.name,
+          projectIds: (r.data.projectIds as string[]).filter((id) =>
+            projects.some((p) => p.id === id && !p.archived),
+          ),
+        }));
+      const revision = JSON.stringify([plan, allocations, weeklyCapacities, portfolios]);
       if (params.revision && params.revision !== revision) error('Capacity changed', 409);
       return {
         data: structuredClone({
@@ -527,6 +565,8 @@ const api = {
           matched: allocations.length,
           revision,
           nextCursor: null,
+          weeklyCapacities,
+          portfolios,
           projectIds: [...new Set([...projectIds, ...allocations.map((a) => a.projectId)])],
           personIds: [
             ...new Set([
@@ -929,6 +969,37 @@ const api = {
   async post(path: string, body: Record<string, unknown>) {
     if (path.includes('/capacity/')) {
       const kind = path.split('/').at(-1)!;
+      if (kind === 'weekly-capacities') {
+        const page = await api.get('/strategy-api/planner/capacity/plans/' + body.planId);
+        if ((page.data as any).revision !== body.revision) error('Capacity changed', 409);
+        for (const c of body.changes as { id: string; weeklyMinutes: number }[]) {
+          const placeholder = capacityCatalog.placeholders.find((p) => p.id === c.id);
+          if (placeholder) {
+            placeholder.data.weeklyMinutes = c.weeklyMinutes;
+            placeholder.version++;
+          } else {
+            const old = resources.find(
+              (r) => r.kind === 'capacity' && !r.archived && r.data.userId === c.id,
+            );
+            if (old) {
+              old.data.weeklyMinutes = c.weeklyMinutes;
+              old.version++;
+            } else
+              resources.push({
+                id: crypto.randomUUID(),
+                kind: 'capacity',
+                name: 'Weekly capacity',
+                ownerId: c.id,
+                projectId: null,
+                archived: false,
+                version: 1,
+                access: 'admin',
+                data: { userId: c.id, weeklyMinutes: c.weeklyMinutes },
+              });
+          }
+        }
+        return { data: { ok: true } };
+      }
       if (kind === 'allocations') {
         const plan = capacityCatalog.plans.find((p) => p.id === body.planId);
         if (!plan || plan.version !== body.planVersion) error('Plan changed', 409);

@@ -107,5 +107,14 @@ export function usePlannerCapacityMutations() {
     onMutate,
     onSettled,
   });
-  return { record, allocations };
+  const weeklyCapacities = useMutation({
+    mutationFn: async (dto: {
+      planId: string;
+      revision: string;
+      changes: { id: string; weeklyMinutes: number }[];
+    }) => (await api.post(`${BASE}/weekly-capacities`, dto)).data,
+    onMutate,
+    onSettled,
+  });
+  return { record, allocations, weeklyCapacities };
 }

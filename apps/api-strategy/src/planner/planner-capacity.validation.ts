@@ -65,7 +65,7 @@ export function capacityRecordData(kind: CapacityKind, raw: unknown) {
       for (const [key, values] of Object.entries({
         tab: ['people', 'projects'],
         zoom: ['day', 'week', 'month'],
-        unit: ['hours', 'percent', 'count'],
+        unit: ['hours', 'percent', 'count', 'personMonths'],
         group: ['none', 'team', 'jobTitle', 'health'],
       }))
         if (!values.includes(String(v[key]))) fail('Invalid capacity view');

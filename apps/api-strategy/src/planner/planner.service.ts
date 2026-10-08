@@ -2411,6 +2411,11 @@ export class PlannerService {
     if (row.kind === 'time_settings') return ctx.role === 'org:admin' ? 'admin' : null;
     if (row.kind === 'my_tasks' || row.kind === 'saved_view')
       return row.ownerId === ctx.clerkUserId ? 'admin' : null;
+    if (row.kind === 'capacity' && !row.projectId)
+      return (row.data as unknown as { userId: string }).userId === ctx.clerkUserId ||
+        ctx.role === 'org:admin'
+        ? 'admin'
+        : 'viewer';
     if (row.projectId) {
       const project = projects.find((p) => p.id === row.projectId);
       return project ? plannerProjectAccess(project, ctx.clerkUserId) : null;
@@ -4782,9 +4787,25 @@ export class PlannerService {
           requireRole(p ? plannerProjectAccess(p, ctx.clerkUserId) : null, 'viewer');
         }
         if (kind === 'capacity') {
+          if (projectId) fail('Weekly capacity is an organization setting');
+          if (old && (old.data as unknown as { userId: string }).userId !== data.userId)
+            fail('A weekly capacity setting remains with its original person');
           if (!people.has(String(data.userId))) fail('Capacity belongs to an active team member');
           if (data.userId !== ctx.clerkUserId && ctx.role !== 'org:admin')
             throw new ForbiddenException('Only team admins can set another person’s capacity');
+          if (
+            !old &&
+            (await tx.spPlannerResource.findFirst({
+              where: {
+                tenantId: ctx.tenantId,
+                kind: 'capacity',
+                projectId: null,
+                archived: false,
+                data: { path: ['userId'], equals: String(data.userId) },
+              },
+            }))
+          )
+            throw new ConflictException('Weekly capacity already exists. Refresh before saving.');
         }
         if (kind === 'my_tasks') {
           const placements = data.placements as { taskId: string }[];
