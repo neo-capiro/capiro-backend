@@ -171,6 +171,108 @@ const viewer = { ...owner, clerkUserId: 'user_capacity_viewer' },
       2,
     );
   });
+  it('rechecks project allocation settings for every write and invalidates editor revision snapshots', async () => {
+    let p = await project();
+    const shared = await plan([p.id], { members: [{ userId: editor.clerkUserId, role: 'admin' }] });
+    const created = (await save(shared, [allocation(p.id)], editor)).allocations[0]!;
+    const before = await capacity.plan(editor, shared.id);
+    expect(created.access).toBe('admin');
+    p = await work.saveProject(owner, p.id, {
+      version: p.version,
+      data: { allocationEditors: 'admins' },
+    });
+    expect((await capacity.plan(editor, shared.id)).allocations[0]!.access).toBe('viewer');
+    await expect(capacity.plan(editor, shared.id, { revision: before.revision })).rejects.toThrow(
+      'changed',
+    );
+    await expect(
+      work.saveProject(editor, p.id, {
+        version: p.version,
+        data: { allocationEditors: 'admins_and_editors' },
+      }),
+    ).rejects.toThrow('admin');
+    for (const c of [
+      allocation(p.id),
+      { id: created.id, version: created.version, shiftDays: 1 },
+      { id: created.id, version: created.version, duplicateId: randomUUID() },
+      { id: created.id, version: created.version, archived: true },
+    ])
+      await expect(save(shared, [c], editor)).rejects.toThrow('allocation permission');
+    const archived = (
+      await save(shared, [{ id: created.id, version: created.version, archived: true }])
+    ).allocations[0]!;
+    await expect(
+      save(shared, [{ id: archived.id, version: archived.version, archived: false }], editor),
+    ).rejects.toThrow('allocation permission');
+    await save(shared, [{ id: archived.id, version: archived.version, archived: false }]);
+    const restored = (await capacity.plan(owner, shared.id)).allocations[0]!;
+    expect(restored.data).toEqual(created.data);
+    expect((await capacity.plan(editor, shared.id)).allocations[0]!.access).toBe('viewer');
+    p = await work.saveProject(owner, p.id, {
+      version: p.version,
+      data: { allocationEditors: 'admins_and_editors' },
+    });
+    const updated = (
+      await save(shared, [{ id: restored.id, version: restored.version, shiftDays: 1 }], editor)
+    ).allocations[0]!;
+    expect(updated.data.startOn).toBe('2026-12-22');
+  });
+  it('checks source and destination allocation permissions before any batch mutation', async () => {
+    const open = await project();
+    let restricted = await project();
+    const shared = await plan([open.id, restricted.id], {
+      members: [{ userId: editor.clerkUserId, role: 'admin' }],
+    });
+    const [a, b] = (await save(shared, [allocation(open.id), allocation(restricted.id)]))
+      .allocations;
+    restricted = await work.saveProject(owner, restricted.id, {
+      version: restricted.version,
+      data: { allocationEditors: 'admins' },
+    });
+    await expect(
+      save(shared, [{ id: a!.id, version: a!.version, projectId: restricted.id }], editor),
+    ).rejects.toThrow('allocation permission');
+    await expect(
+      save(shared, [{ id: b!.id, version: b!.version, projectId: open.id }], editor),
+    ).rejects.toThrow('allocation permission');
+    await expect(
+      save(
+        shared,
+        [
+          { id: a!.id, version: a!.version, shiftDays: 7 },
+          { id: b!.id, version: b!.version, shiftDays: 7 },
+        ],
+        editor,
+      ),
+    ).rejects.toThrow('allocation permission');
+    expect(
+      (await capacity.plan(owner, shared.id)).allocations.map((x) => [
+        x.id,
+        x.version,
+        x.data.startOn,
+      ]),
+    ).toEqual(
+      [a!, b!]
+        .sort((x, y) => x.id.localeCompare(y.id))
+        .map((x) => [x.id, x.version, x.data.startOn]),
+    );
+  });
+  it('allows explicit project admins without granting unrelated organization admins private access', async () => {
+    let p = await project([{ userId: editor.clerkUserId, role: 'admin' }]);
+    p = await work.saveProject(owner, p.id, {
+      version: p.version,
+      data: { allocationEditors: 'admins' },
+    });
+    const shared = await plan([p.id], {
+      members: [
+        { userId: editor.clerkUserId, role: 'admin' },
+        { userId: admin.clerkUserId, role: 'admin' },
+      ],
+    });
+    expect((await save(shared, [allocation(p.id)], editor)).allocations[0]!.access).toBe('admin');
+    await expect(save(shared, [allocation(p.id)], admin)).rejects.toThrow('unavailable');
+    expect((await capacity.plan(admin, shared.id)).allocations).toEqual([]);
+  });
   it('supports team-scoped placeholders, transfer, duplicate, move, archive and restore', async () => {
     const p = await project();
     const team = await capacity.saveRecord(owner, 'capacity_team', {

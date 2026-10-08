@@ -65,6 +65,8 @@ export function validateProject(value: unknown): PlannerProjectData {
   text(data.color, 7);
   if (!/^#[0-9a-f]{6}$/i.test(String(data.color))) fail('Invalid project color');
   choice(data.privacy, ['private', 'team']);
+  if (data.allocationEditors !== undefined)
+    choice(data.allocationEditors, ['admins', 'admins_and_editors']);
   choice(data.defaultView, ['list', 'board', 'calendar', 'timeline', 'gantt']);
   choice(data.health, ['on_track', 'at_risk', 'off_track', 'on_hold', 'complete']);
   dates(data.startOn, data.dueOn);

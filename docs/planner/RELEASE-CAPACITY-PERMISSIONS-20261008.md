@@ -1,0 +1,11 @@
+# Planner capacity permissions and row actions
+
+Twenty-first release candidate. Full Asana Work parity remains open. This release uses Strategies-owned project configuration and capacity APIs; it requires no schema migration or additional Capiro integration.
+
+Project admins choose whether allocation changes require project admins, or allow admins and editors. Older projects retain their existing admins-and-editors behavior. Only project admins can change the setting. Every allocation create, date/effort edit, duplicate, archive, restore and transfer checks the current source and destination project setting under the existing tenant advisory lock. Read-only editor views remain visible; plan administration never overrides source permissions. Restricted editors' revision snapshots become stale when editing access changes. Unrelated organization admins gain no private-source access.
+
+Project/people/placeholder rows expose menus for seeded allocation creation and explicit bulk transfer selection. Project rows open the exact project. Transfers preserve all selected opening versions and require the user to choose the destination before saving. Rows over the atomic 100-allocation limit report an error instead of silently truncating. Rows spanning a restricted source cannot select an incomplete transfer. Project choices and cell controls respect the current setting.
+
+Validation: 218 selected API/database checks in twelve suites, 197 distinct web checks in 27 files, the tenant-scope guard and production API build pass. Restricted PostgreSQL tests cover source/destination policy checks, atomic batch rollback, recovery, explicit project admins, unrelated organization admins and revision changes. Synthetic browser QA verifies row transfers with preserved effort/dates, exact project navigation and saved allocation settings. Final web build, exact-source cloud builds and authenticated live release qualification are pending.
+
+Primary requirement: [Asana capacity planning](https://help.asana.com/s/article/capacity-planning). Rules/bundles cannot currently create allocations; their broader permissions remain in the full parity audit. Remaining capacity profile fields, portfolio aggregation, common/individual capacity menus, costs and precise continuous bars are tracked separately.

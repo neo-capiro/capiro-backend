@@ -266,4 +266,114 @@ describe('Capacity planning workflows', () => {
     expect(csv).toContain("'=DANGEROUS()");
     expect(csv).toContain('"percent","50","20","40"');
   });
+  it('opens the exact project from a row menu without changing allocations', async () => {
+    const open = vi.fn();
+    render(
+      <PlannerCapacity
+        bootstrap={bootstrap}
+        selectedId={cp.id}
+        onSelect={vi.fn()}
+        onProject={open}
+      />,
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Projects' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Launch' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'View project details' }));
+    expect(open).toHaveBeenCalledWith(p.id);
+    expect(state.save).not.toHaveBeenCalled();
+  });
+  it('selects every matching row allocation for an explicit versioned transfer without writing on selection', async () => {
+    const second = { ...a, id: '80000000-0000-4000-8000-000000000005', version: 7 };
+    state.plan.data.allocations = [a, second];
+    render(<PlannerCapacity bootstrap={bootstrap} selectedId={cp.id} onSelect={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Owner' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Transfer allocations' }));
+    expect(screen.getByText('2 selected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Transfer selected' })).toBeDisabled();
+    expect(state.save).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Transfer selected allocations to'), {
+      target: { value: 'person' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Transfer selected' }));
+    await waitFor(() =>
+      expect(state.save).toHaveBeenCalledWith({
+        planId: cp.id,
+        planVersion: 3,
+        changes: [
+          { id: a.id, version: 4, data: { userId: 'person', placeholderId: null } },
+          { id: second.id, version: 7, data: { userId: 'person', placeholderId: null } },
+        ],
+      }),
+    );
+  });
+  it('keeps restricted project editors read-only and excludes their projects from allocation choices', () => {
+    state.plan.data.allocations = [{ ...a, access: 'viewer' }];
+    const restricted = {
+      ...bootstrap,
+      projects: [{ ...p, access: 'editor' as const, allocationEditors: 'admins' as const }],
+    };
+    render(<PlannerCapacity bootstrap={restricted} selectedId={cp.id} onSelect={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Capacity window start'), {
+      target: { value: '2026-10-05' },
+    });
+    expect(screen.queryByRole('button', { name: 'Allocate work' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Allocate Owner/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /Select allocation/ })).toBeDisabled();
+    cleanup();
+    const editable = {
+      ...p,
+      id: '20000000-0000-4000-8000-000000000002',
+      name: 'Editable',
+      access: 'editor' as const,
+    };
+    render(
+      <PlannerCapacityEditor
+        editor={{ kind: 'allocation' }}
+        catalog={state.catalog.data}
+        bootstrap={{ ...restricted, projects: [...restricted.projects, editable] }}
+        portfolios={[]}
+        plan={cp as any}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const choices = within(screen.getByLabelText('Project'));
+    expect(choices.queryByRole('option', { name: 'Launch' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Project')).toHaveValue(editable.id);
+  });
+  it('refuses to silently truncate a row transfer beyond the atomic batch limit', async () => {
+    state.plan.data.allocations = Array.from({ length: 101 }, (_, i) => ({
+      ...a,
+      id: `allocation-${i}`,
+    }));
+    render(<PlannerCapacity bootstrap={bootstrap} selectedId={cp.id} onSelect={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Owner' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Transfer allocations' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('more than 100 allocations');
+    expect(screen.queryByText('100 selected')).not.toBeInTheDocument();
+    expect(state.save).not.toHaveBeenCalled();
+  });
+  it('seeds a placeholder row allocation without assigning a user at the same time', async () => {
+    const placeholderId = '80000000-0000-4000-8000-000000000099';
+    state.catalog.data.placeholders = [
+      {
+        id: placeholderId,
+        name: 'Open designer',
+        archived: false,
+        access: 'admin',
+        data: { teamId: cp.id, jobTitle: 'Designer', weeklyMinutes: 1800 },
+      },
+    ];
+    state.plan.data.personIds = [placeholderId];
+    render(<PlannerCapacity bootstrap={bootstrap} selectedId={cp.id} onSelect={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Open designer' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Add allocation' }));
+    expect(screen.getByLabelText('Person or placeholder')).toHaveValue(placeholderId);
+    fireEvent.click(screen.getByRole('button', { name: 'Save allocation' }));
+    await waitFor(() => expect(state.save).toHaveBeenCalled());
+    expect(state.save.mock.calls[0]![0].changes[0].data).toMatchObject({
+      userId: null,
+      placeholderId,
+    });
+  });
 });

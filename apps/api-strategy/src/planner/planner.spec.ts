@@ -278,6 +278,40 @@ describe('Planner service mutation boundaries', () => {
       }),
     ).rejects.toThrow(ForbiddenException);
   });
+  it('only project admins can change allocation permissions, while legacy editor edits keep their access', async () => {
+    const legacy = project({ privacy: 'team' });
+    delete (legacy.data as Record<string, unknown>).allocationEditors;
+    const f = fixture([legacy], []);
+    const editor = { ...ctx, clerkUserId: 'user_editor' };
+    await expect(
+      f.service.saveProject(editor, PROJECT, {
+        version: 1,
+        data: { allocationEditors: 'admins' },
+      }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(f.writes).toHaveLength(0);
+    const saved = await f.service.saveProject(editor, PROJECT, {
+      version: 1,
+      data: { name: 'Renamed', allocationEditors: 'admins_and_editors' },
+    });
+    expect(saved.allocationEditors).toBe('admins_and_editors');
+    const restricted = await f.service.saveProject(ctx, PROJECT, {
+      version: saved.version,
+      data: { allocationEditors: 'admins' },
+    });
+    expect(restricted.allocationEditors).toBe('admins');
+    await expect(
+      f.service.saveProject(editor, PROJECT, {
+        version: restricted.version,
+        data: { allocationEditors: 'admins_and_editors' },
+      }),
+    ).rejects.toThrow(ForbiddenException);
+  });
+  it('rejects unrecognized allocation permission values', () => {
+    expect(() =>
+      validateProject({ ...PLANNER_DEFAULT_PROJECT, name: 'QA', allocationEditors: 'everyone' }),
+    ).toThrow(BadRequestException);
+  });
   it('rejects assigning a person outside the active tenant roster', async () => {
     const f = fixture();
     await expect(

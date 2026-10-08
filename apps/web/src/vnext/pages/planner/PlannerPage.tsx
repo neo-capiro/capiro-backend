@@ -140,7 +140,8 @@ export function PlannerPage() {
       ...(projectId ? { projectId } : scope === 'mine' ? { mine: 'true' } : {}),
       ...(archived ? { archived: 'true' } : {}),
     },
-    Boolean(bootstrap.data) && !['inbox', 'reporting', 'timesheets', 'budget', 'capacity'].includes(scope),
+    Boolean(bootstrap.data) &&
+      !['inbox', 'reporting', 'timesheets', 'budget', 'capacity'].includes(scope),
   );
   useEffect(() => {
     if (
@@ -666,7 +667,13 @@ export function PlannerPage() {
           ) : scope === 'workload' ? (
             <PlannerWorkload tasks={tasks} data={data} />
           ) : scope === 'capacity' ? (
-            <PlannerCapacity key={plannerCacheKey.join('|')} bootstrap={data} selectedId={params.get('capacityPlan')} onSelect={(id) => updateParams({capacityPlan: id})} />
+            <PlannerCapacity
+              key={plannerCacheKey.join('|')}
+              bootstrap={data}
+              selectedId={params.get('capacityPlan')}
+              onSelect={(id) => updateParams({ capacityPlan: id })}
+              onProject={(id) => go('project', id)}
+            />
           ) : scope === 'reporting' ? (
             <PlannerReporting
               bootstrap={data}
@@ -1244,6 +1251,20 @@ function ProjectEditor({
                   value={data.description}
                   onChange={(e) => edit({ description: e.target.value })}
                 />
+              </Label>
+              <Label name="Who can manage this project's allocations?">
+                <select
+                  disabled={!admin}
+                  value={data.allocationEditors ?? 'admins_and_editors'}
+                  onChange={(e) =>
+                    edit({
+                      allocationEditors: e.target.value as PlannerProjectData['allocationEditors'],
+                    })
+                  }
+                >
+                  <option value="admins">Project admins only</option>
+                  <option value="admins_and_editors">Project admins and editors</option>
+                </select>
               </Label>
               <div className="planner-form-grid">
                 <Label name="Privacy">
