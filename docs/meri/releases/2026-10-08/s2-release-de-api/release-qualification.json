@@ -1,0 +1,18 @@
+{
+  "kind": "meri-s2-release-de-api-release-qualification",
+  "version": 1,
+  "status": "IMMUTABLE_IMAGE_AND_TESTS_PASS",
+  "at": "2026-10-08T01:58:15.562411+00:00",
+  "candidates": [
+    {
+      "service": "api",
+      "sourceSha": "11b02a5312ebac7fbbe83d1d2f6efec07c67dd45",
+      "image": "967807252336.dkr.ecr.us-east-1.amazonaws.com/capiro/dev/api@sha256:eeb4d8b745a2dac716b59c7bb9f2f9d49e35e6e01ea228f6d79c3bd5fde3cb28",
+      "buildId": "capiro-build-web-dev:2377e6ab-e2b1-4f18-8329-da400d214d7d"
+    }
+  ],
+  "schemaChange": false,
+  "change": "Ship Stage 2 fixes, Release D job approvals and Release E schedules; no migration",
+  "reviewer": "Lead agent (Stage 2): focused specs, typechecks, image smoke and served baseline review",
+  "authorizationBasis": "Neo approved the research re-check adapter (2026-10-06); program plan \u00a710 release path."
+}
