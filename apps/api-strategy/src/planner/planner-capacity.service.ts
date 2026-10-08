@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import {
   PLANNER_DEFAULT_CAPACITY_PLAN,
   plannerCapacityDateShift,
+  plannerCanManageAllocations,
   type PlannerCapacityRecord,
   type PlannerCapacityPlanData,
   type PlannerStaffTeamData,
@@ -17,6 +18,7 @@ import {
   type PlannerCapacityPage,
   type PlannerCapacityCatalog,
   type PlannerCapacityRole,
+  type PlannerProjectData,
 } from '@capiro/strategy-verifier';
 import {
   Prisma,
@@ -115,9 +117,20 @@ export class PlannerCapacityService {
     const p = s.projects.find((p) => p.id === id && !p.archived);
     const role = p && plannerProjectAccess(p, ctx.clerkUserId);
     if (!p || !role) throw missing();
-    if (write && !['admin', 'editor'].includes(role))
-      throw new ForbiddenException('Project editor access is required to allocate work');
+    if (write && !this.canAllocate(p, role))
+      throw new ForbiddenException(
+        'Project allocation permission is required (admin or allowed editor)',
+      );
     return p;
+  }
+  private canAllocate(
+    project: SpPlannerProject,
+    access: NonNullable<ReturnType<typeof plannerProjectAccess>>,
+  ) {
+    return plannerCanManageAllocations({
+      access,
+      allocationEditors: (project.data as unknown as PlannerProjectData).allocationEditors,
+    });
   }
   private view<T>(
     row: SpPlannerResource,
@@ -379,7 +392,7 @@ export class PlannerCapacityService {
       ownerId: row.ownerId,
       version: row.version,
       archived: row.archived,
-      access: ['admin', 'editor'].includes(role) ? 'admin' : 'viewer',
+      access: this.canAllocate(project, role) ? 'admin' : 'viewer',
       data: d,
       projectId: row.projectId,
       projectName: data<{ name: string }>(project as unknown as SpPlannerResource).name,

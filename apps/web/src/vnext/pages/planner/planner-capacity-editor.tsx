@@ -3,6 +3,7 @@ import { ModalOverlay, Modal, Dialog, Heading } from 'react-aria-components';
 import {
   PLANNER_DEFAULT_CAPACITY_PLAN,
   plannerCapacityDateShift,
+  plannerCanManageAllocations,
   type PlannerBootstrap,
   type PlannerCapacityPlan,
   type PlannerCapacityCatalog,
@@ -124,7 +125,14 @@ export function PlannerCapacityEditor({
   const [data, setData] = useState<any>(structuredClone(initial));
   const [projectId, setProjectId] = useState(
     editor.kind === 'allocation'
-      ? (editor.row?.projectId ?? editor.initial?.projectId ?? plan?.data.projectIds[0] ?? '')
+      ? (editor.row?.projectId ??
+          editor.initial?.projectId ??
+          bootstrap.projects.find(
+            (p) =>
+              !p.archived && plannerCanManageAllocations(p) && plan?.data.projectIds.includes(p.id),
+          )?.id ??
+          bootstrap.projects.find((p) => !p.archived && plannerCanManageAllocations(p))?.id ??
+          '')
       : '',
   );
   const [error, setError] = useState<unknown>(),
@@ -320,7 +328,7 @@ export function PlannerCapacityEditor({
               <select required value={projectId} onChange={(e) => setProjectId(e.target.value)}>
                 <option value="">Choose a project</option>
                 {bootstrap.projects
-                  .filter((p) => !p.archived && ['admin', 'editor'].includes(p.access))
+                  .filter((p) => !p.archived && plannerCanManageAllocations(p))
                   .map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.name}

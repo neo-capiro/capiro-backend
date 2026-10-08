@@ -190,7 +190,8 @@ function activityQuery(query: ActivityQuery, inbox = false) {
 }
 const RANK: Record<PlannerRole, number> = { viewer: 0, commenter: 1, editor: 2, admin: 3 };
 const json = (data: unknown) => JSON.parse(JSON.stringify(data)) as Prisma.InputJsonValue;
-const projectData = (row: SpPlannerProject) => row.data as unknown as PlannerProjectData;
+const projectData = (row: SpPlannerProject) =>
+  ({ ...PLANNER_DEFAULT_PROJECT, ...(row.data as object) }) as PlannerProjectData;
 const taskData = (row: Pick<SpPlannerTask, 'data'>): PlannerTaskData => {
   const {
     recurrenceSuccessorId: _successor,
@@ -408,6 +409,8 @@ export class PlannerService {
           ...(old ? projectData(old) : PLANNER_DEFAULT_PROJECT),
           ...dto.data,
         });
+        if (old && data.allocationEditors !== projectData(old).allocationEditors)
+          requireRole(plannerProjectAccess(old, ctx.clerkUserId), 'admin');
         const activePeople = await this.people(tx, ctx);
         const people = new Set(activePeople.map((p) => p.id));
         if (!people.has(ctx.clerkUserId) || data.members.some((m) => !people.has(m.userId)))

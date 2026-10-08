@@ -21,6 +21,8 @@ export interface PlannerProjectData {
   description: string;
   color: string;
   privacy: 'private' | 'team';
+  /** Missing on older projects means admins and editors, preserving existing access. */
+  allocationEditors?: 'admins' | 'admins_and_editors';
   defaultView: PlannerView;
   sections: PlannerSection[];
   fields: PlannerField[];
@@ -38,6 +40,15 @@ export interface PlannerProject extends PlannerProjectData {
   createdAt: string;
   updatedAt: string;
   access: PlannerRole;
+}
+export function plannerCanManageAllocations(
+  project: Pick<PlannerProject, 'access' | 'allocationEditors'>,
+): boolean {
+  return (
+    project.access === 'admin' ||
+    (project.access === 'editor' &&
+      (project.allocationEditors ?? 'admins_and_editors') === 'admins_and_editors')
+  );
 }
 export interface PlannerTaskData {
   name: string;
@@ -382,6 +393,7 @@ export const PLANNER_DEFAULT_PROJECT: PlannerProjectData = {
   description: '',
   color: '#7c6cf2',
   privacy: 'private',
+  allocationEditors: 'admins_and_editors',
   defaultView: 'list',
   sections: [],
   fields: [],

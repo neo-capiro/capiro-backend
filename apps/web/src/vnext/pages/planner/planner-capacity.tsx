@@ -1,11 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Users, FolderKanban, Download } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Users,
+  FolderKanban,
+  Download,
+  MoreHorizontal,
+} from 'lucide-react';
+import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import {
   PLANNER_DEFAULT_CAPACITY_VIEW,
   plannerCapacityDateShift,
   plannerCapacityMinutes,
   plannerCapacitySummary,
   plannerCapacityWorkdays,
+  plannerCanManageAllocations,
   type PlannerBootstrap,
   type PlannerCapacityAllocation,
   type PlannerCapacityView,
@@ -70,10 +80,12 @@ export function PlannerCapacity({
   bootstrap,
   selectedId,
   onSelect,
+  onProject,
 }: {
   bootstrap: PlannerBootstrap;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
+  onProject?: (id: string) => void;
 }) {
   const catalogQuery = usePlannerCapacityCatalog(),
     resources = usePlannerResources(),
@@ -128,6 +140,8 @@ export function PlannerCapacity({
     plan.access === 'admin' &&
     !mutations.allocations.isPending &&
     !mutations.record.isPending;
+  const canCreate =
+    canEdit && bootstrap.projects.some((p) => !p.archived && plannerCanManageAllocations(p));
   const columns = useMemo(() => {
     const count = view.zoom === 'day' ? 14 : view.zoom === 'week' ? 8 : 6,
       result: { start: string; end: string; label: string }[] = [];
@@ -229,6 +243,24 @@ export function PlannerCapacity({
     } catch (err) {
       setError(err);
     }
+  };
+  const selectRowForTransfer = (items: PlannerCapacityAllocation[]) => {
+    if (!canEdit || archived || !items.length) return;
+    if (items.length > 100) {
+      setError(
+        new Error(
+          'This row contains more than 100 allocations. Narrow the filters before transferring.',
+        ),
+      );
+      return;
+    }
+    if (items.some((a) => a.access !== 'admin')) {
+      setError(new Error('Allocation permission is required for every project in this row.'));
+      return;
+    }
+    setSelected(items.map((a) => a.id));
+    setBulkPerson('');
+    setError(null);
   };
   const bulk = (
     patch: Omit<PlannerCapacityAllocationChange, 'id' | 'version'>,
@@ -436,7 +468,7 @@ export function PlannerCapacity({
                 <Download size={15} />
                 {exporting ? 'Verifying export…' : 'Export allocations'}
               </button>
-              {canEdit && (
+              {canCreate && (
                 <button
                   className="planner-primary"
                   onClick={() => setEditor({ kind: 'allocation' })}
@@ -727,22 +759,68 @@ export function PlannerCapacity({
                               .find((p) => p.id === row.id)
                               ?.health.replaceAll('_', ' ')}
                       </small>
-                      {row.person && canEdit && (
-                        <button
-                          onClick={() => {
-                            setSelected(
-                              allocations
-                                .filter(
-                                  (a) => a.data.placeholderId === row.id && a.access === 'admin',
-                                )
-                                .slice(0, 100)
-                                .map((a) => a.id),
-                            );
-                            setBulkPerson(bootstrap.me.id);
-                          }}
-                        >
-                          Transfer allocations
-                        </button>
+                      {((view.tab === 'projects' && onProject) ||
+                        (canCreate && !archived) ||
+                        (canEdit && !archived && row.items.length > 0)) && (
+                        <MenuTrigger>
+                          <Button
+                            className="planner-capacity-row-menu"
+                            aria-label={`Actions for ${row.name}`}
+                          >
+                            <MoreHorizontal size={16} aria-hidden="true" />
+                          </Button>
+                          <Popover
+                            className="planner-capacity-menu-popover"
+                            placement="bottom start"
+                          >
+                            <Menu aria-label={`Actions for ${row.name}`}>
+                              {view.tab === 'projects' && onProject && (
+                                <MenuItem id="details" onAction={() => onProject(row.id)}>
+                                  View project details
+                                </MenuItem>
+                              )}
+                              {canCreate &&
+                                !archived &&
+                                (view.tab === 'people' ||
+                                  bootstrap.projects.some(
+                                    (p) => p.id === row.id && plannerCanManageAllocations(p),
+                                  )) && (
+                                  <MenuItem
+                                    id="allocate"
+                                    onAction={() =>
+                                      setEditor({
+                                        kind: 'allocation',
+                                        initial: {
+                                          ...(view.tab === 'projects' ? { projectId: row.id } : {}),
+                                          data: {
+                                            userId:
+                                              view.tab === 'people'
+                                                ? row.person
+                                                  ? null
+                                                  : row.id
+                                                : bootstrap.me.id,
+                                            placeholderId:
+                                              view.tab === 'people' && row.person ? row.id : null,
+                                          },
+                                        },
+                                      })
+                                    }
+                                  >
+                                    Add allocation
+                                  </MenuItem>
+                                )}
+                              {canEdit && !archived && row.items.length > 0 && (
+                                <MenuItem
+                                  id="transfer"
+                                  isDisabled={row.items.some((a) => a.access !== 'admin')}
+                                  onAction={() => selectRowForTransfer(row.items)}
+                                >
+                                  Transfer allocations
+                                </MenuItem>
+                              )}
+                            </Menu>
+                          </Popover>
+                        </MenuTrigger>
                       )}
                     </div>
                     {columns.map((c) => {
@@ -792,6 +870,13 @@ export function PlannerCapacity({
                             const id = e.dataTransfer.getData('text/plain'),
                               a = allocations.find((a) => a.id === id);
                             if (!a || a.access !== 'admin') return;
+                            if (
+                              view.tab === 'projects' &&
+                              !bootstrap.projects.some(
+                                (p) => p.id === row.id && plannerCanManageAllocations(p),
+                              )
+                            )
+                              return;
                             const delta = Math.round(
                               (Date.parse(c.start) - Date.parse(a.data.startOn)) / 86400000,
                             );
@@ -851,12 +936,12 @@ export function PlannerCapacity({
                               onError={setError}
                             />
                           ))}
-                          {canEdit &&
+                          {canCreate &&
                             !archived &&
                             plannerCapacityWorkdays(c.start, c.end).length > 0 &&
                             (view.tab === 'people' ||
                               bootstrap.projects.some(
-                                (p) => p.id === row.id && ['admin', 'editor'].includes(p.access),
+                                (p) => p.id === row.id && plannerCanManageAllocations(p),
                               )) && (
                               <button
                                 type="button"
@@ -1011,7 +1096,7 @@ export function PlannerCapacity({
                 >
                   <option value="">Choose a project</option>
                   {bootstrap.projects
-                    .filter((p) => !p.archived && ['admin', 'editor'].includes(p.access))
+                    .filter((p) => !p.archived && plannerCanManageAllocations(p))
                     .map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}

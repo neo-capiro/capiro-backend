@@ -130,6 +130,14 @@
   font-size: 11px;
   padding: 4px;
 }
+.planner-capacity-person .planner-capacity-row-menu {
+  display: inline-flex;
+  padding: 3px;
+  margin-top: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--vnext-text-muted, #6b7280);
+}
 .planner-capacity-cell {
   border-right: 1px solid var(--planner-line);
   border-top: 1px solid var(--planner-line);
