@@ -143,6 +143,7 @@
   color: var(--vnext-text-muted, #6b7280);
 }
 .planner-capacity-cell {
+  position: relative;
   border-right: 1px solid var(--planner-line);
   border-top: 1px solid var(--planner-line);
   padding: 8px 5px;
@@ -164,7 +165,7 @@
   color: #b4342f;
   font-weight: 650;
 }
-.planner-capacity-cell .planner-capacity-bar {
+.planner-capacity-row .planner-capacity-bar {
   display: block;
   width: 100%;
   overflow: hidden;
@@ -187,7 +188,19 @@
   position: relative;
   margin: 4px 0;
 }
-.planner-capacity-cell .planner-capacity-allocation .planner-capacity-bar {
+.planner-capacity-allocation-track {
+  position: relative;
+  pointer-events: none;
+  margin: 32px 0 36px;
+}
+.planner-capacity-allocation.is-continuous {
+  position: absolute;
+  pointer-events: auto;
+  margin: 0;
+  container-type: inline-size;
+  container-name: capacity-allocation;
+}
+.planner-capacity-row .planner-capacity-allocation .planner-capacity-bar {
   margin: 0;
   padding: 7px 24px 7px 10px;
   min-height: 30px;
@@ -196,7 +209,7 @@
   outline: 2px solid var(--capacity-color);
   outline-offset: 1px;
 }
-.planner-capacity-cell .planner-capacity-resize {
+.planner-capacity-row .planner-capacity-resize {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -216,12 +229,12 @@
   left: 0;
 }
 .planner-capacity-resize.is-endOn {
-  right: 17px;
+  right: 0;
 }
-.planner-capacity-cell .planner-capacity-allocation-menu {
+.planner-capacity-row .planner-capacity-allocation-menu {
   position: absolute;
   top: 2px;
-  right: 1px;
+  right: 9px;
   bottom: 2px;
   width: 16px;
   min-width: 0;
@@ -231,6 +244,15 @@
   color: #52596a;
   display: grid;
   place-content: center;
+}
+@container capacity-allocation (max-width: 48px) {
+  .planner-capacity-resize,
+  .planner-capacity-allocation-menu {
+    display: none !important;
+  }
+  .planner-capacity-bar {
+    padding-inline: 2px !important;
+  }
 }
 .planner-capacity-resize-preview {
   position: absolute;
@@ -279,6 +301,9 @@
   border-radius: 5px;
   background: transparent;
   color: var(--planner-muted);
+  position: absolute;
+  bottom: 6px;
+  left: calc(50% - 12px);
 }
 .planner-capacity-group {
   margin: 0;

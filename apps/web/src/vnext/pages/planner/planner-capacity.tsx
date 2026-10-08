@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -29,6 +29,7 @@ import {
 } from './planner-capacity-api.js';
 import { PlannerCapacityEditor, type CapacityEditor } from './planner-capacity-editor.js';
 import { PlannerAllocationBar } from './planner-capacity-bar.js';
+import { capacityAllocationLayout, capacityDateAt } from './planner-capacity-layout.js';
 import { PlannerCapacityLimits, type CapacityLimitsDraft } from './planner-capacity-limits.js';
 import { usePlannerResources, plannerError, usePlannerKey } from './planner-api.js';
 import { useApi } from '../../../lib/use-api.js';
@@ -238,6 +239,91 @@ export function PlannerCapacity({
           r.items.length > 0),
     )
     .sort((a, b) => a.group.localeCompare(b.group) || a.name.localeCompare(b.name));
+  const cellCanCreate = (row: (typeof rows)[number], c: { start: string; end: string }) =>
+    canCreate &&
+    !archived &&
+    plannerCapacityWorkdays(c.start, c.end).length > 0 &&
+    (view.tab === 'people' ||
+      bootstrap.projects.some((p) => p.id === row.id && plannerCanManageAllocations(p)));
+  const createAt = (row: (typeof rows)[number], c: { start: string; end: string }) => {
+    if (!cellCanCreate(row, c)) return;
+    setEditor({
+      kind: 'allocation',
+      initial: {
+        ...(view.tab === 'projects' ? { projectId: row.id } : {}),
+        data: {
+          startOn: c.start,
+          endOn: c.end,
+          userId: view.tab === 'people' ? (row.person ? null : row.id) : bootstrap.me.id,
+          placeholderId: view.tab === 'people' && row.person ? row.id : null,
+        },
+      },
+    });
+  };
+  const dropOnRow = (row: (typeof rows)[number], event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!canEdit || archived) return;
+    const a = allocations.find((a) => a.id === event.dataTransfer.getData('text/plain'));
+    if (!a || a.access !== 'admin') return;
+    if (
+      view.tab === 'projects' &&
+      !bootstrap.projects.some((p) => p.id === row.id && plannerCanManageAllocations(p))
+    )
+      return;
+    const bounds = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>('[data-capacity-start]'),
+    ).map((cell) => {
+      const rect = cell.getBoundingClientRect();
+      return {
+        start: cell.dataset.capacityStart!,
+        end: cell.dataset.capacityEnd!,
+        left: rect.left,
+        width: rect.width,
+      };
+    });
+    if (
+      !bounds.length ||
+      event.clientX < bounds[0]!.left ||
+      event.clientX >= bounds.at(-1)!.left + bounds.at(-1)!.width
+    )
+      return;
+    try {
+      const date = capacityDateAt(event.clientX, bounds);
+      const captured = event.dataTransfer.getData('application/x-planner-capacity-date');
+      const anchor =
+        /^\d{4}-\d{2}-\d{2}$/.test(captured) &&
+        captured >= a.data.startOn &&
+        captured <= a.data.endOn
+          ? captured
+          : a.data.startOn;
+      const delta = Math.round((Date.parse(date) - Date.parse(anchor)) / 86400000);
+      if (!Number.isFinite(delta))
+        throw new Error('The drag date is unavailable. Try moving again.');
+      const moving = selected.includes(a.id)
+        ? allocations.filter((item) => selected.includes(item.id))
+        : [a];
+      if (moving.some((item) => item.access !== 'admin'))
+        throw new Error('All selected allocations require editing access.');
+      const sameTarget = moving.every((item) =>
+        view.tab === 'projects' ? item.projectId === row.id : personId(item) === row.id,
+      );
+      if (!delta && sameTarget) return;
+      const target =
+        view.tab === 'projects'
+          ? { projectId: row.id }
+          : {
+              data: {
+                userId: row.person ? null : row.id,
+                placeholderId: row.person ? row.id : null,
+              },
+            };
+      void change(
+        moving.map((item) => ({ id: item.id, version: item.version, shiftDays: delta, ...target })),
+      );
+    } catch (error) {
+      setError(error);
+    }
+  };
   const change = async (changes: PlannerCapacityAllocationChange[]) => {
     if (!plan || !canEdit) return;
     setError(null);
@@ -826,260 +912,226 @@ export function PlannerCapacity({
                     </div>
                   );
                 })}
-              {rows.map((row, index) => (
-                <div key={row.id}>
-                  {row.group && (index === 0 || rows[index - 1]?.group !== row.group) && (
-                    <h4 className="planner-capacity-group">{row.group}</h4>
-                  )}
-                  <div
-                    className="planner-capacity-row"
-                    style={{
-                      gridTemplateColumns: `210px repeat(${columns.length}, minmax(108px, 1fr))`,
-                    }}
-                  >
-                    <div className="planner-capacity-sticky planner-capacity-person">
-                      <strong>{row.name}</strong>
-                      <small>
-                        {view.tab === 'people'
-                          ? `${row.person ? 'Placeholder · ' : ''}${hours(row.weeklyMinutes)} / week${row.jobTitle ? ' · ' + row.jobTitle : ''}`
-                          : bootstrap.projects
-                              .find((p) => p.id === row.id)
-                              ?.health.replaceAll('_', ' ')}
-                      </small>
-                      {((view.tab === 'projects' && onProject) ||
-                        (canCreate && !archived) ||
-                        (canEdit && !archived && row.items.length > 0) ||
-                        (view.tab === 'people' &&
-                          !archived &&
-                          !plan.archived &&
-                          page.weeklyCapacities?.some((p) => p.id === row.id && p.canEdit))) && (
-                        <MenuTrigger>
-                          <Button
-                            className="planner-capacity-row-menu"
-                            aria-label={`Actions for ${row.name}`}
-                          >
-                            <MoreHorizontal size={16} aria-hidden="true" />
-                          </Button>
-                          <Popover
-                            className="planner-capacity-menu-popover"
-                            placement="bottom start"
-                          >
-                            <Menu aria-label={`Actions for ${row.name}`}>
-                              {view.tab === 'projects' && onProject && (
-                                <MenuItem id="details" onAction={() => onProject(row.id)}>
-                                  View project details
-                                </MenuItem>
-                              )}
-                              {view.tab === 'people' &&
-                                !archived &&
-                                !plan.archived &&
-                                page.weeklyCapacities?.some(
-                                  (p) => p.id === row.id && p.canEdit,
-                                ) && (
-                                  <MenuItem id="capacity" onAction={() => openLimits([row.id])}>
-                                    Adjust weekly capacity
-                                  </MenuItem>
-                                )}
-                              {canCreate &&
-                                !archived &&
-                                (view.tab === 'people' ||
-                                  bootstrap.projects.some(
-                                    (p) => p.id === row.id && plannerCanManageAllocations(p),
-                                  )) && (
-                                  <MenuItem
-                                    id="allocate"
-                                    onAction={() =>
-                                      setEditor({
-                                        kind: 'allocation',
-                                        initial: {
-                                          ...(view.tab === 'projects' ? { projectId: row.id } : {}),
-                                          data: {
-                                            userId:
-                                              view.tab === 'people'
-                                                ? row.person
-                                                  ? null
-                                                  : row.id
-                                                : bootstrap.me.id,
-                                            placeholderId:
-                                              view.tab === 'people' && row.person ? row.id : null,
-                                          },
-                                        },
-                                      })
-                                    }
-                                  >
-                                    Add allocation
-                                  </MenuItem>
-                                )}
-                              {canEdit && !archived && row.items.length > 0 && (
-                                <MenuItem
-                                  id="transfer"
-                                  isDisabled={row.items.some((a) => a.access !== 'admin')}
-                                  onAction={() => selectRowForTransfer(row.items)}
-                                >
-                                  Transfer allocations
-                                </MenuItem>
-                              )}
-                            </Menu>
-                          </Popover>
-                        </MenuTrigger>
-                      )}
-                    </div>
-                    {columns.map((c) => {
-                      const active = row.items.filter(
-                          (a) => a.data.startOn <= c.end && a.data.endOn >= c.start,
-                        ),
-                        minutes = active.reduce(
-                          (n, a) => n + plannerCapacityMinutes(a, c.start, c.end),
-                          0,
-                        ),
-                        capacity =
-                          ((view.tab === 'people'
-                            ? row.weeklyMinutes
-                            : [
-                                ...new Map(
-                                  active.map((a) => [personId(a), a.weeklyMinutes]),
-                                ).values(),
-                              ].reduce((n, v) => n + v, 0)) /
-                            5) *
-                          plannerCapacityWorkdays(c.start, c.end).length;
-                      const label =
-                        view.unit === 'hours'
-                          ? hours(minutes)
-                          : view.unit === 'personMonths'
-                            ? `${(minutes / ((2400 * 52) / 12)).toFixed(2)} pm`
-                            : view.unit === 'count'
-                              ? String(
-                                  new Set(
-                                    active.map((a) =>
-                                      view.tab === 'people' ? a.projectId : personId(a),
-                                    ),
-                                  ).size,
-                                )
-                              : capacity
-                                ? `${Math.round((minutes / capacity) * 100)}%`
-                                : minutes
-                                  ? 'No capacity'
-                                  : '0%';
-                      return (
-                        <div
-                          key={c.start}
-                          className={`planner-capacity-cell ${view.tab === 'people' && minutes > capacity ? 'is-overallocated' : ''}`}
-                          data-capacity-start={c.start}
-                          data-capacity-end={c.end}
-                          onDragOver={(e) => canEdit && e.preventDefault()}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            if (!canEdit) return;
-                            const id = e.dataTransfer.getData('text/plain'),
-                              a = allocations.find((a) => a.id === id);
-                            if (!a || a.access !== 'admin') return;
-                            if (
-                              view.tab === 'projects' &&
-                              !bootstrap.projects.some(
-                                (p) => p.id === row.id && plannerCanManageAllocations(p),
-                              )
-                            )
-                              return;
-                            const delta = Math.round(
-                              (Date.parse(c.start) - Date.parse(a.data.startOn)) / 86400000,
-                            );
-                            const moving = selected.includes(a.id)
-                              ? allocations.filter((item) => selected.includes(item.id))
-                              : [a];
-                            const target =
-                              view.tab === 'projects'
-                                ? { projectId: row.id }
-                                : {
-                                    data: {
-                                      userId: row.person ? null : row.id,
-                                      placeholderId: row.person ? row.id : null,
-                                    },
-                                  };
-                            void change(
-                              moving.map((item) => ({
-                                id: item.id,
-                                version: item.version,
-                                shiftDays: delta,
-                                ...target,
-                              })),
-                            );
-                          }}
-                        >
-                          <small aria-label={`${row.name} ${c.start} planned effort`}>
-                            {label}
-                          </small>
-                          {active.map((a) => (
-                            <PlannerAllocationBar
-                              key={`${a.id}:${a.version}:${a.archived}`}
-                              allocation={a}
-                              column={c}
-                              label={
-                                view.tab === 'people'
-                                  ? a.projectName
-                                  : (names.get(personId(a)) ?? a.personName)
-                              }
-                              description={`${a.projectName} · ${names.get(personId(a)) ?? a.personName} · ${a.data.startOn} – ${a.data.endOn} · ${hours(plannerCapacityMinutes(a))}`}
-                              color={
-                                bootstrap.projects.find((p) => p.id === a.projectId)?.color ??
-                                '#7565dd'
-                              }
-                              selected={selected.includes(a.id)}
-                              canEdit={canEdit}
-                              onSelect={() =>
-                                setSelected((current) =>
-                                  current.includes(a.id)
-                                    ? current.filter((id) => id !== a.id)
-                                    : current.length < 100
-                                      ? [...current, a.id]
-                                      : current,
-                                )
-                              }
-                              onEdit={() => setEditor({ kind: 'allocation', row: a })}
-                              onChange={(changeDto) => void change([changeDto])}
-                              onError={setError}
-                            />
-                          ))}
-                          {canCreate &&
+              {rows.map((row, index) => {
+                const layouts = capacityAllocationLayout(row.items, columns);
+                const laneCount = Math.max(1, ...layouts.map((a) => a.lane + 1));
+                return (
+                  <div key={row.id}>
+                    {row.group && (index === 0 || rows[index - 1]?.group !== row.group) && (
+                      <h4 className="planner-capacity-group">{row.group}</h4>
+                    )}
+                    <div
+                      className="planner-capacity-row"
+                      style={{
+                        gridTemplateColumns: `210px repeat(${columns.length}, minmax(108px, 1fr))`,
+                      }}
+                      onDragOver={(e) => canEdit && !archived && e.preventDefault()}
+                      onDrop={(e) => dropOnRow(row, e)}
+                    >
+                      <div
+                        className="planner-capacity-sticky planner-capacity-person"
+                        style={{ gridColumn: 1, gridRow: 1 }}
+                      >
+                        <strong>{row.name}</strong>
+                        <small>
+                          {view.tab === 'people'
+                            ? `${row.person ? 'Placeholder · ' : ''}${hours(row.weeklyMinutes)} / week${row.jobTitle ? ' · ' + row.jobTitle : ''}`
+                            : bootstrap.projects
+                                .find((p) => p.id === row.id)
+                                ?.health.replaceAll('_', ' ')}
+                        </small>
+                        {((view.tab === 'projects' && onProject) ||
+                          (canCreate && !archived) ||
+                          (canEdit && !archived && row.items.length > 0) ||
+                          (view.tab === 'people' &&
                             !archived &&
-                            plannerCapacityWorkdays(c.start, c.end).length > 0 &&
-                            (view.tab === 'people' ||
-                              bootstrap.projects.some(
-                                (p) => p.id === row.id && plannerCanManageAllocations(p),
-                              )) && (
+                            !plan.archived &&
+                            page.weeklyCapacities?.some((p) => p.id === row.id && p.canEdit))) && (
+                          <MenuTrigger>
+                            <Button
+                              className="planner-capacity-row-menu"
+                              aria-label={`Actions for ${row.name}`}
+                            >
+                              <MoreHorizontal size={16} aria-hidden="true" />
+                            </Button>
+                            <Popover
+                              className="planner-capacity-menu-popover"
+                              placement="bottom start"
+                            >
+                              <Menu aria-label={`Actions for ${row.name}`}>
+                                {view.tab === 'projects' && onProject && (
+                                  <MenuItem id="details" onAction={() => onProject(row.id)}>
+                                    View project details
+                                  </MenuItem>
+                                )}
+                                {view.tab === 'people' &&
+                                  !archived &&
+                                  !plan.archived &&
+                                  page.weeklyCapacities?.some(
+                                    (p) => p.id === row.id && p.canEdit,
+                                  ) && (
+                                    <MenuItem id="capacity" onAction={() => openLimits([row.id])}>
+                                      Adjust weekly capacity
+                                    </MenuItem>
+                                  )}
+                                {canCreate &&
+                                  !archived &&
+                                  (view.tab === 'people' ||
+                                    bootstrap.projects.some(
+                                      (p) => p.id === row.id && plannerCanManageAllocations(p),
+                                    )) && (
+                                    <MenuItem
+                                      id="allocate"
+                                      onAction={() =>
+                                        setEditor({
+                                          kind: 'allocation',
+                                          initial: {
+                                            ...(view.tab === 'projects'
+                                              ? { projectId: row.id }
+                                              : {}),
+                                            data: {
+                                              userId:
+                                                view.tab === 'people'
+                                                  ? row.person
+                                                    ? null
+                                                    : row.id
+                                                  : bootstrap.me.id,
+                                              placeholderId:
+                                                view.tab === 'people' && row.person ? row.id : null,
+                                            },
+                                          },
+                                        })
+                                      }
+                                    >
+                                      Add allocation
+                                    </MenuItem>
+                                  )}
+                                {canEdit && !archived && row.items.length > 0 && (
+                                  <MenuItem
+                                    id="transfer"
+                                    isDisabled={row.items.some((a) => a.access !== 'admin')}
+                                    onAction={() => selectRowForTransfer(row.items)}
+                                  >
+                                    Transfer allocations
+                                  </MenuItem>
+                                )}
+                              </Menu>
+                            </Popover>
+                          </MenuTrigger>
+                        )}
+                      </div>
+                      {columns.map((c, columnIndex) => {
+                        const active = row.items.filter(
+                            (a) => a.data.startOn <= c.end && a.data.endOn >= c.start,
+                          ),
+                          minutes = active.reduce(
+                            (n, a) => n + plannerCapacityMinutes(a, c.start, c.end),
+                            0,
+                          ),
+                          capacity =
+                            ((view.tab === 'people'
+                              ? row.weeklyMinutes
+                              : [
+                                  ...new Map(
+                                    active.map((a) => [personId(a), a.weeklyMinutes]),
+                                  ).values(),
+                                ].reduce((n, v) => n + v, 0)) /
+                              5) *
+                            plannerCapacityWorkdays(c.start, c.end).length;
+                        const label =
+                          view.unit === 'hours'
+                            ? hours(minutes)
+                            : view.unit === 'personMonths'
+                              ? `${(minutes / ((2400 * 52) / 12)).toFixed(2)} pm`
+                              : view.unit === 'count'
+                                ? String(
+                                    new Set(
+                                      active.map((a) =>
+                                        view.tab === 'people' ? a.projectId : personId(a),
+                                      ),
+                                    ).size,
+                                  )
+                                : capacity
+                                  ? `${Math.round((minutes / capacity) * 100)}%`
+                                  : minutes
+                                    ? 'No capacity'
+                                    : '0%';
+                        return (
+                          <div
+                            key={c.start}
+                            className={`planner-capacity-cell ${view.tab === 'people' && minutes > capacity ? 'is-overallocated' : ''}`}
+                            data-capacity-start={c.start}
+                            data-capacity-end={c.end}
+                            style={{
+                              gridColumn: columnIndex + 2,
+                              gridRow: 1,
+                              minHeight: 68 + laneCount * 34,
+                            }}
+                            onClick={(event) => {
+                              if (
+                                event.target === event.currentTarget ||
+                                event.target === event.currentTarget.querySelector('small')
+                              )
+                                createAt(row, c);
+                            }}
+                          >
+                            <small aria-label={`${row.name} ${c.start} planned effort`}>
+                              {label}
+                            </small>
+                            {cellCanCreate(row, c) && (
                               <button
                                 type="button"
                                 className="planner-capacity-add-cell"
                                 aria-label={`Allocate ${row.name} from ${c.start} to ${c.end}`}
-                                onClick={() =>
-                                  setEditor({
-                                    kind: 'allocation',
-                                    initial: {
-                                      ...(view.tab === 'projects' ? { projectId: row.id } : {}),
-                                      data: {
-                                        startOn: c.start,
-                                        endOn: c.end,
-                                        userId:
-                                          view.tab === 'people'
-                                            ? row.person
-                                              ? null
-                                              : row.id
-                                            : bootstrap.me.id,
-                                        placeholderId:
-                                          view.tab === 'people' && row.person ? row.id : null,
-                                      },
-                                    },
-                                  })
-                                }
+                                onClick={() => createAt(row, c)}
                               >
                                 <Plus size={12} aria-hidden="true" />
                               </button>
                             )}
-                        </div>
-                      );
-                    })}
+                          </div>
+                        );
+                      })}
+                      <div
+                        className="planner-capacity-allocation-track"
+                        style={{ gridColumn: '2 / -1', gridRow: 1 }}
+                      >
+                        {layouts.map(({ allocation: a, ...layout }) => (
+                          <PlannerAllocationBar
+                            key={`${a.id}:${a.version}:${a.archived}`}
+                            allocation={a}
+                            column={{ start, end: through }}
+                            layout={layout}
+                            label={
+                              view.tab === 'people'
+                                ? a.projectName
+                                : (names.get(personId(a)) ?? a.personName)
+                            }
+                            description={`${a.projectName} · ${names.get(personId(a)) ?? a.personName} · ${a.data.startOn} – ${a.data.endOn} · ${hours(plannerCapacityMinutes(a))}`}
+                            color={
+                              bootstrap.projects.find((p) => p.id === a.projectId)?.color ??
+                              '#7565dd'
+                            }
+                            selected={selected.includes(a.id)}
+                            canEdit={canEdit}
+                            onSelect={() =>
+                              setSelected((current) =>
+                                current.includes(a.id)
+                                  ? current.filter((id) => id !== a.id)
+                                  : current.length < 100
+                                    ? [...current, a.id]
+                                    : current,
+                              )
+                            }
+                            onEdit={() => setEditor({ kind: 'allocation', row: a })}
+                            onChange={(changeDto) => void change([changeDto])}
+                            onError={setError}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
           {!rows.length && (
