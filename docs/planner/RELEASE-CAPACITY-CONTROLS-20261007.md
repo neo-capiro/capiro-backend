@@ -1,0 +1,29 @@
+# Planner capacity timeline controls
+
+Twentieth release is live on Strategies 52 / web-vNext 469, [PR #2210](https://github.com/neo-capiro/capirov2/pull/2210). Full Asana Work parity remains in progress. This frontend release uses the existing capacity API and requires no migration.
+
+## Behavior
+
+Start/end handles resize allocations directly in the timeline. Pointer movement previews a calendar date and commits once on release; cancellation leaves the record unchanged. Day/week/month columns use their actual calendar lengths, including partial and leap-year months. Arrow keys move an edge by one day, Shift by seven days. Crossed ranges, empty working-day ranges and excessive date shifts are rejected. Changes carry the allocation's opening version and preserve its project, person, effort unit and effort value; total hours redistribute over the new working dates.
+
+An allocation's actions menu supports editing, exact-date duplication, bulk selection and recoverable archive/restore. Right-click and Shift-F10 open the same accessible menu. Delete archives current qualified selections, or the focused allocation, only within the staffing timeline; typing in a form does not archive work. A timeline cell's plus opens an allocation form prefilled with that row and date interval, and saves only after the form is submitted. Active/archive filtering preserves the current date window, layout, zoom, units, grouping and other filters.
+
+Plan administration and each allocation's current project permissions still gate controls and writes. The Strategies API continues to enforce plan/allocation versions and atomic source/destination grants. No authentication, impersonation, permission widening, task/time creation or additional Capiro integration is introduced.
+
+## Validation
+
+192 web checks in 27 files pass: 181 Planner regression checks, including ten new interaction checks, plus eleven Planner notification-bell checks. Production typechecking and the web build pass. The focused controls checks cover unequal month lengths, one-time pointer commits, cancellation, keyboard boundaries, duplication, context menus, archive/restore, read-only controls, preserved views, scoped Delete and seeded cell creation. The initial extra bell run timed out during module collection without running a test; the final retry passes all eleven checks.
+
+Synthetic browser QA verifies pointer end-date resizing by a week, keyboard start-date resizing, unchanged 45 total hours, exact-date duplication, Delete archive and menu recovery, preserved Month/Percent display and a Jamie Lee allocation with the selected cell's dates. The fixture contains synthetic records only; production's build does not load it. Evidence is retained in `artifacts/planner/capacity-controls-*`.
+
+## Release qualification
+
+Exact-source ARM64 cloud build `capiro-build-web-dev:6fe1457a-b385-4e52-bafe-f5a6b51873ca` succeeded for integrated source `15e354000921c3b5e3a3c7b7f0defc8352302f0a`. Its six Planner source/test files are identical to core source `bba92a02b8490af3eaa9e3ce19dc95da75b4083a`. The integrated source retains the Newsletter changes already serving on web 468. Web 469 runs immutable digest `sha256:44db19c4e18905b0f861369baa3422202d635ba80a1ca027fa182bb3ada9593a`; both web 469 and Strategies 52 have one completed deployment, one running task and no pending task. Public runtime metadata confirms the deployed source. The original standalone web 466 candidate was superseded and must not be used to roll back newer features. The frontend rollback baseline is web 468; retain Strategies 52.
+
+Authenticated live QA verifies cell creation, pointer end-date resizing by seven days, keyboard start-date resizing by one day, exact-date duplication, scoped Delete archive, menu recovery, preserved unsaved Month/Percent display and saved January view reload. An actual downloaded CSV contains two distinct allocation IDs, both dated January 5–17, 2027, with 20 hours each. Restricted, read-only runtime-role proofs verify original state hashes, complete revision-bound allocation pages and both 1,200-minute allocations. The private project, plan and two allocations are recoverably archived after qualification.
+
+Read-only live preflight and cleanup under the non-super/non-bypass `capiro_app` role verify all 16 original projects, 34 tasks, 47 resources, 150 events, 26 revisions and ten inbox records unchanged. Original-state hash: `b685da352a21b3d5f915514496fc4dadcc735cc5818e8dd99a30b4c4a2bb3d8d`. The owner's 14 time events, 85-minute week/version two, preferences version four, empty timer and zero Planner unread are unchanged. The live bell retains eight unrelated unread items.
+
+## Remaining parity
+
+Custom-profile/custom-project field filters, portfolio grouped totals, row-level project details/transfer actions, individual capacity menus, configurable project allocation editing and richer team/job-title semantics remain open. Task-workload/capacity/actual comparisons, selectable estimate sources and cost reporting remain separate work. See [PARITY-AUDIT-20261007.md](PARITY-AUDIT-20261007.md).

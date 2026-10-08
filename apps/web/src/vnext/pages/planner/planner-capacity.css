@@ -171,6 +171,103 @@
 .planner-capacity-bar[draggable='true'] {
   cursor: grab;
 }
+.planner-capacity-allocation {
+  position: relative;
+  margin: 4px 0;
+}
+.planner-capacity-cell .planner-capacity-allocation .planner-capacity-bar {
+  margin: 0;
+  padding: 7px 24px 7px 10px;
+  min-height: 30px;
+}
+.planner-capacity-bar[aria-pressed='true'] {
+  outline: 2px solid var(--capacity-color);
+  outline-offset: 1px;
+}
+.planner-capacity-cell .planner-capacity-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--capacity-color);
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  font-size: 13px;
+}
+.planner-capacity-resize.is-startOn {
+  left: 0;
+}
+.planner-capacity-resize.is-endOn {
+  right: 17px;
+}
+.planner-capacity-cell .planner-capacity-allocation-menu {
+  position: absolute;
+  top: 2px;
+  right: 1px;
+  bottom: 2px;
+  width: 16px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #52596a;
+  display: grid;
+  place-content: center;
+}
+.planner-capacity-resize-preview {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 6;
+  padding: 5px 7px;
+  background: #272435;
+  border-radius: 5px;
+  color: #fff;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.planner-capacity-menu-popover {
+  z-index: 1100;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--planner-line, #e4e5eb);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 28px #1c20351f;
+}
+.planner-capacity-menu-popover [role='menu'] {
+  outline: none;
+}
+.planner-capacity-menu-popover [role='menuitem'] {
+  padding: 8px 10px;
+  border-radius: 5px;
+  outline: none;
+  font-size: 12px;
+  cursor: pointer;
+}
+.planner-capacity-menu-popover [data-focused] {
+  background: #eeeafa;
+}
+.planner-capacity-cell .planner-capacity-add-cell {
+  display: grid;
+  place-content: center;
+  width: 23px;
+  min-width: 0;
+  height: 23px;
+  padding: 0;
+  margin: 5px auto 0;
+  border: 1px dashed var(--planner-line);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--planner-muted);
+}
 .planner-capacity-group {
   margin: 0;
   padding: 10px 14px;
