@@ -6,6 +6,8 @@ import {
 } from 'react';
 import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import { MoreHorizontal } from 'lucide-react';
+import { capacityDateAt, type CapacityColumnBounds } from './planner-capacity-layout.js';
+export type { CapacityColumnBounds } from './planner-capacity-layout.js';
 import {
   plannerCapacityDateShift,
   plannerCapacityWorkdays,
@@ -14,7 +16,6 @@ import {
 } from '@capiro/strategy-verifier';
 
 type Boundary = 'startOn' | 'endOn';
-export type CapacityColumnBounds = { start: string; end: string; left: number; width: number };
 const ordinal = (date: string) => Date.parse(`${date}T12:00:00Z`) / 86400000;
 
 /** Calendar position, including partial weeks/months and horizontal scrolling. */
@@ -71,6 +72,7 @@ export function PlannerAllocationBar({
   onEdit,
   onChange,
   onError,
+  layout,
 }: {
   allocation: PlannerCapacityAllocation;
   column: { start: string; end: string };
@@ -83,6 +85,7 @@ export function PlannerAllocationBar({
   onEdit: () => void;
   onChange: (change: PlannerCapacityAllocationChange) => void;
   onError: (error: Error) => void;
+  layout?: { left: number; width: number; lane: number };
 }) {
   const editable = canEdit && a.access === 'admin';
   const [menuOpen, setMenuOpen] = useState(false);
@@ -173,9 +176,16 @@ export function PlannerAllocationBar({
   );
   return (
     <div
-      className="planner-capacity-allocation"
+      className={`planner-capacity-allocation${layout ? ' is-continuous' : ''}`}
       data-capacity-allocation={a.id}
-      style={{ '--capacity-color': color } as CSSProperties}
+      style={
+        {
+          '--capacity-color': color,
+          ...(layout
+            ? { left: `${layout.left}%`, width: `${layout.width}%`, top: layout.lane * 34 }
+            : {}),
+        } as CSSProperties
+      }
       onContextMenu={(event) => {
         if (editable) {
           event.preventDefault();
@@ -189,7 +199,17 @@ export function PlannerAllocationBar({
         title={description}
         draggable={editable && !a.archived}
         aria-pressed={selected}
-        onDragStart={(event) => event.dataTransfer.setData('text/plain', a.id)}
+        onDragStart={(event) => {
+          event.dataTransfer.setData('text/plain', a.id);
+          try {
+            const at = capacityDateAt(event.clientX, columnBounds(event.currentTarget));
+            const anchor =
+              at < a.data.startOn ? a.data.startOn : at > a.data.endOn ? a.data.endOn : at;
+            event.dataTransfer.setData('application/x-planner-capacity-date', anchor);
+          } catch {
+            event.dataTransfer.setData('application/x-planner-capacity-date', a.data.startOn);
+          }
+        }}
         onClick={(event) => {
           if (editable) {
             if (event.ctrlKey || event.metaKey) onSelect();

@@ -92,6 +92,69 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('Capacity planning workflows', () => {
+  it('renders one continuous bar and preserves the grabbed calendar day when moving', async () => {
+    state.plan.data.allocations = [
+      { ...a, data: { ...a.data, startOn: '2026-10-07', endOn: '2026-10-16' } },
+    ];
+    render(<PlannerCapacity bootstrap={bootstrap} selectedId={cp.id} onSelect={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Capacity window start'), {
+      target: { value: '2026-10-05' },
+    });
+    const bars = screen.getAllByRole('button', { name: 'Launch' });
+    expect(bars).toHaveLength(1);
+    const timelineRow = bars[0]!.closest('.planner-capacity-row')!;
+    timelineRow.querySelectorAll<HTMLElement>('[data-capacity-start]').forEach((cell, index) => {
+      cell.getBoundingClientRect = () => ({ left: 210 + index * 140, width: 140 }) as DOMRect;
+    });
+    const transfer = new Map<string, string>();
+    const dataTransfer = {
+      setData: (key: string, value: string) => transfer.set(key, value),
+      getData: (key: string) => transfer.get(key) ?? '',
+    };
+    // Grab Monday in the second week, rather than the allocation's Wednesday start.
+    const dragging = new MouseEvent('dragstart', { bubbles: true, clientX: 360 });
+    Object.defineProperty(dragging, 'dataTransfer', { value: dataTransfer });
+    fireEvent(bars[0]!, dragging);
+    expect(transfer.get('application/x-planner-capacity-date')).toBe('2026-10-12');
+    const dropping = new MouseEvent('drop', { bubbles: true, clientX: 400 });
+    Object.defineProperty(dropping, 'dataTransfer', { value: dataTransfer });
+    fireEvent(timelineRow, dropping);
+    await waitFor(() =>
+      expect(state.save).toHaveBeenCalledWith({
+        planId: cp.id,
+        planVersion: cp.version,
+        changes: [
+          {
+            id: a.id,
+            version: a.version,
+            shiftDays: 2,
+            data: { userId: 'owner', placeholderId: null },
+          },
+        ],
+      }),
+    );
+    state.save.mockClear();
+    const headerDrop = new MouseEvent('drop', { bubbles: true, clientX: 100 });
+    Object.defineProperty(headerDrop, 'dataTransfer', { value: dataTransfer });
+    fireEvent(timelineRow, headerDrop);
+    expect(state.save).not.toHaveBeenCalled();
+  });
+  it('opens a matching zoom interval from an empty cell without writing and ignores weekend-only days', () => {
+    state.plan.data.allocations = [];
+    render(<PlannerCapacity bootstrap={bootstrap} selectedId={cp.id} onSelect={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Capacity window start'), {
+      target: { value: '2026-10-10' },
+    });
+    fireEvent.change(screen.getByLabelText('Capacity zoom'), { target: { value: 'day' } });
+    fireEvent.click(screen.getByLabelText('Owner 2026-10-10 planned effort').parentElement!);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Capacity zoom'), { target: { value: 'week' } });
+    fireEvent.click(screen.getByLabelText('Owner 2026-10-10 planned effort').parentElement!);
+    expect(screen.getByRole('dialog', { name: 'Allocate project work' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Start date')).toHaveValue('2026-10-10');
+    expect(screen.getByLabelText('End date')).toHaveValue('2026-10-16');
+    expect(state.save).not.toHaveBeenCalled();
+  });
   it('opens individual limits from a row with no allocations and uses server grants and revision', async () => {
     state.plan.data = {
       ...state.plan.data,
