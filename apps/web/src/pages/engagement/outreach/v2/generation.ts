@@ -476,6 +476,7 @@ const FAILURE_COPY: Record<string, string> = {
     'A required context source could not be loaded, so nothing was drafted. See "Context used" below for which source failed, then regenerate.',
   PLAN_GENERATION_FAILED: `The planning step could not produce a valid plan for this recipient. ${RETRY}`,
   DRAFT_OUTPUT_INVALID: `The model returned an incomplete draft. ${RETRY}`,
+  DRAFT_REVISION_INVALID: 'Meri could not safely apply the requested edits. Your current draft was kept. Try the instruction again.',
   DRAFT_SECTIONS_INCOMPLETE: `The model returned an incomplete draft. ${RETRY}`,
   DRAFT_PERSIST_FAILED: `The draft was generated but could not be saved as a version. ${RETRY}`,
   GENERATION_FAILED: `The drafting call failed. ${RETRY}`,

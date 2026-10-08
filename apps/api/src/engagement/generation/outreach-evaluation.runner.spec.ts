@@ -3,6 +3,7 @@ import type { TenantContext } from '@capiro/shared';
 import { OutreachEvaluationRunner, type OutreachEvaluationInput } from './outreach-evaluation.runner.js';
 import { GenerationVerifierService } from './generation-verifier.service.js';
 import { GATEWAY_PROMPT_SPEC_VERSION } from './gateway-prompt.js';
+import { REVISION_JSON_SCHEMA } from './draft-revision.js';
 import type { EvidencePacketV2 } from './evidence-packet.types.js';
 import type { GenerationRequest } from './generation-gateway.types.js';
 import type { OutreachGovernedContext } from './outreach-context-plane.service.js';
@@ -183,6 +184,19 @@ function baseInput(over: Partial<OutreachEvaluationInput> = {}): OutreachEvaluat
 }
 
 describe('OutreachEvaluationRunner', () => {
+  test('revision replay uses the same edit schema and original draft as the product path', async () => {
+    process.env.LEARNING_EVALUATION = 'enabled';
+    process.env.LEARNING_EVALUATION_SAMPLE_RATE = '1';
+    const { runner, complete, markCompleted } = makeRunner({
+      completeImpl: async () => ({ text: JSON.stringify({ edits: [{ field: 'body', find: 'government affairs', replacement: 'Lobbying Firm', occurrence: 1 }], contextNote: '' }), usage: {} }),
+    });
+    await runner.considerAndRun(CTX, baseInput({ request: baseRequest({ existingSubject: 'Keep subject', existingBody: 'Our government affairs team.', reviseInstruction: 'Replace government affairs with Lobbying Firm.' }) }));
+    const call = (complete.mock.calls as unknown as Array<[{ jsonSchema: unknown; userVolatile: string }]>)[0]![0];
+    expect(call.jsonSchema).toEqual(REVISION_JSON_SCHEMA);
+    expect(call.userVolatile).toContain('Replace government affairs with Lobbying Firm.');
+    expect(markCompleted).toHaveBeenCalledWith('t1', 'eval-1', expect.objectContaining({ metrics: expect.objectContaining({ controlProducedOutput: true, controlBodyLength: 'Our Lobbying Firm team.'.length }) }));
+  });
+
   const priorEnabled = process.env.LEARNING_EVALUATION;
   const priorRate = process.env.LEARNING_EVALUATION_SAMPLE_RATE;
   afterEach(() => {

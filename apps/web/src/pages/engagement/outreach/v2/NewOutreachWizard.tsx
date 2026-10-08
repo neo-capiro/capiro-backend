@@ -1755,7 +1755,7 @@ export function NewOutreachWizard({
       } else if (res.succeeded.length) {
         message.success(
           res.succeeded.length === 1
-            ? 'Regenerated this email'
+            ? vars.revise ? 'Applied your requested edits' : 'Regenerated this email'
             : `Generated ${res.succeeded.length} drafts`,
         );
       }
