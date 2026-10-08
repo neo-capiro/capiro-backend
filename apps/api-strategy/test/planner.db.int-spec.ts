@@ -33,6 +33,44 @@ describeDb('Planner real PostgreSQL integration', () => {
   afterAll(async () => {
     await prisma?.$disconnect();
   });
+  it('honors explicit independent subtask membership without inheriting assignment or dates', async () => {
+    const project = await service.saveProject(owner, null, {
+      data: {
+        name: 'Independent subtasks',
+        members: [{ userId: viewer.clerkUserId, role: 'editor' }],
+      },
+    });
+    const parent = await service.saveTask(owner, null, {
+      data: {
+        name: 'Assigned dated parent',
+        assigneeId: owner.clerkUserId,
+        startOn: '2027-05-03',
+        dueOn: '2027-05-10',
+        memberships: [{ projectId: project.id, sectionId: null, position: 0 }],
+      },
+    });
+    const child = await service.saveTask(owner, null, {
+      data: { ...PLANNER_DEFAULT_TASK, name: 'Independent child', parentId: parent.id },
+    });
+    expect(child).toMatchObject({
+      parentId: parent.id,
+      memberships: [],
+      assigneeId: null,
+      startOn: null,
+      dueOn: null,
+    });
+    await expect(service.task(viewer, child.id)).rejects.toMatchObject({ status: 404 });
+    const legacy = await service.saveTask(owner, null, {
+      data: { name: 'Legacy linked child', parentId: parent.id },
+    });
+    expect(legacy.memberships).toEqual(parent.memberships);
+    const linked = await service.saveTask(owner, child.id, {
+      version: child.version,
+      data: { memberships: [{ projectId: project.id, sectionId: null, position: 1 }] },
+    });
+    expect((await service.task(viewer, linked.id)).id).toBe(child.id);
+    expect(linked).toMatchObject({ assigneeId: null, startOn: null, dueOn: null });
+  });
   it('corrects, removes and restores time without changing the original audit record or losing totals', async () => {
     const t = await service.saveTask(owner, null, { data: { name: 'Correctable time' } });
     const e = await service.addEvent(

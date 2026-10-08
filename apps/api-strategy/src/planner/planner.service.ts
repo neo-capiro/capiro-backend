@@ -830,7 +830,9 @@ export class PlannerService {
           const parent = all.find((t) => t.id === data.parentId && !t.archived);
           if (!parent) throw missing();
           requireRole(plannerTaskAccess(parent, projects, ctx.clerkUserId), 'editor');
-          if (!data.memberships.length)
+          // An explicit empty membership list creates an independent subtask.
+          // Preserve the legacy fallback only when the caller omitted this field.
+          if (!data.memberships.length && !Object.hasOwn(dto.data, 'memberships'))
             data = {
               ...data,
               memberships: taskData(parent).memberships.filter((m) => {
