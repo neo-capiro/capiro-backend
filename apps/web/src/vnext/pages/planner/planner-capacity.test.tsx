@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   plan: {} as any,
   save: vi.fn(),
   record: vi.fn(),
+  weekly: vi.fn(),
 }));
 vi.mock('./planner-capacity-api.js', () => ({
   usePlannerCapacityCatalog: () => state.catalog,
@@ -21,6 +22,7 @@ vi.mock('./planner-capacity-api.js', () => ({
   usePlannerCapacityMutations: () => ({
     record: { mutateAsync: state.record },
     allocations: { mutateAsync: state.save },
+    weeklyCapacities: { mutateAsync: state.weekly },
   }),
   plannerLoadCapacity: vi.fn(),
 }));
@@ -86,9 +88,72 @@ beforeEach(() => {
   };
   state.save.mockReset().mockResolvedValue({});
   state.record.mockReset().mockResolvedValue({ id: cp.id });
+  state.weekly.mockReset().mockResolvedValue({ ok: true });
 });
 afterEach(cleanup);
 describe('Capacity planning workflows', () => {
+  it('opens individual limits from a row with no allocations and uses server grants and revision', async () => {
+    state.plan.data = {
+      ...state.plan.data,
+      allocations: [],
+      weeklyCapacities: [{ id: 'owner', weeklyMinutes: 1800, canEdit: true }],
+      revision: 'opening',
+    };
+    render(<PlannerCapacity bootstrap={bootstrap} selectedId={cp.id} onSelect={vi.fn()} />);
+    expect(screen.getByText('30 h / week')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Actions for Owner' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Adjust weekly capacity' }));
+    fireEvent.input(screen.getByLabelText('Owner weekly hours'), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save weekly capacity' }));
+    await waitFor(() =>
+      expect(state.weekly).toHaveBeenCalledWith({
+        planId: cp.id,
+        revision: 'opening',
+        changes: [{ id: 'owner', weeklyMinutes: 0 }],
+      }),
+    );
+  });
+  it('shows portfolio rows from authorized live membership and deduplicates people across projects', () => {
+    const second = {
+      ...a,
+      id: 'second',
+      projectId: 'other',
+      projectName: 'Other',
+      data: { ...a.data, effort: { unit: 'hours' as const, value: 10 } },
+    };
+    state.plan.data = {
+      ...state.plan.data,
+      allocations: [a, second],
+      portfolios: [{ id: 'portfolio', name: 'Team portfolio', projectIds: [p.id, 'other'] }],
+    };
+    render(<PlannerCapacity bootstrap={bootstrap} selectedId={cp.id} onSelect={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText('Capacity window start'), {
+      target: { value: '2026-10-05' },
+    });
+    fireEvent.click(screen.getByRole('tab', { name: 'Projects' }));
+    expect(screen.getByLabelText('Team portfolio 2026-10-05 portfolio effort')).toHaveTextContent(
+      '30 h',
+    );
+    fireEvent.change(screen.getByLabelText('Capacity display'), { target: { value: 'percent' } });
+    expect(screen.getByLabelText('Team portfolio 2026-10-05 portfolio effort')).toHaveTextContent(
+      '75%',
+    );
+    fireEvent.change(screen.getByLabelText('Capacity display'), { target: { value: 'count' } });
+    expect(screen.getByLabelText('Team portfolio 2026-10-05 portfolio effort')).toHaveTextContent(
+      '1',
+    );
+    fireEvent.change(screen.getByLabelText('Capacity display'), {
+      target: { value: 'personMonths' },
+    });
+    expect(screen.getByLabelText('Team portfolio 2026-10-05 portfolio effort')).toHaveTextContent(
+      '0.17 pm',
+    );
+    fireEvent.change(screen.getByLabelText('Filter capacity project'), { target: { value: p.id } });
+    fireEvent.change(screen.getByLabelText('Capacity display'), { target: { value: 'hours' } });
+    expect(screen.getByLabelText('Team portfolio 2026-10-05 portfolio effort')).toHaveTextContent(
+      '20 h',
+    );
+  });
   it('switches People/Projects, zooms and filters without counting one allocation per timeline cell', () => {
     render(<PlannerCapacity bootstrap={bootstrap} selectedId={cp.id} onSelect={vi.fn()} />);
     fireEvent.change(screen.getByLabelText('Capacity window start'), {

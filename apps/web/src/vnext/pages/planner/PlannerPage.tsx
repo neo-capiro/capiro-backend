@@ -2358,9 +2358,10 @@ function PlannerWorkload({ tasks, data }: { tasks: PlannerTask[]; data: PlannerB
       {data.people.map((person) => {
         const assigned = scheduled.filter((t) => t.assigneeId === person.id);
         const minutes = assigned.reduce((n, t) => n + t.estimateMinutes, 0);
-        const capacity = resources.data?.find(
-          (r) => r.kind === 'capacity' && !r.archived && r.data.userId === person.id,
-        );
+        const capacity = resources.data
+          ?.filter((r) => r.kind === 'capacity' && !r.archived && !r.projectId)
+          .sort((a, b) => a.id.localeCompare(b.id))
+          .find((r) => r.data.userId === person.id);
         const available = Number(capacity?.data.weeklyMinutes ?? 2400);
         return (
           <article key={person.id}>

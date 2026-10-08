@@ -10,7 +10,7 @@ export interface PlannerCapacityView {
   name: string;
   tab: 'people' | 'projects';
   zoom: 'day' | 'week' | 'month';
-  unit: 'hours' | 'percent' | 'count';
+  unit: 'hours' | 'percent' | 'count' | 'personMonths';
   group: 'none' | 'team' | 'jobTitle' | 'health';
   search: string;
   projectId: string;
@@ -74,6 +74,10 @@ export interface PlannerCapacityPage {
   matched: number;
   revision: string;
   nextCursor: string | null;
+  /** Current limits and grants, including people with no allocations. */
+  weeklyCapacities?: { id: string; weeklyMinutes: number; canEdit: boolean }[];
+  /** Live portfolio membership intersected with the caller's project access. */
+  portfolios?: { id: string; name: string; projectIds: string[] }[];
 }
 export interface PlannerCapacityAllocationChange {
   id: string;

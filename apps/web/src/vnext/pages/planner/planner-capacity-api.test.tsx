@@ -40,6 +40,17 @@ function Probe() {
       >
         Save record
       </button>
+      <button
+        onClick={() =>
+          m.weeklyCapacities.mutate({
+            planId: 'plan',
+            revision: 'opening',
+            changes: [{ id: 'me', weeklyMinutes: 1800 }],
+          })
+        }
+      >
+        Save weekly capacity
+      </button>
     </>
   );
 }
@@ -107,29 +118,35 @@ describe('Complete authorized capacity snapshots', () => {
     await screen.findByText('Error: Access revoked');
     expect(screen.queryByText('Ready: a')).not.toBeInTheDocument();
   });
-  it('keeps late old-organization reads and mutation invalidation in their initiating organization', async () => {
-    mocks.get.mockResolvedValue({ data: page(['a']) });
-    let resolve!: (value: any) => void;
-    mocks.post.mockImplementationOnce(() => new Promise((r) => (resolve = r)));
-    const view = show();
-    await screen.findByText('Ready: a');
-    const invalidate = vi.spyOn(clients[0]!, 'invalidateQueries');
-    fireEvent.click(screen.getByRole('button', { name: 'Save record' }));
-    await waitFor(() => expect(mocks.post).toHaveBeenCalled());
-    mocks.key = ['planner', 'org-b', 'me'];
-    mocks.get.mockResolvedValue({ data: page(['current']) });
-    view.rerender(
-      <QueryClientProvider client={clients[0]!}>
-        <Probe />
-      </QueryClientProvider>,
-    );
-    await screen.findByText('Ready: current');
-    await act(async () => resolve({ data: { id: 'old' } }));
-    await waitFor(() =>
-      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['planner', 'org-a', 'me'] }),
-    );
-    expect(screen.getByText('Ready: current')).toBeInTheDocument();
-    expect(mocks.post.mock.calls[0]![0]).toBe('/strategy-api/planner/capacity/plans');
-    expect(mocks.post.mock.calls[0]![1]).not.toHaveProperty('kind');
-  });
+  it.each(['Save record', 'Save weekly capacity'])(
+    'keeps late old-organization reads and %s invalidation in their initiating organization',
+    async (action) => {
+      mocks.get.mockResolvedValue({ data: page(['a']) });
+      let resolve!: (value: any) => void;
+      mocks.post.mockImplementationOnce(() => new Promise((r) => (resolve = r)));
+      const view = show();
+      await screen.findByText('Ready: a');
+      const invalidate = vi.spyOn(clients[0]!, 'invalidateQueries');
+      fireEvent.click(screen.getByRole('button', { name: action }));
+      await waitFor(() => expect(mocks.post).toHaveBeenCalled());
+      mocks.key = ['planner', 'org-b', 'me'];
+      mocks.get.mockResolvedValue({ data: page(['current']) });
+      view.rerender(
+        <QueryClientProvider client={clients[0]!}>
+          <Probe />
+        </QueryClientProvider>,
+      );
+      await screen.findByText('Ready: current');
+      await act(async () => resolve({ data: { id: 'old' } }));
+      await waitFor(() =>
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ['planner', 'org-a', 'me'] }),
+      );
+      expect(screen.getByText('Ready: current')).toBeInTheDocument();
+      expect(mocks.post.mock.calls[0]![0]).toBe(
+        '/strategy-api/planner/capacity/' +
+          (action === 'Save record' ? 'plans' : 'weekly-capacities'),
+      );
+      expect(mocks.post.mock.calls[0]![1]).not.toHaveProperty('kind');
+    },
+  );
 });

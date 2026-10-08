@@ -4,7 +4,7 @@ import {
   ForbiddenException,
   ConflictException,
 } from '@nestjs/common';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   PLANNER_DEFAULT_CAPACITY_PLAN,
   plannerCapacityDateShift,
@@ -383,7 +383,10 @@ export class PlannerCapacityService {
     const cap = d.userId
       ? s.rows.find(
           (r) =>
-            r.kind === 'capacity' && !r.archived && data<{ userId: string }>(r).userId === d.userId,
+            r.kind === 'capacity' &&
+            !r.archived &&
+            !r.projectId &&
+            data<{ userId: string }>(r).userId === d.userId,
         )
       : null;
     return {
@@ -416,58 +419,190 @@ export class PlannerCapacityService {
     if (query.revision && !/^[a-f0-9]{64}$/.test(query.revision)) fail('Invalid capacity revision');
     if (query.archived !== undefined && !['true', 'false'].includes(query.archived))
       fail('Invalid capacity archive filter');
-    return this.scope(ctx, async (_tx, s) => {
-      const row = s.rows.find((r) => r.id === id && r.kind === 'capacity_plan');
-      if (!row) throw missing();
-      const plan = this.view<PlannerCapacityPlanData>(row, s, ctx),
-        selected = this.selected(row, s, ctx);
-      const allocations = s.rows
-        .filter(
-          (r) => r.kind === 'capacity_allocation' && r.archived === (query.archived === 'true'),
-        )
-        .map((r) => this.allocation(r, s, ctx))
-        .filter(
-          (a): a is PlannerCapacityAllocation =>
-            !!a &&
-            (selected.projectIds.has(a.projectId) ||
-              selected.personIds.has(a.data.userId ?? a.data.placeholderId!)),
-        );
-      const projectIds = [
-          ...new Set([...selected.projectIds, ...allocations.map((a) => a.projectId)]),
-        ].sort(),
-        personIds = [
-          ...new Set([
-            ...selected.personIds,
-            ...allocations.map((a) => a.data.userId ?? a.data.placeholderId!),
-          ]),
-        ].sort();
-      const revision = createHash('sha256')
-        .update(
-          JSON.stringify([
-            ctx.clerkUserId,
-            plan,
-            projectIds,
-            personIds,
-            allocations,
-            query.archived === 'true',
-          ]),
-        )
-        .digest('hex');
-      if (query.revision && query.revision !== revision)
-        throw new ConflictException('Capacity or access changed. Refresh the plan.');
-      const start = query.cursor ? allocations.findIndex((a) => a.id === query.cursor) + 1 : 0;
-      if (query.cursor && !start) fail('Invalid capacity cursor');
-      const page = allocations.slice(start, start + 100);
+    return this.scope(ctx, async (_tx, s) => this.page(s, ctx, id, query));
+  }
+  private page(
+    s: State,
+    ctx: AuthTenantContext,
+    id: string,
+    query: Record<string, string> = {},
+  ): PlannerCapacityPage {
+    const row = s.rows.find((r) => r.id === id && r.kind === 'capacity_plan');
+    if (!row) throw missing();
+    const plan = this.view<PlannerCapacityPlanData>(row, s, ctx),
+      selected = this.selected(row, s, ctx);
+    const allocations = s.rows
+      .filter((r) => r.kind === 'capacity_allocation' && r.archived === (query.archived === 'true'))
+      .map((r) => this.allocation(r, s, ctx))
+      .filter(
+        (a): a is PlannerCapacityAllocation =>
+          !!a &&
+          (selected.projectIds.has(a.projectId) ||
+            selected.personIds.has(a.data.userId ?? a.data.placeholderId!)),
+      );
+    const projectIds = [
+        ...new Set([...selected.projectIds, ...allocations.map((a) => a.projectId)]),
+      ].sort(),
+      personIds = [
+        ...new Set([
+          ...selected.personIds,
+          ...allocations.map((a) => a.data.userId ?? a.data.placeholderId!),
+        ]),
+      ].sort();
+    const weeklyCapacities = personIds.map((personId) => {
+      const placeholder = s.rows.find(
+        (r) => r.id === personId && r.kind === 'capacity_placeholder',
+      );
+      const capacity = s.rows.find(
+        (r) =>
+          r.kind === 'capacity' &&
+          !r.archived &&
+          !r.projectId &&
+          data<{ userId: string }>(r).userId === personId,
+      );
       return {
-        plan,
-        projectIds,
-        personIds,
-        revision,
-        matched: allocations.length,
-        allocations: page,
-        nextCursor: start + page.length < allocations.length ? page.at(-1)!.id : null,
+        id: personId,
+        weeklyMinutes: placeholder
+          ? data<PlannerStaffPlaceholderData>(placeholder).weeklyMinutes
+          : capacity
+            ? data<{ weeklyMinutes: number }>(capacity).weeklyMinutes
+            : 2400,
+        canEdit: placeholder
+          ? !placeholder.archived && this.role(placeholder, s, ctx) === 'admin'
+          : personId === ctx.clerkUserId || ctx.role === 'org:admin',
       };
     });
+    const portfolios = plan.data.portfolioIds.map((portfolioId) => {
+      const portfolio = s.rows.find((r) => r.id === portfolioId)!;
+      return {
+        id: portfolio.id,
+        name: portfolio.name,
+        projectIds: data<{ projectIds: string[] }>(portfolio).projectIds.filter((projectId) =>
+          s.projects.some(
+            (p) => p.id === projectId && !p.archived && plannerProjectAccess(p, ctx.clerkUserId),
+          ),
+        ),
+      };
+    });
+    const revision = createHash('sha256')
+      .update(
+        JSON.stringify([
+          ctx.clerkUserId,
+          plan,
+          projectIds,
+          personIds,
+          allocations,
+          portfolios,
+          weeklyCapacities,
+          // Bind every legacy duplicate version, not only the effective first limit.
+          s.rows
+            .filter(
+              (r) =>
+                r.kind === 'capacity' &&
+                !r.archived &&
+                !r.projectId &&
+                personIds.includes(data<{ userId: string }>(r).userId),
+            )
+            .map((r) => [r.id, r.version, r.data]),
+          s.rows
+            .filter((r) => r.kind === 'capacity_placeholder' && personIds.includes(r.id))
+            .map((r) => [r.id, r.version]),
+          query.archived === 'true',
+        ]),
+      )
+      .digest('hex');
+    if (query.revision && query.revision !== revision)
+      throw new ConflictException('Capacity or access changed. Refresh the plan.');
+    const start = query.cursor ? allocations.findIndex((a) => a.id === query.cursor) + 1 : 0;
+    if (query.cursor && !start) fail('Invalid capacity cursor');
+    const page = allocations.slice(start, start + 100);
+    return {
+      plan,
+      projectIds,
+      personIds,
+      portfolios,
+      weeklyCapacities,
+      revision,
+      matched: allocations.length,
+      allocations: page,
+      nextCursor: start + page.length < allocations.length ? page.at(-1)!.id : null,
+    };
+  }
+  async saveWeeklyCapacities(ctx: AuthTenantContext, raw: unknown) {
+    const dto = object(raw);
+    keys(dto, ['planId', 'revision', 'changes']);
+    const planId = uuid(dto.planId);
+    if (typeof dto.revision !== 'string' || !/^[a-f0-9]{64}$/.test(dto.revision))
+      fail('An opening capacity revision is required');
+    if (!Array.isArray(dto.changes) || !dto.changes.length || dto.changes.length > 1000)
+      fail('Change between 1 and 1000 weekly capacities');
+    const seen = new Set<string>();
+    const changes = dto.changes.map((raw) => {
+      const c = object(raw);
+      keys(c, ['id', 'weeklyMinutes']);
+      if (typeof c.id !== 'string' || !c.id || c.id.length > 200 || seen.has(c.id))
+        fail('Choose distinct people or placeholders');
+      seen.add(c.id as string);
+      if (
+        !Number.isInteger(c.weeklyMinutes) ||
+        Number(c.weeklyMinutes) < 0 ||
+        Number(c.weeklyMinutes) > 10080
+      )
+        fail('Weekly capacity must be between 0 and 168 hours');
+      return { id: c.id as string, weeklyMinutes: c.weeklyMinutes as number };
+    });
+    return this.scope(
+      ctx,
+      async (tx, s) => {
+        const page = this.page(s, ctx, planId, { revision: dto.revision as string });
+        if (page.plan.archived)
+          throw new ForbiddenException('Restore the plan before changing capacity');
+        // Validate the complete batch before writing. A plan grant never supplies a people/team grant.
+        for (const c of changes) {
+          const subject = page.weeklyCapacities!.find((p) => p.id === c.id);
+          if (!subject) throw missing();
+          if (!subject.canEdit)
+            throw new ForbiddenException(
+              'Only the person, an organization admin, or the placeholder team admin can change weekly capacity',
+            );
+        }
+        for (const c of changes) {
+          const placeholder = s.rows.find(
+            (r) => r.id === c.id && r.kind === 'capacity_placeholder',
+          );
+          const existing = placeholder
+            ? [placeholder]
+            : s.rows.filter(
+                (r) =>
+                  r.kind === 'capacity' &&
+                  !r.archived &&
+                  !r.projectId &&
+                  data<{ userId: string }>(r).userId === c.id,
+              );
+          for (const row of existing)
+            await tx.spPlannerResource.update({
+              where: { tenantId: ctx.tenantId, id: row.id },
+              data: {
+                data: json({ ...object(row.data), weeklyMinutes: c.weeklyMinutes }),
+                version: { increment: 1 },
+              },
+            });
+          if (!existing.length)
+            await tx.spPlannerResource.create({
+              data: {
+                id: randomUUID(),
+                tenantId: ctx.tenantId,
+                kind: 'capacity',
+                ownerId: c.id,
+                name: 'Weekly capacity',
+                data: json({ userId: c.id, weeklyMinutes: c.weeklyMinutes }),
+              },
+            });
+        }
+        return { ok: true };
+      },
+      true,
+    );
   }
   async saveAllocations(ctx: AuthTenantContext, raw: unknown) {
     const dto = object(raw);

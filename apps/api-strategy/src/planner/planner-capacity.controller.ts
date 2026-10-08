@@ -36,4 +36,10 @@ export class PlannerCapacityController {
   ) {
     return this.capacity.saveAllocations(ctx, raw);
   }
+  @Post('weekly-capacities') saveWeeklyCapacities(
+    @CurrentTenant() ctx: AuthTenantContext,
+    @Body() raw: unknown,
+  ) {
+    return this.capacity.saveWeeklyCapacities(ctx, raw);
+  }
 }

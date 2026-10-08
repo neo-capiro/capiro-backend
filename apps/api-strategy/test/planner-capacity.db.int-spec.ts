@@ -58,7 +58,7 @@ const viewer = { ...owner, clerkUserId: 'user_capacity_viewer' },
         data: { archived: true },
       });
       await tx.spPlannerResource.updateMany({
-        where: { tenantId, kind: { startsWith: 'capacity_' } },
+        where: { tenantId, OR: [{ kind: { startsWith: 'capacity_' } }, { kind: 'capacity' }] },
         data: { archived: true },
       });
     });
@@ -388,6 +388,227 @@ const viewer = { ...owner, clerkUserId: 'user_capacity_viewer' },
       data: redacted.plan.data,
     });
     expect((await capacity.plan(owner, cp.id)).plan.data.projectIds).toEqual([p.id]);
+  });
+  it('shares versioned weekly limits across plans, keeps hours fixed and recalculates percentage allocations', async () => {
+    const p = await project(),
+      cp = await plan([p.id], {
+        peopleIds: [owner.clerkUserId, editor.clerkUserId],
+        privacy: 'team',
+      }),
+      other = await plan([p.id]);
+    await save(cp, [allocation(p.id), allocation(p.id, { effort: { unit: 'hours', value: 10 } })]);
+    let snapshot = await capacity.plan(owner, cp.id);
+    await expect(
+      capacity.saveWeeklyCapacities(owner, {
+        planId: cp.id,
+        revision: snapshot.revision,
+        changes: [
+          { id: owner.clerkUserId, weeklyMinutes: 1800 },
+          { id: editor.clerkUserId, weeklyMinutes: 1800 },
+        ],
+      }),
+    ).rejects.toThrow('organization admin');
+    expect((await capacity.plan(owner, cp.id)).revision).toBe(snapshot.revision);
+    const adminSnapshot = await capacity.plan(admin, cp.id);
+    await capacity.saveWeeklyCapacities(admin, {
+      planId: cp.id,
+      revision: adminSnapshot.revision,
+      changes: [
+        { id: owner.clerkUserId, weeklyMinutes: 1800 },
+        { id: editor.clerkUserId, weeklyMinutes: 1800 },
+      ],
+    });
+    snapshot = await capacity.plan(owner, cp.id);
+    expect(snapshot.weeklyCapacities!.map((p) => p.weeklyMinutes)).toEqual([1800, 1800]);
+    expect(
+      snapshot.allocations.map((a) => plannerCapacityMinutes(a)).sort((a, b) => a - b),
+    ).toEqual([600, 900]);
+    expect(
+      (await capacity.plan(owner, other.id)).allocations.every((a) => a.weeklyMinutes === 1800),
+    ).toBe(true);
+    await capacity.saveWeeklyCapacities(owner, {
+      planId: cp.id,
+      revision: snapshot.revision,
+      changes: [{ id: owner.clerkUserId, weeklyMinutes: 0 }],
+    });
+    expect(
+      (await capacity.plan(owner, cp.id)).allocations
+        .map((a) => plannerCapacityMinutes(a))
+        .sort((a, b) => a - b),
+    ).toEqual([0, 600]);
+    const own = (await work.resources(owner)).find(
+      (r) => r.kind === 'capacity' && !r.archived && r.data.userId === owner.clerkUserId,
+    )!;
+    await work.saveResource(owner, own.id, { version: own.version, data: { weeklyMinutes: 1200 } });
+    expect(
+      (await capacity.plan(owner, cp.id)).weeklyCapacities!.find((p) => p.id === owner.clerkUserId)!
+        .weeklyMinutes,
+    ).toBe(1200);
+  });
+  it('serializes capacity edits, rejects stale duplicate versions and prevents generic identity changes', async () => {
+    const cp = await plan([], { peopleIds: [owner.clerkUserId], privacy: 'team' });
+    const first = await work.saveResource(owner, null, {
+      kind: 'capacity',
+      name: 'First limit',
+      data: { userId: owner.clerkUserId, weeklyMinutes: 2400 },
+    });
+    await expect(
+      work.saveResource(owner, null, {
+        kind: 'capacity',
+        name: 'Duplicate',
+        data: { userId: owner.clerkUserId, weeklyMinutes: 1800 },
+      }),
+    ).rejects.toThrow('already exists');
+    await expect(
+      work.saveResource(admin, first.id, {
+        version: first.version,
+        data: { userId: editor.clerkUserId },
+      }),
+    ).rejects.toThrow('original person');
+    // Rehearse an existing legacy duplicate without deleting or hiding either record.
+    await db.withTenant(tenantId, (tx) =>
+      tx.spPlannerResource.create({
+        data: {
+          id: randomUUID(),
+          tenantId,
+          kind: 'capacity',
+          ownerId: owner.clerkUserId,
+          name: 'Legacy duplicate',
+          data: { userId: owner.clerkUserId, weeklyMinutes: 1000 },
+        },
+      }),
+    );
+    const before = await capacity.plan(owner, cp.id);
+    const attempts = await Promise.allSettled(
+      [1500, 1800].map((weeklyMinutes) =>
+        capacity.saveWeeklyCapacities(owner, {
+          planId: cp.id,
+          revision: before.revision,
+          changes: [{ id: owner.clerkUserId, weeklyMinutes }],
+        }),
+      ),
+    );
+    expect(attempts.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(attempts.filter((r) => r.status === 'rejected')).toHaveLength(1);
+    const rows = (await work.resources(owner)).filter(
+      (r) => r.kind === 'capacity' && !r.archived && r.data.userId === owner.clerkUserId,
+    );
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((r) => r.data.weeklyMinutes)).size).toBe(1);
+    expect(rows.every((r) => r.version === 2)).toBe(true);
+    await expect(
+      capacity.saveWeeklyCapacities(owner, {
+        planId: cp.id,
+        revision: before.revision,
+        changes: [{ id: owner.clerkUserId, weeklyMinutes: 2400 }],
+      }),
+    ).rejects.toThrow('changed');
+  });
+  it('rechecks placeholder team grants and rejects an entire mixed batch after revocation', async () => {
+    const team = await capacity.saveRecord(owner, 'capacity_team', {
+      id: randomUUID(),
+      name: 'Limit team',
+      data: {
+        privacy: 'private',
+        members: [{ userId: editor.clerkUserId, role: 'admin' }],
+        peopleIds: [],
+        jobTitles: {},
+      },
+    });
+    const placeholder = await capacity.saveRecord(owner, 'capacity_placeholder', {
+      id: randomUUID(),
+      name: 'Limit placeholder',
+      data: { teamId: team.id, jobTitle: 'Designer', weeklyMinutes: 1800 },
+    });
+    const cp = await plan([], {
+      teamIds: [team.id],
+      peopleIds: [editor.clerkUserId],
+      members: [{ userId: editor.clerkUserId, role: 'admin' }],
+    });
+    let snapshot = await capacity.plan(editor, cp.id);
+    await capacity.saveWeeklyCapacities(editor, {
+      planId: cp.id,
+      revision: snapshot.revision,
+      changes: [
+        { id: placeholder.id, weeklyMinutes: 0 },
+        { id: editor.clerkUserId, weeklyMinutes: 1800 },
+      ],
+    });
+    snapshot = await capacity.plan(editor, cp.id);
+    await capacity.saveRecord(owner, 'capacity_team', {
+      id: team.id,
+      version: team.version,
+      name: team.name,
+      data: { ...(team.data as object), members: [{ userId: editor.clerkUserId, role: 'viewer' }] },
+    });
+    await expect(
+      capacity.saveWeeklyCapacities(editor, {
+        planId: cp.id,
+        revision: snapshot.revision,
+        changes: [
+          { id: editor.clerkUserId, weeklyMinutes: 2400 },
+          { id: placeholder.id, weeklyMinutes: 2400 },
+        ],
+      }),
+    ).rejects.toThrow('changed');
+    snapshot = await capacity.plan(editor, cp.id);
+    await expect(
+      capacity.saveWeeklyCapacities(editor, {
+        planId: cp.id,
+        revision: snapshot.revision,
+        changes: [
+          { id: editor.clerkUserId, weeklyMinutes: 2400 },
+          { id: placeholder.id, weeklyMinutes: 2400 },
+        ],
+      }),
+    ).rejects.toThrow('team admin');
+    expect(
+      (await capacity.plan(editor, cp.id)).weeklyCapacities!.find(
+        (p) => p.id === editor.clerkUserId,
+      )!.weeklyMinutes,
+    ).toBe(1800);
+  });
+  it('binds portfolio summary membership to its revision and redacts private source projects', async () => {
+    const one = await project(),
+      hidden = await project([]);
+    let portfolio = await work.saveResource(owner, null, {
+      kind: 'portfolio',
+      name: 'Live summary',
+      data: { privacy: 'team', members: [], description: '', projectIds: [one.id, hidden.id] },
+    });
+    const cp = await plan([], { portfolioIds: [portfolio.id], privacy: 'team' });
+    const snapshot = await capacity.plan(viewer, cp.id);
+    expect(snapshot.portfolios).toEqual([
+      { id: portfolio.id, name: 'Live summary', projectIds: [one.id] },
+    ]);
+    await work.saveResource(owner, portfolio.id, {
+      version: portfolio.version,
+      data: { projectIds: [hidden.id] },
+    });
+    await expect(capacity.plan(viewer, cp.id, { revision: snapshot.revision })).rejects.toThrow(
+      'changed',
+    );
+    expect((await capacity.plan(viewer, cp.id)).portfolios![0]!.projectIds).toEqual([]);
+  });
+  it.each(
+    [
+      [],
+      [{ id: 'inactive', weeklyMinutes: 2400 }],
+      [{ id: owner.clerkUserId, weeklyMinutes: -1 }],
+      [{ id: owner.clerkUserId, weeklyMinutes: 1.2 }],
+      [{ id: owner.clerkUserId, weeklyMinutes: 10081 }],
+      [
+        { id: owner.clerkUserId, weeklyMinutes: 2400 },
+        { id: owner.clerkUserId, weeklyMinutes: 2400 },
+      ],
+    ].map((changes) => ({ changes })),
+  )('rejects invalid weekly batches without writing: %j', async ({ changes }) => {
+    const cp = await plan([], { peopleIds: [owner.clerkUserId] });
+    const before = await capacity.plan(owner, cp.id);
+    await expect(
+      capacity.saveWeeklyCapacities(owner, { planId: cp.id, revision: before.revision, changes }),
+    ).rejects.toThrow();
+    expect((await capacity.plan(owner, cp.id)).revision).toBe(before.revision);
   });
   it('blocks cross-tenant ids, generic-resource writes and inactive membership', async () => {
     const p = await project(),

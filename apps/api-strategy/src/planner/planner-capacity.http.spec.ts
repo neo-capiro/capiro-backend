@@ -17,6 +17,7 @@ describe('Strategies capacity routes', () => {
     plan: jest.fn(async () => ({ allocations: [] })),
     saveRecord: jest.fn(async () => ({ id })),
     saveAllocations: jest.fn(async () => ({ allocations: [] })),
+    saveWeeklyCapacities: jest.fn(async () => ({ ok: true })),
   };
   beforeAll(async () => {
     const module = await Test.createTestingModule({
@@ -45,12 +46,13 @@ describe('Strategies capacity routes', () => {
     ['post', '/teams'],
     ['post', '/placeholders'],
     ['post', '/allocations'],
+    ['post', '/weekly-capacities'],
   ])('requires signed-in tenant authentication on %s %s', async (method, path) => {
     await (request(app.getHttpServer()) as any)
       [method]('/strategy-api/planner/capacity' + path)
       .expect(403);
   });
-  it.each(['/plans', '/teams', '/placeholders', '/allocations'])(
+  it.each(['/plans', '/teams', '/placeholders', '/allocations', '/weekly-capacities'])(
     'rejects impersonated writes to %s',
     async (path) => {
       await request(app.getHttpServer())
@@ -69,6 +71,19 @@ describe('Strategies capacity routes', () => {
       .query(query)
       .expect(200);
     expect(service.plan).toHaveBeenLastCalledWith(ctx, id, query);
+  });
+  it('forwards the opening revision for an atomic weekly capacity change', async () => {
+    const body = {
+      planId: id,
+      revision: 'a'.repeat(64),
+      changes: [{ id: 'member', weeklyMinutes: 1800 }],
+    };
+    await request(app.getHttpServer())
+      .post('/strategy-api/planner/capacity/weekly-capacities')
+      .set('x-qa', 'allowed')
+      .send(body)
+      .expect(201);
+    expect(service.saveWeeklyCapacities).toHaveBeenLastCalledWith(ctx, body);
   });
   it.each([
     ['plans', 'capacity_plan'],

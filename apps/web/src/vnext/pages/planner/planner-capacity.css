@@ -94,6 +94,10 @@
 .planner-capacity-row {
   display: grid;
 }
+.planner-capacity-portfolio .planner-capacity-cell,
+.planner-capacity-portfolio .planner-capacity-sticky {
+  background: #f0eef9;
+}
 .planner-capacity-timeline-head {
   background: #f7f8fb;
   font-size: 12px;
