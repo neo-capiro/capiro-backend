@@ -1,6 +1,6 @@
 # Planner capacity timeline controls
 
-Twentieth release candidate, [PR #2210](https://github.com/neo-capiro/capirov2/pull/2210), from `feat/planner-capacity-controls-20261007`. Source `bba92a02b8490af3eaa9e3ce19dc95da75b4083a`. Full Asana Work parity remains in progress. This frontend release uses the existing Strategies 52 capacity API and requires no migration.
+Twentieth release is live on Strategies 52 / web-vNext 469, [PR #2210](https://github.com/neo-capiro/capirov2/pull/2210). Full Asana Work parity remains in progress. This frontend release uses the existing capacity API and requires no migration.
 
 ## Behavior
 
@@ -18,9 +18,11 @@ Synthetic browser QA verifies pointer end-date resizing by a week, keyboard star
 
 ## Release qualification
 
-Exact-source ARM64 cloud build `capiro-build-web-dev:c21e36f7-3a75-4aad-a768-cb5acf358380` is running. Immutable web candidate, authenticated live verification and cleanup are pending. Strategies remains at 52; the web rollback baseline is 465. No schema or API rollback is needed for this frontend release.
+Exact-source ARM64 cloud build `capiro-build-web-dev:6fe1457a-b385-4e52-bafe-f5a6b51873ca` succeeded for integrated source `15e354000921c3b5e3a3c7b7f0defc8352302f0a`. Its six Planner source/test files are identical to core source `bba92a02b8490af3eaa9e3ce19dc95da75b4083a`. The integrated source retains the Newsletter changes already serving on web 468. Web 469 runs immutable digest `sha256:44db19c4e18905b0f861369baa3422202d635ba80a1ca027fa182bb3ada9593a`; both web 469 and Strategies 52 have one completed deployment, one running task and no pending task. Public runtime metadata confirms the deployed source. The original standalone web 466 candidate was superseded and must not be used to roll back newer features. The frontend rollback baseline is web 468; retain Strategies 52.
 
-Read-only live preflight under the non-super/non-bypass `capiro_app` role captures 16 projects, 34 tasks, 47 resources, 150 events, 26 revisions and ten inbox records, including the archived records from the previous capacity release. Original-state hash: `b685da352a21b3d5f915514496fc4dadcc735cc5818e8dd99a30b4c4a2bb3d8d`. The owner has 14 existing time events; the current week remains 85 minutes/version two, preferences version four, timer absent and Planner unread zero. The live bell shows eight unrelated unread items. Browser interaction is currently timing out and must recover before live controls can be qualified.
+Authenticated live QA verifies cell creation, pointer end-date resizing by seven days, keyboard start-date resizing by one day, exact-date duplication, scoped Delete archive, menu recovery, preserved unsaved Month/Percent display and saved January view reload. An actual downloaded CSV contains two distinct allocation IDs, both dated January 5–17, 2027, with 20 hours each. Restricted, read-only runtime-role proofs verify original state hashes, complete revision-bound allocation pages and both 1,200-minute allocations. The private project, plan and two allocations are recoverably archived after qualification.
+
+Read-only live preflight and cleanup under the non-super/non-bypass `capiro_app` role verify all 16 original projects, 34 tasks, 47 resources, 150 events, 26 revisions and ten inbox records unchanged. Original-state hash: `b685da352a21b3d5f915514496fc4dadcc735cc5818e8dd99a30b4c4a2bb3d8d`. The owner's 14 time events, 85-minute week/version two, preferences version four, empty timer and zero Planner unread are unchanged. The live bell retains eight unrelated unread items.
 
 ## Remaining parity
 
