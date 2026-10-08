@@ -329,6 +329,7 @@ describe('describeGenerationFailure', () => {
       'CRITICAL_SOURCE_FAILURE',
       'PLAN_GENERATION_FAILED',
       'DRAFT_OUTPUT_INVALID',
+      'DRAFT_REVISION_INVALID',
       'DRAFT_SECTIONS_INCOMPLETE',
       'DRAFT_PERSIST_FAILED',
       'GENERATION_FAILED',
@@ -351,6 +352,10 @@ describe('describeGenerationFailure', () => {
       }),
     ).toBe('Validator said so. (SOME_NEW_CODE)');
     expect(describeGenerationFailure({})).toBe('Generation failed for this recipient.');
+  });
+
+  it('explains that an invalid edit kept the current draft', () => {
+    expect(describeGenerationFailure({ error: 'DRAFT_REVISION_INVALID' })).toContain('Your current draft was kept');
   });
 });
 

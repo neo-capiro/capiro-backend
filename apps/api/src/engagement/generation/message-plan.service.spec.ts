@@ -396,6 +396,31 @@ describe('no drafting call on an invalid plan', () => {
   });
 });
 
+describe('revision planning', () => {
+  test('plans changes against the current draft and gives the latest instruction precedence', () => {
+    const svc = service() as unknown as {
+      renderPlanPrompt: (input: unknown) => { system: string; userStatic: string; userVolatile: string };
+    };
+    const prompt = svc.renderPlanPrompt({
+      packet: packet(),
+      recipientScopeKeys: [],
+      audienceKind: 'individual',
+      recipientBrief: 'Name: Hannah',
+      tone: 'formal',
+      clientName: null,
+      existingSubject: 'Original subject',
+      existingBody: 'Please meet on October 22 or 23.',
+      reviseInstruction: 'Remove dashes and use Lobbying Firm.',
+    });
+    expect(prompt.system).toContain('REVISION PLANNING');
+    expect(prompt.system).toContain('Preserve its purpose and ask');
+    expect(prompt.userStatic).not.toContain('Tone: formal');
+    expect(prompt.userVolatile).toContain('October 22 or 23');
+    expect(prompt.userVolatile).toContain('LATEST EDITING INSTRUCTION');
+    expect(prompt.userVolatile).toContain('Remove dashes and use Lobbying Firm.');
+  });
+});
+
 describe('plan pass token ceiling', () => {
   // Regression: gpt-5 at max effort counts REASONING tokens against
   // max_output_tokens. A 2000 ceiling starved the planner so it returned

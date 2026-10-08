@@ -61,6 +61,7 @@ import {
 } from './content-skeleton.js';
 import { AuthorStyleProfileService } from './author-style-profile.service.js';
 import { extractJsonObject } from './json-extract.js';
+import { applyDraftRevision, REVISION_JSON_SCHEMA } from './draft-revision.js';
 import {
   buildGatewayPrompt,
   GATEWAY_DRAFT_JSON_SCHEMA,
@@ -468,6 +469,9 @@ export class GenerationGatewayService {
         // Same recipient scoping the draft call uses below — see buildPlan's
         // own comment for why this matters for both caching and correctness.
         recipientScopeKeys: recipient.scopeKeys,
+        existingSubject: request.existingSubject ?? null,
+        existingBody: request.existingBody ?? null,
+        reviseInstruction: request.reviseInstruction ?? null,
         // Same pinned depth as the draft: the plan fixes which claims the draft
         // may make, so a shallow plan caps a deep draft.
         ...(pinned.reasoningEffort ? { reasoningEffort: pinned.reasoningEffort } : {}),
@@ -525,6 +529,7 @@ export class GenerationGatewayService {
       senderName: null,
       existingSubject: request.existingSubject ?? null,
       existingBody: request.existingBody ?? null,
+      reviseInstruction: request.reviseInstruction ?? null,
       recipientScopeKeys: recipient.scopeKeys,
       now,
       // Revision mode edits an existing whole body, so it must NOT run in
@@ -534,6 +539,7 @@ export class GenerationGatewayService {
     });
 
     const skeleton = request.existingBody?.trim() ? null : (request.contentSkeleton ?? null);
+    const isRevision = Boolean(request.existingBody?.trim());
 
     let subject: string;
     let body: string;
@@ -550,10 +556,12 @@ export class GenerationGatewayService {
         system: prompt.system,
         userStatic: prompt.userStatic,
         userVolatile: prompt.userVolatile,
-        jsonSchema: (skeleton
-          ? skeletonDraftJsonSchema()
-          : GATEWAY_DRAFT_JSON_SCHEMA) as unknown as Record<string, unknown>,
-        jsonSchemaName: skeleton ? 'outreach_draft_sections' : 'outreach_draft',
+        jsonSchema: (isRevision
+          ? REVISION_JSON_SCHEMA
+          : skeleton ? skeletonDraftJsonSchema() : GATEWAY_DRAFT_JSON_SCHEMA) as unknown as Record<string, unknown>,
+        jsonSchemaName: isRevision
+          ? 'outreach_draft_revision'
+          : skeleton ? 'outreach_draft_sections' : 'outreach_draft',
         cacheSystem: true,
         cacheUserStatic: true,
         // The draft call is the slowest in the path; the 90s LlmCompletionService
@@ -564,13 +572,14 @@ export class GenerationGatewayService {
         ...(pinned.reasoningEffort ? { reasoningEffort: pinned.reasoningEffort } : {}),
       };
       // Streaming only applies to the plain subject/body/contextNote shape —
-      // a content-skeleton draft's sections don't map onto a single 'body'
-      // field, so that path (and Anthropic, and streaming turned off) keeps
+      // sections and revision edits don't map onto a single 'body' field,
+      // so those paths (and Anthropic, and streaming turned off) keep
       // the ordinary non-streaming call. Either way the FINAL result below is
       // identical; this only changes whether a live preview gets written.
       const canStream =
         this.streamingEnabled &&
         !skeleton &&
+        !isRevision &&
         cred.provider === 'openai' &&
         Boolean(this.livePreview) &&
         Boolean(recipient.generationKey);
@@ -616,10 +625,15 @@ export class GenerationGatewayService {
           subject = plan.intent;
         }
       } else {
-        const parsed = parseDraft(completion.text);
+        const parsed = isRevision
+          ? applyDraftRevision(completion.text, {
+              subject: request.existingSubject ?? '',
+              body: request.existingBody ?? '',
+            })
+          : parseDraft(completion.text);
         if (!parsed) {
           return this.failedResult(ctx, request, {
-            error: 'DRAFT_OUTPUT_INVALID',
+            error: isRevision ? 'DRAFT_REVISION_INVALID' : 'DRAFT_OUTPUT_INVALID',
             manifest,
             pinned,
           });
@@ -814,8 +828,10 @@ export class GenerationGatewayService {
       request.recipient.recipientKey,
     );
     push('template', request.templateId, 'template:id');
-    push('tone', `Write in a ${request.tone} register.`, 'tone');
-    push('length', request.length ?? 'standard', 'length');
+    if (!request.existingBody?.trim()) {
+      push('tone', `Write in a ${request.tone} register.`, 'tone');
+      push('length', request.length ?? 'standard', 'length');
+    }
     return out;
   }
 

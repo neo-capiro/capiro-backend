@@ -22,6 +22,7 @@ import { LlmCompletionService, LLM_LONG_GENERATION_TIMEOUT_MS } from '../llm-com
 import { GenerationVerifierService } from './generation-verifier.service.js';
 import { buildGatewayPrompt, GATEWAY_DRAFT_JSON_SCHEMA } from './gateway-prompt.js';
 import { parseDraft } from './generation-gateway.service.js';
+import { applyDraftRevision, REVISION_JSON_SCHEMA } from './draft-revision.js';
 import { projectUserVoice, type OutreachGovernedContext } from './outreach-context-plane.service.js';
 import type { AuthenticatedDirective } from './evidence-packet.types.js';
 import type { ResolvedAiCredential } from '../ai-credential-resolver.service.js';
@@ -255,6 +256,9 @@ export class OutreachEvaluationRunner {
       clientName: enrichment.clientName,
       tone: request.tone,
       recipientScopeKeys: request.recipient.scopeKeys,
+      existingSubject: request.existingSubject ?? null,
+      existingBody: request.existingBody ?? null,
+      reviseInstruction: request.reviseInstruction ?? null,
       ...(pinned.reasoningEffort ? { reasoningEffort: pinned.reasoningEffort } : {}),
     });
 
@@ -273,6 +277,7 @@ export class OutreachEvaluationRunner {
       senderName: null,
       existingSubject: request.existingSubject ?? null,
       existingBody: request.existingBody ?? null,
+      reviseInstruction: request.reviseInstruction ?? null,
       recipientScopeKeys: request.recipient.scopeKeys,
       now,
     });
@@ -289,7 +294,7 @@ export class OutreachEvaluationRunner {
       system: controlPrompt.system,
       userStatic: controlPrompt.userStatic,
       userVolatile: controlPrompt.userVolatile,
-      jsonSchema: GATEWAY_DRAFT_JSON_SCHEMA as unknown as Record<string, unknown>,
+      jsonSchema: (request.existingBody?.trim() ? REVISION_JSON_SCHEMA : GATEWAY_DRAFT_JSON_SCHEMA) as unknown as Record<string, unknown>,
       jsonSchemaName: 'outreach_draft_evaluation_control',
       cacheSystem: true,
       cacheUserStatic: true,
@@ -298,7 +303,9 @@ export class OutreachEvaluationRunner {
     });
     const providerDurationMs = Date.now() - startedAt;
 
-    const parsed = parseDraft(completion.text);
+    const parsed = request.existingBody?.trim()
+      ? applyDraftRevision(completion.text, { subject: request.existingSubject ?? '', body: request.existingBody })
+      : parseDraft(completion.text);
     const controlSubject = parsed?.subject ?? '';
     const controlBody = parsed?.body ?? '';
 

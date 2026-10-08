@@ -270,6 +270,7 @@ describe('selected context and personalized notes reach every generation action'
     test(`${_action} considers scoped evidence and requires the matching personalized note`, async () => {
     const { svc, complete, packets, plans, contextPlane } = makeGateway({
       packet: basePacket({ evidence: [selectedEvidence] }),
+      ...(revision.existingBody ? { completeImpl: async () => ({ text: JSON.stringify({ edits: [], contextNote: '' }), usage: {} }) } : {}),
     });
     const requestInput = request({
       items: [selected],
@@ -327,7 +328,7 @@ describe('selected context and personalized notes reach every generation action'
     expect(draft.system).toContain('consider EVERY selected or gathered evidence item');
     expect(draft.system).toContain('disclose in contextNote');
     if (_action === 'Improve with Meri') {
-      expect(noteAt).toBeGreaterThan(draft.userVolatile.indexOf('Existing body:'));
+      expect(noteAt).toBeLessThan(draft.userVolatile.indexOf('LATEST EDITING INSTRUCTION'));
       expect(compiled.requestDirectives).toContainEqual(expect.objectContaining({
         kind: 'objective',
         text: 'Make this warmer.',
@@ -337,6 +338,42 @@ describe('selected context and personalized notes reach every generation action'
       expect(draft.userStatic).toContain('Make this warmer.');
     }
     });
+  });
+});
+
+describe('Improve with Meri applies targeted edits', () => {
+  const original = {
+    subject: '  Meeting request  ',
+    body: '<p>Hi Hannah,</p>\n<p>My name is Mia LaPinta, -- I work with a government affairs firm here in D.C. on behalf of Amalgent Therapeutics.</p>\n<p>Would you be available for a brief in-person meeting on October 22 or 23?</p>\n<p>Thanks for your time — I look forward to hearing from you.</p>\n<p>Best,</p>',
+  };
+  const instruction = 'Remove the harsh dashes and change government affairs to Lobbying Firm. Keep everything else.';
+  const edits = [
+    { field: 'body', find: ', -- ', replacement: ', ', occurrence: 1 },
+    { field: 'body', find: 'government affairs firm', replacement: 'Lobbying Firm', occurrence: 1 },
+    { field: 'body', find: ' — ', replacement: '. ', occurrence: 1 },
+  ];
+
+  test.each(['outreach_generate', 'outreach_v3_generate'] as const)('%s passes the exact instruction through planning and drafting and persists only the edits', async (runtimeAction) => {
+    const { svc, complete, plans, packets, upsertGeneratedVersion } = makeGateway({
+      completeImpl: async () => ({ text: JSON.stringify({ edits, contextNote: 'Applied both requested changes.' }), usage: {} }),
+    });
+    const result = await svc.generate(CTX, request({ runtimeAction, existingSubject: original.subject, existingBody: original.body, reviseInstruction: instruction }), enrichment(), [CRED]);
+    const expectedBody = original.body.replace(', -- ', ', ').replace('government affairs firm', 'Lobbying Firm').replace(' — ', '. ');
+    expect(result).toMatchObject({ outcome: 'ready', subject: original.subject, body: expectedBody });
+    expect(upsertGeneratedVersion).toHaveBeenCalledWith(CTX, expect.objectContaining({ subject: original.subject, body: expectedBody }));
+    expect(plans.buildPlan).toHaveBeenCalledWith(CTX, expect.objectContaining({ existingSubject: original.subject, existingBody: original.body, reviseInstruction: instruction }));
+    const call = (complete.mock.calls as unknown as Array<[{ userVolatile: string; userStatic: string; jsonSchemaName: string }]>)[0]![0];
+    expect(call.userVolatile).toContain(instruction);
+    expect(call.jsonSchemaName).toBe('outreach_draft_revision');
+    expect(call.userStatic).not.toContain('roughly 200 words');
+    expect(packets.compileOutreachPacket).toHaveBeenCalledWith(CTX, expect.objectContaining({ requestDirectives: expect.not.arrayContaining([expect.objectContaining({ kind: 'tone' }), expect.objectContaining({ kind: 'length' })]) }));
+  });
+
+  test('rejects a regenerated response before persisting a version', async () => {
+    const { svc, upsertGeneratedVersion } = makeGateway();
+    const result = await svc.generate(CTX, request({ existingSubject: original.subject, existingBody: original.body, reviseInstruction: instruction }), enrichment(), [CRED]);
+    expect(result).toMatchObject({ outcome: 'error', error: 'DRAFT_REVISION_INVALID', subject: '', body: '' });
+    expect(upsertGeneratedVersion).not.toHaveBeenCalled();
   });
 });
 

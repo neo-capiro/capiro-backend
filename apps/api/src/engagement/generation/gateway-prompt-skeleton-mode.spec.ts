@@ -196,7 +196,8 @@ describe('gateway prompt — skeleton mode', () => {
     expect(prompt.mode).toBe('revision');
     expect(prompt.userStatic).not.toContain('TEMPLATE SECTIONS');
     expect(prompt.userStatic).not.toContain('WORKED EXAMPLE');
-    expect(prompt.system).toContain('"subject" (string), "body" (string)');
+    expect(prompt.system).toContain('REVISION OUTPUT CONTRACT');
+    expect(prompt.system).not.toContain('"subject" (string), "body" (string)');
   });
 
   it('works for a GROUP audience without leaking per-recipient framing', () => {
@@ -210,6 +211,27 @@ describe('gateway prompt — skeleton mode', () => {
 });
 
 describe('buildGatewaySystemPrompt', () => {
+  it('puts the latest edit after earlier recipient preferences and omits restyling directions', () => {
+    const earlier = 'Use government affairs and em dashes.';
+    const latest = 'Remove dashes and replace government affairs with Lobbying Firm.';
+    const prompt = buildGatewayPrompt(input({
+      existingSubject: 'Original subject',
+      existingBody: 'Hi Hannah, I work with a government affairs firm — thanks.',
+      reviseInstruction: latest,
+      packet: { ...packet(), directives: [{ id: 'old-note', kind: 'custom_note', text: earlier, scope: 'hannah', authenticatedUserId: 'u1' }] },
+      recipientScopeKeys: ['hannah'],
+      styleProfileBlock: 'Use lots of em dashes.',
+      styleSamples: [{ sampleKey: 'sample-1', label: null, subject: 'Sample', body: 'Entirely different sample email.' }],
+    }));
+    expect(prompt.userVolatile.indexOf(latest)).toBeGreaterThan(prompt.userVolatile.indexOf(earlier));
+    expect(prompt.userStatic).not.toContain('Target length');
+    expect(prompt.userStatic).not.toContain('Do NOT add a signature');
+    expect(prompt.userStatic).not.toContain('Use lots of em dashes.');
+    expect(prompt.userStatic).not.toContain('Entirely different sample email.');
+    expect(prompt.userVolatile).toContain('source="existing_draft"');
+    expect(prompt.system).toContain('The latest explicit editing instruction overrides');
+  });
+
   it('is byte-identical to before when no mode is passed', () => {
     expect(buildGatewaySystemPrompt()).toBe(buildGatewaySystemPrompt({ skeleton: false }));
   });

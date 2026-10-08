@@ -1,5 +1,6 @@
 import { WorkspaceAssistantService } from './workspace-assistant.service.js';
 import { DOMAIN_PRIMER } from '../meri/meri-domain-fanout.helpers.js';
+import { MERI_DRAFT_EDITING_RULE, MERI_GROUNDING_INVARIANT, MERI_GROUNDING_OUTREACH_KERNEL } from '@capiro/shared';
 
 /**
  * Guards for in-editor Meri parity with the full agent:
@@ -36,6 +37,11 @@ function buildPrompt(dto: unknown, packet?: unknown): string {
 }
 
 describe('WorkspaceAssistantService.buildSystemPrompt — grounding hardening', () => {
+  test('chat, outreach, and document editing share the same instruction-priority rule', () => {
+    expect(MERI_GROUNDING_INVARIANT).toContain(MERI_DRAFT_EDITING_RULE);
+    expect(MERI_GROUNDING_OUTREACH_KERNEL).toContain(MERI_DRAFT_EDITING_RULE);
+    expect(buildPrompt({ messages: [], document: {} })).toContain(MERI_DRAFT_EDITING_RULE);
+  });
   const dto = {
     messages: [{ role: 'user', text: 'draft the situation section' }],
     document: {
@@ -51,7 +57,7 @@ describe('WorkspaceAssistantService.buildSystemPrompt — grounding hardening', 
 
   it('injects the shared domain primer', () => {
     const prompt = buildPrompt(dto);
-    expect(prompt).toContain('RDT&E (Budget Activity 4)');
+    expect(prompt).toContain('Budget Activity 4 alone does not establish');
     expect(prompt).toContain(DOMAIN_PRIMER.split('\n')[0]);
   });
 

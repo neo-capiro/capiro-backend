@@ -2,7 +2,7 @@ import { prepareAnthropicRequest, anthropicResponseText } from '@capiro/shared/a
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { TenantContext } from '@capiro/shared';
+import { MERI_DRAFT_EDITING_RULE, type TenantContext } from '@capiro/shared';
 import {
   IN_EDITOR_READ_TOOLS,
   inEditorToolErrorCategory,
@@ -812,6 +812,7 @@ export class WorkspaceAssistantService {
       `# Domain knowledge\n${DOMAIN_PRIMER}`,
       '',
       '# How to respond',
+      MERI_DRAFT_EDITING_RULE,
       'When you are ready, call `propose_document_edits` with your `reply` and an `edits` array:',
       '- To rewrite a section, use replace_section with the EXISTING section name and the full new HTML body.',
       '- To add a section, use insert_section with a new name, the HTML body, and optionally afterSection.',
