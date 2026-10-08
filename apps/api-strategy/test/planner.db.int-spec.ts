@@ -33,6 +33,44 @@ describeDb('Planner real PostgreSQL integration', () => {
   afterAll(async () => {
     await prisma?.$disconnect();
   });
+  it('honors explicit independent subtask membership without inheriting assignment or dates', async () => {
+    const project = await service.saveProject(owner, null, {
+      data: {
+        name: 'Independent subtasks',
+        members: [{ userId: viewer.clerkUserId, role: 'editor' }],
+      },
+    });
+    const parent = await service.saveTask(owner, null, {
+      data: {
+        name: 'Assigned dated parent',
+        assigneeId: owner.clerkUserId,
+        startOn: '2027-05-03',
+        dueOn: '2027-05-10',
+        memberships: [{ projectId: project.id, sectionId: null, position: 0 }],
+      },
+    });
+    const child = await service.saveTask(owner, null, {
+      data: { ...PLANNER_DEFAULT_TASK, name: 'Independent child', parentId: parent.id },
+    });
+    expect(child).toMatchObject({
+      parentId: parent.id,
+      memberships: [],
+      assigneeId: null,
+      startOn: null,
+      dueOn: null,
+    });
+    await expect(service.task(viewer, child.id)).rejects.toMatchObject({ status: 404 });
+    const legacy = await service.saveTask(owner, null, {
+      data: { name: 'Legacy linked child', parentId: parent.id },
+    });
+    expect(legacy.memberships).toEqual(parent.memberships);
+    const linked = await service.saveTask(owner, child.id, {
+      version: child.version,
+      data: { memberships: [{ projectId: project.id, sectionId: null, position: 1 }] },
+    });
+    expect((await service.task(viewer, linked.id)).id).toBe(child.id);
+    expect(linked).toMatchObject({ assigneeId: null, startOn: null, dueOn: null });
+  });
   it('corrects, removes and restores time without changing the original audit record or losing totals', async () => {
     const t = await service.saveTask(owner, null, { data: { name: 'Correctable time' } });
     const e = await service.addEvent(
@@ -575,6 +613,125 @@ describeDb('Planner real PostgreSQL integration', () => {
       data: { placements: [] },
     });
     expect(cleared.version).toBe(config.version + 1);
+  });
+  it('persists private layout preferences with current project access, immutable scope and stale-write protection', async () => {
+    const p = await service.saveProject(owner, null, {
+      data: { name: 'Layout grants', members: [{ userId: viewer.clerkUserId, role: 'viewer' }] },
+    });
+    const data = {
+      scope: 'project',
+      projectId: p.id,
+      view: 'board',
+      expandedTaskIds: [],
+      collapsedGroupIds: ['section:'],
+      hideUnscheduled: false,
+    };
+    const baseline = await prisma.withTenant(owner.tenantId, async (tx) => ({
+      tasks: await tx.spPlannerTask.count({ where: { tenantId: owner.tenantId } }),
+      events: await tx.spPlannerEvent.count({ where: { tenantId: owner.tenantId } }),
+      inbox: await tx.spPlannerInbox.count({ where: { tenantId: owner.tenantId } }),
+    }));
+    const row = await service.saveResource(viewer, null, {
+      kind: 'view_preferences',
+      name: 'Layout',
+      data,
+    });
+    expect((await service.resources(viewer)).find((r) => r.id === row.id)?.data).toEqual(data);
+    expect((await service.resources(owner)).some((r) => r.id === row.id)).toBe(false);
+    await expect(
+      service.saveResource(owner, row.id, {
+        version: row.version,
+        data: { collapsedGroupIds: [] },
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    const next = await service.saveResource(viewer, row.id, {
+      version: row.version,
+      data: { collapsedGroupIds: [] },
+    });
+    await expect(
+      service.saveResource(viewer, row.id, {
+        version: row.version,
+        data: { hideUnscheduled: true },
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      service.saveResource(viewer, row.id, { version: next.version, data: { view: 'list' } }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.saveResource(viewer, null, {
+        kind: 'view_preferences',
+        projectId: p.id,
+        name: 'Shared layout',
+        data,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(
+      service.saveResource(viewer, null, {
+        kind: 'view_preferences',
+        name: 'Duplicate layout',
+        data,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    const after = await prisma.withTenant(owner.tenantId, async (tx) => ({
+      tasks: await tx.spPlannerTask.count({ where: { tenantId: owner.tenantId } }),
+      events: await tx.spPlannerEvent.count({ where: { tenantId: owner.tenantId } }),
+      inbox: await tx.spPlannerInbox.count({ where: { tenantId: owner.tenantId } }),
+    }));
+    expect(after).toEqual(baseline);
+    await service.saveProject(owner, p.id, { version: p.version, data: { members: [] } });
+    expect((await service.resources(viewer)).some((r) => r.id === row.id)).toBe(false);
+    await expect(
+      service.saveResource(viewer, row.id, {
+        version: next.version,
+        data: { hideUnscheduled: true },
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+  it('serializes simultaneous layout creation and isolates project/view preferences', async () => {
+    const p = await service.saveProject(owner, null, { data: { name: 'Layout race' } });
+    const data = {
+      scope: 'project',
+      projectId: p.id,
+      view: 'list',
+      expandedTaskIds: [],
+      collapsedGroupIds: [],
+      hideUnscheduled: false,
+    };
+    const result = await Promise.allSettled(
+      [1, 2].map(() =>
+        service.saveResource(owner, null, { kind: 'view_preferences', name: 'Layout race', data }),
+      ),
+    );
+    expect(result.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(result.filter((r) => r.status === 'rejected')).toMatchObject([
+      { reason: { status: 409 } },
+    ]);
+    const board = await service.saveResource(owner, null, {
+      kind: 'view_preferences',
+      name: 'Board race',
+      data: { ...data, view: 'board' },
+    });
+    const winner = result.find(
+      (r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof service.saveResource>>> =>
+        r.status === 'fulfilled',
+    )!;
+    expect(board.id).not.toEqual(winner.value.id);
+    await service.saveResource(owner, winner.value.id, {
+      version: winner.value.version,
+      archived: true,
+    });
+    const replacement = await service.saveResource(owner, null, {
+      kind: 'view_preferences',
+      name: 'Replacement layout',
+      data,
+    });
+    expect(replacement.id).not.toEqual(winner.value.id);
+    await expect(
+      service.saveResource(owner, winner.value.id, {
+        version: winner.value.version + 1,
+        archived: false,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
   });
   it('pages activity without losing tied timestamps or duplicating rows after a new update', async () => {
     const t = await service.saveTask(owner, null, { data: { name: 'Activity pagination' } });

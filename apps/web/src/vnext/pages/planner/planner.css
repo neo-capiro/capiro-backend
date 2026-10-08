@@ -1351,11 +1351,72 @@
   font-size: 12px;
   padding: 12px 0;
   border-bottom: 1px solid #edf0f4;
+  flex-wrap: wrap;
 }
 .planner-subtask > span {
   margin-left: auto;
   font-size: 10px;
   color: #919bad;
+}
+.planner-layout-controls,
+.planner-subtask-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+.planner-subtask-controls .planner-field {
+  min-width: 140px;
+  flex: 1 1 140px;
+}
+.planner-subtask-controls > label:first-child {
+  flex-basis: 100%;
+}
+.planner-layout-controls button {
+  border: 1px solid #edf0f4;
+  border-radius: 7px;
+  padding: 7px 10px;
+}
+.planner-column.is-collapsed {
+  flex: 0 0 180px;
+  min-width: 180px;
+}
+.planner-timeline-row > .planner-timeline-label {
+  width: 260px;
+  flex: 0 0 260px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px;
+  background: none;
+  border-right: 1px solid var(--planner-line);
+  overflow: hidden;
+}
+.planner-timeline-label > button {
+  border: 0;
+  background: transparent;
+  padding: 2px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.planner-timeline-label > small {
+  color: #919bad;
+  font-size: 9px;
+  flex-shrink: 0;
+}
+.planner-unscheduled {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--planner-line);
+  border-radius: 7px;
+}
+.planner-column h3 > button,
+.planner-list h3 > button {
+  background: transparent;
+  border: 0;
+  padding: 3px;
 }
 .planner-inbox-item {
   display: flex;

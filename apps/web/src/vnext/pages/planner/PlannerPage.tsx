@@ -77,6 +77,8 @@ import { PlannerBudget } from './planner-budgets.js';
 import { PlannerTaskTimer, PlannerTimerWidget } from './planner-timers.js';
 import { PlannerTimeList, PlannerTaskTimeRollup } from './planner-time-list.js';
 import { PlannerCapacity } from './planner-capacity.js';
+import { PlannerSubtaskList } from './planner-subtask-list.js';
+import { PlannerLayoutStatus, usePlannerViewPreferences } from './planner-view-preferences.js';
 import type { PlannerSavedViewData } from '@capiro/strategy-verifier';
 import './planner.css';
 import './planner-capacity.css';
@@ -178,6 +180,11 @@ export function PlannerPage() {
   const [duplicatingProject, setDuplicatingProject] = useState(false);
   const [duplicateName, setDuplicateName] = useState('');
   const view = (params.get('view') ?? project?.defaultView ?? 'list') as PlannerView;
+  const layout = usePlannerViewPreferences(
+    projectId ? 'project' : 'mine',
+    projectId ?? null,
+    view === 'board' || view === 'timeline' || view === 'gantt' ? view : 'list',
+  );
   const updateParams = (values: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
     for (const [key, value] of Object.entries(values))
@@ -409,6 +416,7 @@ export function PlannerPage() {
     }[scope] ??
     'My tasks';
   const viewProps = {
+    layout: layout.controls,
     tasks: visible,
     people: data.people,
     project,
@@ -822,6 +830,12 @@ export function PlannerPage() {
                   </button>
                 )}
               </div>
+              <PlannerLayoutStatus
+                error={layout.error}
+                pending={layout.pending}
+                onReset={layout.reset}
+                disabled={layout.controls.disabled}
+              />
               {query.isPending ? (
                 <p role="status">Loading tasks…</p>
               ) : query.isError ? (
@@ -2049,17 +2063,21 @@ function TaskEditor({
                   <PlannerAttachments task={task} />
                   <h3>Subtasks</h3>
                   <ErrorText error={children.error} />
-                  {(children.data?.pages.flatMap((p) => p.items) ?? tasks)
-                    .filter((t) => t.parentId === task.id)
-                    .map((t) => (
-                      <div key={t.id} className="planner-subtask">
-                        <CheckCircle2 size={16} />
-                        <button type="button" onClick={() => navigateTask(t.id)}>
-                          {t.name}
-                        </button>
-                        <span>{PLANNER_STATUS_LABELS[t.status]}</span>
-                      </div>
-                    ))}
+                  <PlannerSubtaskList
+                    tasks={(children.data?.pages.flatMap((p) => p.items) ?? []).filter(
+                      (t) => t.parentId === task.id,
+                    )}
+                    people={bootstrap.people}
+                    loading={
+                      children.isPending || children.hasNextPage || children.isFetchingNextPage
+                    }
+                    failed={children.isError}
+                    disabled={actions.task.isPending}
+                    onOpen={navigateTask}
+                    onPatch={(child, patch) =>
+                      actions.task.mutate({ id: child.id, version: child.version, data: patch })
+                    }
+                  />
                   {canEdit && (
                     <div className="planner-config-row">
                       <input
@@ -2079,7 +2097,7 @@ function TaskEditor({
                                 ...PLANNER_DEFAULT_TASK,
                                 name: subtask,
                                 parentId: task.id,
-                                assigneeId: task.assigneeId,
+                                assigneeId: null,
                               },
                             });
                             setSubtask('');

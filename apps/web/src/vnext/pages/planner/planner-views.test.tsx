@@ -29,6 +29,84 @@ const task: PlannerTask = {
 };
 afterEach(cleanup);
 describe('Planner task views', () => {
+  it('restores collapsed board columns without altering their tasks and keeps saved state scoped', () => {
+    const save = vi.fn(),
+      onPatch = vi.fn();
+    const layout = {
+      data: {
+        scope: 'mine' as const,
+        projectId: null,
+        view: 'board' as const,
+        expandedTaskIds: [],
+        collapsedGroupIds: ['status:todo'],
+        hideUnscheduled: false,
+      },
+      disabled: false,
+      save,
+    };
+    const props = { tasks: [task], people: [], onOpen: vi.fn(), onPatch, disabled: false, layout };
+    const { rerender } = render(<PlannerBoard {...props} />);
+    expect(screen.queryByRole('button', { name: 'Verify dates' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Expand column To do' }));
+    expect(save).toHaveBeenCalledWith({ collapsedGroupIds: [] });
+    expect(onPatch).not.toHaveBeenCalled();
+    rerender(
+      <PlannerBoard
+        {...props}
+        layout={{ ...layout, data: { ...layout.data, collapsedGroupIds: [] } }}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Verify dates' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all columns' }));
+    expect(save).toHaveBeenLastCalledWith({
+      collapsedGroupIds: ['status:todo', 'status:in_progress', 'status:blocked', 'status:done'],
+    });
+  });
+  it('shows only first-level timeline children, retains unscheduled work and restores hidden-panel preferences', () => {
+    const onOpen = vi.fn(),
+      onPatch = vi.fn(),
+      save = vi.fn();
+    const child = { ...task, id: 'child', parentId: task.id, name: 'Undated child', dueOn: null };
+    const leaf = { ...task, id: 'leaf', parentId: child.id, name: 'Deeper task' };
+    const layout = {
+      data: {
+        scope: 'mine' as const,
+        projectId: null,
+        view: 'timeline' as const,
+        expandedTaskIds: [task.id],
+        collapsedGroupIds: [],
+        hideUnscheduled: false,
+      },
+      disabled: false,
+      save,
+    };
+    const props = {
+      tasks: [task, child, leaf],
+      people: [],
+      onOpen,
+      onPatch,
+      disabled: false,
+      layout,
+      gantt: false,
+    };
+    const { rerender } = render(<PlannerTimeline {...props} />);
+    expect(screen.getByRole('region', { name: 'Unscheduled tasks' })).toHaveTextContent(
+      'Undated child',
+    );
+    expect(screen.queryByRole('button', { name: 'Deeper task' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Undated child' }));
+    expect(onOpen).toHaveBeenCalledWith('child');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Hide unscheduled tasks' }));
+    expect(save).toHaveBeenCalledWith({ hideUnscheduled: true });
+    expect(onPatch).not.toHaveBeenCalled();
+    rerender(
+      <PlannerTimeline
+        {...props}
+        layout={{ ...layout, data: { ...layout.data, hideUnscheduled: true } }}
+      />,
+    );
+    expect(screen.queryByRole('region', { name: 'Unscheduled tasks' })).toBeNull();
+  });
   it('shows the due time and zone in list and board cards', () => {
     const timed = { ...task, dueTime: '09:30', timeZone: 'America/New_York' };
     const label = plannerDueLabel(timed);

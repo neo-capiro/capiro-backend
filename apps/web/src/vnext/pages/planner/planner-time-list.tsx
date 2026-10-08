@@ -136,8 +136,15 @@ export function PlannerHierarchyList(
     renderChildren: (parent: PlannerTask, render: (tasks: PlannerTask[]) => ReactNode) => ReactNode;
   },
 ) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set()),
+  const [localExpanded, setLocalExpanded] = useState<Set<string>>(new Set()),
+    [localCollapsed, setLocalCollapsed] = useState<string[]>([]),
     [dragging, setDragging] = useState<string | null>(null);
+  const expanded = props.layout ? new Set(props.layout.data.expandedTaskIds) : localExpanded;
+  const collapsed = props.layout?.data.collapsedGroupIds ?? localCollapsed;
+  const setExpanded = (next: Set<string>) =>
+    props.layout ? props.layout.save({ expandedTaskIds: [...next] }) : setLocalExpanded(next);
+  const setCollapsed = (next: string[]) =>
+    props.layout ? props.layout.save({ collapsedGroupIds: next }) : setLocalCollapsed(next);
   const tree = useMemo(() => plannerTimeRollups(props.nodes), [props.nodes]);
   const byId = useMemo(() => new Map(props.nodes.map((node) => [node.id, node])), [props.nodes]);
   const groupBy = props.groupBy ?? 'section';
@@ -173,15 +180,49 @@ export function PlannerHierarchyList(
               : props.project
                 ? [...props.project.sections, { id: '', name: 'Unsectioned' }]
                 : [{ id: '', name: 'Tasks' }];
-  const toggle = (id: string) =>
-    setExpanded((current) => {
-      const next = new Set(current);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
+  const toggle = (id: string) => {
+    const next = new Set(expanded);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setExpanded(next);
+  };
+  const rootsFor = (matches: PlannerTask[]) => {
+    const ids = new Set(matches.map((t) => t.id));
+    return matches.filter((task) => {
+      let parent = byId.get(task.id)?.parentId;
+      while (parent) {
+        if (ids.has(parent)) return false;
+        parent = byId.get(parent)?.parentId;
+      }
+      return true;
     });
+  };
+  const firstLevel = groups
+    .flatMap((group) =>
+      rootsFor(
+        props.tasks.filter((task) => byId.get(task.id)?.scoped && groupKey(task) === group.id),
+      ),
+    )
+    .filter((task) => (tree.values.get(task.id)?.childCount ?? 0) > 0);
+  // Explicitly grouped children keep their own row in that group. Do not repeat
+  // the same row inside an expanded parent in a different group.
+  const groupedRoots = new Set(
+    groups
+      .flatMap((group) =>
+        rootsFor(
+          props.tasks.filter((task) => byId.get(task.id)?.scoped && groupKey(task) === group.id),
+        ),
+      )
+      .map((task) => task.id),
+  );
+  const setFirstLevel = (open: boolean) => {
+    const next = new Set(expanded);
+    for (const task of firstLevel) open ? next.add(task.id) : next.delete(task.id);
+    setExpanded(next);
+  };
   const renderRows = (input: PlannerTask[], depth: number): ReactNode => {
+    const visible = depth === 0 ? input : input.filter((task) => !groupedRoots.has(task.id));
     const tasks = props.timeSort
-      ? [...input].sort((a, b) => {
+      ? [...visible].sort((a, b) => {
           const value = (task: PlannerTask) => {
             const rollup = tree.values.get(task.id);
             return props.timeSort === 'estimated'
@@ -190,7 +231,7 @@ export function PlannerHierarchyList(
           };
           return value(b) - value(a) || a.name.localeCompare(b.name);
         })
-      : input;
+      : visible;
     return tasks.map((task) => {
       const node = byId.get(task.id),
         rollup = tree.values.get(task.id);
@@ -230,6 +271,7 @@ export function PlannerHierarchyList(
                   className="planner-expand-task"
                   aria-label={`${open ? 'Collapse' : 'Expand'} subtasks of ${task.name}`}
                   aria-expanded={open}
+                  disabled={props.layout?.disabled}
                   onClick={() => toggle(task.id)}
                 >
                   {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -330,6 +372,32 @@ export function PlannerHierarchyList(
   );
   return (
     <div className="planner-time-list">
+      <div className="planner-layout-controls">
+        <button
+          type="button"
+          disabled={props.layout?.disabled || !firstLevel.length}
+          onClick={() => setFirstLevel(true)}
+        >
+          Expand first-level subtasks
+        </button>
+        <button
+          type="button"
+          disabled={props.layout?.disabled || !firstLevel.length}
+          onClick={() => setFirstLevel(false)}
+        >
+          Collapse first-level subtasks
+        </button>
+        <button type="button" disabled={props.layout?.disabled} onClick={() => setCollapsed([])}>
+          Expand all groups
+        </button>
+        <button
+          type="button"
+          disabled={props.layout?.disabled}
+          onClick={() => setCollapsed(groups.map((group) => `${groupBy}:${group.id}`))}
+        >
+          Collapse all groups
+        </button>
+      </div>
       <p className="planner-muted">
         Time is shown as hours:minutes. Collapsed parents include accessible subtasks; expanded rows
         show their own time.
@@ -352,17 +420,11 @@ export function PlannerHierarchyList(
         </div>
         {groups.map((group) => {
           const matches = props.tasks.filter(
-              (task) => byId.get(task.id)?.scoped && groupKey(task) === group.id,
-            ),
-            ids = new Set(matches.map((task) => task.id));
-          const roots = matches.filter((task) => {
-            let parent = byId.get(task.id)?.parentId;
-            while (parent) {
-              if (ids.has(parent)) return false;
-              parent = byId.get(parent)?.parentId;
-            }
-            return true;
-          });
+            (task) => byId.get(task.id)?.scoped && groupKey(task) === group.id,
+          );
+          const roots = rootsFor(matches);
+          const groupId = `${groupBy}:${group.id}`,
+            closed = collapsed.includes(groupId);
           const sum = plannerTimeTotal(
             props.nodes,
             matches.map((task) => task.id),
@@ -370,6 +432,19 @@ export function PlannerHierarchyList(
           return (
             <section aria-label={group.name} key={group.id}>
               <h3>
+                <button
+                  type="button"
+                  aria-label={`${closed ? 'Expand' : 'Collapse'} group ${group.name}`}
+                  aria-expanded={!closed}
+                  disabled={props.layout?.disabled}
+                  onClick={() =>
+                    setCollapsed(
+                      closed ? collapsed.filter((id) => id !== groupId) : [...collapsed, groupId],
+                    )
+                  }
+                >
+                  {closed ? '▸' : '▾'}
+                </button>
                 {group.name}
                 <span>{roots.length}</span>
               </h3>
@@ -380,8 +455,10 @@ export function PlannerHierarchyList(
                   <span>Includes accessible subtasks, counted once.</span>
                 </p>
               )}
-              {renderRows(roots, 0)}
-              {!roots.length && <p className="planner-empty-row">No tasks in this section.</p>}
+              {!closed && renderRows(roots, 0)}
+              {!closed && !roots.length && (
+                <p className="planner-empty-row">No tasks in this section.</p>
+              )}
             </section>
           );
         })}

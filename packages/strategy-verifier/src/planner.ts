@@ -184,6 +184,7 @@ export type PlannerResourceKind =
   | 'rule'
   | 'form'
   | 'saved_view'
+  | 'view_preferences'
   | 'capacity'
   | 'my_tasks'
   | 'dashboard';
@@ -383,6 +384,15 @@ export interface PlannerSavedViewData {
   priority: string;
   sort: 'position' | 'due' | 'name' | 'priority' | 'estimated' | 'actual';
   groupBy?: 'section' | 'status' | 'priority' | 'assignee' | 'none';
+}
+/** Opaque layout identities do not confer task or project access. */
+export interface PlannerViewPreferencesData {
+  scope: 'mine' | 'project';
+  projectId: string | null;
+  view: 'list' | 'board' | 'timeline' | 'gantt';
+  expandedTaskIds: string[];
+  collapsedGroupIds: string[];
+  hideUnscheduled: boolean;
 }
 export interface PlannerCapacityData {
   userId: string;

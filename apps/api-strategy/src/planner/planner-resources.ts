@@ -31,6 +31,7 @@ export const RESOURCE_KINDS: PlannerResourceKind[] = [
   'rule',
   'form',
   'saved_view',
+  'view_preferences',
   'capacity',
   'my_tasks',
   'dashboard',
@@ -329,6 +330,26 @@ export function validateResource(
       fail('Explicit reminders require a date rule');
   } else if (kind === 'form') {
     return validatePlannerForm(d) as unknown as Record<string, unknown>;
+  } else if (kind === 'view_preferences') {
+    keys(d, [
+      'scope',
+      'projectId',
+      'view',
+      'expandedTaskIds',
+      'collapsedGroupIds',
+      'hideUnscheduled',
+    ]);
+    enumValue(d.scope, ['mine', 'project']);
+    if (d.projectId !== null) uuid(d.projectId);
+    if ((d.scope === 'project') !== Boolean(d.projectId)) fail('Choose the matching view scope');
+    enumValue(d.view, ['list', 'board', 'timeline', 'gantt']);
+    const expanded = array(d.expandedTaskIds, 10000);
+    expanded.forEach(uuid);
+    distinct(expanded);
+    const collapsed = array(d.collapsedGroupIds, 1000);
+    collapsed.forEach((id) => string(id, 500, true));
+    distinct(collapsed);
+    bool(d.hideUnscheduled);
   } else if (kind === 'saved_view') {
     keys(d, [
       'scope',
