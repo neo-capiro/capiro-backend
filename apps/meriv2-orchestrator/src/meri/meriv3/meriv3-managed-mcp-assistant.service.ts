@@ -4,7 +4,7 @@ import type { MeriContext, MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
-import { toolLabel, type ChatArtifact } from '../chat/chat-prompt.js';
+import { toolLabel, type ChatArtifact, type ChatStep } from '../chat/chat-prompt.js';
 import { OpenAiResponsesClient } from './openai-responses.client.js';
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
 import { ApiVisualAnalysisRepo } from './api-visual-analysis.repo.js';
@@ -403,11 +403,33 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
     dto: MeriV3ChatInput,
     input: Record<string, unknown>,
     schema: ToolSchema | undefined,
+    authority?: MeriResolvedCapability | null,
   ): { input: Record<string, unknown>; scopeViolation?: string } {
     // An MCP provider's clientId is its own parameter namespace, not a
     // Capiro client UUID. Never rewrite managed vendor arguments.
     if (schema && isManagedTool(schema.name)) return { input: { ...input } };
-    return super.augmentToolInput(dto, input, schema);
+    return super.augmentToolInput(dto, input, schema, authority);
+  }
+
+  /**
+   * `run_analysis` presents as its work label, not the implementation
+   * primitive, so its client-scope refusal matches its normal dispatch
+   * presentation. Every other tool keeps the base presentation.
+   */
+  protected override blockScopeViolation(args: {
+    name: string;
+    input: Record<string, unknown>;
+    providerCallId: string;
+    detail: string;
+    steps: ChatStep[];
+    emit: (event: MeriV3ChatStreamEvent) => void;
+  }): { blocked: true; error: string } {
+    if (args.name !== 'run_analysis') return super.blockScopeViolation(args);
+    const label = analysisWorkLabel(args.input);
+    args.emit({ type: 'tool_call', tool: label, label });
+    args.steps.push({ tool: args.name, label, status: 'blocked', detail: args.detail });
+    args.emit({ type: 'tool_done', tool: label, label, status: 'blocked', detail: args.detail });
+    return { blocked: true, error: args.detail };
   }
 
   protected override async invokeTool(args: MeriToolInvocation): Promise<unknown> {
@@ -416,21 +438,36 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
       const label = analysisWorkLabel(args.input);
       // The browser sees the work, not the implementation primitive.
       args.emit({ type: 'tool_call', tool: label, label });
-      if (args.scopeViolation) {
+      // Re-derive the client-scope guard so an alternate dispatch path cannot
+      // retarget a persisted chart analysis as a plain native read: a
+      // mismatch suppresses the owner POST before any persistence. Resolve the
+      // ACTUAL canonical schema of `args.name` so a wrapper schema cannot
+      // disguise the owner contract.
+      const dispatchSchema = this.resolveDispatchSchema(args);
+      const scopeViolation =
+        args.scopeViolation ??
+        this.resolveToolScopeViolation(
+          args.dto,
+          dispatchSchema,
+          this.resolveCapabilityAuthority(args.name, dispatchSchema, args.dto),
+          args.input,
+        ) ??
+        undefined;
+      if (scopeViolation) {
         args.steps.push({
           tool: args.name,
           label,
           status: 'blocked',
-          detail: args.scopeViolation,
+          detail: scopeViolation,
         });
         args.emit({
           type: 'tool_done',
           tool: label,
           label,
           status: 'blocked',
-          detail: args.scopeViolation,
+          detail: scopeViolation,
         });
-        return { error: args.scopeViolation, blocked: true };
+        return { error: scopeViolation, blocked: true };
       }
       if (!args.conversationId) {
         const detail = 'Visual analysis requires an active Meri conversation.';

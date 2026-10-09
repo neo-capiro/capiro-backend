@@ -1,12 +1,14 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { MeriContext, ToolRegistry } from '@capiro/meriv2-core';
+import type { MeriContext, RepairToolResult, ToolRegistry } from '@capiro/meriv2-core';
 import {
+  attestMeriGovernedContext,
   createMeriResearchPlanExecutionEnvelope,
   MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT,
   readCanaryEvents,
   readShadowEvents,
+  verifyMeriGovernedContext,
 } from '@capiro/meriv2-core';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
@@ -18,6 +20,9 @@ import * as liveRepair from '../repair/live-repair.service.js';
 import type { MeriV3ChatStreamEvent } from './meriv3.types.js';
 import {
   buildRepairPassages,
+  CROSS_CLIENT_REFUSAL,
+  GOVERNED_BOUND_EFFECT_REFUSAL,
+  GOVERNED_NO_SINGLE_CLIENT_REFUSAL,
   MeriV3AssistantService,
   resetMeriV3RolloutDiagnosticsForTest,
 } from './meriv3-assistant.service.js';
@@ -357,6 +362,192 @@ describe('MeriV3AssistantService', () => {
     expect(service.augmentToolInput({ clientId: 'aster' }, input, schema)).toEqual({ input: { ...input, clientId: 'aster' } });
     expect(service.augmentToolInput({ clientId: 'aster' }, { ...input, clientId: 'bluehaven' }, schema)).toEqual({ input: { ...input, clientId: 'aster' } });
     expect(service.augmentToolInput({}, { ...input, clientId: 'bluehaven' }, schema)).toEqual({ input });
+  });
+
+  test('re-targets a canonical native read to the authenticated governed client, refuses an explicit interface client, and preserves an omitted optional actor read', async () => {
+    const service = Object.create(MeriV3AssistantService.prototype) as any;
+    const read = {
+      name: 'get_client_context',
+      input_schema: { properties: { clientId: { type: 'string' } }, required: ['clientId'] },
+    };
+    const readAuthority = { name: 'get_client_context', readOnly: true, source: 'native' as const };
+    // An OPTIONAL actor/tenant read: it exposes clientId but does NOT require it.
+    const optional = {
+      name: 'search_memory',
+      input_schema: { properties: { clientId: { type: 'string' }, query: { type: 'string' } } },
+    };
+    const optionalAuthority = { name: 'search_memory', readOnly: true, source: 'native' as const };
+    const save = {
+      name: 'save_memory',
+      input_schema: { properties: { content: { type: 'string' } } },
+    };
+    const saveAuthority = { name: 'save_memory', readOnly: false, source: 'native' as const };
+    const governed = {
+      operationId: 'meri.chat',
+      contextPacket: {
+        packetId: 'pkt-1',
+        items: [],
+        exclusions: [],
+        unauthorizedCount: 0,
+        degraded: false,
+        clientId: 'client-beta',
+      },
+      retrieval: { plan: { subjectScope: 'client' }, coverage: {} },
+    } as unknown as MeriGovernedTurnContext;
+
+    await runWithGovernedMeriContext(governed, async () => {
+      // Omitted -> pinned to the authenticated governed client (Beta), never the
+      // interface selection (Acme).
+      expect(
+        service.augmentToolInput({ clientId: 'client-acme' }, {}, read, readAuthority),
+      ).toEqual({ input: { clientId: 'client-beta' } });
+      // Explicit authenticated client -> pinned to it.
+      expect(
+        service.augmentToolInput(
+          { clientId: 'client-acme' },
+          { clientId: 'client-beta' },
+          read,
+          readAuthority,
+        ),
+      ).toEqual({ input: { clientId: 'client-beta' } });
+      // Explicit interface client -> refused with the exact cross-client reason.
+      expect(
+        service.augmentToolInput(
+          { clientId: 'client-acme' },
+          { clientId: 'client-acme' },
+          read,
+          readAuthority,
+        ).scopeViolation,
+      ).toBe(CROSS_CLIENT_REFUSAL);
+      // A bound effect (save_memory) keeps the immutable conversation client and
+      // is refused with the exact bound-effect reason on a governed mismatch.
+      expect(
+        service.augmentToolInput(
+          { clientId: 'client-acme' },
+          { content: 'Remember this.' },
+          save,
+          saveAuthority,
+        ).scopeViolation,
+      ).toBe(GOVERNED_BOUND_EFFECT_REFUSAL);
+      // A bound effect whose ORIGINAL conversation client is null is ALSO a
+      // mismatch (no truthiness hole).
+      expect(
+        service.augmentToolInput({}, { content: 'Remember this.' }, save, saveAuthority).scopeViolation,
+      ).toBe(GOVERNED_BOUND_EFFECT_REFUSAL);
+
+      // A governed turn with no single authorized client never injects the
+      // interface client.
+      const portfolio = {
+        operationId: 'meri.chat',
+        contextPacket: {
+          packetId: 'pkt-2',
+          items: [],
+          exclusions: [],
+          unauthorizedCount: 0,
+          degraded: false,
+          clientId: null,
+        },
+        retrieval: { plan: { subjectScope: 'portfolio' }, coverage: {} },
+      } as unknown as MeriGovernedTurnContext;
+      await runWithGovernedMeriContext(portfolio, async () => {
+        // A REQUIRED-client read (omit) is refused with the exact reason.
+        expect(
+          service.augmentToolInput({ clientId: 'client-acme' }, {}, read, readAuthority).scopeViolation,
+        ).toBe(GOVERNED_NO_SINGLE_CLIENT_REFUSAL);
+        // An explicit model client is never granted by a generic actor ACL.
+        expect(
+          service.augmentToolInput(
+            { clientId: 'client-acme' },
+            { clientId: 'client-acme' },
+            read,
+            readAuthority,
+          ).scopeViolation,
+        ).toBe(GOVERNED_NO_SINGLE_CLIENT_REFUSAL);
+        // An OPTIONAL actor read with an omitted filter is preserved unchanged:
+        // no refusal and no injected interface client.
+        expect(
+          service.augmentToolInput(
+            { clientId: 'client-acme' },
+            { query: 'Kestrel' },
+            optional,
+            optionalAuthority,
+          ),
+        ).toEqual({ input: { query: 'Kestrel' } });
+      });
+    });
+  });
+
+  test('the auxiliary withToolBudget repair guard refuses a projected interface client before any owner I/O', async () => {
+    // Typed seam over the private guard + registry; mirrors the request-path
+    // fixture's registry shape without a new `any` cast.
+    const service = Object.create(MeriV3AssistantService.prototype) as unknown as {
+      registry: {
+        get: (name: string) => { readOnly: boolean } | undefined;
+        list: () => string[];
+        executionMetadata: (name: string) => { executionMode: string };
+      };
+      resolveAuxiliaryToolScopeViolation: (
+        dto: Record<string, unknown>,
+        schemas: readonly { name: string; input_schema: Record<string, unknown> }[],
+        name: string,
+        input: Record<string, unknown>,
+      ) => string | null;
+    };
+    // The live registry seam the auxiliary guard re-derives the capability from.
+    service.registry = {
+      get: (name: string) => ({ readOnly: name !== 'save_memory' }),
+      list: () => ['get_client_context', 'save_memory'],
+      executionMetadata: () => ({ executionMode: 'read' }),
+    };
+    const readSchema = {
+      name: 'get_client_context',
+      input_schema: { properties: { clientId: { type: 'string' } }, required: ['clientId'] },
+    };
+    const saveSchema = {
+      name: 'save_memory',
+      input_schema: { properties: { content: { type: 'string' } } },
+    };
+    const governed = {
+      operationId: 'meri.chat',
+      contextPacket: {
+        packetId: 'pkt-1',
+        items: [],
+        exclusions: [],
+        unauthorizedCount: 0,
+        degraded: false,
+        clientId: 'client-beta',
+      },
+      retrieval: { plan: { subjectScope: 'client' }, coverage: {} },
+    } as unknown as MeriGovernedTurnContext;
+
+    await runWithGovernedMeriContext(governed, async () => {
+      // The repair path projects the ORIGINAL dto.clientId (Acme) into a
+      // client-bearing read: refused with the exact cross-client reason.
+      expect(
+        service.resolveAuxiliaryToolScopeViolation(
+          { clientId: 'client-acme' },
+          [readSchema],
+          'get_client_context',
+          { clientId: 'client-acme' },
+        ),
+      ).toBe(CROSS_CLIENT_REFUSAL);
+      // A bound effect with an original NULL conversation client vs governed
+      // Beta is a mismatch too.
+      expect(
+        service.resolveAuxiliaryToolScopeViolation({}, [saveSchema], 'save_memory', {
+          content: 'Remember this.',
+        }),
+      ).toBe(GOVERNED_BOUND_EFFECT_REFUSAL);
+      // A matching governed target is not refused (control).
+      expect(
+        service.resolveAuxiliaryToolScopeViolation(
+          { clientId: 'client-beta' },
+          [readSchema],
+          'get_client_context',
+          { clientId: 'client-beta' },
+        ),
+      ).toBeNull();
+    });
   });
   const originalFetch = global.fetch;
   const originalOpenAiKey = process.env.OPENAI_API_KEY;
@@ -3489,6 +3680,59 @@ describe('Stage 2 orchestrator hardening', () => {
   const BILLS_SCHEMA = schemaOf('search_congress_bills', { query: { type: 'string' } });
   const BILL_STATUS_SCHEMA = schemaOf('get_bill_status', { billId: { type: 'string' } });
 
+  /**
+   * A minimal ordinary governed `client`-scope turn resolving ONE authenticated
+   * client (the context packet subject). It carries no procedure and no capture
+   * policy, so the auxiliary repair dispatch is gated only by the client-scope
+   * guard; the surviving shape mirrors the real API-attested turn used by the
+   * request-path spec.
+   */
+  function governedSingleClientTurn(clientId: string): MeriGovernedTurnContext {
+    return {
+      version: 1,
+      operationId: 'meri.chat',
+      prompt: 'Governed context.',
+      contextPacket: {
+        packetId: null,
+        items: [],
+        exclusions: [],
+        unauthorizedCount: 0,
+        degraded: false,
+        clientId,
+      },
+      retrieval: {
+        plan: {
+          version: 1,
+          queryClass: 'general',
+          subjectScope: 'client',
+          targetHint: null,
+          recipeTool: null,
+          requireCompleteCoverage: false,
+          requiredDomains: [],
+          timeWindow: null,
+        },
+        coverage: {
+          version: 1,
+          complete: true,
+          requestedDomains: [],
+          searchedDomains: [],
+          missingDomains: [],
+          partialDomains: [],
+          requestedEntityCount: null,
+          searchedEntityCount: null,
+          recordsEvaluated: 0,
+          recordsReturned: 0,
+          paginationComplete: true,
+          truncated: false,
+          sourceHealth: [],
+          unavailableSources: [],
+          toolsInvoked: [],
+          stopReason: 'complete',
+        },
+      },
+    } as unknown as MeriGovernedTurnContext;
+  }
+
   function fetchWith(schemas: unknown[], runsActive = true): typeof fetch {
     return jest.fn(async (url: unknown) =>
       String(url).includes('/runs/')
@@ -4500,6 +4744,112 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(eventsNamed(spies.log, 'meri.auto_correction.claims_capped')).toEqual([
         expect.objectContaining({ promoted: 15, assessed: 12 }),
       ]);
+    });
+
+    test('the enforce repair executor refuses the interface client (Acme) before owner I/O and dispatches the authenticated governed single target (Beta) through the SAME repair path', async () => {
+      promote('enforce', 'bill_status');
+      const UI_ACME = '30000000-0000-4000-8000-0000000000ac';
+      const AUTH_BETA = '30000000-0000-4000-8000-0000000000be';
+      const CLIENT_READ = 'get_client_context';
+      const GOVERNED_FIXTURE_SECRET = 'governed-native-repair-fixture-secret';
+      const clientSchema = schemaOf(CLIENT_READ, { clientId: { type: 'string' } }, ['clientId']);
+
+      const repairCapture: { current: RepairToolResult | undefined } = { current: undefined };
+      const repairSpy = jest
+        .spyOn(liveRepair, 'applyLiveRepair')
+        .mockImplementation(async (input) => {
+          // Drive the executor the service actually supplied: the real
+          // `budgetedRepairRegistry` (its `withToolBudget` callback is the
+          // auxiliary scope guard) wrapped by `createOrchestratorToolExecutor`.
+          // Only the repair-stage remedy CHOICE is stubbed — the guard, the
+          // executor and `withToolBudget` are never mocked.
+          repairCapture.current = await input.executor.execute(
+            { name: CLIENT_READ, args: {} },
+            { signal: input.signal },
+          );
+          return repairResult();
+        });
+
+      const runRepair = async (
+        interfaceClientId: string,
+      ): Promise<{ invoke: jest.Mock; result: RepairToolResult | undefined }> => {
+        const dto = {
+          clientId: interfaceClientId,
+          conversationId: `repair-guard-${interfaceClientId}`,
+          messages: [{ role: 'user' as const, text: 'Did H.R. 1 pass the House?' }],
+        };
+        const invoke = jest.fn(
+          async (_name: string, input: Record<string, unknown>) => ({
+            tool: CLIENT_READ,
+            client: { id: String(input.clientId) },
+          }),
+        );
+        const complete = jest
+          .fn()
+          .mockResolvedValue(response({ outputText: 'H.R. 1 passed the House.' }));
+        const assistant = build(registry([{ name: CLIENT_READ, readOnly: true }], invoke), complete);
+        global.fetch = fetchWith([clientSchema]);
+
+        const binding = {
+          conversationId: dto.conversationId,
+          clientId: interfaceClientId,
+          messages: dto.messages,
+        };
+        const withEvidence = {
+          ...(governedSingleClientTurn(AUTH_BETA) as unknown as Record<string, unknown>),
+          evidence: {
+            version: 1,
+            tenantId: PILOT,
+            userId: context.userId,
+            packetId: null,
+            sourceRecordCount: 0,
+            projectedRecordCount: 0,
+            truncated: false,
+            records: [],
+          },
+        } as unknown as MeriGovernedTurnContext;
+        const governed = attestMeriGovernedContext(withEvidence, binding, GOVERNED_FIXTURE_SECRET);
+        expect(() =>
+          verifyMeriGovernedContext(
+            governed,
+            binding,
+            { tenantId: PILOT, userId: context.userId },
+            GOVERNED_FIXTURE_SECRET,
+          ),
+        ).not.toThrow();
+
+        repairCapture.current = undefined;
+        await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+          runWithGovernedMeriContext(governed, () => assistant.run(pilotContext, dto)),
+        );
+        return { invoke, result: repairCapture.current };
+      };
+
+      // The ORIGINAL interface client (Acme) disagrees with the authenticated
+      // single target (Beta): the projected repair read is refused with the
+      // exact cross-client reason BEFORE the real owner registry is invoked.
+      const mismatch = await runRepair(UI_ACME);
+      expect(repairSpy).toHaveBeenCalled();
+      expect(mismatch.result).toEqual({
+        ok: false,
+        state: 'retrieval_failed',
+        reason: CROSS_CLIENT_REFUSAL,
+      });
+      expect(mismatch.invoke).not.toHaveBeenCalled();
+
+      // Matching control: the SAME repair path dispatches the authenticated
+      // target (Beta) and performs the expected owner read.
+      const match = await runRepair(AUTH_BETA);
+      expect(match.invoke).toHaveBeenCalledTimes(1);
+      expect(match.invoke.mock.calls[0]?.[1]).toEqual({ clientId: AUTH_BETA });
+      // The minimal mock owner returns `client.id` only, so the real governed
+      // executor finds no usable evidence and fails with that exact reason.
+      expect(match.result).toEqual({
+        ok: false,
+        state: 'retrieval_failed',
+        reason: 'no_usable_evidence',
+      });
+      expect(repairSpy).toHaveBeenCalledTimes(2);
     });
 
     // The legacy skeptic can only answer refuted / not refuted, so the observable
