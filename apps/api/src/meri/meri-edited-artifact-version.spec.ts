@@ -553,7 +553,9 @@ describe('MeriService.createArtifactVersion ordinary generated-document branch',
     const read = await h.tools.getDocumentArtifact(ctx, childId);
     const bytes = read!.persistedBytes!;
     const zip = await JSZip.loadAsync(bytes);
-    const media = Object.keys(zip.files).filter((name) => name.startsWith('word/media/'));
+    const media = Object.keys(zip.files).filter(
+      (name) => name.startsWith('word/media/') && !zip.files[name]!.dir,
+    );
     expect(media.length).toBeGreaterThan(0);
     const expected = Buffer.from(EMBEDDED_PNG_BASE64, 'base64');
     let preserved = false;
