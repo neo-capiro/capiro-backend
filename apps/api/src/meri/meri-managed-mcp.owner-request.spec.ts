@@ -152,7 +152,7 @@ function driveRow(overrides: Partial<Row> = {}): Row {
 
 type Where = Record<string, unknown>;
 
-type HookMethod = 'findMany' | 'findFirst';
+type HookMethod = 'findMany' | 'findFirst' | 'updateMany';
 
 /**
  * A typed mutation hook that changes the ACTUAL stored rows at ONE real
@@ -262,6 +262,11 @@ function createDb(rows: Row[], hooks: BoundaryHook[] = []) {
       return row ? cloneRow(row) : null;
     }),
     updateMany: jest.fn(async (args: { where?: Where; data?: Record<string, unknown> }) => {
+      // Fire boundary hooks BEFORE the write predicate is evaluated, so a hook
+      // can model a concurrent mutation landing in the findFirst -> updateMany
+      // window and the conditional write CAS is exercised against the CURRENT
+      // stored row, exactly as Prisma would evaluate it.
+      fireBoundaryHooks('updateMany', args, rows);
       const matched = rows.filter((row) => whereMatches(row, args?.where ?? {}));
       for (const row of matched) Object.assign(row, args?.data ?? {});
       return { count: matched.length };
@@ -835,6 +840,102 @@ describe('hardenServer owner window: no narrowing write to a reassigned row', ()
 
   test('error-status hardening must not land on a row reassigned mid-read', async () => {
     const c = hardenWindowCase({
+      toolAllowlist: ['execute_api'],
+      readOnlyTools: ['execute_api'],
+    });
+
+    const error = await c.managed.executeRead(OWNER, TOOL, INPUT).then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    expect(c.hook.hits).toBe(1);
+    // No error-status write landed on the now-foreign row.
+    expect(c.row.connectionStatus).not.toBe('error');
+    expect(c.row.connectionStatus).toBe(c.original.connectionStatus);
+    expect(c.row.toolAllowlist).toEqual(c.original.toolAllowlist);
+    expect(error).toBeInstanceOf(Error);
+    expect(c.listTools).not.toHaveBeenCalled();
+    expect(c.callTool).not.toHaveBeenCalled();
+  });
+});
+
+describe('hardenServer conditional write (CAS) owner window: post-findFirst reassignment', () => {
+  const originalEnv = process.env;
+  beforeEach(() => {
+    process.env = { ...originalEnv, CLIO_MCP_ENABLED: 'true', MERI_MCP_AIRTABLE_ENABLED: 'true' };
+    jest.clearAllMocks();
+  });
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  /**
+   * The actor's own personal row still needs safe hardening, so
+   * schemasForMeriV3's hardenServer(tenantId, row.id, ctx.userId) reads it while
+   * the owner is still the actor and decides to write. The hook then reassigns
+   * ownership at hardenServer's REAL updateMany boundary — AFTER findFirst has
+   * already returned its snapshot and BEFORE the write predicate is evaluated.
+   * This is the genuine post-findFirst / pre-updateMany window: the owner-scoped
+   * conditional write CAS must match ZERO rows, so the now-foreign row keeps its
+   * original metadata. The reassigned row is no longer visible to the actor's
+   * canonical read, so the read is denied with zero provider I/O.
+   */
+  function casWindowCase(overrides: Partial<Row>) {
+    const listTools = jest.fn(async () => AIRTABLE_TOOLS);
+    const callTool = jest.fn(async () => providerResult);
+    const row = airtableRow(overrides);
+    const original = structuredClone(row);
+    const hook = boundaryHook(
+      'schemasForMeriV3.hardenServer.updateMany',
+      'updateMany',
+      (args) =>
+        args?.where?.id === row.id &&
+        args?.where?.tenantId === OWNER.tenantId &&
+        args?.where?.scope === 'user' &&
+        args?.where?.ownerUserId === OWNER.userId,
+      (rows) => {
+        const stored = rows.find((candidate) => candidate.id === row.id);
+        if (stored) stored.ownerUserId = 'user-other';
+      },
+    );
+    const { db, managed } = harness([row], { listTools, callTool }, [hook]);
+    return { listTools, callTool, row, original, hook, db, managed };
+  }
+
+  test('a narrowing write must not land on a row reassigned between findFirst and updateMany', async () => {
+    const c = casWindowCase({
+      toolAllowlist: ['list_bases', 'execute_api'],
+      readOnlyTools: ['list_bases', 'execute_api'],
+    });
+
+    const error = await c.managed.executeRead(OWNER, TOOL, INPUT).then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    // The genuine post-findFirst/pre-updateMany window ran, with the real
+    // conditional owner predicate (scope:user + ownerUserId in the write CAS).
+    expect(c.hook.hits).toBe(1);
+    expect(c.hook.matchedWheres[0]).toMatchObject({
+      id: c.row.id,
+      tenantId: OWNER.tenantId,
+      scope: 'user',
+      ownerUserId: OWNER.userId,
+    });
+    // The reassigned-away row keeps its ORIGINAL metadata: the CAS write matched
+    // zero rows and never narrowed it.
+    expect(c.row.toolAllowlist).toEqual(c.original.toolAllowlist);
+    expect(c.row.readOnlyTools).toEqual(c.original.readOnlyTools);
+    expect(c.row.connectionStatus).toBe(c.original.connectionStatus);
+    // Canonical read denied, zero provider I/O.
+    expect(error).toBeInstanceOf(Error);
+    expect(c.listTools).not.toHaveBeenCalled();
+    expect(c.callTool).not.toHaveBeenCalled();
+  });
+
+  test('an error-status write must not land on a row reassigned between findFirst and updateMany', async () => {
+    const c = casWindowCase({
       toolAllowlist: ['execute_api'],
       readOnlyTools: ['execute_api'],
     });

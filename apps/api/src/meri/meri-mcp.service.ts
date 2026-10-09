@@ -4,6 +4,7 @@ import {
   managedAppAvailable,
   filterManagedReadOnlyTools,
   isManagedReadOnlyTool,
+  type MeriV3ManagedAppId,
 } from './meri-managed-mcp.helpers.js';
 import {
   BadRequestException,
@@ -45,6 +46,13 @@ interface RegisteredMcpTool {
   toolName: string;
   bridgedName: string;
   readOnly: boolean;
+  // Managed provenance captured from the ACTUAL admitted managedAppDefinition at
+  // registry creation (never a name prefix or an inferred read-only flag). When
+  // set, the current row's catalog classification must still resolve to this
+  // same managed app before the entry may be advertised or dispatched; a
+  // catalogId that left the managed set (or moved elsewhere) must not keep a
+  // cached managed read tool alive. Undefined for generic connectors.
+  managedAppId?: MeriV3ManagedAppId;
 }
 
 interface UserMcpRegistry {
@@ -492,6 +500,11 @@ export class MeriMcpService {
         if (!server || (server.authType === 'oauth' && server.connectionStatus !== 'connected'))
           return false;
         const managed = managedAppDefinition(server.catalogId);
+        // A cached admitted managed entry must still resolve to the SAME managed
+        // app on the current row. If the catalog classification is now absent or
+        // different, the cached managed read provenance no longer holds: never
+        // advertise it (deny before any transport).
+        if (entry.managedAppId && (!managed || managed.id !== entry.managedAppId)) return false;
         return (
           !managed ||
           (managedAppAvailable(managed.id, {
@@ -560,6 +573,7 @@ export class MeriMcpService {
             toolName: tool.name,
             bridgedName: bridged.name,
             readOnly: readOnly.has(tool.name),
+            ...(managed ? { managedAppId: managed.id } : {}),
           });
         }
         await this.prisma
@@ -645,6 +659,15 @@ export class MeriMcpService {
       throw new BadRequestException('Please reconnect this app to continue.');
     }
     const managed = managedAppDefinition(server.catalogId);
+    // Last-mile provenance guard: if this cached entry was admitted as a managed
+    // app, the current row's catalog classification must still resolve to that
+    // SAME managed app. Absent or changed => the cached managed authority no
+    // longer applies; deny before transport (this also guarantees the managed
+    // guard below and clientFor's managed endpoint/name/scope/transport/authType
+    // block are enforced rather than silently skipped).
+    if (entry.managedAppId && (!managed || managed.id !== entry.managedAppId)) {
+      throw new BadRequestException('Connected-app tool is unavailable or not read-only.');
+    }
     if (
       managed &&
       (!managedAppAvailable(managed.id, {
