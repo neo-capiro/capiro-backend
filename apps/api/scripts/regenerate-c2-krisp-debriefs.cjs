@@ -43,7 +43,17 @@ async function main() {
       const ctx = await service.context(preference);
       if (!ctx || ctx.tenantSlug !== 'c2-strategies') continue;
       const result = await regenerateC2KrispDebriefs({
-        prisma, service, crypto, ctx, preference, apply,
+        prisma, crypto, ctx, preference, apply,
+        // This operator task is not the background owner. Reuse its transaction
+        // authorization predicate without asserting worker ownership.
+        service: {
+          assertActive: (context, current) => prisma.withTenantUser(
+            context.tenantId, context.userId,
+            (tx) => service.assertActiveTx(tx, context, current),
+          ),
+          assertActiveTx: (tx, context, current) =>
+            service.assertActiveTx(tx, context, current),
+        },
         limit: Math.max(0, limit - totals.scanned),
         format: formatDebriefBody,
         generate: async (context, meetingId, sourceText) => {
