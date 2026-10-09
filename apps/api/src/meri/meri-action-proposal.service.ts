@@ -852,7 +852,11 @@ export class MeriActionProposalService {
     }
   }
 
-  private async expireStale(ctx: TenantContext): Promise<void> {
+  private async expireStale(ctx: TenantContext, exactProposalIds?: string[]): Promise<void> {
+    const ids = exactProposalIds ? [...new Set(exactProposalIds)] : undefined;
+    // An explicit empty set means "no rows requested": do no maintenance and no
+    // unbounded scan. `undefined` keeps the current whole-scope list behavior.
+    if (ids && !ids.length) return;
     await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.meriActionProposal.updateMany({
         where: {
@@ -860,10 +864,41 @@ export class MeriActionProposalService {
           userId: ctx.userId,
           status: { in: ['proposed', 'approved', 'failed_retryable'] },
           expiresAt: { lte: new Date() },
+          ...(ids ? { id: { in: ids } } : {}),
         },
         data: { status: 'expired' },
       }),
     );
+  }
+
+  /**
+   * Exact-ID maintenance seam for the shared proposal lifecycle owner. A job
+   * receipt read hands this the current-goal waiting approval proposal IDs; it
+   * runs the same conservative expiry transition as list()
+   * (proposed/approved/failed_retryable, expiresAt <= now) restricted to those
+   * exact owned IDs, then returns only the requested owner rows' current status.
+   * It performs bounded owner-scoped maintenance and a read only — it never
+   * creates, approves, executes or reconciles an action, and an empty set does
+   * no maintenance and no unbounded scan. Execution authority stays with the
+   * existing proposal paths, and it is deliberately not gated by
+   * assertEnabled() so disabling new proposals cannot make historical job
+   * receipts unreadable. Missing or unowned IDs are simply absent from the
+   * result; this grants no effect authority.
+   */
+  async settleExactOwnedApprovals(
+    ctx: TenantContext,
+    proposalIds: string[],
+  ): Promise<Array<{ id: string; status: MeriActionProposalStatus }>> {
+    const ids = [...new Set(proposalIds)];
+    if (!ids.length) return [];
+    await this.expireStale(ctx, ids);
+    const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.meriActionProposal.findMany({
+        where: { id: { in: ids }, tenantId: ctx.tenantId, userId: ctx.userId },
+        select: { id: true, status: true },
+      }),
+    );
+    return rows.map((row) => ({ id: row.id, status: row.status as MeriActionProposalStatus }));
   }
 
   async list(
