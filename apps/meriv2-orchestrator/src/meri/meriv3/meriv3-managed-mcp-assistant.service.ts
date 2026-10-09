@@ -17,6 +17,7 @@ import {
 } from './meriv3-assistant.service.js';
 import { classifyMeriV3VisualIntent, meriV3VisualIntentPrompt } from './meriv3-visual-intent.js';
 import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
+import { catalogAvailabilityObserverOf } from './meriv3-catalog-availability.js';
 import { assertMeriProcedureToolDispatch } from './meriv3-procedure-guard.js';
 import { assertMeriV3ResearchCapability } from './meriv3-plan-execution.js';
 import type { MeriV3ChatInput, MeriV3ChatResult, MeriV3ChatStreamEvent } from './meriv3.types.js';
@@ -338,6 +339,9 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
   protected override async fetchToolSchemas(
     control?: ToolExecutionControl,
   ): Promise<ToolSchema[]> {
+    // Entry guard on the ORIGINAL parent control: a stopped/expired request must
+    // never begin native + managed discovery.
+    assertToolExecutionActive(control);
     // Pre-discovery refusal: when the request-local governed authority already
     // forbids a managed raw read (capture, client scope, non-chat operation,
     // governed procedure, or incomplete authority), skip the managed catalog
@@ -350,6 +354,11 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
     const managedDiscoveryForbidden = this.governedManagedReadRefusal(
       currentGovernedMeriContext(),
     );
+    if (managedDiscoveryForbidden) {
+      // Intentional pre-discovery skip of a policy-forbidden source: recorded as
+      // a deliberate skip, never a fake outage and never a reconnect attempt.
+      catalogAvailabilityObserverOf(control)?.noteManaged({ outcome: 'skipped' });
+    }
     // `[]` is a deliberate skip, not a discovered empty catalog: the forbidden
     // source is never queried.
     const managedCatalog: Promise<ToolSchema[]> = managedDiscoveryForbidden
@@ -360,6 +369,10 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
       managedCatalog,
       this.visualAnalysis.available(control),
     ]);
+    // Every discovery branch above is awaited; re-assert the ORIGINAL parent
+    // before constructing/returning the model surface so a parent Stop/expiry
+    // during discovery can never leave a usable/empty catalog for the turn.
+    assertToolExecutionActive(control);
     const native = nativeRaw
       .filter((schema) => schema.name !== 'run_analysis' || analysisAvailable)
       .map((schema) =>
@@ -483,6 +496,10 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
           },
           args.control,
         );
+        // The owner call resolved; assert the ORIGINAL parent before emitting any
+        // artifact or returning, so a Stop/expiry during the call cannot leak a
+        // later artifact effect.
+        assertToolExecutionActive(args.control);
         for (const artifact of analysisArtifacts(result)) {
           args.artifacts.push(artifact);
           args.emit({ type: 'artifact', artifact });
@@ -525,7 +542,26 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
         readOnly: true,
       });
       await this.assertCurrentManagedReadCatalog(args.name, args.schema, args.control);
-      const result = await this.managedMcp.executeRead(args.name, args.input, args.control);
+      // The reauthorization look-up is awaited; assert the ORIGINAL parent before
+      // any owner I/O so a Stop/expiry between revalidation and dispatch stops
+      // the read instead of starting a later owner call.
+      assertToolExecutionActive(args.control);
+      let result: unknown;
+      try {
+        result = await this.managedMcp.executeRead(args.name, args.input, args.control);
+      } catch (ownerError) {
+        // A CURRENT owner read failure after an initially healthy catalog is a
+        // real failure for this app (from admitted metadata), so the released
+        // answer cannot imply its records were consulted. No retry/reconnect.
+        catalogAvailabilityObserverOf(args.control)?.noteManagedAppUnavailable(
+          metadata.appId,
+          'unavailable',
+        );
+        throw ownerError;
+      }
+      // A successful owner read that resolved after Stop/expiry is not a new
+      // effect: assert the parent before recording/returning its result.
+      assertToolExecutionActive(args.control);
       args.steps.push({ tool: args.name, label, status: 'done' });
       args.emit({ type: 'tool_done', tool: label, label, status: 'done' });
       return result;
@@ -550,9 +586,15 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
     advertised: ToolSchema,
     control?: ToolExecutionControl,
   ): Promise<void> {
+    // Entry guard on the ORIGINAL parent control.
+    assertToolExecutionActive(control);
     const current = (await this.managedMcp.schemas(control)).find(
       (schema) => schema.name === name,
     );
+    // A revocation/omission look-up is only meaningful for a live parent: assert
+    // after the await so a stopped/expired parent is never reported as a
+    // "no longer available" tool.
+    assertToolExecutionActive(control);
     const advertisedMetadata = readManagedSchemaMetadata(advertised);
     const currentMetadata = readManagedSchemaMetadata(current);
     if (
@@ -562,6 +604,16 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
       currentMetadata.appId !== advertisedMetadata.appId ||
       !sameInputSchema(advertised.input_schema, current.input_schema)
     ) {
+      // A revocation/omission after the first advertisement is a CURRENT failure
+      // for the app whose admitted metadata authorized this dispatch (derived
+      // from canonical metadata, never a tool-name prefix). Status only: the
+      // read stays blocked before owner I/O and this never grants a read.
+      if (advertisedMetadata) {
+        catalogAvailabilityObserverOf(control)?.noteManagedAppUnavailable(
+          advertisedMetadata.appId,
+          'unavailable',
+        );
+      }
       throw new Error('Connected-app tool is no longer available.');
     }
   }

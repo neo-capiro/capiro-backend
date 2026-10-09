@@ -1,5 +1,9 @@
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
+import {
+  createMeriCatalogAvailabilityObserver,
+  type MeriCatalogAvailabilityControl,
+} from './meriv3-catalog-availability.js';
 
 const HUBSPOT_SEARCH = 'mcp__meriv3_hubspot__search_contacts';
 const AIRTABLE_SEARCH = 'mcp__meriv3_airtable__search_records';
@@ -137,5 +141,113 @@ describe('ApiManagedMcpRepo', () => {
         repo.schemas({ signal: controller.signal }),
       ),
     ).rejects.toBeDefined();
+  });
+
+  const managedSchemaWire = (name = HUBSPOT_SEARCH) => ({
+    name,
+    description: 'Search contacts',
+    input_schema: { type: 'object' },
+    source: 'managed_mcp',
+    appId: 'hubspot',
+    appName: 'HubSpot',
+    readOnly: true,
+  });
+
+  test('an already-stopped or expired parent never starts schema discovery', async () => {
+    const repo = new ApiManagedMcpRepo(
+      config({ MERIV2_API_BASE_URL: 'https://api.internal' }) as never,
+    );
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as typeof fetch;
+    const controller = new AbortController();
+    controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+        repo.schemas({ signal: controller.signal }),
+      ),
+    ).rejects.toBeDefined();
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+        repo.schemas({ deadlineAt: Date.now() - 1 }),
+      ),
+    ).rejects.toBeDefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('a schema response resolving after the parent Stop is not recorded as a usable catalog', async () => {
+    const repo = new ApiManagedMcpRepo(
+      config({ MERIV2_API_BASE_URL: 'https://api.internal' }) as never,
+    );
+    const controller = new AbortController();
+    const fetchMock = jest.fn(async () => {
+      controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+      return new Response(JSON.stringify({ schemas: [managedSchemaWire()] }), { status: 200 });
+    });
+    global.fetch = fetchMock as typeof fetch;
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+        repo.schemas({ signal: controller.signal }),
+      ),
+    ).rejects.toBeDefined();
+  });
+
+  test('a parent Stop is not masked by a non-OK schema response', async () => {
+    const repo = new ApiManagedMcpRepo(
+      config({ MERIV2_API_BASE_URL: 'https://api.internal' }) as never,
+    );
+    const controller = new AbortController();
+    const fetchMock = jest.fn(async () => {
+      controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+      return new Response('unavailable', { status: 503 });
+    });
+    global.fetch = fetchMock as typeof fetch;
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+        repo.schemas({ signal: controller.signal }),
+      ),
+    ).rejects.toBeDefined();
+  });
+
+  test('a genuinely absent availability envelope is recorded as metadata_unknown and retains the admitted schemas', async () => {
+    const repo = new ApiManagedMcpRepo(
+      config({ MERIV2_API_BASE_URL: 'https://api.internal' }) as never,
+    );
+    global.fetch = jest.fn(
+      async () => new Response(JSON.stringify({ schemas: [managedSchemaWire()] }), { status: 200 }),
+    ) as typeof fetch;
+    const observer = createMeriCatalogAvailabilityObserver();
+    // `catalogAvailability` is an ADDITIVE app-local field on the same
+    // request-local control the assistant threads through. Reuse the EXISTING
+    // app-local `MeriCatalogAvailabilityControl` intersection (it already
+    // includes `ToolExecutionControl`) and pass a properly typed control object
+    // rather than an inline literal. This never widens Core `ToolExecutionControl`
+    // nor casts away excess-property/current-authority validation.
+    const control: MeriCatalogAvailabilityControl = { catalogAvailability: observer };
+    const schemas = await RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+      repo.schemas(control),
+    );
+    expect(schemas).toHaveLength(1);
+    expect(observer.snapshot().managed?.outcome).toBe('metadata_unknown');
+  });
+
+  test('an explicitly present null availability envelope is malformed, not a rolling-release absence', async () => {
+    const repo = new ApiManagedMcpRepo(
+      config({ MERIV2_API_BASE_URL: 'https://api.internal' }) as never,
+    );
+    global.fetch = jest.fn(
+      async () =>
+        new Response(JSON.stringify({ schemas: [managedSchemaWire()], availability: null }), {
+          status: 200,
+        }),
+    ) as typeof fetch;
+    const observer = createMeriCatalogAvailabilityObserver();
+    const control: MeriCatalogAvailabilityControl = { catalogAvailability: observer };
+    const schemas = await RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+      repo.schemas(control),
+    );
+    // The admitted schemas are retained under the existing authority, but the
+    // present-but-invalid envelope never claims ok/no_eligible/metadata_unknown.
+    expect(schemas).toHaveLength(1);
+    expect(observer.snapshot().managed?.outcome).toBe('malformed');
   });
 });

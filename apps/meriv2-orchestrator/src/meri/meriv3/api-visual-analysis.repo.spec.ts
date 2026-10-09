@@ -188,4 +188,92 @@ describe('ApiVisualAnalysisRepo', () => {
       ),
     ).rejects.toThrow(/Visual analysis failed: 500/);
   });
+
+  test('an already-stopped or expired parent never probes capability', async () => {
+    const repo = new ApiVisualAnalysisRepo(
+      config({ MERIV2_API_BASE_URL: 'https://api.internal' }) as never,
+    );
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as typeof fetch;
+    const controller = new AbortController();
+    controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+        repo.available({ signal: controller.signal }),
+      ),
+    ).rejects.toBeDefined();
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+        repo.available({ deadlineAt: Date.now() - 1 }),
+      ),
+    ).rejects.toBeDefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('a capability response resolving after the parent Stop is not recorded as usable', async () => {
+    const repo = new ApiVisualAnalysisRepo(
+      config({ MERIV2_API_BASE_URL: 'https://api.internal' }) as never,
+    );
+    const controller = new AbortController();
+    global.fetch = jest.fn(async () => {
+      controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+      return new Response(JSON.stringify({ visualAnalysis: { enabled: true } }), { status: 200 });
+    }) as unknown as typeof fetch;
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+        repo.available({ signal: controller.signal }),
+      ),
+    ).rejects.toBeDefined();
+  });
+
+  test('a parent Stop is not masked by a non-OK capability response', async () => {
+    const repo = new ApiVisualAnalysisRepo(
+      config({ MERIV2_API_BASE_URL: 'https://api.internal' }) as never,
+    );
+    const controller = new AbortController();
+    global.fetch = jest.fn(async () => {
+      controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+      return new Response('unavailable', { status: 503 });
+    }) as unknown as typeof fetch;
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+        repo.available({ signal: controller.signal }),
+      ),
+    ).rejects.toBeDefined();
+  });
+
+  test('an optional-probe timeout with an active parent fails closed and restores its timers', async () => {
+    jest.useFakeTimers();
+    try {
+      const repo = new ApiVisualAnalysisRepo(
+        config({ MERIV2_API_BASE_URL: 'https://api.internal' }) as never,
+      );
+      let calls = 0;
+      global.fetch = jest.fn((_input: unknown, init?: RequestInit) => {
+        calls += 1;
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject((init.signal as AbortSignal).reason),
+          );
+        });
+      }) as unknown as typeof fetch;
+
+      const parent = new AbortController();
+      const promise = RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+        repo.available({ signal: parent.signal, deadlineAt: Date.now() + 60_000 }),
+      );
+      // The bounded optional-probe fetch is pending; only the 10s child timer
+      // fires, while the ORIGINAL parent stays active.
+      await Promise.resolve();
+      expect(calls).toBe(1);
+      jest.advanceTimersByTime(10_000);
+      await expect(promise).resolves.toBe(false);
+      // The fail-closed probe did NOT propagate a Stop the parent never issued...
+      expect(parent.signal.aborted).toBe(false);
+      // ...and the bounded timer/listener were disposed.
+      expect(jest.getTimerCount()).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
