@@ -5,6 +5,11 @@ import { MeriRetrievalCoordinator } from '../retrieval/meri-retrieval-coordinato
 import { MeriV3ManagedMcpAssistantService } from './meriv3-managed-mcp-assistant.service.js';
 import { MeriV3AssistantService } from './meriv3-assistant.service.js';
 import { MeriV3RetrievalAssistantService } from './meriv3-retrieval-assistant.service.js';
+import {
+  catalogAvailabilityObserverOf,
+  createMeriCatalogAvailabilityObserver,
+  type MeriCatalogAvailabilityControl,
+} from './meriv3-catalog-availability.js';
 import type { MeriV3ChatResult, MeriV3ChatStreamEvent } from './meriv3.types.js';
 
 const result: MeriV3ChatResult = {
@@ -299,5 +304,35 @@ describe('MeriV3RetrievalAssistantService', () => {
     expect(textEvents).toHaveLength(1);
     expect(textEvents[0]?.text).toBe(output.reply);
     expect(output.reply).toContain('**Coverage note:**');
+  });
+
+  test('forwards the SAME request-local control, so the catalog observer survives the retrieval wrapper', async () => {
+    const baseFetch = jest
+      .spyOn(
+        MeriV3AssistantService.prototype as unknown as {
+          fetchToolSchemas: (c?: unknown) => Promise<unknown[]>;
+        },
+        'fetchToolSchemas',
+      )
+      .mockResolvedValue([
+        { name: 'search_memory', description: 'Search memory', input_schema: { type: 'object' } },
+      ]);
+    const service = make();
+    const observer = createMeriCatalogAvailabilityObserver();
+    const control: MeriCatalogAvailabilityControl = { catalogAvailability: observer };
+    const internals = service as unknown as {
+      fetchToolSchemas: (c?: MeriCatalogAvailabilityControl) => Promise<Array<{ name: string }>>;
+    };
+
+    const schemas = await internals.fetchToolSchemas(control);
+
+    // The retrieval wrapper installs one-argument `fetchToolSchemas` and forwards
+    // the SAME control object it received into the native + managed fetch, so the
+    // request-local observer is retained without any second argument or retrieval
+    // production edit.
+    expect(baseFetch).toHaveBeenCalledTimes(1);
+    expect(baseFetch.mock.calls[0]?.[0]).toBe(control);
+    expect(catalogAvailabilityObserverOf(baseFetch.mock.calls[0]?.[0])).toBe(observer);
+    expect(schemas.some((schema) => schema.name === 'search_memory')).toBe(true);
   });
 });

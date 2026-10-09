@@ -5,7 +5,7 @@ import {
   resolveMeriDocumentRequest,
   stripAppendedAttachmentText,
 } from '@capiro/shared';
-import { classifyApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
+import { classifyApiToolReadOutcome, type ApiToolReadOutcome } from '@capiro/shared/meri-read-outcome';
 import { createHash } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -78,6 +78,17 @@ import { RequestCredentialsStore } from '../../request/request-credentials.store
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
 import { createMeriExecutionControl } from '../meri-execution-control.js';
+import {
+  catalogAvailabilityObserverOf,
+  createMeriCatalogAvailabilityObserver,
+  deriveCatalogAvailabilityRelevance,
+  meriCatalogAvailabilityInstruction,
+  meriCatalogAvailabilityReleaseNote,
+  type MeriCatalogAvailabilityControl,
+  type MeriCatalogAvailabilityRelevance,
+  type MeriCatalogAvailabilityRelevanceSignals,
+  type MeriCatalogNativeReadFailureReason,
+} from './meriv3-catalog-availability.js';
 import {
   composeChatSystemPrompt,
   toolLabel,
@@ -596,6 +607,135 @@ function boundedPartialReply(
   ].join('\n\n');
 }
 
+/**
+ * Query classes that are themselves a record-specific request for the focused
+ * client's private data. A plain `temporal_state` ("today") or `semantic_recall`
+ * ("find ...") class is NOT included: a client focus plus a generic
+ * temporal/semantic word must not turn generic/creative chat into an
+ * unavailable-private-record partial. The actual evidence plan and the actual
+ * attempted canonical reads remain the primary relevance signals.
+ */
+const RECORD_SPECIFIC_RETRIEVAL_QUERY_CLASSES: ReadonlySet<string> = new Set([
+  'comparison',
+  'change_detection',
+  'relationship_history',
+  'portfolio_scan',
+  'exhaustive_search',
+  'entity_history',
+]);
+
+/**
+ * A genuine authorized seed/context evidence entry (the authenticated governed
+ * packet or a reauthorized document observation). Authenticated provenance is
+ * the REQUEST-LOCAL identity of the entry the controller seeded from the
+ * governed turn — never an owner-supplied `origin` string carried on an ordinary
+ * result body, which any current owner payload could forge. These seeds ARE
+ * current scoped evidence: a later catalog/read outage does not erase them.
+ */
+function isSeedCatalogEvidence(
+  entry: LedgerEntry,
+  seedEntries: ReadonlySet<LedgerEntry>,
+): boolean {
+  return seedEntries.has(entry);
+}
+
+/**
+ * Whether one ledger entry is a genuinely SUPPORTED finding that may be
+ * retained in a bounded partial. An error/refusal result (including a raw
+ * failed-owner body) is never a supported finding, regardless of any `origin`
+ * label it carries; a request-authenticated seed entry always is. This reuses
+ * the existing read classifier — it invents no new evidence shape and no broad
+ * text scrubbing.
+ */
+function catalogFindingIsSupported(
+  entry: LedgerEntry,
+  seedEntries: ReadonlySet<LedgerEntry>,
+): boolean {
+  if (isSeedCatalogEvidence(entry, seedEntries)) return true;
+  const result = entry.result;
+  if (result && typeof result === 'object') {
+    const record = result as Record<string, unknown>;
+    if (typeof record.error === 'string' && record.error.trim()) return false;
+    if (record.blocked === true) return false;
+  }
+  const classification = classifyApiToolReadOutcome(entry.tool, result);
+  if (classification && (classification.kind === 'failed' || classification.kind === 'unavailable')) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Readable bounded rendering of ONE already-accepted citation: the source
+ * summary title plus its existing grounding snippet. This reuses the citation
+ * ownership the turn already established (the exact text the owner extracted
+ * and exposed); it never re-serializes an internal result object, invents a
+ * fact contract, runs a broad scrub, or trusts provider prose.
+ */
+function readableAcceptedCitation(citation: MeriCitation): string {
+  const title = typeof citation.title === 'string' ? citation.title.trim() : '';
+  const snippet =
+    typeof citation.snippet === 'string' ? citation.snippet.replace(/\s+/g, ' ').trim() : '';
+  const head = `[${citation.n}] ${citation.tool}`;
+  if (snippet && title) return `- ${head}: ${title} — ${snippet.slice(0, 280)}`;
+  if (snippet) return `- ${head}: ${snippet.slice(0, 280)}`;
+  if (title) return `- ${head}: ${title}`;
+  return `- ${head}`;
+}
+
+/**
+ * Bounded release when a source this request needed could not be reached. The
+ * provider's free-form prose is deliberately NOT released (it may imply the
+ * unavailable source's records were consulted, and the provider is not trusted
+ * to obey the guidance). Only the fixed, source-specific limitation plus the
+ * genuinely supported findings already retained from completed reads — and any
+ * authorized seed/context evidence — are released. A failed read's error/owner
+ * body is never retained as a supported finding. Reuses the same bounded
+ * partial shape as `boundedPartialReply`; it invents no new evidence/fact
+ * contract and no broad text scrubbing.
+ */
+function buildBoundedCatalogAvailabilityReply(
+  limitation: string,
+  ledgerEntries: LedgerEntry[],
+  evidence: {
+    /** Request-authenticated seed entries (governed packet / reauthorized reads). */
+    seedEntries: readonly LedgerEntry[];
+    /** Citations already accepted/exposed for this turn. */
+    citations: readonly MeriCitation[];
+  },
+): { reply: string; citations: MeriCitation[] } {
+  const seedEntries = new Set(evidence.seedEntries);
+  const supported = ledgerEntries.filter((entry) => catalogFindingIsSupported(entry, seedEntries));
+  const seed = supported.filter((entry) => seedEntries.has(entry));
+  const reads = supported.filter((entry) => !seedEntries.has(entry));
+  const retainedEntries = seed.length ? [...seed.slice(-2), ...reads.slice(-2)] : reads.slice(-4);
+  // Retain the accepted citation summaries/snippets for the sources that were
+  // genuinely read. A source with no citable extract keeps a bounded honest
+  // receipt (its tool name) instead of an arbitrary serialized object.
+  const retainedTools = new Set(retainedEntries.map((entry) => entry.tool));
+  const retainedCitationObjects = evidence.citations
+    .filter((citation) => retainedTools.has(citation.tool))
+    .slice(-4);
+  const retained = retainedCitationObjects.length
+    ? retainedCitationObjects.map(readableAcceptedCitation)
+    : retainedEntries.map(
+        (entry) => `- ${entry.tool}: source read completed; no bounded fact extract was retained.`,
+      );
+  const reply = [
+    limitation,
+    retained.length
+      ? ['Retained supported findings from completed reads:', ...retained].join('\n')
+      : 'No supported finding was retained for a source this request needed.',
+    'No source this request needed was treated as consulted when it could not be reached.',
+  ].join('\n\n');
+  // The bounded reply DISCARDS the provider prose, so it must return exactly the
+  // genuine accepted citations it actually rendered — with their original
+  // identities/numbers — alongside the reply. This keeps every `[n]` marker
+  // backed by matching citation metadata (no dangling seeded/[9] marker, no
+  // failed-owner citation restoration); it invents no evidence/fact contract.
+  return { reply, citations: [...retainedCitationObjects] };
+}
+
 function incompleteSynthesisPartialReply(ledgerEntries: LedgerEntry[]): string {
   const retained = ledgerEntries.slice(-4).map((entry) => {
     const summary = entry.serialized.replace(/\s+/g, ' ').trim().slice(0, 320);
@@ -871,6 +1011,56 @@ export class MeriV3AssistantService {
       source: 'native',
       executionMode: this.registry.executionMetadata?.(name)?.executionMode,
     };
+  }
+
+  /**
+   * The canonical native read capability for a tool name, or null when the name
+   * is not a canonical native read. The identity comes from registry/capability
+   * metadata (`resolveCapabilityAuthority`, which requires live registry
+   * membership AND exact `MERI_CAPABILITY_REGISTRY` readOnly parity) — never a
+   * tool-name prefix guess. A read-only artifact owner (`run_analysis`) is
+   * excluded so an effect is never recorded as a plain read.
+   */
+  private canonicalNativeReadCapability(
+    name: string,
+    schema: ToolSchema | undefined,
+    dto: MeriV3ChatInput,
+  ): string | null {
+    const authority = this.resolveCapabilityAuthority(name, schema, dto);
+    if (!authority || authority.readOnly !== true || authority.source !== 'native') return null;
+    if (READONLY_ARTIFACT_OWNER_TOOLS.has(authority.name)) return null;
+    return authority.name;
+  }
+
+  /**
+   * Record a CURRENT native canonical-read failure for request-local status. It
+   * is used for an owner throw/error or an unusable read result (the actual
+   * `classifyApiToolReadOutcome` failure kinds), and never for a completed/empty
+   * read or an unrecognised/refused result (an unclassified result is not an
+   * outage). Status only: it can never grant a read or turn a failed read into a
+   * success. Non-read effects (run_analysis/artifacts/save_memory) are never
+   * recorded because `canonicalNativeReadCapability` rejects them.
+   */
+  private noteNativeReadOutcomeFailure(
+    name: string,
+    schema: ToolSchema | undefined,
+    dto: MeriV3ChatInput,
+    control: ToolExecutionControl | undefined,
+    classification: ApiToolReadOutcome | null | undefined,
+    fallbackReason?: MeriCatalogNativeReadFailureReason,
+  ): void {
+    const failed: MeriCatalogNativeReadFailureReason | undefined =
+      fallbackReason !== undefined
+        ? fallbackReason
+        : classification?.kind === 'failed'
+          ? 'failed'
+          : classification?.kind === 'unavailable'
+            ? 'unavailable'
+            : undefined;
+    if (!failed) return;
+    const capability = this.canonicalNativeReadCapability(name, schema, dto);
+    if (!capability) return;
+    catalogAvailabilityObserverOf(control)?.noteNativeReadFailure(capability, failed);
   }
 
   /**
@@ -1158,13 +1348,20 @@ export class MeriV3AssistantService {
       opts,
       resolveMeriV3ReasoningProfile(effectiveReasoningMode).turnBudgetMs,
     );
+    // Request-local, status-only catalog observer. Constructed INSIDE each run
+    // and carried on the SAME control object the assistant already threads
+    // through runTurn -> fetchToolSchemas -> managed reauth. It can never grant
+    // authority; it only lets the provider request and final release stay
+    // truthful when a requested source was unavailable.
+    const runOpts: MeriV3RunOptions & MeriCatalogAvailabilityControl = {
+      ...opts,
+      signal: control.signal,
+      deadlineAt: control.deadlineAt,
+      requestSignal: opts.signal,
+      catalogAvailability: createMeriCatalogAvailabilityObserver(),
+    };
     try {
-      return await this.runTurn(ctx, effectiveDto, {
-        ...opts,
-        signal: control.signal,
-        deadlineAt: control.deadlineAt,
-        requestSignal: opts.signal,
-      });
+      return await this.runTurn(ctx, effectiveDto, runOpts);
     } finally {
       control.dispose();
     }
@@ -1369,6 +1566,47 @@ export class MeriV3AssistantService {
             selectedDocumentIds: dto.selectedDocumentIds,
             clientId: dto.clientId,
           });
+    const availabilityObserver = catalogAvailabilityObserverOf(opts);
+    if (dto.toolPolicy === 'none') {
+      // A deliberate whole-fetch skip is recorded as skipped, never as a fake
+      // outage or a discovered-empty catalog.
+      availabilityObserver?.noteNative({ outcome: 'skipped' });
+      availabilityObserver?.noteManaged({ outcome: 'skipped' });
+    }
+    // Request-local relevance signals derived from the ACTUAL turn: the real
+    // evidence plan, the real retrieval intent and the canonical reads actually
+    // attempted so far. An authenticated clientId alone is NEVER a signal, and a
+    // generic temporal/semantic word with a client focused is NOT proof of a
+    // private-record request: only a genuinely record-specific intent class
+    // counts (the actual plan and actual attempted reads remain the primary
+    // signals).
+    const catalogRelevanceSignals = (): MeriCatalogAvailabilityRelevanceSignals => {
+      const retrievalIntent = classifyMeriRetrievalIntent(lastUserText, dto.clientId ?? null);
+      return {
+        planRequiresClientRecords: evidencePlan.requirements.some((requirement) =>
+          requirement.toolFamilies.some(
+            (family) => family === 'read_client_documents' || family === 'get_client_context',
+          ),
+        ),
+        intentRequiresClientRecords:
+          retrievalIntent.subjectScope === 'client' &&
+          RECORD_SPECIFIC_RETRIEVAL_QUERY_CLASSES.has(retrievalIntent.queryClass),
+        attemptedReads: ledgerEntries.map((entry) => entry.tool),
+      };
+    };
+    const currentCatalogRelevance = (): MeriCatalogAvailabilityRelevance =>
+      deriveCatalogAvailabilityRelevance(lastUserText, catalogRelevanceSignals());
+    // Recompute the availability guidance at EVERY provider request from a FRESH
+    // observer snapshot and FRESH request relevance, so a current failure
+    // observed after the first round still reaches the second round and the
+    // synthesis. The static instructions are never mutated: no stale block is
+    // once-appended and no contradictory copies accumulate.
+    const providerInstructions = (base: string): string => {
+      const snapshot = availabilityObserver?.snapshot();
+      if (!snapshot) return base;
+      const block = meriCatalogAvailabilityInstruction(snapshot, currentCatalogRelevance());
+      return block ? `${base}\n\n${block}` : base;
+    };
     const toolSchemas =
       dto.toolPolicy === 'none'
         ? []
@@ -2011,7 +2249,7 @@ export class MeriV3AssistantService {
       const synthesis = await this.openai.complete({
         profile,
         instructions: [
-          selected.instructions,
+          providerInstructions(selected.instructions),
           finishInstructions(),
           ...(runtimeBudget.acquisitionStopped ? [runtimeBudget.partialInstruction()] : []),
         ].join('\n\n'),
@@ -2058,7 +2296,7 @@ export class MeriV3AssistantService {
 
         const response = await this.openai.complete({
           profile,
-          instructions,
+          instructions: providerInstructions(instructions),
           input,
           tools,
           toolChoice: 'auto',
@@ -2643,6 +2881,36 @@ export class MeriV3AssistantService {
           reason: statusResult.failureReason,
           latencyMs: statusResult.latencyMs,
         });
+      }
+    }
+
+    // Final release truthfulness. The provider is NOT trusted to obey the
+    // instruction, so when a relevant required source was unavailable this turn
+    // we do not release the provider's free-form prose at all: appending a
+    // disclaimer would leave an unsupported consulted-record claim in place. We
+    // instead release a bounded, fixed limitation plus only the genuinely
+    // supported findings already retained from completed reads. Deliberate
+    // disabled/skipped/no_eligible and unrelated failures never doom an answer.
+    if (released.reply && availabilityObserver) {
+      const finalSnapshot = availabilityObserver.snapshot();
+      const limitation = meriCatalogAvailabilityReleaseNote(
+        finalSnapshot,
+        currentCatalogRelevance(),
+        { seededEvidencePresent: initialEvidence.citations.length > 0 },
+      );
+      if (limitation) {
+        // The bounded fallback DISCARDS the provider prose, so it replaces BOTH
+        // the reply and its citations: the released citations become exactly the
+        // genuine supported citations the bounded reply actually rendered (with
+        // their original identities/numbers). `released.citations` from
+        // finalizeReply is marker-filtered against the now-discarded provider
+        // prose, so it would otherwise leave the bounded reply's seeded `[9]`
+        // marker dangling (and could carry an unrelated provider citation).
+        const bounded = buildBoundedCatalogAvailabilityReply(limitation, ledgerEntries, {
+          seedEntries: initialEvidence.ledgerEntries,
+          citations,
+        });
+        released = { ...released, reply: bounded.reply, citations: bounded.citations };
       }
     }
 
@@ -3903,6 +4171,19 @@ export class MeriV3AssistantService {
     }
     const definition = this.registry.get(args.name);
     if (!definition) {
+      // A canonical native read the live registry cannot serve is a CURRENT
+      // registry-unavailable read failure. The capability identity is taken from
+      // the canonical capability metadata (the live registry has no definition),
+      // never a tool-name prefix. Status only.
+      const canonical = MERI_CAPABILITY_REGISTRY.find(
+        (item) => item.name === args.name && item.readOnly === true,
+      );
+      if (canonical && !READONLY_ARTIFACT_OWNER_TOOLS.has(canonical.name)) {
+        catalogAvailabilityObserverOf(args.control)?.noteNativeReadFailure(
+          canonical.name,
+          'unavailable',
+        );
+      }
       const detail = 'This tool is not available in the governed Capiro registry.';
       args.steps.push({ tool: args.name, label, status: 'error', detail });
       args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
@@ -4020,6 +4301,9 @@ export class MeriV3AssistantService {
     }
 
     let dispatchedReservationId: string | undefined;
+    // Whether the owner read itself was dispatched (so a later throw is an owner
+    // read failure, not a pre-dispatch reservation/authority failure).
+    let ownerReadDispatched = false;
     try {
       let result: unknown;
       let durableSafeRead: DurableSafeReadOutcome | undefined;
@@ -4036,6 +4320,12 @@ export class MeriV3AssistantService {
           },
           args.control,
         );
+        // The replay settlement above is awaited. Re-assert the ORIGINAL parent
+        // before branching into any current-authority/reservation call, so a
+        // Stop/absolute expiry during the replay settlement cannot authorize a
+        // fresh reservation or a dispatch. The replay outcome itself is an
+        // already-incurred bounded settlement and is preserved as-is.
+        assertToolExecutionActive(args.control);
         if (replay.replayed === true) {
           await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
           result = replay.result;
@@ -4046,6 +4336,14 @@ export class MeriV3AssistantService {
               'The durable attempt was already spent or its replay proof failed; no second dispatch is allowed.',
             );
           await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
+          // The current-authority boundary above is awaited. Re-assert the
+          // ORIGINAL parent before opening the NEW safe-read reservation, so a
+          // Stop/absolute expiry during that await cannot start a fresh
+          // reservation that a transport may complete anyway. An aborted signal
+          // alone does not prevent a new reservation on such a transport; the
+          // existing post-reservation assertion below still guards the owner
+          // read that follows.
+          assertToolExecutionActive(args.control);
           const reservation = await this.researchSafeReadRequest(
             args.researchRun,
             'reservations',
@@ -4063,8 +4361,19 @@ export class MeriV3AssistantService {
             reservation.toolVersion !== toolVersion
           )
             throw new Error('Research tool attempt was not admitted for dispatch.');
+          // The authority/reservation boundary above is awaited. Re-assert the
+          // ORIGINAL parent before opening the NEW owner dispatch, so a
+          // Stop/expiry during those awaits cannot start a fresh read.
+          assertToolExecutionActive(args.control);
           dispatchedReservationId = reservation.reservationId;
+          ownerReadDispatched = true;
           result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
+          // The owner read is now INCURRED. Its outcome/failure is settled
+          // durably below regardless of a Stop during the call, so a reserved
+          // attempt is never bypassed and the durable evidence of the read is
+          // never discarded. Only PUBLICATION (the availability observation, the
+          // done step/event, the ledger citation/artifact and the next provider
+          // round) is withheld for a turn that is no longer current.
           const classification = classifyApiToolReadOutcome(args.name, result);
           // Complete, empty and partial reads are receipted; the API keeps
           // partial ones out of the qualified sources but re-checks them.
@@ -4085,6 +4394,17 @@ export class MeriV3AssistantService {
               args.control,
             );
             const detail = `Read result was not durably qualified (${classification?.kind ?? 'unknown'}).`;
+            // The failure settlement above preserves the incurred read. A
+            // Stop/expiry during the owner call or settlement must not now
+            // publish it as a current failure observation or an error step.
+            assertToolExecutionActive(args.control);
+            this.noteNativeReadOutcomeFailure(
+              args.name,
+              args.schema,
+              args.dto,
+              args.control,
+              classification,
+            );
             args.steps.push({ tool: args.name, label, status: 'error', detail });
             args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
             return result;
@@ -4105,11 +4425,48 @@ export class MeriV3AssistantService {
             args.control,
           );
           durableSafeRead = this.durableOutcome({ ...receipt, replayed: false });
+          // The legitimate durable settlement is complete. A Stop/expiry during
+          // the owner call or the settlement must not now publish the read as a
+          // current success. The reservation is settled, so clear it so the
+          // catch cannot re-settle a successful read as a failed dispatch.
+          dispatchedReservationId = undefined;
+          assertToolExecutionActive(args.control);
+          this.noteNativeReadOutcomeFailure(
+            args.name,
+            args.schema,
+            args.dto,
+            args.control,
+            classification,
+          );
         }
       } else {
         await this.assertCurrentProcedureAuthority(args.conversationId, args.name, args.control);
+        // The current-authority boundary above is awaited. Re-assert the
+        // ORIGINAL parent before opening the NEW registry owner dispatch, so a
+        // Stop/expiry during that await cannot start a fresh read.
+        assertToolExecutionActive(args.control);
+        ownerReadDispatched = true;
         result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
+        // The owner result resolved. If the parent stopped/expired while the
+        // read was awaited, the result is NOT current: withhold the availability
+        // observation and the done step/event so a late result never reaches the
+        // native success/failure observer, the citation/artifact ledger or the
+        // next provider round as if it were current. The read was already
+        // incurred at the owner; nothing is rolled back.
+        assertToolExecutionActive(args.control);
+        this.noteNativeReadOutcomeFailure(
+          args.name,
+          args.schema,
+          args.dto,
+          args.control,
+          classifyApiToolReadOutcome(args.name, result),
+        );
       }
+      // The replay settlement (or the branch above) is complete. Re-assert the
+      // ORIGINAL parent before the ordinary done publication so a Stop/expiry
+      // during a legitimate durable settlement cannot publish the read as a
+      // current success.
+      assertToolExecutionActive(args.control);
       if (durableSafeRead) args.captureDurableSafeRead(durableSafeRead);
       args.steps.push({ tool: args.name, label, status: 'done', durableSafeRead });
       args.emit({
@@ -4136,6 +4493,20 @@ export class MeriV3AssistantService {
         }
       }
       assertToolExecutionActive(args.control);
+      // A throw from the actual owner read dispatch (after the read was
+      // admitted) is a CURRENT canonical native-read failure. A pre-dispatch
+      // reservation/authority failure (`ownerReadDispatched` still false) is NOT
+      // recorded. An aborted turn already rethrew above and is never recorded.
+      if (ownerReadDispatched) {
+        this.noteNativeReadOutcomeFailure(
+          args.name,
+          args.schema,
+          args.dto,
+          args.control,
+          undefined,
+          'failed',
+        );
+      }
       const detail = error instanceof Error ? error.message.slice(0, 180) : 'Tool failed';
       args.steps.push({ tool: args.name, label, status: 'error', detail });
       args.emit({ type: 'tool_done', tool: args.name, label, status: 'error', detail });
@@ -4591,11 +4962,17 @@ export class MeriV3AssistantService {
   }
 
   protected async fetchToolSchemas(control?: ToolExecutionControl): Promise<ToolSchema[]> {
+    // Entry guard on the ORIGINAL parent control. A stopped/expired request must
+    // never start discovery (and must never become a benign empty native catalog).
+    assertToolExecutionActive(control);
+    const observer = catalogAvailabilityObserverOf(control);
     const credentials = RequestCredentialsStore.get();
     if (!credentials?.bearerToken) {
+      observer?.noteNative({ outcome: 'missing_credential' });
       this.logger.warn('MeriV3: no bearer available; proceeding without Capiro tools');
       return [];
     }
+    let nativeNoted = false;
     try {
       const response = await fetch(`${this.apiBaseUrl}/api/clio/tool-schemas`, {
         signal: control?.signal,
@@ -4607,10 +4984,45 @@ export class MeriV3AssistantService {
             : {}),
         },
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      // The parent may have stopped/expired while the fetch was in flight: a
+      // response that resolves after Stop is NOT healthy evidence for this turn,
+      // and an HTTP error must not mask the stopped/expired parent.
+      assertToolExecutionActive(control);
+      if (!response.ok) {
+        nativeNoted = true;
+        observer?.noteNative({
+          outcome:
+            response.status === 401 || response.status === 403 ? 'auth_denied' : 'unavailable',
+        });
+        throw new Error(`HTTP ${response.status}`);
+      }
       const body = (await response.json()) as { schemas?: ToolSchema[] };
-      return selectMeriCapabilitySchemas(body.schemas ?? [], 'full_chat', this.registry.list());
+      // Re-assert after the JSON await before any benign status is classified.
+      assertToolExecutionActive(control);
+      const raw = Array.isArray(body?.schemas) ? body.schemas : null;
+      if (!raw) {
+        // A missing/malformed array is a failure; a genuine [] is a real empty.
+        nativeNoted = true;
+        observer?.noteNative({ outcome: 'malformed' });
+        return [];
+      }
+      const selected = selectMeriCapabilitySchemas(raw, 'full_chat', this.registry.list());
+      nativeNoted = true;
+      observer?.noteNative({ outcome: raw.length ? 'usable' : 'empty', count: selected.length });
+      return selected;
     } catch (error) {
+      // Never swallow a real transport cancellation.
+      if (control?.signal?.aborted) throw error;
+      // An expired deadline with an un-aborted signal is still a stopped turn:
+      // propagate it rather than returning a benign empty catalog. Re-assert the
+      // ORIGINAL parent so a caught HTTP/JSON/credential failure can never mask
+      // expired parent state.
+      assertToolExecutionActive(control);
+      if (!nativeNoted) {
+        observer?.noteNative({
+          outcome: error instanceof SyntaxError ? 'malformed' : 'unavailable',
+        });
+      }
       this.logger.warn(
         `MeriV3 tool-schema fetch failed: ${
           error instanceof Error ? error.message : String(error)

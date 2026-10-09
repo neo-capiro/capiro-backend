@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
-import type { ToolExecutionControl } from '@capiro/meriv2-core';
+import { assertToolExecutionActive, type ToolExecutionControl } from '@capiro/meriv2-core';
 import { createMeriExecutionControl } from '../meri-execution-control.js';
+import { catalogAvailabilityObserverOf } from './meriv3-catalog-availability.js';
 
 @Injectable()
 export class ApiVisualAnalysisRepo {
@@ -25,8 +26,15 @@ export class ApiVisualAnalysisRepo {
    * the model surface for that turn instead of advertising a doomed tool.
    */
   async available(control?: ToolExecutionControl): Promise<boolean> {
+    // Entry guard on the ORIGINAL parent control: a stopped/expired request must
+    // not be probed, and must never be recorded as a benign capability result.
+    assertToolExecutionActive(control);
+    const observer = catalogAvailabilityObserverOf(control);
     const credentials = RequestCredentialsStore.get();
-    if (!credentials?.bearerToken) return false;
+    if (!credentials?.bearerToken) {
+      observer?.noteAnalysis({ outcome: 'missing_credential' });
+      return false;
+    }
     const execution = createMeriExecutionControl(control, Math.min(this.timeoutMs, 10_000));
     try {
       execution.assertActive();
@@ -40,10 +48,48 @@ export class ApiVisualAnalysisRepo {
         },
         signal: execution.signal,
       });
-      if (!response.ok) return false;
+      // A response that resolves after the parent Stop/expiry is NOT healthy
+      // evidence; re-check the optional-probe (child) bound and assert the
+      // ORIGINAL parent independently after each await, so neither a resolved
+      // response nor a child-only timeout can be recorded as a benign
+      // usable/disabled/malformed result for a stopped/expired parent.
+      execution.assertActive();
+      assertToolExecutionActive(control);
+      if (!response.ok) {
+        observer?.noteAnalysis({
+          outcome:
+            response.status === 401 || response.status === 403 ? 'auth_denied' : 'unavailable',
+        });
+        return false;
+      }
       const body = (await response.json()) as { visualAnalysis?: { enabled?: unknown } };
-      return body.visualAnalysis?.enabled === true;
+      execution.assertActive();
+      assertToolExecutionActive(control);
+      const enabled = body.visualAnalysis?.enabled;
+      if (enabled === true) {
+        observer?.noteAnalysis({ outcome: 'usable' });
+        return true;
+      }
+      if (enabled === false) {
+        // Deliberate owner capability disable — not an outage.
+        observer?.noteAnalysis({ outcome: 'disabled' });
+        return false;
+      }
+      // Missing field or wrong type is malformed metadata, not a healthy empty.
+      observer?.noteAnalysis({ outcome: 'malformed' });
+      return false;
     } catch (error) {
+      // Distinguish a real parent request Stop/expiry from ONLY the bounded
+      // optional probe timing out: a parent stop must propagate so no later
+      // read/model work starts, while an optional-probe timeout fails closed and
+      // still allows the (non-visual) chat answer.
+      if (
+        control?.signal?.aborted ||
+        (control?.deadlineAt !== undefined && Date.now() >= control.deadlineAt)
+      ) {
+        throw error;
+      }
+      observer?.noteAnalysis({ outcome: 'unavailable' });
       this.logger.debug(
         `Visual-analysis availability check failed closed: ${
           error instanceof Error ? error.message.slice(0, 160) : String(error).slice(0, 160)
@@ -98,13 +144,21 @@ export class ApiVisualAnalysisRepo {
         body: JSON.stringify(input),
         signal: execution.signal,
       });
+      // Re-check the child bound and the ORIGINAL parent after the owner
+      // response so no later provider/read/artifact effect starts for a
+      // stopped/expired request. Any settlement already incurred by this call is
+      // preserved (never counted as a new effect).
+      execution.assertActive();
+      assertToolExecutionActive(control);
       if (!response.ok) {
         const body = await response.text().catch(() => '');
         throw new Error(
           `${operation} failed: ${response.status} ${response.statusText} ${body.slice(0, 200)}`,
         );
       }
-      return (await response.json()) as unknown;
+      const ownerResult = (await response.json()) as unknown;
+      assertToolExecutionActive(control);
+      return ownerResult;
     } finally {
       execution.dispose();
     }

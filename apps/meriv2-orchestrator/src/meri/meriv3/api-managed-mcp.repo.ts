@@ -1,8 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
-import type { ToolExecutionControl } from '@capiro/meriv2-core';
+import { assertToolExecutionActive, type ToolExecutionControl } from '@capiro/meriv2-core';
 import { createMeriExecutionControl } from '../meri-execution-control.js';
+import {
+  catalogAvailabilityObserverOf,
+  managedCatalogOutcomeFor,
+  parseManagedCatalogAvailability,
+} from './meriv3-catalog-availability.js';
 
 export interface ManagedMcpToolSchema {
   name: string;
@@ -30,23 +35,76 @@ export class ApiManagedMcpRepo {
   }
 
   async schemas(control?: ToolExecutionControl): Promise<ManagedMcpToolSchema[]> {
+    // Entry guard on the ORIGINAL parent control: a stopped/expired request must
+    // never start managed discovery.
+    assertToolExecutionActive(control);
+    const observer = catalogAvailabilityObserverOf(control);
     const creds = RequestCredentialsStore.get();
-    if (!creds?.bearerToken) return [];
+    if (!creds?.bearerToken) {
+      observer?.noteManaged({ outcome: 'missing_credential' });
+      return [];
+    }
     try {
       const response = await fetch(`${this.apiBaseUrl}/api/clio/v3/mcp-tool-schemas`, {
         signal: control?.signal,
         headers: this.headers(creds.bearerToken, creds.impersonateTenantId, false),
       });
+      // A response that resolves after the parent Stop/expiry is NOT healthy
+      // evidence, and a non-OK return must not mask the stopped/expired parent.
+      assertToolExecutionActive(control);
       if (!response.ok) {
+        observer?.noteManaged({
+          outcome:
+            response.status === 401 || response.status === 403 ? 'auth_denied' : 'unavailable',
+        });
         this.logger.warn(`Managed MCP schemas -> ${response.status}`);
         return [];
       }
-      const body = (await response.json()) as { schemas?: ManagedMcpToolSchema[] };
-      return Array.isArray(body.schemas) ? body.schemas : [];
+      const body = (await response.json()) as {
+        schemas?: ManagedMcpToolSchema[];
+        availability?: unknown;
+      };
+      // Re-assert after the JSON await before any benign status is recorded, so
+      // a missing/malformed array return cannot swallow a stopped/expired parent.
+      assertToolExecutionActive(control);
+      if (!Array.isArray(body.schemas)) {
+        // A malformed/absent array is a failure, not a genuine empty catalog.
+        observer?.noteManaged({ outcome: 'malformed' });
+        return [];
+      }
+      const availability = parseManagedCatalogAvailability(body.availability);
+      observer?.noteManagedAvailability(availability);
+      if (availability) {
+        // A valid envelope: an ok+[] catalog is a genuine successful empty and a
+        // no_eligible catalog is a deliberate nothing-eligible (NOT an outage);
+        // an unavailable catalog is a real failure. Never a claim of a grant.
+        observer?.noteManaged({
+          outcome: managedCatalogOutcomeFor(availability, body.schemas.length),
+          count: body.schemas.length,
+        });
+      } else if (body.availability === undefined) {
+        // Rolling-release: the envelope is GENUINELY ABSENT from the JSON (the
+        // API predates the additive availability field). Retain the
+        // already-authorized schemas with UNKNOWN completeness (never a claim of
+        // ok/no_eligible). An explicitly PRESENT null is NOT this case — the
+        // actual producer always emits a well-formed envelope, so a present-but-
+        // invalid value (including null) is malformed below.
+        observer?.noteManaged({ outcome: 'metadata_unknown', count: body.schemas.length });
+      } else {
+        // Present but malformed/contradictory availability (including an
+        // explicit null) is DISTINCT from a missing envelope: retain the admitted
+        // schemas under the existing authority, but never claim
+        // complete/ok/no_eligible — record the malformed status.
+        observer?.noteManaged({ outcome: 'malformed', count: body.schemas.length });
+      }
+      return body.schemas;
     } catch (error) {
       // Never swallow transport cancellation. A cancelled/stopped turn must
       // surface as an abort, not as a silent empty catalog that merely blocks.
       if (control?.signal?.aborted) throw error;
+      // An expired deadline with an un-aborted signal is still a stopped turn.
+      assertToolExecutionActive(control);
+      observer?.noteManaged({ outcome: error instanceof SyntaxError ? 'malformed' : 'unavailable' });
       this.logger.warn(
         `Managed MCP schemas unavailable: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -79,13 +137,22 @@ export class ApiManagedMcpRepo {
           signal: execution.signal,
         },
       );
+      // A response that resolves after the parent Stop/expiry is not healthy
+      // evidence; re-check the child bound and the ORIGINAL parent after the
+      // response, before returning, so no later provider/read/artifact effect
+      // starts for a stopped/expired request. Any owner settlement already
+      // incurred by this call is preserved (never counted as a new effect).
+      execution.assertActive();
+      assertToolExecutionActive(control);
       if (!response.ok) {
         const detail = await response.text().catch(() => '');
         throw new Error(
           `Managed app tool "${toolName}" failed: ${response.status} ${detail.slice(0, 200)}`,
         );
       }
-      return (await response.json()) as unknown;
+      const ownerResult = (await response.json()) as unknown;
+      assertToolExecutionActive(control);
+      return ownerResult;
     } finally {
       execution.dispose();
     }

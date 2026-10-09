@@ -56,6 +56,7 @@ import {
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
+import { ApiVisualAnalysisRepo } from './api-visual-analysis.repo.js';
 import {
   CROSS_CLIENT_REFUSAL,
   GOVERNED_BOUND_EFFECT_REFUSAL,
@@ -536,11 +537,13 @@ function buildManaged(
     /** Optional action-proposal owner mock (defaults to an inert jest.fn()). */
     actionProposalCreate?: jest.Mock;
     /** Optional visual-analysis owner mock (defaults to available:false). */
-    visualAnalysis?: {
-      available: jest.Mock;
-      execute: jest.Mock;
-      discard: jest.Mock;
-    };
+    visualAnalysis?:
+      | {
+          available: jest.Mock;
+          execute: jest.Mock;
+          discard: jest.Mock;
+        }
+      | ApiVisualAnalysisRepo;
   } = {},
 ): { service: MeriV3ManagedMcpAssistantService } {
   const registryService = {
@@ -589,6 +592,7 @@ function fetchRouter(routes: {
   native?: () => Response;
   managed?: () => Response;
   owner?: (url: string) => Response;
+  capabilities?: () => Response;
 }): jest.Mock {
   return jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
@@ -597,6 +601,9 @@ function fetchRouter(routes: {
     }
     if (url.includes('/api/clio/v3/mcp-tools/')) {
       return routes.owner ? routes.owner(url) : jsonResponse({ records: [] });
+    }
+    if (url.includes('/api/clio/v3/capabilities')) {
+      return routes.capabilities ? routes.capabilities() : jsonResponse({});
     }
     if (url.includes('/api/clio/tool-schemas')) {
       return routes.native ? routes.native() : jsonResponse({ schemas: [] });
@@ -717,6 +724,19 @@ function governedTurn(
       },
     },
   } as unknown as MeriGovernedTurnContext;
+}
+
+/**
+ * Await until a synchronous predicate holds. The normal `.run` pipeline drives
+ * the deferred native owner dispatch across several awaited microtasks, so the
+ * request-path Stop/expiry fixtures poll for the actually in-flight owner call
+ * before cancelling/expiring the outer parent.
+ */
+async function waitFor(predicate: () => boolean): Promise<void> {
+  for (let attempt = 0; attempt < 500 && !predicate(); attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  if (!predicate()) throw new Error('waitFor: predicate never became true');
 }
 
 const originalFetch = global.fetch;
@@ -3123,5 +3143,963 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
 
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke.mock.calls[0]?.[1]).toEqual({ clientId: UI_ACME });
+  });
+});
+
+/**
+ * Lane A1 request-local catalog availability: normal `.run` coverage. These
+ * enter the real managed run path with the real ApiManagedMcpRepo + native base
+ * fetch, and assert the sanitized status reaches the provider instructions and
+ * the final release, without fabricating consulted records.
+ */
+describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () => {
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.restoreAllMocks();
+  });
+
+  test('a requested connected-app failure yields a truthful limitation on the final reply', async () => {
+    // Adversarial provider: it ignores the availability instruction AND prefixes
+    // its own `Source note:` (a bypass attempt) while asserting the unsupported
+    // consulted-record fact.
+    const complete = jest.fn().mockResolvedValue(
+      providerResult({
+        outputText:
+          'Source note: Jane Finder is a HubSpot contact. HubSpot records were consulted.',
+      }),
+    );
+    const { service } = buildManaged(complete);
+
+    // HubSpot's managed catalog is unreachable; native Capiro catalog is healthy.
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ error: 'upstream' }, 500),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'availability-requested-app',
+          messages: [{ role: 'user', text: 'Find Jane Finder in HubSpot.' }],
+        }),
+    );
+
+    // The provider request was steered with bounded, source-specific guidance.
+    const instructions = String(complete.mock.calls[0]?.[0]?.instructions ?? '');
+    expect(instructions).toContain('Source availability for this request');
+    expect(instructions).toContain('HubSpot');
+
+    // The provider's unsupported consulted-record fact is ABSENT, not merely
+    // disclaimed: the release does not trust provider obedience and cannot be
+    // bypassed by a provider-authored `Source note:` prefix.
+    expect(result.reply).not.toContain('Jane Finder is a HubSpot contact.');
+    expect(result.reply).not.toContain('HubSpot records were consulted');
+
+    // The fixed, bounded limitation is PRESENT.
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('HubSpot');
+    expect(result.reply).toContain('were not consulted');
+
+    // No fabricated citation or source record was attached for the failed app.
+    expect((result.citations ?? []).some((citation) => citation.tool.includes('hubspot'))).toBe(
+      false,
+    );
+  });
+
+  test('an unrelated failure does not make every answer incomplete', async () => {
+    const complete = jest.fn().mockResolvedValue(providerResult({ outputText: 'It is sunny.' }));
+    const { service } = buildManaged(complete);
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ error: 'upstream' }, 500),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'availability-unrelated',
+          messages: [{ role: 'user', text: 'What is the weather today?' }],
+        }),
+    );
+
+    const instructions = String(complete.mock.calls[0]?.[0]?.instructions ?? '');
+    expect(instructions).not.toContain('Source availability for this request');
+    expect(result.reply).toContain('It is sunny.');
+    expect(result.reply).not.toContain('Source note:');
+  });
+
+  test('a deliberate whole-fetch skip (toolPolicy none) queries no catalog and claims no outage', async () => {
+    const complete = jest.fn().mockResolvedValue(providerResult({ outputText: 'Plain reply.' }));
+    const { service } = buildManaged(complete);
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ error: 'upstream' }, 500),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'availability-skip',
+          toolPolicy: 'none',
+          messages: [{ role: 'user', text: 'Find Jane Finder in HubSpot.' }],
+        }),
+    );
+
+    // The forbidden whole-fetch path is a deliberate skip: no catalog GET at all.
+    expect(managedSchemaGets(fetchMock)).toHaveLength(0);
+    const instructions = String(complete.mock.calls[0]?.[0]?.instructions ?? '');
+    expect(instructions).not.toContain('Source availability for this request');
+    expect(result.reply).toContain('Plain reply.');
+    expect(result.reply).not.toContain('Source note:');
+  });
+
+  test('a current owner read failure after an initially healthy catalog is fed to the released status', async () => {
+    const call = functionCall('owner-read-fail', MANAGED_READ, { query: 'Jane Finder' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      // Adversarial final answer: overclaims the HubSpot read that just failed.
+      .mockResolvedValue(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }));
+    const { service } = buildManaged(complete);
+
+    // The catalog stays healthy (advertised at exposure AND at the pre-I/O
+    // revalidation), but the OWNER read itself fails after dispatch.
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      owner: () => jsonResponse({ error: 'upstream' }, 500),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'availability-owner-failure',
+          messages: [{ role: 'user', text: 'Find Jane Finder in HubSpot.' }],
+        }),
+    );
+
+    // The read was actually attempted at the owner.
+    expect(toolsOnCall(complete, 0)).toContain(MANAGED_READ);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(1);
+
+    // The current owner failure makes the released answer truthful: the
+    // unsupported fact is absent and the fixed limitation is present.
+    expect(result.reply).not.toContain('Jane Finder is a HubSpot contact.');
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('HubSpot');
+    expect(result.reply).toContain('were not consulted');
+  });
+
+  test('a native owner read failure after a healthy catalog reaches the second provider request', async () => {
+    const call = functionCall('native-owner-fail', 'get_client_context', {});
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'The client is thriving.' }));
+    // The native catalog is HEALTHY, but the actual owner read throws.
+    const invoke = jest.fn(async () => {
+      throw new Error('canonical client-context owner unavailable');
+    });
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: 'get_client_context', readOnly: true }], invoke),
+    });
+    const fetchMock = fetchRouter({
+      native: () =>
+        jsonResponse({ schemas: [clientScopedNativeSchema('get_client_context', ['clientId'])] }),
+      managed: () => jsonResponse({ schemas: [] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          clientId: UI_ACME,
+          conversationId: 'availability-native-owner-failure',
+          messages: [{ role: 'user', text: 'Look up our client records.' }],
+        }),
+    );
+
+    // The read was actually attempted at the owner exactly once (no retry/I/O).
+    expect(invoke).toHaveBeenCalledTimes(1);
+    // The CURRENT failure observed after round 0 is present in the NEXT provider
+    // request (fresh snapshot + fresh relevance at every provider request).
+    const secondInstructions = String(complete.mock.calls[1]?.[0]?.instructions ?? '');
+    expect(secondInstructions).toContain('Source availability for this request');
+    expect(secondInstructions).toContain('Capiro client-record read this request needed failed');
+    // The released answer is a bounded, truthful limitation, not provider prose.
+    expect(result.reply).not.toContain('The client is thriving.');
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('not consulted');
+  });
+
+  test('an ordinary client question is relevant through the actual attempted read without literal records', async () => {
+    const call = functionCall('ordinary-client-read', 'get_client_context', {});
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'The client is thriving.' }));
+    const invoke = jest.fn(async () => {
+      throw new Error('canonical client-context owner unavailable');
+    });
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: 'get_client_context', readOnly: true }], invoke),
+    });
+    global.fetch = fetchRouter({
+      native: () =>
+        jsonResponse({ schemas: [clientScopedNativeSchema('get_client_context', ['clientId'])] }),
+      managed: () => jsonResponse({ schemas: [] }),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          clientId: UI_ACME,
+          conversationId: 'availability-ordinary-client',
+          messages: [{ role: 'user', text: 'Summarize the account status.' }],
+        }),
+    );
+
+    // The request NEVER says "client records", but the actual attempted canonical
+    // client-record read made it relevant: the failure reaches the second
+    // provider request and the released limitation.
+    const secondInstructions = String(complete.mock.calls[1]?.[0]?.instructions ?? '');
+    expect(secondInstructions).toContain('Source availability for this request');
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('not consulted');
+  });
+
+  test('a current managed read failure is relevant through the attempted metadata without an app phrase', async () => {
+    const call = functionCall('managed-attempt', MANAGED_READ, { query: 'Anything' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Here is what I found.' }));
+    const { service } = buildManaged(complete);
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      owner: () => jsonResponse({ error: 'upstream' }, 500),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'availability-managed-attempt',
+          messages: [{ role: 'user', text: 'What did we last discuss with them?' }],
+        }),
+    );
+
+    // The request never names HubSpot, but the actual attempted HubSpot read
+    // failed, so the released limitation names it.
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('HubSpot');
+    expect(result.reply).toContain('were not consulted');
+  });
+
+  test('an unavailable envelope naming only an unrelated app does not mark the requested app unavailable', async () => {
+    const complete = jest.fn().mockResolvedValue(
+      providerResult({ outputText: 'HubSpot is connected; no matching record was found.' }),
+    );
+    const { service } = buildManaged(complete);
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () =>
+        jsonResponse({
+          schemas: [managedSchema()],
+          availability: {
+            state: 'unavailable',
+            complete: false,
+            registryUnavailable: false,
+            failures: [{ appId: 'airtable', name: 'Airtable', reason: 'unavailable' }],
+          },
+        }),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'availability-unrelated-app',
+          messages: [{ role: 'user', text: 'Find Jane Finder in HubSpot.' }],
+        }),
+    );
+
+    const instructions = String(complete.mock.calls[0]?.[0]?.instructions ?? '');
+    expect(instructions).not.toContain('Source availability for this request');
+    expect(result.reply).toContain('no matching record was found');
+    expect(result.reply).not.toContain('Source note:');
+  });
+
+  test('a valid authenticated seeded fact is retained with an honest additional-check limitation', async () => {
+    const complete = jest
+      .fn()
+      .mockResolvedValue(providerResult({ outputText: 'Here is the agreement term: 24 months.' }));
+    const { service } = buildManaged(complete);
+    // The native Capiro catalog is DOWN this turn, but the authorized inherited
+    // document observation is already in the authenticated governed context.
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ error: 'native down' }, 500),
+      managed: () => jsonResponse({ schemas: [] }),
+    }) as unknown as typeof fetch;
+
+    const governed = governedWith({
+      inheritedDocumentEvidence: [inheritedDocumentCitation()],
+    });
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        runWithGovernedMeriContext(governed, () =>
+          service.run(context, {
+            conversationId: 'availability-seeded-fact',
+            messages: [{ role: 'user', text: 'Look up our client records.' }],
+          }),
+        ),
+    );
+
+    // The authorized seed record is NOT erased and the limitation is phrased as
+    // an ADDITIONAL live check, not a false "records were not consulted".
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('additional live Capiro client-record check');
+    expect(result.reply).not.toContain('were not consulted');
+    expect(result.reply).toContain('Term: 24 months');
+    // Retained as READABLE source context with its accepted citation — never a
+    // raw serialized result object, provenance field, or internal token/error.
+    expect(result.reply).toContain('Master services agreement');
+    expect(result.reply).toContain('[9] read_client_documents');
+    expect(result.reply).not.toContain('{"');
+    expect(result.reply).not.toContain('"origin"');
+    expect(result.reply).not.toContain('LEAKED_OWNER_BODY');
+    expect(result.reply).not.toContain('initial_context');
+
+    // CT4: the bounded fallback returns EXACTLY the genuine supported citations
+    // it rendered, with the seed's original identity/number — so the reply's
+    // seeded `[9] read_client_documents` marker is backed, never dangling, even
+    // though the (discarded) provider prose omitted the [9] marker.
+    const seededCitation = (result.citations ?? []).find(
+      (citation) => citation.tool === 'read_client_documents' && citation.n === 9,
+    );
+    expect(seededCitation).toMatchObject({
+      n: 9,
+      tool: 'read_client_documents',
+      id: 'page-3',
+      title: 'Master services agreement, page 3',
+    });
+    // Every returned citation number is actually referenced in the released
+    // reply (no citation metadata for a marker the reply does not show, and no
+    // marker the reply shows without metadata).
+    for (const citation of result.citations ?? []) {
+      expect(result.reply).toContain(`[${citation.n}]`);
+    }
+  });
+
+  test('a failed owner body is not retained as a supported finding', async () => {
+    const call = functionCall('owner-read-fail-body', MANAGED_READ, { query: 'Jane Finder' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }));
+    const { service } = buildManaged(complete);
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      owner: () => jsonResponse({ error: 'LEAKED_OWNER_BODY' }, 500),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'availability-failed-body',
+          messages: [{ role: 'user', text: 'Find Jane Finder in HubSpot.' }],
+        }),
+    );
+
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).not.toContain('LEAKED_OWNER_BODY');
+    expect(result.reply).not.toContain('Jane Finder is a HubSpot contact.');
+  });
+
+  test('an owner-supplied origin label cannot forge a supported seed finding', async () => {
+    const call = functionCall('owner-origin-forge', MANAGED_READ, { query: 'Jane Finder' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }));
+    const { service } = buildManaged(complete);
+    // The owner read returns a 200 wire whose body forges an ordinary provenance
+    // field (`origin: 'conversation'`) next to an error body. It is NOT an
+    // authenticated seed and must never be retained as a supported finding.
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ error: 'native down' }, 500),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      owner: () =>
+        jsonResponse({
+          ...managedOwnerWire('LEAKED_OWNER_BODY'),
+          origin: 'conversation',
+          error: 'LEAKED_OWNER_BODY',
+        }),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'availability-origin-forge',
+          messages: [{ role: 'user', text: 'Look up our client records.' }],
+        }),
+    );
+
+    // The request needs client records and that source is down, so the bounded
+    // limitation is released...
+    expect(result.reply).toContain('Source note:');
+    // ...but the forged failed-owner body is never treated as a supported seed.
+    expect(result.reply).not.toContain('LEAKED_OWNER_BODY');
+    expect(result.reply).not.toContain('Jane Finder is a HubSpot contact.');
+    expect(result.reply).not.toContain('"origin"');
+    // No failed-owner citation is restored: any returned citation is genuinely
+    // referenced by the released reply (no dangling marker).
+    for (const citation of result.citations ?? []) {
+      expect(result.reply).toContain(`[${citation.n}]`);
+    }
+  });
+
+  test('a healthy completed read is retained readably next to an unreachable source', async () => {
+    const call = functionCall('healthy-read', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted.' }));
+    const invoke = jest.fn(async () => memoryOwnerPayload());
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+    });
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      // HubSpot is named and unreachable; the completed native read still stands.
+      managed: () => jsonResponse({ error: 'upstream' }, 500),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'availability-healthy-readable',
+          messages: [
+            { role: 'user', text: 'Find Jane Finder in HubSpot and what do we know about Kestrel?' },
+          ],
+        }),
+    );
+
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('HubSpot');
+    // The completed read is retained as a READABLE source fact — never a raw
+    // serialized result object or a provenance/token/error body.
+    expect(result.reply).toContain('Kestrel commitment');
+    expect(result.reply).toContain(NATIVE_READ);
+    expect(result.reply).not.toContain('{"');
+    expect(result.reply).not.toContain('"origin"');
+    expect(result.reply).not.toContain('serialized');
+
+    // CT4: the bounded fallback returns exactly the healthy read's accepted
+    // citation (original identity/number) alongside the reply, and every
+    // returned citation number is referenced in the reply (no dangling marker).
+    const healthyCitation = (result.citations ?? []).find(
+      (citation) => citation.tool === NATIVE_READ,
+    );
+    expect(healthyCitation).toMatchObject({ n: 1, tool: NATIVE_READ, id: RECORD_ID });
+    for (const citation of result.citations ?? []) {
+      expect(result.reply).toContain(`[${citation.n}]`);
+    }
+  });
+
+  test('a poem about Capiro is untouched even when every catalog is down', async () => {
+    const complete = jest.fn().mockResolvedValue(providerResult({ outputText: 'Capiro, a poem.' }));
+    const { service } = buildManaged(complete);
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ error: 'down' }, 500),
+      managed: () => jsonResponse({ error: 'down' }, 500),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'availability-poem',
+          messages: [{ role: 'user', text: 'Write a poem about Capiro' }],
+        }),
+    );
+
+    expect(result.reply).toContain('Capiro, a poem.');
+    expect(result.reply).not.toContain('Source note:');
+  });
+
+  test('preparing for Monday is untouched even when every catalog is down', async () => {
+    const complete = jest
+      .fn()
+      .mockResolvedValue(providerResult({ outputText: 'Here is your Monday plan.' }));
+    const { service } = buildManaged(complete);
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ error: 'down' }, 500),
+      managed: () => jsonResponse({ error: 'down' }, 500),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'availability-monday',
+          messages: [{ role: 'user', text: 'Help me prepare for Monday' }],
+        }),
+    );
+
+    expect(result.reply).toContain('Here is your Monday plan.');
+    expect(result.reply).not.toContain('Source note:');
+  });
+
+  test('a selected-client creative temporal question is untouched when every catalog is down', async () => {
+    const complete = jest
+      .fn()
+      .mockResolvedValue(providerResult({ outputText: 'Today, a small poem.' }));
+    const { service } = buildManaged(complete);
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ error: 'down' }, 500),
+      managed: () => jsonResponse({ error: 'down' }, 500),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          clientId: CLIENT_ID,
+          conversationId: 'availability-selected-client-poem',
+          messages: [{ role: 'user', text: 'Write a poem about today.' }],
+        }),
+    );
+
+    // A client focus plus a generic temporal word ("today") is NOT proof of a
+    // private-record request: the exact provider answer is retained with no
+    // fabricated unavailable-record limitation.
+    expect(result.reply).toContain('Today, a small poem.');
+    expect(result.reply).not.toContain('Source note:');
+  });
+
+  test('an already-stopped outer parent makes zero catalog, model or owner calls (with credentials)', async () => {
+    const complete = jest.fn();
+    const { service } = buildManaged(complete);
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      owner: () => jsonResponse(managedOwnerWire('should-not-run')),
+      capabilities: () => jsonResponse({ visualAnalysis: { enabled: true } }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const controller = new AbortController();
+    controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        service.run(
+          context,
+          {
+            conversationId: 'availability-parent-stopped',
+            messages: [{ role: 'user', text: 'Find Jane Finder in HubSpot.' }],
+          },
+          { signal: controller.signal },
+        ),
+      ),
+    ).rejects.toBeDefined();
+
+    // An already-stopped parent never starts discovery, a model call or an owner
+    // read: the stopped request cannot become a benign empty/usable catalog.
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  test('an already-stopped outer parent makes zero calls without credentials too', async () => {
+    const complete = jest.fn();
+    const { service } = buildManaged(complete);
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const controller = new AbortController();
+    controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+
+    await expect(
+      service.run(
+        context,
+        {
+          conversationId: 'availability-parent-stopped-no-creds',
+          messages: [{ role: 'user', text: 'Find Jane Finder in HubSpot.' }],
+        },
+        { signal: controller.signal },
+      ),
+    ).rejects.toBeDefined();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  test('an already-expired outer parent makes zero catalog, model or owner calls', async () => {
+    const complete = jest.fn();
+    const { service } = buildManaged(complete);
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      owner: () => jsonResponse(managedOwnerWire('should-not-run')),
+      capabilities: () => jsonResponse({ visualAnalysis: { enabled: true } }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        service.run(
+          context,
+          {
+            conversationId: 'availability-parent-expired',
+            messages: [{ role: 'user', text: 'Find Jane Finder in HubSpot.' }],
+          },
+          { deadlineAt: Date.now() - 1 },
+        ),
+      ),
+    ).rejects.toBeDefined();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  test('a parent Stop during native discovery is not swallowed as an empty catalog', async () => {
+    const complete = jest.fn();
+    const { service } = buildManaged(complete);
+    const controller = new AbortController();
+    const fetchMock = fetchRouter({
+      native: () => {
+        controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+        return jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] });
+      },
+      managed: () => jsonResponse({ schemas: [] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        service.run(
+          context,
+          {
+            conversationId: 'availability-stop-native',
+            messages: [{ role: 'user', text: 'What do we know about Kestrel?' }],
+          },
+          { signal: controller.signal },
+        ),
+      ),
+    ).rejects.toBeDefined();
+
+    // A response that resolved after Stop is not healthy evidence: no model turn
+    // and no later owner read started.
+    expect(complete).not.toHaveBeenCalled();
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+  });
+
+  test('a parent Stop during managed discovery is not swallowed as an empty catalog', async () => {
+    const complete = jest.fn();
+    const { service } = buildManaged(complete);
+    const controller = new AbortController();
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => {
+        controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+        return jsonResponse({ schemas: [managedSchema()] });
+      },
+      owner: () => jsonResponse(managedOwnerWire('should-not-run')),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        service.run(
+          context,
+          {
+            conversationId: 'availability-stop-managed',
+            messages: [{ role: 'user', text: 'Find Jane Finder in HubSpot.' }],
+          },
+          { signal: controller.signal },
+        ),
+      ),
+    ).rejects.toBeDefined();
+
+    expect(complete).not.toHaveBeenCalled();
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+  });
+
+  test('a parent Stop during the visual capability probe is not swallowed as a usable result', async () => {
+    const complete = jest.fn();
+    // A REAL ApiVisualAnalysisRepo (not the default mock), so the probe's own
+    // parent/child asserts are the thing under test.
+    const { service } = buildManaged(complete, {
+      visualAnalysis: new ApiVisualAnalysisRepo(config() as never),
+    });
+    const controller = new AbortController();
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [] }),
+      capabilities: () => {
+        controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+        return jsonResponse({ visualAnalysis: { enabled: true } });
+      },
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        service.run(
+          context,
+          {
+            conversationId: 'availability-stop-visual',
+            messages: [{ role: 'user', text: 'Summarize the account status.' }],
+          },
+          { signal: controller.signal },
+        ),
+      ),
+    ).rejects.toBeDefined();
+
+    expect(complete).not.toHaveBeenCalled();
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+  });
+
+  test.each<[string, () => Response]>([
+    ['a non-OK response', () => jsonResponse({ error: 'down' }, 500)],
+    ['a malformed-body response', () => new Response('{not json', { status: 200 })],
+  ])(
+    'a parent Stop during native discovery is not masked by %s',
+    async (_label, nativeRoute) => {
+      const complete = jest.fn();
+      const { service } = buildManaged(complete);
+      const controller = new AbortController();
+      const fetchMock = fetchRouter({
+        native: () => {
+          controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+          return nativeRoute();
+        },
+        managed: () => jsonResponse({ schemas: [] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await expect(
+        RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+          service.run(
+            context,
+            {
+              conversationId: 'availability-stop-native-response',
+              messages: [{ role: 'user', text: 'What do we know about Kestrel?' }],
+            },
+            { signal: controller.signal },
+          ),
+        ),
+      ).rejects.toBeDefined();
+
+      // The stopped parent propagates ahead of the benign/unavailable early
+      // branch: no model turn and no later owner effect.
+      expect(complete).not.toHaveBeenCalled();
+      expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+    },
+  );
+
+  // ── Lane A continuation: native registry owner-call post-await boundaries ──
+  //
+  // The native registry owner dispatch is the in-process canonical read. A Stop
+  // or absolute-expiry of the outer parent WHILE that owner call is awaited must
+  // not publish the late result as a current read: no availability observation,
+  // no done step/event, no citation/artifact ledger and no further provider
+  // round. The read was already incurred at the owner; nothing is rolled back,
+  // and the deferred fixture keeps the real registered capability, current
+  // authority, MeriRunBudget and ledger (only the external transport is faked).
+
+  test('a deferred native registry owner read resolving after the outer parent stops is never published as current', async () => {
+    const call = functionCall('native-deferred-stop', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
+    let resolveOwner: ((value: unknown) => void) | undefined;
+    const invoke = jest.fn(
+      (..._args: Parameters<ToolRegistry['invoke']>) =>
+        new Promise<unknown>((resolve) => {
+          resolveOwner = resolve;
+        }),
+    );
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+    });
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      managed: () => jsonResponse({ schemas: [] }),
+    }) as unknown as typeof fetch;
+
+    const controller = new AbortController();
+    const events: MeriV3ChatStreamEvent[] = [];
+    const run = RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(
+        context,
+        {
+          conversationId: 'native-deferred-stop',
+          messages: [{ role: 'user', text: 'What do we know about Kestrel?' }],
+        },
+        { signal: controller.signal, onEvent: (event) => events.push(event) },
+      ),
+    );
+
+    // The registered native owner dispatch is actually in flight.
+    await waitFor(() => invoke.mock.calls.length === 1);
+    // The outer parent stops while the owner read is awaited...
+    controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+    // ...and the already-incurred owner read now resolves.
+    resolveOwner?.(memoryOwnerPayload());
+    const result: MeriV3ChatResult = await run;
+
+    // The read was dispatched exactly once and no later provider round started:
+    // the late result was never fed back to the model.
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(fedBackInput(complete)).not.toContain(`[Tool result from "${NATIVE_READ}"`);
+
+    // No citation/artifact/step/done-event publication for the late read.
+    expect((result.citations ?? []).some((citation) => citation.tool === NATIVE_READ)).toBe(false);
+    expect(result.artifacts ?? []).toHaveLength(0);
+    expect(
+      (result.steps ?? []).some((step) => step.tool === NATIVE_READ && step.status === 'done'),
+    ).toBe(false);
+    expect(events.some((event) => event.type === 'tool_done' && event.tool === NATIVE_READ)).toBe(
+      false,
+    );
+
+    // The turn ends as a cancelled partial, not a false healthy answer.
+    expect(result.reply).not.toContain('Kestrel commitment noted');
+    expect(result.telemetry?.partial).toBe(true);
+    expect(result.telemetry?.finishReason).toBe('cancelled');
+  });
+
+  test('a deferred native registry owner read resolving after the outer parent deadline passes is never published as current', async () => {
+    const call = functionCall('native-deferred-expiry', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
+    let resolveOwner: ((value: unknown) => void) | undefined;
+    const invoke = jest.fn(
+      (..._args: Parameters<ToolRegistry['invoke']>) =>
+        new Promise<unknown>((resolve) => {
+          resolveOwner = resolve;
+        }),
+    );
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+    });
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      managed: () => jsonResponse({ schemas: [] }),
+    }) as unknown as typeof fetch;
+
+    // An ordinary-chat turn reserves 90s for synthesis, so the absolute deadline
+    // must be far enough ahead for the gather round to start. It is then
+    // advanced past that instant while the owner read is awaited — exactly the
+    // wall-clock expiry the shared control checks (`Date.now() >= deadlineAt`).
+    const turnDeadlineAt = Date.now() + 120_000;
+    const run = RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(
+        context,
+        {
+          conversationId: 'native-deferred-expiry',
+          messages: [{ role: 'user', text: 'What do we know about Kestrel?' }],
+        },
+        { deadlineAt: turnDeadlineAt },
+      ),
+    );
+
+    await waitFor(() => invoke.mock.calls.length === 1);
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(turnDeadlineAt + 1);
+    try {
+      resolveOwner?.(memoryOwnerPayload());
+      const result: MeriV3ChatResult = await run;
+
+      expect(invoke).toHaveBeenCalledTimes(1);
+      expect(complete).toHaveBeenCalledTimes(1);
+      expect(fedBackInput(complete)).not.toContain(`[Tool result from "${NATIVE_READ}"`);
+      expect((result.citations ?? []).some((citation) => citation.tool === NATIVE_READ)).toBe(false);
+      expect(result.artifacts ?? []).toHaveLength(0);
+      expect(
+        (result.steps ?? []).some((step) => step.tool === NATIVE_READ && step.status === 'done'),
+      ).toBe(false);
+      expect(result.reply).not.toContain('Kestrel commitment noted');
+      expect(result.telemetry?.partial).toBe(true);
+      expect(result.telemetry?.finishReason).toBe('deadline_exceeded');
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  test('an active outer parent still publishes the deferred native owner read as a supported result', async () => {
+    const call = functionCall('native-deferred-active', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
+      .mockResolvedValueOnce(providerResult({ outputText: 'Kestrel commitment noted [1].' }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
+    let resolveOwner: ((value: unknown) => void) | undefined;
+    const invoke = jest.fn(
+      (..._args: Parameters<ToolRegistry['invoke']>) =>
+        new Promise<unknown>((resolve) => {
+          resolveOwner = resolve;
+        }),
+    );
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+    });
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      managed: () => jsonResponse({ schemas: [] }),
+    }) as unknown as typeof fetch;
+
+    const run = RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(context, {
+        conversationId: 'native-deferred-active',
+        messages: [{ role: 'user', text: 'What do we know about Kestrel?' }],
+      }),
+    );
+
+    await waitFor(() => invoke.mock.calls.length === 1);
+    resolveOwner?.(memoryOwnerPayload());
+    const result: MeriV3ChatResult = await run;
+
+    // The active parent publishes the read exactly as the synchronous green
+    // control does: two provider rounds, the canonical [1] citation and the
+    // supported final answer.
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect(fedBackInput(complete)).toContain(`[Tool result from "${NATIVE_READ}"`);
+    const nativeCitation = result.citations?.find((citation) => citation.tool === NATIVE_READ);
+    expect(nativeCitation).toMatchObject({ n: 1, id: RECORD_ID, tool: NATIVE_READ });
+    expect(result.reply).toContain('Kestrel commitment noted');
   });
 });
