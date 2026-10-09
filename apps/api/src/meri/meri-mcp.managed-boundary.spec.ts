@@ -354,6 +354,52 @@ describe('managed catalog availability seam at the MCP owner boundary', () => {
     },
   );
 
+  const genericCases: Array<[('token' | 'none'), ('disconnected' | 'pending')]> = [
+    ['token', 'disconnected'],
+    ['token', 'pending'],
+    ['none', 'disconnected'],
+    ['none', 'pending'],
+  ];
+
+  test.each(genericCases)(
+    'a genuine generic %s connector failure with %s metadata is still reported',
+    async (authType, status) => {
+      const { service, row, client } = make();
+      // A generic (catalog-less) token/none connector: the connection status is
+      // NOT a discovery/execution gate (only OAuth is skipped when non-connected
+      // — see registryFor/executeBridged), so a genuine listTools failure is a
+      // real outage and must not be masked by the deliberate-disconnect policy.
+      Object.assign(row, {
+        id: 'srv-generic',
+        name: 'custom-connector',
+        catalogId: null,
+        endpoint: 'https://custom.example/mcp',
+        authType,
+        connectionStatus: status,
+        toolAllowlist: ['thing'],
+        readOnlyTools: ['thing'],
+      });
+      client.listTools.mockRejectedValue(new Error('provider unavailable'));
+
+      const first = await service.bridgedSchemasDetailedFor(ctx);
+      expect(first.schemas).toEqual([]);
+      expect(first.registryUnavailable).toBe(false);
+      expect(first.failures).toEqual([
+        { serverId: 'srv-generic', managedAppId: null, reason: 'unavailable' },
+      ]);
+      expect(client.listTools).toHaveBeenCalledTimes(1);
+
+      // Bounded failure retained across a cached repeat with no rediscovery.
+      const second = await service.bridgedSchemasDetailedFor(ctx);
+      expect(second.failures).toEqual([
+        { serverId: 'srv-generic', managedAppId: null, reason: 'unavailable' },
+      ]);
+      expect(second.schemas).toEqual([]);
+      expect(client.listTools).toHaveBeenCalledTimes(1);
+      expect(client.callTool).not.toHaveBeenCalled();
+    },
+  );
+
   test('global MCP disable is deliberate: no failure and no registry outage', async () => {
     const tx = {
       tenant: { findUnique: jest.fn(async () => null) },

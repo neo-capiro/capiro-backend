@@ -619,10 +619,17 @@ export class MeriMcpService {
       const failures = registry.failures.filter((failure) => {
         const server = visible.get(failure.serverId);
         if (!server) return false;
-        // A deliberate disconnect/pending row is a non-outage, matching the
-        // managed owner's policy; error/needs_reauth rows must still be named,
-        // so this deliberately does NOT require `connected`.
-        if (server.connectionStatus === 'disconnected' || server.connectionStatus === 'pending')
+        // A deliberate disconnect/pending row is a non-outage ONLY where the
+        // connection status is itself a discovery/execution gate — an OAuth
+        // connector, whose discovery (`registryFor`) and dispatch already
+        // require `connected`. A generic token/none connector (catalogId null)
+        // is discovered regardless of `connectionStatus`, so its genuine
+        // listTools failure must still be named rather than masked by
+        // non-connected metadata.
+        if (
+          server.authType === 'oauth' &&
+          (server.connectionStatus === 'disconnected' || server.connectionStatus === 'pending')
+        )
           return false;
         if (failure.managedAppId) {
           const managed = managedAppDefinition(server.catalogId);

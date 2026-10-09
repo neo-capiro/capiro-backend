@@ -152,6 +152,14 @@ function driveRow(overrides: Partial<Row> = {}): Row {
 
 type Where = Record<string, unknown>;
 
+/**
+ * The tenant lookup the services perform (`krispTenantEnabled` selects only
+ * `settings`). Declared as an explicit async union so the shared harness mock
+ * accepts a real settings control at the call site without an `as`/`any` cast
+ * and without weakening the default `null` (no tenant) return.
+ */
+type TenantLookupResult = { settings: unknown } | null;
+
 type HookMethod = 'findMany' | 'findFirst' | 'updateMany';
 
 /**
@@ -278,7 +286,7 @@ function createDb(rows: Row[], hooks: BoundaryHook[] = []) {
       return cloneRow(row);
     }),
   };
-  const tenant = { findUnique: jest.fn(async () => null) };
+  const tenant = { findUnique: jest.fn(async (): Promise<TenantLookupResult> => null) };
   const auditLog = { create: jest.fn(async () => ({})) };
   const tx = { clioMcpServer, tenant, auditLog };
   const prisma = {
@@ -1530,14 +1538,20 @@ describe('managed catalog availability (personal owner, provider-free)', () => {
       const result = await c.managed.managedCatalogForMeriV3(OWNER);
 
       // The final personal-owner read was actually exercised, once, with the real
-      // tenant + personal scope + owner predicate and NO OR.
+      // tenant + personal scope + owner predicate and NO OR. A real existence
+      // guard narrows the stored predicate before the property access (rather
+      // than an optional-chaining/any-cast that would hide a missing capture).
       expect(c.hook.hits).toBe(1);
-      expect(c.hook.matchedWheres[0]).toMatchObject({
+      const finalWhere = c.hook.matchedWheres[0];
+      if (!finalWhere) {
+        throw new Error('the final personal-owner read predicate was not captured');
+      }
+      expect(finalWhere).toMatchObject({
         tenantId: OWNER.tenantId,
         scope: 'user',
         ownerUserId: OWNER.userId,
       });
-      expect(c.hook.matchedWheres[0].OR).toBeUndefined();
+      expect(finalWhere.OR).toBeUndefined();
       // It ran AFTER the discovery catch persisted the failure status.
       expect(c.finalStatus()).toBe('error');
 
