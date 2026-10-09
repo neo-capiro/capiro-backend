@@ -705,16 +705,26 @@ function buildBoundedCatalogAvailabilityReply(
   // supported invocation identities — preserving original numbers/identity/
   // snippets. A source with no citable extract keeps a bounded honest receipt
   // (its tool name) instead of an arbitrary serialized object.
-  const retainedCitationObjects: MeriCitation[] = [];
-  const seen = new Set<MeriCitation>();
+  // Deduplicate by the EXISTING accepted numbered identity — `citation.n` — not
+  // by object reference. `numberMeriEvidenceCitations` keeps a prior identity's
+  // number but returns a NEW `{...source, n: prior.n}` object on each extraction,
+  // so two distinct supported invocations that reuse the same owner identity
+  // (same source/id) yield two DISTINCT objects sharing one number. A
+  // reference-only Set would release that one marker twice, with conflicting
+  // metadata. The LATEST supported concrete object wins so a stale/earlier
+  // title/snippet never coexists with the current one. `validateCitationMarkers`
+  // already keys a released citation by its single `n`, so this matches the
+  // accepted contract exactly: it never renumbers, reads the global/later
+  // citation array, invents authority, or edits the shared extractor/ledger.
+  // A citation that overflowed numbering (no `n`) is keyed by its own object so
+  // two distinct overflow objects are never collapsed.
+  const retainedByIdentity = new Map<number | MeriCitation, MeriCitation>();
   for (const entry of retainedEntries) {
     for (const citation of evidence.ledgerCitationBindings.get(entry) ?? []) {
-      if (seen.has(citation)) continue;
-      seen.add(citation);
-      retainedCitationObjects.push(citation);
+      retainedByIdentity.set(citation.n ?? citation, citation);
     }
   }
-  const boundedCitations = retainedCitationObjects.slice(-4);
+  const boundedCitations = [...retainedByIdentity.values()].slice(-4);
   const retained = boundedCitations.length
     ? boundedCitations.map(readableAcceptedCitation)
     : retainedEntries.map(

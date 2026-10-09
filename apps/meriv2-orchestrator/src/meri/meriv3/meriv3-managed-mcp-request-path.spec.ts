@@ -64,6 +64,7 @@ import { ApiToolExecutorRepo } from '../api-tool-executor.repo.js';
 import { FULL_CHAT_READ_TOOLS } from '../full-chat-read-tools.catalog.js';
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
 import { ApiVisualAnalysisRepo } from './api-visual-analysis.repo.js';
+import { resolveMeriV3ReasoningProfile } from './meriv3-reasoning.js';
 import {
   CROSS_CLIENT_REFUSAL,
   GOVERNED_BOUND_EFFECT_REFUSAL,
@@ -4177,16 +4178,25 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
       managed: () => jsonResponse({ schemas: [] }),
     }) as unknown as typeof fetch;
 
-    // An ordinary-chat turn reserves 90s for synthesis, so the absolute deadline
-    // must be far enough ahead for the gather round to start. It is then
-    // advanced past that instant while the owner read is awaited — exactly the
-    // wall-clock expiry the shared control checks (`Date.now() >= deadlineAt`).
-    const turnDeadlineAt = Date.now() + 120_000;
+    // The ACTUAL runtime for this request is Deep: the raw runtime log shows the
+    // same request auto-escalating standard -> deep with a synthesis reserve of
+    // 180000ms, so an ordinary 90s/120s deadline would never admit the gather
+    // round (`remainingMs <= reserveMs` breaks before the owner dispatch). The
+    // fixture therefore derives its admission window from the ACTUAL Deep profile
+    // budget via the same `resolveMeriV3ReasoningProfile` the service uses and
+    // requests Deep explicitly, so a distant absolute deadline is admitted. That
+    // exact instant is then advanced past while the owner read is awaited —
+    // exactly the wall-clock expiry the shared control checks
+    // (`Date.now() >= deadlineAt`). No production budget/deadline/reserve is
+    // changed; only the fixture's own deadline is made truthful.
+    const deepBudgetMs = resolveMeriV3ReasoningProfile('deep').turnBudgetMs;
+    const turnDeadlineAt = Date.now() + deepBudgetMs;
     const run = RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
       service.run(
         context,
         {
           conversationId: 'native-deferred-expiry',
+          reasoningMode: 'deep',
           messages: [{ role: 'user', text: 'What do we know about Kestrel?' }],
         },
         { deadlineAt: turnDeadlineAt },
@@ -4388,27 +4398,19 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     expect(result.reply).not.toContain('owner unavailable');
   });
 
-  // ── Root addition (2026-10-09): record-class allowlist hypothesis ──
+  // ── Root addition (2026-10-09): creative wording is not a record request ──
   //
-  // The hardening's `RECORD_SPECIFIC_RETRIEVAL_QUERY_CLASSES` allowlist is a
-  // SOURCE HYPOTHESIS, not request-level acceptance. This is the faithful
-  // counterexample the root requested: a SELECTED-CLIENT generic creative
-  // request containing history wording ("Write a poem about history.") with all
-  // catalogs down and NO actual record-dependent plan or attempted read. A
-  // routing CLASS alone must not be broader than an actual request for private
-  // records: a creative poem must be released untouched, exactly like the
-  // temporal "poem about today" positive control.
-  //
-  // THIS CASE IS EXPECTED TO BE RED against the current source: the request text
-  // routes to `entity_history`, which the existing allowlist treats as a
-  // record-specific query class, so `deriveCatalogAvailabilityRelevance`
-  // marks `nativeRequested` and the bounded fallback appends a spurious
-  // record-limitation to a purely creative answer. The exact signal is
-  // `meriv3-assistant.service.ts` RECORD_SPECIFIC_RETRIEVAL_QUERY_CLASSES
-  // (`entity_history`) feeding the relevance seam at
-  // `catalogRelevanceSignals().intentRequiresClientRecords` (~line 1591-1593).
-  // Per instruction this faithful failing case is RETAINED and NOT relaxed; the
-  // production fix is Codex/root-owned outside this fixture-only window.
+  // A SELECTED-CLIENT generic creative request containing history wording
+  // ("Write a poem about history.") with all catalogs down and NO actual
+  // record-dependent plan or attempted read. A routing CLASS alone must not be
+  // broader than an actual request for private records: a creative poem must be
+  // released untouched, exactly like the temporal "poem about today" positive
+  // control. The earlier `RECORD_SPECIFIC_RETRIEVAL_QUERY_CLASSES` /
+  // `catalogRelevanceSignals().intentRequiresClientRecords` seam this case once
+  // targeted has been REMOVED from production: relevance now rests on the real
+  // evidence plan, an explicit record-phrasing request, or an actual attempted
+  // canonical client-record read, so this creative poem is released as-is. The
+  // assertion below is retained unchanged.
   test('a selected-client creative history poem is not treated as a private-record request', async () => {
     const complete = jest
       .fn()
@@ -4622,6 +4624,124 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     });
     expect(citations[0]?.title).not.toBe(FAILED_TITLE);
     expect(result.reply).toContain('[1]');
+  });
+
+  // ── (2c) SAME existing numbered identity, TWO SUPPORTED invocations ──
+  test('two SUPPORTED invocations reusing the SAME source identity release exactly ONE marker with the LATEST concrete metadata under an unrelated requested-source outage', async () => {
+    const first = functionCall('same-identity-first', NATIVE_READ, { query: 'Kestrel' });
+    const second = functionCall('same-identity-second', NATIVE_READ, { query: 'Falcon' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({
+          output: [first, second],
+          outputText: '',
+          functionCalls: [first, second],
+        }),
+      )
+      .mockResolvedValue(providerResult({ outputText: 'Both facts noted [1].' }));
+    // Two DISTINCT inputs, both really dispatched at the authenticated owner POST
+    // (the real canonical `search_memory` binding). Both return the SAME governed
+    // memory source id but with DIFFERENT healthy titles/snippets:
+    // `numberMeriEvidenceCitations` reuses the first identity's number for the
+    // second and returns a NEW `{...source, n: prior.n}` object, so the two
+    // accepted objects share one number while carrying conflicting metadata. An
+    // UNRELATED requested HubSpot managed catalog outage (named app, no valid
+    // envelope — a whole-source hard failure) triggers the bounded fallback,
+    // which must release exactly ONE marker for that existing identity with the
+    // LATEST supported concrete metadata. Existing controls are preserved: the
+    // UNAVAILABLE-same-id and different-id isolation cases above are untouched.
+    const secondTitle = 'Falcon follow-up';
+    const secondSnippet = 'Falcon owner follow-up fact';
+    const sameIdentityLaterPayload = {
+      ...memoryOwnerPayload(),
+      results: [
+        {
+          id: RECORD_ID,
+          memoryItemId: RECORD_ID,
+          title: secondTitle,
+          clientId: CLIENT_ID,
+          relevance: null,
+        },
+      ],
+      records: [
+        {
+          domain: 'institutional_knowledge',
+          recordId: RECORD_ID,
+          payload: {
+            sourceKind: 'governed_memory',
+            memoryItemId: RECORD_ID,
+            title: secondTitle,
+            value: secondSnippet,
+            clientId: CLIENT_ID,
+            content: { hash: 'falcon-v1' },
+          },
+        },
+      ],
+    };
+    const executor = new ApiToolExecutorRepo(config() as never);
+    const realRegistry = new InMemoryToolRegistry();
+    registerDelegatedTools(
+      (def) => realRegistry.register(def),
+      FULL_CHAT_READ_TOOLS.filter((spec) => spec.name === NATIVE_READ),
+      executor,
+    );
+    const { service } = buildManaged(complete, { registry: realRegistry });
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      // The request named HubSpot (an unrelated requested app): a whole
+      // managed-source outage with no valid envelope.
+      managed: () => jsonResponse({ error: 'down' }, 500),
+      nativeOwner: (_url, init) => {
+        const body = JSON.parse(String(init?.body ?? '{}')) as { query?: unknown };
+        return body.query === 'Falcon'
+          ? jsonResponse(sameIdentityLaterPayload)
+          : jsonResponse(memoryOwnerPayload());
+      },
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(scopedContext, {
+          conversationId: 'same-identity-duplicate',
+          messages: [
+            {
+              role: 'user',
+              text: 'Check our institutional knowledge for the Kestrel and Falcon facts and pull the HubSpot deals.',
+            },
+          ],
+        }),
+    );
+
+    // Both real owner POSTs executed at the authenticated executor (distinct
+    // inputs are never deduplicated).
+    const ownerBodies = fetchMock.mock.calls
+      .filter((candidate) => String(candidate[0]).includes('/api/clio/tools/'))
+      .map((candidate) =>
+        JSON.parse(String((candidate[1] as RequestInit | undefined)?.body ?? '{}')),
+      );
+    expect(ownerBodies).toHaveLength(2);
+    expect(ownerBodies.map((body) => (body as { query?: unknown }).query).sort()).toEqual([
+      'Falcon',
+      'Kestrel',
+    ]);
+    // The unrelated requested HubSpot outage triggered the bounded fallback with
+    // its fixed source limitation preserved alongside the retained findings.
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('HubSpot');
+    expect(result.reply).toContain('not consulted');
+    // Exactly ONE unambiguous marker/metadata for the ONE existing identity — the
+    // LATEST supported concrete object: not a duplicated marker, not the stale
+    // earlier title, not a conflicting earlier snippet.
+    expect(result.reply.match(/\[1\]/g) ?? []).toHaveLength(1);
+    expect(result.reply).toContain(secondTitle);
+    expect(result.reply).not.toContain('Kestrel commitment');
+    const citations = result.citations ?? [];
+    expect(citations).toHaveLength(1);
+    expect(citations[0]).toMatchObject({ n: 1, tool: NATIVE_READ, id: RECORD_ID });
+    expect(citations[0]?.title).toBe(secondTitle);
   });
 
   // ── (3) native discovery transport variants through normal.run ──
