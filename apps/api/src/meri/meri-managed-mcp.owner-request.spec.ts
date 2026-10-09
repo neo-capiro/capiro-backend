@@ -152,6 +152,43 @@ function driveRow(overrides: Partial<Row> = {}): Row {
 
 type Where = Record<string, unknown>;
 
+type HookMethod = 'findMany' | 'findFirst';
+
+/**
+ * A typed mutation hook that changes the ACTUAL stored rows at ONE real
+ * findMany/findFirst boundary. `when` encodes the exact query shape the service
+ * emits at that boundary; a hook that never matches leaves `hits` at 0, so a
+ * test asserting `hits === 1` cannot pass unless the intended boundary ran with
+ * the intended predicate.
+ */
+interface BoundaryHook {
+  name: string;
+  method: HookMethod;
+  when: (args: { where?: Where }) => boolean;
+  apply: (rows: Row[]) => void;
+  hits: number;
+  matchedWheres: Where[];
+}
+
+function boundaryHook(
+  name: string,
+  method: HookMethod,
+  when: BoundaryHook['when'],
+  apply: BoundaryHook['apply'],
+): BoundaryHook {
+  return { name, method, when, apply, hits: 0, matchedWheres: [] };
+}
+
+/**
+ * Faithful query-time snapshot: Prisma returns VALUES, not references to the
+ * mutable in-memory row. structuredClone preserves Date instances, so a later
+ * mutation of the stored row cannot retroactively rewrite a snapshot already
+ * handed to an earlier read (e.g. the admitted schema/source objects).
+ */
+function cloneRow(row: Row): Row {
+  return structuredClone(row);
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -187,27 +224,42 @@ function whereMatches(row: Row, where: Where): boolean {
   return true;
 }
 
-function createDb(rows: Row[]) {
+function createDb(rows: Row[], hooks: BoundaryHook[] = []) {
+  const fireBoundaryHooks = (method: HookMethod, args: { where?: Where }, stored: Row[]): void => {
+    for (const hook of hooks) {
+      if (hook.method !== method || !hook.when(args)) continue;
+      hook.hits += 1;
+      hook.matchedWheres.push(args?.where ?? {});
+      // Mutate the ACTUAL stored rows at the boundary, BEFORE the query
+      // evaluates, so the returned snapshot reflects the mutation.
+      hook.apply(stored);
+    }
+  };
   const clioMcpServer = {
     findMany: jest.fn(
       async (args: { where?: Where; orderBy?: Record<string, 'asc' | 'desc'> }) => {
+        fireBoundaryHooks('findMany', args, rows);
         const matched = rows.filter((row) => whereMatches(row, args?.where ?? {}));
         const orderBy = args?.orderBy;
         const entries = orderBy ? Object.entries(orderBy) : [];
-        if (!entries.length) return matched;
+        if (!entries.length) return matched.map(cloneRow);
         const [field, dir] = entries[0]!;
-        return [...matched].sort((a, b) => {
-          const av = (a as unknown as Record<string, unknown>)[field];
-          const bv = (b as unknown as Record<string, unknown>)[field];
-          const an = av instanceof Date ? av.getTime() : Number(av);
-          const bn = bv instanceof Date ? bv.getTime() : Number(bv);
-          const cmp = an === bn ? 0 : an < bn ? -1 : 1;
-          return dir === 'desc' ? -cmp : cmp;
-        });
+        return [...matched]
+          .sort((a, b) => {
+            const av = (a as unknown as Record<string, unknown>)[field];
+            const bv = (b as unknown as Record<string, unknown>)[field];
+            const an = av instanceof Date ? av.getTime() : Number(av);
+            const bn = bv instanceof Date ? bv.getTime() : Number(bv);
+            const cmp = an === bn ? 0 : an < bn ? -1 : 1;
+            return dir === 'desc' ? -cmp : cmp;
+          })
+          .map(cloneRow);
       },
     ),
     findFirst: jest.fn(async (args: { where?: Where }) => {
-      return rows.find((row) => whereMatches(row, args?.where ?? {})) ?? null;
+      fireBoundaryHooks('findFirst', args, rows);
+      const row = rows.find((candidate) => whereMatches(candidate, args?.where ?? {}));
+      return row ? cloneRow(row) : null;
     }),
     updateMany: jest.fn(async (args: { where?: Where; data?: Record<string, unknown> }) => {
       const matched = rows.filter((row) => whereMatches(row, args?.where ?? {}));
@@ -218,7 +270,7 @@ function createDb(rows: Row[]) {
       const row = rows.find((candidate) => whereMatches(candidate, args.where));
       if (!row) throw new Error('Record to update not found.');
       Object.assign(row, args.data);
-      return row;
+      return cloneRow(row);
     }),
   };
   const tenant = { findUnique: jest.fn(async () => null) };
@@ -230,8 +282,8 @@ function createDb(rows: Row[]) {
   return { prisma, tx };
 }
 
-function harness(rows: Row[], client: McpClient) {
-  const db = createDb(rows);
+function harness(rows: Row[], client: McpClient, hooks: BoundaryHook[] = []) {
+  const db = createDb(rows, hooks);
   const config = {
     get: jest.fn((key: string) => (key === 'CLIO_MCP_ENABLED' ? true : undefined)),
   };
@@ -591,4 +643,214 @@ describe('Google Drive preview actor/tenant revocation on the personal owner cha
       expect(callTool).not.toHaveBeenCalled();
     },
   );
+});
+
+describe('post-admission static-authority mutation at the final id-scoped boundary', () => {
+  const originalEnv = process.env;
+  beforeEach(() => {
+    process.env = { ...originalEnv, CLIO_MCP_ENABLED: 'true', MERI_MCP_AIRTABLE_ENABLED: 'true' };
+    jest.clearAllMocks();
+  });
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  /**
+   * Prime the real advertisement/cache (exactly one listTools), then hand back
+   * handles whose hook mutates the stored row AT the exact
+   * `visibleServers({ id, enabled: true })` read inside executeBridged
+   * (meri-mcp.service.ts:640-642) — the LAST read before clientFor/callTool.
+   * No other discovery read in the chain carries `where.id`, so a hook that
+   * fires exactly once proves THIS window was exercised, not an earlier one.
+   */
+  function primeThenMutateAtFinalBoundary(mutate: (row: Row) => void) {
+    const listTools = jest.fn(async () => AIRTABLE_TOOLS);
+    const callTool = jest.fn(async () => providerResult);
+    const row = airtableRow();
+    const hook = boundaryHook(
+      'executeBridged.finalIdScopedVisibleServers',
+      'findMany',
+      (args) => args?.where?.id === row.id && args?.where?.enabled === true,
+      () => mutate(row),
+    );
+    const { mcp, managed, db } = harness([row], { listTools, callTool }, [hook]);
+    return { listTools, callTool, row, hook, mcp, managed, db };
+  }
+
+  async function runCase(mutate: (row: Row) => void) {
+    const c = primeThenMutateAtFinalBoundary(mutate);
+    // Real advertisement through the discovery path: exactly one listTools.
+    await expect(c.mcp.bridgedSchemasFor(OWNER)).resolves.toHaveLength(1);
+    expect(c.listTools).toHaveBeenCalledTimes(1);
+
+    const error = await c.managed.executeRead(OWNER, TOOL, INPUT).then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    // The final id-scoped boundary was actually reached, with the real predicate.
+    expect(c.hook.hits).toBe(1);
+    expect(c.hook.matchedWheres[0]).toMatchObject({
+      id: c.row.id,
+      tenantId: OWNER.tenantId,
+      enabled: true,
+    });
+    // Cached discovery is reused — no rediscovery.
+    expect(c.listTools).toHaveBeenCalledTimes(1);
+    // The last-mile re-validation must deny before any provider I/O.
+    expect(c.callTool).not.toHaveBeenCalled();
+    expect(error).toBeInstanceOf(Error);
+    return { ...c, error };
+  }
+
+  test('an endpoint change at the final id-scoped read is denied before provider I/O', async () => {
+    const { error } = await runCase((row) => {
+      row.endpoint = 'https://attacker.example/mcp';
+    });
+    expect((error as Error).message).toBe('This app connection is unavailable. Please reconnect.');
+  });
+
+  test('a name change at the final id-scoped read is denied before provider I/O', async () => {
+    const { error } = await runCase((row) => {
+      row.name = 'renamed-connector';
+    });
+    expect((error as Error).message).toBe('This app connection is unavailable. Please reconnect.');
+  });
+
+  test('a scope change off personal at the final id-scoped read is denied before provider I/O', async () => {
+    const { error } = await runCase((row) => {
+      row.scope = 'tenant';
+    });
+    expect((error as Error).message).toBe('This app connection is unavailable. Please reconnect.');
+  });
+
+  test('a transport change off http at the final id-scoped read is denied before provider I/O', async () => {
+    const { error } = await runCase((row) => {
+      row.transport = 'stdio';
+    });
+    expect((error as Error).message).toBe('This app connection is unavailable. Please reconnect.');
+  });
+
+  test('an authType change off oauth at the final id-scoped read is denied before provider I/O', async () => {
+    const { error } = await runCase((row) => {
+      row.authType = 'token';
+    });
+    expect((error as Error).message).toBe('This app connection is unavailable. Please reconnect.');
+  });
+
+  test('an emptied toolAllowlist at the final id-scoped read is denied before provider I/O', async () => {
+    const { error } = await runCase((row) => {
+      row.toolAllowlist = [];
+      row.readOnlyTools = [];
+    });
+    expect((error as Error).message).toBe('Connected-app tool is unavailable or not read-only.');
+  });
+
+  // The catalog window. When catalogId leaves the managed set at the final
+  // id-scoped read, managedAppDefinition(server.catalogId) is undefined at
+  // meri-mcp.service.ts:647, so the managed guard is skipped, AND clientFor
+  // (742) has no managed block to enforce endpoint/name/scope/transport. A
+  // cached managed tool then reaches the provider. These cases assert the SAFE
+  // outcome (deny, zero provider calls) and are EXPECTED TO FAIL against the
+  // current source until the minimal production repair. They must not be
+  // relaxed to permit the unsafe call.
+  test('a catalogId change to a non-managed id at the final id-scoped read must not reach the provider', async () => {
+    const { error } = await runCase((row) => {
+      row.catalogId = 'not-a-managed-app';
+    });
+    expect(error).toBeInstanceOf(Error);
+  });
+
+  test('a catalogId change to null at the final id-scoped read must not reach the provider', async () => {
+    const { error } = await runCase((row) => {
+      row.catalogId = null;
+    });
+    expect(error).toBeInstanceOf(Error);
+  });
+});
+
+describe('hardenServer owner window: no narrowing write to a reassigned row', () => {
+  const originalEnv = process.env;
+  beforeEach(() => {
+    process.env = { ...originalEnv, CLIO_MCP_ENABLED: 'true', MERI_MCP_AIRTABLE_ENABLED: 'true' };
+    jest.clearAllMocks();
+  });
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  /**
+   * The actor's own personal row still carries unsafe persisted metadata, so
+   * schemasForMeriV3's hardenServer(tenantId, row.id) would normally narrow it.
+   * The hook reassigns ownership at hardenServer's real findFirst boundary
+   * (meri-managed-mcp.service.ts:298-300) — AFTER personalRows returned its
+   * snapshot and BEFORE the scoped updateMany (317-333) is evaluated. That
+   * update predicate is {id, tenantId, enabled, connectionStatus in} with NO
+   * owner/scope term, so the narrowing / error-status write still lands on the
+   * now-foreign row. Asserted here against the SAFE outcome; expected to FAIL
+   * against current source until the minimal owner-filter repair.
+   */
+  function hardenWindowCase(overrides: Partial<Row>) {
+    const listTools = jest.fn(async () => AIRTABLE_TOOLS);
+    const callTool = jest.fn(async () => providerResult);
+    const row = airtableRow(overrides);
+    const original = structuredClone(row);
+    const hook = boundaryHook(
+      'schemasForMeriV3.hardenServer.findFirst',
+      'findFirst',
+      (args) => args?.where?.id === row.id && args?.where?.tenantId === OWNER.tenantId,
+      (rows) => {
+        const stored = rows.find((candidate) => candidate.id === row.id);
+        if (stored) stored.ownerUserId = 'user-other';
+      },
+    );
+    const { db, managed } = harness([row], { listTools, callTool }, [hook]);
+    return { listTools, callTool, row, original, hook, db, managed };
+  }
+
+  test('narrowing hardening must not land on a row reassigned mid-read', async () => {
+    const c = hardenWindowCase({
+      toolAllowlist: ['list_bases', 'execute_api'],
+      readOnlyTools: ['list_bases', 'execute_api'],
+    });
+
+    const error = await c.managed.executeRead(OWNER, TOOL, INPUT).then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    // The reassignment window was actually exercised, with the real predicate.
+    expect(c.hook.hits).toBe(1);
+    expect(c.hook.matchedWheres[0]).toMatchObject({ id: c.row.id, tenantId: OWNER.tenantId });
+
+    // The now-foreign row keeps its ORIGINAL metadata: no narrowing write reached it.
+    expect(c.row.toolAllowlist).toEqual(c.original.toolAllowlist);
+    expect(c.row.readOnlyTools).toEqual(c.original.readOnlyTools);
+    expect(c.row.connectionStatus).toBe(c.original.connectionStatus);
+    // And the actor's read was denied with zero provider calls.
+    expect(error).toBeInstanceOf(Error);
+    expect(c.listTools).not.toHaveBeenCalled();
+    expect(c.callTool).not.toHaveBeenCalled();
+  });
+
+  test('error-status hardening must not land on a row reassigned mid-read', async () => {
+    const c = hardenWindowCase({
+      toolAllowlist: ['execute_api'],
+      readOnlyTools: ['execute_api'],
+    });
+
+    const error = await c.managed.executeRead(OWNER, TOOL, INPUT).then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    expect(c.hook.hits).toBe(1);
+    // No error-status write landed on the now-foreign row.
+    expect(c.row.connectionStatus).not.toBe('error');
+    expect(c.row.connectionStatus).toBe(c.original.connectionStatus);
+    expect(c.row.toolAllowlist).toEqual(c.original.toolAllowlist);
+    expect(error).toBeInstanceOf(Error);
+    expect(c.listTools).not.toHaveBeenCalled();
+    expect(c.callTool).not.toHaveBeenCalled();
+  });
 });
