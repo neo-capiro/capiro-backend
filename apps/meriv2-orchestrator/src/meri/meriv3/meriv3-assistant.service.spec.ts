@@ -1,12 +1,14 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { MeriContext, ToolRegistry } from '@capiro/meriv2-core';
+import type { MeriContext, RepairToolResult, ToolRegistry } from '@capiro/meriv2-core';
 import {
+  attestMeriGovernedContext,
   createMeriResearchPlanExecutionEnvelope,
   MERI_GOVERNMENT_AFFAIRS_OUTPUT_CONTRACT,
   readCanaryEvents,
   readShadowEvents,
+  verifyMeriGovernedContext,
 } from '@capiro/meriv2-core';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
@@ -3678,6 +3680,59 @@ describe('Stage 2 orchestrator hardening', () => {
   const BILLS_SCHEMA = schemaOf('search_congress_bills', { query: { type: 'string' } });
   const BILL_STATUS_SCHEMA = schemaOf('get_bill_status', { billId: { type: 'string' } });
 
+  /**
+   * A minimal ordinary governed `client`-scope turn resolving ONE authenticated
+   * client (the context packet subject). It carries no procedure and no capture
+   * policy, so the auxiliary repair dispatch is gated only by the client-scope
+   * guard; the surviving shape mirrors the real API-attested turn used by the
+   * request-path spec.
+   */
+  function governedSingleClientTurn(clientId: string): MeriGovernedTurnContext {
+    return {
+      version: 1,
+      operationId: 'meri.chat',
+      prompt: 'Governed context.',
+      contextPacket: {
+        packetId: null,
+        items: [],
+        exclusions: [],
+        unauthorizedCount: 0,
+        degraded: false,
+        clientId,
+      },
+      retrieval: {
+        plan: {
+          version: 1,
+          queryClass: 'general',
+          subjectScope: 'client',
+          targetHint: null,
+          recipeTool: null,
+          requireCompleteCoverage: false,
+          requiredDomains: [],
+          timeWindow: null,
+        },
+        coverage: {
+          version: 1,
+          complete: true,
+          requestedDomains: [],
+          searchedDomains: [],
+          missingDomains: [],
+          partialDomains: [],
+          requestedEntityCount: null,
+          searchedEntityCount: null,
+          recordsEvaluated: 0,
+          recordsReturned: 0,
+          paginationComplete: true,
+          truncated: false,
+          sourceHealth: [],
+          unavailableSources: [],
+          toolsInvoked: [],
+          stopReason: 'complete',
+        },
+      },
+    } as unknown as MeriGovernedTurnContext;
+  }
+
   function fetchWith(schemas: unknown[], runsActive = true): typeof fetch {
     return jest.fn(async (url: unknown) =>
       String(url).includes('/runs/')
@@ -4689,6 +4744,112 @@ describe('Stage 2 orchestrator hardening', () => {
       expect(eventsNamed(spies.log, 'meri.auto_correction.claims_capped')).toEqual([
         expect.objectContaining({ promoted: 15, assessed: 12 }),
       ]);
+    });
+
+    test('the enforce repair executor refuses the interface client (Acme) before owner I/O and dispatches the authenticated governed single target (Beta) through the SAME repair path', async () => {
+      promote('enforce', 'bill_status');
+      const UI_ACME = '30000000-0000-4000-8000-0000000000ac';
+      const AUTH_BETA = '30000000-0000-4000-8000-0000000000be';
+      const CLIENT_READ = 'get_client_context';
+      const GOVERNED_FIXTURE_SECRET = 'governed-native-repair-fixture-secret';
+      const clientSchema = schemaOf(CLIENT_READ, { clientId: { type: 'string' } }, ['clientId']);
+
+      const repairCapture: { current: RepairToolResult | undefined } = { current: undefined };
+      const repairSpy = jest
+        .spyOn(liveRepair, 'applyLiveRepair')
+        .mockImplementation(async (input) => {
+          // Drive the executor the service actually supplied: the real
+          // `budgetedRepairRegistry` (its `withToolBudget` callback is the
+          // auxiliary scope guard) wrapped by `createOrchestratorToolExecutor`.
+          // Only the repair-stage remedy CHOICE is stubbed — the guard, the
+          // executor and `withToolBudget` are never mocked.
+          repairCapture.current = await input.executor.execute(
+            { name: CLIENT_READ, args: {} },
+            { signal: input.signal },
+          );
+          return repairResult();
+        });
+
+      const runRepair = async (
+        interfaceClientId: string,
+      ): Promise<{ invoke: jest.Mock; result: RepairToolResult | undefined }> => {
+        const dto = {
+          clientId: interfaceClientId,
+          conversationId: `repair-guard-${interfaceClientId}`,
+          messages: [{ role: 'user' as const, text: 'Did H.R. 1 pass the House?' }],
+        };
+        const invoke = jest.fn(
+          async (_name: string, input: Record<string, unknown>) => ({
+            tool: CLIENT_READ,
+            client: { id: String(input.clientId) },
+          }),
+        );
+        const complete = jest
+          .fn()
+          .mockResolvedValue(response({ outputText: 'H.R. 1 passed the House.' }));
+        const assistant = build(registry([{ name: CLIENT_READ, readOnly: true }], invoke), complete);
+        global.fetch = fetchWith([clientSchema]);
+
+        const binding = {
+          conversationId: dto.conversationId,
+          clientId: interfaceClientId,
+          messages: dto.messages,
+        };
+        const withEvidence = {
+          ...(governedSingleClientTurn(AUTH_BETA) as unknown as Record<string, unknown>),
+          evidence: {
+            version: 1,
+            tenantId: PILOT,
+            userId: context.userId,
+            packetId: null,
+            sourceRecordCount: 0,
+            projectedRecordCount: 0,
+            truncated: false,
+            records: [],
+          },
+        } as unknown as MeriGovernedTurnContext;
+        const governed = attestMeriGovernedContext(withEvidence, binding, GOVERNED_FIXTURE_SECRET);
+        expect(() =>
+          verifyMeriGovernedContext(
+            governed,
+            binding,
+            { tenantId: PILOT, userId: context.userId },
+            GOVERNED_FIXTURE_SECRET,
+          ),
+        ).not.toThrow();
+
+        repairCapture.current = undefined;
+        await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+          runWithGovernedMeriContext(governed, () => assistant.run(pilotContext, dto)),
+        );
+        return { invoke, result: repairCapture.current };
+      };
+
+      // The ORIGINAL interface client (Acme) disagrees with the authenticated
+      // single target (Beta): the projected repair read is refused with the
+      // exact cross-client reason BEFORE the real owner registry is invoked.
+      const mismatch = await runRepair(UI_ACME);
+      expect(repairSpy).toHaveBeenCalled();
+      expect(mismatch.result).toEqual({
+        ok: false,
+        state: 'retrieval_failed',
+        reason: CROSS_CLIENT_REFUSAL,
+      });
+      expect(mismatch.invoke).not.toHaveBeenCalled();
+
+      // Matching control: the SAME repair path dispatches the authenticated
+      // target (Beta) and performs the expected owner read.
+      const match = await runRepair(AUTH_BETA);
+      expect(match.invoke).toHaveBeenCalledTimes(1);
+      expect(match.invoke.mock.calls[0]?.[1]).toEqual({ clientId: AUTH_BETA });
+      // The minimal mock owner returns `client.id` only, so the real governed
+      // executor finds no usable evidence and fails with that exact reason.
+      expect(match.result).toEqual({
+        ok: false,
+        state: 'retrieval_failed',
+        reason: 'no_usable_evidence',
+      });
+      expect(repairSpy).toHaveBeenCalledTimes(2);
     });
 
     // The legacy skeptic can only answer refuted / not refuted, so the observable

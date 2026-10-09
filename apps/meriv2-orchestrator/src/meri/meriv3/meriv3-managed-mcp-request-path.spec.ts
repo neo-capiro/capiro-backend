@@ -2566,7 +2566,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
 
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke.mock.calls[0]?.[1]).toEqual({ clientId: AUTH_BETA });
-    expect(result.steps.some((step) => step.tool === CLIENT_READ && step.status === 'done')).toBe(
+    expect((result.steps ?? []).some((step) => step.tool === CLIENT_READ && step.status === 'done')).toBe(
       true,
     );
   });
@@ -2720,7 +2720,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
 
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke.mock.calls[0]?.[1]).toEqual({ clientId: AUTH_BETA });
-    expect(result.steps.some((step) => step.tool === CLIENT_READ && step.status === 'done')).toBe(true);
+    expect((result.steps ?? []).some((step) => step.tool === CLIENT_READ && step.status === 'done')).toBe(true);
   });
 
   test.each(['portfolio', 'general'] as const)(
@@ -2758,7 +2758,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       // The interface client (Acme) is NEVER injected into an optional actor
       // read: the model's omitted filter stays omitted.
       expect(invoke.mock.calls[0]?.[1]).toEqual({ query: 'Kestrel' });
-      expect(result.steps.some((step) => step.tool === 'search_memory' && step.status === 'done')).toBe(
+      expect((result.steps ?? []).some((step) => step.tool === 'search_memory' && step.status === 'done')).toBe(
         true,
       );
     },
@@ -2956,7 +2956,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     expect(proposal).toHaveBeenCalledTimes(1);
     expect(result.pendingApprovals?.length).toBe(1);
     expect(
-      result.steps.some((step) => step.tool === 'save_memory' && step.status === 'pending_approval'),
+      (result.steps ?? []).some((step) => step.tool === 'save_memory' && step.status === 'pending_approval'),
     ).toBe(true);
   });
 
@@ -3021,7 +3021,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     );
     // The server preflight actually entered its auxiliary dispatch and the
     // client-file read is refused with the exact cross-client reason.
-    const docSteps = result.steps.filter((step) => step.tool === 'read_client_documents');
+    const docSteps = (result.steps ?? []).filter((step) => step.tool === 'read_client_documents');
     expect(docSteps.length).toBeGreaterThan(0);
     expect(docSteps[0]).toMatchObject({ status: 'blocked', detail: CROSS_CLIENT_REFUSAL });
     // Zero wrong-target owner I/O, proposal or artifact persistence, and no
@@ -3090,7 +3090,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(invoke.mock.calls[0]?.[1]).toEqual({ clientId: AUTH_BETA, limit: 10 });
     expect(
-      result.steps.some(
+      (result.steps ?? []).some(
         (step) => step.tool === 'read_client_documents' && step.status === 'done',
       ),
     ).toBe(true);
