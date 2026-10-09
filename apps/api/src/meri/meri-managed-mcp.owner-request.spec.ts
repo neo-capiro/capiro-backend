@@ -1167,4 +1167,222 @@ describe('managed catalog availability (personal owner, provider-free)', () => {
     expect(airtableList).toHaveBeenCalledTimes(1);
     expect(driveList).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * F-A1-1 two-call regression (repeat-call masking). ONE persistent predicate
+   * fake DB and ONE real owner; the SAME harness instance serves both calls —
+   * no invalidate/reset/row-reconnection and no private-method bypass. The
+   * FIRST call records the real discovery failure and persists it onto the
+   * stored row (status flips). The SECOND identical owner call must STILL report
+   * the known, still-owned outage and retain any healthy tools — never fold it
+   * into a deliberate no_eligible/ok/complete "success". The second-call block
+   * asserts the DESIRED truthful behaviour and is EXPECTED TO FAIL against the
+   * current candidate; it must not be relaxed to accept the masking.
+   */
+  const outageCases: Array<{
+    label: string;
+    make: () => McpToolDescriptor[];
+    reason: 'unavailable' | 'needs_reauth' | 'malformed';
+    status: 'error' | 'needs_reauth';
+  }> = [
+    {
+      label: 'a provider outage',
+      make: () => {
+        throw new Error('provider unreachable');
+      },
+      reason: 'unavailable',
+      status: 'error',
+    },
+    {
+      label: 'an authorization failure (InvalidTokenError)',
+      make: () => {
+        throw Object.assign(new Error('expired'), { name: 'InvalidTokenError' });
+      },
+      reason: 'needs_reauth',
+      status: 'needs_reauth',
+    },
+    {
+      label: 'a malformed/unsupported empty catalog',
+      make: () => [],
+      reason: 'malformed',
+      status: 'error',
+    },
+  ];
+
+  test.each(outageCases)(
+    'a currently-owned failed connection keeps its $reason outage across two identical owner calls ($label)',
+    async ({ make, reason, status }) => {
+      const listTools = jest.fn(async () => make());
+      const callTool = jest.fn(async () => providerResult);
+      const row = airtableRow();
+      const { managed } = harness([row], { listTools, callTool });
+
+      const first = await managed.managedCatalogForMeriV3(OWNER);
+      expect(first.availability).toEqual({
+        state: 'unavailable',
+        complete: false,
+        registryUnavailable: false,
+        failures: [{ appId: 'airtable', name: 'Airtable', reason }],
+      });
+      // The real registry catch persisted the failure onto the stored row.
+      expect(row.connectionStatus).toBe(status);
+      expect(listTools).toHaveBeenCalledTimes(1);
+
+      // Same actor, same persistent predicate, no invalidate — the cached
+      // registry/failure is still in force.
+      const second = await managed.managedCatalogForMeriV3(OWNER);
+
+      // DESIRED truthfulness (EXPECTED TO FAIL on the candidate): the known,
+      // still-owned outage is reported again, never masked as a deliberate
+      // no_eligible/complete success.
+      expect(second.availability.state).toBe('unavailable');
+      expect(second.availability.complete).toBe(false);
+      expect(second.availability.failures).toEqual([
+        { appId: 'airtable', name: 'Airtable', reason },
+      ]);
+      expect(second.schemas).toEqual([]);
+      // No extra provider I/O on the second call.
+      expect(listTools).toHaveBeenCalledTimes(1);
+      expect(callTool).not.toHaveBeenCalled();
+    },
+  );
+
+  test('a partial catalog keeps the failed app reported and the healthy tools on the next identical owner call', async () => {
+    const airtableList = jest.fn(async () => AIRTABLE_TOOLS);
+    const driveList = jest.fn(async () => {
+      throw new Error('drive down');
+    });
+    const airtableClient = clientFor(airtableList);
+    const driveClient = clientFor(driveList);
+    const rowD = driveRow();
+    const { managed } = harness([airtableRow(), rowD], airtableClient);
+    routeClients({
+      [MERIV3_AIRTABLE_ENDPOINT]: airtableClient,
+      [MERIV3_GOOGLE_DRIVE_ENDPOINT]: driveClient,
+    });
+
+    const first = await managed.managedCatalogForMeriV3(OWNER);
+    expect(first.schemas.map((s) => s.name)).toEqual(['mcp__meriv3_airtable__list_bases']);
+    expect(first.availability).toEqual({
+      state: 'partial',
+      complete: false,
+      registryUnavailable: false,
+      failures: [{ appId: 'google-drive', name: 'Google Drive', reason: 'unavailable' }],
+    });
+    // The real registry catch persisted the failure onto the failed stored row.
+    expect(rowD.connectionStatus).toBe('error');
+    expect(airtableList).toHaveBeenCalledTimes(1);
+    expect(driveList).toHaveBeenCalledTimes(1);
+
+    const second = await managed.managedCatalogForMeriV3(OWNER);
+
+    // DESIRED truthful behaviour (EXPECTED TO FAIL on the candidate): the
+    // failed app stays reported and the healthy app stays usable — the known
+    // outage must never collapse to an ok/complete success.
+    expect(second.schemas.map((s) => s.name)).toEqual(['mcp__meriv3_airtable__list_bases']);
+    expect(second.availability.state).toBe('partial');
+    expect(second.availability.complete).toBe(false);
+    expect(second.availability.failures).toEqual([
+      { appId: 'google-drive', name: 'Google Drive', reason: 'unavailable' },
+    ]);
+    // One bounded listTools per app across both calls, zero callTool.
+    expect(airtableList).toHaveBeenCalledTimes(1);
+    expect(driveList).toHaveBeenCalledTimes(1);
+    expect(airtableClient.callTool as jest.Mock).not.toHaveBeenCalled();
+    expect(driveClient.callTool as jest.Mock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Late failure-provenance seam (reviewer Hypothesis 2). The real source order
+   * is personalRows -> registry discovery + failure/status write -> fresh
+   * visible read -> raw `registry.failures` passthrough. The mutation is applied
+   * at the SECOND real OR read (`visibleServers` inside bridgedSchemasDetailedFor),
+   * AFTER the registry failure/DB status write and BEFORE the final visibility
+   * evaluation, through the existing BoundaryHook (the provider throw itself
+   * never mutates the row, so this is not the unrelated registry status-write
+   * race). The candidate must never expose a failure OR a schema belonging to a
+   * row that is now foreign/disabled/unmanaged, and no private row detail may
+   * reach the public availability. These tests assert the DESIRED non-exposure
+   * and are EXPECTED TO FAIL on the candidate. No live exploit is claimed; the
+   * reviewer adjudicates the measured receipt.
+   */
+  function lateFinalVisibleCase(mutate: (row: Row) => void) {
+    const listTools = jest.fn(async () => {
+      throw new Error('provider unreachable');
+    });
+    const callTool = jest.fn(async () => providerResult);
+    const row = airtableRow();
+    let orReads = 0;
+    const hook = boundaryHook(
+      'bridgedSchemasDetailedFor.finalVisibleServers',
+      'findMany',
+      (args) => {
+        const where = args?.where ?? {};
+        const branches = Array.isArray(where.OR) ? where.OR : null;
+        if (!branches || where.tenantId !== OWNER.tenantId) return false;
+        // FIRST OR read is registry discovery; mutate at the SECOND (the final
+        // fresh visibility read) so the failure/status write has already landed.
+        orReads += 1;
+        return orReads === 2;
+      },
+      (rows) => {
+        const stored = rows.find((candidate) => candidate.id === row.id);
+        if (stored) mutate(stored);
+      },
+    );
+    const { managed } = harness([row], { listTools, callTool }, [hook]);
+    return { listTools, callTool, row, hook, managed };
+  }
+
+  const lateMutations: Array<[string, (row: Row) => void]> = [
+    [
+      'owner transfer to another actor',
+      (row) => {
+        row.ownerUserId = 'user-other';
+      },
+    ],
+    [
+      'disable of the currently-owned row',
+      (row) => {
+        row.enabled = false;
+      },
+    ],
+    [
+      'catalog classification leaving the managed set',
+      (row) => {
+        row.catalogId = null;
+      },
+    ],
+  ];
+
+  test.each(lateMutations)(
+    'a late %s at the final visible read never exposes that row failure or schema',
+    async (_label, mutate) => {
+      const c = lateFinalVisibleCase(mutate);
+
+      const result = await c.managed.managedCatalogForMeriV3(OWNER);
+
+      // The SECOND, final real OR read was actually exercised, once, with the
+      // exact tenant/actor predicate (firm-wide ∪ own personal).
+      expect(c.hook.hits).toBe(1);
+      expect(c.hook.matchedWheres[0]).toMatchObject({
+        tenantId: OWNER.tenantId,
+        enabled: true,
+        OR: [{ scope: 'tenant' }, { scope: 'user', ownerUserId: OWNER.userId }],
+      });
+
+      // DESIRED non-exposure (EXPECTED TO FAIL on the candidate): the now
+      // foreign/disabled/unmanaged row contributes neither a failure nor a
+      // schema, and no private row detail reaches the public availability.
+      expect(result.availability.failures).toEqual([]);
+      expect(result.schemas).toEqual([]);
+      expect(JSON.stringify(result.availability)).not.toContain(c.row.id);
+      expect(JSON.stringify(result.availability)).not.toContain(c.row.name);
+      expect(JSON.stringify(result.availability)).not.toContain(MERIV3_AIRTABLE_ENDPOINT);
+
+      // No transport dispatch: only the single discovery listTools ran.
+      expect(c.listTools).toHaveBeenCalledTimes(1);
+      expect(c.callTool).not.toHaveBeenCalled();
+    },
+  );
 });
