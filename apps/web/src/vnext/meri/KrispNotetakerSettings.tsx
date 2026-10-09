@@ -102,7 +102,7 @@ export function KrispNotetakerSettings({ connected }: { connected: boolean }) {
       <h2>Automatic meeting notes</h2>
       <p>
         {directNotes
-          ? 'Let Krisp capture your meetings. Meri checks every few minutes and copies Krisp’s notes directly into Meeting Notes and Debrief when they are ready.'
+          ? 'Let Krisp capture your meetings. Meri checks every few minutes, saves Krisp’s finished notes in Meeting Notes, and generates the Debrief from those notes.'
           : 'Let Krisp capture your meetings. Meri checks every few minutes and generates Meeting Notes and Debrief from the completed transcripts.'}
       </p>
       <label className="krisp-notetaker-settings__toggle">
@@ -115,7 +115,9 @@ export function KrispNotetakerSettings({ connected }: { connected: boolean }) {
             setEditing(true);
           }}
         />
-        Automatically create Meri notes and debriefs from my Krisp meetings
+        {directNotes
+          ? 'Automatically import Krisp notes and generate debriefs for my meetings'
+          : 'Automatically create Meri notes and debriefs from my Krisp meetings'}
       </label>
       <label className="krisp-notetaker-settings__folder">
         Import from
@@ -141,7 +143,7 @@ export function KrispNotetakerSettings({ connected }: { connected: boolean }) {
       <p className="krisp-notetaker-settings__detail">
         Starts with meetings held after you enable this setting.{' '}
         {directNotes
-          ? 'Meri saves the same Krisp notes in both places on meetings you own, without generating new text.'
+          ? 'Meri saves Krisp’s notes in Meeting Notes and generates a Debrief from them on meetings you own.'
           : 'Meri generates and saves notes and a debrief on meetings you own.'}{' '}
         Nothing is automatically shared. Your originals remain in Krisp.
       </p>

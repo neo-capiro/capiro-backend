@@ -100,7 +100,7 @@ test('dry-run inventories notes without creating meetings, imports, or artifacts
   assert.equal(state.writes, 0);
   assert.equal(state.processed, 0);
 });
-test('apply creates private unassigned history, invokes the direct importer, verifies both artifacts, and is restart-safe', async () => {
+test('apply creates private unassigned history, invokes the importer, verifies the Krisp note, and is restart-safe', async () => {
   const { args, state } = fixture();
   args.apply = true;
   const report = await backfillKrisp(args);
