@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { TenantContext } from '@capiro/shared';
 import type { AppConfig } from '../config/config.schema.js';
@@ -9,9 +9,19 @@ import type { ResearchPortfolioMeriScopeService } from '../research-portfolios/r
 import { MeriActionProposalService } from './meri-action-proposal.service';
 import { MeriResearchService } from './meri-research.service';
 import {
+  admitDurableResearchCoordinator,
   readDurableResearchCoordinator,
+  recordDurableResearchApprovalProposal,
   type DurableResearchCoordinatorStepV1,
+  type DurableResearchCoordinatorV1,
 } from './meri-research-coordinator';
+import type { ResearchPlanV1 } from './meri-research-plan';
+import { RESEARCH_PLAN_LIMITS } from './meri-research-plan';
+import {
+  admitResearchProviderBudget,
+  readResearchProviderBudget,
+  reserveResearchProviderAttempt,
+} from './meri-research-tool-budget';
 
 // The action-proposal owner only uses MeriPolicyPackService as a DI token here;
 // its real Nest dependency graph is covered by module tests, so it is doubled
@@ -25,9 +35,12 @@ const USER = 'user-1';
 const OTHER_USER = 'user-2';
 const ctx = { tenantId: TENANT, userId: USER, tenantSlug: 'tenant' } as unknown as TenantContext;
 
-// 2026-07-01 is before this system clock (2026-10-09); 2027-01-01 is after it.
-const PAST = new Date('2026-07-01T00:00:00.000Z');
-const FUTURE = new Date('2027-01-01T00:00:00.000Z');
+// Clock-relative dates: a proposal one day in the past is always <= `new Date()`
+// at predicate time, and one a year ahead is always beyond any test's duration,
+// so the real Date predicates never depend on the calendar date of execution.
+const CLOCK = Date.now();
+const PAST = new Date(CLOCK - 24 * 60 * 60 * 1000);
+const FUTURE = new Date(CLOCK + 365 * 24 * 60 * 60 * 1000);
 
 interface ProposalRow {
   id: string;
@@ -200,6 +213,7 @@ function coordinatorStep(input: {
 function coordinatorMetadata(
   steps: DurableResearchCoordinatorStepV1[],
   stepHistory: DurableResearchCoordinatorStepV1[] = [],
+  goalRevision = 0,
 ): Record<string, unknown> {
   const now = new Date().toISOString();
   return {
@@ -217,7 +231,7 @@ function coordinatorMetadata(
       version: 1,
       planVersion: 1,
       planSha256: 'a'.repeat(64),
-      goalRevision: 0,
+      goalRevision,
       goal: { objective: 'Email the summary', constraints: [], deliverables: [] },
       deadlineAt: null,
       leaseEpoch: 1,
@@ -243,6 +257,15 @@ interface HarnessOptions {
   conversations?: ConversationRow[];
   attachOwner?: boolean;
   casLossOnce?: boolean;
+  actionsEnabled?: boolean;
+  /** Result of the real ethical-wall query; true (allowed) by default. */
+  clientMemoryAllowedValue?: boolean;
+  /**
+   * A genuine concurrent writer that mutates the stored sessions before the
+   * next metadata compare-and-swap is evaluated, so the CAS predicate really
+   * loses. Applied exactly once.
+   */
+  interveningSessionChange?: (sessions: SessionRow[]) => SessionRow[];
 }
 
 function createHarness(options: HarnessOptions = {}) {
@@ -250,6 +273,7 @@ function createHarness(options: HarnessOptions = {}) {
   let sessions = options.sessions ?? [];
   const conversations = options.conversations ?? [];
   let casLossOnce = options.casLossOnce ?? false;
+  let interveningSessionChange = options.interveningSessionChange;
 
   const proposalFindMany = jest.fn(async ({ where }: { where: Record<string, unknown> }) =>
     proposals.filter((row) => proposalMatches(row, where)).map((row) => structuredClone(row)),
@@ -271,6 +295,14 @@ function createHarness(options: HarnessOptions = {}) {
   );
   const sessionUpdateMany = jest.fn(
     async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+      // A concurrent writer that changes the stored metadata between the read
+      // and this write makes the compare-and-swap `metadata.equals` predicate
+      // genuinely false, so it is evaluated against the fresh row below.
+      if (interveningSessionChange) {
+        const change = interveningSessionChange;
+        interveningSessionChange = undefined;
+        sessions = change(sessions);
+      }
       if (casLossOnce) {
         casLossOnce = false;
         return { count: 0 };
@@ -309,7 +341,9 @@ function createHarness(options: HarnessOptions = {}) {
     },
     clioArtifact: { findFirst: jest.fn(async () => null) },
     clioMessage: { findFirst: jest.fn(async () => null) },
-    $queryRawUnsafe: jest.fn(async () => []),
+    // The ethical-wall check is a raw query: `{ allowed: false }` is an honest
+    // "no grant row", which `clientMemoryAllowed` reads as DENIED.
+    $queryRawUnsafe: jest.fn(async () => [{ allowed: options.clientMemoryAllowedValue ?? true }]),
   };
 
   const prisma = {
@@ -339,7 +373,7 @@ function createHarness(options: HarnessOptions = {}) {
   } as unknown as ResearchPortfolioMeriScopeService;
   const config = {
     get: jest.fn((key: string) =>
-      key === 'MERIV2_ACTION_PROPOSALS_ENABLED' ? true : undefined,
+      key === 'MERIV2_ACTION_PROPOSALS_ENABLED' ? (options.actionsEnabled ?? true) : undefined,
     ),
   } as unknown as ConfigService<AppConfig, true>;
 
@@ -682,5 +716,411 @@ describe('Exact-ID lazy expiry through the shared proposal lifecycle owner', () 
     const listed = (await h.research.listSessions(ctx)) as unknown[];
     expect(listed).toEqual([]);
     expect(h.proposalUpdateMany).not.toHaveBeenCalled();
+  });
+
+  const RUN_STATE = {
+    id: 'run-1',
+    leaseEpoch: 1,
+    eventSequence: 0,
+    phase: 'research',
+    status: 'running',
+    stage: 'Waiting for approval',
+    startedAt: new Date(CLOCK).toISOString(),
+    heartbeatAt: new Date(CLOCK).toISOString(),
+  };
+
+  /**
+   * Seed a current-goal waiting coordinator through the REAL admission and
+   * record helpers (not a hand-written coordinator), then optionally retain
+   * defensive stale entries. The admitted current plan is always <= maxSteps;
+   * stale/foreign cases use separate controls instead of an impossible plan.
+   */
+  function admittedWaitingMetadata(
+    current: Array<{ id: string; proposalId: string }>,
+    options: {
+      staleSteps?: DurableResearchCoordinatorStepV1[];
+      staleHistory?: DurableResearchCoordinatorStepV1[];
+    } = {},
+  ): Record<string, unknown> {
+    const plan: ResearchPlanV1 = {
+      version: 1,
+      title: 'Approve the prepared items',
+      scope: {
+        sessionId: 'session-admitted',
+        tenantId: TENANT,
+        actorId: USER,
+        clientId: null,
+        conversationId: null,
+      },
+      budget: { toolCalls: current.length, tokens: current.length * 1_000 },
+      steps: current.map((step) => ({
+        id: step.id,
+        objective: `Approve ${step.id}`,
+        dependsOn: [],
+        requiredEvidenceDomains: ['client_context'],
+        allowedCapabilities: ['send_email'],
+        effect: 'approval_required',
+        completionCondition: 'A proposal exists; nothing is sent before approval.',
+        budget: { toolCalls: 1, tokens: 1_000 },
+      })),
+      clarifyingQuestions: [],
+    };
+    expect(plan.steps.length).toBeLessThanOrEqual(RESEARCH_PLAN_LIMITS.maxSteps);
+    const admitted = admitDurableResearchCoordinator({
+      metadata: { run: RUN_STATE },
+      plan,
+      objective: 'Approve the prepared items',
+      run: { leaseEpoch: RUN_STATE.leaseEpoch, eventSequence: RUN_STATE.eventSequence },
+    });
+    let metadata: Record<string, unknown> = admitted.metadata;
+    for (const step of current) {
+      metadata = recordDurableResearchApprovalProposal({
+        metadata,
+        stepId: step.id,
+        proposalId: step.proposalId,
+      }).metadata;
+    }
+    const staleSteps = options.staleSteps ?? [];
+    const staleHistory = options.staleHistory ?? [];
+    if (!staleSteps.length && !staleHistory.length) return metadata;
+    const coordinator = structuredClone(
+      (metadata as { durableCoordinator: DurableResearchCoordinatorV1 }).durableCoordinator,
+    );
+    const goalRevision = coordinator.goalRevision + 1;
+    return {
+      ...metadata,
+      durableCoordinator: {
+        ...coordinator,
+        goalRevision,
+        steps: [...coordinator.steps.map((step) => ({ ...step, goalRevision })), ...staleSteps],
+        stepHistory: [...coordinator.stepHistory, ...staleHistory],
+      },
+    };
+  }
+
+  function handoffFixture(conversationId: string) {
+    return {
+      version: 1,
+      capturedAt: new Date(CLOCK).toISOString(),
+      conversationId,
+      clientId: null,
+      reasoningMode: 'standard',
+      requestedDeliverable: 'brief',
+      summary: null,
+      summaryUpToMessageId: null,
+      messages: [],
+      attachments: [],
+    };
+  }
+
+  it('settles only exact owned current-goal proposals, excluding a foreign-tenant proposal, another user and a stale-goal entry, and deduplicating repeated references into one batch', async () => {
+    const metadata = admittedWaitingMetadata(
+      [
+        { id: 'step-dup-a', proposalId: 'proposal-dup' },
+        { id: 'step-dup-b', proposalId: 'proposal-dup' },
+        { id: 'step-tenant-foreign', proposalId: 'proposal-tenant-foreign' },
+        { id: 'step-other-user', proposalId: 'proposal-other-user' },
+      ],
+      {
+        staleSteps: [
+          coordinatorStep({ id: 'step-oldgoal', proposalId: 'proposal-oldgoal', goalRevision: 0 }),
+        ],
+        staleHistory: [
+          coordinatorStep({
+            id: 'step-stale',
+            proposalId: 'proposal-stale',
+            goalRevision: 0,
+            outcome: 'superseded',
+          }),
+        ],
+      },
+    );
+    const h = createHarness({
+      proposals: [
+        proposalRow({ id: 'proposal-dup', status: 'approved', expiresAt: PAST }),
+        proposalRow({
+          id: 'proposal-tenant-foreign',
+          status: 'approved',
+          expiresAt: PAST,
+          tenantId: 'tenant-other',
+        }),
+        proposalRow({
+          id: 'proposal-other-user',
+          status: 'approved',
+          expiresAt: PAST,
+          userId: OTHER_USER,
+        }),
+        proposalRow({ id: 'proposal-oldgoal', status: 'approved', expiresAt: PAST }),
+      ],
+      sessions: [sessionRow({ id: 'session-cross-tenant', metadata })],
+    });
+
+    await h.research.listSessions(ctx);
+
+    // The maintenance update is one deduplicated exact-ID owner predicate.
+    const updateWhere = h.proposalUpdateMany.mock.calls.at(-1)![0].where as {
+      id?: { in?: string[] };
+      tenantId?: string;
+      userId?: string;
+      status?: { in?: string[] };
+      expiresAt?: { lte?: Date };
+    };
+    expect(updateWhere.tenantId).toBe(TENANT);
+    expect(updateWhere.userId).toBe(USER);
+    expect(updateWhere.status?.in).toEqual(['proposed', 'approved', 'failed_retryable']);
+    expect(updateWhere.expiresAt?.lte).toBeInstanceOf(Date);
+    const requested = updateWhere.id?.in ?? [];
+    expect(new Set(requested).size).toBe(requested.length);
+    expect(requested.filter((id) => id === 'proposal-dup')).toHaveLength(1);
+    expect(sortedIds(requested)).toEqual(
+      sortedIds(['proposal-dup', 'proposal-tenant-foreign', 'proposal-other-user']),
+    );
+    // The stale-goal proposal is never requested even though its step is in steps.
+    expect(requested).not.toContain('proposal-oldgoal');
+
+    // The owner read carries the same exact-ID + owner restriction.
+    const readWhere = h.proposalFindMany.mock.calls[0]![0].where as {
+      id?: { in?: string[] };
+      tenantId?: string;
+      userId?: string;
+    };
+    expect(readWhere.tenantId).toBe(TENANT);
+    expect(readWhere.userId).toBe(USER);
+    expect(sortedIds(readWhere.id?.in ?? [])).toEqual(
+      sortedIds(['proposal-dup', 'proposal-tenant-foreign', 'proposal-other-user']),
+    );
+
+    // Only the exact owned current-goal proposal changed; every other row is intact.
+    expect(h.proposal('proposal-dup')!.status).toBe('expired');
+    expect(h.proposal('proposal-tenant-foreign')!.status).toBe('approved');
+    expect(h.proposal('proposal-other-user')!.status).toBe('approved');
+    expect(h.proposal('proposal-oldgoal')!.status).toBe('approved');
+    for (const row of h.getProposals()) expect(row.attemptCount).toBe(0);
+
+    const coordinator = readDurableResearchCoordinator(h.session('session-cross-tenant')!.metadata)!;
+    const byId = new Map(coordinator.steps.map((step) => [step.id, step]));
+    // Settlement is truthful for both duplicate references to the same proposal.
+    expect(byId.get('step-dup-a')?.outcome).toBe('cancelled');
+    expect(byId.get('step-dup-a')?.failureCode).toBe('approval_expired');
+    expect(byId.get('step-dup-b')?.outcome).toBe('cancelled');
+    expect(byId.get('step-dup-b')?.failureCode).toBe('approval_expired');
+    // Foreign-tenant / other-user / stale-goal steps stay unresolved.
+    expect(byId.get('step-tenant-foreign')?.outcome).toBe('waiting_for_approval');
+    expect(byId.get('step-other-user')?.outcome).toBe('waiting_for_approval');
+    expect(byId.get('step-oldgoal')?.goalRevision).toBe(0);
+    expect(byId.get('step-oldgoal')?.outcome).toBe('waiting_for_approval');
+    expect(h.failIfCalled).not.toHaveBeenCalled();
+  });
+
+  it('serves an exact owned expired receipt through the public read while new actions are disabled, without enabling create, approve, execute or reconcile', async () => {
+    const metadata = coordinatorMetadata([
+      coordinatorStep({ id: 'approve-disabled', proposalId: 'proposal-disabled' }),
+    ]);
+    const h = createHarness({
+      actionsEnabled: false,
+      proposals: [proposalRow({ id: 'proposal-disabled', status: 'approved', expiresAt: PAST })],
+      sessions: [sessionRow({ id: 'session-disabled', metadata })],
+    });
+
+    await h.research.getSession(ctx, 'session-disabled');
+    expect(h.proposal('proposal-disabled')!.status).toBe('expired');
+    expect(storedStep(h.session('session-disabled')!.metadata, 'approve-disabled')?.outcome).toBe(
+      'cancelled',
+    );
+    expect(
+      storedStep(h.session('session-disabled')!.metadata, 'approve-disabled')?.failureCode,
+    ).toBe('approval_expired');
+
+    await h.research.listSessions(ctx);
+    const snapshot = (await h.research.getCoordinatorSnapshot(ctx, 'session-disabled')) as unknown as {
+      coordinator: { steps: Array<{ id: string; outcome: string }> };
+    };
+    expect(snapshot.coordinator.steps.find((step) => step.id === 'approve-disabled')?.outcome).toBe(
+      'cancelled',
+    );
+
+    // The new-action surface stays disabled: only the historical receipt read is open.
+    await expect(h.owner.list(ctx)).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(h.failIfCalled).not.toHaveBeenCalled();
+  });
+
+  it('a genuine intervening metadata change makes the session compare-and-swap lose, and the next read settles only the new current goal', async () => {
+    const goalA = coordinatorMetadata([
+      coordinatorStep({ id: 'step-a', proposalId: 'proposal-a' }),
+    ]);
+    const goalB = coordinatorMetadata(
+      [coordinatorStep({ id: 'step-b', proposalId: 'proposal-b', goalRevision: 1 })],
+      [
+        coordinatorStep({
+          id: 'step-a',
+          proposalId: 'proposal-a',
+          goalRevision: 0,
+          outcome: 'superseded',
+        }),
+      ],
+      1,
+    );
+    const h = createHarness({
+      interveningSessionChange: (sessions) =>
+        sessions.map((row) =>
+          row.id === 'session-intervening' ? { ...row, metadata: structuredClone(goalB) } : row,
+        ),
+      proposals: [
+        proposalRow({
+          id: 'proposal-a',
+          status: 'approved',
+          expiresAt: PAST,
+          resultSummary: { receipt: 'old-a', untouched: true },
+        }),
+        proposalRow({ id: 'proposal-b', status: 'approved', expiresAt: PAST }),
+      ],
+      sessions: [sessionRow({ id: 'session-intervening', metadata: goalA })],
+    });
+
+    await h.research.getSession(ctx, 'session-intervening');
+
+    // The first read did run old-goal maintenance before the CAS was attempted;
+    // cross-row serializability is not claimed.
+    expect(h.proposal('proposal-a')!.status).toBe('expired');
+    expect(h.proposal('proposal-b')!.status).toBe('approved');
+    // The CAS could not overwrite the concurrent writer's stored metadata,
+    expect(h.session('session-intervening')!.metadata).toEqual(goalB);
+    // and the immutable old receipt survived.
+    expect(h.proposal('proposal-a')!.resultSummary).toEqual({ receipt: 'old-a', untouched: true });
+    const first = readDurableResearchCoordinator(h.session('session-intervening')!.metadata)!;
+    expect(first.steps.map((step) => step.id)).toEqual(['step-b']);
+    expect(first.steps[0]!.outcome).toBe('waiting_for_approval');
+    // The old-goal step was never relinked into current work.
+    expect(first.stepHistory.find((step) => step.id === 'step-a')!.outcome).toBe('superseded');
+
+    // A fresh public read settles only the new current goal's proposal.
+    await h.research.getSession(ctx, 'session-intervening');
+    expect(h.proposal('proposal-b')!.status).toBe('expired');
+    const after = readDurableResearchCoordinator(h.session('session-intervening')!.metadata)!;
+    expect(after.steps.map((step) => step.id)).toEqual(['step-b']);
+    expect(after.steps[0]!.outcome).toBe('cancelled');
+    expect(after.steps[0]!.failureCode).toBe('approval_expired');
+    expect(after.stepHistory.find((step) => step.id === 'step-a')!.outcome).toBe('superseded');
+    expect(h.failIfCalled).not.toHaveBeenCalled();
+  });
+
+  it('preserves a seeded provider-budget ledger across public waiting and settlement reads without incurring a new charge', async () => {
+    const deadline = new Date(CLOCK + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const limits = { maxAttempts: 4, maxTokens: 100_000, maxCostMicros: 5_000_000, deadlineAt: deadline };
+    const seedBudget = (base: Record<string, unknown>) => {
+      const admitted = admitResearchProviderBudget(base, limits).metadata;
+      return reserveResearchProviderAttempt({
+        metadata: admitted,
+        run: { id: RUN_STATE.id, leaseEpoch: RUN_STATE.leaseEpoch },
+        limits,
+        binding: {
+          logicalOperationId: 'op-1',
+          attemptId: 'attempt-1',
+          retryOfAttemptId: null,
+          kind: 'anthropic_messages',
+          phase: 'research',
+          provider: 'anthropic',
+          model: 'claude-sonnet',
+          maxInputTokens: 1_000,
+          maxOutputTokens: 500,
+        },
+        price: { inputPerM: 3, outputPerM: 15 },
+        now: new Date(CLOCK),
+        reservationId: 'res-1',
+      }).metadata;
+    };
+    const waitingMeta = seedBudget(
+      coordinatorMetadata([coordinatorStep({ id: 'step-wait', proposalId: 'proposal-future' })]),
+    );
+    const settleMeta = seedBudget(
+      coordinatorMetadata([coordinatorStep({ id: 'step-settle', proposalId: 'proposal-expired' })]),
+    );
+    const beforeWaiting = structuredClone(readResearchProviderBudget(waitingMeta)!);
+    const beforeSettle = structuredClone(readResearchProviderBudget(settleMeta)!);
+    expect(beforeWaiting.chargedAttempts).toBe(1);
+    expect(beforeWaiting.chargedTokens).toBeGreaterThan(0);
+    expect(beforeWaiting.chargedCostMicros).toBeGreaterThan(0);
+    expect(beforeWaiting.attempts).toHaveLength(1);
+
+    const h = createHarness({
+      proposals: [
+        proposalRow({ id: 'proposal-future', status: 'approved', expiresAt: FUTURE }),
+        proposalRow({ id: 'proposal-expired', status: 'approved', expiresAt: PAST }),
+      ],
+      sessions: [
+        sessionRow({ id: 'session-budget-wait', metadata: waitingMeta }),
+        sessionRow({ id: 'session-budget-settle', metadata: settleMeta }),
+      ],
+    });
+
+    await h.research.getSession(ctx, 'session-budget-wait');
+    await h.research.getSession(ctx, 'session-budget-settle');
+
+    // Waiting leaves the whole ledger and the proposal untouched.
+    expect(readResearchProviderBudget(h.session('session-budget-wait')!.metadata)).toEqual(
+      beforeWaiting,
+    );
+    expect(h.proposal('proposal-future')!.status).toBe('approved');
+    expect(
+      storedStep(h.session('session-budget-wait')!.metadata, 'step-wait')?.outcome,
+    ).toBe('waiting_for_approval');
+
+    // Settlement also leaves the ledger untouched.
+    expect(readResearchProviderBudget(h.session('session-budget-settle')!.metadata)).toEqual(
+      beforeSettle,
+    );
+    expect(h.proposal('proposal-expired')!.status).toBe('expired');
+    expect(h.proposal('proposal-expired')!.attemptCount).toBe(0);
+    expect(
+      storedStep(h.session('session-budget-settle')!.metadata, 'step-settle')?.outcome,
+    ).toBe('cancelled');
+
+    // No model/provider/effect port was invoked to fabricate a reservation.
+    expect(h.failIfCalled).not.toHaveBeenCalled();
+  });
+
+  it('fails closed before maintenance when the client wall denies the actor or the originating conversation no longer binds', async () => {
+    const walledMetadata = coordinatorMetadata([
+      coordinatorStep({ id: 'approve-walled', proposalId: 'proposal-walled' }),
+    ]);
+    const originMetadata = {
+      ...coordinatorMetadata([
+        coordinatorStep({ id: 'approve-origin-client', proposalId: 'proposal-origin-client' }),
+      ]),
+      handoff: handoffFixture('conversation-other-client'),
+    };
+    const h = createHarness({
+      clientMemoryAllowedValue: false,
+      proposals: [
+        proposalRow({ id: 'proposal-walled', status: 'approved', expiresAt: PAST }),
+        proposalRow({ id: 'proposal-origin-client', status: 'approved', expiresAt: PAST }),
+      ],
+      sessions: [
+        sessionRow({ id: 'session-walled', clientId: 'client-walled', metadata: walledMetadata }),
+        sessionRow({ id: 'session-origin-client', clientId: null, metadata: originMetadata }),
+      ],
+      conversations: [
+        {
+          id: 'conversation-other-client',
+          tenantId: TENANT,
+          userId: USER,
+          clientId: 'client-other',
+          archivedAt: null,
+        },
+      ],
+    });
+
+    await expect(h.research.getSession(ctx, 'session-walled')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    await expect(h.research.getSession(ctx, 'session-origin-client')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+
+    // Neither authorization failure ran maintenance first.
+    expect(h.proposal('proposal-walled')!.status).toBe('approved');
+    expect(h.proposal('proposal-origin-client')!.status).toBe('approved');
+    expect(h.proposalUpdateMany).not.toHaveBeenCalled();
+    expect(h.failIfCalled).not.toHaveBeenCalled();
   });
 });
