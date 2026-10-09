@@ -378,22 +378,22 @@ export class MeriResearchService {
         : [];
     });
     if (!waiting.length) return session;
+    // Route the exact current-goal waiting proposal IDs through the attached
+    // shared proposal owner once, so the same conservative expiry maintenance
+    // list() applies is bounded to these IDs before the outcomes are read.
+    const requestedIds = [...new Set(waiting.map((entry) => entry.proposalId))];
+    const statusById = await this.readApprovalProposalStatuses(ctx, requestedIds);
     let metadata: unknown = session.metadata;
     let changed = false;
     for (const { stepId, proposalId } of waiting) {
-      const proposal = await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.meriActionProposal.findFirst({
-          where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId },
-          select: { status: true },
-        }),
-      );
-      if (!proposal) continue;
+      const proposalStatus = statusById.get(proposalId);
+      if (!proposalStatus) continue;
       try {
         const settled = settleDurableResearchApprovalStep({
           metadata,
           stepId,
           proposalId,
-          proposalStatus: proposal.status,
+          proposalStatus,
         });
         if (settled.changed) {
           metadata = settled.metadata;
@@ -419,6 +419,48 @@ export class MeriResearchService {
     );
     // A concurrent writer won; the next read settles from its state.
     return updated.count ? { ...session, metadata: metadata as Prisma.JsonValue } : session;
+  }
+
+  /**
+   * Release D: the current status of the exact proposal IDs a job's approval
+   * steps are waiting on, read through the attached shared proposal owner so
+   * that the same conservative expiry maintenance list() applies runs first,
+   * bounded to these IDs (an empty set does nothing). When no owner is attached
+   * this falls back to a private status-only read that deliberately lacks
+   * maintenance: it never fabricates a terminal status, so a time-expired
+   * proposal that has not been transitioned stays unresolved. This grants no
+   * create/approve/execute authority, and a read failure leaves the IDs
+   * unresolved rather than breaking the job receipt.
+   */
+  private async readApprovalProposalStatuses(
+    ctx: TenantContext,
+    proposalIds: string[],
+  ): Promise<Map<string, string>> {
+    const statusById = new Map<string, string>();
+    if (this.jobApprovals) {
+      try {
+        const owned = await this.jobApprovals.settleExactOwnedApprovals(ctx, proposalIds);
+        for (const row of owned) statusById.set(row.id, row.status);
+      } catch (error) {
+        this.logger.warn(
+          `meri.job.approval.status_read_failed ${JSON.stringify({
+            tenantId: ctx.tenantId,
+            code: error instanceof Error ? error.name : 'unknown',
+          })}`,
+        );
+      }
+      return statusById;
+    }
+    for (const proposalId of proposalIds) {
+      const proposal = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.meriActionProposal.findFirst({
+          where: { id: proposalId, tenantId: ctx.tenantId, userId: ctx.userId },
+          select: { status: true },
+        }),
+      );
+      if (proposal) statusById.set(proposalId, proposal.status);
+    }
+    return statusById;
   }
 
   /**

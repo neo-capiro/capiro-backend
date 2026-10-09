@@ -139,6 +139,16 @@ function fixture(options: { kind?: string; metadata: Record<string, unknown>; pr
       disposition: 'pending_approval',
       proposal: { proposalId: 'proposal-1' },
     })),
+    // Compatibility seam only: the real owner now runs its conservative expiry
+    // and returns the exact requested owner rows. This constant fixture returns
+    // the one configured arbitrary status per requested id (and nothing when
+    // unset), matching the constant status read it replaces. It is not
+    // multirow/lifecycle proof; that lives in the dedicated expiry spec.
+    settleExactOwnedApprovals: jest.fn(async (_ctx: unknown, proposalIds: string[]) =>
+      options.proposalStatus
+        ? proposalIds.map((id) => ({ id, status: options.proposalStatus as string }))
+        : [],
+    ),
   };
   service.attachJobApprovalProposals(proposals as never);
   const internal = service as unknown as {
