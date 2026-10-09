@@ -1,7 +1,9 @@
 import type { MeriContext } from '@capiro/meriv2-core';
 import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
+import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { MeriRetrievalCoordinator } from '../retrieval/meri-retrieval-coordinator.js';
+import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
 import { MeriV3ManagedMcpAssistantService } from './meriv3-managed-mcp-assistant.service.js';
 import { MeriV3AssistantService } from './meriv3-assistant.service.js';
 import { MeriV3RetrievalAssistantService } from './meriv3-retrieval-assistant.service.js';
@@ -33,6 +35,112 @@ function make(managedSchemas: unknown[] = []) {
     { available: jest.fn(async () => false) } as never,
     new MeriRetrievalCoordinator(),
   );
+}
+
+/**
+ * A provider-free responses result for the REAL provider path (only the
+ * external model transport is faked). Mirrors the managed request-path harness
+ * shape so the current `MeriV3AssistantService.runTurn` reads real fields.
+ */
+function providerResult(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'resp-1',
+    status: 'completed',
+    output: [],
+    outputText: 'Final answer.',
+    functionCalls: [],
+    usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0 },
+    model: 'gpt-5.1',
+    usedTenantKey: false,
+    incompleteReason: null,
+    telemetry: {
+      requestedModel: 'gpt-5.1',
+      effectiveModel: 'gpt-5.1',
+      requestedReasoningEffort: 'medium',
+      effectiveReasoningEffort: 'medium',
+      reasoningFallbackReasons: [],
+      finishReason: 'completed',
+      partial: false,
+    },
+    ...overrides,
+  };
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status });
+}
+
+/**
+ * The REAL retrieval subclass driven through the ACTUAL normal provider path
+ * (its real `super.run` -> `MeriV3ManagedMcpAssistantService.run`), with the
+ * current request credential store and the real `ApiManagedMcpRepo` owner
+ * bridge routed through a fake `global.fetch`. Only the external HTTP/model
+ * transport is mocked; the retrieval wrapper, plan/coverage engine and the run
+ * pipeline are the real ones. This is the final-class proof the identity-forward
+ * test alone cannot give.
+ */
+function buildRetrieval(complete: jest.Mock) {
+  const registryService = {
+    registry: { list: () => [], get: () => undefined, executionMetadata: () => undefined, invoke: jest.fn() },
+    llm: {
+      completeJson: jest.fn(),
+      completeWithSchema: jest.fn(async () => ({
+        input: { refuted: false, confidence: 'high', reason: 'Supported.' },
+        usage: { inputTokens: 10, outputTokens: 2 },
+      })),
+      withProviderBudget(budget: { reserveModelAttempt: (phase: unknown) => void }, phase: unknown) {
+        return {
+          completeJson: (...args: unknown[]) => {
+            budget.reserveModelAttempt(phase);
+            return this.completeJson(...args);
+          },
+          completeWithSchema: (...args: unknown[]) => {
+            budget.reserveModelAttempt(phase);
+            return (this.completeWithSchema as jest.Mock)(...args);
+          },
+        };
+      },
+    },
+  };
+  const cfg = { get: jest.fn((key: string) => (key === 'MERIV2_API_BASE_URL' ? 'http://api.test' : undefined)) };
+  const prisma = {
+    withTenant: jest.fn(async (_tenantId: string, callback: (tx: unknown) => unknown) =>
+      callback({
+        aiUsageEvent: { create: jest.fn(async () => ({})) },
+        meriAuditLedger: { create: jest.fn(async () => ({})) },
+      }),
+    ),
+  };
+  return new MeriV3RetrievalAssistantService(
+    registryService as never,
+    { complete } as never,
+    { create: jest.fn() } as never,
+    prisma as never,
+    cfg as never,
+    new ApiManagedMcpRepo(cfg as never),
+    {
+      available: jest.fn(async () => false),
+      execute: jest.fn(async () => ({})),
+      discard: jest.fn(async () => undefined),
+    } as never,
+    new MeriRetrievalCoordinator(),
+  );
+}
+
+function fetchRouter(routes: {
+  native?: () => Response;
+  managed?: () => Response;
+}): jest.Mock {
+  return jest.fn(async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.includes('/api/clio/v3/mcp-tool-schemas')) {
+      return routes.managed ? routes.managed() : jsonResponse({ schemas: [] });
+    }
+    if (url.includes('/api/clio/tool-schemas')) {
+      return routes.native ? routes.native() : jsonResponse({ schemas: [] });
+    }
+    return jsonResponse({});
+  });
 }
 
 const context = {
@@ -334,5 +442,37 @@ describe('MeriV3RetrievalAssistantService', () => {
     expect(baseFetch.mock.calls[0]?.[0]).toBe(control);
     expect(catalogAvailabilityObserverOf(baseFetch.mock.calls[0]?.[0])).toBe(observer);
     expect(schemas.some((schema) => schema.name === 'search_memory')).toBe(true);
+  });
+
+  test('the real normal.run provider path releases the truthful catalog limitation through the retrieval wrapper', async () => {
+    const originalFetch = global.fetch;
+    const complete = jest.fn().mockResolvedValue(providerResult({ outputText: 'Here is the answer.' }));
+    const service = buildRetrieval(complete);
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ error: 'native down' }, 500),
+      managed: () => jsonResponse({ schemas: [] }),
+    }) as unknown as typeof fetch;
+    try {
+      const output = await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        service.run(context, {
+          conversationId: 'retrieval-real-path',
+          messages: [{ role: 'user', text: 'Look up our client records.' }],
+        }),
+      );
+
+      // The REAL super provider path ran (not a mocked superclass.run nor a
+      // fetch identity assertion): exactly one provider round and a real
+      // retrieval plan/coverage produced by the wrapper's own normal.run.
+      expect(complete).toHaveBeenCalledTimes(1);
+      expect(output.retrieval?.plan).toBeDefined();
+
+      // The wrapper delivered the final truthful status: the bounded limitation
+      // is on the released reply and the unsupported provider prose is not.
+      expect(output.reply).toContain('Source note:');
+      expect(output.reply).toContain('not consulted');
+      expect(output.reply).not.toContain('Here is the answer.');
+    } finally {
+      global.fetch = originalFetch;
+    }
   });
 });

@@ -46,6 +46,7 @@ import type {
 } from '@capiro/meriv2-core';
 import {
   attestMeriGovernedContext,
+  InMemoryToolRegistry,
   MERI_CASE46,
   MERI_FIXTURE_SEMANTIC_INSTANT,
   MERI_FIXTURE_SEMANTIC_ZONE,
@@ -53,6 +54,7 @@ import {
   validateMeriGovernedArtifactPolicy,
   verifyMeriGovernedContext,
 } from '@capiro/meriv2-core';
+import { z } from 'zod';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
@@ -4101,5 +4103,184 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const nativeCitation = result.citations?.find((citation) => citation.tool === NATIVE_READ);
     expect(nativeCitation).toMatchObject({ n: 1, id: RECORD_ID, tool: NATIVE_READ });
     expect(result.reply).toContain('Kestrel commitment noted');
+  });
+
+  // ── Root additions (2026-10-09): real InMemoryToolRegistry owner binding ──
+  //
+  // The preceding ordinary late-owner tests drive the local `registry(...)`
+  // mock and its jest `invoke`; those complementary controls are preserved. The
+  // cases below instead use the REAL `InMemoryToolRegistry` from
+  // `@capiro/meriv2-core` with a genuine registered capability, canonical
+  // execution metadata / production handler binding, real schema validation and
+  // real `DefaultScopingWrapper` scoping. Only the external HTTP/model
+  // transport is faked. They prove the SAME admission path is exercised, not a
+  // stubbed owner.
+
+  /**
+   * A real MeriContext with the identity fields `DefaultScopingWrapper`
+   * validates (tenant/user/clerk/role). The base `context` fixture intentionally
+   * omits the clerk/role fields, so the real registry would fail-closed without
+   * them.
+   */
+  const scopedContext = {
+    ...(context as unknown as Record<string, unknown>),
+    clerkUserId: 'clerk-user-1',
+    role: 'member',
+  } as unknown as MeriContext;
+
+  test('a real InMemoryToolRegistry native read runs through the production handler binding and publishes its accepted citation', async () => {
+    const call = functionCall('native-real-registry', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
+    const handler = jest.fn(async (_input: { query?: string }, ctx: MeriContext) => {
+      // The real DefaultScopingWrapper validated the caller identity BEFORE the
+      // production handler ran — this is a real scoping guarantee, not a mock.
+      expect(ctx.tenantId).toBe('tenant-1');
+      expect(ctx.userId).toBe('user-1');
+      return memoryOwnerPayload();
+    });
+    const realRegistry = new InMemoryToolRegistry();
+    realRegistry.register<{ query?: string }, unknown>({
+      name: NATIVE_READ,
+      description: NATIVE_READ,
+      readOnly: true,
+      inputSchema: z.object({ query: z.string().optional() }),
+      handler,
+    });
+    const { service } = buildManaged(complete, { registry: realRegistry });
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      managed: () => jsonResponse({ schemas: [] }),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(scopedContext, {
+          conversationId: 'native-real-registry',
+          messages: [{ role: 'user', text: 'What do we know about Kestrel?' }],
+        }),
+    );
+
+    // The production handler ran exactly once, with the input the REAL registry
+    // parsed (not a passthrough mock): the schema value is the parsed object.
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler.mock.calls[0]?.[0]).toEqual({ query: 'Kestrel' });
+    // The registered native read is published as a supported result: its
+    // canonical [1] citation with its exact identity, and the supported answer.
+    expect(complete).toHaveBeenCalledTimes(2);
+    const citation = (result.citations ?? []).find((entry) => entry.tool === NATIVE_READ);
+    expect(citation).toMatchObject({ n: 1, id: RECORD_ID, tool: NATIVE_READ });
+    expect(result.reply).toContain('Kestrel commitment noted');
+  });
+
+  test('a real InMemoryToolRegistry native read that fails at the production handler is recorded as a current failure', async () => {
+    const call = functionCall('native-real-fail', 'get_client_context', {});
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'The client is thriving.' }));
+    const handler = jest.fn(async () => {
+      throw new Error('canonical client-context owner unavailable');
+    });
+    const realRegistry = new InMemoryToolRegistry();
+    realRegistry.register<{ clientId: string }, unknown>({
+      name: 'get_client_context',
+      description: 'get_client_context',
+      readOnly: true,
+      inputSchema: z.object({ clientId: z.string() }),
+      handler,
+    });
+    const { service } = buildManaged(complete, { registry: realRegistry });
+    global.fetch = fetchRouter({
+      native: () =>
+        jsonResponse({
+          schemas: [
+            {
+              name: 'get_client_context',
+              description: 'get_client_context',
+              input_schema: {
+                type: 'object',
+                properties: { clientId: { type: 'string' } },
+                required: ['clientId'],
+              },
+            },
+          ],
+        }),
+      managed: () => jsonResponse({ schemas: [] }),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(scopedContext, {
+          clientId: '30000000-0000-4000-8000-0000000000ac',
+          conversationId: 'native-real-fail',
+          messages: [{ role: 'user', text: 'Look up our client records.' }],
+        }),
+    );
+
+    // The real registered owner's production handler was the thing that failed
+    // (proving the real admission path, not a mock), exactly once (no retry).
+    expect(handler).toHaveBeenCalledTimes(1);
+    // The CURRENT failure reaches the next provider request and the released
+    // bounded limitation — the real handler throw is observed as a current
+    // native read failure, not swallowed.
+    const secondInstructions = String(complete.mock.calls[1]?.[0]?.instructions ?? '');
+    expect(secondInstructions).toContain('Source availability for this request');
+    expect(secondInstructions).toContain('Capiro client-record read this request needed failed');
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('not consulted');
+    expect(result.reply).not.toContain('The client is thriving.');
+  });
+
+  // ── Root addition (2026-10-09): record-class allowlist hypothesis ──
+  //
+  // The hardening's `RECORD_SPECIFIC_RETRIEVAL_QUERY_CLASSES` allowlist is a
+  // SOURCE HYPOTHESIS, not request-level acceptance. This is the faithful
+  // counterexample the root requested: a SELECTED-CLIENT generic creative
+  // request containing history wording ("Write a poem about history.") with all
+  // catalogs down and NO actual record-dependent plan or attempted read. A
+  // routing CLASS alone must not be broader than an actual request for private
+  // records: a creative poem must be released untouched, exactly like the
+  // temporal "poem about today" positive control.
+  //
+  // THIS CASE IS EXPECTED TO BE RED against the current source: the request text
+  // routes to `entity_history`, which the existing allowlist treats as a
+  // record-specific query class, so `deriveCatalogAvailabilityRelevance`
+  // marks `nativeRequested` and the bounded fallback appends a spurious
+  // record-limitation to a purely creative answer. The exact signal is
+  // `meriv3-assistant.service.ts` RECORD_SPECIFIC_RETRIEVAL_QUERY_CLASSES
+  // (`entity_history`) feeding the relevance seam at
+  // `catalogRelevanceSignals().intentRequiresClientRecords` (~line 1591-1593).
+  // Per instruction this faithful failing case is RETAINED and NOT relaxed; the
+  // production fix is Codex/root-owned outside this fixture-only window.
+  test('a selected-client creative history poem is not treated as a private-record request', async () => {
+    const complete = jest
+      .fn()
+      .mockResolvedValue(providerResult({ outputText: 'A poem about history.' }));
+    const { service } = buildManaged(complete);
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ error: 'down' }, 500),
+      managed: () => jsonResponse({ error: 'down' }, 500),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          clientId: CLIENT_ID,
+          conversationId: 'availability-history-poem',
+          messages: [{ role: 'user', text: 'Write a poem about history.' }],
+        }),
+    );
+
+    // A client focus plus a generic creative word ("history") is NOT proof of a
+    // private-record request: the exact provider answer is retained with no
+    // fabricated unavailable-record limitation. (Faithful red case — see above.)
+    expect(result.reply).toContain('A poem about history.');
+    expect(result.reply).not.toContain('Source note:');
   });
 });
