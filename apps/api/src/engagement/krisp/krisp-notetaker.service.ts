@@ -439,18 +439,17 @@ export class KrispNotetakerService {
       }
       if ((await this.assertActive(ctx, preference)) !== importMode)
         throw new Error('Krisp import mode changed.');
-      let body = sourceText;
-      if (!direct) {
-        this.runtime.assertExternalAction('meeting_debrief_generate');
-        body = formatDebriefBody(
-          await this.persistence.generateMeetingDebriefDraft(ctx, meeting.id, {
-            method: 'upload',
-            sourceText,
-          }),
-        );
-      }
-      // C2 copies its notes verbatim. Other tenants save Meri's generated result.
-      const encrypted = this.crypto.encrypt(body);
+      this.runtime.assertExternalAction('meeting_debrief_generate');
+      const generatedBody = formatDebriefBody(
+        await this.persistence.generateMeetingDebriefDraft(ctx, meeting.id, {
+          method: 'upload',
+          sourceText,
+        }),
+      );
+      // C2 keeps Krisp's finished notes in Meeting Notes and generates only the
+      // Debrief. Other tenants retain their transcript -> generated pair flow.
+      const noteEncrypted = this.crypto.encrypt(direct ? sourceText : generatedBody);
+      const debriefEncrypted = direct ? this.crypto.encrypt(generatedBody) : noteEncrypted;
       await this.assertActive(ctx, preference);
       await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
         // Lock consent, connection, tenant flag, membership, and meeting before committing.
@@ -491,19 +490,21 @@ export class KrispNotetakerService {
           meetingId: meeting.id,
           clientId: current.clientId,
           authorUserId: ctx.userId,
-          ...encrypted,
           confidential: true,
           accessLevel: 'tenant_admins_and_author',
         };
         const note = await tx.meetingNote.create({
           data: {
             ...data,
+            ...noteEncrypted,
             status: 'approved',
             approvedAt: new Date(),
             approvedByUserId: ctx.userId,
           },
         });
-        const debrief = await tx.meetingDebrief.create({ data: { ...data, status: 'approved' } });
+        const debrief = await tx.meetingDebrief.create({
+          data: { ...data, ...debriefEncrypted, status: 'approved' },
+        });
         await tx.krispMeetingImport.update({
           where: { id },
           data: { noteId: note.id, debriefId: debrief.id },

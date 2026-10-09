@@ -144,7 +144,7 @@ function fixture(tenantSlug = ctx.tenantSlug) {
     })),
   };
   const crypto = {
-    encrypt: jest.fn(() => ({
+    encrypt: jest.fn((_body: string) => ({
       bodyCiphertext: 'ciphertext',
       iv: 'iv',
       authTag: 'tag',
@@ -227,13 +227,26 @@ describe('automatic Krisp notes and debriefs', () => {
     await f.service.sweep();
     expect(discover).toHaveBeenCalledTimes(1);
   });
-  test('C2 copies exact Krisp notes into both artifacts without generation and never repeats', async () => {
+  test('C2 saves exact Krisp notes and generates its debrief once', async () => {
     const f = fixture();
+    f.crypto.encrypt.mockImplementation((body: string) => ({
+      bodyCiphertext: body,
+      iv: 'iv',
+      authTag: 'tag',
+      keyVersion: 'v1',
+    }));
     await f.run();
     await f.run();
-    expect(f.crypto.encrypt).toHaveBeenCalledTimes(1);
+    expect(f.crypto.encrypt).toHaveBeenCalledTimes(2);
     expect(f.runtime.assertExternalAction).toHaveBeenCalledWith('integration_sync');
     expect(f.crypto.encrypt).toHaveBeenCalledWith('  # Krisp notes\n\nFollow up tomorrow.\n');
+    expect(f.crypto.encrypt).toHaveBeenCalledWith(
+      'Recap\nMeri recap.\n\nAction Items\n- Pat: send the proposal tomorrow.\n\nNotes\nMeri notes.',
+    );
+    expect(f.persistence.generateMeetingDebriefDraft).toHaveBeenCalledWith(ctx, 'meeting', {
+      method: 'upload',
+      sourceText: '  # Krisp notes\n\nFollow up tomorrow.\n',
+    });
     expect(f.managed.executeRead.mock.calls[0]?.[2]).toEqual({
       document_ids: [doc],
       include_notes: true,
@@ -243,9 +256,12 @@ describe('automatic Krisp notes and debriefs', () => {
     expect(f.debriefs).toHaveLength(1);
     expect(f.notes[0]).toMatchObject({
       status: 'approved',
-      bodyCiphertext: 'ciphertext',
+      bodyCiphertext: '  # Krisp notes\n\nFollow up tomorrow.\n',
       accessLevel: 'tenant_admins_and_author',
     });
+    expect(f.debriefs[0].bodyCiphertext).toBe(
+      'Recap\nMeri recap.\n\nAction Items\n- Pat: send the proposal tomorrow.\n\nNotes\nMeri notes.',
+    );
     expect(f.notes[0]).not.toHaveProperty('sharedAt');
     expect(f.item()).toMatchObject({
       status: 'done',
@@ -254,9 +270,8 @@ describe('automatic Krisp notes and debriefs', () => {
       leaseToken: null,
     });
     expect(JSON.stringify(f.item())).not.toContain('Follow up tomorrow');
-    expect(f.persistence.generateMeetingDebriefDraft).not.toHaveBeenCalled();
-    expect(f.runtime.assertExternalAction).not.toHaveBeenCalledWith('meeting_debrief_generate');
-    expect(f.debriefs[0].bodyCiphertext).toBe(f.notes[0].bodyCiphertext);
+    expect(f.persistence.generateMeetingDebriefDraft).toHaveBeenCalledTimes(1);
+    expect(f.runtime.assertExternalAction).toHaveBeenCalledWith('meeting_debrief_generate');
   });
   test.each(['capiro-internal', 'other-firm', 'new-tenant'])(
     '%s retains Meri generation from the transcript',
@@ -305,7 +320,7 @@ describe('automatic Krisp notes and debriefs', () => {
     expect(f.notes).toHaveLength(0);
   });
   test('generation failure can retry without leaving partial artifacts', async () => {
-    const f = fixture('other-firm');
+    const f = fixture();
     f.persistence.generateMeetingDebriefDraft.mockRejectedValueOnce(
       new Error('provider unavailable'),
     );
