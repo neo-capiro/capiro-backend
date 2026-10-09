@@ -36,6 +36,54 @@ export interface MeriV3ManagedMcpSchema extends BridgedTool {
   readOnly: true;
 }
 
+/** Bounded, sanitized managed-catalog failure reason codes. Never raw provider
+ *  text, error bodies, endpoints, tokens, credentials, or private identifiers. */
+export type MeriV3ManagedFailureReason =
+  | 'unavailable'
+  | 'needs_reauth'
+  | 'malformed'
+  | 'registry_unavailable';
+
+export interface MeriV3ManagedAvailabilityFailure {
+  appId: MeriV3ManagedAppId;
+  /** Safe, fixed managed app name (from the admitted definition). */
+  name: string;
+  reason: MeriV3ManagedFailureReason;
+}
+
+/**
+ * Sanitized availability of the managed catalog for ONE caller. Additive beside
+ * the existing `schemas` array and consumed by the next orchestrator slice to
+ * give a truthful limitation instead of implying an empty result was complete.
+ *
+ * - `no_eligible`: the caller has no eligible managed connection, so no
+ *   discovery was attempted. Deliberate, and NOT an outage or a fake success.
+ * - `ok`: every eligible app was queried and either returned its tools or
+ *   genuinely returned none (successful empty). `complete` is true.
+ * - `partial`: some eligible app failed but usable authorized tools from healthy
+ *   sources were retained.
+ * - `unavailable`: an eligible app failed and no healthy tools were retained, or
+ *   the registry snapshot itself could not be read.
+ */
+export interface MeriV3ManagedCatalogAvailability {
+  state: 'ok' | 'partial' | 'unavailable' | 'no_eligible';
+  complete: boolean;
+  registryUnavailable: boolean;
+  failures: MeriV3ManagedAvailabilityFailure[];
+}
+
+export interface MeriV3ManagedCatalogResult {
+  schemas: MeriV3ManagedMcpSchema[];
+  availability: MeriV3ManagedCatalogAvailability;
+}
+
+const MANAGED_FAILURE_RANK: Record<MeriV3ManagedFailureReason, number> = {
+  needs_reauth: 3,
+  malformed: 2,
+  unavailable: 1,
+  registry_unavailable: 0,
+};
+
 function strings(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
@@ -218,18 +266,74 @@ export class MeriManagedMcpService {
   }
 
   async schemasForMeriV3(ctx: TenantContext): Promise<MeriV3ManagedMcpSchema[]> {
-    if (!globalMcpEnabled() || !this.oauth.isConfigured()) return [];
+    return (await this.managedCatalogForMeriV3(ctx)).schemas;
+  }
+
+  /**
+   * The managed catalog PLUS a sanitized availability result, both derived from
+   * ONE registry snapshot. `schemas` is exactly what `schemasForMeriV3` has
+   * always returned; `availability` is additive and consumed only by the next
+   * orchestrator slice.
+   *
+   * Only discovery failures recorded against the acting owner's CURRENT eligible
+   * personal managed rows are ever named, so another owner/tenant or a custom
+   * connector can never be disclosed. Reason codes are bounded; no raw provider
+   * text/endpoint/token/credential/private id leaves this method.
+   *
+   * A currently-owned, enabled, available managed row whose connection is
+   * error/needs_reauth is a truthful FAILURE source: it is reported (bounded
+   * reason) but never grants a schema or transport, so a still-owned outage
+   * survives the next request / restart / cache expiry without reconnecting or
+   * re-discovering. A deliberate disconnect/disable/unconfigured/feature-off
+   * row is never treated as an outage.
+   */
+  async managedCatalogForMeriV3(ctx: TenantContext): Promise<MeriV3ManagedCatalogResult> {
+    const noEligible = (): MeriV3ManagedCatalogResult => ({
+      schemas: [],
+      availability: {
+        state: 'no_eligible',
+        complete: true,
+        registryUnavailable: false,
+        failures: [],
+      },
+    });
+    // Global kill switch / unconfigured OAuth is deliberate, not an outage and
+    // not a successful query: nothing was eligible to discover.
+    if (!globalMcpEnabled() || !this.oauth.isConfigured()) return noEligible();
+
     const prefixes = new Map<string, MeriV3ManagedAppId>();
+    // serverId -> appId for the acting owner's CURRENTLY-OWNED, enabled,
+    // available managed rows that are NOT connected (error/needs_reauth). These
+    // are truthful failure sources, never a schema/transport grant; they only
+    // gate the zero-provider early return below. Failure NAMING uses the single
+    // final current map re-read AFTER discovery, so a late mutation cannot be
+    // authorized by this earlier admission snapshot.
+    const failedRows = new Map<string, MeriV3ManagedAppId>();
     for (const row of await this.personalRows(ctx)) {
       const id = managedAppIdFromCatalogId(row.catalogId);
       if (id === 'krisp' && !(await krispTenantEnabled(this.prisma, ctx.tenantId))) continue;
-      if (!id || !this.available(id, ctx) || !row.enabled || row.connectionStatus !== 'connected')
-        continue;
-      if (await this.hardenServer(ctx.tenantId, row.id, ctx.userId))
-        prefixes.set(serverPrefix(row.name), id);
+      if (!id || !this.available(id, ctx) || !row.enabled) continue;
+      if (row.connectionStatus === 'connected') {
+        if (await this.hardenServer(ctx.tenantId, row.id, ctx.userId)) {
+          prefixes.set(serverPrefix(row.name), id);
+        }
+      } else if (row.connectionStatus === 'needs_reauth' || row.connectionStatus === 'error') {
+        failedRows.set(row.id, id);
+      }
+      // pending/disconnected are deliberate non-outages: never a failure source.
     }
-    if (!prefixes.size) return [];
-    const schemas = await this.mcp.bridgedSchemasFor(ctx);
+    // Preserve the existing zero-provider-call property when nothing is either
+    // readable or a currently-owned failure.
+    if (!prefixes.size && !failedRows.size) return noEligible();
+
+    // With no readable connection left there is nothing to discover: peek the
+    // SAME existing snapshot (and fresh visibility) with ZERO provider I/O, so a
+    // still-owned outage is reported without a retry storm or a stale schema.
+    const cacheOnly = prefixes.size === 0;
+    const { schemas, failures, registryUnavailable } = await this.mcp.bridgedSchemasDetailedFor(
+      ctx,
+      cacheOnly ? { cacheOnly: true } : undefined,
+    );
     const out: MeriV3ManagedMcpSchema[] = [];
     for (const schema of schemas) {
       const match = [...prefixes].find(([prefix]) => schema.name.startsWith(prefix));
@@ -243,7 +347,90 @@ export class MeriManagedMcpService {
         readOnly: true,
       });
     }
-    return out;
+
+    // Re-read the acting owner's rows AFTER discovery/status writes. This ONE
+    // final map is the single source of truth for BOTH the cached-failure loop
+    // and the DB fallback below. A failure may only be named for a row that is
+    // STILL currently owned, enabled, available, and classified as a managed app
+    // — otherwise a failure that the fresh-visibility filter deliberately
+    // dropped (a row transferred/disabled/reclassified/disconnected mid-call)
+    // would be reintroduced from the earlier admission snapshot. A deliberate
+    // pending/disconnected row is a non-outage and is never admitted here; a
+    // still-connected row IS admitted (reason null) so a legitimate connected
+    // throttle (e.g. Krisp 429, which leaves connectionStatus unchanged) can
+    // still be named from its cached failure rather than masked by an
+    // error-only map.
+    const currentAdmitted = new Map<
+      string,
+      { id: MeriV3ManagedAppId; reason: MeriV3ManagedFailureReason | null }
+    >();
+    for (const row of await this.personalRows(ctx)) {
+      const id = managedAppIdFromCatalogId(row.catalogId);
+      if (id === 'krisp' && !(await krispTenantEnabled(this.prisma, ctx.tenantId))) continue;
+      if (!id || !this.available(id, ctx) || !row.enabled) continue;
+      if (row.connectionStatus === 'disconnected' || row.connectionStatus === 'pending') continue;
+      currentAdmitted.set(row.id, {
+        id,
+        reason:
+          row.connectionStatus === 'needs_reauth'
+            ? 'needs_reauth'
+            : row.connectionStatus === 'error'
+              ? 'unavailable'
+              : null,
+      });
+    }
+
+    // Collapse raw failures to one bounded, sanitized entry per app. A failure
+    // is only named when its server is one of the acting owner's CURRENT admitted
+    // rows and — for a managed failure — its PRIVATE admitted managedAppId still
+    // matches that row's managed classification. Both the cached-failure loop and
+    // the DB fallback read the SAME final map, so a row the newest query dropped
+    // can never be named from an earlier admission.
+    const byApp = new Map<MeriV3ManagedAppId, MeriV3ManagedFailureReason>();
+    for (const failure of failures) {
+      const admitted = currentAdmitted.get(failure.serverId);
+      if (!admitted) continue;
+      if (failure.managedAppId && failure.managedAppId !== admitted.id) continue;
+      const existing = byApp.get(admitted.id);
+      if (!existing || MANAGED_FAILURE_RANK[failure.reason] > MANAGED_FAILURE_RANK[existing]) {
+        byApp.set(admitted.id, failure.reason);
+      }
+    }
+    // DB fallback: a currently-admitted failed row with no cached failure (e.g.
+    // the snapshot expired, or discovery skipped the non-connected row) is still
+    // reported from its CURRENT stored status. A more authoritative current
+    // status (e.g. a newer stored needs_reauth) upgrades an older cached reason
+    // instead of being hidden by it; a deliberate pending/disconnected row was
+    // never admitted and is never reported.
+    for (const { id, reason } of currentAdmitted.values()) {
+      if (!reason) continue;
+      const existing = byApp.get(id);
+      if (!existing || MANAGED_FAILURE_RANK[reason] > MANAGED_FAILURE_RANK[existing]) {
+        byApp.set(id, reason);
+      }
+    }
+    const appFailures: MeriV3ManagedAvailabilityFailure[] = [...byApp].map(([appId, reason]) => ({
+      appId,
+      name: MANAGED_MCP_APPS[appId].name,
+      reason,
+    }));
+
+    const state: MeriV3ManagedCatalogAvailability['state'] = registryUnavailable
+      ? 'unavailable'
+      : appFailures.length === 0
+        ? 'ok'
+        : out.length
+          ? 'partial'
+          : 'unavailable';
+    return {
+      schemas: out,
+      availability: {
+        state,
+        complete: state === 'ok',
+        registryUnavailable,
+        failures: appFailures,
+      },
+    };
   }
 
   async executeRead(

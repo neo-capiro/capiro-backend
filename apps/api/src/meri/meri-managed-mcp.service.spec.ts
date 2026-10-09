@@ -39,6 +39,11 @@ function make() {
     deleteServer: jest.fn(async () => ({ deleted: true })),
     invalidate: jest.fn(),
     bridgedSchemasFor: jest.fn(async (): Promise<BridgedTool[]> => []),
+    bridgedSchemasDetailedFor: jest.fn(async () => ({
+      schemas: [] as BridgedTool[],
+      failures: [] as Array<{ serverId: string; managedAppId: string | null; reason: string }>,
+      registryUnavailable: false,
+    })),
     isBridgedToolReadOnly: jest.fn(() => true),
     executeBridged: jest.fn(async () => ({ ok: true })),
   };
@@ -401,7 +406,11 @@ describe('connected managed app tool exposure', () => {
       inputSchema: { type: 'object', properties: { query: { type: 'string' } } },
     });
     const foreign = bridgeMcpTool('another-connector', { name: tool });
-    mcp.bridgedSchemasFor.mockResolvedValue([schema, foreign]);
+    mcp.bridgedSchemasDetailedFor.mockResolvedValue({
+      schemas: [schema, foreign],
+      failures: [],
+      registryUnavailable: false,
+    });
     expect(await service.schemasForMeriV3(ctx)).toEqual([
       { ...schema, source: 'managed_mcp', appId, appName: app.name, readOnly: true },
     ]);

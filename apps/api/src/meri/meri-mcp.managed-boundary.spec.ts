@@ -236,3 +236,183 @@ describe('Krisp tenant rollout at the MCP execution boundary', () => {
     expect(client.listTools).not.toHaveBeenCalled(); expect(client.callTool).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Additive detailed seam at the MCP owner boundary: identical schemas plus
+ * bounded, non-disclosing failure metadata. Raw per-server failures are exposed
+ * here for the managed owner to filter; a recorded failure is never a schema and
+ * never authorizes a tool.
+ */
+describe('managed catalog availability seam at the MCP owner boundary', () => {
+  const originalEnabled = process.env.MERI_MCP_AIRTABLE_ENABLED;
+  beforeEach(() => {
+    process.env.MERI_MCP_AIRTABLE_ENABLED = 'true';
+    jest.clearAllMocks();
+  });
+  afterEach(() => {
+    if (originalEnabled === undefined) delete process.env.MERI_MCP_AIRTABLE_ENABLED;
+    else process.env.MERI_MCP_AIRTABLE_ENABLED = originalEnabled;
+  });
+
+  test('bridgedSchemasFor keeps its array contract beside the detailed seam', async () => {
+    const { service } = make();
+    expect((await service.bridgedSchemasFor(ctx)).map((s) => s.name)).toEqual([
+      'mcp__meriv3_airtable__list_bases',
+    ]);
+    const detailed = await service.bridgedSchemasDetailedFor(ctx);
+    expect(detailed.schemas.map((s) => s.name)).toEqual(['mcp__meriv3_airtable__list_bases']);
+    expect(detailed.failures).toEqual([]);
+    expect(detailed.registryUnavailable).toBe(false);
+  });
+
+  test('a provider listTools outage is recorded as a managed failure, not a silent empty', async () => {
+    const { service, client } = make();
+    client.listTools.mockRejectedValue(new Error('provider unavailable'));
+    const result = await service.bridgedSchemasDetailedFor(ctx);
+    expect(result.schemas).toEqual([]);
+    expect(result.registryUnavailable).toBe(false);
+    expect(result.failures).toEqual([
+      { serverId: 'server', managedAppId: 'airtable', reason: 'unavailable' },
+    ]);
+  });
+
+  test('an authorization failure classifies as needs_reauth', async () => {
+    const { service, client } = make();
+    client.listTools.mockRejectedValue(
+      Object.assign(new Error('expired'), { name: 'InvalidTokenError' }),
+    );
+    const result = await service.bridgedSchemasDetailedFor(ctx);
+    expect(result.failures).toEqual([
+      { serverId: 'server', managedAppId: 'airtable', reason: 'needs_reauth' },
+    ]);
+  });
+
+  test('a managed app with no supported read tool classifies as malformed', async () => {
+    const { service, client } = make();
+    client.listTools.mockResolvedValue([{ name: 'execute_api', inputSchema: { type: 'object' } }]);
+    const result = await service.bridgedSchemasDetailedFor(ctx);
+    expect(result.schemas).toEqual([]);
+    expect(result.failures).toEqual([
+      { serverId: 'server', managedAppId: 'airtable', reason: 'malformed' },
+    ]);
+  });
+
+  test('a registry snapshot failure is registryUnavailable, never an empty success', async () => {
+    const { service, tx } = make();
+    tx.clioMcpServer.findMany.mockRejectedValue(new Error('db down'));
+    const result = await service.bridgedSchemasDetailedFor(ctx);
+    expect(result.schemas).toEqual([]);
+    expect(result.failures).toEqual([]);
+    expect(result.registryUnavailable).toBe(true);
+  });
+
+  test('cacheOnly peeks the existing snapshot with zero provider I/O', async () => {
+    const { service, client } = make();
+    client.listTools.mockRejectedValue(new Error('provider unavailable'));
+    const first = await service.bridgedSchemasDetailedFor(ctx);
+    expect(first.failures).toEqual([
+      { serverId: 'server', managedAppId: 'airtable', reason: 'unavailable' },
+    ]);
+    expect(client.listTools).toHaveBeenCalledTimes(1);
+
+    const peek = await service.bridgedSchemasDetailedFor(ctx, { cacheOnly: true });
+    expect(peek.failures).toEqual([
+      { serverId: 'server', managedAppId: 'airtable', reason: 'unavailable' },
+    ]);
+    expect(peek.registryUnavailable).toBe(false);
+    expect(client.listTools).toHaveBeenCalledTimes(1);
+  });
+
+  test('cacheOnly with no existing snapshot performs zero provider I/O', async () => {
+    const { service, client } = make();
+    const peek = await service.bridgedSchemasDetailedFor(ctx, { cacheOnly: true });
+    expect(peek).toEqual({ schemas: [], failures: [], registryUnavailable: false });
+    expect(client.listTools).not.toHaveBeenCalled();
+  });
+
+  test.each(['disconnected', 'pending'] as const)(
+    'a deliberate %s after discovery is not reported as a failure',
+    async (status) => {
+      const { service, row, client } = make();
+      client.listTools.mockRejectedValue(new Error('provider unavailable'));
+
+      const first = await service.bridgedSchemasDetailedFor(ctx);
+      expect(first.failures).toEqual([
+        { serverId: 'server', managedAppId: 'airtable', reason: 'unavailable' },
+      ]);
+      expect(client.listTools).toHaveBeenCalledTimes(1);
+
+      // A cross-replica intentional disconnect/pending lands after discovery but
+      // before the fresh visibility read: the current row is no longer an outage.
+      row.connectionStatus = status;
+
+      const second = await service.bridgedSchemasDetailedFor(ctx);
+      expect(second.failures).toEqual([]);
+      expect(second.schemas).toEqual([]);
+      // No rediscovery: the cached snapshot is still within its TTL.
+      expect(client.listTools).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  const genericCases: Array<[('token' | 'none'), ('disconnected' | 'pending')]> = [
+    ['token', 'disconnected'],
+    ['token', 'pending'],
+    ['none', 'disconnected'],
+    ['none', 'pending'],
+  ];
+
+  test.each(genericCases)(
+    'a genuine generic %s connector failure with %s metadata is still reported',
+    async (authType, status) => {
+      const { service, row, client } = make();
+      // A generic (catalog-less) token/none connector: the connection status is
+      // NOT a discovery/execution gate (only OAuth is skipped when non-connected
+      // — see registryFor/executeBridged), so a genuine listTools failure is a
+      // real outage and must not be masked by the deliberate-disconnect policy.
+      Object.assign(row, {
+        id: 'srv-generic',
+        name: 'custom-connector',
+        catalogId: null,
+        endpoint: 'https://custom.example/mcp',
+        authType,
+        connectionStatus: status,
+        toolAllowlist: ['thing'],
+        readOnlyTools: ['thing'],
+      });
+      client.listTools.mockRejectedValue(new Error('provider unavailable'));
+
+      const first = await service.bridgedSchemasDetailedFor(ctx);
+      expect(first.schemas).toEqual([]);
+      expect(first.registryUnavailable).toBe(false);
+      expect(first.failures).toEqual([
+        { serverId: 'srv-generic', managedAppId: null, reason: 'unavailable' },
+      ]);
+      expect(client.listTools).toHaveBeenCalledTimes(1);
+
+      // Bounded failure retained across a cached repeat with no rediscovery.
+      const second = await service.bridgedSchemasDetailedFor(ctx);
+      expect(second.failures).toEqual([
+        { serverId: 'srv-generic', managedAppId: null, reason: 'unavailable' },
+      ]);
+      expect(second.schemas).toEqual([]);
+      expect(client.listTools).toHaveBeenCalledTimes(1);
+      expect(client.callTool).not.toHaveBeenCalled();
+    },
+  );
+
+  test('global MCP disable is deliberate: no failure and no registry outage', async () => {
+    const tx = {
+      tenant: { findUnique: jest.fn(async () => null) },
+      clioMcpServer: { findMany: jest.fn(async () => []) },
+    };
+    const prisma = { withTenant: jest.fn(async (_t: string, fn: (value: unknown) => unknown) => fn(tx)) };
+    const config = { get: jest.fn((key: string) => (key === 'CLIO_MCP_ENABLED' ? false : undefined)) };
+    const oauth = { isConfigured: jest.fn(() => true) };
+    const service = new MeriMcpService(prisma as never, config as never, oauth as never);
+    expect(await service.bridgedSchemasDetailedFor(ctx)).toEqual({
+      schemas: [],
+      failures: [],
+      registryUnavailable: false,
+    });
+  });
+});
