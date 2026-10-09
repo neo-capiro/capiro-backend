@@ -608,23 +608,6 @@ function boundedPartialReply(
 }
 
 /**
- * Query classes that are themselves a record-specific request for the focused
- * client's private data. A plain `temporal_state` ("today") or `semantic_recall`
- * ("find ...") class is NOT included: a client focus plus a generic
- * temporal/semantic word must not turn generic/creative chat into an
- * unavailable-private-record partial. The actual evidence plan and the actual
- * attempted canonical reads remain the primary relevance signals.
- */
-const RECORD_SPECIFIC_RETRIEVAL_QUERY_CLASSES: ReadonlySet<string> = new Set([
-  'comparison',
-  'change_detection',
-  'relationship_history',
-  'portfolio_scan',
-  'exhaustive_search',
-  'entity_history',
-]);
-
-/**
  * A genuine authorized seed/context evidence entry (the authenticated governed
  * packet or a reauthorized document observation). Authenticated provenance is
  * the REQUEST-LOCAL identity of the entry the controller seeded from the
@@ -700,8 +683,17 @@ function buildBoundedCatalogAvailabilityReply(
   evidence: {
     /** Request-authenticated seed entries (governed packet / reauthorized reads). */
     seedEntries: readonly LedgerEntry[];
-    /** Citations already accepted/exposed for this turn. */
-    citations: readonly MeriCitation[];
+    /**
+     * Request-local binding from EACH dispatched ledger entry to the concrete
+     * accepted citations that entry itself produced. This is deliberately NOT a
+     * later global citation array filtered by tool name: a later UNAVAILABLE
+     * result of the SAME tool must never be restored from an earlier healthy
+     * call's slot, and a genuine inner owner citation whose `tool` differs from
+     * the outer host name must still be found. Seed entries are bound to the
+     * request-authenticated seed citation array by their seed identity, never to
+     * an owner-supplied `origin` string or arbitrary failed-owner data.
+     */
+    ledgerCitationBindings: ReadonlyMap<LedgerEntry, readonly MeriCitation[]>;
   },
 ): { reply: string; citations: MeriCitation[] } {
   const seedEntries = new Set(evidence.seedEntries);
@@ -709,15 +701,22 @@ function buildBoundedCatalogAvailabilityReply(
   const seed = supported.filter((entry) => seedEntries.has(entry));
   const reads = supported.filter((entry) => !seedEntries.has(entry));
   const retainedEntries = seed.length ? [...seed.slice(-2), ...reads.slice(-2)] : reads.slice(-4);
-  // Retain the accepted citation summaries/snippets for the sources that were
-  // genuinely read. A source with no citable extract keeps a bounded honest
-  // receipt (its tool name) instead of an arbitrary serialized object.
-  const retainedTools = new Set(retainedEntries.map((entry) => entry.tool));
-  const retainedCitationObjects = evidence.citations
-    .filter((citation) => retainedTools.has(citation.tool))
-    .slice(-4);
-  const retained = retainedCitationObjects.length
-    ? retainedCitationObjects.map(readableAcceptedCitation)
+  // Retain the concrete accepted citation objects bound to the ACTUAL retained
+  // supported invocation identities — preserving original numbers/identity/
+  // snippets. A source with no citable extract keeps a bounded honest receipt
+  // (its tool name) instead of an arbitrary serialized object.
+  const retainedCitationObjects: MeriCitation[] = [];
+  const seen = new Set<MeriCitation>();
+  for (const entry of retainedEntries) {
+    for (const citation of evidence.ledgerCitationBindings.get(entry) ?? []) {
+      if (seen.has(citation)) continue;
+      seen.add(citation);
+      retainedCitationObjects.push(citation);
+    }
+  }
+  const boundedCitations = retainedCitationObjects.slice(-4);
+  const retained = boundedCitations.length
+    ? boundedCitations.map(readableAcceptedCitation)
     : retainedEntries.map(
         (entry) => `- ${entry.tool}: source read completed; no bounded fact extract was retained.`,
       );
@@ -733,7 +732,7 @@ function buildBoundedCatalogAvailabilityReply(
   // identities/numbers — alongside the reply. This keeps every `[n]` marker
   // backed by matching citation metadata (no dangling seeded/[9] marker, no
   // failed-owner citation restoration); it invents no evidence/fact contract.
-  return { reply, citations: [...retainedCitationObjects] };
+  return { reply, citations: [...boundedCitations] };
 }
 
 function incompleteSynthesisPartialReply(ledgerEntries: LedgerEntry[]): string {
@@ -1574,26 +1573,23 @@ export class MeriV3AssistantService {
       availabilityObserver?.noteManaged({ outcome: 'skipped' });
     }
     // Request-local relevance signals derived from the ACTUAL turn: the real
-    // evidence plan, the real retrieval intent and the canonical reads actually
-    // attempted so far. An authenticated clientId alone is NEVER a signal, and a
-    // generic temporal/semantic word with a client focused is NOT proof of a
-    // private-record request: only a genuinely record-specific intent class
-    // counts (the actual plan and actual attempted reads remain the primary
-    // signals).
-    const catalogRelevanceSignals = (): MeriCatalogAvailabilityRelevanceSignals => {
-      const retrievalIntent = classifyMeriRetrievalIntent(lastUserText, dto.clientId ?? null);
-      return {
-        planRequiresClientRecords: evidencePlan.requirements.some((requirement) =>
-          requirement.toolFamilies.some(
-            (family) => family === 'read_client_documents' || family === 'get_client_context',
-          ),
+    // evidence plan and the canonical reads actually attempted. A retrieval
+    // intent CLASS alone is deliberately NOT a signal here: a focused client
+    // plus a bare history/prior/past (or other broad wording) word must not turn
+    // creative/unrelated chat into an unavailable-private-record partial. A
+    // genuinely record-dependent request is still relevant through the actual
+    // plan (`planRequiresClientRecords`), an explicit record-phrasing request
+    // (the request pattern inside `deriveCatalogAvailabilityRelevance`) or the
+    // actual attempted canonical client-record read (`attemptedReads`) — the
+    // primary signals. No new classifier or shared contract is introduced.
+    const catalogRelevanceSignals = (): MeriCatalogAvailabilityRelevanceSignals => ({
+      planRequiresClientRecords: evidencePlan.requirements.some((requirement) =>
+        requirement.toolFamilies.some(
+          (family) => family === 'read_client_documents' || family === 'get_client_context',
         ),
-        intentRequiresClientRecords:
-          retrievalIntent.subjectScope === 'client' &&
-          RECORD_SPECIFIC_RETRIEVAL_QUERY_CLASSES.has(retrievalIntent.queryClass),
-        attemptedReads: ledgerEntries.map((entry) => entry.tool),
-      };
-    };
+      ),
+      attemptedReads: ledgerEntries.map((entry) => entry.tool),
+    });
     const currentCatalogRelevance = (): MeriCatalogAvailabilityRelevance =>
       deriveCatalogAvailabilityRelevance(lastUserText, catalogRelevanceSignals());
     // Recompute the availability guidance at EVERY provider request from a FRESH
@@ -1793,6 +1789,21 @@ export class MeriV3AssistantService {
     const artifacts: ChatArtifact[] = [];
     const citations: MeriCitation[] = [...initialEvidence.citations];
     const ledgerEntries: LedgerEntry[] = [...initialEvidence.ledgerEntries];
+    // Request-local binding from EACH ledger entry to the concrete accepted
+    // citations that entry itself produced (or, for a seed entry, the request-
+    // authenticated seed citations bound by its seed identity). The bounded final
+    // release reads ONLY these bound objects, so a later unavailable result of
+    // the SAME tool can never be restored from an earlier healthy call, an inner
+    // owner citation is never missed because its `tool` differs from the outer
+    // host name, and no owner-supplied `origin` string can forge a seed. This is
+    // an internal per-request map — no shared/Core shape is introduced.
+    const ledgerCitationBindings = new Map<LedgerEntry, readonly MeriCitation[]>();
+    for (const seedEntry of initialEvidence.ledgerEntries) {
+      ledgerCitationBindings.set(
+        seedEntry,
+        initialEvidence.citations.filter((citation) => citation.tool === seedEntry.tool),
+      );
+    }
     const usage = emptyUsage();
     const toolsUsed: string[] = [];
     let complianceOutcome: 'PASS' | 'WARN' | 'BLOCK' | undefined;
@@ -1974,6 +1985,7 @@ export class MeriV3AssistantService {
             artifacts,
             citations,
             ledgerEntries,
+            ledgerCitationBindings,
             toolsUsed,
             emit,
             prePersistRefusal,
@@ -2899,8 +2911,8 @@ export class MeriV3AssistantService {
         { seededEvidencePresent: initialEvidence.citations.length > 0 },
       );
       if (limitation) {
-        // The bounded fallback DISCARDS the provider prose, so it replaces BOTH
-        // the reply and its citations: the released citations become exactly the
+        // The bounded fallback DISCARDS the provider prose, so it replaces the
+        // reply and its citations: the released citations become exactly the
         // genuine supported citations the bounded reply actually rendered (with
         // their original identities/numbers). `released.citations` from
         // finalizeReply is marker-filtered against the now-discarded provider
@@ -2908,9 +2920,23 @@ export class MeriV3AssistantService {
         // marker dangling (and could carry an unrelated provider citation).
         const bounded = buildBoundedCatalogAvailabilityReply(limitation, ledgerEntries, {
           seedEntries: initialEvidence.ledgerEntries,
-          citations,
+          ledgerCitationBindings,
         });
-        released = { ...released, reply: bounded.reply, citations: bounded.citations };
+        // COMPOSE, do not blanket-replace: a genuine server-owned document
+        // completion gap ("The relevant text in ... has not been fully
+        // reviewed.") that finalizeReply already carried must survive alongside
+        // the source-specific limitation. Only the fixed, server-owned
+        // `documentCompletion.gaps()` strings are re-disclosed here — never the
+        // discarded provider prose and never a serialized failed-owner body.
+        const completionDisclosure =
+          completionGaps.length && !opts.signal?.aborted
+            ? [`**Partial answer:** ${completionGaps.join(' ')}`]
+            : [];
+        released = {
+          ...released,
+          reply: [...completionDisclosure, bounded.reply].join('\n\n'),
+          citations: bounded.citations,
+        };
       }
     }
 
@@ -3634,6 +3660,13 @@ export class MeriV3AssistantService {
     artifacts: ChatArtifact[];
     citations: MeriCitation[];
     ledgerEntries: LedgerEntry[];
+    /**
+     * Request-local binding from each dispatched ledger entry to the concrete
+     * accepted citations that entry itself produced. The final bounded release
+     * reads only these bound objects, never a later global array selected by
+     * tool name/id.
+     */
+    ledgerCitationBindings: Map<LedgerEntry, readonly MeriCitation[]>;
     toolsUsed: string[];
     emit: (event: MeriV3ChatStreamEvent) => void;
     prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null;
@@ -4028,14 +4061,21 @@ export class MeriV3AssistantService {
       });
       const body = wrapMeriToolEvidence(call.name, visibleResult);
       const serialized = cites.length ? `${formatCitationsForPrompt(cites)}\n\n${body}` : body;
-      args.ledgerEntries.push({
+      const ledgerEntry = {
         tool: call.name,
         serialized,
         // A committed research read retains the exact owner payload; prompt
         // projection remains `visibleResult` in the Responses call below.
         result: durableSafeRead ? result : visibleResult,
         ...(durableSafeRead ? { durableSafeRead } : {}),
-      } as LedgerEntry);
+      } as LedgerEntry;
+      args.ledgerEntries.push(ledgerEntry);
+      // Bind THIS invocation's ledger identity to the concrete accepted citation
+      // objects it produced (original numbers/identity/snippets). A later
+      // unavailable result of the SAME tool therefore cannot overwrite the
+      // healthy call's bound citation, and an inner owner citation whose `tool`
+      // differs from the outer host name is not lost to a tool-name filter.
+      args.ledgerCitationBindings.set(ledgerEntry, cites);
       const execution = { call, result: visibleResult, serialized };
       executions.push(execution);
       if (intentKey) batchWriteIntents.set(intentKey, execution);
@@ -4368,12 +4408,15 @@ export class MeriV3AssistantService {
           dispatchedReservationId = reservation.reservationId;
           ownerReadDispatched = true;
           result = await this.registry.invoke(args.name, args.input, args.ctx, args.control);
-          // The owner read is now INCURRED. Its outcome/failure is settled
-          // durably below regardless of a Stop during the call, so a reserved
-          // attempt is never bypassed and the durable evidence of the read is
-          // never discarded. Only PUBLICATION (the availability observation, the
-          // done step/event, the ledger citation/artifact and the next provider
-          // round) is withheld for a turn that is no longer current.
+          // The owner read is now INCURRED. Its outcome/failure settlement is
+          // ATTEMPTED below with the ORIGINAL parent signal. This is NOT a
+          // guarantee of a durable commit: a real transport that honors an
+          // already-aborted parent rejects the settlement POST before any
+          // durable receipt, and the catch below then leaves the reservation
+          // UNCERTAIN (no invented durable-store proof). Only PUBLICATION (the
+          // availability observation, the done step/event, the ledger
+          // citation/artifact and the next provider round) is withheld for a
+          // turn that is no longer current.
           const classification = classifyApiToolReadOutcome(args.name, result);
           // Complete, empty and partial reads are receipted; the API keeps
           // partial ones out of the qualified sources but re-checks them.
@@ -4394,9 +4437,10 @@ export class MeriV3AssistantService {
               args.control,
             );
             const detail = `Read result was not durably qualified (${classification?.kind ?? 'unknown'}).`;
-            // The failure settlement above preserves the incurred read. A
-            // Stop/expiry during the owner call or settlement must not now
-            // publish it as a current failure observation or an error step.
+            // The failure settlement above is ATTEMPTED with the original parent
+            // signal (not a guaranteed receipt). A Stop/expiry during the owner
+            // call or settlement must not now publish the read as a current
+            // failure observation or an error step.
             assertToolExecutionActive(args.control);
             this.noteNativeReadOutcomeFailure(
               args.name,
@@ -4425,10 +4469,13 @@ export class MeriV3AssistantService {
             args.control,
           );
           durableSafeRead = this.durableOutcome({ ...receipt, replayed: false });
-          // The legitimate durable settlement is complete. A Stop/expiry during
-          // the owner call or the settlement must not now publish the read as a
-          // current success. The reservation is settled, so clear it so the
-          // catch cannot re-settle a successful read as a failed dispatch.
+          // This line is reached only because the outcomes settlement POST
+          // RESOLVED with a receipt (a real transport rejects it when the parent
+          // is already aborted, and the catch below then leaves the reservation
+          // uncertain). A Stop/expiry during the owner call or the settlement
+          // must not now publish the read as a current success. The reservation
+          // is settled, so clear it so the catch cannot re-settle a successful
+          // read as a failed dispatch.
           dispatchedReservationId = undefined;
           assertToolExecutionActive(args.control);
           this.noteNativeReadOutcomeFailure(

@@ -4531,6 +4531,99 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     expect(citations.some((citation) => citation.id === FAILED_RECORD_ID)).toBe(false);
   });
 
+  // ── (2b) SAME source id, LATER unavailable ──
+  test('a later UNAVAILABLE read sharing the SAME source id never overwrites the healthy bound citation', async () => {
+    const healthy = functionCall('same-id-healthy', NATIVE_READ, { query: 'Kestrel' });
+    const failed = functionCall('same-id-failed', NATIVE_READ, { query: 'Beta' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({ output: [healthy, failed], outputText: '', functionCalls: [healthy, failed] }),
+      )
+      .mockResolvedValue(providerResult({ outputText: 'Both facts noted.' }));
+    // The later read is CLASSIFIED UNAVAILABLE yet carries the SAME source id as
+    // the healthy read. A global citation array keyed by tool+id is OVERWRITTEN by
+    // this unavailable object, so the bounded release must resolve the healthy
+    // call's concrete bound object — never that overwritten global slot.
+    const sameIdUnavailable = {
+      ...memoryOwnerPayload(),
+      contentStatus: 'unavailable',
+      results: [
+        {
+          id: RECORD_ID,
+          memoryItemId: RECORD_ID,
+          title: FAILED_TITLE,
+          clientId: CLIENT_ID,
+          relevance: null,
+        },
+      ],
+      records: [
+        {
+          domain: 'institutional_knowledge',
+          recordId: RECORD_ID,
+          payload: {
+            sourceKind: 'governed_memory',
+            memoryItemId: RECORD_ID,
+            title: FAILED_TITLE,
+            value: FAILED_SNIPPET,
+            clientId: CLIENT_ID,
+            content: { hash: 'revoked-same-id' },
+          },
+        },
+      ],
+    };
+    const executor = new ApiToolExecutorRepo(config() as never);
+    const realRegistry = new InMemoryToolRegistry();
+    registerDelegatedTools(
+      (def) => realRegistry.register(def),
+      FULL_CHAT_READ_TOOLS.filter((spec) => spec.name === NATIVE_READ),
+      executor,
+    );
+    const { service } = buildManaged(complete, { registry: realRegistry });
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      managed: () => jsonResponse({ schemas: [] }),
+      nativeOwner: (_url, init) => {
+        const body = JSON.parse(String(init?.body ?? '{}')) as { query?: unknown };
+        return body.query === 'Beta'
+          ? jsonResponse(sameIdUnavailable)
+          : jsonResponse(memoryOwnerPayload());
+      },
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(scopedContext, {
+          conversationId: 'same-id-lineage',
+          messages: [
+            {
+              role: 'user',
+              text: 'Check our institutional knowledge for the Kestrel and Beta facts.',
+            },
+          ],
+        }),
+    );
+
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('Kestrel commitment');
+    expect(result.reply).not.toContain(FAILED_TITLE);
+    expect(result.reply).not.toContain(FAILED_SNIPPET);
+    const citations = result.citations ?? [];
+    expect(citations).toHaveLength(1);
+    // The SAME n/id, but the HEALTHY concrete object (title) — not the overwritten
+    // global slot that now holds the unavailable object with the same id.
+    expect(citations[0]).toMatchObject({
+      n: 1,
+      tool: NATIVE_READ,
+      id: RECORD_ID,
+      title: 'Kestrel commitment',
+    });
+    expect(citations[0]?.title).not.toBe(FAILED_TITLE);
+    expect(result.reply).toContain('[1]');
+  });
+
   // ── (3) native discovery transport variants through normal.run ──
   test.each<[string, () => Response]>([
     ['401 auth denial', () => jsonResponse({ error: 'unauthorized' }, 401)],
@@ -4722,9 +4815,13 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
   // the NEW safe-read reservation and the owner dispatch. A Stop or absolute
   // expiry during either await must leave the ORIGINAL parent stopped so no
   // reservation and no owner read start; an already-incurred read's
-  // outcome/failure settlement is still sent even though its publication is
-  // withheld for a no-longer-current turn. Only the external HTTP/model and
-  // owner transports are faked; the branch, budget and registry are real.
+  // outcome/failure settlement is ATTEMPTED even though its publication is
+  // withheld for a no-longer-current turn. NOTE (transport fidelity): the mocks
+  // below ignore `init.signal`, so they prove an ATTEMPTED accounting, not a
+  // confirmed durable receipt. A real transport honoring the aborted parent
+  // rejects the settlement POST before a receipt (see the abort-aware transport
+  // case below); only the external HTTP/model and owner transports are faked,
+  // while the branch, budget and registry are real.
 
   /** An admitted research execution envelope bound to one request conversation. */
   function researchRunBinding(conversationId: string) {
@@ -4863,9 +4960,14 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
    * reached (and in which order) rather than passing on an earlier refusal.
    */
   function researchLifecycleOrder(fetchMock: jest.Mock): string[] {
+    // The inner map is explicitly typed `string | null` so the guard predicate
+    // narrows that inferred element type to `string`; without the annotation the
+    // literal-object union it infers is not assignable to the declared return
+    // type and the `tag is string` predicate's parameter type disagrees (the
+    // exact TS2322/TS2677 the check receipt recorded). No cast/assertion is used.
     return fetchMock.mock.calls
       .map((candidate) => String(candidate[0]))
-      .map((url) =>
+      .map((url): string | null =>
         url.endsWith('/safe-read/replay')
           ? 'replay'
           : url.includes('/procedure-runtime/validate')
@@ -5138,7 +5240,9 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const outcomeRequests = fetchMock.mock.calls.filter((candidate) =>
       String(candidate[0]).endsWith('/safe-read/outcomes'),
     ).length;
-    // The already-incurred read's outcome was settled at the lifecycle owner...
+    // The already-incurred read's outcome settlement was ATTEMPTED at the
+    // lifecycle owner through a permissive fixture that ignores `init.signal`
+    // (an ATTEMPT/attempted-accounting receipt, not a confirmed durable commit).
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(outcomeRequests).toBe(1);
     // ...but the late read was never published as current.
@@ -5194,8 +5298,10 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     const failureRequests = fetchMock.mock.calls.filter((candidate) =>
       String(candidate[0]).endsWith('/safe-read/failures'),
     ).length;
-    // The already-incurred failed read was settled at the lifecycle owner, but a
-    // no-longer-current turn never publishes it as a current error step/finding.
+    // The already-incurred failed read's failure settlement was ATTEMPTED at the
+    // lifecycle owner through the same permissive fixture (an attempted
+    // accounting, not a confirmed durable commit), but a no-longer-current turn
+    // never publishes it as a current error step/finding.
     expect(invoke).toHaveBeenCalledTimes(1);
     expect(failureRequests).toBe(1);
     expect(
@@ -5312,6 +5418,82 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     expect((result.citations ?? []).some((citation) => citation.tool === NATIVE_READ)).toBe(false);
     expect(result.reply).not.toContain('Kestrel commitment');
     expect(result.reply).not.toContain('LEAKED_FAILED_OWNER_BODY');
+    expect(result.telemetry?.partial).toBe(true);
+    expect(result.telemetry?.finishReason).toBe('cancelled');
+  });
+
+  test('a researchRun Stop during the owner dispatch leaves the settlement UNCERTAIN when the real transport honors the aborted parent', async () => {
+    const call = functionCall('research-abort-transport', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
+    let resolveOwner: ((value: unknown) => void) | undefined;
+    const invoke = jest.fn(
+      (..._args: Parameters<ToolRegistry['invoke']>) =>
+        new Promise<unknown>((resolve) => {
+          resolveOwner = resolve;
+        }),
+    );
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+      configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    });
+    const controller = new AbortController();
+    const baseFetch = researchFetch();
+    const baseImpl = baseFetch.getMockImplementation()!;
+    // The ABORT-AWARE transport counterpart to the permissive mocks above: a real
+    // fetch honors an already-aborted `init.signal` and REJECTS the settlement
+    // POST before any durable server receipt. Counted separately so the case can
+    // distinguish an ATTEMPTED accounting from an ACCEPTED receipt.
+    let rejectedSettlements = 0;
+    const fetchMock = jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (
+        (url.endsWith('/safe-read/outcomes') || url.endsWith('/safe-read/failures')) &&
+        init?.signal?.aborted
+      ) {
+        rejectedSettlements += 1;
+        throw new DOMException('Turn cancelled', 'AbortError');
+      }
+      return baseImpl(input, init);
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const run = RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(
+        context,
+        {
+          ...researchRunBinding('research-abort-transport'),
+          conversationId: 'research-abort-transport',
+          toolPolicy: 'read-only',
+          messages: [{ role: 'user', text: 'Research the Kestrel commitment.' }],
+        },
+        { signal: controller.signal },
+      ),
+    );
+
+    await waitFor(() => invoke.mock.calls.length === 1);
+    controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+    resolveOwner?.(memoryOwnerPayload());
+    const result: MeriV3ChatResult = await run;
+
+    // The original owner read and its ONE reservation were incurred exactly once.
+    // The outcome settlement was ATTEMPTED but REJECTED at the aborted transport,
+    // so NO durable outcome receipt exists; the compensating failure settlement
+    // was likewise attempted and rejected. The reservation therefore remains
+    // UNCERTAIN — no second reservation, no new owner read/retry and no
+    // publication — and no durable-store success is invented from a rejected POST.
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(researchRequestCount(fetchMock, '/safe-read/reservations')).toBe(1);
+    expect(researchRequestCount(fetchMock, '/safe-read/outcomes')).toBe(1);
+    expect(researchRequestCount(fetchMock, '/safe-read/failures')).toBe(1);
+    expect(rejectedSettlements).toBe(2);
+    // The whole lifecycle ran in the exact order, with the settlement attempt
+    // only AFTER the owner read was incurred (never before the reservation).
+    expect(researchLifecycleOrder(fetchMock)).toEqual(['replay', 'reserve', 'outcome', 'failure']);
+    expect((result.citations ?? []).some((citation) => citation.tool === NATIVE_READ)).toBe(false);
+    expect(result.reply).not.toContain('Kestrel commitment');
     expect(result.telemetry?.partial).toBe(true);
     expect(result.telemetry?.finishReason).toBe('cancelled');
   });
