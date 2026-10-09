@@ -119,4 +119,23 @@ describe('ApiManagedMcpRepo', () => {
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  test('schema discovery never swallows transport cancellation', async () => {
+    const repo = new ApiManagedMcpRepo(
+      config({ MERIV2_API_BASE_URL: 'https://api.internal' }) as never,
+    );
+    const controller = new AbortController();
+    controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+    const fetchMock = jest.fn(async () => {
+      throw controller.signal.reason;
+    });
+    global.fetch = fetchMock as typeof fetch;
+    // A cancelled/stopped turn must surface the abort, not a silent empty
+    // catalog that merely blocks the read.
+    await expect(
+      RequestCredentialsStore.run({ bearerToken: 'user-bearer' }, () =>
+        repo.schemas({ signal: controller.signal }),
+      ),
+    ).rejects.toBeDefined();
+  });
 });

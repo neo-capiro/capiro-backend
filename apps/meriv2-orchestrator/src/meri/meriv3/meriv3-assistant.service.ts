@@ -224,10 +224,65 @@ const MODEL_AUTHORED_PERSISTED_BODY_FIELDS: ReadonlyMap<string, string> = new Ma
   ['save_note', 'body'],
 ]);
 
-interface ToolSchema {
+/**
+ * A tool schema exposed to the model for this turn.
+ *
+ * Native schemas carry only name/description/input_schema. A managed extension
+ * additionally retains the API catalog authority metadata
+ * (source/appId/appName/readOnly) so admission, read-only schema exposure and
+ * the final `executeFunctionCalls` dispatch agree without a second registry.
+ * The extra fields are internal: the provider projection
+ * (`anthropicSchemaToResponsesTool`) selects only name/description/parameters.
+ */
+export interface ToolSchema {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
+  source?: 'managed_mcp';
+  appId?: string;
+  appName?: string;
+  readOnly?: boolean;
+}
+
+/**
+ * The read/capability authority resolved for one tool name for one turn
+ * (the admission seam). Native authority remains the default; a managed
+ * extension resolves an equivalent, still-revalidated managed read.
+ */
+export interface MeriResolvedCapability {
+  name: string;
+  readOnly: boolean;
+  source: 'native' | 'managed';
+  executionMode?: string;
+}
+
+/**
+ * The arguments of one tool invocation handed to `invokeTool`. Extracted so a
+ * subclass can supply a typed `protected override invokeTool` at the managed
+ * boundary without monkey-patching the base method.
+ */
+export interface MeriToolInvocation {
+  ctx: MeriContext;
+  dto: MeriV3ChatInput;
+  name: string;
+  input: Record<string, unknown>;
+  conversationId?: string;
+  steps: ChatStep[];
+  pendingApprovals: NonNullable<MeriV3ChatResult['pendingApprovals']>;
+  artifacts: ChatArtifact[];
+  emit: (event: MeriV3ChatStreamEvent) => void;
+  prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null;
+  userRequest: string;
+  noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void;
+  scopeViolation?: string;
+  control?: ToolExecutionControl;
+  citations: MeriCitation[];
+  evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
+  providerCallId: string;
+  schema: ToolSchema;
+  researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
+  admittedReadCapabilities: ReadonlySet<string> | null;
+  captureDurableSafeRead: (outcome: DurableSafeReadOutcome) => void;
 }
 
 interface FunctionExecution {
@@ -755,6 +810,30 @@ export class MeriV3AssistantService {
   }
 
   /**
+   * The single read/capability authority seam for this turn. Native authority
+   * remains the default — a live registry definition, live registry membership
+   * and exact `MERI_CAPABILITY_REGISTRY` readOnly parity — and native writes are
+   * never weakened. The managed subclass overrides this to add a validated,
+   * still-revalidated request-scoped `managed_mcp` read.
+   */
+  protected resolveCapabilityAuthority(
+    name: string,
+    _schema?: ToolSchema,
+    _dto?: MeriV3ChatInput,
+  ): MeriResolvedCapability | null {
+    const definition = this.registry.get(name);
+    if (!definition || !this.registry.list().includes(name)) return null;
+    const canonical = MERI_CAPABILITY_REGISTRY.find((item) => item.name === name);
+    if (!canonical || canonical.readOnly !== definition.readOnly) return null;
+    return {
+      name,
+      readOnly: definition.readOnly === true,
+      source: 'native',
+      executionMode: this.registry.executionMetadata?.(name)?.executionMode,
+    };
+  }
+
+  /**
    * Confirm the exact prepared procedure against the API owner immediately
    * before dispatch. There is deliberately no cache, retry, or alternate
    * authority path; the authenticated API may only narrow the signed binding.
@@ -1100,17 +1179,16 @@ export class MeriV3AssistantService {
             selectedDocumentIds: dto.selectedDocumentIds,
             clientId: dto.clientId,
           });
-    const readOnlyNames = new Set<string>(
-      MERI_CAPABILITY_REGISTRY.filter((tool) => tool.readOnly).map((tool) => tool.name),
-    );
     const toolSchemas =
       dto.toolPolicy === 'none'
         ? []
-        : (await this.fetchToolSchemas(opts)).filter(
-            (schema) =>
-              (dto.toolPolicy !== 'read-only' || readOnlyNames.has(schema.name)) &&
-              (!admittedReadCapabilities || admittedReadCapabilities.has(schema.name)),
-          );
+        : (await this.fetchToolSchemas(opts)).filter((schema) => {
+            const authority = this.resolveCapabilityAuthority(schema.name, schema, dto);
+            if (!authority) return false;
+            if (dto.toolPolicy === 'read-only' && authority.readOnly !== true) return false;
+            if (admittedReadCapabilities && !admittedReadCapabilities.has(schema.name)) return false;
+            return true;
+          });
     // This tool reads a research snapshot, not client Files. Its session comes
     // from the authenticated research lease, never a guessed chat/client UUID.
     const leaseAuthorizedSchemas = toolSchemas.filter(
@@ -1157,18 +1235,12 @@ export class MeriV3AssistantService {
             dto.toolPolicy === 'none'
               ? []
               : (await this.fetchToolSchemas(opts)).filter((schema) => {
-                  const definition = this.registry.get(schema.name);
-                  const canonical = MERI_CAPABILITY_REGISTRY.find(
-                    (item) => item.name === schema.name,
-                  );
+                  const authority = this.resolveCapabilityAuthority(schema.name, schema, dto);
                   return Boolean(
-                    definition &&
-                    this.registry.list().includes(schema.name) &&
-                    canonical &&
-                    canonical.readOnly === definition.readOnly &&
-                    (dto.toolPolicy !== 'read-only' || definition.readOnly === true) &&
-                    (!currentAdmitted || currentAdmitted.has(schema.name)) &&
-                    (schema.name !== 'get_research_evidence' || dto.researchRun),
+                    authority &&
+                      (dto.toolPolicy !== 'read-only' || authority.readOnly === true) &&
+                      (!currentAdmitted || currentAdmitted.has(schema.name)) &&
+                      (schema.name !== 'get_research_evidence' || dto.researchRun),
                   );
                 });
           const currentGoverned = currentGovernedMeriContext();
@@ -1208,15 +1280,11 @@ export class MeriV3AssistantService {
     const authorizeCurrentDiscoverySchema = async (schema: ToolSchema): Promise<boolean> => {
       try {
         assertToolExecutionActive(opts);
-        const definition = this.registry.get(schema.name);
-        const canonical = MERI_CAPABILITY_REGISTRY.find((item) => item.name === schema.name);
+        const authority = this.resolveCapabilityAuthority(schema.name, schema, dto);
         if (
-          !definition ||
-          !this.registry.list().includes(schema.name) ||
-          !canonical ||
-          canonical.readOnly !== definition.readOnly ||
+          !authority ||
           dto.toolPolicy === 'none' ||
-          (dto.toolPolicy === 'read-only' && definition.readOnly !== true) ||
+          (dto.toolPolicy === 'read-only' && authority.readOnly !== true) ||
           (admittedReadCapabilities && !admittedReadCapabilities.has(schema.name)) ||
           (schema.name === 'get_research_evidence' && !dto.researchRun)
         ) {
@@ -1225,7 +1293,7 @@ export class MeriV3AssistantService {
         assertMeriProcedureToolDispatch({
           procedure: currentGovernedMeriContext()?.procedure,
           toolName: schema.name,
-          readOnly: definition.readOnly,
+          readOnly: authority.readOnly,
         });
         await this.assertCurrentProcedureAuthority(dto.conversationId, schema.name, opts);
         return true;
@@ -3208,16 +3276,12 @@ export class MeriV3AssistantService {
           (await args.authorizeCurrentDiscoverySchema(current)),
         );
       }
-      const currentDefinition = this.registry.get(call.name);
-      const currentCapability = MERI_CAPABILITY_REGISTRY.find((item) => item.name === call.name);
+      const authority = this.resolveCapabilityAuthority(call.name, schema, args.dto);
       if (
-        !currentDefinition ||
-        !this.registry.list().includes(call.name) ||
-        !currentCapability ||
-        currentCapability.readOnly !== currentDefinition.readOnly ||
+        !authority ||
         !currentProgressiveSchema ||
         args.dto.toolPolicy === 'none' ||
-        (args.dto.toolPolicy === 'read-only' && currentDefinition.readOnly !== true)
+        (args.dto.toolPolicy === 'read-only' && authority.readOnly !== true)
       ) {
         const detail =
           'This capability is no longer available under the current governed tool policy.';
@@ -3281,7 +3345,7 @@ export class MeriV3AssistantService {
       // model's context, so answer with a pointer instead of re-dispatching it
       // and resending the same evidence.
       const settledBy =
-        currentDefinition.readOnly === true ? args.runtimeBudget.settledRead(signature) : null;
+        authority.readOnly === true ? args.runtimeBudget.settledRead(signature) : null;
       if (settledBy) {
         const result = {
           repeatOf: settledBy,
@@ -3295,9 +3359,8 @@ export class MeriV3AssistantService {
         stopWithoutDispatch(call);
         continue;
       }
-      const definition = currentDefinition;
       const intentKey =
-        definition?.readOnly === false
+        authority.readOnly === false
           ? writeIntentKey({
               ctx: args.ctx,
               dto: args.dto,
@@ -3331,6 +3394,7 @@ export class MeriV3AssistantService {
       try {
         result = await this.invokeTool({
           ctx: args.ctx,
+          dto: args.dto,
           name: call.name,
           input: augmented.input,
           conversationId: args.dto.conversationId,
@@ -3370,10 +3434,10 @@ export class MeriV3AssistantService {
       const visibleResult = projectMeriToolEvidence({
         result,
         maxCharacters: TOOL_RESULT_CHARS,
-        readOnly: this.registry.get(call.name)?.readOnly === true,
+        readOnly: authority.readOnly === true,
         inputProperties: schema.input_schema.properties as Record<string, unknown> | undefined,
       });
-      if (definition?.readOnly === true) {
+      if (authority.readOnly === true) {
         const failed = isLogicalToolFailure(visibleResult);
         const repeatable = isLegitimatePollingObservation(augmented.input, visibleResult);
         args.runtimeBudget.observeToolResult({
@@ -3384,7 +3448,7 @@ export class MeriV3AssistantService {
         });
         if (!failed && !repeatable) args.runtimeBudget.rememberSettledRead(signature, call.call_id);
       }
-      if (this.registry.get(call.name)?.readOnly === true) {
+      if (authority.readOnly === true) {
         const routeKeys = new Set([
           'clientId',
           'documentId',
@@ -3499,7 +3563,7 @@ export class MeriV3AssistantService {
     return input;
   }
 
-  private augmentToolInput(
+  protected augmentToolInput(
     dto: MeriV3ChatInput,
     input: Record<string, unknown>,
     schema: ToolSchema | undefined,
@@ -3534,28 +3598,7 @@ export class MeriV3AssistantService {
     return { input: output };
   }
 
-  private async invokeTool(args: {
-    ctx: MeriContext;
-    name: string;
-    input: Record<string, unknown>;
-    conversationId?: string;
-    steps: ChatStep[];
-    pendingApprovals: NonNullable<MeriV3ChatResult['pendingApprovals']>;
-    artifacts: ChatArtifact[];
-    emit: (event: MeriV3ChatStreamEvent) => void;
-    prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null;
-    userRequest: string;
-    noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void;
-    scopeViolation?: string;
-    control?: ToolExecutionControl;
-    citations: MeriCitation[];
-    evidenceAccuracyMode: ReturnType<typeof resolveEvidenceAccuracyMode>;
-    providerCallId: string;
-    schema: ToolSchema;
-    researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
-    admittedReadCapabilities: ReadonlySet<string> | null;
-    captureDurableSafeRead: (outcome: DurableSafeReadOutcome) => void;
-  }): Promise<unknown> {
+  protected async invokeTool(args: MeriToolInvocation): Promise<unknown> {
     assertToolExecutionActive(args.control);
     assertMeriV3ResearchCapability(args.admittedReadCapabilities, args.name);
     const label = toolLabel(args.name);
@@ -4265,7 +4308,7 @@ export class MeriV3AssistantService {
     };
   }
 
-  private async fetchToolSchemas(control?: ToolExecutionControl): Promise<ToolSchema[]> {
+  protected async fetchToolSchemas(control?: ToolExecutionControl): Promise<ToolSchema[]> {
     const credentials = RequestCredentialsStore.get();
     if (!credentials?.bearerToken) {
       this.logger.warn('MeriV3: no bearer available; proceeding without Capiro tools');
