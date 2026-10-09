@@ -129,8 +129,10 @@ describe('MeriV3ManagedMcpAssistantService', () => {
       const events: Array<Record<string, unknown>> = [];
       await internals.invokeTool({
         ctx: {},
+        dto: {},
         name,
         input,
+        schema: external,
         steps: [],
         pendingApprovals: [],
         artifacts: [],
@@ -271,7 +273,19 @@ describe('MeriV3ManagedMcpAssistantService', () => {
       )
       .mockResolvedValue({ native: true });
     const executeRead = jest.fn(async () => ({ contacts: [{ name: 'Jane' }] }));
-    const { service } = make({ executeRead });
+    const hubspotSchema = {
+      name: HUBSPOT_SEARCH,
+      description: 'Search HubSpot contacts',
+      input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+      source: 'managed_mcp',
+      appId: 'hubspot',
+      appName: 'HubSpot',
+      readOnly: true,
+    };
+    const { service } = make({
+      executeRead,
+      schemas: jest.fn(async () => [hubspotSchema]),
+    });
     const events: Array<Record<string, unknown>> = [];
     const steps: Array<Record<string, unknown>> = [];
     const internals = service as unknown as {
@@ -280,8 +294,10 @@ describe('MeriV3ManagedMcpAssistantService', () => {
     await expect(
       internals.invokeTool({
         ctx: {},
+        dto: {},
         name: HUBSPOT_SEARCH,
         input: { query: 'Jane' },
+        schema: hubspotSchema,
         steps,
         pendingApprovals: [],
         artifacts: [],

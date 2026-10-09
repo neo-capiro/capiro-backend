@@ -17,32 +17,32 @@
  * those internals directly and therefore cannot prove or disprove admission.
  *
  * Scope note (Lane A / A1): ordinary-chat only. No `researchRun`,
- * `researchPlanExecution` or governed procedure is supplied, so the run proves
- * the ordinary path independently of any research durable-receipt widening.
- * Nothing here widens research `allowedReadCapabilities`, procedure admission,
- * actor scope or connector scope. Controller authentication and served HTTP
- * reachability require separate qualification. The negatives below keep the managed
- * namespace narrow (advertised metadata, not name prefix alone).
+ * `researchPlanExecution` or governed procedure is supplied to the positive or
+ * ordinary negatives, so the run proves the ordinary path independently of any
+ * research durable-receipt widening. Nothing here widens research
+ * `allowedReadCapabilities`, procedure admission, actor scope or connector
+ * scope. Controller authentication and served HTTP reachability require
+ * separate qualification. The negatives keep the managed namespace narrow
+ * (validated advertised metadata, not name prefix alone).
  *
- * Current-base expectation:
- *   - "admits and runs an advertised managed read" FAILS on the base commit at
- *     the native membership admission guard
- *     (`meriv3-assistant.service.ts` L3211-3244,
- *      detail L3223 "no longer available under the current governed tool
- *      policy"): an `mcp__*` name has no `registry.get()` /
- *      `MERI_CAPABILITY_REGISTRY` membership, so it is blocked before
- *      `invokeTool`/`ApiManagedMcpRepo.executeRead`.
- *   - The native-read control, the unadvertised-name negative and the catalog
- *     outage characterization must pass on the base commit.
+ * The positive owner wire is the REAL managed read shape returned by
+ * `MeriV3SettingsController.executeManagedMcpRead` ->
+ * `MeriManagedMcpService.executeRead` -> `MeriMcpService.executeBridged`:
+ * `{ tool, server, untrusted: true, content }`, with no `structuredRead` on that
+ * endpoint. No fabricated citations, contact records, source ids, facts or
+ * structuredRead adapter are asserted: the opaque ledger receipt is distinct
+ * from structured owner facts, which remain separately qualified.
  */
 
-import type { MeriContext, ToolRegistry } from '@capiro/meriv2-core';
+import type { MeriContext, MeriGovernedTurnContext, ToolRegistry } from '@capiro/meriv2-core';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
+import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
 import { MeriV3ManagedMcpAssistantService } from './meriv3-managed-mcp-assistant.service.js';
 import type { MeriV3ChatResult, MeriV3ChatStreamEvent } from './meriv3.types.js';
 
-const ADVERTISED_MANAGED = 'mcp__meriv3_hubspot__search_contacts';
+/** The ACTUAL API-owned HubSpot read name (current managed read allowlist). */
+const MANAGED_READ = 'mcp__meriv3_hubspot__search_crm_objects';
 const UNADVERTISED_MANAGED = 'mcp__meriv3_hubspot__delete_contacts';
 const NATIVE_READ = 'search_memory';
 
@@ -111,57 +111,40 @@ function nativeSchema(name: string) {
   };
 }
 
-/** API-managed catalog schema contract: source + appId + appName + readOnly. */
-function managedSchema() {
+/**
+ * API-managed catalog schema contract: source + appId + appName + readOnly.
+ * The real owner bridge returns exactly these authority fields on the managed
+ * catalog (`MeriManagedMcpService.schemasForMeriV3`).
+ */
+function managedSchema(overrides: Record<string, unknown> = {}) {
   return {
-    name: ADVERTISED_MANAGED,
-    description: 'Search HubSpot contacts',
+    name: MANAGED_READ,
+    description: 'Search HubSpot CRM objects',
     input_schema: { type: 'object', properties: { query: { type: 'string' } } },
     source: 'managed_mcp',
     appId: 'hubspot',
     appName: 'HubSpot',
     readOnly: true,
+    ...overrides,
   };
 }
 
-/**
- * Admission-only fixture owner payload (canonical `records[]` shape).
- *
- * NOTE: this is a shape fixture for the managed owner bridge, NOT a capture of
- * a real API-managed HubSpot `search_contacts` owner response. Real API owner
- * shape coverage and an actual managed wire receipt are still pending; neither
- * is claimed from this spec, and no adapter is fabricated for it.
- */
-function hubspotOwnerPayload() {
+/** The real managed read wire from `MeriMcpService.executeBridged`. */
+function managedOwnerWire(content: string) {
   return {
-    generatedAt: '2026-10-08T00:00:00Z',
-    records: [
-      {
-        recordId: RECORD_ID,
-        domain: 'clients',
-        payload: { title: 'Jane Finder', name: 'Jane Finder' },
-      },
-    ],
+    tool: MANAGED_READ,
+    server: 'meriv3-hubspot',
+    untrusted: true,
+    content,
   };
 }
 
 /**
  * Genuine `search_memory` owner result envelope for an ordinary governed-memory
- * read (model answer cites it as source [1]).
- *
- * This mirrors the canonical owner contract rather than a records-only stub:
- * the `MERIV2_API_BASE_URL` `search_memory` return fields (`tool`, the
- * `coverage` institutional_knowledge source rollup, `factContentUnavailableCount`,
- * `contentStatus`, `contentTruncated`, `nextCursor`, thin `results` rows and the
- * full `records`) are exactly what
- * `classifyApiToolReadOutcome('search_memory', …)` /
- * `classifyMemorySearch` (`packages/shared/src/meri-read-outcome.ts`) validates,
- * and what `extractCitationsFromToolResult('search_memory', …)`
- * (`packages/shared/src/index.ts`, which prefers `records` over `results`) reads
- * to produce one citable memory source (title, id, clientId, content hash).
- * A `{ records }`-only payload is an invalid owner result
- * (`search_memory_result_contract_invalid`) and is deliberately not used: no
- * records-only stub, and no marker is added to disguise such a shape.
+ * read (model answer cites it as source [1]). Mirrors the canonical owner
+ * contract validated by `classifyApiToolReadOutcome('search_memory', …)` and
+ * read by `extractCitationsFromToolResult('search_memory', …)` to produce one
+ * citable memory source (title, id, clientId, content hash).
  */
 function memoryOwnerPayload() {
   return {
@@ -279,7 +262,10 @@ function prisma() {
  */
 function buildManaged(
   complete: jest.Mock,
-  options: { registry?: ToolRegistry } = {},
+  options: {
+    registry?: ToolRegistry;
+    configValues?: Record<string, string | undefined>;
+  } = {},
 ): { service: MeriV3ManagedMcpAssistantService } {
   const registryService = {
     registry: options.registry ?? registry([]),
@@ -303,7 +289,7 @@ function buildManaged(
       },
     },
   };
-  const cfg = config();
+  const cfg = config(options.configValues);
   const service = new MeriV3ManagedMcpAssistantService(
     registryService as never,
     { complete } as never,
@@ -366,16 +352,8 @@ function providerInputItems(input: unknown): ProviderInputItem[] {
 /**
  * The actual tool-result payloads fed to the model AFTER the first
  * (tool-emitting) round, joined from the real `function_call_output.output`
- * strings.
- *
- * It must read the embedded strings directly, not `JSON.stringify(input)`:
- * the tool-result wrapper contains double quotes (e.g.
- * `[Tool result from "search_memory". ...]`), and re-serializing the outer input
- * backslash-escapes those quotes. Asserting a literal substring against the
- * escaped blob tests JSON encoding of the outer envelope rather than the payload
- * the model actually receives. Only `function_call_output.output` is joined so
- * the data checks stay tied to tool results (message text is deliberately
- * excluded — it would satisfy e.g. a `Jane Finder` check without any dispatch).
+ * strings. It reads the embedded strings directly, not `JSON.stringify(input)`,
+ * so assertions stay tied to the payload the model actually receives.
  */
 function fedBackInput(complete: jest.Mock): string {
   return complete.mock.calls
@@ -393,6 +371,62 @@ function managedOwnerPosts(fetchMock: jest.Mock): string[] {
     .filter((url) => url.includes('/api/clio/v3/mcp-tools/'));
 }
 
+function managedOwnerInit(fetchMock: jest.Mock): RequestInit | undefined {
+  const call = fetchMock.mock.calls.find((candidate) =>
+    String(candidate[0]).includes('/api/clio/v3/mcp-tools/'),
+  );
+  return call?.[1] as RequestInit | undefined;
+}
+
+function governedTurn(
+  subjectScope: 'client' | 'portfolio' | 'external_entity' | 'general',
+  clientId: string | null = null,
+): MeriGovernedTurnContext {
+  return {
+    version: 1,
+    operationId: 'meri.chat',
+    prompt: 'Governed context.',
+    contextPacket: {
+      packetId: null,
+      items: [],
+      exclusions: [],
+      unauthorizedCount: 0,
+      degraded: false,
+      clientId,
+    },
+    retrieval: {
+      plan: {
+        version: 1,
+        queryClass: 'general',
+        subjectScope,
+        targetHint: null,
+        recipeTool: null,
+        requireCompleteCoverage: false,
+        requiredDomains: [],
+        timeWindow: null,
+      },
+      coverage: {
+        version: 1,
+        complete: true,
+        requestedDomains: [],
+        searchedDomains: [],
+        missingDomains: [],
+        partialDomains: [],
+        requestedEntityCount: null,
+        searchedEntityCount: null,
+        recordsEvaluated: 0,
+        recordsReturned: 0,
+        paginationComplete: true,
+        truncated: false,
+        sourceHealth: [],
+        unavailableSources: [],
+        toolsInvoked: [],
+        stopReason: 'complete',
+      },
+    },
+  } as unknown as MeriGovernedTurnContext;
+}
+
 const originalFetch = global.fetch;
 
 describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
@@ -401,23 +435,22 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     jest.restoreAllMocks();
   });
 
-  test('admits and runs an advertised managed read once, feeding the owner result into the next provider input', async () => {
-    // Admission-only positive. The owner payload is a canonical `records[]`
-    // fixture (see hubspotOwnerPayload) — NOT a real API-managed owner shape —
-    // and the managed wire receipt is not qualified here. Real owner-shape /
-    // receipt coverage remains pending.
-    const call = functionCall('managed-call', ADVERTISED_MANAGED, { query: 'Jane Finder' });
+  test('admits and runs an advertised managed read once, feeding the real owner wire into the next provider input', async () => {
+    const content = 'Untrusted external data from MCP server "meriv3-hubspot".\n[{"id":"1","properties":{"firstname":"Jane Finder"}}]';
+    const call = functionCall('managed-call', MANAGED_READ, { query: 'Jane Finder' });
     const complete = jest
       .fn()
       .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
       .mockResolvedValueOnce(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }))
       .mockResolvedValue(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }));
-    const { service } = buildManaged(complete);
+    const { service } = buildManaged(complete, {
+      configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    });
 
     const fetchMock = fetchRouter({
       native: () => jsonResponse({ schemas: [] }),
       managed: () => jsonResponse({ schemas: [managedSchema()] }),
-      owner: () => jsonResponse(hubspotOwnerPayload()),
+      owner: () => jsonResponse(managedOwnerWire(content)),
     });
     global.fetch = fetchMock as unknown as typeof fetch;
 
@@ -429,6 +462,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
           context,
           {
             conversationId: 'managed-thread',
+            toolPolicy: 'read-only',
             messages: [{ role: 'user', text: 'Find Jane Finder in HubSpot.' }],
           },
           { onEvent: (event) => events.push(event) },
@@ -436,40 +470,56 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     );
 
     // The advertised managed tool reached the model.
-    expect(toolsOnCall(complete, 0)).toContain(ADVERTISED_MANAGED);
+    expect(toolsOnCall(complete, 0)).toContain(MANAGED_READ);
 
     // It executed exactly once through the real API-managed owner bridge.
     const ownerPosts = managedOwnerPosts(fetchMock);
-    // When the base fails, verify its cause before the positive assertion.
-    // A successful repair must satisfy the absence-of-refusal check below.
-    if (ownerPosts.length === 0) {
-      expect(fedBackInput(complete)).toContain(
-        'no longer available under the current governed tool policy',
-      );
-    }
     expect(ownerPosts).toHaveLength(1);
-    expect(ownerPosts[0]).toContain(encodeURIComponent(ADVERTISED_MANAGED));
+    expect(ownerPosts[0]).toContain(encodeURIComponent(MANAGED_READ));
 
-    // The owner result and the evidence ledger fed the next provider input,
-    // and no native-policy block was emitted for the managed call.
+    // Exactly one ownerPOST with the correct forwarded auth/service identity,
+    // and the vendor input is unchanged.
+    const init = managedOwnerInit(fetchMock);
+    expect(init?.method).toBe('POST');
+    expect(init?.headers).toMatchObject({
+      authorization: 'Bearer bearer',
+      'x-internal-service-secret': 'service-secret',
+      'content-type': 'application/json',
+    });
+    expect(JSON.parse(String(init?.body))).toEqual({ query: 'Jane Finder' });
+
+    // The existing result.ledgerEntries receipt (exposed under read-only policy)
+    // carries the real owner wire and the exact serialized wrapper.
+    const ledger = (result.ledgerEntries ?? []).find((entry) => entry.tool === MANAGED_READ);
+    expect(ledger).toBeDefined();
+    // The receipt retains the real owner wire authority fields (opaque read
+    // receipt, not fabricated structured facts).
+    expect(ledger?.result).toMatchObject({
+      tool: MANAGED_READ,
+      server: 'meriv3-hubspot',
+      untrusted: true,
+    });
+    expect(JSON.stringify(ledger?.result)).toContain('Jane Finder');
+    expect(ledger?.serialized).toContain(`[Tool result from "${MANAGED_READ}"`);
+    expect(ledger?.serialized).toContain('Jane Finder');
+
+    // The next provider function_call_output is exactly that serialized receipt.
     const fedBack = fedBackInput(complete);
-    expect(fedBack).toContain('Jane Finder');
-    expect(fedBack).toContain(`[Tool result from "${ADVERTISED_MANAGED}"`);
+    expect(fedBack).toContain(ledger!.serialized);
+    expect(fedBack).toContain(`[Tool result from "${MANAGED_READ}"`);
     expect(fedBack).not.toContain('no longer available under the current governed tool policy');
 
-    // The existing citation receipt / evidence manifest is present.
-    expect(result.citations?.some((citation) => citation.tool === ADVERTISED_MANAGED)).toBe(true);
+    // An opaque external read receipt is NOT a structured owner citation.
+    expect((result.citations ?? []).some((citation) => citation.tool === MANAGED_READ)).toBe(false);
     expect(
-      result.evidenceManifest?.sources.some((source) => source.tool === ADVERTISED_MANAGED),
-    ).toBe(true);
-    expect(result.reply).toContain('Jane Finder');
+      result.evidenceManifest?.sources.some((source) => source.tool === MANAGED_READ) ?? false,
+    ).toBe(false);
+
+    expect(result.reply).toContain('Jane Finder is a HubSpot contact.');
   });
 
-  test('native advertised read control executes once through the registry dispatch (must pass on base)', async () => {
+  test('native advertised read control executes once through the registry dispatch (must stay green)', async () => {
     const call = functionCall('native-call', NATIVE_READ, { query: 'Kestrel' });
-    // The final answer cites the extracted memory source as [1]. Production
-    // (`finalizeReply` -> `validateCitationMarkers`) releases only citations the
-    // answer actually uses, so a bare answer with no [1] returns no citations.
     const complete = jest
       .fn()
       .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
@@ -504,7 +554,7 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
 
     // The extracted source is retained with its exact identity (number, record
     // id, tool and title) and surfaces in the evidence manifest: this is the real
-    // citation for the [1] marker in the final answer, not a bare answer.
+    // canonical citation for the [1] marker in the final answer.
     const nativeCitation = result.citations?.find((citation) => citation.tool === NATIVE_READ);
     expect(nativeCitation).toMatchObject({
       n: 1,
@@ -520,8 +570,6 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
   });
 
   test('an unadvertised managed-prefixed name stays blocked and never reaches the managed bridge', async () => {
-    // Same reviewed server prefix as the advertised tool, but never advertised:
-    // this proves admission cannot be reduced to the name prefix alone.
     const call = functionCall('unadvertised-call', UNADVERTISED_MANAGED, { query: 'delete' });
     const complete = jest
       .fn()
@@ -551,9 +599,300 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     expect(result.reply).toContain('I did not run that request.');
   });
 
+  test('a managed schema missing its authority metadata is never advertised and stays blocked', async () => {
+    const call = functionCall('missing-meta', MANAGED_READ, { query: 'Jane' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const { service } = buildManaged(complete);
+
+    const { source: _source, ...withoutSource } = managedSchema();
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [withoutSource] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(context, {
+        conversationId: 'missing-meta-thread',
+        messages: [{ role: 'user', text: 'Find Jane.' }],
+      }),
+    );
+
+    expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+  });
+
+  test('an advertised managed write marker is never advertised and stays blocked', async () => {
+    const call = functionCall('write-marker', MANAGED_READ, { query: 'Jane' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const { service } = buildManaged(complete);
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema({ readOnly: false })] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(context, {
+        conversationId: 'write-marker-thread',
+        messages: [{ role: 'user', text: 'Find Jane.' }],
+      }),
+    );
+
+    expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+  });
+
+  test('a mismatched appId/server mapping is never advertised and stays blocked', async () => {
+    const call = functionCall('mismatch', MANAGED_READ, { query: 'Jane' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const { service } = buildManaged(complete);
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      // appId says airtable, name says hubspot: mapping must be exact.
+      managed: () => jsonResponse({ schemas: [managedSchema({ appId: 'airtable' })] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(context, {
+        conversationId: 'mismatch-thread',
+        messages: [{ role: 'user', text: 'Find Jane.' }],
+      }),
+    );
+
+    expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+  });
+
+  test('a catalog revocation after the first advertisement leaves the managed read blocked before owner I/O', async () => {
+    const call = functionCall('revoked', MANAGED_READ, { query: 'Jane' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(providerResult({ outputText: 'Blocked.' }))
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const { service } = buildManaged(complete);
+
+    let managedCalls = 0;
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => {
+        managedCalls += 1;
+        // Advertised once (exposure); revoked on the pre-I/O revalidation.
+        return jsonResponse({ schemas: managedCalls === 1 ? [managedSchema()] : [] });
+      },
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(context, {
+        conversationId: 'revoked-thread',
+        messages: [{ role: 'user', text: 'Find Jane.' }],
+      }),
+    );
+
+    expect(toolsOnCall(complete, 0)).toContain(MANAGED_READ);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+    expect(fedBackInput(complete)).toContain('Connected-app tool is no longer available.');
+  });
+
+  test('a changed input schema on revalidation leaves the managed read blocked before owner I/O', async () => {
+    const call = functionCall('changed-schema', MANAGED_READ, { query: 'Jane' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValueOnce(providerResult({ outputText: 'Blocked.' }))
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const { service } = buildManaged(complete);
+
+    let managedCalls = 0;
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => {
+        managedCalls += 1;
+        return jsonResponse({
+          schemas:
+            managedCalls === 1
+              ? [managedSchema()]
+              : [
+                  managedSchema({
+                    input_schema: {
+                      type: 'object',
+                      properties: { query: { type: 'string' }, limit: { type: 'number' } },
+                    },
+                  }),
+                ],
+        });
+      },
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(context, {
+        conversationId: 'changed-schema-thread',
+        messages: [{ role: 'user', text: 'Find Jane.' }],
+      }),
+    );
+
+    expect(toolsOnCall(complete, 0)).toContain(MANAGED_READ);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+    expect(fedBackInput(complete)).toContain('Connected-app tool is no longer available.');
+  });
+
+  test('a request-scoped client never exposes or dispatches a managed read', async () => {
+    const call = functionCall('client-scope', MANAGED_READ, { query: 'Jane' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const { service } = buildManaged(complete);
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(context, {
+        conversationId: 'client-scope-thread',
+        clientId: CLIENT_ID,
+        messages: [{ role: 'user', text: 'Find Jane.' }],
+      }),
+    );
+
+    expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+  });
+
+  test('governed client/portfolio scope resolves no managed authority at the admission seam', async () => {
+    const { service } = buildManaged(jest.fn());
+    const seam = service as unknown as {
+      resolveCapabilityAuthority: (
+        name: string,
+        schema: unknown,
+        dto: unknown,
+      ) => unknown;
+    };
+
+    // Authenticated governed client.
+    await runWithGovernedMeriContext(governedTurn('general', CLIENT_ID), async () => {
+      expect(seam.resolveCapabilityAuthority(MANAGED_READ, managedSchema(), {})).toBeNull();
+    });
+    // Portfolio scope.
+    await runWithGovernedMeriContext(governedTurn('portfolio'), async () => {
+      expect(seam.resolveCapabilityAuthority(MANAGED_READ, managedSchema(), {})).toBeNull();
+    });
+    // Governed external ambiguity must not masquerade as personal.
+    await runWithGovernedMeriContext(governedTurn('external_entity'), async () => {
+      expect(seam.resolveCapabilityAuthority(MANAGED_READ, managedSchema(), {})).toBeNull();
+    });
+    // Ordinary personal NONCLIENT still resolves the managed read.
+    expect(seam.resolveCapabilityAuthority(MANAGED_READ, managedSchema(), {})).not.toBeNull();
+  });
+
+  test('toolPolicy none blocks every managed read', async () => {
+    const call = functionCall('none-policy', MANAGED_READ, { query: 'Jane' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const { service } = buildManaged(complete);
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(context, {
+        conversationId: 'none-policy-thread',
+        toolPolicy: 'none',
+        messages: [{ role: 'user', text: 'Find Jane.' }],
+      }),
+    );
+
+    expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+  });
+
+  test('a stop before dispatch leaves the managed read unexecuted', async () => {
+    const controller = new AbortController();
+    const call = functionCall('stopped', MANAGED_READ, { query: 'Jane' });
+    const complete = jest.fn(async () => {
+      controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+      return providerResult({ output: [call], outputText: '', functionCalls: [call] });
+    });
+    const { service } = buildManaged(complete);
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(
+        context,
+        {
+          conversationId: 'stopped-thread',
+          messages: [{ role: 'user', text: 'Find Jane.' }],
+        },
+        { signal: controller.signal },
+      ),
+    );
+
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+    expect(fedBackInput(complete)).not.toContain(`[Tool result from "${MANAGED_READ}"`);
+  });
+
+  test('a repeated identical managed read executes once and is answered with a pointer', async () => {
+    const first = functionCall('dup-1', MANAGED_READ, { query: 'Jane' });
+    const second = functionCall('dup-2', MANAGED_READ, { query: 'Jane' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({ output: [first, second], outputText: '', functionCalls: [first, second] }),
+      )
+      .mockResolvedValueOnce(providerResult({ outputText: 'Done.' }))
+      .mockResolvedValue(providerResult({ outputText: 'Done.' }));
+    const { service } = buildManaged(complete);
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      owner: () => jsonResponse(managedOwnerWire('Untrusted external data.')),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(context, {
+        conversationId: 'dedupe-thread',
+        messages: [{ role: 'user', text: 'Find Jane.' }],
+      }),
+    );
+
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(1);
+    expect(fedBackInput(complete)).toContain('Identical to an earlier call in this turn');
+  });
+
   test('catalog outage characterization: a schema fetch failure yields an empty catalog and no owner dispatch', async () => {
     // Characterization of CURRENT behavior (not a correctness requirement):
     // both catalogs 5xx -> silent empty catalog, run continues, no owner call.
+    // Overall catalog-outage semantics remain a following bounded slice.
     const complete = jest
       .fn()
       .mockResolvedValue(providerResult({ outputText: 'No tools were available.' }));

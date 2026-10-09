@@ -4,46 +4,22 @@ import type { MeriContext } from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
-import { toolLabel, type ChatArtifact, type ChatStep } from '../chat/chat-prompt.js';
+import { toolLabel, type ChatArtifact } from '../chat/chat-prompt.js';
 import { OpenAiResponsesClient } from './openai-responses.client.js';
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
 import { ApiVisualAnalysisRepo } from './api-visual-analysis.repo.js';
-import { MeriV3AssistantService, type MeriV3RunOptions } from './meriv3-assistant.service.js';
+import {
+  MeriV3AssistantService,
+  type MeriResolvedCapability,
+  type MeriToolInvocation,
+  type MeriV3RunOptions,
+  type ToolSchema,
+} from './meriv3-assistant.service.js';
 import { classifyMeriV3VisualIntent, meriV3VisualIntentPrompt } from './meriv3-visual-intent.js';
+import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import type { MeriV3ChatInput, MeriV3ChatResult, MeriV3ChatStreamEvent } from './meriv3.types.js';
 
 import { assertToolExecutionActive, type ToolExecutionControl } from '@capiro/meriv2-core';
-
-interface ToolSchema {
-  name: string;
-  description: string;
-  input_schema: Record<string, unknown>;
-}
-
-interface InvokeArgs {
-  ctx: MeriContext;
-  name: string;
-  input: Record<string, unknown>;
-  conversationId?: string;
-  steps: ChatStep[];
-  pendingApprovals: NonNullable<MeriV3ChatResult['pendingApprovals']>;
-  artifacts: ChatArtifact[];
-  emit: (event: MeriV3ChatStreamEvent) => void;
-  prePersistRefusal: (name: string, input: Record<string, unknown>) => string | null;
-  noteComplianceOutcome: (outcome: 'PASS' | 'WARN' | 'BLOCK') => void;
-  scopeViolation?: string;
-  control?: ToolExecutionControl;
-}
-
-interface AssistantInternals {
-  fetchToolSchemas: (control?: ToolExecutionControl) => Promise<ToolSchema[]>;
-  invokeTool: (args: InvokeArgs) => Promise<unknown>;
-  augmentToolInput: (
-    dto: MeriV3ChatInput,
-    input: Record<string, unknown>,
-    schema: ToolSchema | undefined,
-  ) => { input: Record<string, unknown>; scopeViolation?: string };
-}
 
 const MANAGED_APP_NAMES = {
   meriv3_hubspot: 'HubSpot',
@@ -52,6 +28,19 @@ const MANAGED_APP_NAMES = {
   meriv3_google_drive: 'Google Drive',
 } as const;
 const MANAGED_PREFIXES = Object.keys(MANAGED_APP_NAMES).map((server) => `mcp__${server}__`);
+
+/**
+ * Exact managed appId <-> bridged server mapping. A managed schema whose
+ * advertised appId and server prefix disagree is never admitted, so a new
+ * provider tool can never inherit authority from its name prefix alone.
+ */
+const MANAGED_SERVER_BY_APP_ID = {
+  hubspot: 'meriv3_hubspot',
+  airtable: 'meriv3_airtable',
+  monday: 'meriv3_monday',
+  'google-drive': 'meriv3_google_drive',
+} as const;
+type ManagedAppId = keyof typeof MANAGED_SERVER_BY_APP_ID;
 
 const VISUAL_ANALYSIS_GUIDANCE = [
   'Use run_analysis as Meri’s quantitative analyst after retrieving real numeric rows from Capiro or a connected app.',
@@ -137,8 +126,81 @@ function bufferedAnalysisIds(
   ];
 }
 
+interface ManagedSchemaMetadata {
+  appId: ManagedAppId;
+  appName: string;
+  server: string;
+}
+
+function isManagedAppId(value: unknown): value is ManagedAppId {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(MANAGED_SERVER_BY_APP_ID, value);
+}
+
+/**
+ * Validate the advertised managed catalog authority carried on a schema.
+ * Requires the original `source=managed_mcp`, `readOnly=true`, a known
+ * appId<->server mapping that agrees with the advertised name, and an object
+ * input schema. Anything else is not a managed read and is never admitted by
+ * prefix alone.
+ */
+function readManagedSchemaMetadata(schema: unknown): ManagedSchemaMetadata | null {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return null;
+  const candidate = schema as {
+    name?: unknown;
+    source?: unknown;
+    appId?: unknown;
+    appName?: unknown;
+    readOnly?: unknown;
+    input_schema?: unknown;
+  };
+  if (typeof candidate.name !== 'string' || !candidate.name) return null;
+  if (candidate.source !== 'managed_mcp') return null;
+  if (candidate.readOnly !== true) return null;
+  if (!isManagedAppId(candidate.appId)) return null;
+  const server = MANAGED_SERVER_BY_APP_ID[candidate.appId];
+  const expectedPrefix = `mcp__${server}__`;
+  if (!candidate.name.startsWith(expectedPrefix) || candidate.name.length <= expectedPrefix.length) {
+    return null;
+  }
+  if (
+    !candidate.input_schema ||
+    typeof candidate.input_schema !== 'object' ||
+    Array.isArray(candidate.input_schema)
+  ) {
+    return null;
+  }
+  return {
+    appId: candidate.appId,
+    appName:
+      typeof candidate.appName === 'string' && candidate.appName.trim()
+        ? candidate.appName
+        : MANAGED_APP_NAMES[server],
+    server,
+  };
+}
+
+/** Task-scoped schema equality: canonical JSON of the advertised input schema. */
+function canonicalSchemaJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalSchemaJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${canonicalSchemaJson((value as Record<string, unknown>)[key])}`,
+      )
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function sameInputSchema(left: unknown, right: unknown): boolean {
+  return canonicalSchemaJson(left) === canonicalSchemaJson(right);
+}
+
 @Injectable()
 export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
+  private readonly managedMcp: ApiManagedMcpRepo;
   private readonly visualAnalysis: ApiVisualAnalysisRepo;
 
   constructor(
@@ -151,127 +213,223 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
     visualAnalysis: ApiVisualAnalysisRepo,
   ) {
     super(registryService, openai, actionProposals, prisma, config);
+    this.managedMcp = managedMcp;
     this.visualAnalysis = visualAnalysis;
+  }
 
-    const internals = this as unknown as AssistantInternals;
-    const nativeFetch = internals.fetchToolSchemas.bind(this);
-    const nativeInvoke = internals.invokeTool.bind(this);
-    const nativeAugment = internals.augmentToolInput.bind(this);
+  /**
+   * The managed extension of the read/capability seam. A validated
+   * `managed_mcp` read-only schema is admitted only for an ordinary personal
+   * NONCLIENT turn; a client/comparison/portfolio/external scope (or any
+   * authenticated governed client) falls through to the native authority, which
+   * has no such tool, so the managed read stays blocked before any owner I/O.
+   */
+  protected override resolveCapabilityAuthority(
+    name: string,
+    schema?: ToolSchema,
+    dto?: MeriV3ChatInput,
+  ): MeriResolvedCapability | null {
+    const metadata = readManagedSchemaMetadata(schema);
+    if (metadata && schema?.name === name && !this.managedRawReadRefusal(dto)) {
+      return { name, readOnly: true, source: 'managed', executionMode: 'read' };
+    }
+    return super.resolveCapabilityAuthority(name, schema, dto);
+  }
 
-    internals.fetchToolSchemas = async (control): Promise<ToolSchema[]> => {
-      const [nativeRaw, managed, analysisAvailable] = await Promise.all([
-        nativeFetch(control),
-        managedMcp.schemas(control),
-        visualAnalysis.available(control),
-      ]);
-      const native = nativeRaw
-        .filter((schema) => schema.name !== 'run_analysis' || analysisAvailable)
-        .map((schema) =>
-          schema.name === 'run_analysis'
-            ? { ...schema, description: `${schema.description} ${VISUAL_ANALYSIS_GUIDANCE}` }
-            : schema,
-        );
-      const seen = new Set(native.map((schema) => schema.name));
-      const extra = managed
-        .filter((schema) => isManagedTool(schema.name) && !seen.has(schema.name))
-        .map(({ name, description, input_schema, appName }) => ({
-          name,
-          input_schema,
-          description: [
-            `[Connected app: ${appName}; optional external evidence source.]`,
-            'Use this tool only when its data is materially relevant to the user request; never call it merely because the app is connected.',
-            'In a client-scoped conversation, use external records only when they clearly concern the active client; ignore unrelated records and ask for clarification when identity is ambiguous.',
-            appName === 'monday.com'
-              ? 'Never treat all personal monday.com work as belonging to the active client. Use only a board ID/link supplied by the user or an explicit server-authorized client-board mapping; otherwise report monday.com as unmapped rather than searching broadly.'
-              : '',
-            description,
-          ]
-            .filter(Boolean)
-            .join(' '),
-        }));
-      return [...native, ...extra];
-    };
-
-    internals.augmentToolInput = (
-      dto: MeriV3ChatInput,
-      input: Record<string, unknown>,
-      schema: ToolSchema | undefined,
-    ) => {
-      // An MCP provider's clientId is its own parameter namespace, not a
-      // Capiro client UUID. Never rewrite managed vendor arguments.
-      if (schema && isManagedTool(schema.name)) return { input: { ...input } };
-      return nativeAugment(dto, input, schema);
-    };
-
-    internals.invokeTool = async (args: InvokeArgs): Promise<unknown> => {
-      assertToolExecutionActive(args.control);
-      if (args.name === 'run_analysis') {
-        const label = analysisWorkLabel(args.input);
-        // The browser sees the work, not the implementation primitive.
-        args.emit({ type: 'tool_call', tool: label, label });
-        if (args.scopeViolation) {
-          args.steps.push({
-            tool: args.name,
-            label,
-            status: 'blocked',
-            detail: args.scopeViolation,
-          });
-          args.emit({
-            type: 'tool_done',
-            tool: label,
-            label,
-            status: 'blocked',
-            detail: args.scopeViolation,
-          });
-          return { error: args.scopeViolation, blocked: true };
-        }
-        if (!args.conversationId) {
-          const detail = 'Visual analysis requires an active Meri conversation.';
-          args.steps.push({ tool: args.name, label, status: 'error', detail });
-          args.emit({ type: 'tool_done', tool: label, label, status: 'error', detail });
-          return { error: detail };
-        }
-        try {
-          const result = await visualAnalysis.execute(
-            {
-              ...args.input,
-              conversationId: args.conversationId,
-            },
-            args.control,
-          );
-          for (const artifact of analysisArtifacts(result)) {
-            args.artifacts.push(artifact);
-            args.emit({ type: 'artifact', artifact });
-          }
-          args.steps.push({ tool: args.name, label, status: 'done' });
-          args.emit({ type: 'tool_done', tool: label, label, status: 'done' });
-          return result;
-        } catch (error) {
-          assertToolExecutionActive(args.control);
-          const detail = error instanceof Error ? error.message.slice(0, 180) : 'Analysis failed';
-          args.steps.push({ tool: args.name, label, status: 'error', detail });
-          args.emit({ type: 'tool_done', tool: label, label, status: 'error', detail });
-          return { error: detail };
+  /**
+   * Managed raw reads are ordinary personal NONCLIENT only. Any request client,
+   * authenticated governed client, non-general subject scope, or client-scoped
+   * governed evidence makes the read unavailable. This is never a prompt-only
+   * condition and never rewrites a vendor clientId.
+   */
+  private managedRawReadRefusal(dto?: MeriV3ChatInput): string | null {
+    if (dto?.clientId) {
+      return 'Connected-app reads are not available in a client-scoped conversation.';
+    }
+    const governed = currentGovernedMeriContext();
+    if (!governed) return null;
+    if (governed.contextPacket?.clientId) {
+      return 'Connected-app reads are not available for an authenticated governed client.';
+    }
+    const subjectScope = governed.retrieval?.plan?.subjectScope;
+    if (subjectScope && subjectScope !== 'general') {
+      return 'Connected-app reads are not available for this governed scope.';
+    }
+    for (const record of governed.evidence?.records ?? []) {
+      const payload = record?.payload;
+      if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+        const clientId = (payload as Record<string, unknown>).clientId;
+        if (typeof clientId === 'string' && clientId) {
+          return 'Connected-app reads are not available for client-scoped governed evidence.';
         }
       }
+    }
+    return null;
+  }
 
-      if (!isManagedTool(args.name)) return nativeInvoke(args);
-      const label = managedLabel(args.name) || toolLabel(args.name);
+  protected override async fetchToolSchemas(
+    control?: ToolExecutionControl,
+  ): Promise<ToolSchema[]> {
+    const [nativeRaw, managed, analysisAvailable] = await Promise.all([
+      super.fetchToolSchemas(control),
+      this.managedMcp.schemas(control),
+      this.visualAnalysis.available(control),
+    ]);
+    const native = nativeRaw
+      .filter((schema) => schema.name !== 'run_analysis' || analysisAvailable)
+      .map((schema) =>
+        schema.name === 'run_analysis'
+          ? { ...schema, description: `${schema.description} ${VISUAL_ANALYSIS_GUIDANCE}` }
+          : schema,
+      );
+    const seen = new Set(native.map((schema) => schema.name));
+    const extra: ToolSchema[] = [];
+    for (const schema of managed) {
+      if (seen.has(schema.name)) continue;
+      // Only validated read-only managed schemas are exposed; invalid/write
+      // metadata never reaches the model and never inherits a name prefix.
+      const metadata = readManagedSchemaMetadata(schema);
+      if (!metadata) continue;
+      extra.push({
+        name: schema.name,
+        input_schema: schema.input_schema,
+        // Preserve the API catalog authority internally rather than dropping it.
+        source: 'managed_mcp',
+        appId: metadata.appId,
+        appName: metadata.appName,
+        readOnly: true,
+        description: [
+          `[Connected app: ${metadata.appName}; optional external evidence source.]`,
+          'Use this tool only when its data is materially relevant to the user request; never call it merely because the app is connected.',
+          'In a client-scoped conversation, use external records only when they clearly concern the active client; ignore unrelated records and ask for clarification when identity is ambiguous.',
+          metadata.appId === 'monday'
+            ? 'Never treat all personal monday.com work as belonging to the active client. Use only a board ID/link supplied by the user or an explicit server-authorized client-board mapping; otherwise report monday.com as unmapped rather than searching broadly.'
+            : '',
+          schema.description,
+        ]
+          .filter(Boolean)
+          .join(' '),
+      });
+    }
+    return [...native, ...extra];
+  }
+
+  protected override augmentToolInput(
+    dto: MeriV3ChatInput,
+    input: Record<string, unknown>,
+    schema: ToolSchema | undefined,
+  ): { input: Record<string, unknown>; scopeViolation?: string } {
+    // An MCP provider's clientId is its own parameter namespace, not a
+    // Capiro client UUID. Never rewrite managed vendor arguments.
+    if (schema && isManagedTool(schema.name)) return { input: { ...input } };
+    return super.augmentToolInput(dto, input, schema);
+  }
+
+  protected override async invokeTool(args: MeriToolInvocation): Promise<unknown> {
+    assertToolExecutionActive(args.control);
+    if (args.name === 'run_analysis') {
+      const label = analysisWorkLabel(args.input);
+      // The browser sees the work, not the implementation primitive.
       args.emit({ type: 'tool_call', tool: label, label });
+      if (args.scopeViolation) {
+        args.steps.push({
+          tool: args.name,
+          label,
+          status: 'blocked',
+          detail: args.scopeViolation,
+        });
+        args.emit({
+          type: 'tool_done',
+          tool: label,
+          label,
+          status: 'blocked',
+          detail: args.scopeViolation,
+        });
+        return { error: args.scopeViolation, blocked: true };
+      }
+      if (!args.conversationId) {
+        const detail = 'Visual analysis requires an active Meri conversation.';
+        args.steps.push({ tool: args.name, label, status: 'error', detail });
+        args.emit({ type: 'tool_done', tool: label, label, status: 'error', detail });
+        return { error: detail };
+      }
       try {
-        const result = await managedMcp.executeRead(args.name, args.input, args.control);
+        const result = await this.visualAnalysis.execute(
+          {
+            ...args.input,
+            conversationId: args.conversationId,
+          },
+          args.control,
+        );
+        for (const artifact of analysisArtifacts(result)) {
+          args.artifacts.push(artifact);
+          args.emit({ type: 'artifact', artifact });
+        }
         args.steps.push({ tool: args.name, label, status: 'done' });
         args.emit({ type: 'tool_done', tool: label, label, status: 'done' });
         return result;
       } catch (error) {
         assertToolExecutionActive(args.control);
-        const detail =
-          error instanceof Error ? error.message.slice(0, 180) : 'Connected app failed';
+        const detail = error instanceof Error ? error.message.slice(0, 180) : 'Analysis failed';
         args.steps.push({ tool: args.name, label, status: 'error', detail });
         args.emit({ type: 'tool_done', tool: label, label, status: 'error', detail });
-        return { error: detail, connectedApp: true };
+        return { error: detail };
       }
-    };
+    }
+
+    if (!isManagedTool(args.name)) return super.invokeTool(args);
+    const label = managedLabel(args.name) || toolLabel(args.name);
+    args.emit({ type: 'tool_call', tool: label, label });
+    try {
+      // The advertised authority must still be a valid managed read, the turn
+      // must still be ordinary personal NONCLIENT, and the credential-scoped
+      // catalog must still advertise the same schema immediately before I/O.
+      const metadata = readManagedSchemaMetadata(args.schema);
+      if (!metadata || args.schema?.name !== args.name) {
+        throw new Error('Connected-app tool metadata is invalid.');
+      }
+      const refusal = this.managedRawReadRefusal(args.dto);
+      if (refusal) throw new Error(refusal);
+      await this.assertCurrentManagedReadCatalog(args.name, args.schema, args.control);
+      const result = await this.managedMcp.executeRead(args.name, args.input, args.control);
+      args.steps.push({ tool: args.name, label, status: 'done' });
+      args.emit({ type: 'tool_done', tool: label, label, status: 'done' });
+      return result;
+    } catch (error) {
+      assertToolExecutionActive(args.control);
+      const detail =
+        error instanceof Error ? error.message.slice(0, 180) : 'Connected app failed';
+      args.steps.push({ tool: args.name, label, status: 'error', detail });
+      args.emit({ type: 'tool_done', tool: label, label, status: 'error', detail });
+      return { error: detail, connectedApp: true };
+    }
+  }
+
+  /**
+   * Re-fetch the current credential-scoped managed catalog and confirm the tool
+   * is still advertised with the same appId mapping and input schema. This is
+   * deliberately a fresh lookup, never a cached success: a revocation between
+   * the first advertisement and dispatch leaves the read blocked.
+   */
+  private async assertCurrentManagedReadCatalog(
+    name: string,
+    advertised: ToolSchema,
+    control?: ToolExecutionControl,
+  ): Promise<void> {
+    const current = (await this.managedMcp.schemas(control)).find(
+      (schema) => schema.name === name,
+    );
+    const advertisedMetadata = readManagedSchemaMetadata(advertised);
+    const currentMetadata = readManagedSchemaMetadata(current);
+    if (
+      !current ||
+      !advertisedMetadata ||
+      !currentMetadata ||
+      currentMetadata.appId !== advertisedMetadata.appId ||
+      !sameInputSchema(advertised.input_schema, current.input_schema)
+    ) {
+      throw new Error('Connected-app tool is no longer available.');
+    }
   }
 
   override async run(
