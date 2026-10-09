@@ -225,7 +225,8 @@ export class MeriManagedMcpService {
       if (id === 'krisp' && !(await krispTenantEnabled(this.prisma, ctx.tenantId))) continue;
       if (!id || !this.available(id, ctx) || !row.enabled || row.connectionStatus !== 'connected')
         continue;
-      if (await this.hardenServer(ctx.tenantId, row.id)) prefixes.set(serverPrefix(row.name), id);
+      if (await this.hardenServer(ctx.tenantId, row.id, ctx.userId))
+        prefixes.set(serverPrefix(row.name), id);
     }
     if (!prefixes.size) return [];
     const schemas = await this.mcp.bridgedSchemasFor(ctx);
@@ -294,9 +295,24 @@ export class MeriManagedMcpService {
     return created.id;
   }
 
-  private async hardenServer(tenantId: string, serverId: string): Promise<number> {
+  /**
+   * Harden a managed server's allowlist to its supported read tools.
+   *
+   * `ownerUserId` is threaded ONLY by the personal schemasForMeriV3 read path so
+   * both the read predicate and the conditional write CAS are scoped to the
+   * acting owner. When it is omitted (undefined) — as finalizeConnection calls
+   * it — the predicates keep their existing tenant-only canonical authorization;
+   * the explicit `!== undefined` test preserves that path unchanged.
+   */
+  private async hardenServer(
+    tenantId: string,
+    serverId: string,
+    ownerUserId?: string,
+  ): Promise<number> {
+    const ownerWhere =
+      ownerUserId !== undefined ? { scope: 'user' as const, ownerUserId } : {};
     const row = await this.prisma.withTenant(tenantId, (tx) =>
-      tx.clioMcpServer.findFirst({ where: { id: serverId, tenantId } }),
+      tx.clioMcpServer.findFirst({ where: { id: serverId, tenantId, ...ownerWhere } }),
     );
     const id = managedAppIdFromCatalogId(row?.catalogId);
     if (
@@ -319,6 +335,7 @@ export class MeriManagedMcpService {
           where: {
             id: row.id,
             tenantId,
+            ...ownerWhere,
             enabled: true,
             connectionStatus: { in: ['pending', 'connected'] },
           },
