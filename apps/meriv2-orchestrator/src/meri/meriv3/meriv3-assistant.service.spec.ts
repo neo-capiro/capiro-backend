@@ -358,6 +358,89 @@ describe('MeriV3AssistantService', () => {
     expect(service.augmentToolInput({ clientId: 'aster' }, { ...input, clientId: 'bluehaven' }, schema)).toEqual({ input: { ...input, clientId: 'aster' } });
     expect(service.augmentToolInput({}, { ...input, clientId: 'bluehaven' }, schema)).toEqual({ input });
   });
+
+  test('re-targets a canonical native read to the authenticated governed client and refuses an explicit interface client', async () => {
+    const service = Object.create(MeriV3AssistantService.prototype) as any;
+    const read = {
+      name: 'get_client_context',
+      input_schema: { properties: { clientId: { type: 'string' } } },
+    };
+    const readAuthority = { name: 'get_client_context', readOnly: true, source: 'native' as const };
+    const save = {
+      name: 'save_memory',
+      input_schema: { properties: { content: { type: 'string' } } },
+    };
+    const saveAuthority = { name: 'save_memory', readOnly: false, source: 'native' as const };
+    const governed = {
+      operationId: 'meri.chat',
+      contextPacket: {
+        packetId: 'pkt-1',
+        items: [],
+        exclusions: [],
+        unauthorizedCount: 0,
+        degraded: false,
+        clientId: 'client-beta',
+      },
+      retrieval: { plan: { subjectScope: 'client' }, coverage: {} },
+    } as unknown as MeriGovernedTurnContext;
+
+    await runWithGovernedMeriContext(governed, async () => {
+      // Omitted -> pinned to the authenticated governed client (Beta), never the
+      // interface selection (Acme).
+      expect(
+        service.augmentToolInput({ clientId: 'client-acme' }, {}, read, readAuthority),
+      ).toEqual({ input: { clientId: 'client-beta' } });
+      // Explicit authenticated client -> pinned to it.
+      expect(
+        service.augmentToolInput(
+          { clientId: 'client-acme' },
+          { clientId: 'client-beta' },
+          read,
+          readAuthority,
+        ),
+      ).toEqual({ input: { clientId: 'client-beta' } });
+      // Explicit interface client -> refused.
+      expect(
+        service.augmentToolInput(
+          { clientId: 'client-acme' },
+          { clientId: 'client-acme' },
+          read,
+          readAuthority,
+        ).scopeViolation,
+      ).toContain('different client');
+      // A bound effect (save_memory) keeps the immutable conversation client and
+      // is refused when the governed turn resolves a different one.
+      expect(
+        service.augmentToolInput(
+          { clientId: 'client-acme' },
+          { content: 'Remember this.' },
+          save,
+          saveAuthority,
+        ).scopeViolation,
+      ).toContain('different client');
+
+      // A governed turn with no single authorized client never injects the
+      // interface client into a client-bearing read.
+      const portfolio = {
+        operationId: 'meri.chat',
+        contextPacket: {
+          packetId: 'pkt-2',
+          items: [],
+          exclusions: [],
+          unauthorizedCount: 0,
+          degraded: false,
+          clientId: null,
+        },
+        retrieval: { plan: { subjectScope: 'portfolio' }, coverage: {} },
+      } as unknown as MeriGovernedTurnContext;
+      await runWithGovernedMeriContext(portfolio, async () => {
+        expect(
+          service.augmentToolInput({ clientId: 'client-acme' }, {}, read, readAuthority)
+            .scopeViolation,
+        ).toBeTruthy();
+      });
+    });
+  });
   const originalFetch = global.fetch;
   const originalOpenAiKey = process.env.OPENAI_API_KEY;
 

@@ -528,6 +528,14 @@ function buildManaged(
   options: {
     registry?: ToolRegistry;
     configValues?: Record<string, string | undefined>;
+    /** Optional action-proposal owner mock (defaults to an inert jest.fn()). */
+    actionProposalCreate?: jest.Mock;
+    /** Optional visual-analysis owner mock (defaults to available:false). */
+    visualAnalysis?: {
+      available: jest.Mock;
+      execute: jest.Mock;
+      discard: jest.Mock;
+    };
   } = {},
 ): { service: MeriV3ManagedMcpAssistantService } {
   const registryService = {
@@ -556,15 +564,17 @@ function buildManaged(
   const service = new MeriV3ManagedMcpAssistantService(
     registryService as never,
     { complete } as never,
-    { create: jest.fn() } as never,
+    (options.actionProposalCreate
+      ? { create: options.actionProposalCreate }
+      : { create: jest.fn() }) as never,
     prisma() as never,
     cfg as never,
     new ApiManagedMcpRepo(cfg as never),
-    {
+    (options.visualAnalysis ?? {
       available: jest.fn(async () => false),
       execute: jest.fn(async () => ({})),
       discard: jest.fn(async () => undefined),
-    } as never,
+    }) as never,
   );
   return { service };
 }
@@ -1930,4 +1940,451 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
     },
   );
+
+  // ── Lane A1 authenticated governed single-client target ──────────────────
+  //
+  // These exercise the REAL `.run` pipeline (admission + `executeFunctionCalls`
+  // + `invokeTool`) with a valid governed `client` subject: the authenticated
+  // context packet resolves one client (Beta) while the interface selection
+  // (the original DTO client) is a different client (Acme). A canonical native
+  // read is re-targeted to the authenticated client; an explicit different
+  // client, a bound effect/artifact, and a governed turn with no single
+  // authorized client are refused before any owner I/O, replay, dedup or
+  // persistence. No managed authority is invented and no UI client is used as a
+  // fallback.
+
+  const UI_ACME = '30000000-0000-4000-8000-0000000000ac';
+  const AUTH_BETA = '30000000-0000-4000-8000-0000000000be';
+  const CLIENT_READ = 'get_client_context';
+
+  /** A native read schema whose owner input is scoped by a Capiro client id. */
+  function clientScopedNativeSchema(name: string) {
+    return {
+      name,
+      description: name,
+      input_schema: {
+        type: 'object',
+        properties: { clientId: { type: 'string' }, query: { type: 'string' } },
+      },
+    };
+  }
+
+  /** A minimal, honest `get_client_context` owner receipt (no invented facts). */
+  function getClientContextOwnerPayload(clientId: string) {
+    return { tool: CLIENT_READ, client: { id: clientId } };
+  }
+
+  function clientSubjectTurn(): MeriGovernedTurnContext {
+    return governedTurn('client', AUTH_BETA);
+  }
+
+  test('a client-scoped governed turn re-targets an omitted native read to the authenticated packet client', async () => {
+    const call = functionCall('governed-read', CLIENT_READ, {});
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Beta profile returned.' }));
+    const invoke = jest.fn(async (_name: string, input: Record<string, unknown>) =>
+      getClientContextOwnerPayload(String(input.clientId)),
+    );
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
+    });
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ)] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      runWithGovernedMeriContext(clientSubjectTurn(), () =>
+        service.run(context, {
+          clientId: UI_ACME,
+          conversationId: 'governed-target-thread',
+          toolPolicy: 'read-only',
+          messages: [{ role: 'user', text: 'Summarize the client.' }],
+        }),
+      ),
+    );
+
+    // The owner received the AUTHENTICATED client (Beta), never the interface
+    // selection (Acme).
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls[0]?.[0]).toBe(CLIENT_READ);
+    expect(invoke.mock.calls[0]?.[1]).toEqual({ clientId: AUTH_BETA });
+    expect(fedBackInput(complete)).toContain(CLIENT_READ);
+  });
+
+  test('a client-scoped governed turn keeps an explicit governed-client native read pinned to that client', async () => {
+    const call = functionCall('governed-read-beta', CLIENT_READ, { clientId: AUTH_BETA });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Beta profile returned.' }));
+    const invoke = jest.fn(async (_name: string, input: Record<string, unknown>) =>
+      getClientContextOwnerPayload(String(input.clientId)),
+    );
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
+    });
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ)] }),
+    }) as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      runWithGovernedMeriContext(clientSubjectTurn(), () =>
+        service.run(context, {
+          clientId: UI_ACME,
+          conversationId: 'governed-target-explicit-thread',
+          toolPolicy: 'read-only',
+          messages: [{ role: 'user', text: 'Summarize the client.' }],
+        }),
+      ),
+    );
+
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls[0]?.[1]).toEqual({ clientId: AUTH_BETA });
+  });
+
+  test('a client-scoped governed turn refuses an explicit interface-client native read with zero dispatch', async () => {
+    const call = functionCall('governed-read-acme', CLIENT_READ, { clientId: UI_ACME });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'I did not run the cross-client request.' }));
+    const invoke = jest.fn();
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
+    });
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ)] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        runWithGovernedMeriContext(clientSubjectTurn(), () =>
+          service.run(context, {
+            clientId: UI_ACME,
+            conversationId: 'governed-target-acme-thread',
+            toolPolicy: 'read-only',
+            messages: [{ role: 'user', text: 'Summarize the client.' }],
+          }),
+        ),
+    );
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(result.steps).toEqual([
+      expect.objectContaining({ tool: CLIENT_READ, status: 'blocked' }),
+    ]);
+    expect(fedBackInput(complete)).toContain('different client');
+  });
+
+  test.each(['portfolio', 'external_entity', 'general'] as const)(
+    'a governed %s turn never falls back to the interface client for a client-bearing native read',
+    async (subjectScope) => {
+      const call = functionCall('governed-read-nofallback', CLIENT_READ, {});
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+        )
+        .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+      const invoke = jest.fn();
+      const { service } = buildManaged(complete, {
+        registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
+      });
+      global.fetch = fetchRouter({
+        native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ)] }),
+      }) as unknown as typeof fetch;
+
+      const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+        { bearerToken: 'bearer' },
+        () =>
+          runWithGovernedMeriContext(governedTurn(subjectScope, null), () =>
+            service.run(context, {
+              clientId: UI_ACME,
+              conversationId: `governed-nofallback-${subjectScope}`,
+              toolPolicy: 'read-only',
+              messages: [{ role: 'user', text: 'Summarize the client.' }],
+            }),
+          ),
+      );
+
+      expect(invoke).not.toHaveBeenCalled();
+      expect(result.steps).toEqual([
+        expect.objectContaining({ tool: CLIENT_READ, status: 'blocked' }),
+      ]);
+    },
+  );
+
+  test('a client-scoped governed turn with no authenticated packet client refuses a client-bearing native read (missing single authority)', async () => {
+    const call = functionCall('governed-read-missing', CLIENT_READ, {});
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const invoke = jest.fn();
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
+    });
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ)] }),
+    }) as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      // subjectScope 'client' but the authenticated packet carries no client id.
+      runWithGovernedMeriContext(governedTurn('client', null), () =>
+        service.run(context, {
+          clientId: UI_ACME,
+          conversationId: 'governed-missing-thread',
+          toolPolicy: 'read-only',
+          messages: [{ role: 'user', text: 'Summarize the client.' }],
+        }),
+      ),
+    );
+
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  test('an omitted mail read stays personal in a client-scoped governed turn while an explicit mail client respects the authenticated target', async () => {
+    // Omitted -> personal mailbox omission is preserved (no injected client).
+    const omitted = functionCall('mail-omitted', 'list_emails', {
+      withinDays: 14,
+      folder: 'inbox',
+    });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({ output: [omitted], outputText: '', functionCalls: [omitted] }),
+      )
+      .mockResolvedValue(providerResult({ outputText: 'Your inbox.' }));
+    const invoke = jest.fn(async () => ({ messages: [] }));
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: 'list_emails', readOnly: true }], invoke),
+    });
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [clientScopedNativeSchema('list_emails')] }),
+    }) as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      runWithGovernedMeriContext(clientSubjectTurn(), () =>
+        service.run(context, {
+          clientId: UI_ACME,
+          conversationId: 'governed-mail-omitted-thread',
+          toolPolicy: 'read-only',
+          messages: [{ role: 'user', text: 'My inbox the last two weeks.' }],
+        }),
+      ),
+    );
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls[0]?.[1]).toEqual({ withinDays: 14, folder: 'inbox' });
+
+    // Explicit authenticated client -> pinned to the authenticated target.
+    const explicitBeta = functionCall('mail-beta', 'list_emails', {
+      clientId: AUTH_BETA,
+      withinDays: 14,
+    });
+    const completeBeta = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({ output: [explicitBeta], outputText: '', functionCalls: [explicitBeta] }),
+      )
+      .mockResolvedValue(providerResult({ outputText: 'Client mail.' }));
+    const invokeBeta = jest.fn(async () => ({ messages: [] }));
+    const { service: serviceBeta } = buildManaged(completeBeta, {
+      registry: registry([{ name: 'list_emails', readOnly: true }], invokeBeta),
+    });
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [clientScopedNativeSchema('list_emails')] }),
+    }) as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      runWithGovernedMeriContext(clientSubjectTurn(), () =>
+        serviceBeta.run(context, {
+          clientId: UI_ACME,
+          conversationId: 'governed-mail-explicit-thread',
+          toolPolicy: 'read-only',
+          messages: [{ role: 'user', text: "Read Beta's mail." }],
+        }),
+      ),
+    );
+    expect(invokeBeta).toHaveBeenCalledTimes(1);
+    expect(invokeBeta.mock.calls[0]?.[1]).toEqual({ clientId: AUTH_BETA, withinDays: 14 });
+  });
+
+  test('an interface-client mismatch blocks save_memory before any proposal or persistence', async () => {
+    const call = functionCall('save-memory', 'save_memory', {
+      content: 'Briefs include the program office.',
+      scope: 'client',
+    });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const invoke = jest.fn();
+    const proposal = jest.fn();
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: 'save_memory', readOnly: false }], invoke),
+      actionProposalCreate: proposal,
+    });
+    global.fetch = fetchRouter({
+      native: () =>
+        jsonResponse({
+          schemas: [
+            {
+              name: 'save_memory',
+              description: 'Save memory.',
+              input_schema: {
+                type: 'object',
+                properties: { content: { type: 'string' }, scope: { type: 'string' } },
+              },
+            },
+          ],
+        }),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        runWithGovernedMeriContext(clientSubjectTurn(), () =>
+          service.run(context, {
+            clientId: UI_ACME,
+            conversationId: 'governed-save-memory-thread',
+            messages: [{ role: 'user', text: 'Remember that briefs include the program office.' }],
+          }),
+        ),
+    );
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(proposal).not.toHaveBeenCalled();
+    expect(result.pendingApprovals ?? []).toEqual([]);
+    expect(result.steps).toEqual([
+      expect.objectContaining({ tool: 'save_memory', status: 'blocked' }),
+    ]);
+  });
+
+  test('an interface-client mismatch blocks create_word before any proposal or artifact', async () => {
+    const call = functionCall('create-word', 'create_word', { title: 'Briefing' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const invoke = jest.fn();
+    const proposal = jest.fn();
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: 'create_word', readOnly: false }], invoke),
+      actionProposalCreate: proposal,
+    });
+    global.fetch = fetchRouter({
+      native: () =>
+        jsonResponse({
+          schemas: [
+            {
+              name: 'create_word',
+              description: 'Create a Word document.',
+              input_schema: { type: 'object', properties: { title: { type: 'string' } } },
+            },
+          ],
+        }),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        runWithGovernedMeriContext(clientSubjectTurn(), () =>
+          service.run(context, {
+            clientId: UI_ACME,
+            conversationId: 'governed-create-word-thread',
+            messages: [{ role: 'user', text: 'Create a Word briefing.' }],
+          }),
+        ),
+    );
+
+    expect(invoke).not.toHaveBeenCalled();
+    expect(proposal).not.toHaveBeenCalled();
+    expect(result.artifacts ?? []).toEqual([]);
+    expect(result.steps).toEqual([
+      expect.objectContaining({ tool: 'create_word', status: 'blocked' }),
+    ]);
+  });
+
+  test('an interface-client mismatch suppresses the run_analysis owner POST before any persistence', async () => {
+    const call = functionCall('run-analysis', 'run_analysis', { purpose: 'Rank results' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const invoke = jest.fn();
+    const visual = {
+      available: jest.fn(async () => true),
+      execute: jest.fn(async () => ({})),
+      discard: jest.fn(async () => undefined),
+    };
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: 'run_analysis', readOnly: true }], invoke),
+      visualAnalysis: visual,
+    });
+    const fetchMock = fetchRouter({
+      native: () =>
+        jsonResponse({
+          schemas: [
+            {
+              name: 'run_analysis',
+              description: 'Execute Python.',
+              input_schema: { type: 'object', properties: { purpose: { type: 'string' } } },
+            },
+          ],
+        }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        runWithGovernedMeriContext(clientSubjectTurn(), () =>
+          service.run(context, {
+            clientId: UI_ACME,
+            conversationId: 'governed-run-analysis-thread',
+            messages: [{ role: 'user', text: 'Chart the ranking.' }],
+          }),
+        ),
+    );
+
+    expect(visual.execute).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.map((entry) => String(entry[0])).some((url) => url.includes('visual-analysis'))).toBe(false);
+    expect(result.artifacts ?? []).toEqual([]);
+    expect(result.steps).toEqual([
+      expect.objectContaining({ tool: 'run_analysis', status: 'blocked' }),
+    ]);
+  });
+
+  test('an ordinary ungoverned turn still pins a native read to the selected client (legacy control)', async () => {
+    const call = functionCall('legacy-read', CLIENT_READ, {});
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Legacy profile.' }));
+    const invoke = jest.fn(async (_name: string, input: Record<string, unknown>) =>
+      getClientContextOwnerPayload(String(input.clientId)),
+    );
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: CLIENT_READ, readOnly: true }], invoke),
+    });
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [clientScopedNativeSchema(CLIENT_READ)] }),
+    }) as unknown as typeof fetch;
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(context, {
+        clientId: UI_ACME,
+        conversationId: 'legacy-control-thread',
+        toolPolicy: 'read-only',
+        messages: [{ role: 'user', text: 'Summarize the client.' }],
+      }),
+    );
+
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls[0]?.[1]).toEqual({ clientId: UI_ACME });
+  });
 });
