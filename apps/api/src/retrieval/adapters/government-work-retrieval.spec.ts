@@ -89,6 +89,27 @@ describe('Action recommendation retrieval', () => {
 });
 
 describe('Hearing source retrieval', () => {
+  it('uses the prep date window and client-matched quoted intelligence without expanding full transcripts', async () => {
+    const { tx, prisma } = harness();
+    tx.$queryRaw.mockResolvedValue([{ key: 'insight:matched', sourceTable: 'public_hearing_insight', sourceId: 'matched', hearingId: 'hearing', occurredAt: new Date('2026-10-01'), updatedAt: null,
+      payload: { kind: 'hearing_intelligence', evidenceText: 'The witness committed to follow up.', sourceUrl: 'https://example.gov/hearing' } }]);
+    const input: RetrievalRequest = { ...request('hearings'), meetingBriefing: {
+      meetingId: 'meeting', scope: 'client', meetingLimit: 10, threadLimit: 15, messageLimit: 150,
+      meetingSince: new Date('2026-07-11'), emailSince: new Date('2026-09-09'),
+      asOf: new Date('2026-10-09'), upcomingThrough: new Date('2026-11-08'),
+    } };
+    const result = await new HearingsRetrievalAdapter(prisma as never).retrieve(catalog.get('hearings'), input);
+    const sql = tx.$queryRaw.mock.calls[0]![0];
+    expect(sql.text).toContain('matched.insight_id = i.id');
+    expect(sql.text).toContain('matched.tenant_id =');
+    expect(sql.text).toContain('matched.client_id::text IN');
+    expect(sql.values).toEqual(expect.arrayContaining([false, input.meetingBriefing!.meetingSince, input.meetingBriefing!.upcomingThrough, TENANT, CLIENT]));
+    expect(sql.values.filter((value: unknown) => value === false)).toHaveLength(3); // both transcript rails plus orphan transcripts
+    expect(result.records[0]!.payload).toMatchObject({ evidenceText: 'The witness committed to follow up.', sourceUrl: 'https://example.gov/hearing' });
+    expect(result).toMatchObject({ coverageComplete: false, paginationComplete: true,
+      stopReason: 'meeting_briefing_hearing_intelligence_complete_full_transcripts_and_browser_session_rail_excluded' });
+  });
+
   it('continues unscoped public hearing search when an authorized client is archived', async () => {
     const { tx, prisma } = harness();
     const input = request('hearings');

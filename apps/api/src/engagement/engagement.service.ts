@@ -6776,7 +6776,13 @@ export class EngagementService {
               where: {
                 tenantId: ctx.tenantId,
                 lastMessageAt: { gte: new Date(now.getTime() - PREP_MAIL_HISTORY_DAYS * DAY_MS) },
-                ...(await this.clientMailThreadAssociationWhere(tx, ctx.tenantId, correctClientId)),
+                ...(await this.clientMailThreadAssociationWhere(
+                  tx,
+                  ctx.tenantId,
+                  correctClientId,
+                  [],
+                  new Date(now.getTime() - PREP_MAIL_HISTORY_DAYS * DAY_MS),
+                )),
               },
               select: {
                 id: true,
@@ -8859,6 +8865,7 @@ export class EngagementService {
     tenantId: string,
     clientId: string,
     extraEmails: string[] = [],
+    since?: Date,
   ): Promise<Prisma.MailThreadWhereInput> {
     const profileEmails = await this.clientProfileEmails(tx, tenantId, clientId);
     const emails = Array.from(
@@ -8880,6 +8887,8 @@ export class EngagementService {
         FROM mail_threads mt
         JOIN mail_messages mm ON mm.thread_id = mt.id
         WHERE mt.tenant_id = ${tenantId}::uuid
+          AND mm.tenant_id = ${tenantId}::uuid
+          ${since ? Prisma.sql`AND mt.last_message_at >= ${since}` : Prisma.empty}
           AND (
             lower(mm.from_email) = ANY(${emails})
             OR EXISTS (

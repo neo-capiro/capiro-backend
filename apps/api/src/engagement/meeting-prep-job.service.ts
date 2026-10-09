@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
   ServiceUnavailableException,
@@ -33,6 +34,7 @@ const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.Inp
 
 @Injectable()
 export class MeetingPrepJobService {
+  private readonly logger = new Logger(MeetingPrepJobService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly engagement: EngagementService,
@@ -379,6 +381,15 @@ export class MeetingPrepJobService {
             : /access|assignment|client changed/i.test(message)
               ? 'PREP_SCOPE_CHANGED'
               : 'PREP_GENERATION_FAILED';
+      const causeCode = (error as { code?: unknown } | null)?.code;
+      this.logger.warn(JSON.stringify({
+        event: 'meeting_prep_failed',
+        jobId: job.id,
+        errorCode: code,
+        // Bounded diagnostic identifiers only: no provider messages or source bodies.
+        causeCode: typeof causeCode === 'string' && /^[A-Z0-9_]{2,80}$/.test(causeCode)
+          ? causeCode : null,
+      }));
       await this.prisma.withTenantUser(job.tenantId, job.userId, (tx) =>
         tx.meetingPrepJob.updateMany({
           where: {
