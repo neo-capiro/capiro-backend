@@ -17,6 +17,8 @@ import {
 } from './meriv3-assistant.service.js';
 import { classifyMeriV3VisualIntent, meriV3VisualIntentPrompt } from './meriv3-visual-intent.js';
 import { currentGovernedMeriContext } from '../meri-governed-context.runtime.js';
+import { assertMeriProcedureToolDispatch } from './meriv3-procedure-guard.js';
+import { assertMeriV3ResearchCapability } from './meriv3-plan-execution.js';
 import type { MeriV3ChatInput, MeriV3ChatResult, MeriV3ChatStreamEvent } from './meriv3.types.js';
 
 import { assertToolExecutionActive, type ToolExecutionControl } from '@capiro/meriv2-core';
@@ -139,9 +141,9 @@ function isManagedAppId(value: unknown): value is ManagedAppId {
 /**
  * Validate the advertised managed catalog authority carried on a schema.
  * Requires the original `source=managed_mcp`, `readOnly=true`, a known
- * appId<->server mapping that agrees with the advertised name, and an object
- * input schema. Anything else is not a managed read and is never admitted by
- * prefix alone.
+ * appId<->server mapping that agrees with the advertised name, and an
+ * actually model-callable object JSON Schema (`input_schema.type==='object'`).
+ * Anything else is not a managed read and is never admitted by prefix alone.
  */
 function readManagedSchemaMetadata(schema: unknown): ManagedSchemaMetadata | null {
   if (!schema || typeof schema !== 'object' || Array.isArray(schema)) return null;
@@ -162,11 +164,15 @@ function readManagedSchemaMetadata(schema: unknown): ManagedSchemaMetadata | nul
   if (!candidate.name.startsWith(expectedPrefix) || candidate.name.length <= expectedPrefix.length) {
     return null;
   }
-  if (
-    !candidate.input_schema ||
-    typeof candidate.input_schema !== 'object' ||
-    Array.isArray(candidate.input_schema)
-  ) {
+  const inputSchema = candidate.input_schema;
+  if (!inputSchema || typeof inputSchema !== 'object' || Array.isArray(inputSchema)) {
+    return null;
+  }
+  // The provider advertises this schema to the model as a function tool. A
+  // JSON Schema whose `type` is not the literal 'object' (or is missing /
+  // malformed) is not model-callable as a tool and must never be advertised or
+  // executed, even though the metadata above is otherwise well-formed.
+  if ((inputSchema as { type?: unknown }).type !== 'object') {
     return null;
   }
   return {
@@ -237,17 +243,33 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
   }
 
   /**
-   * Managed raw reads are ordinary personal NONCLIENT only. Any request client,
-   * authenticated governed client, non-general subject scope, or client-scoped
-   * governed evidence makes the read unavailable. This is never a prompt-only
-   * condition and never rewrites a vendor clientId.
+   * Managed raw reads are ordinary personal NONCLIENT only. A research
+   * execution request, any governed operation other than `meri.chat`, a
+   * governed procedure binding, any request client, authenticated governed
+   * client, non-general subject scope, or client-scoped governed evidence makes
+   * the read unavailable. These are read from the typed envelope fields only —
+   * never a prompt-only condition — and never rewrite a vendor clientId.
+   * Malformed or incomplete governed authority is refused (fail-closed), never
+   * treated as an ordinary personal turn.
    */
   private managedRawReadRefusal(dto?: MeriV3ChatInput): string | null {
+    if (dto?.researchRun || dto?.researchPlanExecution) {
+      return 'Connected-app reads are not available in a research execution request.';
+    }
     if (dto?.clientId) {
       return 'Connected-app reads are not available in a client-scoped conversation.';
     }
     const governed = currentGovernedMeriContext();
     if (!governed) return null;
+    // The managed chat service is driven only by the ordinary `meri.chat`
+    // operation. Any other governed operation (or a missing/malformed
+    // operationId) must not inherit personal managed-read authority.
+    if (governed.operationId !== 'meri.chat') {
+      return 'Connected-app reads are not available for this governed operation.';
+    }
+    if (governed.procedure) {
+      return 'Connected-app reads are not available under a governed procedure.';
+    }
     if (governed.contextPacket?.clientId) {
       return 'Connected-app reads are not available for an authenticated governed client.';
     }
@@ -390,6 +412,18 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
       }
       const refusal = this.managedRawReadRefusal(args.dto);
       if (refusal) throw new Error(refusal);
+      // Final managed dispatch mirrors the native last-mile guards: a research
+      // plan execution must still admit this exact tool, and a governed
+      // procedure binding must still allow this read-only tool. These run
+      // before any catalog fetch or owner I/O, so a managed read can never
+      // escape a governed procedure/research boundary even if it was somehow
+      // advertised.
+      assertMeriV3ResearchCapability(args.admittedReadCapabilities, args.name);
+      assertMeriProcedureToolDispatch({
+        procedure: currentGovernedMeriContext()?.procedure,
+        toolName: args.name,
+        readOnly: true,
+      });
       await this.assertCurrentManagedReadCatalog(args.name, args.schema, args.control);
       const result = await this.managedMcp.executeRead(args.name, args.input, args.control);
       args.steps.push({ tool: args.name, label, status: 'done' });

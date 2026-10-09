@@ -16,14 +16,17 @@
  * The managed unit spec (`meriv3-managed-mcp-assistant.service.spec.ts`) calls
  * those internals directly and therefore cannot prove or disprove admission.
  *
- * Scope note (Lane A / A1): ordinary-chat only. No `researchRun`,
- * `researchPlanExecution` or governed procedure is supplied to the positive or
- * ordinary negatives, so the run proves the ordinary path independently of any
- * research durable-receipt widening. Nothing here widens research
- * `allowedReadCapabilities`, procedure admission, actor scope or connector
- * scope. Controller authentication and served HTTP reachability require
- * separate qualification. The negatives keep the managed namespace narrow
- * (validated advertised metadata, not name prefix alone).
+ * Scope note (Lane A / A1): ordinary-chat managed reads plus explicit governed
+ * negatives. The positive path and ordinary negatives run without any governed
+ * context; dedicated governed negatives supply a valid ordinary
+ * `meri.chat`/`general` context (client/portfolio/external scope, non-chat
+ * operations) and prove the managed read is neither advertised nor dispatched,
+ * with zero owner POST. Research execution / governed procedure denial and
+ * malformed governed authority are proven at the admission seam. Nothing here
+ * widens research `allowedReadCapabilities`, procedure admission, actor scope or
+ * connector scope. Controller authentication and served HTTP reachability
+ * require separate qualification. The negatives keep the managed namespace
+ * narrow (validated advertised metadata, not name prefix alone).
  *
  * The positive owner wire is the REAL managed read shape returned by
  * `MeriV3SettingsController.executeManagedMcpRead` ->
@@ -381,10 +384,11 @@ function managedOwnerInit(fetchMock: jest.Mock): RequestInit | undefined {
 function governedTurn(
   subjectScope: 'client' | 'portfolio' | 'external_entity' | 'general',
   clientId: string | null = null,
+  operationId = 'meri.chat',
 ): MeriGovernedTurnContext {
   return {
     version: 1,
-    operationId: 'meri.chat',
+    operationId,
     prompt: 'Governed context.',
     contextPacket: {
       packetId: null,
@@ -922,5 +926,149 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     expect(urls.some((url) => url.includes('/api/clio/tools/'))).toBe(false);
     expect(urls.some((url) => url.includes('/api/clio/v3/mcp-tools/'))).toBe(false);
     expect(result.reply).toContain('No tools were available.');
+  });
+
+  const malformedManagedSchemas: Array<[string, Record<string, unknown>]> = [
+    ['an array input schema', { type: 'array', items: { type: 'string' } }],
+    ['an input schema with no type', { properties: { query: { type: 'string' } } }],
+    ['a scalar input schema type', { type: 'string' }],
+  ];
+  test.each(malformedManagedSchemas)(
+    'a malformed non-object managed schema (%s) is never advertised or executed',
+    async (_label, malformed) => {
+      const call = functionCall('malformed-schema', MANAGED_READ, { query: 'Jane' });
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+        )
+        .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+      const { service } = buildManaged(complete);
+
+      const fetchMock = fetchRouter({
+        native: () => jsonResponse({ schemas: [] }),
+        managed: () => jsonResponse({ schemas: [managedSchema({ input_schema: malformed })] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        service.run(context, {
+          conversationId: 'malformed-schema-thread',
+          messages: [{ role: 'user', text: 'Find Jane.' }],
+        }),
+      );
+
+      // Not model-callable: never advertised, and the model's call is blocked
+      // before any owner I/O.
+      expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+      expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+    },
+  );
+
+  test.each(['meri.research', 'research.generate-report', 'workspace.generate'])(
+    'a governed non-chat operation (%s) never exposes or dispatches a managed read',
+    async (operationId) => {
+      const call = functionCall('non-chat', MANAGED_READ, { query: 'Jane' });
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+        )
+        .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+      const { service } = buildManaged(complete);
+
+      const fetchMock = fetchRouter({
+        native: () => jsonResponse({ schemas: [] }),
+        managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(governedTurn('general', null, operationId), () =>
+          service.run(context, {
+            conversationId: `non-chat-${operationId}`,
+            messages: [{ role: 'user', text: 'Find Jane.' }],
+          }),
+        ),
+      );
+
+      expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+      expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+    },
+  );
+
+  const governedScopeTurns: Array<['client' | 'portfolio' | 'external_entity', string | null]> = [
+    ['client', CLIENT_ID],
+    ['portfolio', null],
+    ['external_entity', null],
+  ];
+  test.each(governedScopeTurns)(
+    'a governed %s turn never exposes or dispatches a managed read through .run',
+    async (subjectScope, clientId) => {
+      const call = functionCall('governed-scope', MANAGED_READ, { query: 'Jane' });
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+        )
+        .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+      const { service } = buildManaged(complete);
+
+      const fetchMock = fetchRouter({
+        native: () => jsonResponse({ schemas: [] }),
+        managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(governedTurn(subjectScope, clientId), () =>
+          service.run(context, {
+            conversationId: `governed-${subjectScope}`,
+            messages: [{ role: 'user', text: 'Find Jane.' }],
+          }),
+        ),
+      );
+
+      expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+      expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+    },
+  );
+
+  test('research execution and governed procedure requests resolve no managed authority at the admission seam', async () => {
+    const { service } = buildManaged(jest.fn());
+    const seam = service as unknown as {
+      resolveCapabilityAuthority: (name: string, schema: unknown, dto: unknown) => unknown;
+    };
+
+    // A research execution request (durable lease or admitted plan envelope) is
+    // never an ordinary personal NONCLIENT turn.
+    expect(
+      seam.resolveCapabilityAuthority(MANAGED_READ, managedSchema(), {
+        researchRun: { sessionId: 'session-1', runId: 'run-1', leaseEpoch: 1 },
+      }),
+    ).toBeNull();
+    expect(
+      seam.resolveCapabilityAuthority(MANAGED_READ, managedSchema(), {
+        researchPlanExecution: { scope: {} },
+      }),
+    ).toBeNull();
+    // A governed procedure binding is not an ordinary personal turn.
+    await runWithGovernedMeriContext(
+      {
+        ...governedTurn('general'),
+        procedure: { version: 1 },
+      } as unknown as MeriGovernedTurnContext,
+      async () => {
+        expect(seam.resolveCapabilityAuthority(MANAGED_READ, managedSchema(), {})).toBeNull();
+      },
+    );
+    // Malformed/incomplete governed authority (missing operationId) must not be
+    // treated as an ordinary personal turn either.
+    await runWithGovernedMeriContext(
+      { retrieval: { plan: { subjectScope: 'general' } } } as unknown as MeriGovernedTurnContext,
+      async () => {
+        expect(seam.resolveCapabilityAuthority(MANAGED_READ, managedSchema(), {})).toBeNull();
+      },
+    );
   });
 });

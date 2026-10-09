@@ -1,7 +1,20 @@
 import { MeriV3AssistantService } from './meriv3-assistant.service.js';
 import { MeriV3ManagedMcpAssistantService } from './meriv3-managed-mcp-assistant.service.js';
+import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
+import type { MeriGovernedTurnContext } from '@capiro/meriv2-core';
 
 const HUBSPOT_SEARCH = 'mcp__meriv3_hubspot__search_contacts';
+
+/** A current real API managed-catalog read schema (validated authority fields). */
+const HUBSPOT_READ_SCHEMA = {
+  name: HUBSPOT_SEARCH,
+  description: 'Search HubSpot contacts',
+  input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+  source: 'managed_mcp',
+  appId: 'hubspot',
+  appName: 'HubSpot',
+  readOnly: true,
+} as const;
 
 function make(
   managedOverrides: Record<string, unknown> = {},
@@ -452,5 +465,84 @@ describe('MeriV3ManagedMcpAssistantService', () => {
       expect(nativeInvoke).toHaveBeenCalledWith(args);
     }
     expect(managed.executeRead).not.toHaveBeenCalled();
+  });
+
+  test('refuses a managed read at final dispatch when a research plan does not admit it, before catalog fetch or owner I/O', async () => {
+    const executeRead = jest.fn(async () => ({ contacts: [] }));
+    const schemas = jest.fn(async () => [HUBSPOT_READ_SCHEMA]);
+    const { service } = make({ executeRead, schemas });
+    const internals = service as unknown as {
+      invokeTool: (args: Record<string, unknown>) => Promise<unknown>;
+    };
+
+    const result = await internals.invokeTool({
+      ctx: {},
+      dto: {},
+      name: HUBSPOT_SEARCH,
+      input: { query: 'Jane' },
+      schema: HUBSPOT_READ_SCHEMA,
+      // The admitted research read set does not include this managed tool: the
+      // final assertMeriV3ResearchCapability guard must refuse it.
+      admittedReadCapabilities: new Set(['search_memory']),
+      steps: [],
+      pendingApprovals: [],
+      artifacts: [],
+      emit: () => undefined,
+      prePersistRefusal: () => null,
+      noteComplianceOutcome: () => undefined,
+    });
+
+    expect(executeRead).not.toHaveBeenCalled();
+    // The guard runs BEFORE the current-catalog fetch and owner I/O.
+    expect(schemas).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      connectedApp: true,
+      error: expect.stringContaining('meri_research_plan_execution_envelope_invalid'),
+    });
+  });
+
+  test('refuses a managed read under a governed procedure before catalog fetch or owner I/O', async () => {
+    const executeRead = jest.fn(async () => ({ contacts: [] }));
+    const schemas = jest.fn(async () => [HUBSPOT_READ_SCHEMA]);
+    const { service } = make({ executeRead, schemas });
+    const internals = service as unknown as {
+      invokeTool: (args: Record<string, unknown>) => Promise<unknown>;
+    };
+
+    // A governed procedure binding that does not allow the managed tool: the
+    // final dispatch must refuse before any catalog fetch or owner I/O.
+    const governed = {
+      version: 1,
+      operationId: 'meri.chat',
+      prompt: '',
+      contextPacket: { clientId: null },
+      retrieval: { plan: { subjectScope: 'general' } },
+      procedure: {
+        version: 1,
+        validUntil: Date.now() + 60_000,
+        policy: { effectMode: 'read_only', allowedTools: ['search_memory'] },
+      },
+    } as unknown as MeriGovernedTurnContext;
+
+    const result = await runWithGovernedMeriContext(governed, () =>
+      internals.invokeTool({
+        ctx: {},
+        dto: {},
+        name: HUBSPOT_SEARCH,
+        input: { query: 'Jane' },
+        schema: HUBSPOT_READ_SCHEMA,
+        admittedReadCapabilities: null,
+        steps: [],
+        pendingApprovals: [],
+        artifacts: [],
+        emit: () => undefined,
+        prePersistRefusal: () => null,
+        noteComplianceOutcome: () => undefined,
+      }),
+    );
+
+    expect(executeRead).not.toHaveBeenCalled();
+    expect(schemas).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ connectedApp: true });
   });
 });

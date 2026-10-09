@@ -166,9 +166,16 @@ describe('MeriV3RetrievalAssistantService', () => {
   });
 
   test('uses governed monday evidence for audits while preserving other managed-monday requests', async () => {
+    // Current real API managed-catalog metadata: the schema is a validated
+    // managed read (source/appId/readOnly + object input schema), not a bare
+    // name-prefix fixture. The retrieval monday filter must remove it only when
+    // the governed coverage requests the monday domain.
     const schema = {
       name: 'mcp__meriv3_monday__get_board_items_page',
+      appId: 'monday',
       appName: 'monday.com',
+      readOnly: true,
+      source: 'managed_mcp',
       description: 'Read board items',
       input_schema: { type: 'object' },
     };
@@ -178,12 +185,40 @@ describe('MeriV3RetrievalAssistantService', () => {
     const service = make([schema]) as unknown as {
       fetchToolSchemas: () => Promise<Array<{ name: string }>>;
     };
+    // Valid ordinary governed meri.chat/general turn: an audit that requests the
+    // monday domain must consume monday evidence only through the Context Plane,
+    // so the raw personal-provider monday read is withheld.
     const governed = {
-      retrieval: { coverage: { requestedDomains: ['monday'] } },
-    } as MeriGovernedTurnContext;
+      version: 1,
+      operationId: 'meri.chat',
+      prompt: 'Governed context.',
+      contextPacket: {
+        packetId: null,
+        items: [],
+        exclusions: [],
+        unauthorizedCount: 0,
+        degraded: false,
+        clientId: null,
+      },
+      retrieval: {
+        plan: {
+          version: 1,
+          queryClass: 'general',
+          subjectScope: 'general',
+          targetHint: null,
+          recipeTool: null,
+          requireCompleteCoverage: false,
+          requiredDomains: [],
+          timeWindow: null,
+        },
+        coverage: { requestedDomains: ['monday'] },
+      },
+    } as unknown as MeriGovernedTurnContext;
     await expect(
       runWithGovernedMeriContext(governed, () => service.fetchToolSchemas()),
     ).resolves.toEqual([]);
+    // An unrelated (non-monday) governed request must still expose the valid
+    // personal monday managed read.
     governed.retrieval.coverage.requestedDomains = ['clients'];
     await expect(
       runWithGovernedMeriContext(governed, () => service.fetchToolSchemas()),
