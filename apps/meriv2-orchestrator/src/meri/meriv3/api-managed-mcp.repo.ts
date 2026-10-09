@@ -9,7 +9,7 @@ export interface ManagedMcpToolSchema {
   description: string;
   input_schema: Record<string, unknown>;
   source: 'managed_mcp';
-  appId: 'hubspot' | 'airtable' | 'monday' | 'google-drive';
+  appId: 'hubspot' | 'airtable' | 'monday' | 'google-drive' | 'krisp';
   appName: string;
   readOnly: true;
 }
@@ -44,6 +44,9 @@ export class ApiManagedMcpRepo {
       const body = (await response.json()) as { schemas?: ManagedMcpToolSchema[] };
       return Array.isArray(body.schemas) ? body.schemas : [];
     } catch (error) {
+      // Never swallow transport cancellation. A cancelled/stopped turn must
+      // surface as an abort, not as a silent empty catalog that merely blocks.
+      if (control?.signal?.aborted) throw error;
       this.logger.warn(
         `Managed MCP schemas unavailable: ${error instanceof Error ? error.message : String(error)}`,
       );
