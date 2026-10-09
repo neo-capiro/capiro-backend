@@ -440,13 +440,16 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
       args.emit({ type: 'tool_call', tool: label, label });
       // Re-derive the client-scope guard so an alternate dispatch path cannot
       // retarget a persisted chart analysis as a plain native read: a
-      // mismatch suppresses the owner POST before any persistence.
+      // mismatch suppresses the owner POST before any persistence. Resolve the
+      // ACTUAL canonical schema of `args.name` so a wrapper schema cannot
+      // disguise the owner contract.
+      const dispatchSchema = this.resolveDispatchSchema(args);
       const scopeViolation =
         args.scopeViolation ??
         this.resolveToolScopeViolation(
           args.dto,
-          args.schema,
-          this.resolveCapabilityAuthority(args.name, args.schema, args.dto),
+          dispatchSchema,
+          this.resolveCapabilityAuthority(args.name, dispatchSchema, args.dto),
           args.input,
         ) ??
         undefined;

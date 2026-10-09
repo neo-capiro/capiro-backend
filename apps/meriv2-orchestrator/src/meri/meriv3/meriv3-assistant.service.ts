@@ -236,7 +236,7 @@ const MODEL_AUTHORED_PERSISTED_BODY_FIELDS: ReadonlyMap<string, string> = new Ma
 const READONLY_ARTIFACT_OWNER_TOOLS: ReadonlySet<string> = new Set(['run_analysis']);
 
 /** A tool input whose client filter disagrees with the conversation's client. */
-const CROSS_CLIENT_REFUSAL =
+export const CROSS_CLIENT_REFUSAL =
   'This conversation is pinned to a different client. I did not run the cross-client request.';
 
 /**
@@ -245,7 +245,7 @@ const CROSS_CLIENT_REFUSAL =
  * before replay, dedup, proposal or persistence so a Beta-scoped turn never
  * writes an Acme conversation artifact (or vice versa).
  */
-const GOVERNED_BOUND_EFFECT_REFUSAL =
+export const GOVERNED_BOUND_EFFECT_REFUSAL =
   'This governed turn resolves a different client than the conversation is pinned to, so I did not run this client-scoped action.';
 
 /**
@@ -254,7 +254,7 @@ const GOVERNED_BOUND_EFFECT_REFUSAL =
  * with no authenticated packet client). The UI-selected client is never used
  * as a fallback target, so the read is refused rather than silently narrowed.
  */
-const GOVERNED_NO_SINGLE_CLIENT_REFUSAL =
+export const GOVERNED_NO_SINGLE_CLIENT_REFUSAL =
   'This governed turn does not resolve a single authorized client for that read, so I did not run it against the client selected in the interface.';
 
 /**
@@ -316,6 +316,13 @@ export interface MeriToolInvocation {
   researchRun?: { sessionId: string; runId: string; leaseEpoch: number };
   admittedReadCapabilities: ReadonlySet<string> | null;
   captureDurableSafeRead: (outcome: DurableSafeReadOutcome) => void;
+  /**
+   * The admitted (exposed) schemas for the dispatch batch this invocation
+   * belongs to. Used to resolve the ACTUAL canonical schema of `name` when an
+   * alternate dispatch path (recipe/semantic `invokeUnderlying`, completion)
+   * carries an outer wrapper schema whose `name` differs from the real tool.
+   */
+  availableSchemas?: readonly ToolSchema[];
 }
 
 interface FunctionExecution {
@@ -867,6 +874,23 @@ export class MeriV3AssistantService {
   }
 
   /**
+   * The canonical schema actually dispatched for one invocation. The batch
+   * admission already resolves the schema by call name, but an alternate
+   * dispatch path (recipe/semantic `invokeUnderlying`, completion/repair) can
+   * carry an outer WRAPPER schema whose `name` differs from the real tool it
+   * re-dispatches. Resolve the real capability's schema by name from the
+   * admitted schemas so `isRetargetableGovernedRead` / `requiresClientId` see
+   * the ACTUAL owner contract (a required-client read stays required; an
+   * optional actor read stays optional) rather than a wrapper's shape.
+   */
+  protected resolveDispatchSchema(
+    args: Pick<MeriToolInvocation, 'name' | 'schema' | 'availableSchemas'>,
+  ): ToolSchema | undefined {
+    if (!args.schema || args.schema.name === args.name) return args.schema;
+    return args.availableSchemas?.find((candidate) => candidate.name === args.name) ?? args.schema;
+  }
+
+  /**
    * The authenticated governed client target for this turn, or null.
    *
    * Derived ONLY from the typed, MAC-authenticated governed context: a resolved
@@ -902,13 +926,26 @@ export class MeriV3AssistantService {
     authority: MeriResolvedCapability | null | undefined,
   ): boolean {
     if (authority?.readOnly !== true || authority.source !== 'native') return false;
-    return !READONLY_ARTIFACT_OWNER_TOOLS.has(schema?.name ?? '');
+    // Key the exclusion on the ACTUAL dispatched capability identity, not only
+    // on the outer wrapper schema name: an alternate dispatch path may retain
+    // an outer schema while rewriting the real tool name, so EITHER identity
+    // naming a read-only artifact owner keeps the capability a bound effect.
+    return (
+      !READONLY_ARTIFACT_OWNER_TOOLS.has(authority.name) &&
+      !READONLY_ARTIFACT_OWNER_TOOLS.has(schema?.name ?? '')
+    );
   }
 
-  /** A schema whose owner input is scoped by a Capiro client id. */
-  private isClientBearingSchema(schema: ToolSchema | undefined): boolean {
-    const properties = schema?.input_schema?.properties as Record<string, unknown> | undefined;
-    return Boolean(properties?.clientId);
+  /**
+   * Whether the owner contract REQUIRES a clientId (a required-client read such
+   * as `get_client_context`), as opposed to an actor/tenant read that merely
+   * EXPOSES an optional clientId (`search_memory`, `query_tasks`, mail reads).
+   * Read only from the schema's own `required` list; never inferred from a name
+   * prefix or an evidence payload.
+   */
+  private requiresClientId(schema: ToolSchema | undefined): boolean {
+    const required = schema?.input_schema?.required;
+    return Array.isArray(required) && required.includes('clientId');
   }
 
   /**
@@ -918,12 +955,15 @@ export class MeriV3AssistantService {
    *
    * - A canonical native read may target only the authenticated governed single
    *   client; an explicit different client is refused. In a governed turn that
-   *   resolves no single client, a client-bearing read is never pinned to the
-   *   interface selection — an explicit filter passes through to the owner
-   *   (which still enforces actor scope) and an omitted one is refused.
+   *   resolves no single client, the interface selection is never used as a
+   *   fallback: an explicit model-supplied filter is refused (a generic actor
+   *   ACL does not grant it), a required-client read with an omitted filter is
+   *   refused, and only an OPTIONAL actor/tenant read with an omitted filter
+   *   passes through unchanged to its existing narrow owner.
    * - A bound effect/artifact/write keeps the immutable conversation client; a
    *   governed single-client turn whose authenticated target disagrees with
-   *   that binding is refused.
+   *   that binding — including an original null conversation client — is
+   *   refused.
    */
   protected resolveToolScopeViolation(
     dto: MeriV3ChatInput,
@@ -939,18 +979,48 @@ export class MeriV3AssistantService {
         return null;
       }
       // An ordinary ungoverned turn keeps its legacy binding; only a governed
-      // turn with no single authorized client refuses the interface fallback.
+      // turn with no single authorized client applies the narrowed rules below.
       if (!currentGovernedMeriContext()) return null;
-      if (this.isClientBearingSchema(schema) && !supplied) {
-        return GOVERNED_NO_SINGLE_CLIENT_REFUSAL;
-      }
+      // No authenticated single target: an explicit model-supplied client is
+      // never granted by a generic actor ACL, so it is refused; a
+      // required-client read with no target is refused too. An OPTIONAL
+      // actor/tenant read whose filter is omitted stays omitted and reaches its
+      // existing narrow owner (personal/general memory, personal mailbox) —
+      // the interface-selected client is never used as a fallback.
+      if (supplied) return GOVERNED_NO_SINGLE_CLIENT_REFUSAL;
+      if (this.requiresClientId(schema)) return GOVERNED_NO_SINGLE_CLIENT_REFUSAL;
       return null;
     }
     const governedTarget = this.resolveGovernedClientTarget();
-    if (governedTarget && dto.clientId && dto.clientId !== governedTarget) {
+    // Symmetric immutability: a governed turn that resolves a single client must
+    // match the conversation's bound client INCLUDING the null case. An
+    // authenticated Beta versus an original null conversation is a mismatch
+    // just as Beta versus Acme is, so there is no truthiness hole and the block
+    // happens before replay, dedup, proposal or persistence.
+    if (governedTarget && dto.clientId !== governedTarget) {
       return GOVERNED_BOUND_EFFECT_REFUSAL;
     }
     return null;
+  }
+
+  /**
+   * The pre-dispatch client-scope guard for an AUXILIARY dispatch path that
+   * calls the registry directly (`withToolBudget` — repair, status) and
+   * therefore bypasses `invokeTool`. The repair path in particular projects the
+   * ORIGINAL `dto.clientId` into a client-bearing read, so without this the
+   * governed-target mismatch could reach an owner across client scope. It
+   * re-derives the same `resolveToolScopeViolation` from the ACTUAL capability
+   * and schema before any I/O.
+   */
+  private resolveAuxiliaryToolScopeViolation(
+    dto: MeriV3ChatInput,
+    schemas: readonly ToolSchema[],
+    name: string,
+    input: Record<string, unknown>,
+  ): string | null {
+    const schema = schemas.find((candidate) => candidate.name === name);
+    const authority = this.resolveCapabilityAuthority(name, schema, dto);
+    return this.resolveToolScopeViolation(dto, schema, authority, input);
   }
 
   /**
@@ -3064,6 +3134,18 @@ export class MeriV3AssistantService {
         args.runtimeBudget,
         args.budgetScope,
         async (name, input, control) => {
+          // The repair path projects the ORIGINAL dto.clientId into a
+          // client-bearing read and calls the registry directly. Apply the same
+          // governed-target scope protection before any procedure lookup or
+          // owner I/O, so a mismatch is refused here rather than reaching an
+          // owner outside the guarded batch dispatch.
+          const scopeViolation = this.resolveAuxiliaryToolScopeViolation(
+            dto,
+            args.availableSchemas,
+            name,
+            input,
+          );
+          if (scopeViolation) throw new Error(scopeViolation);
           await this.assertCurrentProcedureAuthority(dto.conversationId, name, control);
           await this.reserveAuxiliaryResearchDispatch(
             dto,
@@ -3551,6 +3633,7 @@ export class MeriV3AssistantService {
           schema,
           researchRun: args.dto.researchRun,
           admittedReadCapabilities: args.admittedReadCapabilities,
+          availableSchemas: args.schemas,
           captureDurableSafeRead: (outcome) => {
             durableSafeRead = outcome;
           },
@@ -3724,16 +3807,18 @@ export class MeriV3AssistantService {
 
     if (properties?.clientId) {
       const supplied = typeof output.clientId === 'string' ? output.clientId.trim() : '';
+      const mailRead = isMeriMailReadTool(schema?.name);
+      // A governed turn with no single authorized client keeps only an OMITTED
+      // optional filter (an explicit one was refused above); the interface
+      // client is never injected as a fallback.
+      const leaveOptionalOmitted = retargetableRead && Boolean(governed) && !governedTarget;
       if (retargetableRead && governedTarget) {
         // The authenticated single governed client is the only target a
         // canonical native read may use; an omitted one is pinned to it. The
-        // explicit-different case was already refused above.
-        if (supplied || !isMeriMailReadTool(schema?.name)) output.clientId = governedTarget;
-      } else if (retargetableRead && governed) {
-        // Governed turn with no single authorized client: a model-supplied
-        // filter is preserved; the UI-selected client is never injected.
-        if (supplied) output.clientId = supplied;
-      } else if (dto.clientId) {
+        // explicit-different case was already refused above, and personal
+        // mailbox omission is preserved.
+        if (supplied || !mailRead) output.clientId = governedTarget;
+      } else if (!leaveOptionalOmitted && dto.clientId) {
         // Unchanged legacy binding for an ungoverned turn and the immutable
         // conversation-client binding for a bound effect.
         if (supplied && supplied !== dto.clientId) {
@@ -3742,7 +3827,7 @@ export class MeriV3AssistantService {
         // The owner-authenticated mailbox includes mail with no client
         // association. Keep explicit client filters pinned, but let the
         // provider omit one for personal inbox questions.
-        if (supplied || !isMeriMailReadTool(schema?.name)) output.clientId = dto.clientId;
+        if (supplied || !mailRead) output.clientId = dto.clientId;
       }
     }
     if (dto.conversationId && output.conversationId === undefined && properties?.conversationId) {
@@ -3790,12 +3875,13 @@ export class MeriV3AssistantService {
     // semantic/recipe `invokeUnderlying`) cannot bypass the batch guard: the
     // actual native dispatch rechecks the current target/binding before any
     // owner I/O.
+    const dispatchSchema = this.resolveDispatchSchema(args);
     const scopeViolation =
       args.scopeViolation ??
       this.resolveToolScopeViolation(
         args.dto,
-        args.schema,
-        this.resolveCapabilityAuthority(args.name, args.schema, args.dto),
+        dispatchSchema,
+        this.resolveCapabilityAuthority(args.name, dispatchSchema, args.dto),
         args.input,
       ) ??
       undefined;

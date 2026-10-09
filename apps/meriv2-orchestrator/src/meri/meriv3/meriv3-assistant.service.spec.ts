@@ -18,6 +18,9 @@ import * as liveRepair from '../repair/live-repair.service.js';
 import type { MeriV3ChatStreamEvent } from './meriv3.types.js';
 import {
   buildRepairPassages,
+  CROSS_CLIENT_REFUSAL,
+  GOVERNED_BOUND_EFFECT_REFUSAL,
+  GOVERNED_NO_SINGLE_CLIENT_REFUSAL,
   MeriV3AssistantService,
   resetMeriV3RolloutDiagnosticsForTest,
 } from './meriv3-assistant.service.js';
@@ -359,13 +362,19 @@ describe('MeriV3AssistantService', () => {
     expect(service.augmentToolInput({}, { ...input, clientId: 'bluehaven' }, schema)).toEqual({ input });
   });
 
-  test('re-targets a canonical native read to the authenticated governed client and refuses an explicit interface client', async () => {
+  test('re-targets a canonical native read to the authenticated governed client, refuses an explicit interface client, and preserves an omitted optional actor read', async () => {
     const service = Object.create(MeriV3AssistantService.prototype) as any;
     const read = {
       name: 'get_client_context',
-      input_schema: { properties: { clientId: { type: 'string' } } },
+      input_schema: { properties: { clientId: { type: 'string' } }, required: ['clientId'] },
     };
     const readAuthority = { name: 'get_client_context', readOnly: true, source: 'native' as const };
+    // An OPTIONAL actor/tenant read: it exposes clientId but does NOT require it.
+    const optional = {
+      name: 'search_memory',
+      input_schema: { properties: { clientId: { type: 'string' }, query: { type: 'string' } } },
+    };
+    const optionalAuthority = { name: 'search_memory', readOnly: true, source: 'native' as const };
     const save = {
       name: 'save_memory',
       input_schema: { properties: { content: { type: 'string' } } },
@@ -399,7 +408,7 @@ describe('MeriV3AssistantService', () => {
           readAuthority,
         ),
       ).toEqual({ input: { clientId: 'client-beta' } });
-      // Explicit interface client -> refused.
+      // Explicit interface client -> refused with the exact cross-client reason.
       expect(
         service.augmentToolInput(
           { clientId: 'client-acme' },
@@ -407,9 +416,9 @@ describe('MeriV3AssistantService', () => {
           read,
           readAuthority,
         ).scopeViolation,
-      ).toContain('different client');
+      ).toBe(CROSS_CLIENT_REFUSAL);
       // A bound effect (save_memory) keeps the immutable conversation client and
-      // is refused when the governed turn resolves a different one.
+      // is refused with the exact bound-effect reason on a governed mismatch.
       expect(
         service.augmentToolInput(
           { clientId: 'client-acme' },
@@ -417,10 +426,15 @@ describe('MeriV3AssistantService', () => {
           save,
           saveAuthority,
         ).scopeViolation,
-      ).toContain('different client');
+      ).toBe(GOVERNED_BOUND_EFFECT_REFUSAL);
+      // A bound effect whose ORIGINAL conversation client is null is ALSO a
+      // mismatch (no truthiness hole).
+      expect(
+        service.augmentToolInput({}, { content: 'Remember this.' }, save, saveAuthority).scopeViolation,
+      ).toBe(GOVERNED_BOUND_EFFECT_REFUSAL);
 
       // A governed turn with no single authorized client never injects the
-      // interface client into a client-bearing read.
+      // interface client.
       const portfolio = {
         operationId: 'meri.chat',
         contextPacket: {
@@ -434,11 +448,103 @@ describe('MeriV3AssistantService', () => {
         retrieval: { plan: { subjectScope: 'portfolio' }, coverage: {} },
       } as unknown as MeriGovernedTurnContext;
       await runWithGovernedMeriContext(portfolio, async () => {
+        // A REQUIRED-client read (omit) is refused with the exact reason.
         expect(
-          service.augmentToolInput({ clientId: 'client-acme' }, {}, read, readAuthority)
-            .scopeViolation,
-        ).toBeTruthy();
+          service.augmentToolInput({ clientId: 'client-acme' }, {}, read, readAuthority).scopeViolation,
+        ).toBe(GOVERNED_NO_SINGLE_CLIENT_REFUSAL);
+        // An explicit model client is never granted by a generic actor ACL.
+        expect(
+          service.augmentToolInput(
+            { clientId: 'client-acme' },
+            { clientId: 'client-acme' },
+            read,
+            readAuthority,
+          ).scopeViolation,
+        ).toBe(GOVERNED_NO_SINGLE_CLIENT_REFUSAL);
+        // An OPTIONAL actor read with an omitted filter is preserved unchanged:
+        // no refusal and no injected interface client.
+        expect(
+          service.augmentToolInput(
+            { clientId: 'client-acme' },
+            { query: 'Kestrel' },
+            optional,
+            optionalAuthority,
+          ),
+        ).toEqual({ input: { query: 'Kestrel' } });
       });
+    });
+  });
+
+  test('the auxiliary withToolBudget repair guard refuses a projected interface client before any owner I/O', async () => {
+    // Typed seam over the private guard + registry; mirrors the request-path
+    // fixture's registry shape without a new `any` cast.
+    const service = Object.create(MeriV3AssistantService.prototype) as unknown as {
+      registry: {
+        get: (name: string) => { readOnly: boolean } | undefined;
+        list: () => string[];
+        executionMetadata: (name: string) => { executionMode: string };
+      };
+      resolveAuxiliaryToolScopeViolation: (
+        dto: Record<string, unknown>,
+        schemas: readonly { name: string; input_schema: Record<string, unknown> }[],
+        name: string,
+        input: Record<string, unknown>,
+      ) => string | null;
+    };
+    // The live registry seam the auxiliary guard re-derives the capability from.
+    service.registry = {
+      get: (name: string) => ({ readOnly: name !== 'save_memory' }),
+      list: () => ['get_client_context', 'save_memory'],
+      executionMetadata: () => ({ executionMode: 'read' }),
+    };
+    const readSchema = {
+      name: 'get_client_context',
+      input_schema: { properties: { clientId: { type: 'string' } }, required: ['clientId'] },
+    };
+    const saveSchema = {
+      name: 'save_memory',
+      input_schema: { properties: { content: { type: 'string' } } },
+    };
+    const governed = {
+      operationId: 'meri.chat',
+      contextPacket: {
+        packetId: 'pkt-1',
+        items: [],
+        exclusions: [],
+        unauthorizedCount: 0,
+        degraded: false,
+        clientId: 'client-beta',
+      },
+      retrieval: { plan: { subjectScope: 'client' }, coverage: {} },
+    } as unknown as MeriGovernedTurnContext;
+
+    await runWithGovernedMeriContext(governed, async () => {
+      // The repair path projects the ORIGINAL dto.clientId (Acme) into a
+      // client-bearing read: refused with the exact cross-client reason.
+      expect(
+        service.resolveAuxiliaryToolScopeViolation(
+          { clientId: 'client-acme' },
+          [readSchema],
+          'get_client_context',
+          { clientId: 'client-acme' },
+        ),
+      ).toBe(CROSS_CLIENT_REFUSAL);
+      // A bound effect with an original NULL conversation client vs governed
+      // Beta is a mismatch too.
+      expect(
+        service.resolveAuxiliaryToolScopeViolation({}, [saveSchema], 'save_memory', {
+          content: 'Remember this.',
+        }),
+      ).toBe(GOVERNED_BOUND_EFFECT_REFUSAL);
+      // A matching governed target is not refused (control).
+      expect(
+        service.resolveAuxiliaryToolScopeViolation(
+          { clientId: 'client-beta' },
+          [readSchema],
+          'get_client_context',
+          { clientId: 'client-beta' },
+        ),
+      ).toBeNull();
     });
   });
   const originalFetch = global.fetch;
