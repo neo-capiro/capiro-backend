@@ -46,17 +46,22 @@ import type {
 } from '@capiro/meriv2-core';
 import {
   attestMeriGovernedContext,
+  createGetClientContextTool,
+  createMeriResearchPlanExecutionEnvelope,
   InMemoryToolRegistry,
   MERI_CASE46,
   MERI_FIXTURE_SEMANTIC_INSTANT,
   MERI_FIXTURE_SEMANTIC_ZONE,
+  registerDelegatedTools,
   resolveMeriGovernedSemanticClock,
   validateMeriGovernedArtifactPolicy,
   verifyMeriGovernedContext,
 } from '@capiro/meriv2-core';
-import { z } from 'zod';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
+import { ApiClientContextRepo } from '../api-client-context.repo.js';
+import { ApiToolExecutorRepo } from '../api-tool-executor.repo.js';
+import { FULL_CHAT_READ_TOOLS } from '../full-chat-read-tools.catalog.js';
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
 import { ApiVisualAnalysisRepo } from './api-visual-analysis.repo.js';
 import {
@@ -147,6 +152,57 @@ function nativeSchema(name: string) {
     description: name,
     input_schema: { type: 'object', properties: { query: { type: 'string' } } },
   };
+}
+
+/**
+ * Interface client used by the governed single-client target fixtures. Declared
+ * at module scope (not inside a single `describe`) because the request-local
+ * catalog-availability describe also drives the same authenticated client
+ * target; before this relocation the second describe could not see it (TS2304,
+ * AA221 check receipt).
+ */
+const UI_ACME = '30000000-0000-4000-8000-0000000000ac';
+
+/**
+ * A native read schema whose owner input is scoped by a Capiro client id.
+ * `required` mirrors the ACTUAL owner contract: `get_client_context` REQUIRES
+ * clientId while `list_emails`/`search_memory` only expose it optionally.
+ * Declared at module scope for the same reason as `UI_ACME` above.
+ */
+function clientScopedNativeSchema(name: string, required?: readonly string[]) {
+  return {
+    name,
+    description: name,
+    input_schema: {
+      type: 'object',
+      properties: { clientId: { type: 'string' }, query: { type: 'string' } },
+      ...(required ? { required: [...required] } : {}),
+    },
+  };
+}
+
+/** Every native catalog discovery request (`GET /api/clio/tool-schemas`). */
+function nativeSchemaGets(fetchMock: jest.Mock): string[] {
+  return fetchMock.mock.calls
+    .map((call) => String(call[0]))
+    .filter((url) => url.includes('/api/clio/tool-schemas'));
+}
+
+/**
+ * Every native delegated owner POST (`POST /api/clio/tools/:name`). Distinct
+ * from the managed owner bridge (`/api/clio/v3/mcp-tools/:name`).
+ */
+function nativeOwnerPosts(fetchMock: jest.Mock): string[] {
+  return fetchMock.mock.calls
+    .map((call) => String(call[0]))
+    .filter((url) => url.includes('/api/clio/tools/'));
+}
+
+function nativeOwnerInit(fetchMock: jest.Mock): RequestInit | undefined {
+  const call = fetchMock.mock.calls.find((candidate) =>
+    String(candidate[0]).includes('/api/clio/tools/'),
+  );
+  return call?.[1] as RequestInit | undefined;
 }
 
 /**
@@ -595,6 +651,12 @@ function fetchRouter(routes: {
   managed?: () => Response;
   owner?: (url: string) => Response;
   capabilities?: () => Response;
+  /**
+   * The native delegated owner POST (`POST /api/clio/tools/:name`). When
+   * omitted, the historical inert `{ records: [] }` is returned so every
+   * existing case is unchanged.
+   */
+  nativeOwner?: (url: string) => Response;
 }): jest.Mock {
   return jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
@@ -611,7 +673,7 @@ function fetchRouter(routes: {
       return routes.native ? routes.native() : jsonResponse({ schemas: [] });
     }
     if (url.includes('/api/clio/tools/')) {
-      return jsonResponse({ records: [] });
+      return routes.nativeOwner ? routes.nativeOwner(url) : jsonResponse({ records: [] });
     }
     void init;
     return jsonResponse({});
@@ -1980,7 +2042,8 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
   // persistence. No managed authority is invented and no UI client is used as a
   // fallback.
 
-  const UI_ACME = '30000000-0000-4000-8000-0000000000ac';
+  // `UI_ACME` and `clientScopedNativeSchema` are declared at module scope
+  // (above) because both describes use them; see the AA221 TS2304 note there.
   const AUTH_BETA = '30000000-0000-4000-8000-0000000000be';
   const CLIENT_READ = 'get_client_context';
   /**
@@ -1988,23 +2051,6 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
    * boundary. Not a live service secret and mints no served authority.
    */
   const GOVERNED_FIXTURE_SECRET = 'governed-native-target-fixture-secret';
-
-  /**
-   * A native read schema whose owner input is scoped by a Capiro client id.
-   * `required` mirrors the ACTUAL owner contract: `get_client_context` REQUIRES
-   * clientId while `list_emails`/`search_memory` only expose it optionally.
-   */
-  function clientScopedNativeSchema(name: string, required?: readonly string[]) {
-    return {
-      name,
-      description: name,
-      input_schema: {
-        type: 'object',
-        properties: { clientId: { type: 'string' }, query: { type: 'string' } },
-        ...(required ? { required: [...required] } : {}),
-      },
-    };
-  }
 
   /** A minimal, honest `get_client_context` owner receipt (no invented facts). */
   function getClientContextOwnerPayload(clientId: string) {
@@ -4105,16 +4151,19 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     expect(result.reply).toContain('Kestrel commitment noted');
   });
 
-  // ── Root additions (2026-10-09): real InMemoryToolRegistry owner binding ──
+  // ── Root additions (2026-10-09): real canonical owner binding ──
   //
   // The preceding ordinary late-owner tests drive the local `registry(...)`
   // mock and its jest `invoke`; those complementary controls are preserved. The
-  // cases below instead use the REAL `InMemoryToolRegistry` from
-  // `@capiro/meriv2-core` with a genuine registered capability, canonical
-  // execution metadata / production handler binding, real schema validation and
-  // real `DefaultScopingWrapper` scoping. Only the external HTTP/model
-  // transport is faked. They prove the SAME admission path is exercised, not a
-  // stubbed owner.
+  // cases below instead bind the REAL `InMemoryToolRegistry` to the ACTUAL
+  // production owner factories: the canonical delegated `search_memory`
+  // capability registered through `registerDelegatedTools` executed by the real
+  // `ApiToolExecutorRepo` (`POST /api/clio/tools/:name`), and for the negative
+  // `createGetClientContextTool` + `ApiClientContextRepo` (which reuses that same
+  // real executor). Only the external HTTP/model transport is faked: the
+  // registry, real schema validation, `DefaultScopingWrapper` scoping, the
+  // admission path and the authenticated owner POST are all real. This corrects
+  // the AA221 fidelity limit where two cases used a local jest handler.
 
   /**
    * A real MeriContext with the identity fields `DefaultScopingWrapper`
@@ -4128,32 +4177,30 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     role: 'member',
   } as unknown as MeriContext;
 
-  test('a real InMemoryToolRegistry native read runs through the production handler binding and publishes its accepted citation', async () => {
+  test('a real canonical delegated search_memory read posts the exact owner request/bearer/input and publishes its citation', async () => {
     const call = functionCall('native-real-registry', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
       .fn()
       .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
       .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
-    const handler = jest.fn(async (_input: { query?: string }, ctx: MeriContext) => {
-      // The real DefaultScopingWrapper validated the caller identity BEFORE the
-      // production handler ran — this is a real scoping guarantee, not a mock.
-      expect(ctx.tenantId).toBe('tenant-1');
-      expect(ctx.userId).toBe('user-1');
-      return memoryOwnerPayload();
-    });
+    // The ACTUAL production binding: the canonical `search_memory` catalog spec
+    // (FULL_CHAT_READ_TOOLS, the same catalog `MeriRegistryService` registers)
+    // registered through `registerDelegatedTools`, executed by the real
+    // `ApiToolExecutorRepo` that posts to apps/api's authenticated executor.
+    const executor = new ApiToolExecutorRepo(config() as never);
     const realRegistry = new InMemoryToolRegistry();
-    realRegistry.register<{ query?: string }, unknown>({
-      name: NATIVE_READ,
-      description: NATIVE_READ,
-      readOnly: true,
-      inputSchema: z.object({ query: z.string().optional() }),
-      handler,
-    });
+    registerDelegatedTools(
+      (def) => realRegistry.register(def),
+      FULL_CHAT_READ_TOOLS.filter((spec) => spec.name === NATIVE_READ),
+      executor,
+    );
     const { service } = buildManaged(complete, { registry: realRegistry });
-    global.fetch = fetchRouter({
+    const fetchMock = fetchRouter({
       native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
       managed: () => jsonResponse({ schemas: [] }),
-    }) as unknown as typeof fetch;
+      nativeOwner: () => jsonResponse(memoryOwnerPayload()),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
 
     const result: MeriV3ChatResult = await RequestCredentialsStore.run(
       { bearerToken: 'bearer' },
@@ -4164,10 +4211,15 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
         }),
     );
 
-    // The production handler ran exactly once, with the input the REAL registry
-    // parsed (not a passthrough mock): the schema value is the parsed object.
-    expect(handler).toHaveBeenCalledTimes(1);
-    expect(handler.mock.calls[0]?.[0]).toEqual({ query: 'Kestrel' });
+    // The REAL owner POST happened exactly once at the authenticated executor
+    // with the caller's bearer and the exact parsed current input — not a fake
+    // local handler.
+    const posts = nativeOwnerPosts(fetchMock);
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toContain(`/api/clio/tools/${NATIVE_READ}`);
+    const init = nativeOwnerInit(fetchMock);
+    expect((init?.headers as Record<string, string>).authorization).toBe('Bearer bearer');
+    expect(JSON.parse(String(init?.body))).toEqual({ query: 'Kestrel' });
     // The registered native read is published as a supported result: its
     // canonical [1] citation with its exact identity, and the supported answer.
     expect(complete).toHaveBeenCalledTimes(2);
@@ -4176,41 +4228,26 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     expect(result.reply).toContain('Kestrel commitment noted');
   });
 
-  test('a real InMemoryToolRegistry native read that fails at the production handler is recorded as a current failure', async () => {
+  test('a real canonical get_client_context read fails at the authenticated owner POST and is recorded as a current failure', async () => {
     const call = functionCall('native-real-fail', 'get_client_context', {});
     const complete = jest
       .fn()
       .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
       .mockResolvedValue(providerResult({ outputText: 'The client is thriving.' }));
-    const handler = jest.fn(async () => {
-      throw new Error('canonical client-context owner unavailable');
-    });
+    // The ACTUAL production binding: `createGetClientContextTool` over
+    // `ApiClientContextRepo`, which reuses the SAME real `ApiToolExecutorRepo`
+    // owner bridge that posts `POST /api/clio/tools/get_client_context`.
+    const executor = new ApiToolExecutorRepo(config() as never);
     const realRegistry = new InMemoryToolRegistry();
-    realRegistry.register<{ clientId: string }, unknown>({
-      name: 'get_client_context',
-      description: 'get_client_context',
-      readOnly: true,
-      inputSchema: z.object({ clientId: z.string() }),
-      handler,
-    });
+    realRegistry.register(createGetClientContextTool(new ApiClientContextRepo(executor)));
     const { service } = buildManaged(complete, { registry: realRegistry });
-    global.fetch = fetchRouter({
+    const fetchMock = fetchRouter({
       native: () =>
-        jsonResponse({
-          schemas: [
-            {
-              name: 'get_client_context',
-              description: 'get_client_context',
-              input_schema: {
-                type: 'object',
-                properties: { clientId: { type: 'string' } },
-                required: ['clientId'],
-              },
-            },
-          ],
-        }),
+        jsonResponse({ schemas: [clientScopedNativeSchema('get_client_context', ['clientId'])] }),
       managed: () => jsonResponse({ schemas: [] }),
-    }) as unknown as typeof fetch;
+      nativeOwner: () => jsonResponse({ error: 'owner unavailable' }, 500),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
 
     const result: MeriV3ChatResult = await RequestCredentialsStore.run(
       { bearerToken: 'bearer' },
@@ -4222,18 +4259,23 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
         }),
     );
 
-    // The real registered owner's production handler was the thing that failed
-    // (proving the real admission path, not a mock), exactly once (no retry).
-    expect(handler).toHaveBeenCalledTimes(1);
-    // The CURRENT failure reaches the next provider request and the released
-    // bounded limitation — the real handler throw is observed as a current
-    // native read failure, not swallowed.
+    // The real canonical owner read was attempted exactly once (no retry) at the
+    // authenticated executor with the caller's bearer.
+    const posts = nativeOwnerPosts(fetchMock);
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toContain('/api/clio/tools/get_client_context');
+    expect(
+      (nativeOwnerInit(fetchMock)?.headers as Record<string, string>).authorization,
+    ).toBe('Bearer bearer');
+    // The CURRENT owner failure reaches the next provider request and the
+    // released bounded limitation, and never leaks the raw owner body.
     const secondInstructions = String(complete.mock.calls[1]?.[0]?.instructions ?? '');
     expect(secondInstructions).toContain('Source availability for this request');
     expect(secondInstructions).toContain('Capiro client-record read this request needed failed');
     expect(result.reply).toContain('Source note:');
     expect(result.reply).toContain('not consulted');
     expect(result.reply).not.toContain('The client is thriving.');
+    expect(result.reply).not.toContain('owner unavailable');
   });
 
   // ── Root addition (2026-10-09): record-class allowlist hypothesis ──
@@ -4282,5 +4324,682 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     // fabricated unavailable-record limitation. (Faithful red case — see above.)
     expect(result.reply).toContain('A poem about history.');
     expect(result.reply).not.toContain('Source note:');
+  });
+
+  // ════════════════════════════════════════════════════════════════════════
+  // Continuation (2026-10-09): the four missing groups from the prior report.
+  //
+  // (2) same-tool success/failure citation lineage, (3) native discovery
+  // transport variants through normal.run, (4) optional visual child-only
+  // timeout under an active parent, (1) researchRun Stop/absolute expiry during
+  // the awaited replay and served-procedure authority BEFORE a NEW reservation.
+  // Every case reuses the existing normal.run harness, fixtures, real registry
+  // and request-local observer; only external HTTP/model transports are faked
+  // and no preserved assertion is weakened.
+  // ════════════════════════════════════════════════════════════════════════
+
+  // ── (2) two calls to the SAME tool: healthy citation + failed read ──
+  test('two calls to the same tool, one healthy and one failed, never restore the failed owner evidence', async () => {
+    const healthy = functionCall('same-tool-healthy', NATIVE_READ, { query: 'Kestrel' });
+    const failed = functionCall('same-tool-failed', NATIVE_READ, { query: 'Beta' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({
+          output: [healthy, failed],
+          outputText: '',
+          functionCalls: [healthy, failed],
+        }),
+      )
+      .mockResolvedValue(providerResult({ outputText: 'Both facts noted.' }));
+    const invoke = jest.fn(async (_name: string, input: Record<string, unknown>) => {
+      if (input.query === 'Beta') {
+        // A failed owner read (HTTP-200 logical failure) whose body must never be
+        // restored merely because ANOTHER call in this turn used the same tool and
+        // returned a genuine citation.
+        return {
+          tool: NATIVE_READ,
+          error: 'LEAKED_FAILED_OWNER_BODY',
+          coverage: { complete: false, paginationComplete: false, sources: [] },
+        };
+      }
+      return memoryOwnerPayload();
+    });
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+    });
+    global.fetch = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      managed: () => jsonResponse({ schemas: [] }),
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'same-tool-lineage',
+          messages: [
+            {
+              role: 'user',
+              text: 'Check our institutional knowledge for the Kestrel and Beta facts.',
+            },
+          ],
+        }),
+    );
+
+    // Both calls dispatched (distinct query inputs are not deduplicated).
+    expect(invoke).toHaveBeenCalledTimes(2);
+    // The failed read makes the requested records unavailable, so the bounded
+    // fallback runs and retains ONLY the healthy read's accepted citation; the
+    // failed owner body is not restored because another call used the same tool.
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('Kestrel commitment');
+    expect(result.reply).not.toContain('LEAKED_FAILED_OWNER_BODY');
+    const citations = result.citations ?? [];
+    expect(citations).toHaveLength(1);
+    expect(citations[0]).toMatchObject({ n: 1, tool: NATIVE_READ, id: RECORD_ID });
+    for (const citation of citations) expect(result.reply).toContain(`[${citation.n}]`);
+  });
+
+  // ── (3) native discovery transport variants through normal.run ──
+  test.each<[string, () => Response]>([
+    ['401 auth denial', () => jsonResponse({ error: 'unauthorized' }, 401)],
+    ['403 auth denial', () => jsonResponse({ error: 'forbidden' }, 403)],
+    ['invalid-JSON body', () => new Response('{not json', { status: 200 })],
+    ['malformed envelope', () => jsonResponse({ schemas: 'not-an-array' })],
+  ])(
+    'a native discovery %s is sanitized to the bounded limitation with no retry or raw error text',
+    async (_label, nativeRoute) => {
+      const complete = jest
+        .fn()
+        .mockResolvedValue(providerResult({ outputText: 'Here is what I found.' }));
+      const { service } = buildManaged(complete);
+      const fetchMock = fetchRouter({
+        native: nativeRoute,
+        managed: () => jsonResponse({ schemas: [] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+        { bearerToken: 'bearer' },
+        () =>
+          service.run(context, {
+            conversationId: 'native-discovery-variant',
+            messages: [{ role: 'user', text: 'Look up our client records.' }],
+          }),
+      );
+
+      // Exactly one native discovery attempt: a native failure is never retried.
+      expect(nativeSchemaGets(fetchMock)).toHaveLength(1);
+      const instructions = String(complete.mock.calls[0]?.[0]?.instructions ?? '');
+      expect(instructions).toContain('Source availability for this request');
+      expect(instructions).not.toContain('HTTP ');
+      // The provider prose is discarded and the released reply is the fixed,
+      // source-specific limitation with no raw transport/status/body text.
+      expect(result.reply).toContain('Source note:');
+      expect(result.reply).toContain('were not consulted');
+      expect(result.reply).not.toContain('Here is what I found.');
+      expect(result.reply).not.toContain('HTTP ');
+      expect(result.reply).not.toContain('unauthorized');
+      expect(result.reply).not.toContain('forbidden');
+      expect(result.reply).not.toContain('{not json');
+      expect(result.reply).not.toContain('not-an-array');
+    },
+  );
+
+  test('a native discovery network failure is sanitized to the bounded limitation with no retry or raw transport text', async () => {
+    const complete = jest
+      .fn()
+      .mockResolvedValue(providerResult({ outputText: 'Here is what I found.' }));
+    const { service } = buildManaged(complete);
+    const fetchMock = fetchRouter({
+      native: () => {
+        throw new TypeError('native discovery transport refused');
+      },
+      managed: () => jsonResponse({ schemas: [] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'native-discovery-network',
+          messages: [{ role: 'user', text: 'Look up our client records.' }],
+        }),
+    );
+
+    expect(nativeSchemaGets(fetchMock)).toHaveLength(1);
+    expect(result.reply).toContain('Source note:');
+    expect(result.reply).toContain('were not consulted');
+    expect(result.reply).not.toContain('Here is what I found.');
+    expect(result.reply).not.toContain('transport refused');
+  });
+
+  test('an unrelated request is not made incomplete by a native discovery auth denial', async () => {
+    const complete = jest.fn().mockResolvedValue(providerResult({ outputText: 'It is sunny.' }));
+    const { service } = buildManaged(complete);
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ error: 'unauthorized' }, 401),
+      managed: () => jsonResponse({ schemas: [] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(context, {
+          conversationId: 'native-discovery-unrelated',
+          messages: [{ role: 'user', text: 'What is the weather today?' }],
+        }),
+    );
+
+    const instructions = String(complete.mock.calls[0]?.[0]?.instructions ?? '');
+    expect(instructions).not.toContain('Source availability for this request');
+    expect(result.reply).toContain('It is sunny.');
+    expect(result.reply).not.toContain('Source note:');
+  });
+
+  // ── (4) optional visual-probe child-only timeout under an active parent ──
+  test('an optional visual-probe child-only timeout under an active parent permits chat without analysis and restores its timers', async () => {
+    const parent = new AbortController();
+    let childAborted = false;
+    let probeCalls = 0;
+    const complete = jest
+      .fn()
+      .mockResolvedValue(providerResult({ outputText: 'Account status: healthy.' }));
+    const { service } = buildManaged(complete, {
+      // A small optional-probe bound so the CHILD times out while the parent
+      // (180s Standard turn budget) stays active.
+      configValues: { MERIV2_TOOL_TIMEOUT_MS: '25', INTERNAL_SERVICE_SECRET: 'service-secret' },
+      visualAnalysis: new ApiVisualAnalysisRepo(
+        config({ MERIV2_TOOL_TIMEOUT_MS: '25' }) as never,
+      ),
+    });
+    global.fetch = jest.fn((input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/api/clio/v3/mcp-tool-schemas')) {
+        return Promise.resolve(jsonResponse({ schemas: [] }));
+      }
+      if (url.includes('/api/clio/tool-schemas')) {
+        return Promise.resolve(jsonResponse({ schemas: [] }));
+      }
+      if (url.includes('/api/clio/v3/capabilities')) {
+        probeCalls += 1;
+        // Pending until the bounded CHILD timer aborts it; the parent is never
+        // aborted, so this is a child-only timeout.
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            childAborted = true;
+            reject((init.signal as AbortSignal).reason);
+          });
+        });
+      }
+      return Promise.resolve(jsonResponse({}));
+    }) as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(
+          context,
+          {
+            conversationId: 'visual-child-timeout',
+            messages: [{ role: 'user', text: 'Summarize the account status.' }],
+          },
+          { signal: parent.signal },
+        ),
+    );
+
+    // Only the bounded child probe timed out: the parent was never stopped, the
+    // ordinary chat proceeded, and no analysis capability was advertised.
+    expect(probeCalls).toBe(1);
+    expect(childAborted).toBe(true);
+    expect(parent.signal.aborted).toBe(false);
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(toolsOnCall(complete, 0)).not.toContain('run_analysis');
+    expect(result.reply).toContain('Account status: healthy.');
+    // The bounded child timer/listener was disposed: no leaked handles remain.
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  // ── (1) researchRun Stop/absolute expiry BEFORE a NEW reservation ──
+  //
+  // The research tool-dispatch branch (meriv3-assistant.service.ts ~4310-4515)
+  // awaits a durable replay, then the served-procedure authority, BEFORE opening
+  // the NEW safe-read reservation and the owner dispatch. A Stop or absolute
+  // expiry during either await must leave the ORIGINAL parent stopped so no
+  // reservation and no owner read start; an already-incurred read's
+  // outcome/failure settlement is still sent even though its publication is
+  // withheld for a no-longer-current turn. Only the external HTTP/model and
+  // owner transports are faked; the branch, budget and registry are real.
+
+  /** An admitted research execution envelope bound to one request conversation. */
+  function researchRunBinding(conversationId: string) {
+    const researchRun = { sessionId: 'session-a', runId: 'run-a', leaseEpoch: 3 };
+    return {
+      researchRun,
+      researchPlanExecution: createMeriResearchPlanExecutionEnvelope({
+        plan: { version: 1, title: 'Admitted request-path plan', steps: [] },
+        scope: {
+          ...researchRun,
+          tenantId: 'tenant-1',
+          actorId: 'user-1',
+          clientId: null,
+          conversationId,
+        },
+        allowedReadCapabilities: [NATIVE_READ],
+      }),
+    };
+  }
+
+  /** A served governed procedure that admits only the native read. */
+  function researchProcedureContext(): MeriGovernedTurnContext {
+    const now = Date.now();
+    const base = governedTurn('general', null) as unknown as Record<string, unknown>;
+    return {
+      ...base,
+      procedure: {
+        version: 1,
+        tenantId: 'tenant-1',
+        identity: {
+          source: 'firm',
+          recordId: 'procedure-row-1',
+          canonicalId: 'memory_audit',
+          version: 6,
+        },
+        manifestDigest: 'a'.repeat(64),
+        instruction: 'Run the signed institutional-memory audit.',
+        scope: 'general',
+        clientId: null,
+        clientRequired: false,
+        resolvedAt: now,
+        validUntil: now + 60_000,
+        policy: {
+          effectMode: 'read_only',
+          allowedCapabilities: ['memory.read'],
+          allowedTools: [NATIVE_READ],
+          requiredTools: [NATIVE_READ],
+        },
+        contract: {
+          outputFields: ['auditStatus'],
+          completionChecks: ['Report source coverage'],
+          coverageStates: ['checked', 'unavailable'],
+          caseIds: ['CD-01'],
+        },
+      },
+    } as unknown as MeriGovernedTurnContext;
+  }
+
+  function researchProcedureDecision(governed: MeriGovernedTurnContext): Response {
+    const procedure = governed.procedure!;
+    return jsonResponse({
+      authorized: true,
+      identity: procedure.identity,
+      manifestDigest: procedure.manifestDigest,
+    });
+  }
+
+  /**
+   * A research-run HTTP router. It remembers the replay's `toolVersion` and
+   * echoes it on the reservation/outcome so the branch's version equality holds.
+   */
+  function researchFetch(hooks: {
+    onReplay?: (init: RequestInit) => Response;
+    onValidate?: (init: RequestInit) => Response;
+  } = {}): jest.Mock {
+    let toolVersion = '';
+    return jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/api/clio/v3/mcp-tool-schemas')) return jsonResponse({ schemas: [] });
+      if (url.includes('/api/clio/v3/capabilities')) return jsonResponse({});
+      if (url.includes('/api/clio/tool-schemas')) {
+        return jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] });
+      }
+      if (url.endsWith('/active')) return jsonResponse({ active: true });
+      if (url.includes('/provider-budget/reservations')) {
+        return jsonResponse({
+          reservationId: 'provider-reservation',
+          deadlineAt: new Date(Date.now() + 60_000).toISOString(),
+          dispatchAllowed: true,
+        });
+      }
+      if (url.includes('/provider-budget/settlements')) return jsonResponse({});
+      if (url.endsWith('/safe-read/replay')) {
+        toolVersion = String(JSON.parse(String(init?.body)).toolVersion ?? '');
+        return hooks.onReplay
+          ? hooks.onReplay(init ?? {})
+          : jsonResponse({ replayed: false, dispatchAllowed: true });
+      }
+      if (url.endsWith('/safe-read/reservations')) {
+        return jsonResponse({
+          dispatchAllowed: true,
+          reservationId: 'reservation-a',
+          tool: NATIVE_READ,
+          toolVersion,
+        });
+      }
+      if (url.endsWith('/safe-read/failures')) {
+        return jsonResponse({ outcome: 'retryable_failure' });
+      }
+      if (url.endsWith('/safe-read/outcomes')) {
+        return jsonResponse({
+          executionId: 'execution-a',
+          providerCallId: 'provider-call-a',
+          tool: NATIVE_READ,
+          toolVersion,
+          classifier: 'complete',
+          sequence: 1,
+          receiptId: 'receipt-a',
+        });
+      }
+      if (url.includes('/api/clio/procedure-runtime/validate')) {
+        return hooks.onValidate ? hooks.onValidate(init ?? {}) : jsonResponse({});
+      }
+      return jsonResponse({});
+    }) as jest.Mock;
+  }
+
+  test('a researchRun Stop during the awaited durable replay settles no new reservation and dispatches no owner read', async () => {
+    const call = functionCall('research-stop-replay', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
+    const invoke = jest.fn(async () => memoryOwnerPayload());
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+      configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    });
+    const controller = new AbortController();
+    const fetchMock = researchFetch({
+      onReplay: () => {
+        controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+        return jsonResponse({ replayed: false, dispatchAllowed: true });
+      },
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        service.run(
+          context,
+          {
+            ...researchRunBinding('research-stop-replay'),
+            conversationId: 'research-stop-replay',
+            toolPolicy: 'read-only',
+            messages: [{ role: 'user', text: 'Research the Kestrel commitment.' }],
+          },
+          { signal: controller.signal },
+        ),
+    );
+
+    const reservationRequests = fetchMock.mock.calls.filter((candidate) =>
+      String(candidate[0]).endsWith('/safe-read/reservations'),
+    ).length;
+    expect(reservationRequests).toBe(0);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(result.telemetry?.partial).toBe(true);
+    expect(result.telemetry?.finishReason).toBe('cancelled');
+  });
+
+  test('a researchRun absolute expiry during the awaited durable replay settles no new reservation and dispatches no owner read', async () => {
+    const call = functionCall('research-expiry-replay', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
+    const invoke = jest.fn(async () => memoryOwnerPayload());
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+      configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    });
+    const turnDeadlineAt = Date.now() + 120_000;
+    let nowSpy: jest.SpyInstance<number, []> | undefined;
+    const fetchMock = researchFetch({
+      onReplay: () => {
+        nowSpy = jest.spyOn(Date, 'now').mockReturnValue(turnDeadlineAt + 1);
+        return jsonResponse({ replayed: false, dispatchAllowed: true });
+      },
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    try {
+      const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+        { bearerToken: 'bearer' },
+        () =>
+          service.run(
+            context,
+            {
+              ...researchRunBinding('research-expiry-replay'),
+              conversationId: 'research-expiry-replay',
+              toolPolicy: 'read-only',
+              messages: [{ role: 'user', text: 'Research the Kestrel commitment.' }],
+            },
+            { deadlineAt: turnDeadlineAt },
+          ),
+      );
+      const reservationRequests = fetchMock.mock.calls.filter((candidate) =>
+        String(candidate[0]).endsWith('/safe-read/reservations'),
+      ).length;
+      expect(reservationRequests).toBe(0);
+      expect(invoke).not.toHaveBeenCalled();
+      expect(complete).toHaveBeenCalledTimes(1);
+      expect(result.telemetry?.partial).toBe(true);
+      expect(result.telemetry?.finishReason).toBe('deadline_exceeded');
+    } finally {
+      nowSpy?.mockRestore();
+    }
+  });
+
+  test('a researchRun Stop during the awaited served-procedure authority check settles no new reservation or owner read', async () => {
+    const call = functionCall('research-stop-procedure', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
+    const invoke = jest.fn(async () => memoryOwnerPayload());
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+      configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    });
+    const governed = researchProcedureContext();
+    const controller = new AbortController();
+    let validateCalls = 0;
+    const fetchMock = researchFetch({
+      onValidate: () => {
+        validateCalls += 1;
+        controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+        return researchProcedureDecision(governed);
+      },
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        runWithGovernedMeriContext(governed, () =>
+          service.run(
+            context,
+            {
+              ...researchRunBinding('research-stop-procedure'),
+              conversationId: 'research-stop-procedure',
+              toolPolicy: 'read-only',
+              messages: [{ role: 'user', text: 'Research the Kestrel commitment.' }],
+            },
+            { signal: controller.signal },
+          ),
+        ),
+    );
+
+    expect(validateCalls).toBe(1);
+    const reservationRequests = fetchMock.mock.calls.filter((candidate) =>
+      String(candidate[0]).endsWith('/safe-read/reservations'),
+    ).length;
+    expect(reservationRequests).toBe(0);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(result.telemetry?.partial).toBe(true);
+    expect(result.telemetry?.finishReason).toBe('cancelled');
+  });
+
+  test('a researchRun absolute expiry during the awaited served-procedure authority check settles no new reservation or owner read', async () => {
+    const call = functionCall('research-expiry-procedure', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
+    const invoke = jest.fn(async () => memoryOwnerPayload());
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+      configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    });
+    const governed = researchProcedureContext();
+    const turnDeadlineAt = Date.now() + 120_000;
+    let nowSpy: jest.SpyInstance<number, []> | undefined;
+    let validateCalls = 0;
+    global.fetch = researchFetch({
+      onValidate: () => {
+        validateCalls += 1;
+        nowSpy = jest.spyOn(Date, 'now').mockReturnValue(turnDeadlineAt + 1);
+        return researchProcedureDecision(governed);
+      },
+    }) as unknown as typeof fetch;
+
+    try {
+      const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+        { bearerToken: 'bearer' },
+        () =>
+          runWithGovernedMeriContext(governed, () =>
+            service.run(
+              context,
+              {
+                ...researchRunBinding('research-expiry-procedure'),
+                conversationId: 'research-expiry-procedure',
+                toolPolicy: 'read-only',
+                messages: [{ role: 'user', text: 'Research the Kestrel commitment.' }],
+              },
+              { deadlineAt: turnDeadlineAt },
+            ),
+          ),
+      );
+      expect(validateCalls).toBe(1);
+      expect(invoke).not.toHaveBeenCalled();
+      expect(result.telemetry?.partial).toBe(true);
+      expect(result.telemetry?.finishReason).toBe('deadline_exceeded');
+    } finally {
+      nowSpy?.mockRestore();
+    }
+  });
+
+  test('a researchRun Stop during the owner dispatch still settles the incurred complete outcome before withholding publication', async () => {
+    const call = functionCall('research-outcome-stop', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
+    let resolveOwner: ((value: unknown) => void) | undefined;
+    const invoke = jest.fn(
+      (..._args: Parameters<ToolRegistry['invoke']>) =>
+        new Promise<unknown>((resolve) => {
+          resolveOwner = resolve;
+        }),
+    );
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+      configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    });
+    const controller = new AbortController();
+    const fetchMock = researchFetch();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const run = RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(
+        context,
+        {
+          ...researchRunBinding('research-outcome-stop'),
+          conversationId: 'research-outcome-stop',
+          toolPolicy: 'read-only',
+          messages: [{ role: 'user', text: 'Research the Kestrel commitment.' }],
+        },
+        { signal: controller.signal },
+      ),
+    );
+
+    await waitFor(() => invoke.mock.calls.length === 1);
+    controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+    resolveOwner?.(memoryOwnerPayload());
+    const result: MeriV3ChatResult = await run;
+
+    const outcomeRequests = fetchMock.mock.calls.filter((candidate) =>
+      String(candidate[0]).endsWith('/safe-read/outcomes'),
+    ).length;
+    // The already-incurred read's outcome was settled at the lifecycle owner...
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(outcomeRequests).toBe(1);
+    // ...but the late read was never published as current.
+    expect((result.citations ?? []).some((citation) => citation.tool === NATIVE_READ)).toBe(false);
+    expect(result.reply).not.toContain('Kestrel commitment');
+    expect(result.telemetry?.partial).toBe(true);
+    expect(result.telemetry?.finishReason).toBe('cancelled');
+  });
+
+  test('a researchRun Stop during the owner dispatch still settles the incurred failure before withholding publication', async () => {
+    const call = functionCall('research-failure-stop', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
+    let resolveOwner: ((value: unknown) => void) | undefined;
+    const invoke = jest.fn(
+      (..._args: Parameters<ToolRegistry['invoke']>) =>
+        new Promise<unknown>((resolve) => {
+          resolveOwner = resolve;
+        }),
+    );
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+      configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    });
+    const controller = new AbortController();
+    const fetchMock = researchFetch();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const run = RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(
+        context,
+        {
+          ...researchRunBinding('research-failure-stop'),
+          conversationId: 'research-failure-stop',
+          toolPolicy: 'read-only',
+          messages: [{ role: 'user', text: 'Research the Kestrel commitment.' }],
+        },
+        { signal: controller.signal },
+      ),
+    );
+
+    await waitFor(() => invoke.mock.calls.length === 1);
+    controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+    resolveOwner?.({
+      tool: NATIVE_READ,
+      error: 'LEAKED_FAILED_OWNER_BODY',
+      coverage: { complete: false, paginationComplete: false, sources: [] },
+    });
+    const result: MeriV3ChatResult = await run;
+
+    const failureRequests = fetchMock.mock.calls.filter((candidate) =>
+      String(candidate[0]).endsWith('/safe-read/failures'),
+    ).length;
+    // The already-incurred failed read was settled at the lifecycle owner, but a
+    // no-longer-current turn never publishes it as a current error step/finding.
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(failureRequests).toBe(1);
+    expect(
+      (result.steps ?? []).some((step) => step.tool === NATIVE_READ && step.status === 'error'),
+    ).toBe(false);
+    expect(result.telemetry?.partial).toBe(true);
+    expect(result.telemetry?.finishReason).toBe('cancelled');
   });
 });
