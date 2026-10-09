@@ -28,6 +28,7 @@ const MANAGED_APP_NAMES = {
   meriv3_airtable: 'Airtable',
   meriv3_monday: 'monday.com',
   meriv3_google_drive: 'Google Drive',
+  meriv3_krisp: 'Krisp',
 } as const;
 const MANAGED_PREFIXES = Object.keys(MANAGED_APP_NAMES).map((server) => `mcp__${server}__`);
 
@@ -41,6 +42,7 @@ const MANAGED_SERVER_BY_APP_ID = {
   airtable: 'meriv3_airtable',
   monday: 'meriv3_monday',
   'google-drive': 'meriv3_google_drive',
+  krisp: 'meriv3_krisp',
 } as const;
 type ManagedAppId = keyof typeof MANAGED_SERVER_BY_APP_ID;
 
@@ -246,10 +248,12 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
    * Managed raw reads are ordinary personal NONCLIENT only. A research
    * execution request, any governed operation other than `meri.chat`, a
    * governed procedure binding, any request client, authenticated governed
-   * client, non-general subject scope, or client-scoped governed evidence makes
-   * the read unavailable. These are read from the typed envelope fields only —
-   * never a prompt-only condition — and never rewrite a vendor clientId.
-   * Malformed or incomplete governed authority is refused (fail-closed), never
+   * client, non-general subject scope, client-scoped governed evidence, any
+   * inherited typed client binding, or any capture authority makes the read
+   * unavailable. These are read from the typed envelope fields only — never a
+   * prompt-only condition — and never rewrite a vendor clientId. Malformed or
+   * incomplete governed authority (a missing context packet, a missing
+   * retrieval plan, or a missing subject scope) is refused (fail-closed), never
    * treated as an ordinary personal turn.
    */
   private managedRawReadRefusal(dto?: MeriV3ChatInput): string | null {
@@ -270,12 +274,37 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
     if (governed.procedure) {
       return 'Connected-app reads are not available under a governed procedure.';
     }
-    if (governed.contextPacket?.clientId) {
+    // A governed personal managed read requires a real authenticated context
+    // packet and an explicit `general` subject scope. A missing context packet,
+    // a missing retrieval plan, or a missing scope is incomplete authority and
+    // is refused here; absence is never read as an ordinary personal turn.
+    if (!governed.contextPacket) {
+      return 'Connected-app reads are not available without an authenticated governed context.';
+    }
+    if (governed.contextPacket.clientId) {
       return 'Connected-app reads are not available for an authenticated governed client.';
     }
-    const subjectScope = governed.retrieval?.plan?.subjectScope;
-    if (subjectScope && subjectScope !== 'general') {
+    if (governed.retrieval?.plan?.subjectScope !== 'general') {
       return 'Connected-app reads are not available for this governed scope.';
+    }
+    // Inherited document observations carry real, authenticated client
+    // bindings: `source.clientId` (exact owner locator) and
+    // `documentEvidence.clientId` (reauthorized read). Either binding means the
+    // turn is client-scoped.
+    if (
+      governed.inheritedDocumentEvidence?.some(
+        (citation) => citation?.source?.clientId || citation?.documentEvidence?.clientId,
+      )
+    ) {
+      return 'Connected-app reads are not available for client-scoped governed document evidence.';
+    }
+    // Any capture authority forbids dynamic MCP reads outright: the existing
+    // server-readonly and governed-artifact capture policies both carry the
+    // literal `dynamicMcpAllowed: false`, so an authenticated capture turn — even
+    // one whose capture clientId is null — must never grant personal managed-read
+    // authority. Fail closed on the mere presence of capture authority.
+    if (governed.serverReadonlyCapturePolicy || governed.governedArtifactCapturePolicy) {
+      return 'Connected-app reads are not available under a server capture policy.';
     }
     for (const record of governed.evidence?.records ?? []) {
       const payload = record?.payload;

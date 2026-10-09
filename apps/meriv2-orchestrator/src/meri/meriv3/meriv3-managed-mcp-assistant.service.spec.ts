@@ -98,6 +98,7 @@ describe('MeriV3ManagedMcpAssistantService', () => {
     ['airtable', 'meriv3_airtable', 'Airtable', 'list_bases'],
     ['monday', 'meriv3_monday', 'monday.com', 'get_board_info'],
     ['google-drive', 'meriv3_google_drive', 'Google Drive', 'read_file_content'],
+    ['krisp', 'meriv3_krisp', 'Krisp', 'search_meetings'],
   ])(
     '%s schemas reach the model and route through the managed read bridge',
     async (appId, server, appName, tool) => {
@@ -544,5 +545,72 @@ describe('MeriV3ManagedMcpAssistantService', () => {
     expect(executeRead).not.toHaveBeenCalled();
     expect(schemas).not.toHaveBeenCalled();
     expect(result).toMatchObject({ connectedApp: true });
+  });
+
+  test('the managed admission seam rejects every typed client binding and any capture authority', async () => {
+    const { service } = make();
+    const seam = service as unknown as {
+      resolveCapabilityAuthority: (name: string, schema: unknown, dto: unknown) => unknown;
+    };
+    const general = () =>
+      ({
+        version: 1,
+        operationId: 'meri.chat',
+        prompt: '',
+        contextPacket: { packetId: null, clientId: null },
+        retrieval: { plan: { subjectScope: 'general' } },
+      }) as unknown as MeriGovernedTurnContext;
+
+    const cases: Array<[string, Record<string, unknown>]> = [
+      [
+        'an inherited source.clientId binding',
+        {
+          inheritedDocumentEvidence: [
+            { tool: 'read_client_documents', source: { kind: 'document', recordId: 'p', clientId: 'client-1' } },
+          ],
+        },
+      ],
+      [
+        'an inherited documentEvidence.clientId observation',
+        {
+          inheritedDocumentEvidence: [
+            {
+              tool: 'read_client_documents',
+              documentEvidence: { clientId: 'client-1', documentId: 'd', contentHash: 'h' },
+            },
+          ],
+        },
+      ],
+      [
+        'a server-readonly capture policy with a null client',
+        { serverReadonlyCapturePolicy: { version: 1, dynamicMcpAllowed: false, clientId: null } },
+      ],
+      [
+        'a governed-artifact capture policy',
+        { governedArtifactCapturePolicy: { version: 1, dynamicMcpAllowed: false, clientId: 'client-1' } },
+      ],
+      ['a missing retrieval plan', { retrieval: undefined }],
+      ['a plan without a subject scope', { retrieval: { plan: {} } }],
+    ];
+
+    for (const [label, overrides] of cases) {
+      await runWithGovernedMeriContext(
+        { ...(general() as unknown as Record<string, unknown>), ...overrides } as unknown as MeriGovernedTurnContext,
+        async () => {
+          expect([label, seam.resolveCapabilityAuthority(HUBSPOT_SEARCH, HUBSPOT_READ_SCHEMA, {})]).toEqual([
+            label,
+            null,
+          ]);
+        },
+      );
+    }
+
+    // An ordinary personal governed meri.chat/general turn (no typed client
+    // binding, no capture authority) still resolves the managed read.
+    await runWithGovernedMeriContext(general(), async () => {
+      expect(
+        seam.resolveCapabilityAuthority(HUBSPOT_SEARCH, HUBSPOT_READ_SCHEMA, {}),
+      ).not.toBeNull();
+    });
   });
 });

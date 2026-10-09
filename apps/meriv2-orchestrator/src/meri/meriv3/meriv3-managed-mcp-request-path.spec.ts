@@ -38,6 +38,7 @@
  */
 
 import type { MeriContext, MeriGovernedTurnContext, ToolRegistry } from '@capiro/meriv2-core';
+import { attestMeriGovernedContext, verifyMeriGovernedContext } from '@capiro/meriv2-core';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
@@ -48,6 +49,18 @@ import type { MeriV3ChatResult, MeriV3ChatStreamEvent } from './meriv3.types.js'
 const MANAGED_READ = 'mcp__meriv3_hubspot__search_crm_objects';
 const UNADVERTISED_MANAGED = 'mcp__meriv3_hubspot__delete_contacts';
 const NATIVE_READ = 'search_memory';
+
+/**
+ * The CURRENT API-owned Krisp read names under catalogId `meriv3-krisp`
+ * (apps/api/src/meri/meri-managed-mcp.helpers.ts MANAGED_MCP_APPS.krisp). The
+ * orchestrator bridge namespace is `mcp__meriv3_krisp__`.
+ */
+const KRISP_READS = [
+  'mcp__meriv3_krisp__search_meetings',
+  'mcp__meriv3_krisp__get_multiple_documents',
+  'mcp__meriv3_krisp__list_folders',
+] as const;
+const KRISP_READ = KRISP_READS[0];
 
 const CLIENT_ID = '30000000-0000-4000-8000-000000000001';
 const RECORD_ID = '50000000-0000-4000-8000-000000000001';
@@ -140,6 +153,131 @@ function managedOwnerWire(content: string) {
     untrusted: true,
     content,
   };
+}
+
+/** A current API-owned Krisp managed schema/owner wire (catalogId `meriv3-krisp`). */
+function krispManagedSchema(overrides: Record<string, unknown> = {}) {
+  return {
+    name: KRISP_READ,
+    description: 'Search Krisp meetings',
+    input_schema: { type: 'object', properties: { query: { type: 'string' } } },
+    source: 'managed_mcp',
+    appId: 'krisp',
+    appName: 'Krisp',
+    readOnly: true,
+    ...overrides,
+  };
+}
+
+function krispOwnerWire(content: string, tool = KRISP_READ) {
+  return { tool, server: 'meriv3-krisp', untrusted: true, content };
+}
+
+/**
+ * A real inherited `read_client_documents` observation, exactly the shape the
+ * API attests into `MeriGovernedTurnContext.inheritedDocumentEvidence` and that
+ * `extractCitationsFromToolResult` produces (`source` locator + `documentEvidence`
+ * page observation). Both `source.clientId` and `documentEvidence.clientId` are
+ * authenticated client bindings; the evidence is real, not synthetic.
+ */
+function inheritedDocumentCitation(
+  overrides: {
+    source?: Record<string, unknown>;
+    documentEvidence?: Record<string, unknown> | null;
+  } = {},
+) {
+  const base = {
+    n: 9,
+    type: 'document',
+    id: 'page-3',
+    title: 'Master services agreement, page 3',
+    url: null,
+    snippet: 'Term: 24 months from the effective date.',
+    tool: 'read_client_documents',
+    source: {
+      kind: 'document',
+      recordId: 'page-3',
+      clientId: CLIENT_ID,
+      observedAt: '2026-09-01T00:00:00Z',
+    },
+    documentEvidence: {
+      clientId: CLIENT_ID,
+      documentId: 'doc-1',
+      contentHash: 'hash-1',
+      record: { recordId: 'page-3', text: 'Term: 24 months from the effective date.' },
+      coverage: { truncated: false },
+      observedAt: '2026-09-01T00:00:00Z',
+    },
+  };
+  return {
+    ...base,
+    ...(overrides.source !== undefined ? { source: overrides.source } : {}),
+    ...(overrides.documentEvidence !== undefined
+      ? overrides.documentEvidence === null
+        ? {}
+        : { documentEvidence: overrides.documentEvidence }
+      : {}),
+  };
+}
+
+/**
+ * A real authenticated server-readonly capture policy (see
+ * packages/meriv2-core/src/context/server-readonly-capture.ts). It carries the
+ * literal `dynamicMcpAllowed: false`; its `clientId` may legitimately be null.
+ */
+function serverReadonlyCapturePolicy(overrides: Record<string, unknown> = {}) {
+  return {
+    version: 1 as const,
+    kind: 'server_readonly_acceptance_capture' as const,
+    policyId: 'policy-1',
+    requestId: 'request-1',
+    traceId: 'trace-1',
+    turnId: null,
+    caseId: null,
+    fixtureNamespace: 'meri-foundation-20260928',
+    tenantId: 'tenant-1',
+    tenantSlug: 'meri-foundation-20260928-t1',
+    actorUserId: 'user-1',
+    conversationId: 'governed-thread',
+    clientId: null,
+    issuedAt: 0,
+    expiresAt: 0,
+    toolAuthority: 'shared_static_registry_read_only' as const,
+    toolCatalogSha256: 'a'.repeat(64),
+    dynamicMcpAllowed: false as const,
+    incidentalWriters: 'suppressed' as const,
+    expectedCaptureWrites: [] as const,
+    ...overrides,
+  };
+}
+
+/**
+ * A real authenticated governed-artifact capture policy (Case 46; see
+ * packages/meriv2-core/src/context/governed-artifact-capture.ts). It too carries
+ * the literal `dynamicMcpAllowed: false` and a fixed non-null clientId.
+ */
+function governedArtifactCapturePolicy(overrides: Record<string, unknown> = {}) {
+  return {
+    version: 1 as const,
+    kind: 'governed_artifact_acceptance_capture' as const,
+    caseId: '46' as const,
+    fixtureNamespace: 'meri-foundation-20260928',
+    tenantId: 'tenant-1',
+    tenantSlug: 'meri-foundation-20260928-t1',
+    actorUserId: 'user-1',
+    clientId: '41f9ec63-3963-479f-b747-59a3767ef44b',
+    conversationId: 'governed-thread',
+    dynamicMcpAllowed: false as const,
+    ...overrides,
+  };
+}
+
+/** Merge typed overrides onto a valid ordinary `meri.chat`/`general` envelope. */
+function governedWith(overrides: Record<string, unknown>): MeriGovernedTurnContext {
+  return {
+    ...(governedTurn('general', null) as unknown as Record<string, unknown>),
+    ...overrides,
+  } as unknown as MeriGovernedTurnContext;
 }
 
 /**
@@ -1071,4 +1209,394 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       },
     );
   });
+
+  // ── Lane A1 typed NONCLIENT scope (governed personal admission) ──────────
+
+  test('a valid governed personal meri.chat/general turn still admits one reviewed managed read and an opaque owner receipt', async () => {
+    const content =
+      'Untrusted external data from MCP server "meriv3-hubspot".\n[{"id":"1"}]';
+    const call = functionCall('governed-personal', MANAGED_READ, { query: 'Jane Finder' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Jane Finder is a HubSpot contact.' }));
+    const { service } = buildManaged(complete);
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      owner: () => jsonResponse(managedOwnerWire(content)),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        runWithGovernedMeriContext(governedTurn('general', null), () =>
+          service.run(context, {
+            conversationId: 'governed-personal-thread',
+            toolPolicy: 'read-only',
+            messages: [{ role: 'user', text: 'Find Jane Finder in HubSpot.' }],
+          }),
+        ),
+    );
+
+    expect(toolsOnCall(complete, 0)).toContain(MANAGED_READ);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(1);
+    const ledger = (result.ledgerEntries ?? []).find((entry) => entry.tool === MANAGED_READ);
+    expect(ledger?.result).toMatchObject({
+      tool: MANAGED_READ,
+      server: 'meriv3-hubspot',
+      untrusted: true,
+    });
+    expect(ledger?.serialized).toContain(`[Tool result from \"${MANAGED_READ}\"`);
+    // Opaque receipt only: no fabricated structured citation from wrapped content.
+    expect((result.citations ?? []).some((citation) => citation.tool === MANAGED_READ)).toBe(false);
+  });
+
+  test('a governed meri.chat/general turn carrying a source.clientId document binding never advertises or dispatches a managed read', async () => {
+    const call = functionCall('inherited-source-client', MANAGED_READ, { query: 'Jane' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
+      .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+    const { service } = buildManaged(complete);
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    // Real read_client_documents observation with an authenticated clientId on
+    // its exact source locator (documentEvidence omitted -> source-only binding).
+    const governed = governedWith({
+      inheritedDocumentEvidence: [
+        inheritedDocumentCitation({
+          source: {
+            kind: 'document',
+            recordId: 'page-3',
+            clientId: CLIENT_ID,
+            observedAt: '2026-09-01T00:00:00Z',
+          },
+          documentEvidence: null,
+        }),
+      ],
+    });
+
+    await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      runWithGovernedMeriContext(governed, () =>
+        service.run(context, {
+          conversationId: 'inherited-source-thread',
+          toolPolicy: 'read-only',
+          messages: [{ role: 'user', text: 'Find Jane.' }],
+        }),
+      ),
+    );
+
+    expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+  });
+
+  test('a governed meri.chat/general turn carrying a documentEvidence.clientId observation blocks the managed read and preserves the inherited source/ledger', async () => {
+    const call = functionCall('inherited-doc-client', MANAGED_READ, { query: 'Jane' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
+      .mockResolvedValue(
+        providerResult({ outputText: 'Term is 24 months from the effective date [9].' }),
+      );
+    const { service } = buildManaged(complete);
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const governed = governedWith({
+      inheritedDocumentEvidence: [inheritedDocumentCitation()],
+    });
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        runWithGovernedMeriContext(governed, () =>
+          service.run(context, {
+            conversationId: 'inherited-document-thread',
+            toolPolicy: 'read-only',
+            messages: [{ role: 'user', text: 'What is the term in the agreement?' }],
+          }),
+        ),
+    );
+
+    // Client-bound turn: no managed advertisement, no owner I/O.
+    expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+
+    // The inherited read_client_documents source/ledger integrity is preserved:
+    // the real observation is still citable and still carries its clientId.
+    const inheritedCitation = (result.citations ?? []).find(
+      (citation) => citation.tool === 'read_client_documents' && citation.id === 'page-3',
+    );
+    expect(inheritedCitation).toMatchObject({ n: 9, tool: 'read_client_documents', id: 'page-3' });
+    const inheritedLedger = (result.ledgerEntries ?? []).find(
+      (entry) => entry.tool === 'read_client_documents',
+    );
+    expect(inheritedLedger?.result).toMatchObject({
+      tool: 'read_client_documents',
+      origin: 'conversation',
+      clientId: CLIENT_ID,
+      document: { id: 'doc-1', contentHash: 'hash-1' },
+    });
+  });
+
+  const governedCaptureTurns: Array<[string, Record<string, unknown>]> = [
+    [
+      'server-readonly capture (null capture client)',
+      { serverReadonlyCapturePolicy: serverReadonlyCapturePolicy() },
+    ],
+    [
+      'governed-artifact (Case 46) capture',
+      { governedArtifactCapturePolicy: governedArtifactCapturePolicy() },
+    ],
+  ];
+  test.each(governedCaptureTurns)(
+    'a governed meri.chat/general turn under %s never advertises or dispatches a managed read',
+    async (_label, overrides) => {
+      const call = functionCall('capture-scope', MANAGED_READ, { query: 'Jane' });
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+        )
+        .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+      const { service } = buildManaged(complete);
+
+      const fetchMock = fetchRouter({
+        native: () => jsonResponse({ schemas: [] }),
+        managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      // The capture policies carry the literal dynamicMcpAllowed:false; a null
+      // (server-readonly) capture client never relaxes the dynamic-read denial.
+      const governed = governedWith({
+        contextPacket: { ...governedTurn('general', null).contextPacket, clientId: null },
+        ...overrides,
+      });
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(governed, () =>
+          service.run(context, {
+            conversationId: 'capture-scope-thread',
+            messages: [{ role: 'user', text: 'Find Jane.' }],
+          }),
+        ),
+      );
+
+      expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+      expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+    },
+  );
+
+  const governedMissingScopeTurns: Array<[string, Record<string, unknown>]> = [
+    ['a missing retrieval block', { retrieval: undefined }],
+    ['a retrieval block without a plan', { retrieval: { coverage: {} } }],
+    [
+      'a plan without a subject scope',
+      { retrieval: { plan: { version: 1, queryClass: 'general' } } },
+    ],
+  ];
+  test.each(governedMissingScopeTurns)(
+    'a governed meri.chat turn with %s never advertises or dispatches a managed read',
+    async (_label, overrides) => {
+      const call = functionCall('missing-scope', MANAGED_READ, { query: 'Jane' });
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+        )
+        .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+      const { service } = buildManaged(complete);
+
+      const fetchMock = fetchRouter({
+        native: () => jsonResponse({ schemas: [] }),
+        managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      // Absence of a retrieval plan / explicit subject scope is incomplete
+      // authority: it is never treated as an ordinary personal turn.
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        runWithGovernedMeriContext(governedWith(overrides), () =>
+          service.run(context, {
+            conversationId: 'missing-scope-thread',
+            messages: [{ role: 'user', text: 'Find Jane.' }],
+          }),
+        ),
+      );
+
+      expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+      expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+    },
+  );
+
+  test('a malformed governed contextPacket is refused by the existing entry guard and the supplementary final admission seam with zero provider/owner I/O', async () => {
+    const complete = jest.fn();
+    const { service } = buildManaged(complete);
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [] }),
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      owner: () => jsonResponse(managedOwnerWire('should-not-run')),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const SECRET = 'governed-entry-secret';
+    const actor = { tenantId: 'tenant-1', userId: 'user-1' };
+    const withoutPacket = {
+      ...governedWith({
+        evidence: {
+          version: 1,
+          tenantId: actor.tenantId,
+          userId: actor.userId,
+          packetId: null,
+          sourceRecordCount: 0,
+          projectedRecordCount: 0,
+          truncated: false,
+          records: [],
+        },
+      }),
+    } as Record<string, unknown>;
+    delete withoutPacket.contextPacket;
+    const malformed = withoutPacket as unknown as MeriGovernedTurnContext;
+
+    // The EXISTING entry guard dereferences contextPacket.packetId and rejects a
+    // malformed (missing) governed context packet before any normal run begins.
+    // (Signed so the reject is genuinely the packet defect, not a missing proof.)
+    const signed = attestMeriGovernedContext(
+      malformed,
+      { conversationId: 'malformed-thread' },
+      SECRET,
+      Date.now(),
+    );
+    expect(() =>
+      verifyMeriGovernedContext(
+        signed,
+        { conversationId: 'malformed-thread' },
+        actor,
+        SECRET,
+        Date.now(),
+      ),
+    ).toThrow();
+
+    // The SUPPLEMENTARY final admission seam refuses the same malformed context
+    // (no authenticated packet -> fail closed) with no managed authority.
+    const seam = service as unknown as {
+      resolveCapabilityAuthority: (name: string, schema: unknown, dto: unknown) => unknown;
+    };
+    await runWithGovernedMeriContext(malformed, async () => {
+      expect(seam.resolveCapabilityAuthority(MANAGED_READ, managedSchema(), {})).toBeNull();
+    });
+
+    // No provider turn ran and no owner I/O was attempted.
+    expect(complete).not.toHaveBeenCalled();
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+  });
+
+  // ── Current API-owned Krisp parity (catalogId meriv3-krisp) ─────────────
+
+  test.each(KRISP_READS)(
+    'the gated advertised Krisp read %s reaches the model and dispatches once through the real owner bridge',
+    async (name) => {
+      const content =
+        'Untrusted external data from MCP server "meriv3-krisp".\n[{"id":"meeting-1"}]';
+      const call = functionCall('krisp-call', name, { query: 'budget sync' });
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+        )
+        .mockResolvedValue(providerResult({ outputText: 'Meeting noted.' }));
+      const { service } = buildManaged(complete, {
+        configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
+      });
+
+      const fetchMock = fetchRouter({
+        native: () => jsonResponse({ schemas: [] }),
+        managed: () => jsonResponse({ schemas: [krispManagedSchema({ name })] }),
+        owner: () => jsonResponse(krispOwnerWire(content, name)),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+        { bearerToken: 'bearer' },
+        () =>
+          service.run(
+            context,
+            {
+              conversationId: 'krisp-thread',
+              toolPolicy: 'read-only',
+              messages: [{ role: 'user', text: 'Search my Krisp meetings.' }],
+            },
+          ),
+      );
+
+      expect(toolsOnCall(complete, 0)).toContain(name);
+      const ownerPosts = managedOwnerPosts(fetchMock);
+      expect(ownerPosts).toHaveLength(1);
+      expect(ownerPosts[0]).toContain(encodeURIComponent(name));
+      const init = managedOwnerInit(fetchMock);
+      expect(init?.method).toBe('POST');
+      expect(init?.headers).toMatchObject({
+        authorization: 'Bearer bearer',
+        'x-internal-service-secret': 'service-secret',
+        'content-type': 'application/json',
+      });
+      // Opaque owner receipt retains the real Krisp wire; no fabricated citation.
+      const ledger = (result.ledgerEntries ?? []).find((entry) => entry.tool === name);
+      expect(ledger?.result).toMatchObject({ tool: name, server: 'meriv3-krisp', untrusted: true });
+      expect((result.citations ?? []).some((citation) => citation.tool === name)).toBe(false);
+    },
+  );
+
+  const krispDeniedMetadata: Array<[string, Record<string, unknown>]> = [
+    ['missing source/manifest metadata', { source: undefined, appId: undefined }],
+    ['a mismatched appId/server mapping', { appId: 'hubspot' }],
+    ['an advertised write marker', { readOnly: false }],
+  ];
+  test.each(krispDeniedMetadata)(
+    'a Krisp read with %s is never advertised and stays blocked',
+    async (_label, overrides) => {
+      const call = functionCall('krisp-denied', KRISP_READ, { query: 'meetings' });
+      const complete = jest
+        .fn()
+        .mockResolvedValueOnce(
+          providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+        )
+        .mockResolvedValue(providerResult({ outputText: 'Blocked.' }));
+      const { service } = buildManaged(complete);
+
+      const schema = krispManagedSchema(overrides);
+      const fetchMock = fetchRouter({
+        native: () => jsonResponse({ schemas: [] }),
+        managed: () => jsonResponse({ schemas: [schema] }),
+      });
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+        service.run(context, {
+          conversationId: 'krisp-denied-thread',
+          messages: [{ role: 'user', text: 'Search my Krisp meetings.' }],
+        }),
+      );
+
+      expect(toolsOnCall(complete, 0)).not.toContain(KRISP_READ);
+      expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+    },
+  );
 });

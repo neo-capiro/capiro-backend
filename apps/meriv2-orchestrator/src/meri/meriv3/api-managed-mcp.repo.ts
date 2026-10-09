@@ -9,7 +9,7 @@ export interface ManagedMcpToolSchema {
   description: string;
   input_schema: Record<string, unknown>;
   source: 'managed_mcp';
-  appId: 'hubspot' | 'airtable' | 'monday' | 'google-drive';
+  appId: 'hubspot' | 'airtable' | 'monday' | 'google-drive' | 'krisp';
   appName: string;
   readOnly: true;
 }
