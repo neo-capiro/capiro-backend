@@ -55,10 +55,39 @@ interface RegisteredMcpTool {
   managedAppId?: MeriV3ManagedAppId;
 }
 
+export type McpDiscoveryFailureReason = 'unavailable' | 'needs_reauth' | 'malformed';
+
+/** Bounded, non-disclosing discovery failure recorded for ONE visible server. */
+export interface McpRegistryFailure {
+  serverId: string;
+  /** Managed-app classification captured from the admitted definition at
+   *  discovery time; null for a generic connector. */
+  managedAppId: MeriV3ManagedAppId | null;
+  reason: McpDiscoveryFailureReason;
+}
+
+/**
+ * Additive detailed seam beside `bridgedSchemasFor`: the SAME `schemas` array,
+ * plus bounded failure metadata for the registry snapshot that produced them.
+ * `failures` is raw per-server data for internal owners only; the managed owner
+ * filters it to the actor's current eligible personal managed rows before any
+ * caller sees it. Failure metadata never authorizes a tool and never stands in
+ * for a schema.
+ */
+export interface McpBridgedSchemasResult {
+  schemas: BridgedTool[];
+  failures: McpRegistryFailure[];
+  registryUnavailable: boolean;
+}
+
 interface UserMcpRegistry {
   fetchedAt: number;
   schemas: BridgedTool[];
   byBridgedName: Map<string, RegisteredMcpTool>;
+  // Discovery failures observed while building THIS snapshot, cached with it.
+  // Exposure is filtered by the managed owner; a recorded failure can never
+  // resurrect a schema or grant a tool.
+  failures: McpRegistryFailure[];
 }
 
 export interface McpServerInput {
@@ -90,6 +119,34 @@ export interface CatalogAddInput {
 }
 
 const REGISTRY_TTL_MS = 15 * 60 * 1000;
+
+/**
+ * A provider returned a tools/list response the managed catalog cannot use
+ * (e.g. a connected managed app advertising no supported read tool). Distinct
+ * from an auth failure and from a transport/provider outage, so the catalog can
+ * report the truthful bounded reason without echoing provider text.
+ */
+class ManagedCatalogShapeError extends Error {
+  /** Bounded discriminant; never carried into a caller-visible result. */
+  readonly discoveryReason = 'malformed' as const;
+}
+
+/** Bounded discovery-failure classification from existing owner evidence only. */
+function discoveryFailureReason(
+  err: unknown,
+  needsReauth: boolean,
+): McpDiscoveryFailureReason {
+  if (needsReauth) return 'needs_reauth';
+  const message = err instanceof Error ? err.message : '';
+  if (
+    err instanceof ManagedCatalogShapeError ||
+    message.startsWith('MCP tool discovery repeated a page.') ||
+    message.startsWith('MCP tool discovery exceeded the page limit.')
+  ) {
+    return 'malformed';
+  }
+  return 'unavailable';
+}
 
 type ServerRow = ClioMcpServer;
 
@@ -482,9 +539,43 @@ export class MeriMcpService {
    *  cached 15 min. Tools whose server's breaker is open are filtered out so the
    *  model is never offered a tool that would immediately error. */
   async bridgedSchemasFor(ctx: TenantContext): Promise<BridgedTool[]> {
-    if (!this.enabled()) return [];
+    return (await this.bridgedSchemasDetailedFor(ctx)).schemas;
+  }
+
+  /**
+   * Additive detailed seam beside `bridgedSchemasFor`: identical `schemas`, plus
+   * sanitized discovery-failure metadata for the SAME registry snapshot. The
+   * managed owner filters `failures` down to the actor's CURRENT eligible
+   * personal managed rows before anything reaches a caller, so no other
+   * tenant/owner/custom-connector detail can leak. Failure metadata never
+   * authorizes a tool and never stands in for a schema.
+   *
+   * `opts.cacheOnly` is an additive owner-only seam: it reads the SAME existing
+   * per-tenant/actor snapshot (if any) with NO provider discovery, so a caller
+   * that has only known-failed rows can report the still-owned outage from the
+   * existing cached failure or a fresh DB status without a retry storm. Both
+   * modes apply the SAME fresh visibility + managed-provenance filter to the
+   * returned `failures`, so a row that is no longer visible/owned/classified
+   * can never be named even if an earlier admission allowlist once admitted it.
+   */
+  async bridgedSchemasDetailedFor(
+    ctx: TenantContext,
+    opts?: { cacheOnly?: boolean },
+  ): Promise<McpBridgedSchemasResult> {
+    if (!this.enabled()) return { schemas: [], failures: [], registryUnavailable: false };
     try {
-      const registry = await this.registryFor(ctx);
+      // `cacheOnly` peeks the existing snapshot without provider work; the
+      // default path keeps the existing discover-once semantics. The peek honors
+      // the SAME registry TTL: an expired or absent snapshot yields NO cached
+      // failure, so the managed owner falls back to conservative CURRENT DB
+      // status with zero provider retry — never a stale precise reason.
+      const peeked = opts?.cacheOnly ? this.registry.get(this.regKey(ctx)) : undefined;
+      const registry = opts?.cacheOnly
+        ? peeked && Date.now() - peeked.fetchedAt < REGISTRY_TTL_MS
+          ? peeked
+          : undefined
+        : await this.registryFor(ctx);
+      if (!registry) return { schemas: [], failures: [], registryUnavailable: false };
       // Status is shared in the database, whereas this registry is per process.
       // Recheck visibility so disconnects on another API replica also take effect.
       const visible = new Map(
@@ -493,7 +584,7 @@ export class MeriMcpService {
           server,
         ]),
       );
-      return registry.schemas.filter((schema) => {
+      const schemas = registry.schemas.filter((schema) => {
         const entry = registry.byBridgedName.get(schema.name);
         if (!entry || this.breaker.isOpen(`${ctx.tenantId}:mcp:${entry.serverId}`)) return false;
         const server = visible.get(entry.serverId);
@@ -517,11 +608,41 @@ export class MeriMcpService {
             asStringArray(server.toolAllowlist).includes(entry.toolName))
         );
       });
+      // Failure metadata is filtered through the SAME fresh visibility map used
+      // for the schemas above; a cached managed failure must still resolve to the
+      // SAME managed app on the CURRENT row, and a now-deliberate pending/
+      // disconnected row is not an outage. A row that is now foreign, disabled,
+      // reclassified off the managed set, or deliberately disconnected can no
+      // longer be named — even if an earlier admission allowlist once admitted
+      // it. Unlike the schema guard it does NOT require `connected`, so a
+      // genuine error/needs_reauth failure is still reported.
+      const failures = registry.failures.filter((failure) => {
+        const server = visible.get(failure.serverId);
+        if (!server) return false;
+        // A deliberate disconnect/pending row is a non-outage ONLY where the
+        // connection status is itself a discovery/execution gate — an OAuth
+        // connector, whose discovery (`registryFor`) and dispatch already
+        // require `connected`. A generic token/none connector (catalogId null)
+        // is discovered regardless of `connectionStatus`, so its genuine
+        // listTools failure must still be named rather than masked by
+        // non-connected metadata.
+        if (
+          server.authType === 'oauth' &&
+          (server.connectionStatus === 'disconnected' || server.connectionStatus === 'pending')
+        )
+          return false;
+        if (failure.managedAppId) {
+          const managed = managedAppDefinition(server.catalogId);
+          if (!managed || managed.id !== failure.managedAppId) return false;
+        }
+        return true;
+      });
+      return { schemas, failures, registryUnavailable: false };
     } catch (err) {
       this.logger.warn(
         `MCP registry unavailable [tenant ${ctx.tenantId} user ${ctx.userId}]: ${(err as Error).message}`,
       );
-      return [];
+      return { schemas: [], failures: [], registryUnavailable: true };
     }
   }
 
@@ -539,6 +660,7 @@ export class MeriMcpService {
     const servers = await this.visibleServers(ctx, { where: { enabled: true } });
     const schemas: BridgedTool[] = [];
     const byBridgedName = new Map<string, RegisteredMcpTool>();
+    const failures: McpRegistryFailure[] = [];
     let retryKrispRateLimit = false;
     for (const server of servers) {
       const managed = managedAppDefinition(server.catalogId);
@@ -561,7 +683,7 @@ export class MeriMcpService {
       try {
         const client = this.clientFor(server);
         const tools = filterAllowedMcpTools(await client.listTools(), allowlist);
-        if (managed && !tools.length) throw new Error('No supported read tools are available.');
+        if (managed && !tools.length) throw new ManagedCatalogShapeError('No supported read tools are available.');
         const readOnly = new Set(asStringArray(server.readOnlyTools));
         for (const tool of tools) {
           const bridged = bridgeMcpTool(server.name, tool);
@@ -598,6 +720,11 @@ export class MeriMcpService {
           managed?.id === 'krisp' && !needsReauth &&
           Number((err as { code?: unknown } | null)?.code) === 429;
         retryKrispRateLimit ||= krispRateLimit;
+        failures.push({
+          serverId: server.id,
+          managedAppId: managed?.id ?? null,
+          reason: discoveryFailureReason(err, needsReauth),
+        });
         await this.prisma
           .withTenant(ctx.tenantId, (tx) =>
             tx.clioMcpServer.updateMany({
@@ -621,6 +748,7 @@ export class MeriMcpService {
       fetchedAt: Date.now() - (retryKrispRateLimit ? REGISTRY_TTL_MS - 60_000 : 0),
       schemas,
       byBridgedName,
+      failures,
     };
     this.registry.set(key, registry);
     return registry;
