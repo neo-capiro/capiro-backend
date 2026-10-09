@@ -1292,6 +1292,56 @@ describe('managed catalog availability (personal owner, provider-free)', () => {
     expect(driveClient.callTool as jest.Mock).not.toHaveBeenCalled();
   });
 
+  test('a currently-owned disconnected row is a deliberate non-outage, provider-free', async () => {
+    const listTools = jest.fn(async () => AIRTABLE_TOOLS);
+    const { managed } = harness([airtableRow({ connectionStatus: 'disconnected' })], {
+      listTools,
+      callTool: jest.fn(async () => providerResult),
+    });
+
+    const result = await managed.managedCatalogForMeriV3(OWNER);
+
+    // An intentional disconnect is not an outage and not a discovery attempt.
+    expect(result.availability).toEqual({
+      state: 'no_eligible',
+      complete: true,
+      registryUnavailable: false,
+      failures: [],
+    });
+    expect(listTools).not.toHaveBeenCalled();
+  });
+
+  test('a still-owned failure survives cache invalidation with zero provider retry', async () => {
+    const listTools = jest.fn(async () => {
+      throw new Error('provider unreachable');
+    });
+    const callTool = jest.fn(async () => providerResult);
+    const row = airtableRow();
+    const { managed, mcp } = harness([row], { listTools, callTool });
+
+    const first = await managed.managedCatalogForMeriV3(OWNER);
+    expect(first.availability.state).toBe('unavailable');
+    // The real registry catch persisted the failure onto the stored row.
+    expect(row.connectionStatus).toBe('error');
+    expect(listTools).toHaveBeenCalledTimes(1);
+
+    // Model cache expiry: drop the per-tenant/actor snapshot. The still-owned
+    // failed row must be reported from its CURRENT stored status — no reconnect,
+    // no rediscovery, no retry storm.
+    mcp.invalidate(OWNER.tenantId);
+
+    const second = await managed.managedCatalogForMeriV3(OWNER);
+    expect(second.availability).toEqual({
+      state: 'unavailable',
+      complete: false,
+      registryUnavailable: false,
+      failures: [{ appId: 'airtable', name: 'Airtable', reason: 'unavailable' }],
+    });
+    expect(second.schemas).toEqual([]);
+    expect(listTools).toHaveBeenCalledTimes(1);
+    expect(callTool).not.toHaveBeenCalled();
+  });
+
   /**
    * Late failure-provenance seam (reviewer Hypothesis 2). The real source order
    * is personalRows -> registry discovery + failure/status write -> fresh

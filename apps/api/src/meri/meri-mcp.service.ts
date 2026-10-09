@@ -549,11 +549,27 @@ export class MeriMcpService {
    * personal managed rows before anything reaches a caller, so no other
    * tenant/owner/custom-connector detail can leak. Failure metadata never
    * authorizes a tool and never stands in for a schema.
+   *
+   * `opts.cacheOnly` is an additive owner-only seam: it reads the SAME existing
+   * per-tenant/actor snapshot (if any) with NO provider discovery, so a caller
+   * that has only known-failed rows can report the still-owned outage from the
+   * existing cached failure or a fresh DB status without a retry storm. Both
+   * modes apply the SAME fresh visibility + managed-provenance filter to the
+   * returned `failures`, so a row that is no longer visible/owned/classified
+   * can never be named even if an earlier admission allowlist once admitted it.
    */
-  async bridgedSchemasDetailedFor(ctx: TenantContext): Promise<McpBridgedSchemasResult> {
+  async bridgedSchemasDetailedFor(
+    ctx: TenantContext,
+    opts?: { cacheOnly?: boolean },
+  ): Promise<McpBridgedSchemasResult> {
     if (!this.enabled()) return { schemas: [], failures: [], registryUnavailable: false };
     try {
-      const registry = await this.registryFor(ctx);
+      // `cacheOnly` peeks the existing snapshot without provider work; the
+      // default path keeps the existing discover-once semantics.
+      const registry = opts?.cacheOnly
+        ? this.registry.get(this.regKey(ctx))
+        : await this.registryFor(ctx);
+      if (!registry) return { schemas: [], failures: [], registryUnavailable: false };
       // Status is shared in the database, whereas this registry is per process.
       // Recheck visibility so disconnects on another API replica also take effect.
       const visible = new Map(
@@ -586,7 +602,23 @@ export class MeriMcpService {
             asStringArray(server.toolAllowlist).includes(entry.toolName))
         );
       });
-      return { schemas, failures: registry.failures, registryUnavailable: false };
+      // Failure metadata is filtered through the SAME fresh visibility map used
+      // for the schemas above, and a cached managed failure must still resolve
+      // to the SAME managed app on the CURRENT row. A row that is now foreign,
+      // disabled, or reclassified off the managed set can no longer be named —
+      // even if an earlier admission allowlist once admitted it. This mirrors
+      // the schema guard exactly so the FINAL visibility predicate governs both
+      // the advertised tools and the reported failures.
+      const failures = registry.failures.filter((failure) => {
+        const server = visible.get(failure.serverId);
+        if (!server) return false;
+        if (failure.managedAppId) {
+          const managed = managedAppDefinition(server.catalogId);
+          if (!managed || managed.id !== failure.managedAppId) return false;
+        }
+        return true;
+      });
+      return { schemas, failures, registryUnavailable: false };
     } catch (err) {
       this.logger.warn(
         `MCP registry unavailable [tenant ${ctx.tenantId} user ${ctx.userId}]: ${(err as Error).message}`,

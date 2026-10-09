@@ -306,6 +306,30 @@ describe('managed catalog availability seam at the MCP owner boundary', () => {
     expect(result.registryUnavailable).toBe(true);
   });
 
+  test('cacheOnly peeks the existing snapshot with zero provider I/O', async () => {
+    const { service, client } = make();
+    client.listTools.mockRejectedValue(new Error('provider unavailable'));
+    const first = await service.bridgedSchemasDetailedFor(ctx);
+    expect(first.failures).toEqual([
+      { serverId: 'server', managedAppId: 'airtable', reason: 'unavailable' },
+    ]);
+    expect(client.listTools).toHaveBeenCalledTimes(1);
+
+    const peek = await service.bridgedSchemasDetailedFor(ctx, { cacheOnly: true });
+    expect(peek.failures).toEqual([
+      { serverId: 'server', managedAppId: 'airtable', reason: 'unavailable' },
+    ]);
+    expect(peek.registryUnavailable).toBe(false);
+    expect(client.listTools).toHaveBeenCalledTimes(1);
+  });
+
+  test('cacheOnly with no existing snapshot performs zero provider I/O', async () => {
+    const { service, client } = make();
+    const peek = await service.bridgedSchemasDetailedFor(ctx, { cacheOnly: true });
+    expect(peek).toEqual({ schemas: [], failures: [], registryUnavailable: false });
+    expect(client.listTools).not.toHaveBeenCalled();
+  });
+
   test('global MCP disable is deliberate: no failure and no registry outage', async () => {
     const tx = {
       tenant: { findUnique: jest.fn(async () => null) },

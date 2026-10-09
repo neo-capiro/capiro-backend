@@ -279,6 +279,13 @@ export class MeriManagedMcpService {
    * personal managed rows are ever named, so another owner/tenant or a custom
    * connector can never be disclosed. Reason codes are bounded; no raw provider
    * text/endpoint/token/credential/private id leaves this method.
+   *
+   * A currently-owned, enabled, available managed row whose connection is
+   * error/needs_reauth is a truthful FAILURE source: it is reported (bounded
+   * reason) but never grants a schema or transport, so a still-owned outage
+   * survives the next request / restart / cache expiry without reconnecting or
+   * re-discovering. A deliberate disconnect/disable/unconfigured/feature-off
+   * row is never treated as an outage.
    */
   async managedCatalogForMeriV3(ctx: TenantContext): Promise<MeriV3ManagedCatalogResult> {
     const noEligible = (): MeriV3ManagedCatalogResult => ({
@@ -299,21 +306,36 @@ export class MeriManagedMcpService {
     // This is the exposure allowlist: a recorded failure may only be reported
     // when its server is one of THESE rows.
     const eligibleServerAppIds = new Map<string, MeriV3ManagedAppId>();
+    // serverId -> appId for the acting owner's CURRENTLY-OWNED, enabled,
+    // available managed rows that are NOT connected (error/needs_reauth). These
+    // are truthful failure sources, never a schema/transport grant.
+    const failedRows = new Map<string, MeriV3ManagedAppId>();
     for (const row of await this.personalRows(ctx)) {
       const id = managedAppIdFromCatalogId(row.catalogId);
       if (id === 'krisp' && !(await krispTenantEnabled(this.prisma, ctx.tenantId))) continue;
-      if (!id || !this.available(id, ctx) || !row.enabled || row.connectionStatus !== 'connected')
-        continue;
-      if (await this.hardenServer(ctx.tenantId, row.id, ctx.userId)) {
-        prefixes.set(serverPrefix(row.name), id);
-        eligibleServerAppIds.set(row.id, id);
+      if (!id || !this.available(id, ctx) || !row.enabled) continue;
+      if (row.connectionStatus === 'connected') {
+        if (await this.hardenServer(ctx.tenantId, row.id, ctx.userId)) {
+          prefixes.set(serverPrefix(row.name), id);
+          eligibleServerAppIds.set(row.id, id);
+        }
+      } else if (row.connectionStatus === 'needs_reauth' || row.connectionStatus === 'error') {
+        failedRows.set(row.id, id);
       }
+      // pending/disconnected are deliberate non-outages: never a failure source.
     }
-    // Preserve the existing zero-provider-call property when nothing eligible.
-    if (!prefixes.size) return noEligible();
+    // Preserve the existing zero-provider-call property when nothing is either
+    // readable or a currently-owned failure.
+    if (!prefixes.size && !failedRows.size) return noEligible();
 
-    const { schemas, failures, registryUnavailable } =
-      await this.mcp.bridgedSchemasDetailedFor(ctx);
+    // With no readable connection left there is nothing to discover: peek the
+    // SAME existing snapshot (and fresh visibility) with ZERO provider I/O, so a
+    // still-owned outage is reported without a retry storm or a stale schema.
+    const cacheOnly = prefixes.size === 0;
+    const { schemas, failures, registryUnavailable } = await this.mcp.bridgedSchemasDetailedFor(
+      ctx,
+      cacheOnly ? { cacheOnly: true } : undefined,
+    );
     const out: MeriV3ManagedMcpSchema[] = [];
     for (const schema of schemas) {
       const match = [...prefixes].find(([prefix]) => schema.name.startsWith(prefix));
@@ -328,16 +350,47 @@ export class MeriManagedMcpService {
       });
     }
 
-    // Filter raw failures to the acting owner's eligible personal managed rows,
-    // then collapse to one bounded, sanitized entry per app.
+    // Re-read the acting owner's rows AFTER discovery/status writes. The DB
+    // fallback below may only name a row that is STILL currently owned, enabled,
+    // available, and classified as a managed app — otherwise a failure that the
+    // fresh-visibility filter deliberately dropped (a row disabled/reclassified
+    // mid-call) would be reintroduced from the earlier admission snapshot.
+    const currentFailedRows = new Map<
+      string,
+      { id: MeriV3ManagedAppId; reason: MeriV3ManagedFailureReason }
+    >();
+    for (const row of await this.personalRows(ctx)) {
+      const id = managedAppIdFromCatalogId(row.catalogId);
+      if (id === 'krisp' && !(await krispTenantEnabled(this.prisma, ctx.tenantId))) continue;
+      if (!id || !this.available(id, ctx) || !row.enabled) continue;
+      if (row.connectionStatus === 'needs_reauth') {
+        currentFailedRows.set(row.id, { id, reason: 'needs_reauth' });
+      } else if (row.connectionStatus === 'error') {
+        currentFailedRows.set(row.id, { id, reason: 'unavailable' });
+      }
+    }
+
+    // Collapse raw failures to one bounded, sanitized entry per app. A failure
+    // is only named when its server is one of the acting owner's rows and — for
+    // a managed failure — its PRIVATE admitted managedAppId still matches that
+    // row's managed classification. `failures` is already fresh-filtered by the
+    // MCP owner, so matching against the acting owner's admitted rows is safe.
     const byApp = new Map<MeriV3ManagedAppId, MeriV3ManagedFailureReason>();
     for (const failure of failures) {
-      const appId = eligibleServerAppIds.get(failure.serverId);
+      const appId = eligibleServerAppIds.get(failure.serverId) ?? failedRows.get(failure.serverId);
       if (!appId) continue;
+      if (failure.managedAppId && failure.managedAppId !== appId) continue;
       const existing = byApp.get(appId);
       if (!existing || MANAGED_FAILURE_RANK[failure.reason] > MANAGED_FAILURE_RANK[existing]) {
         byApp.set(appId, failure.reason);
       }
+    }
+    // DB fallback: a currently-owned failed row with no cached failure (e.g. the
+    // snapshot expired, or discovery skipped the non-connected row) is still
+    // reported conservatively from its CURRENT stored status — never silently
+    // dropped and never reintroduced from a stale admission.
+    for (const { id, reason } of currentFailedRows.values()) {
+      if (!byApp.has(id)) byApp.set(id, reason);
     }
     const appFailures: MeriV3ManagedAvailabilityFailure[] = [...byApp].map(([appId, reason]) => ({
       appId,
