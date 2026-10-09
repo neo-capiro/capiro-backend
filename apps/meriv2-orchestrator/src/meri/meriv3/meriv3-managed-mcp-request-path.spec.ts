@@ -124,7 +124,14 @@ function managedSchema() {
   };
 }
 
-/** Owner payload that yields a citation (records[].payload shape) + a marker. */
+/**
+ * Admission-only fixture owner payload (canonical `records[]` shape).
+ *
+ * NOTE: this is a shape fixture for the managed owner bridge, NOT a capture of
+ * a real API-managed HubSpot `search_contacts` owner response. Real API owner
+ * shape coverage and an actual managed wire receipt are still pending; neither
+ * is claimed from this spec, and no adapter is fabricated for it.
+ */
 function hubspotOwnerPayload() {
   return {
     generatedAt: '2026-10-08T00:00:00Z',
@@ -284,9 +291,39 @@ function toolsOnCall(complete: jest.Mock, callIndex: number): string[] {
   return (tools ?? []).map((tool) => tool.name);
 }
 
-/** Provider input bodies sent AFTER the first (tool-emitting) round. */
+/** A responses-API input item after the first round; only outputs are read. */
+type ProviderInputItem = { type?: string; output?: unknown };
+
+/** Flattens a responses-API `input` payload into its ordered items. */
+function providerInputItems(input: unknown): ProviderInputItem[] {
+  if (!Array.isArray(input)) return [];
+  return input.flatMap((entry) =>
+    Array.isArray(entry) ? providerInputItems(entry) : [entry as ProviderInputItem],
+  );
+}
+
+/**
+ * The actual tool-result payloads fed to the model AFTER the first
+ * (tool-emitting) round, joined from the real `function_call_output.output`
+ * strings.
+ *
+ * It must read the embedded strings directly, not `JSON.stringify(input)`:
+ * the tool-result wrapper contains double quotes (e.g.
+ * `[Tool result from "search_memory". ...]`), and re-serializing the outer input
+ * backslash-escapes those quotes. Asserting a literal substring against the
+ * escaped blob tests JSON encoding of the outer envelope rather than the payload
+ * the model actually receives. Only `function_call_output.output` is joined so
+ * the data checks stay tied to tool results (message text is deliberately
+ * excluded — it would satisfy e.g. a `Jane Finder` check without any dispatch).
+ */
 function fedBackInput(complete: jest.Mock): string {
-  return JSON.stringify(complete.mock.calls.slice(1).map((call) => call[0]?.input));
+  return complete.mock.calls
+    .slice(1)
+    .flatMap((call) => providerInputItems(call[0]?.input))
+    .filter((item) => item.type === 'function_call_output')
+    .map((item) => (typeof item.output === 'string' ? item.output : ''))
+    .filter((text) => text.length > 0)
+    .join('\n');
 }
 
 function managedOwnerPosts(fetchMock: jest.Mock): string[] {
@@ -304,6 +341,10 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
   });
 
   test('admits and runs an advertised managed read once, feeding the owner result into the next provider input', async () => {
+    // Admission-only positive. The owner payload is a canonical `records[]`
+    // fixture (see hubspotOwnerPayload) — NOT a real API-managed owner shape —
+    // and the managed wire receipt is not qualified here. Real owner-shape /
+    // receipt coverage remains pending.
     const call = functionCall('managed-call', ADVERTISED_MANAGED, { query: 'Jane Finder' });
     const complete = jest
       .fn()
@@ -338,6 +379,13 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
 
     // It executed exactly once through the real API-managed owner bridge.
     const ownerPosts = managedOwnerPosts(fetchMock);
+    // When the base fails, verify its cause before the positive assertion.
+    // A successful repair must satisfy the absence-of-refusal check below.
+    if (ownerPosts.length === 0) {
+      expect(fedBackInput(complete)).toContain(
+        'no longer available under the current governed tool policy',
+      );
+    }
     expect(ownerPosts).toHaveLength(1);
     expect(ownerPosts[0]).toContain(encodeURIComponent(ADVERTISED_MANAGED));
 
