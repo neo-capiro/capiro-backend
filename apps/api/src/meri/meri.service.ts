@@ -101,6 +101,12 @@ import {
   isInternalClioArtifact,
   ordinaryClioArtifactWhere,
 } from '../common/internal-clio-artifact.js';
+import {
+  buildEditedDocumentVersion,
+  generatedDocumentFormat,
+  hasGeneratedMarkers,
+  isKnownGeneratedKind,
+} from './meri-edited-artifact.js';
 import { AiCredentialResolverService } from '../engagement/ai-credential-resolver.service.js';
 import { MemoryIngestService } from '../memory/memory-ingest.service.js';
 import { MemoryCandidateService } from '../memory/memory-candidate.service.js';
@@ -5408,6 +5414,7 @@ export class MeriService implements MeriTurnMaintenance {
         where: {
           id: parentId,
           tenantId: ctx.tenantId,
+          userId: ctx.userId,
           ...ordinaryClioArtifactWhere(),
         },
       }),
@@ -5426,22 +5433,155 @@ export class MeriService implements MeriTurnMaintenance {
       });
     }
 
-    return this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.clioArtifact.create({
+    const parentMetadata =
+      parent.metadata && typeof parent.metadata === 'object' && !Array.isArray(parent.metadata)
+        ? (parent.metadata as Record<string, unknown>)
+        : null;
+    const parentFormat = generatedDocumentFormat(parentMetadata);
+
+    if (!parentFormat) {
+      if (isKnownGeneratedKind(parent.kind) || hasGeneratedMarkers(parentMetadata)) {
+        // A known generated kind or receipt marker with a missing/unsupported
+        // native format fails closed; never silently re-version it as legacy text.
+        throw new BadRequestException(
+          'This artifact is not a generated document that can be versioned.',
+        );
+      }
+      // Ordinary non-generated artifact: unchanged behavior - store the edited
+      // text verbatim with the same provenance metadata only.
+      return this.prisma.withTenant(ctx.tenantId, (tx) =>
+        tx.clioArtifact.create({
+          data: {
+            tenantId: ctx.tenantId,
+            userId: ctx.userId,
+            clientId: parent.clientId,
+            conversationId: parent.conversationId,
+            parentArtifactId: parent.id,
+            title: parent.title,
+            kind: parent.kind,
+            contentType: parent.contentType,
+            bodyText,
+            metadata: { versionOf: parent.id, editedBy: ctx.userId },
+          },
+        }),
+      );
+    }
+
+    // Capture the parent facts the edit is prepared from (by value, so an
+    // in-place mutation during generation is still detected) plus the byte
+    // receipt fingerprint the new version must not drift from.
+    const parentTitle = parent.title;
+    const parentKind = parent.kind;
+    const parentContentType = parent.contentType;
+    const parentClientId = parent.clientId;
+    const parentConversationId = parent.conversationId;
+    const parentBodyText = parent.bodyText;
+    const parentByteReceipt = {
+      documentSha256: parentMetadata!.documentSha256,
+      documentByteLength: parentMetadata!.documentByteLength,
+      documentByteFormat: parentMetadata!.documentByteFormat,
+      documentByteAuthority: parentMetadata!.documentByteAuthority,
+    };
+
+    // Establish the owned read/download guard (tenant/actor/conversation/client
+    // wall + valid parent receipt) before rendering.
+    const parentRead = await this.tools.getDocumentArtifact(ctx, parentId);
+    if (!parentRead) throw new NotFoundException('Artifact not found');
+
+    const prepared = await buildEditedDocumentVersion(
+      { title: parentTitle, metadata: parentMetadata },
+      bodyText,
+      (format, specJson) => this.tools.renderStoredDocument(format, specJson),
+      {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        clientId: parentClientId,
+        conversationId: parentConversationId,
+      },
+    );
+
+    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Lock the parent row, reload it, and require the current row to still
+      // match every fact the edit was prepared from.
+      await tx.$executeRaw`SELECT id FROM clio_artifacts WHERE id=${parentId}::uuid AND tenant_id=${ctx.tenantId}::uuid AND user_id=${ctx.userId}::uuid FOR SHARE`;
+      const current = await tx.clioArtifact.findFirst({
+        where: {
+          id: parentId,
+          tenantId: ctx.tenantId,
+          userId: ctx.userId,
+          ...ordinaryClioArtifactWhere(),
+        },
+        select: {
+          id: true,
+          clientId: true,
+          conversationId: true,
+          title: true,
+          kind: true,
+          contentType: true,
+          bodyText: true,
+          metadata: true,
+          conversation: {
+            select: { tenantId: true, userId: true, clientId: true, archivedAt: true },
+          },
+        },
+      });
+      if (!current || isInternalClioArtifact(current)) throw new NotFoundException('Artifact not found');
+      if (
+        !current.conversation ||
+        current.conversation.tenantId !== ctx.tenantId ||
+        current.conversation.userId !== ctx.userId ||
+        current.conversation.archivedAt ||
+        // The conversation's client association must still match the row's.
+        current.conversation.clientId !== current.clientId
+      )
+        throw new NotFoundException('Artifact not found');
+      const currentMetadata =
+        current.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata)
+          ? (current.metadata as Record<string, unknown>)
+          : null;
+      if (
+        current.clientId !== parentClientId ||
+        current.conversationId !== parentConversationId ||
+        current.kind !== parentKind ||
+        current.title !== parentTitle ||
+        current.contentType !== parentContentType ||
+        generatedDocumentFormat(currentMetadata) !== parentRead.format ||
+        current.bodyText !== parentBodyText ||
+        currentMetadata?.documentSha256 !== parentByteReceipt.documentSha256 ||
+        currentMetadata?.documentByteLength !== parentByteReceipt.documentByteLength ||
+        currentMetadata?.documentByteFormat !== parentByteReceipt.documentByteFormat ||
+        currentMetadata?.documentByteAuthority !== parentByteReceipt.documentByteAuthority
+      )
+        throw new ConflictException('The artifact changed while the edit was being prepared.');
+
+      // Re-run the canonical owned read guard immediately before persistence. A
+      // client permission revoked during generation makes this return null, so
+      // no child is created. (Archive is a separate state, not a client-permission
+      // revocation proof, and is handled above.)
+      const recheck = await this.tools.getDocumentArtifact(ctx, parentId);
+      if (!recheck) throw new NotFoundException('Artifact not found');
+
+      return tx.clioArtifact.create({
         data: {
           tenantId: ctx.tenantId,
           userId: ctx.userId,
-          clientId: parent.clientId,
-          conversationId: parent.conversationId,
-          parentArtifactId: parent.id,
-          title: parent.title,
-          kind: parent.kind,
-          contentType: parent.contentType,
-          bodyText,
-          metadata: { versionOf: parent.id, editedBy: ctx.userId },
+          clientId: current.clientId,
+          conversationId: current.conversationId,
+          parentArtifactId: current.id,
+          title: current.title,
+          kind: current.kind,
+          contentType: current.contentType,
+          bodyText: prepared.bodyText,
+          // Known JSON-only edited receipt: round-trip through JSON so the
+          // persisted value is byte-identical to the prepared object while
+          // satisfying Prisma's InputJsonValue boundary (the repo's existing
+          // convention for object-shaped JSON columns).
+          metadata: JSON.parse(
+            JSON.stringify({ versionOf: current.id, editedBy: ctx.userId, ...prepared.metadata }),
+          ) as Prisma.InputJsonValue,
         },
-      }),
-    );
+      });
+    });
   }
 
   // ── Message feedback (P1-2) ───────────────────────────────────────────
