@@ -117,7 +117,11 @@ export class MeriV3SettingsController {
   @Get('mcp-tool-schemas')
   async managedMcpSchemas(@CurrentTenant() ctx: TenantContext) {
     await this.assertEnabled(ctx);
-    return { schemas: await this.managedMcp.schemasForMeriV3(ctx) };
+    // Additive beside the long-standing `schemas` array: `availability` is a
+    // sanitized, bounded result the caller can use to distinguish a genuine
+    // empty catalog from an actual discovery failure. Existing `schemas`
+    // consumers are unchanged.
+    return this.managedMcp.managedCatalogForMeriV3(ctx);
   }
 
   /** Isolated orchestrator execution bridge; reads only, strict service identity required. */

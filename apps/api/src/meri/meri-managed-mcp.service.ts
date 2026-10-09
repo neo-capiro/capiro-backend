@@ -36,6 +36,54 @@ export interface MeriV3ManagedMcpSchema extends BridgedTool {
   readOnly: true;
 }
 
+/** Bounded, sanitized managed-catalog failure reason codes. Never raw provider
+ *  text, error bodies, endpoints, tokens, credentials, or private identifiers. */
+export type MeriV3ManagedFailureReason =
+  | 'unavailable'
+  | 'needs_reauth'
+  | 'malformed'
+  | 'registry_unavailable';
+
+export interface MeriV3ManagedAvailabilityFailure {
+  appId: MeriV3ManagedAppId;
+  /** Safe, fixed managed app name (from the admitted definition). */
+  name: string;
+  reason: MeriV3ManagedFailureReason;
+}
+
+/**
+ * Sanitized availability of the managed catalog for ONE caller. Additive beside
+ * the existing `schemas` array and consumed by the next orchestrator slice to
+ * give a truthful limitation instead of implying an empty result was complete.
+ *
+ * - `no_eligible`: the caller has no eligible managed connection, so no
+ *   discovery was attempted. Deliberate, and NOT an outage or a fake success.
+ * - `ok`: every eligible app was queried and either returned its tools or
+ *   genuinely returned none (successful empty). `complete` is true.
+ * - `partial`: some eligible app failed but usable authorized tools from healthy
+ *   sources were retained.
+ * - `unavailable`: an eligible app failed and no healthy tools were retained, or
+ *   the registry snapshot itself could not be read.
+ */
+export interface MeriV3ManagedCatalogAvailability {
+  state: 'ok' | 'partial' | 'unavailable' | 'no_eligible';
+  complete: boolean;
+  registryUnavailable: boolean;
+  failures: MeriV3ManagedAvailabilityFailure[];
+}
+
+export interface MeriV3ManagedCatalogResult {
+  schemas: MeriV3ManagedMcpSchema[];
+  availability: MeriV3ManagedCatalogAvailability;
+}
+
+const MANAGED_FAILURE_RANK: Record<MeriV3ManagedFailureReason, number> = {
+  needs_reauth: 3,
+  malformed: 2,
+  unavailable: 1,
+  registry_unavailable: 0,
+};
+
 function strings(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
@@ -218,18 +266,54 @@ export class MeriManagedMcpService {
   }
 
   async schemasForMeriV3(ctx: TenantContext): Promise<MeriV3ManagedMcpSchema[]> {
-    if (!globalMcpEnabled() || !this.oauth.isConfigured()) return [];
+    return (await this.managedCatalogForMeriV3(ctx)).schemas;
+  }
+
+  /**
+   * The managed catalog PLUS a sanitized availability result, both derived from
+   * ONE registry snapshot. `schemas` is exactly what `schemasForMeriV3` has
+   * always returned; `availability` is additive and consumed only by the next
+   * orchestrator slice.
+   *
+   * Only discovery failures recorded against the acting owner's CURRENT eligible
+   * personal managed rows are ever named, so another owner/tenant or a custom
+   * connector can never be disclosed. Reason codes are bounded; no raw provider
+   * text/endpoint/token/credential/private id leaves this method.
+   */
+  async managedCatalogForMeriV3(ctx: TenantContext): Promise<MeriV3ManagedCatalogResult> {
+    const noEligible = (): MeriV3ManagedCatalogResult => ({
+      schemas: [],
+      availability: {
+        state: 'no_eligible',
+        complete: true,
+        registryUnavailable: false,
+        failures: [],
+      },
+    });
+    // Global kill switch / unconfigured OAuth is deliberate, not an outage and
+    // not a successful query: nothing was eligible to discover.
+    if (!globalMcpEnabled() || !this.oauth.isConfigured()) return noEligible();
+
     const prefixes = new Map<string, MeriV3ManagedAppId>();
+    // serverId -> appId for the acting owner's eligible personal managed rows.
+    // This is the exposure allowlist: a recorded failure may only be reported
+    // when its server is one of THESE rows.
+    const eligibleServerAppIds = new Map<string, MeriV3ManagedAppId>();
     for (const row of await this.personalRows(ctx)) {
       const id = managedAppIdFromCatalogId(row.catalogId);
       if (id === 'krisp' && !(await krispTenantEnabled(this.prisma, ctx.tenantId))) continue;
       if (!id || !this.available(id, ctx) || !row.enabled || row.connectionStatus !== 'connected')
         continue;
-      if (await this.hardenServer(ctx.tenantId, row.id, ctx.userId))
+      if (await this.hardenServer(ctx.tenantId, row.id, ctx.userId)) {
         prefixes.set(serverPrefix(row.name), id);
+        eligibleServerAppIds.set(row.id, id);
+      }
     }
-    if (!prefixes.size) return [];
-    const schemas = await this.mcp.bridgedSchemasFor(ctx);
+    // Preserve the existing zero-provider-call property when nothing eligible.
+    if (!prefixes.size) return noEligible();
+
+    const { schemas, failures, registryUnavailable } =
+      await this.mcp.bridgedSchemasDetailedFor(ctx);
     const out: MeriV3ManagedMcpSchema[] = [];
     for (const schema of schemas) {
       const match = [...prefixes].find(([prefix]) => schema.name.startsWith(prefix));
@@ -243,7 +327,40 @@ export class MeriManagedMcpService {
         readOnly: true,
       });
     }
-    return out;
+
+    // Filter raw failures to the acting owner's eligible personal managed rows,
+    // then collapse to one bounded, sanitized entry per app.
+    const byApp = new Map<MeriV3ManagedAppId, MeriV3ManagedFailureReason>();
+    for (const failure of failures) {
+      const appId = eligibleServerAppIds.get(failure.serverId);
+      if (!appId) continue;
+      const existing = byApp.get(appId);
+      if (!existing || MANAGED_FAILURE_RANK[failure.reason] > MANAGED_FAILURE_RANK[existing]) {
+        byApp.set(appId, failure.reason);
+      }
+    }
+    const appFailures: MeriV3ManagedAvailabilityFailure[] = [...byApp].map(([appId, reason]) => ({
+      appId,
+      name: MANAGED_MCP_APPS[appId].name,
+      reason,
+    }));
+
+    const state: MeriV3ManagedCatalogAvailability['state'] = registryUnavailable
+      ? 'unavailable'
+      : appFailures.length === 0
+        ? 'ok'
+        : out.length
+          ? 'partial'
+          : 'unavailable';
+    return {
+      schemas: out,
+      availability: {
+        state,
+        complete: state === 'ok',
+        registryUnavailable,
+        failures: appFailures,
+      },
+    };
   }
 
   async executeRead(

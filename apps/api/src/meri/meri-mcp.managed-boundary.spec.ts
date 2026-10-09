@@ -236,3 +236,89 @@ describe('Krisp tenant rollout at the MCP execution boundary', () => {
     expect(client.listTools).not.toHaveBeenCalled(); expect(client.callTool).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Additive detailed seam at the MCP owner boundary: identical schemas plus
+ * bounded, non-disclosing failure metadata. Raw per-server failures are exposed
+ * here for the managed owner to filter; a recorded failure is never a schema and
+ * never authorizes a tool.
+ */
+describe('managed catalog availability seam at the MCP owner boundary', () => {
+  const originalEnabled = process.env.MERI_MCP_AIRTABLE_ENABLED;
+  beforeEach(() => {
+    process.env.MERI_MCP_AIRTABLE_ENABLED = 'true';
+    jest.clearAllMocks();
+  });
+  afterEach(() => {
+    if (originalEnabled === undefined) delete process.env.MERI_MCP_AIRTABLE_ENABLED;
+    else process.env.MERI_MCP_AIRTABLE_ENABLED = originalEnabled;
+  });
+
+  test('bridgedSchemasFor keeps its array contract beside the detailed seam', async () => {
+    const { service } = make();
+    expect((await service.bridgedSchemasFor(ctx)).map((s) => s.name)).toEqual([
+      'mcp__meriv3_airtable__list_bases',
+    ]);
+    const detailed = await service.bridgedSchemasDetailedFor(ctx);
+    expect(detailed.schemas.map((s) => s.name)).toEqual(['mcp__meriv3_airtable__list_bases']);
+    expect(detailed.failures).toEqual([]);
+    expect(detailed.registryUnavailable).toBe(false);
+  });
+
+  test('a provider listTools outage is recorded as a managed failure, not a silent empty', async () => {
+    const { service, client } = make();
+    client.listTools.mockRejectedValue(new Error('provider unavailable'));
+    const result = await service.bridgedSchemasDetailedFor(ctx);
+    expect(result.schemas).toEqual([]);
+    expect(result.registryUnavailable).toBe(false);
+    expect(result.failures).toEqual([
+      { serverId: 'server', managedAppId: 'airtable', reason: 'unavailable' },
+    ]);
+  });
+
+  test('an authorization failure classifies as needs_reauth', async () => {
+    const { service, client } = make();
+    client.listTools.mockRejectedValue(
+      Object.assign(new Error('expired'), { name: 'InvalidTokenError' }),
+    );
+    const result = await service.bridgedSchemasDetailedFor(ctx);
+    expect(result.failures).toEqual([
+      { serverId: 'server', managedAppId: 'airtable', reason: 'needs_reauth' },
+    ]);
+  });
+
+  test('a managed app with no supported read tool classifies as malformed', async () => {
+    const { service, client } = make();
+    client.listTools.mockResolvedValue([{ name: 'execute_api', inputSchema: { type: 'object' } }]);
+    const result = await service.bridgedSchemasDetailedFor(ctx);
+    expect(result.schemas).toEqual([]);
+    expect(result.failures).toEqual([
+      { serverId: 'server', managedAppId: 'airtable', reason: 'malformed' },
+    ]);
+  });
+
+  test('a registry snapshot failure is registryUnavailable, never an empty success', async () => {
+    const { service, tx } = make();
+    tx.clioMcpServer.findMany.mockRejectedValue(new Error('db down'));
+    const result = await service.bridgedSchemasDetailedFor(ctx);
+    expect(result.schemas).toEqual([]);
+    expect(result.failures).toEqual([]);
+    expect(result.registryUnavailable).toBe(true);
+  });
+
+  test('global MCP disable is deliberate: no failure and no registry outage', async () => {
+    const tx = {
+      tenant: { findUnique: jest.fn(async () => null) },
+      clioMcpServer: { findMany: jest.fn(async () => []) },
+    };
+    const prisma = { withTenant: jest.fn(async (_t: string, fn: (value: unknown) => unknown) => fn(tx)) };
+    const config = { get: jest.fn((key: string) => (key === 'CLIO_MCP_ENABLED' ? false : undefined)) };
+    const oauth = { isConfigured: jest.fn(() => true) };
+    const service = new MeriMcpService(prisma as never, config as never, oauth as never);
+    expect(await service.bridgedSchemasDetailedFor(ctx)).toEqual({
+      schemas: [],
+      failures: [],
+      registryUnavailable: false,
+    });
+  });
+});

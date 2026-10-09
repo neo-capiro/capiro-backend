@@ -955,3 +955,216 @@ describe('hardenServer conditional write (CAS) owner window: post-findFirst reas
     expect(c.callTool).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Additive availability slice: the SAME real personal owner chain, with ONLY the
+ * provider transport mocked. Proves the managed catalog can now distinguish a
+ * genuine non-outage result (nothing eligible, or a healthy app) from an actual
+ * connector/registry discovery failure, retains healthy authorized tools from a
+ * partial catalog, classifies auth/catalog failures, and never discloses another
+ * owner/tenant or a custom connector through the sanitized result.
+ */
+describe('managed catalog availability (personal owner, provider-free)', () => {
+  const originalEnv = process.env;
+  beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      CLIO_MCP_ENABLED: 'true',
+      MERI_MCP_AIRTABLE_ENABLED: 'true',
+      MERI_MCP_GOOGLE_DRIVE_ENABLED: 'true',
+      MERI_MCP_GOOGLE_DRIVE_CLIENT_ID: 'id',
+      MERI_MCP_GOOGLE_DRIVE_CLIENT_SECRET: 'secret',
+      MERI_MCP_GOOGLE_DRIVE_ALLOWED_USER_IDS: OWNER.userId,
+      MERI_MCP_GOOGLE_DRIVE_ALLOWED_TENANT_IDS: OWNER.tenantId,
+    };
+    // resetAllMocks (not clearAllMocks) so a per-endpoint mockImplementation from
+    // a prior test can never leak into the next one; harness re-seats the
+    // transport mock return value in every test.
+    jest.resetAllMocks();
+  });
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  function clientFor(listTools: jest.Mock): McpClient {
+    return { listTools, callTool: jest.fn(async () => providerResult) } as McpClient;
+  }
+
+  /** Route the mocked transport to a per-endpoint client so two managed apps can
+   *  have independent provider behaviour without a second service instance. */
+  function routeClients(byEndpoint: Record<string, McpClient>): void {
+    jest
+      .mocked(createMcpClient)
+      .mockImplementation((conn) => byEndpoint[conn.endpoint ?? 'default']!);
+  }
+
+  test('a caller with no eligible connection is complete, deliberate, and provider-free', async () => {
+    const listTools = jest.fn(async () => AIRTABLE_TOOLS);
+    const { managed } = harness([airtableRow({ enabled: false })], clientFor(listTools));
+
+    const result = await managed.managedCatalogForMeriV3(OWNER);
+
+    expect(result.schemas).toEqual([]);
+    expect(result.availability).toEqual({
+      state: 'no_eligible',
+      complete: true,
+      registryUnavailable: false,
+      failures: [],
+    });
+    expect(listTools).not.toHaveBeenCalled();
+  });
+
+  test('a healthy eligible app yields a complete catalog, distinct from an outage', async () => {
+    const listTools = jest.fn(async () => AIRTABLE_TOOLS);
+    const { managed } = harness([airtableRow()], clientFor(listTools));
+
+    const result = await managed.managedCatalogForMeriV3(OWNER);
+
+    expect(result.schemas.map((s) => s.name)).toEqual(['mcp__meriv3_airtable__list_bases']);
+    expect(result.availability).toMatchObject({ state: 'ok', complete: true, failures: [] });
+    expect(listTools).toHaveBeenCalledTimes(1);
+  });
+
+  test('a provider listTools outage is unavailable — never a silent empty success', async () => {
+    const listTools = jest.fn(async () => {
+      throw new Error('provider unreachable');
+    });
+    const { managed } = harness([airtableRow()], clientFor(listTools));
+
+    const result = await managed.managedCatalogForMeriV3(OWNER);
+
+    expect(result.schemas).toEqual([]);
+    expect(result.availability).toEqual({
+      state: 'unavailable',
+      complete: false,
+      registryUnavailable: false,
+      failures: [{ appId: 'airtable', name: 'Airtable', reason: 'unavailable' }],
+    });
+    expect(listTools).toHaveBeenCalledTimes(1);
+  });
+
+  test('a partial catalog retains healthy authorized tools beside the failed app', async () => {
+    const airtableList = jest.fn(async () => AIRTABLE_TOOLS);
+    const driveList = jest.fn(async () => {
+      throw new Error('drive down');
+    });
+    const { managed } = harness([airtableRow(), driveRow()], clientFor(airtableList));
+    routeClients({
+      [MERIV3_AIRTABLE_ENDPOINT]: clientFor(airtableList),
+      [MERIV3_GOOGLE_DRIVE_ENDPOINT]: clientFor(driveList),
+    });
+
+    const result = await managed.managedCatalogForMeriV3(OWNER);
+
+    expect(result.schemas.map((s) => s.name)).toEqual(['mcp__meriv3_airtable__list_bases']);
+    expect(result.availability).toEqual({
+      state: 'partial',
+      complete: false,
+      registryUnavailable: false,
+      failures: [{ appId: 'google-drive', name: 'Google Drive', reason: 'unavailable' }],
+    });
+    // One bounded listTools per eligible app — no storm, no duplicate read.
+    expect(airtableList).toHaveBeenCalledTimes(1);
+    expect(driveList).toHaveBeenCalledTimes(1);
+  });
+
+  test('an authorization failure is reported as needs_reauth, not a plain outage', async () => {
+    const listTools = jest.fn(async () => {
+      throw Object.assign(new Error('expired'), { name: 'InvalidTokenError' });
+    });
+    const { managed } = harness([airtableRow()], clientFor(listTools));
+
+    const result = await managed.managedCatalogForMeriV3(OWNER);
+
+    expect(result.availability).toEqual({
+      state: 'unavailable',
+      complete: false,
+      registryUnavailable: false,
+      failures: [{ appId: 'airtable', name: 'Airtable', reason: 'needs_reauth' }],
+    });
+  });
+
+  test('a managed app advertising no supported read tool is malformed, not available', async () => {
+    const listTools = jest.fn(async () => []);
+    const { managed } = harness([airtableRow()], clientFor(listTools));
+
+    const result = await managed.managedCatalogForMeriV3(OWNER);
+
+    expect(result.schemas).toEqual([]);
+    expect(result.availability.failures).toEqual([
+      { appId: 'airtable', name: 'Airtable', reason: 'malformed' },
+    ]);
+  });
+
+  test('a failing custom connector is never disclosed through the managed availability', async () => {
+    const custom: Row = airtableRow({
+      id: 'srv-custom',
+      name: 'custom-connector',
+      catalogId: null,
+      endpoint: 'https://custom.example/mcp',
+      authType: 'none',
+      toolAllowlist: ['thing'],
+      readOnlyTools: [],
+    });
+    const airtableList = jest.fn(async () => AIRTABLE_TOOLS);
+    const customList = jest.fn(async () => {
+      throw new Error('custom secret outage');
+    });
+    const { managed } = harness([airtableRow(), custom], clientFor(airtableList));
+    routeClients({
+      [MERIV3_AIRTABLE_ENDPOINT]: clientFor(airtableList),
+      'https://custom.example/mcp': clientFor(customList),
+    });
+
+    const result = await managed.managedCatalogForMeriV3(OWNER);
+
+    // The custom connector really was queried and it really failed...
+    expect(customList).toHaveBeenCalledTimes(1);
+    // ...but nothing about it leaks into the managed availability.
+    expect(result.availability).toEqual({
+      state: 'ok',
+      complete: true,
+      registryUnavailable: false,
+      failures: [],
+    });
+    expect(JSON.stringify(result.availability)).not.toContain('custom');
+  });
+
+  test('another owner failing connector is filtered out of the acting owner availability', async () => {
+    const airtableList = jest.fn(async () => AIRTABLE_TOOLS);
+    const driveList = jest.fn(async () => {
+      throw new Error('foreign outage');
+    });
+    const foreign = driveRow({ id: 'srv-foreign', ownerUserId: 'user-other' });
+    const { managed } = harness([airtableRow(), foreign], clientFor(airtableList));
+    routeClients({
+      [MERIV3_AIRTABLE_ENDPOINT]: clientFor(airtableList),
+      [MERIV3_GOOGLE_DRIVE_ENDPOINT]: clientFor(driveList),
+    });
+
+    const result = await managed.managedCatalogForMeriV3(OWNER);
+
+    expect(result.availability.failures).toEqual([]);
+    // The foreign personal row is not the actor's, so it is never queried.
+    expect(driveList).not.toHaveBeenCalled();
+  });
+
+  test('the registry snapshot cache is reused with one bounded listTools per app', async () => {
+    const airtableList = jest.fn(async () => AIRTABLE_TOOLS);
+    const driveList = jest.fn(async () => DRIVE_TOOLS);
+    const { managed } = harness([airtableRow(), driveRow()], clientFor(airtableList));
+    routeClients({
+      [MERIV3_AIRTABLE_ENDPOINT]: clientFor(airtableList),
+      [MERIV3_GOOGLE_DRIVE_ENDPOINT]: clientFor(driveList),
+    });
+
+    const first = await managed.managedCatalogForMeriV3(OWNER);
+    const second = await managed.managedCatalogForMeriV3(OWNER);
+
+    expect(first.availability.state).toBe('ok');
+    // Identical result from the same cached per-tenant/actor snapshot.
+    expect(second).toEqual(first);
+    expect(airtableList).toHaveBeenCalledTimes(1);
+    expect(driveList).toHaveBeenCalledTimes(1);
+  });
+});
