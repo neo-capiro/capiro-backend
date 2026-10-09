@@ -145,15 +145,76 @@ function hubspotOwnerPayload() {
   };
 }
 
+/**
+ * Genuine `search_memory` owner result envelope for an ordinary governed-memory
+ * read (model answer cites it as source [1]).
+ *
+ * This mirrors the canonical owner contract rather than a records-only stub:
+ * the `MERIV2_API_BASE_URL` `search_memory` return fields (`tool`, the
+ * `coverage` institutional_knowledge source rollup, `factContentUnavailableCount`,
+ * `contentStatus`, `contentTruncated`, `nextCursor`, thin `results` rows and the
+ * full `records`) are exactly what
+ * `classifyApiToolReadOutcome('search_memory', …)` /
+ * `classifyMemorySearch` (`packages/shared/src/meri-read-outcome.ts`) validates,
+ * and what `extractCitationsFromToolResult('search_memory', …)`
+ * (`packages/shared/src/index.ts`, which prefers `records` over `results`) reads
+ * to produce one citable memory source (title, id, clientId, content hash).
+ * A `{ records }`-only payload is an invalid owner result
+ * (`search_memory_result_contract_invalid`) and is deliberately not used: no
+ * records-only stub, and no marker is added to disguise such a shape.
+ */
 function memoryOwnerPayload() {
   return {
+    tool: 'search_memory',
     generatedAt: '2026-10-08T00:00:00Z',
+    coverage: {
+      requestedDomains: ['institutional_knowledge'],
+      searchedDomains: ['institutional_knowledge'],
+      requestedEntityCount: 0,
+      searchedEntityCount: 0,
+      recordsEvaluated: 1,
+      recordsReturned: 1,
+      paginationComplete: true,
+      unavailableSources: [],
+      complete: true,
+      stopReason: 'complete',
+      sources: [
+        {
+          domain: 'institutional_knowledge',
+          sourceStatus: 'healthy',
+          returned: 1,
+          recordsEvaluated: 1,
+          requestedEntityCount: 0,
+          searchedEntityCount: 0,
+          pagesRead: 1,
+          hasMore: false,
+          truncated: false,
+          paginationComplete: true,
+          coverageComplete: true,
+          stopReason: 'governed_memory_scan_complete',
+        },
+      ],
+    },
+    factContentUnavailableCount: 0,
+    contentStatus: 'available',
+    contentTruncated: false,
+    nextCursor: null,
+    results: [
+      {
+        id: RECORD_ID,
+        memoryItemId: RECORD_ID,
+        title: 'Kestrel commitment',
+        clientId: CLIENT_ID,
+        relevance: null,
+      },
+    ],
     records: [
       {
-        recordId: RECORD_ID,
         domain: 'institutional_knowledge',
+        recordId: RECORD_ID,
         payload: {
           sourceKind: 'governed_memory',
+          memoryItemId: RECORD_ID,
           title: 'Kestrel commitment',
           value: 'Approved commitment fact',
           clientId: CLIENT_ID,
@@ -406,11 +467,14 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
 
   test('native advertised read control executes once through the registry dispatch (must pass on base)', async () => {
     const call = functionCall('native-call', NATIVE_READ, { query: 'Kestrel' });
+    // The final answer cites the extracted memory source as [1]. Production
+    // (`finalizeReply` -> `validateCitationMarkers`) releases only citations the
+    // answer actually uses, so a bare answer with no [1] returns no citations.
     const complete = jest
       .fn()
       .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
-      .mockResolvedValueOnce(providerResult({ outputText: 'Kestrel commitment noted.' }))
-      .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted.' }));
+      .mockResolvedValueOnce(providerResult({ outputText: 'Kestrel commitment noted [1].' }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
     const invoke = jest.fn(
       async (..._args: Parameters<ToolRegistry['invoke']>) => memoryOwnerPayload(),
     );
@@ -437,6 +501,22 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     expect(invoke.mock.calls[0]?.[0]).toBe(NATIVE_READ);
     expect(fedBackInput(complete)).toContain(`[Tool result from "${NATIVE_READ}"`);
     expect(result.citations?.some((citation) => citation.tool === NATIVE_READ)).toBe(true);
+
+    // The extracted source is retained with its exact identity (number, record
+    // id, tool and title) and surfaces in the evidence manifest: this is the real
+    // citation for the [1] marker in the final answer, not a bare answer.
+    const nativeCitation = result.citations?.find((citation) => citation.tool === NATIVE_READ);
+    expect(nativeCitation).toMatchObject({
+      n: 1,
+      id: RECORD_ID,
+      tool: NATIVE_READ,
+      title: 'Kestrel commitment',
+    });
+    expect(
+      result.evidenceManifest?.sources.some(
+        (source) => source.tool === NATIVE_READ && source.id === RECORD_ID,
+      ),
+    ).toBe(true);
   });
 
   test('an unadvertised managed-prefixed name stays blocked and never reaches the managed bridge', async () => {
