@@ -69,6 +69,7 @@ type Artifact = {
   title?: string;
   contentType?: string;
   bodyText?: string | null;
+  parentArtifactId?: string;
   metadata?: Record<string, unknown>;
   conversation?: unknown;
 };

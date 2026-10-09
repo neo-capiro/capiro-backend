@@ -146,7 +146,9 @@ describe('buildEditedDocumentVersion (A3 helper) rebuilds a fresh, real byte rec
         expect((await readPdf(bytes)).text).toContain('EDITPDF3');
       } else if (format === 'xlsx') {
         const wb = new ExcelJS.Workbook();
-        await wb.xlsx.load(bytes);
+        // @types/node's generic Buffer<ArrayBuffer> isn't assignable to exceljs's
+        // stricter load() param; cast to exactly the type xlsx.load declares.
+        await wb.xlsx.load(bytes as unknown as Parameters<typeof wb.xlsx.load>[0]);
         expect(wb.worksheets[0]!.getCell('A2').value).toBe('EDITXLSX7');
       } else {
         expect(await pptxText(bytes)).toContain('EDITPPTX5');

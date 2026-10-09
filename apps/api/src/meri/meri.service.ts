@@ -5572,7 +5572,13 @@ export class MeriService implements MeriTurnMaintenance {
           kind: current.kind,
           contentType: current.contentType,
           bodyText: prepared.bodyText,
-          metadata: { versionOf: current.id, editedBy: ctx.userId, ...prepared.metadata },
+          // Known JSON-only edited receipt: round-trip through JSON so the
+          // persisted value is byte-identical to the prepared object while
+          // satisfying Prisma's InputJsonValue boundary (the repo's existing
+          // convention for object-shaped JSON columns).
+          metadata: JSON.parse(
+            JSON.stringify({ versionOf: current.id, editedBy: ctx.userId, ...prepared.metadata }),
+          ) as Prisma.InputJsonValue,
         },
       });
     });
