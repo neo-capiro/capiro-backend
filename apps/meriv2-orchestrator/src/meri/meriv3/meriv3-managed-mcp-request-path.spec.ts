@@ -91,6 +91,14 @@ const KRISP_READ = KRISP_READS[0];
 
 const CLIENT_ID = '30000000-0000-4000-8000-000000000001';
 const RECORD_ID = '50000000-0000-4000-8000-000000000001';
+/**
+ * A DISTINCT identity for the SAME tool's LOGICAL failure. It must never be
+ * restored into a published reply/citation, so each part is a distinctive
+ * sentinel asserted absent below.
+ */
+const FAILED_RECORD_ID = '50000000-0000-4000-8000-0000000000ff';
+const FAILED_TITLE = 'Beta revoked commitment';
+const FAILED_SNIPPET = 'Revoked Beta owner snippet must never be published';
 
 const context = {
   tenantId: 'tenant-1',
@@ -535,6 +543,45 @@ function memoryOwnerPayload() {
   };
 }
 
+/**
+ * A LOGICAL owner failure for the SAME tool: a canonical `search_memory`
+ * envelope whose coverage reports the memory content unavailable, carrying a
+ * DISTINCT citable record (id/title/snippet). It is deliberately NOT an
+ * `{ error }` transport body: `extractCitationsFromToolResult` returns [] for an
+ * `error`, so this is the exact owner-shaped failure that can expose a
+ * tool-name-only citation restoration. Its distinct identity must never appear
+ * in the published reply or citations.
+ */
+function failedMemoryOwnerPayload() {
+  return {
+    ...memoryOwnerPayload(),
+    contentStatus: 'unavailable',
+    results: [
+      {
+        id: FAILED_RECORD_ID,
+        memoryItemId: FAILED_RECORD_ID,
+        title: FAILED_TITLE,
+        clientId: CLIENT_ID,
+        relevance: null,
+      },
+    ],
+    records: [
+      {
+        domain: 'institutional_knowledge',
+        recordId: FAILED_RECORD_ID,
+        payload: {
+          sourceKind: 'governed_memory',
+          memoryItemId: FAILED_RECORD_ID,
+          title: FAILED_TITLE,
+          value: FAILED_SNIPPET,
+          clientId: CLIENT_ID,
+          content: { hash: 'failed-v1' },
+        },
+      },
+    ],
+  };
+}
+
 function registry(
   definitions: Array<{ name: string; readOnly: boolean }>,
   invoke = jest.fn(),
@@ -654,9 +701,11 @@ function fetchRouter(routes: {
   /**
    * The native delegated owner POST (`POST /api/clio/tools/:name`). When
    * omitted, the historical inert `{ records: [] }` is returned so every
-   * existing case is unchanged.
+   * existing case is unchanged. `init` is forwarded so a case can distinguish
+   * two owner POSTs to the SAME tool by their request input (the real owner
+   * contract never deduplicates distinct inputs).
    */
-  nativeOwner?: (url: string) => Response;
+  nativeOwner?: (url: string, init?: RequestInit) => Response;
 }): jest.Mock {
   return jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
@@ -673,7 +722,7 @@ function fetchRouter(routes: {
       return routes.native ? routes.native() : jsonResponse({ schemas: [] });
     }
     if (url.includes('/api/clio/tools/')) {
-      return routes.nativeOwner ? routes.nativeOwner(url) : jsonResponse({ records: [] });
+      return routes.nativeOwner ? routes.nativeOwner(url, init) : jsonResponse({ records: [] });
     }
     void init;
     return jsonResponse({});
@@ -804,6 +853,67 @@ async function waitFor(predicate: () => boolean): Promise<void> {
 }
 
 const originalFetch = global.fetch;
+
+/**
+ * Provider-free fixture signing secret for the governed request boundary.
+ * IDENTICAL in value to the first-describe constant (which shadows this one);
+ * not a live service secret and mints no served authority.
+ */
+const GOVERNED_FIXTURE_SECRET = 'governed-native-target-fixture-secret';
+
+type GovernedRequestBinding = {
+  conversationId: string;
+  clientId?: string;
+  messages: readonly { role?: unknown; text?: unknown }[];
+};
+
+/** The exact request binding the `.run` uses (same shape as the first describe). */
+function servedGovernedBinding(dto: {
+  conversationId: string;
+  clientId?: string;
+  messages: readonly { role?: unknown; text?: unknown }[];
+}): GovernedRequestBinding {
+  return {
+    conversationId: dto.conversationId,
+    ...(dto.clientId ? { clientId: dto.clientId } : {}),
+    messages: dto.messages,
+  };
+}
+
+/**
+ * MAC-authenticate a SERVED governed turn with the EXISTING real
+ * `attestMeriGovernedContext` / `verifyMeriGovernedContext` pair: no new
+ * envelope, no weakened validator and no fabricated signature. The signature
+ * binds the exact request conversation/client/messages plus the bearer
+ * tenant/actor the `.run` uses — the same binding `chat.controller.ts` verifies
+ * before `runWithGovernedMeriContext`. This is the common-scope form of the
+ * first describe's `attestGovernedTurn` (whose full negative-binding battery
+ * remains there intact and is not weakened).
+ */
+function attestServedGovernedTurn(
+  governed: MeriGovernedTurnContext,
+  binding: GovernedRequestBinding,
+): MeriGovernedTurnContext {
+  const withEvidence = {
+    ...(governed as unknown as Record<string, unknown>),
+    evidence: {
+      version: 1,
+      tenantId: context.tenantId,
+      userId: context.userId,
+      packetId: null,
+      sourceRecordCount: 0,
+      projectedRecordCount: 0,
+      truncated: false,
+      records: [],
+    },
+  } as unknown as MeriGovernedTurnContext;
+  const attested = attestMeriGovernedContext(withEvidence, binding, GOVERNED_FIXTURE_SECRET);
+  const actor = { tenantId: context.tenantId, userId: context.userId };
+  expect(() =>
+    verifyMeriGovernedContext(attested, binding, actor, GOVERNED_FIXTURE_SECRET),
+  ).not.toThrow();
+  return attested;
+}
 
 describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
   afterEach(() => {
@@ -4352,31 +4462,40 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
         }),
       )
       .mockResolvedValue(providerResult({ outputText: 'Both facts noted.' }));
-    const invoke = jest.fn(async (_name: string, input: Record<string, unknown>) => {
-      if (input.query === 'Beta') {
-        // A failed owner read (HTTP-200 logical failure) whose body must never be
-        // restored merely because ANOTHER call in this turn used the same tool and
-        // returned a genuine citation.
-        return {
-          tool: NATIVE_READ,
-          error: 'LEAKED_FAILED_OWNER_BODY',
-          coverage: { complete: false, paginationComplete: false, sources: [] },
-        };
-      }
-      return memoryOwnerPayload();
-    });
-    const { service } = buildManaged(complete, {
-      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
-    });
-    global.fetch = fetchRouter({
+    // The ACTUAL production binding (same as the real-registry positive near
+    // 4180): the canonical `search_memory` spec registered through
+    // `registerDelegatedTools` and executed by the REAL `ApiToolExecutorRepo`
+    // (`POST /api/clio/tools/search_memory`). Only the external HTTP/model
+    // transport is faked; the registry, real schema validation, admission path
+    // and authenticated owner POST are all real. The two calls carry DISTINCT
+    // inputs and are never deduplicated.
+    const executor = new ApiToolExecutorRepo(config() as never);
+    const realRegistry = new InMemoryToolRegistry();
+    registerDelegatedTools(
+      (def) => realRegistry.register(def),
+      FULL_CHAT_READ_TOOLS.filter((spec) => spec.name === NATIVE_READ),
+      executor,
+    );
+    const { service } = buildManaged(complete, { registry: realRegistry });
+    const fetchMock = fetchRouter({
       native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
       managed: () => jsonResponse({ schemas: [] }),
-    }) as unknown as typeof fetch;
+      nativeOwner: (_url, init) => {
+        const body = JSON.parse(String(init?.body ?? '{}')) as { query?: unknown };
+        // The failed logical owner result carries a DISTINCT owner-shaped
+        // citable record through the SAME normal.run ledger/extraction path, so
+        // a tool-name-only restoration would have something to wrongly restore.
+        return body.query === 'Beta'
+          ? jsonResponse(failedMemoryOwnerPayload())
+          : jsonResponse(memoryOwnerPayload());
+      },
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
 
     const result: MeriV3ChatResult = await RequestCredentialsStore.run(
       { bearerToken: 'bearer' },
       () =>
-        service.run(context, {
+        service.run(scopedContext, {
           conversationId: 'same-tool-lineage',
           messages: [
             {
@@ -4387,18 +4506,29 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
         }),
     );
 
-    // Both calls dispatched (distinct query inputs are not deduplicated).
-    expect(invoke).toHaveBeenCalledTimes(2);
+    // Both distinct calls really dispatched at the authenticated owner POST.
+    const ownerBodies = fetchMock.mock.calls
+      .filter((candidate) => String(candidate[0]).includes('/api/clio/tools/'))
+      .map((candidate) => JSON.parse(String((candidate[1] as RequestInit | undefined)?.body ?? '{}')));
+    expect(ownerBodies).toHaveLength(2);
+    expect(ownerBodies.map((body) => (body as { query?: unknown }).query).sort()).toEqual([
+      'Beta',
+      'Kestrel',
+    ]);
     // The failed read makes the requested records unavailable, so the bounded
-    // fallback runs and retains ONLY the healthy read's accepted citation; the
-    // failed owner body is not restored because another call used the same tool.
+    // fallback runs and retains the healthy read's accepted citation with its
+    // ORIGINAL identity; the failed owner's distinct record is never restored
+    // merely because another call in the same turn used the same tool name.
     expect(result.reply).toContain('Source note:');
     expect(result.reply).toContain('Kestrel commitment');
-    expect(result.reply).not.toContain('LEAKED_FAILED_OWNER_BODY');
     const citations = result.citations ?? [];
     expect(citations).toHaveLength(1);
     expect(citations[0]).toMatchObject({ n: 1, tool: NATIVE_READ, id: RECORD_ID });
     for (const citation of citations) expect(result.reply).toContain(`[${citation.n}]`);
+    expect(result.reply).not.toContain(FAILED_TITLE);
+    expect(result.reply).not.toContain(FAILED_SNIPPET);
+    expect(result.reply).not.toContain(FAILED_RECORD_ID);
+    expect(citations.some((citation) => citation.id === FAILED_RECORD_ID)).toBe(false);
   });
 
   // ── (3) native discovery transport variants through normal.run ──
@@ -4538,6 +4668,15 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
       return Promise.resolve(jsonResponse({}));
     }) as unknown as typeof fetch;
 
+    // Observe the ACTUAL scoped child-timer lifecycle instead of a vacuous
+    // zero-count under real timers. The optional visual probe builds a child
+    // execution control with its OWN bounded 25ms timer
+    // (ApiVisualAnalysisRepo.available -> createMeriExecutionControl(control, 25)),
+    // whose dispose() clears the timer. The parent (180s turn budget) is a
+    // different, larger bound and is never advanced.
+    const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+
     const result: MeriV3ChatResult = await RequestCredentialsStore.run(
       { bearerToken: 'bearer' },
       () =>
@@ -4559,8 +4698,21 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     expect(complete).toHaveBeenCalledTimes(1);
     expect(toolsOnCall(complete, 0)).not.toContain('run_analysis');
     expect(result.reply).toContain('Account status: healthy.');
-    // The bounded child timer/listener was disposed: no leaked handles remain.
-    expect(jest.getTimerCount()).toBe(0);
+    // The bounded child's scoped timer was actually CREATED and then DISPOSED
+    // (clearTimeout) when the probe settled and its execution control released.
+    // The child bound derives from MERIV2_TOOL_TIMEOUT_MS=25 (`Math.max(0,
+    // deadlineAt - Date.now())`), so its delay can round to 24-25ms; select the
+    // small scoped timers (< 100ms) — the turn/provider bounds are far larger.
+    const childTimers = setTimeoutSpy.mock.results
+      .map((result, index) => ({
+        delay: setTimeoutSpy.mock.calls[index]?.[1],
+        timer: result.value as unknown,
+      }))
+      .filter((entry) => typeof entry.delay === 'number' && entry.delay < 100);
+    expect(childTimers.length).toBeGreaterThan(0);
+    for (const entry of childTimers) {
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(entry.timer);
+    }
   });
 
   // ── (1) researchRun Stop/absolute expiry BEFORE a NEW reservation ──
@@ -4700,6 +4852,35 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     }) as jest.Mock;
   }
 
+  /** Count research-lifecycle requests by exact path suffix. */
+  function researchRequestCount(fetchMock: jest.Mock, suffix: string): number {
+    return fetchMock.mock.calls.filter((candidate) => String(candidate[0]).endsWith(suffix)).length;
+  }
+
+  /**
+   * The ORDERED tags of the research lifecycle requests actually issued, so a
+   * case can prove the awaited replay/current-authority boundaries were really
+   * reached (and in which order) rather than passing on an earlier refusal.
+   */
+  function researchLifecycleOrder(fetchMock: jest.Mock): string[] {
+    return fetchMock.mock.calls
+      .map((candidate) => String(candidate[0]))
+      .map((url) =>
+        url.endsWith('/safe-read/replay')
+          ? 'replay'
+          : url.includes('/procedure-runtime/validate')
+            ? 'validate'
+            : url.endsWith('/safe-read/reservations')
+              ? 'reserve'
+              : url.endsWith('/safe-read/outcomes')
+                ? 'outcome'
+                : url.endsWith('/safe-read/failures')
+                  ? 'failure'
+                  : null,
+      )
+      .filter((tag): tag is string => tag !== null);
+  }
+
   test('a researchRun Stop during the awaited durable replay settles no new reservation and dispatches no owner read', async () => {
     const call = functionCall('research-stop-replay', NATIVE_READ, { query: 'Kestrel' });
     const complete = jest
@@ -4743,6 +4924,10 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     expect(complete).toHaveBeenCalledTimes(1);
     expect(result.telemetry?.partial).toBe(true);
     expect(result.telemetry?.finishReason).toBe('cancelled');
+    // The awaited durable replay was actually REACHED (not refused earlier) and
+    // only then did the Stop land — before any validate/reservation/owner work.
+    expect(researchRequestCount(fetchMock, '/safe-read/replay')).toBe(1);
+    expect(researchLifecycleOrder(fetchMock)).toEqual(['replay']);
   });
 
   test('a researchRun absolute expiry during the awaited durable replay settles no new reservation and dispatches no owner read', async () => {
@@ -4789,6 +4974,10 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
       expect(complete).toHaveBeenCalledTimes(1);
       expect(result.telemetry?.partial).toBe(true);
       expect(result.telemetry?.finishReason).toBe('deadline_exceeded');
+      // The awaited durable replay was actually reached; only then did the
+      // absolute expiry land, before any validate/reservation/owner work.
+      expect(researchRequestCount(fetchMock, '/safe-read/replay')).toBe(1);
+      expect(researchLifecycleOrder(fetchMock)).toEqual(['replay']);
     } finally {
       nowSpy?.mockRestore();
     }
@@ -4805,7 +4994,19 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
       registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
       configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
     });
-    const governed = researchProcedureContext();
+    const dto = {
+      ...researchRunBinding('research-stop-procedure'),
+      conversationId: 'research-stop-procedure',
+      toolPolicy: 'read-only' as const,
+      messages: [{ role: 'user' as const, text: 'Research the Kestrel commitment.' }],
+    };
+    // A genuinely MAC-authenticated served-procedure turn bound to the exact
+    // request conversation/messages/actor the `.run` uses (the same binding
+    // `chat.controller.ts` verifies before `runWithGovernedMeriContext`).
+    const governed = attestServedGovernedTurn(
+      researchProcedureContext(),
+      servedGovernedBinding(dto),
+    );
     const controller = new AbortController();
     let validateCalls = 0;
     const fetchMock = researchFetch({
@@ -4821,16 +5022,7 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
       { bearerToken: 'bearer' },
       () =>
         runWithGovernedMeriContext(governed, () =>
-          service.run(
-            context,
-            {
-              ...researchRunBinding('research-stop-procedure'),
-              conversationId: 'research-stop-procedure',
-              toolPolicy: 'read-only',
-              messages: [{ role: 'user', text: 'Research the Kestrel commitment.' }],
-            },
-            { signal: controller.signal },
-          ),
+          service.run(context, dto, { signal: controller.signal }),
         ),
     );
 
@@ -4843,6 +5035,11 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     expect(complete).toHaveBeenCalledTimes(1);
     expect(result.telemetry?.partial).toBe(true);
     expect(result.telemetry?.finishReason).toBe('cancelled');
+    // The cancellation landed AFTER the awaited durable replay and DURING the
+    // current-authority validate — never during an earlier selection probe and
+    // never before the replay.
+    expect(researchRequestCount(fetchMock, '/safe-read/replay')).toBe(1);
+    expect(researchLifecycleOrder(fetchMock)).toEqual(['replay', 'validate']);
   });
 
   test('a researchRun absolute expiry during the awaited served-procedure authority check settles no new reservation or owner read', async () => {
@@ -4856,39 +5053,44 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
       registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
       configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
     });
-    const governed = researchProcedureContext();
+    const dto = {
+      ...researchRunBinding('research-expiry-procedure'),
+      conversationId: 'research-expiry-procedure',
+      toolPolicy: 'read-only' as const,
+      messages: [{ role: 'user' as const, text: 'Research the Kestrel commitment.' }],
+    };
+    const governed = attestServedGovernedTurn(
+      researchProcedureContext(),
+      servedGovernedBinding(dto),
+    );
     const turnDeadlineAt = Date.now() + 120_000;
     let nowSpy: jest.SpyInstance<number, []> | undefined;
     let validateCalls = 0;
-    global.fetch = researchFetch({
+    const fetchMock = researchFetch({
       onValidate: () => {
         validateCalls += 1;
         nowSpy = jest.spyOn(Date, 'now').mockReturnValue(turnDeadlineAt + 1);
         return researchProcedureDecision(governed);
       },
-    }) as unknown as typeof fetch;
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
 
     try {
       const result: MeriV3ChatResult = await RequestCredentialsStore.run(
         { bearerToken: 'bearer' },
         () =>
           runWithGovernedMeriContext(governed, () =>
-            service.run(
-              context,
-              {
-                ...researchRunBinding('research-expiry-procedure'),
-                conversationId: 'research-expiry-procedure',
-                toolPolicy: 'read-only',
-                messages: [{ role: 'user', text: 'Research the Kestrel commitment.' }],
-              },
-              { deadlineAt: turnDeadlineAt },
-            ),
+            service.run(context, dto, { deadlineAt: turnDeadlineAt }),
           ),
       );
       expect(validateCalls).toBe(1);
       expect(invoke).not.toHaveBeenCalled();
       expect(result.telemetry?.partial).toBe(true);
       expect(result.telemetry?.finishReason).toBe('deadline_exceeded');
+      // The durable replay was reached BEFORE the current-authority validate;
+      // the expiry landed during that validate, not an earlier probe.
+      expect(researchRequestCount(fetchMock, '/safe-read/replay')).toBe(1);
+      expect(researchLifecycleOrder(fetchMock)).toEqual(['replay', 'validate']);
     } finally {
       nowSpy?.mockRestore();
     }
@@ -4999,6 +5201,117 @@ describe('MeriV3 request-local catalog availability (Lane A1 normal.run)', () =>
     expect(
       (result.steps ?? []).some((step) => step.tool === NATIVE_READ && step.status === 'error'),
     ).toBe(false);
+    expect(result.telemetry?.partial).toBe(true);
+    expect(result.telemetry?.finishReason).toBe('cancelled');
+  });
+
+  test('an active researchRun resolves the served-procedure authority, opens exactly one reservation, dispatches the owner read once and publishes its citation', async () => {
+    const call = functionCall('research-active', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
+    const invoke = jest.fn(async () => memoryOwnerPayload());
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+      configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    });
+    const dto = {
+      ...researchRunBinding('research-active'),
+      conversationId: 'research-active',
+      toolPolicy: 'read-only' as const,
+      messages: [{ role: 'user' as const, text: 'Research the Kestrel commitment.' }],
+    };
+    const governed = attestServedGovernedTurn(
+      researchProcedureContext(),
+      servedGovernedBinding(dto),
+    );
+    const fetchMock = researchFetch({ onValidate: () => researchProcedureDecision(governed) });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () => runWithGovernedMeriContext(governed, () => service.run(context, dto)),
+    );
+
+    // The faithful active-parent counterpart: the whole lifecycle ran exactly
+    // once, in the exact order replay -> validate -> reserve -> outcome, with no
+    // failure settlement, and the read was published as a supported citation.
+    expect(researchLifecycleOrder(fetchMock)).toEqual([
+      'replay',
+      'validate',
+      'reserve',
+      'outcome',
+    ]);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(researchRequestCount(fetchMock, '/safe-read/failures')).toBe(0);
+    expect((result.citations ?? []).some((citation) => citation.tool === NATIVE_READ)).toBe(true);
+    expect(result.reply).toContain('Kestrel commitment');
+    expect(complete).toHaveBeenCalledTimes(2);
+  });
+
+  test('a researchRun Stop during the owner dispatch whose failure settlement is unavailable leaves the reservation uncertain with no new reservation, retry or publication', async () => {
+    const call = functionCall('research-settlement-unavailable', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel noted.' }));
+    let resolveOwner: ((value: unknown) => void) | undefined;
+    const invoke = jest.fn(
+      (..._args: Parameters<ToolRegistry['invoke']>) =>
+        new Promise<unknown>((resolve) => {
+          resolveOwner = resolve;
+        }),
+    );
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+      configValues: { INTERNAL_SERVICE_SECRET: 'service-secret' },
+    });
+    const controller = new AbortController();
+    const baseFetch = researchFetch();
+    const baseImpl = baseFetch.getMockImplementation()!;
+    const fetchMock = jest.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      // The lifecycle owner CANNOT durably classify the incurred failed dispatch.
+      if (url.endsWith('/safe-read/failures'))
+        return jsonResponse({ error: 'lifecycle unavailable' }, 503);
+      return baseImpl(input, init);
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const run = RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
+      service.run(
+        context,
+        {
+          ...researchRunBinding('research-settlement-unavailable'),
+          conversationId: 'research-settlement-unavailable',
+          toolPolicy: 'read-only',
+          messages: [{ role: 'user', text: 'Research the Kestrel commitment.' }],
+        },
+        { signal: controller.signal },
+      ),
+    );
+
+    await waitFor(() => invoke.mock.calls.length === 1);
+    controller.abort(new DOMException('Turn cancelled', 'AbortError'));
+    resolveOwner?.({
+      tool: NATIVE_READ,
+      error: 'LEAKED_FAILED_OWNER_BODY',
+      coverage: { complete: false, paginationComplete: false, sources: [] },
+    });
+    const result: MeriV3ChatResult = await run;
+
+    // The read was incurred exactly once; ONE failure settlement was attempted
+    // and it was UNAVAILABLE, so the reservation stays UNCERTAIN: no second
+    // settlement attempt, no new reservation, no outcome receipt, no retry and no
+    // publication. The unavailable accounting is never declared settled.
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(researchRequestCount(fetchMock, '/safe-read/failures')).toBe(1);
+    expect(researchRequestCount(fetchMock, '/safe-read/reservations')).toBe(1);
+    expect(researchRequestCount(fetchMock, '/safe-read/outcomes')).toBe(0);
+    expect((result.citations ?? []).some((citation) => citation.tool === NATIVE_READ)).toBe(false);
+    expect(result.reply).not.toContain('Kestrel commitment');
+    expect(result.reply).not.toContain('LEAKED_FAILED_OWNER_BODY');
     expect(result.telemetry?.partial).toBe(true);
     expect(result.telemetry?.finishReason).toBe('cancelled');
   });

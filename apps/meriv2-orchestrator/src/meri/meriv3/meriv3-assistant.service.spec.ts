@@ -98,7 +98,14 @@ function documentFixture(text: string) {
         documents: [
           { id: 'transcript-1', fileName: 'September meeting transcript.txt', usable: true },
         ],
-        coverage: { total: 1, complete: true, paginationComplete: true, nextCursor: null },
+        coverage: {
+          total: 1,
+          returned: 1,
+          complete: true,
+          paginationComplete: true,
+          truncated: false,
+          nextCursor: null,
+        },
       };
     const start = args.cursor ? Number(String(args.cursor).split(':')[1]) : 0;
     const end = Math.min(start + 5000, text.length);
@@ -118,6 +125,13 @@ function documentFixture(text: string) {
         characterEnd: end,
         complete: start === 0 && end === text.length,
         truncated: end < text.length,
+        // Faithful owner classifier fields. The canonical body owner
+        // (apps/api/src/meri/meri-document-read.helpers.ts buildDocumentReadPage)
+        // always emits both; classifyDocumentRead (packages/shared/src/
+        // meri-read-outcome.ts) rejects a body envelope that omits them, so the
+        // mock must return the real contract rather than a degraded shape.
+        extractedSectionEmpty: false,
+        continuationBlocked: false,
         nextCursor: end < text.length ? `page:${end}` : null,
         query: null,
       },
