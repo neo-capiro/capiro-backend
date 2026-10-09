@@ -169,7 +169,7 @@ function krispManagedSchema(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function krispOwnerWire(content: string, tool = KRISP_READ) {
+function krispOwnerWire(content: string, tool: (typeof KRISP_READS)[number] = KRISP_READ) {
   return { tool, server: 'meriv3-krisp', untrusted: true, content };
 }
 
@@ -510,6 +510,19 @@ function managedOwnerPosts(fetchMock: jest.Mock): string[] {
   return fetchMock.mock.calls
     .map((call) => String(call[0]))
     .filter((url) => url.includes('/api/clio/v3/mcp-tools/'));
+}
+
+/**
+ * Every managed catalog discovery request (`GET /api/clio/v3/mcp-tool-schemas`).
+ * A governed capture/client turn must issue ZERO of these — the API discovery
+ * hardens rows and the registry discovery writes lastSync/error metadata, so
+ * absence of the request (not merely of the owner POST) is the property under
+ * test.
+ */
+function managedSchemaGets(fetchMock: jest.Mock): string[] {
+  return fetchMock.mock.calls
+    .map((call) => String(call[0]))
+    .filter((url) => url.includes('/api/clio/v3/mcp-tool-schemas'));
 }
 
 function managedOwnerInit(fetchMock: jest.Mock): RequestInit | undefined {
@@ -1399,10 +1412,93 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
         ),
       );
 
+      // Zero managed tools on the provider input, ZERO managed owner POST, and
+      // — the new pre-discovery property — ZERO managed catalog GET. The API
+      // discovery would otherwise harden rows and write registry metadata even
+      // though the owner read is denied.
       expect(toolsOnCall(complete, 0)).not.toContain(MANAGED_READ);
+      expect(toolsOnCall(complete, 0).some((name) => name.startsWith('mcp__'))).toBe(false);
+      expect(managedSchemaGets(fetchMock)).toHaveLength(0);
       expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
     },
   );
+
+  /**
+   * Retained native static-read control in a valid typed capture turn. The
+   * capture policy's `dynamicMcpAllowed: false` forbids dynamic managed
+   * discovery; it does not remove the static read-only registry surface
+   * (`toolAuthority: 'shared_static_registry_read_only'`). This proves the
+   * pre-discovery refusal is narrow: the real native `search_memory` catalog and
+   * tool remain callable through the REAL RequestCredentialsStore / ApiManagedMcpRepo
+   * / routed fetch, and its canonical receipt/ledger is preserved, while managed
+   * discovery is never issued.
+   */
+  test('a valid typed capture turn still advertises and runs the retained native search_memory read (with its real receipt/ledger) while managed discovery is forbidden', async () => {
+    const call = functionCall('capture-native-call', NATIVE_READ, { query: 'Kestrel' });
+    const complete = jest
+      .fn()
+      .mockResolvedValueOnce(
+        providerResult({ output: [call], outputText: '', functionCalls: [call] }),
+      )
+      .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted [1].' }));
+    const invoke = jest.fn(
+      async (..._args: Parameters<ToolRegistry['invoke']>) => memoryOwnerPayload(),
+    );
+    const { service } = buildManaged(complete, {
+      registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
+    });
+
+    const fetchMock = fetchRouter({
+      native: () => jsonResponse({ schemas: [nativeSchema(NATIVE_READ)] }),
+      // A managed catalog is registered so a regression that STILL fetches it is
+      // observable, but the capture authority must forbid the fetch entirely.
+      managed: () => jsonResponse({ schemas: [managedSchema()] }),
+      owner: () => jsonResponse(managedOwnerWire('should-not-run')),
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const governed = governedWith({
+      serverReadonlyCapturePolicy: serverReadonlyCapturePolicy(),
+    });
+
+    const result: MeriV3ChatResult = await RequestCredentialsStore.run(
+      { bearerToken: 'bearer' },
+      () =>
+        runWithGovernedMeriContext(governed, () =>
+          service.run(context, {
+            conversationId: 'capture-native-thread',
+            messages: [{ role: 'user', text: 'What do we know about Kestrel?' }],
+          }),
+        ),
+    );
+
+    // The native static read is advertised and executed exactly once through
+    // the real registry dispatch (not a helper/direct invoke).
+    expect(toolsOnCall(complete, 0)).toContain(NATIVE_READ);
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls[0]?.[0]).toBe(NATIVE_READ);
+    expect(fedBackInput(complete)).toContain(`[Tool result from \"${NATIVE_READ}\"`);
+
+    // Its real canonical citation and evidence source are preserved with exact
+    // identity — the capture turn is not silently emptied of native reads.
+    const nativeCitation = result.citations?.find((citation) => citation.tool === NATIVE_READ);
+    expect(nativeCitation).toMatchObject({
+      n: 1,
+      id: RECORD_ID,
+      tool: NATIVE_READ,
+      title: 'Kestrel commitment',
+    });
+    expect(
+      result.evidenceManifest?.sources.some(
+        (source) => source.tool === NATIVE_READ && source.id === RECORD_ID,
+      ),
+    ).toBe(true);
+
+    // Managed discovery and dispatch remain forbidden on the same turn.
+    expect(managedSchemaGets(fetchMock)).toHaveLength(0);
+    expect(managedOwnerPosts(fetchMock)).toHaveLength(0);
+    expect(toolsOnCall(complete, 0).some((name) => name.startsWith('mcp__'))).toBe(false);
+  });
 
   const governedMissingScopeTurns: Array<[string, Record<string, unknown>]> = [
     ['a missing retrieval block', { retrieval: undefined }],

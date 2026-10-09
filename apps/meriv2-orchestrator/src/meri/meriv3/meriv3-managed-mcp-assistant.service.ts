@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { MeriContext } from '@capiro/meriv2-core';
+import type { MeriContext, MeriGovernedTurnContext } from '@capiro/meriv2-core';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { ApiActionProposalRepo } from '../api-action-proposal.repo.js';
 import { MeriRegistryService } from '../meri-registry.service.js';
@@ -263,7 +263,24 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
     if (dto?.clientId) {
       return 'Connected-app reads are not available in a client-scoped conversation.';
     }
-    const governed = currentGovernedMeriContext();
+    return this.governedManagedReadRefusal(currentGovernedMeriContext());
+  }
+
+  /**
+   * The governed half of the managed raw-read refusal, read from the typed,
+   * request-local `MeriGovernedTurnContext` only (never a prompt-only condition,
+   * never global actor/catalog state). Shared verbatim by admission
+   * (`managedRawReadRefusal`) and by pre-discovery (`fetchToolSchemas`), so a
+   * governed capture/client turn skips managed catalog discovery before it
+   * starts instead of fetching and discarding it. Returns null for an ordinary
+   * non-governed turn (`governed === null`) and for a valid personal
+   * `meri.chat`/`general` turn, preserving historical managed admission.
+   *
+   * A missing context packet, a missing retrieval plan, or a missing subject
+   * scope is incomplete authority and is refused here (fail-closed), never
+   * treated as an ordinary personal turn.
+   */
+  private governedManagedReadRefusal(governed: MeriGovernedTurnContext | null): string | null {
     if (!governed) return null;
     // The managed chat service is driven only by the ordinary `meri.chat`
     // operation. Any other governed operation (or a missing/malformed
@@ -321,9 +338,26 @@ export class MeriV3ManagedMcpAssistantService extends MeriV3AssistantService {
   protected override async fetchToolSchemas(
     control?: ToolExecutionControl,
   ): Promise<ToolSchema[]> {
+    // Pre-discovery refusal: when the request-local governed authority already
+    // forbids a managed raw read (capture, client scope, non-chat operation,
+    // governed procedure, or incomplete authority), skip the managed catalog
+    // fetch entirely instead of hardening API rows / running provider discovery
+    // and then discarding the result. A policy-forbidden source is intentionally
+    // not queried; this is not a fabricated empty successful catalog. An
+    // ordinary non-governed turn and a valid personal governed `meri.chat`
+    // /`general` turn still resolve null here and fetch as before. The existing
+    // `toolPolicy === 'none'` path already performs no fetch at all.
+    const managedDiscoveryForbidden = this.governedManagedReadRefusal(
+      currentGovernedMeriContext(),
+    );
+    // `[]` is a deliberate skip, not a discovered empty catalog: the forbidden
+    // source is never queried.
+    const managedCatalog: Promise<ToolSchema[]> = managedDiscoveryForbidden
+      ? Promise.resolve([])
+      : this.managedMcp.schemas(control);
     const [nativeRaw, managed, analysisAvailable] = await Promise.all([
       super.fetchToolSchemas(control),
-      this.managedMcp.schemas(control),
+      managedCatalog,
       this.visualAnalysis.available(control),
     ]);
     const native = nativeRaw
