@@ -330,6 +330,30 @@ describe('managed catalog availability seam at the MCP owner boundary', () => {
     expect(client.listTools).not.toHaveBeenCalled();
   });
 
+  test.each(['disconnected', 'pending'] as const)(
+    'a deliberate %s after discovery is not reported as a failure',
+    async (status) => {
+      const { service, row, client } = make();
+      client.listTools.mockRejectedValue(new Error('provider unavailable'));
+
+      const first = await service.bridgedSchemasDetailedFor(ctx);
+      expect(first.failures).toEqual([
+        { serverId: 'server', managedAppId: 'airtable', reason: 'unavailable' },
+      ]);
+      expect(client.listTools).toHaveBeenCalledTimes(1);
+
+      // A cross-replica intentional disconnect/pending lands after discovery but
+      // before the fresh visibility read: the current row is no longer an outage.
+      row.connectionStatus = status;
+
+      const second = await service.bridgedSchemasDetailedFor(ctx);
+      expect(second.failures).toEqual([]);
+      expect(second.schemas).toEqual([]);
+      // No rediscovery: the cached snapshot is still within its TTL.
+      expect(client.listTools).toHaveBeenCalledTimes(1);
+    },
+  );
+
   test('global MCP disable is deliberate: no failure and no registry outage', async () => {
     const tx = {
       tenant: { findUnique: jest.fn(async () => null) },

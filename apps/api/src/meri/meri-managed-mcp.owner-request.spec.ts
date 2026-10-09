@@ -1403,6 +1403,18 @@ describe('managed catalog availability (personal owner, provider-free)', () => {
         row.catalogId = null;
       },
     ],
+    [
+      'intentional disconnect of the currently-owned row',
+      (row) => {
+        row.connectionStatus = 'disconnected';
+      },
+    ],
+    [
+      'pending reauthorization of the currently-owned row',
+      (row) => {
+        row.connectionStatus = 'pending';
+      },
+    ],
   ];
 
   test.each(lateMutations)(
@@ -1435,4 +1447,214 @@ describe('managed catalog availability (personal owner, provider-free)', () => {
       expect(c.callTool).not.toHaveBeenCalled();
     },
   );
+
+  /**
+   * Final personal-owner re-read seam (adjudication Q1). The real source order is
+   * personalRows(initial) -> MCP registry OR#1 discovery + catch status write ->
+   * MCP visibility OR#2 -> personalRows(FINAL) -> cached-failure loop. This hook
+   * fires on the SECOND (final) real personal-owner findMany — the exact
+   * tenant + scope:'user' + ownerUserId + catalogId `in` predicate with NO OR
+   * (so it can never land on an OR visibility read) — and mutates the stored row
+   * BEFORE that final predicate evaluates. `hits === 1` plus a captured
+   * pre-mutation status proves the mutation landed at the real final read, AFTER
+   * the catch status write. The candidate must not name a cached failure for a
+   * row the newest query drops.
+   */
+  function finalPersonalRowsCase(mutate: (row: Row) => void) {
+    const listTools = jest.fn(async () => {
+      throw new Error('provider unreachable');
+    });
+    const callTool = jest.fn(async () => providerResult);
+    const row = airtableRow();
+    let personalReads = 0;
+    let statusAtFinalRead: string | undefined;
+    const hook = boundaryHook(
+      'managedCatalogForMeriV3.finalPersonalRows',
+      'findMany',
+      (args) => {
+        const where = args?.where ?? {};
+        if (where.OR || where.scope !== 'user' || where.ownerUserId !== OWNER.userId) return false;
+        if (where.tenantId !== OWNER.tenantId) return false;
+        personalReads += 1;
+        return personalReads === 2;
+      },
+      (rows) => {
+        const stored = rows.find((candidate) => candidate.id === row.id);
+        if (!stored) return;
+        statusAtFinalRead = stored.connectionStatus;
+        mutate(stored);
+      },
+    );
+    const { managed } = harness([row], { listTools, callTool }, [hook]);
+    return { listTools, callTool, row, hook, managed, finalStatus: () => statusAtFinalRead };
+  }
+
+  const finalMutations: Array<[string, (row: Row) => void]> = [
+    [
+      'owner transfer to another actor',
+      (row) => {
+        row.ownerUserId = 'user-other';
+      },
+    ],
+    [
+      'disable of the currently-owned row',
+      (row) => {
+        row.enabled = false;
+      },
+    ],
+    [
+      'catalog classification leaving the managed set',
+      (row) => {
+        row.catalogId = null;
+      },
+    ],
+    [
+      'intentional disconnect',
+      (row) => {
+        row.connectionStatus = 'disconnected';
+      },
+    ],
+    [
+      'pending reauthorization',
+      (row) => {
+        row.connectionStatus = 'pending';
+      },
+    ],
+  ];
+
+  test.each(finalMutations)(
+    'a late %s at the FINAL personal-owner read never names a stale cached failure',
+    async (_label, mutate) => {
+      const c = finalPersonalRowsCase(mutate);
+
+      const result = await c.managed.managedCatalogForMeriV3(OWNER);
+
+      // The final personal-owner read was actually exercised, once, with the real
+      // tenant + personal scope + owner predicate and NO OR.
+      expect(c.hook.hits).toBe(1);
+      expect(c.hook.matchedWheres[0]).toMatchObject({
+        tenantId: OWNER.tenantId,
+        scope: 'user',
+        ownerUserId: OWNER.userId,
+      });
+      expect(c.hook.matchedWheres[0].OR).toBeUndefined();
+      // It ran AFTER the discovery catch persisted the failure status.
+      expect(c.finalStatus()).toBe('error');
+
+      // DESIRED non-exposure: no cached failure and no schema for a row the
+      // newest query dropped, and no private row detail in the availability.
+      expect(result.availability.failures).toEqual([]);
+      expect(result.schemas).toEqual([]);
+      expect(JSON.stringify(result.availability)).not.toContain(c.row.id);
+      expect(JSON.stringify(result.availability)).not.toContain(c.row.name);
+      expect(JSON.stringify(result.availability)).not.toContain(MERIV3_AIRTABLE_ENDPOINT);
+
+      expect(c.listTools).toHaveBeenCalledTimes(1);
+      expect(c.callTool).not.toHaveBeenCalled();
+    },
+  );
+
+  /**
+   * Actual elapsed TTL (adjudication Q3). The existing 15-minute registry TTL
+   * must govern the cache-only peek: an EXPIRED snapshot yields no cached
+   * failure, so the still-owned failed row is reported from its CURRENT stored
+   * status (conservative `unavailable`) rather than a stale precise `malformed`.
+   * A controlled clock advances real elapsed time; `mcp.invalidate` alone would
+   * only prove absence, not expiry.
+   */
+  test('an expired cache snapshot falls back to conservative current status, not a stale reason', async () => {
+    const listTools = jest.fn(async () => []);
+    const callTool = jest.fn(async () => providerResult);
+    const row = airtableRow();
+    const { managed } = harness([row], { listTools, callTool });
+
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    try {
+      const first = await managed.managedCatalogForMeriV3(OWNER);
+      expect(first.availability.failures).toEqual([
+        { appId: 'airtable', name: 'Airtable', reason: 'malformed' },
+      ]);
+      expect(row.connectionStatus).toBe('error');
+      expect(listTools).toHaveBeenCalledTimes(1);
+
+      // Advance past the existing 15-minute registry TTL: the cached snapshot is
+      // now expired and must not serve its stale precise reason.
+      now.mockReturnValue(1_000_000 + 15 * 60 * 1000 + 1);
+
+      const second = await managed.managedCatalogForMeriV3(OWNER);
+      expect(second.availability).toEqual({
+        state: 'unavailable',
+        complete: false,
+        registryUnavailable: false,
+        failures: [{ appId: 'airtable', name: 'Airtable', reason: 'unavailable' }],
+      });
+      expect(second.schemas).toEqual([]);
+      // Zero provider retry: the conservative fallback is DB-only.
+      expect(listTools).toHaveBeenCalledTimes(1);
+      expect(callTool).not.toHaveBeenCalled();
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  test('a newer stored needs_reauth is not hidden by an older cached malformed reason', async () => {
+    const listTools = jest.fn(async () => []);
+    const callTool = jest.fn(async () => providerResult);
+    const row = airtableRow();
+    const { managed } = harness([row], { listTools, callTool });
+
+    const first = await managed.managedCatalogForMeriV3(OWNER);
+    expect(first.availability.failures).toEqual([
+      { appId: 'airtable', name: 'Airtable', reason: 'malformed' },
+    ]);
+
+    // A newer process stores the authoritative needs_reauth status while the
+    // per-process snapshot is still within its TTL: the precise malformed reason
+    // is only valid while the CURRENT status still supports it.
+    row.connectionStatus = 'needs_reauth';
+
+    const second = await managed.managedCatalogForMeriV3(OWNER);
+    expect(second.availability.failures).toEqual([
+      { appId: 'airtable', name: 'Airtable', reason: 'needs_reauth' },
+    ]);
+    expect(listTools).toHaveBeenCalledTimes(1);
+    expect(callTool).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A connected managed throttle (Krisp 429) is a legitimate outage source: the
+   * registry leaves connectionStatus 'connected' for a rate limit, so an
+   * error/needs_reauth-only final map would silently mask it. The final map must
+   * admit the still-connected row so the cached throttle failure is named.
+   */
+  test('a still-connected Krisp 429 throttle is preserved, not masked by an error-only map', async () => {
+    const listTools = jest.fn(async () => {
+      throw Object.assign(new Error('rate limited'), { code: 429 });
+    });
+    const callTool = jest.fn(async () => providerResult);
+    const krisp = airtableRow({
+      id: 'srv-krisp',
+      name: 'meriv3-krisp',
+      catalogId: 'meriv3-krisp',
+      endpoint: 'https://mcp.krisp.ai/mcp',
+      toolAllowlist: ['search_meetings'],
+      readOnlyTools: ['search_meetings'],
+    });
+    const { managed, db } = harness([krisp], { listTools, callTool });
+    db.tx.tenant.findUnique.mockResolvedValue({
+      settings: { clioFeatureFlags: { 'notetaker.krisp.enabled': true } },
+    });
+
+    const result = await managed.managedCatalogForMeriV3(OWNER);
+
+    // The throttle leaves connectionStatus unchanged (still connected)...
+    expect(krisp.connectionStatus).toBe('connected');
+    // ...and is still reported as a bounded failure, never a silent empty.
+    expect(result.availability.failures).toEqual([
+      { appId: 'krisp', name: 'Krisp', reason: 'unavailable' },
+    ]);
+    expect(result.schemas).toEqual([]);
+    expect(listTools).toHaveBeenCalledTimes(1);
+    expect(callTool).not.toHaveBeenCalled();
+  });
 });

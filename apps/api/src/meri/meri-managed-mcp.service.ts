@@ -302,13 +302,12 @@ export class MeriManagedMcpService {
     if (!globalMcpEnabled() || !this.oauth.isConfigured()) return noEligible();
 
     const prefixes = new Map<string, MeriV3ManagedAppId>();
-    // serverId -> appId for the acting owner's eligible personal managed rows.
-    // This is the exposure allowlist: a recorded failure may only be reported
-    // when its server is one of THESE rows.
-    const eligibleServerAppIds = new Map<string, MeriV3ManagedAppId>();
     // serverId -> appId for the acting owner's CURRENTLY-OWNED, enabled,
     // available managed rows that are NOT connected (error/needs_reauth). These
-    // are truthful failure sources, never a schema/transport grant.
+    // are truthful failure sources, never a schema/transport grant; they only
+    // gate the zero-provider early return below. Failure NAMING uses the single
+    // final current map re-read AFTER discovery, so a late mutation cannot be
+    // authorized by this earlier admission snapshot.
     const failedRows = new Map<string, MeriV3ManagedAppId>();
     for (const row of await this.personalRows(ctx)) {
       const id = managedAppIdFromCatalogId(row.catalogId);
@@ -317,7 +316,6 @@ export class MeriManagedMcpService {
       if (row.connectionStatus === 'connected') {
         if (await this.hardenServer(ctx.tenantId, row.id, ctx.userId)) {
           prefixes.set(serverPrefix(row.name), id);
-          eligibleServerAppIds.set(row.id, id);
         }
       } else if (row.connectionStatus === 'needs_reauth' || row.connectionStatus === 'error') {
         failedRows.set(row.id, id);
@@ -350,47 +348,66 @@ export class MeriManagedMcpService {
       });
     }
 
-    // Re-read the acting owner's rows AFTER discovery/status writes. The DB
-    // fallback below may only name a row that is STILL currently owned, enabled,
-    // available, and classified as a managed app — otherwise a failure that the
-    // fresh-visibility filter deliberately dropped (a row disabled/reclassified
-    // mid-call) would be reintroduced from the earlier admission snapshot.
-    const currentFailedRows = new Map<
+    // Re-read the acting owner's rows AFTER discovery/status writes. This ONE
+    // final map is the single source of truth for BOTH the cached-failure loop
+    // and the DB fallback below. A failure may only be named for a row that is
+    // STILL currently owned, enabled, available, and classified as a managed app
+    // — otherwise a failure that the fresh-visibility filter deliberately
+    // dropped (a row transferred/disabled/reclassified/disconnected mid-call)
+    // would be reintroduced from the earlier admission snapshot. A deliberate
+    // pending/disconnected row is a non-outage and is never admitted here; a
+    // still-connected row IS admitted (reason null) so a legitimate connected
+    // throttle (e.g. Krisp 429, which leaves connectionStatus unchanged) can
+    // still be named from its cached failure rather than masked by an
+    // error-only map.
+    const currentAdmitted = new Map<
       string,
-      { id: MeriV3ManagedAppId; reason: MeriV3ManagedFailureReason }
+      { id: MeriV3ManagedAppId; reason: MeriV3ManagedFailureReason | null }
     >();
     for (const row of await this.personalRows(ctx)) {
       const id = managedAppIdFromCatalogId(row.catalogId);
       if (id === 'krisp' && !(await krispTenantEnabled(this.prisma, ctx.tenantId))) continue;
       if (!id || !this.available(id, ctx) || !row.enabled) continue;
-      if (row.connectionStatus === 'needs_reauth') {
-        currentFailedRows.set(row.id, { id, reason: 'needs_reauth' });
-      } else if (row.connectionStatus === 'error') {
-        currentFailedRows.set(row.id, { id, reason: 'unavailable' });
-      }
+      if (row.connectionStatus === 'disconnected' || row.connectionStatus === 'pending') continue;
+      currentAdmitted.set(row.id, {
+        id,
+        reason:
+          row.connectionStatus === 'needs_reauth'
+            ? 'needs_reauth'
+            : row.connectionStatus === 'error'
+              ? 'unavailable'
+              : null,
+      });
     }
 
     // Collapse raw failures to one bounded, sanitized entry per app. A failure
-    // is only named when its server is one of the acting owner's rows and — for
-    // a managed failure — its PRIVATE admitted managedAppId still matches that
-    // row's managed classification. `failures` is already fresh-filtered by the
-    // MCP owner, so matching against the acting owner's admitted rows is safe.
+    // is only named when its server is one of the acting owner's CURRENT admitted
+    // rows and — for a managed failure — its PRIVATE admitted managedAppId still
+    // matches that row's managed classification. Both the cached-failure loop and
+    // the DB fallback read the SAME final map, so a row the newest query dropped
+    // can never be named from an earlier admission.
     const byApp = new Map<MeriV3ManagedAppId, MeriV3ManagedFailureReason>();
     for (const failure of failures) {
-      const appId = eligibleServerAppIds.get(failure.serverId) ?? failedRows.get(failure.serverId);
-      if (!appId) continue;
-      if (failure.managedAppId && failure.managedAppId !== appId) continue;
-      const existing = byApp.get(appId);
+      const admitted = currentAdmitted.get(failure.serverId);
+      if (!admitted) continue;
+      if (failure.managedAppId && failure.managedAppId !== admitted.id) continue;
+      const existing = byApp.get(admitted.id);
       if (!existing || MANAGED_FAILURE_RANK[failure.reason] > MANAGED_FAILURE_RANK[existing]) {
-        byApp.set(appId, failure.reason);
+        byApp.set(admitted.id, failure.reason);
       }
     }
-    // DB fallback: a currently-owned failed row with no cached failure (e.g. the
-    // snapshot expired, or discovery skipped the non-connected row) is still
-    // reported conservatively from its CURRENT stored status — never silently
-    // dropped and never reintroduced from a stale admission.
-    for (const { id, reason } of currentFailedRows.values()) {
-      if (!byApp.has(id)) byApp.set(id, reason);
+    // DB fallback: a currently-admitted failed row with no cached failure (e.g.
+    // the snapshot expired, or discovery skipped the non-connected row) is still
+    // reported from its CURRENT stored status. A more authoritative current
+    // status (e.g. a newer stored needs_reauth) upgrades an older cached reason
+    // instead of being hidden by it; a deliberate pending/disconnected row was
+    // never admitted and is never reported.
+    for (const { id, reason } of currentAdmitted.values()) {
+      if (!reason) continue;
+      const existing = byApp.get(id);
+      if (!existing || MANAGED_FAILURE_RANK[reason] > MANAGED_FAILURE_RANK[existing]) {
+        byApp.set(id, reason);
+      }
     }
     const appFailures: MeriV3ManagedAvailabilityFailure[] = [...byApp].map(([appId, reason]) => ({
       appId,

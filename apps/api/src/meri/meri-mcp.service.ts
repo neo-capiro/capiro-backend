@@ -565,9 +565,15 @@ export class MeriMcpService {
     if (!this.enabled()) return { schemas: [], failures: [], registryUnavailable: false };
     try {
       // `cacheOnly` peeks the existing snapshot without provider work; the
-      // default path keeps the existing discover-once semantics.
+      // default path keeps the existing discover-once semantics. The peek honors
+      // the SAME registry TTL: an expired or absent snapshot yields NO cached
+      // failure, so the managed owner falls back to conservative CURRENT DB
+      // status with zero provider retry — never a stale precise reason.
+      const peeked = opts?.cacheOnly ? this.registry.get(this.regKey(ctx)) : undefined;
       const registry = opts?.cacheOnly
-        ? this.registry.get(this.regKey(ctx))
+        ? peeked && Date.now() - peeked.fetchedAt < REGISTRY_TTL_MS
+          ? peeked
+          : undefined
         : await this.registryFor(ctx);
       if (!registry) return { schemas: [], failures: [], registryUnavailable: false };
       // Status is shared in the database, whereas this registry is per process.
@@ -603,15 +609,21 @@ export class MeriMcpService {
         );
       });
       // Failure metadata is filtered through the SAME fresh visibility map used
-      // for the schemas above, and a cached managed failure must still resolve
-      // to the SAME managed app on the CURRENT row. A row that is now foreign,
-      // disabled, or reclassified off the managed set can no longer be named —
-      // even if an earlier admission allowlist once admitted it. This mirrors
-      // the schema guard exactly so the FINAL visibility predicate governs both
-      // the advertised tools and the reported failures.
+      // for the schemas above; a cached managed failure must still resolve to the
+      // SAME managed app on the CURRENT row, and a now-deliberate pending/
+      // disconnected row is not an outage. A row that is now foreign, disabled,
+      // reclassified off the managed set, or deliberately disconnected can no
+      // longer be named — even if an earlier admission allowlist once admitted
+      // it. Unlike the schema guard it does NOT require `connected`, so a
+      // genuine error/needs_reauth failure is still reported.
       const failures = registry.failures.filter((failure) => {
         const server = visible.get(failure.serverId);
         if (!server) return false;
+        // A deliberate disconnect/pending row is a non-outage, matching the
+        // managed owner's policy; error/needs_reauth rows must still be named,
+        // so this deliberately does NOT require `connected`.
+        if (server.connectionStatus === 'disconnected' || server.connectionStatus === 'pending')
+          return false;
         if (failure.managedAppId) {
           const managed = managedAppDefinition(server.catalogId);
           if (!managed || managed.id !== failure.managedAppId) return false;
