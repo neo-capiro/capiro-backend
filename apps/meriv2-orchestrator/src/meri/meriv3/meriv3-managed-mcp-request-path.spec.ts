@@ -363,7 +363,9 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       .mockResolvedValueOnce(providerResult({ output: [call], outputText: '', functionCalls: [call] }))
       .mockResolvedValueOnce(providerResult({ outputText: 'Kestrel commitment noted.' }))
       .mockResolvedValue(providerResult({ outputText: 'Kestrel commitment noted.' }));
-    const invoke = jest.fn(async () => memoryOwnerPayload());
+    const invoke = jest.fn(
+      async (..._args: Parameters<ToolRegistry['invoke']>) => memoryOwnerPayload(),
+    );
     const { service } = buildManaged(complete, {
       registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
     });
@@ -432,7 +434,10 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
       registry: registry([{ name: NATIVE_READ, readOnly: true }], invoke),
     });
 
-    const fetchMock = jest.fn(async () => new Response('upstream unavailable', { status: 500 }));
+    const fetchMock = jest.fn(
+      async (..._args: Parameters<typeof fetch>) =>
+        new Response('upstream unavailable', { status: 500 }),
+    );
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const result: MeriV3ChatResult = await RequestCredentialsStore.run(
