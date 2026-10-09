@@ -590,13 +590,13 @@ describe('Exact-ID lazy expiry through the shared proposal lifecycle owner', () 
     await h.research.getSession(ctx, 'session-idem');
     const eventsAfterFirst =
       readDurableResearchCoordinator(h.session('session-idem')!.metadata)!.events.length;
-    const runAfterFirst = JSON.stringify(h.session('session-idem')!.metadata.run);
+    const runAfterFirst = JSON.stringify(h.session('session-idem')!.metadata!.run);
 
     await h.research.getSession(ctx, 'session-idem');
     expect(readDurableResearchCoordinator(h.session('session-idem')!.metadata)!.events.length).toBe(
       eventsAfterFirst,
     );
-    expect(JSON.stringify(h.session('session-idem')!.metadata.run)).toBe(runAfterFirst);
+    expect(JSON.stringify(h.session('session-idem')!.metadata!.run)).toBe(runAfterFirst);
     expect(h.proposal('proposal-a')!.status).toBe('expired');
   });
 
