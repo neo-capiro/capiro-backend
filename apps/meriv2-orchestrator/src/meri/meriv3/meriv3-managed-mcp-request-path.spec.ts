@@ -37,8 +37,22 @@
  * from structured owner facts, which remain separately qualified.
  */
 
-import type { MeriContext, MeriGovernedTurnContext, ToolRegistry } from '@capiro/meriv2-core';
-import { attestMeriGovernedContext, verifyMeriGovernedContext } from '@capiro/meriv2-core';
+import type {
+  MeriContext,
+  MeriFixtureSemanticClock,
+  MeriGovernedArtifactCapturePolicy,
+  MeriGovernedTurnContext,
+  ToolRegistry,
+} from '@capiro/meriv2-core';
+import {
+  attestMeriGovernedContext,
+  MERI_CASE46,
+  MERI_FIXTURE_SEMANTIC_INSTANT,
+  MERI_FIXTURE_SEMANTIC_ZONE,
+  resolveMeriGovernedSemanticClock,
+  validateMeriGovernedArtifactPolicy,
+  verifyMeriGovernedContext,
+} from '@capiro/meriv2-core';
 import { RequestCredentialsStore } from '../../request/request-credentials.store.js';
 import { runWithGovernedMeriContext } from '../meri-governed-context.runtime.js';
 import { ApiManagedMcpRepo } from './api-managed-mcp.repo.js';
@@ -252,23 +266,131 @@ function serverReadonlyCapturePolicy(overrides: Record<string, unknown> = {}) {
 }
 
 /**
- * A real authenticated governed-artifact capture policy (Case 46; see
- * packages/meriv2-core/src/context/governed-artifact-capture.ts). It too carries
- * the literal `dynamicMcpAllowed: false` and a fixed non-null clientId.
+ * A COMPLETE, currently-valid governed-artifact capture policy (Case 46; see
+ * packages/meriv2-core/src/context/governed-artifact-capture.ts). It is built
+ * only from the canonical fixture-owner constants (`MERI_CASE46`) — tenant,
+ * actor and client are the current owner's, never invented identifiers — and it
+ * carries the full canonical source receipt, `allowedTool: 'create_word'`, the
+ * canonical-current-user approval and the exact max effect counts. The issuance
+ * window is real wall-clock, so `issuedAt <= now + 30s`, `expiresAt > now` and
+ * `expiresAt - issuedAt <= 15m` hold for the sub-second span of one test.
  */
-function governedArtifactCapturePolicy(overrides: Record<string, unknown> = {}) {
+const CASE46_CAPTURE_RUN_ID = '11111111-1111-4111-8111-111111111111';
+/** The artifact policy's current-verify digest; the semantic clock binds it. */
+const CASE46_CURRENT_VERIFY_SHA256 = 'a'.repeat(64);
+/**
+ * Provider-free fixture signing secret. Used only to exercise the existing
+ * `attestMeriGovernedContext`/`verifyMeriGovernedContext` pair against the Case
+ * 46 fixture before `.run`; it is not a live service secret and mints no served
+ * authority.
+ */
+const CAPTURE_FIXTURE_SECRET = 'capture-fixture-secret';
+
+function governedArtifactCapturePolicy(
+  now = Date.now(),
+): MeriGovernedArtifactCapturePolicy {
   return {
-    version: 1 as const,
-    kind: 'governed_artifact_acceptance_capture' as const,
-    caseId: '46' as const,
-    fixtureNamespace: 'meri-foundation-20260928',
-    tenantId: 'tenant-1',
-    tenantSlug: 'meri-foundation-20260928-t1',
-    actorUserId: 'user-1',
-    clientId: '41f9ec63-3963-479f-b747-59a3767ef44b',
-    conversationId: 'governed-thread',
-    dynamicMcpAllowed: false as const,
-    ...overrides,
+    version: 1,
+    kind: 'governed_artifact_acceptance_capture',
+    caseId: '46',
+    fixtureNamespace: MERI_CASE46.namespace,
+    tenantId: MERI_CASE46.tenantId,
+    tenantSlug: MERI_CASE46.tenantSlug,
+    actorUserId: MERI_CASE46.actorUserId,
+    clientId: MERI_CASE46.clientId,
+    conversationId: CASE46_CAPTURE_RUN_ID,
+    captureRunId: CASE46_CAPTURE_RUN_ID,
+    policyId: CASE46_CAPTURE_RUN_ID,
+    requestId: 'case46-request-1',
+    traceId: 'case46-trace-1',
+    turnId: CASE46_CAPTURE_RUN_ID,
+    source: {
+      owner: 'engagement_attachment',
+      logicalId: MERI_CASE46.sourceLogicalId,
+      physicalId: CASE46_CAPTURE_RUN_ID,
+      rowVersion: '1',
+      ownershipSha256: 'b'.repeat(64),
+      contentSha256: MERI_CASE46.sha256,
+      byteLength: MERI_CASE46.byteLength,
+    },
+    currentVerifySha256: CASE46_CURRENT_VERIFY_SHA256,
+    qualificationSha256: 'c'.repeat(64),
+    issuedAt: now,
+    expiresAt: now + 60_000,
+    allowedTool: 'create_word',
+    approval: 'canonical_current_user_required',
+    maximumProposals: 1,
+    maximumArtifactEffects: 1,
+    dynamicMcpAllowed: false,
+    incidentalWriters: 'suppressed',
+    expectedWrites: [
+      'context_packet_and_evidence',
+      'conversation_user_message',
+      'conversation_assistant_message',
+      'provider_budget_ledger',
+      'canonical_action_proposal',
+      'approved_text_artifact',
+    ],
+  };
+}
+
+/**
+ * The matching qualified fixture semantic clock for the Case 46 policy above.
+ * `observedAt` must equal the policy `issuedAt` (validateMeriFixtureSemanticClock)
+ * and `currentVerifySha256` must equal the policy's, so the real
+ * `resolveMeriGovernedSemanticClock` accepts the bound authority and rejects any
+ * mismatched clock. Nothing here mints authority: the API remains the only
+ * current canonical owner that may produce this clock.
+ */
+function governedArtifactSemanticClock(issuedAt: number): MeriFixtureSemanticClock {
+  return {
+    version: 1,
+    kind: 'qualified_original_fixture_semantic_clock',
+    instant: MERI_FIXTURE_SEMANTIC_INSTANT,
+    timeZone: MERI_FIXTURE_SEMANTIC_ZONE,
+    caseId: '46',
+    captureRunId: CASE46_CAPTURE_RUN_ID,
+    currentVerifySha256: CASE46_CURRENT_VERIFY_SHA256,
+    observedAt: issuedAt,
+  };
+}
+
+/**
+ * A complete governed Case 46 turn projection: the capture policy, its matching
+ * semantic clock, the current fixture-owner evidence envelope (so the resolver's
+ * tenant/actor agreement holds) and the compiler `clockUse` agreeing on
+ * instant/timeZone with a real `eligibilityAt`. The context packet client and the
+ * retrieval subject scope are the policy's authenticated MERI_CASE46 client —
+ * the canonical capture is client-scoped, not a general/null-client
+ * approximation. Built per call so the wall-clock issuance window is fresh when
+ * the real `.run` executes.
+ */
+function governedArtifactTurn(now = Date.now()): Record<string, unknown> {
+  const policy = governedArtifactCapturePolicy(now);
+  const base = governedTurn('client', MERI_CASE46.clientId);
+  return {
+    governedArtifactCapturePolicy: policy,
+    semanticClock: governedArtifactSemanticClock(policy.issuedAt),
+    evidence: {
+      version: 1,
+      tenantId: MERI_CASE46.tenantId,
+      userId: MERI_CASE46.actorUserId,
+      packetId: null,
+      sourceRecordCount: 0,
+      projectedRecordCount: 0,
+      truncated: false,
+      records: [],
+    },
+    contextPacket: {
+      ...base.contextPacket,
+      clockUse: {
+        instant: MERI_FIXTURE_SEMANTIC_INSTANT,
+        timeZone: MERI_FIXTURE_SEMANTIC_ZONE,
+        eligibilityAt: new Date(policy.issuedAt).toISOString(),
+        scoring: 'used' as const,
+      },
+    },
+    retrieval: base.retrieval,
   };
 }
 
@@ -1368,19 +1490,70 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
     });
   });
 
-  const governedCaptureTurns: Array<[string, Record<string, unknown>]> = [
+  /**
+   * Per-row run binding: the actor MeriContext the request actually runs as and
+   * the request DTO (conversationId/messages, optional client focus) the
+   * governed context is bound to. The canonical Case 46 row runs as the real
+   * MERI_CASE46 owner identities on the policy conversation/client, while the
+   * independent server-readonly row stays a generic meri.chat/general
+   * null-client capture on its own thread.
+   */
+  type GovernedCaptureRun = {
+    context: MeriContext;
+    actor: { tenantId: string; userId: string };
+    dto: {
+      conversationId: string;
+      clientId?: string;
+      messages: Array<{ role: 'user'; text: string }>;
+    };
+  };
+
+  /** The actual Case 46 request: MERI_CASE46 actor, policy conversation/client. */
+  const case46CaptureRun = (): GovernedCaptureRun => ({
+    context: {
+      tenantId: MERI_CASE46.tenantId,
+      userId: MERI_CASE46.actorUserId,
+      firmMemory: null,
+      userVoice: null,
+      clientSteering: null,
+      clientRoster: [],
+    } as unknown as MeriContext,
+    actor: { tenantId: MERI_CASE46.tenantId, userId: MERI_CASE46.actorUserId },
+    dto: {
+      conversationId: CASE46_CAPTURE_RUN_ID,
+      clientId: MERI_CASE46.clientId,
+      messages: [{ role: 'user', text: MERI_CASE46.prompt }],
+    },
+  });
+
+  /** The independent server-readonly null-client capture: generic actor/thread. */
+  const serverReadonlyCaptureRun = (): GovernedCaptureRun => ({
+    context,
+    actor: { tenantId: context.tenantId, userId: context.userId },
+    dto: {
+      conversationId: 'capture-scope-thread',
+      messages: [{ role: 'user', text: 'Find Jane.' }],
+    },
+  });
+
+  const governedCaptureTurns: Array<
+    [string, () => Record<string, unknown>, () => GovernedCaptureRun]
+  > = [
     [
-      'server-readonly capture (null capture client)',
-      { serverReadonlyCapturePolicy: serverReadonlyCapturePolicy() },
+      'server-readonly null-client capture (meri.chat/general)',
+      () => ({ serverReadonlyCapturePolicy: serverReadonlyCapturePolicy() }),
+      serverReadonlyCaptureRun,
     ],
     [
-      'governed-artifact (Case 46) capture',
-      { governedArtifactCapturePolicy: governedArtifactCapturePolicy() },
+      'governed-artifact capture (meri.chat/client — actual Case 46 MERI_CASE46 client scope)',
+      // Built per test so the Case 46 policy/clock issuance window is current.
+      () => governedArtifactTurn(),
+      case46CaptureRun,
     ],
   ];
   test.each(governedCaptureTurns)(
-    'a governed meri.chat/general turn under %s never advertises or dispatches a managed read',
-    async (_label, overrides) => {
+    'a governed turn under %s never advertises or dispatches a managed read',
+    async (_label, makeOverrides, makeRun) => {
       const call = functionCall('capture-scope', MANAGED_READ, { query: 'Jane' });
       const complete = jest
         .fn()
@@ -1398,17 +1571,79 @@ describe('MeriV3 managed MCP request path (Lane A1 reproduction)', () => {
 
       // The capture policies carry the literal dynamicMcpAllowed:false; a null
       // (server-readonly) capture client never relaxes the dynamic-read denial.
+      const overrides = makeOverrides();
       const governed = governedWith({
         contextPacket: { ...governedTurn('general', null).contextPacket, clientId: null },
         ...overrides,
       });
+      const run = makeRun();
+
+      // Independently exercise the EXISTING canonical validators/resolver and the
+      // real attest/verify pair on this fixture: the authority and the exact
+      // request binding are checked, not assumed, before the real `.run`.
+      const artifactPolicy = overrides.governedArtifactCapturePolicy as
+        | MeriGovernedArtifactCapturePolicy
+        | undefined;
+      let effectiveGoverned: MeriGovernedTurnContext = governed;
+      if (artifactPolicy) {
+        expect(() =>
+          validateMeriGovernedArtifactPolicy(artifactPolicy, {
+            tenantId: MERI_CASE46.tenantId,
+            actorUserId: MERI_CASE46.actorUserId,
+            conversationId: CASE46_CAPTURE_RUN_ID,
+            clientId: MERI_CASE46.clientId,
+          }),
+        ).not.toThrow();
+        // The REAL semantic-clock resolver accepts the policy-bound clock...
+        expect(resolveMeriGovernedSemanticClock(governed)).toBeDefined();
+        // ...and still rejects a clock bound to a different current-verify digest,
+        // proving the guard rejects a mismatched clock rather than being bypassed.
+        const mismatched = governedWith({
+          ...overrides,
+          semanticClock: {
+            ...(overrides.semanticClock as MeriFixtureSemanticClock),
+            currentVerifySha256: 'd'.repeat(64),
+          },
+        });
+        expect(() => resolveMeriGovernedSemanticClock(mismatched)).toThrow(
+          'meri_fixture_semantic_clock_context_mismatch',
+        );
+
+        // Provider-free fixture validation with the EXISTING attest/verify pair,
+        // using the EXACT DTO binding and actor the request is about to run as.
+        // This is not a mock/fake success and not a cast of an incomplete
+        // policy: it proves the authenticated request binding and bearer actor
+        // agree with the real policy/clock/evidence. It is a fixture check — not
+        // live issuance, production auth, or served acceptance.
+        const binding = {
+          conversationId: run.dto.conversationId,
+          clientId: run.dto.clientId,
+          messages: run.dto.messages,
+        };
+        const attested = attestMeriGovernedContext(
+          governed,
+          binding,
+          CAPTURE_FIXTURE_SECRET,
+        );
+        expect(() =>
+          verifyMeriGovernedContext(attested, binding, run.actor, CAPTURE_FIXTURE_SECRET),
+        ).not.toThrow();
+        // A bearer actor that disagrees with the evidence identity never
+        // authenticates the same fixture.
+        expect(() =>
+          verifyMeriGovernedContext(
+            attested,
+            binding,
+            { tenantId: run.actor.tenantId, userId: 'not-the-case46-actor' },
+            CAPTURE_FIXTURE_SECRET,
+          ),
+        ).toThrow();
+        effectiveGoverned = attested;
+      }
 
       await RequestCredentialsStore.run({ bearerToken: 'bearer' }, () =>
-        runWithGovernedMeriContext(governed, () =>
-          service.run(context, {
-            conversationId: 'capture-scope-thread',
-            messages: [{ role: 'user', text: 'Find Jane.' }],
-          }),
+        runWithGovernedMeriContext(effectiveGoverned, () =>
+          service.run(run.context, run.dto),
         ),
       );
 
