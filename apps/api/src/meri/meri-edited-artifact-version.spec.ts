@@ -288,7 +288,7 @@ describe('MeriService.createArtifactVersion ordinary generated-document branch',
     expect(child.metadata!.documentSha256).not.toBe(parentSnapshot.documentSha256);
 
     // Download boundary serves the persisted edited bytes; reopen shows the edit.
-    const read = await h.service.getDocumentArtifact(ctx, childId);
+    const read = await h.tools.getDocumentArtifact(ctx, childId);
     expect(read).toMatchObject({ format: 'docx', byteAuthority: 'persisted_at_creation_v1', filename: 'parent-brief.docx' });
     expect(read!.persistedSha256).toBe(child.metadata!.documentSha256);
     const response = downloadResponse();
@@ -305,7 +305,7 @@ describe('MeriService.createArtifactVersion ordinary generated-document branch',
     // The parent row and its original persisted bytes are unchanged.
     expect(h.artifacts[0]!.metadata).toEqual(parentSnapshot);
     expect(h.artifacts[0]!.bodyText).toBe(JSON.stringify(parentSpec()));
-    const parentRead = await h.service.getDocumentArtifact(ctx, parentId);
+    const parentRead = await h.tools.getDocumentArtifact(ctx, parentId);
     expect(parentRead!.byteAuthority).toBe('persisted_at_creation_v1');
     expect(parentRead!.persistedBytes!.equals(h.parentBytes)).toBe(true);
     expect((await extractRawText({ buffer: parentRead!.persistedBytes! })).value).toContain('ORIGINAL1');
@@ -374,7 +374,7 @@ describe('MeriService.createArtifactVersion ordinary generated-document branch',
     expect(receipt.byteLength).toBe(editedBytes.length);
     expect(receipt).toMatchObject({ tenantId: ctx.tenantId, userId: ctx.userId, clientId: null, conversationId, filename: 'parent-brief.txt' });
 
-    const read = await h.service.getDocumentArtifact(ctx, childId);
+    const read = await h.tools.getDocumentArtifact(ctx, childId);
     expect(read?.operationReceipt).toMatchObject({ sha256: sha256Bytes(editedBytes), byteLength: editedBytes.length });
     expect(read?.operationReceipt?.currentAction).toBeUndefined();
 
@@ -549,7 +549,7 @@ describe('MeriService.createArtifactVersion ordinary generated-document branch',
     const h = await fixture({}, { parentWordSpec: imageSpec('ORIGINAL1') });
     const child = (await h.service.createArtifactVersion(ctx, parentId, JSON.stringify(imageSpec('EDITED-MARKER')))) as unknown as Artifact;
 
-    const read = await h.service.getDocumentArtifact(ctx, childId);
+    const read = await h.tools.getDocumentArtifact(ctx, childId);
     const bytes = read!.persistedBytes!;
     const zip = await JSZip.loadAsync(bytes);
     const media = Object.keys(zip.files).filter((name) => name.startsWith('word/media/'));
