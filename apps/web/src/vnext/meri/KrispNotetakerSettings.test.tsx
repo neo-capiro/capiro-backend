@@ -23,12 +23,12 @@ describe('Krisp import settings', () => {
       }));
       render(<KrispNotetakerSettings connected />);
       if (importMode === 'direct_notes') {
-        expect(await screen.findByText(/without generating new text/)).toBeInTheDocument();
+        expect(await screen.findByText(/generates a Debrief from them/)).toBeInTheDocument();
         expect(screen.queryByText(/from the completed transcripts/)).toBeNull();
       } else {
         await waitFor(() => expect(screen.getByRole('checkbox')).not.toBeDisabled());
         expect(screen.getByText(/from the completed transcripts/)).toBeInTheDocument();
-        expect(screen.queryByText(/without generating new text/)).toBeNull();
+        expect(screen.queryByText(/generates a Debrief from them/)).toBeNull();
       }
     },
   );

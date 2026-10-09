@@ -99,6 +99,20 @@ export class HearingsRetrievalAdapter implements RetrievalSourceAdapter {
         const user = request.caller.userId;
         // SubjectScope is an explicit request, not whichever client is selected in UI.
         const subjectScoped = Boolean(request.caller.clientIds?.length);
+        // A briefing needs recent hearing intelligence and its quoted evidence.
+        // Expanding one client match into every transcript segment can consume
+        // the entire prep deadline before synthesis even starts. Exact hearing
+        // reads and general retrieval retain the complete transcript rail.
+        const briefing = request.meetingBriefing;
+        const includeTranscripts = !briefing;
+        const windowStart = request.windowStart ?? briefing?.meetingSince;
+        const windowEnd = request.windowEnd ?? briefing?.upcomingThrough;
+        const briefingInsightClause = briefing && subjectScoped
+          ? Prisma.sql`AND EXISTS (SELECT 1 FROM tenant_hearing_relevance matched
+              WHERE matched.tenant_id = ${tenant}::uuid
+                AND matched.client_id::text IN (${clientSql})
+                AND matched.hearing_id = i.hearing_id AND matched.insight_id = i.id)`
+          : Prisma.empty;
         const filter = request.hearingFilters;
         const hearingFilter = filter?.hearingId
           ? Prisma.sql`AND h.id = ${filter.hearingId}`
@@ -131,15 +145,15 @@ export class HearingsRetrievalAdapter implements RetrievalSourceAdapter {
           : cursor
             ? Prisma.sql`AND combined.key > ${cursor}`
             : Prisma.empty;
-        const startClause = request.windowStart
+        const startClause = windowStart
           ? request.queryClass === 'change_detection'
-            ? Prisma.sql`AND combined.updated_at >= ${request.windowStart}`
-            : Prisma.sql`AND (combined.occurred_at >= ${request.windowStart} OR (combined.occurred_at IS NULL AND combined.event_day >= ${request.windowStart}::date))`
+            ? Prisma.sql`AND combined.updated_at >= ${windowStart}`
+            : Prisma.sql`AND (combined.occurred_at >= ${windowStart} OR (combined.occurred_at IS NULL AND combined.event_day >= ${windowStart}::date))`
           : Prisma.empty;
-        const endClause = request.windowEnd
+        const endClause = windowEnd
           ? request.queryClass === 'change_detection'
-            ? Prisma.sql`AND combined.updated_at < ${request.windowEnd}`
-            : Prisma.sql`AND (combined.occurred_at < ${request.windowEnd} OR (combined.occurred_at IS NULL AND combined.event_day::timestamp < ${request.windowEnd}::timestamp))`
+            ? Prisma.sql`AND combined.updated_at < ${windowEnd}`
+            : Prisma.sql`AND (combined.occurred_at < ${windowEnd} OR (combined.occurred_at IS NULL AND combined.event_day::timestamp < ${windowEnd}::timestamp))`
           : Prisma.empty;
         const pageSize = governmentPageSize(request);
         const rows = await tx.$queryRaw<HearingRow[]>(Prisma.sql`
@@ -169,8 +183,9 @@ export class HearingsRetrievalAdapter implements RetrievalSourceAdapter {
               'textIsCompleteChunk', true, 'isOfficialTranscript', true)
           FROM official_hearing_transcript t
           CROSS JOIN LATERAL generate_series(0, GREATEST(0, (length(t.text) - 1) / 6000)) ch(part)
-          WHERE EXISTS (SELECT 1 FROM visible_hearings h WHERE h.id = t.hearing_id)
-            OR (${!subjectScoped && !filter?.hearingId && !filter?.chamber && !filter?.committeeName} AND t.hearing_id IS NULL)
+          WHERE ${includeTranscripts} AND (
+            EXISTS (SELECT 1 FROM visible_hearings h WHERE h.id = t.hearing_id)
+            OR (${!subjectScoped && !filter?.hearingId && !filter?.chamber && !filter?.committeeName} AND t.hearing_id IS NULL))
           UNION ALL
           SELECT 'segment:' || s.id, 'public_hearing_transcript_segment', s.id, c.hearing_id,
             h.starts_at, h.date, s.created_at,
@@ -183,7 +198,7 @@ export class HearingsRetrievalAdapter implements RetrievalSourceAdapter {
           FROM public_hearing_transcript_segment s
           JOIN public_hearing_capture c ON c.id = s.capture_id
           JOIN visible_hearings h ON h.id = c.hearing_id
-          WHERE s.is_final = true
+          WHERE s.is_final = true AND ${includeTranscripts}
           UNION ALL
           SELECT 'insight:' || i.id, 'public_hearing_insight', i.id, i.hearing_id,
             h.starts_at, h.date, i.updated_at,
@@ -194,6 +209,7 @@ export class HearingsRetrievalAdapter implements RetrievalSourceAdapter {
               'confidence', i.confidence, 'preliminary', i.preliminary, 'entities', i.entities,
               'sourceUrl', h.url, 'derivedFromMachineTranscript', true)
           FROM public_hearing_insight i JOIN visible_hearings h ON h.id = i.hearing_id
+          WHERE TRUE ${briefingInsightClause}
           UNION ALL
           SELECT 'relevance:' || r.id, 'tenant_hearing_relevance', r.id, r.hearing_id,
             h.starts_at, h.date, r.updated_at,
@@ -275,7 +291,11 @@ export class HearingsRetrievalAdapter implements RetrievalSourceAdapter {
           pagesRead: 1,
           paginationComplete: !hasMore,
           coverageComplete: false,
-          stopReason: hasMore
+          stopReason: briefing
+            ? hasMore
+              ? 'meeting_briefing_hearing_intelligence_continues_full_transcripts_excluded'
+              : 'meeting_briefing_hearing_intelligence_complete_full_transcripts_and_browser_session_rail_excluded'
+            : hasMore
             ? 'page_boundary_reached_browser_session_rail_not_supported'
             : 'stored_public_and_official_hearings_complete_browser_session_rail_not_supported',
         });

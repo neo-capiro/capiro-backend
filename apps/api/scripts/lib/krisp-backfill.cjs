@@ -2,7 +2,7 @@
 
 // Operator-only library: no HTTP route, scheduler, model, or application bootstrap.
 // Caller resolves one exact tenant/user, supplies their personal OAuth connection,
-// and invokes the same consent checks and atomic direct-notes importer as the worker.
+// and invokes the same consent checks and atomic tenant-specific importer as the worker.
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
 const {
@@ -225,7 +225,6 @@ async function backfillKrisp({
         },
       });
       assert.ok(note && debrief, 'Missing imported pair');
-      assert.equal(crypto.decrypt(note), crypto.decrypt(debrief), 'Notes and debrief differ');
       return createHash('sha256').update(crypto.decrypt(note)).digest('hex');
     });
     if (saved) {

@@ -65,13 +65,34 @@ function harness(status = 'confirmed', initialClient: string | null = 'c1') {
     directoryProfilesForMeeting: async () => [],
     loadUserVoiceBlock: async () => null,
     clientMeetingAssociationWhere: async () => ({ clientId: 'c1' }),
-    clientMailThreadAssociationWhere: async () => ({ clientId: 'c1' }),
+    clientMailThreadAssociationWhere: jest.fn(async () => ({ clientId: 'c1' })),
     recordAiUsage: async () => {},
   });
   return { service: service as EngagementService, tx, ai, current };
 }
 
 describe('meeting prep persistence', () => {
+  test('bounds email association discovery to the same history window as the prep read', async () => {
+    const h = harness();
+    await h.service.generateMeetingPrep(ctx, 'm1');
+    const association = (h.service as any).clientMailThreadAssociationWhere;
+    const selectedSince = (h.tx.mailThread.findMany.mock.calls as any)[0][0].where.lastMessageAt.gte;
+    expect(association).toHaveBeenCalledWith(h.tx, ctx.tenantId, 'c1', [], selectedSince);
+  });
+
+  test('keeps explicit client and contact-matched threads while applying the date bound inside discovery', async () => {
+    const service = Object.create(EngagementService.prototype) as any;
+    service.clientProfileEmails = jest.fn(async () => ['person@client.example']);
+    const tx = { $queryRaw: jest.fn(async () => [{ id: 'matched-thread' }]) };
+    const since = new Date('2026-09-09T00:00:00Z');
+    const where = await service.clientMailThreadAssociationWhere(tx, ctx.tenantId, 'c1', [], since);
+    expect(where).toEqual({ OR: [{ clientId: 'c1' }, { id: { in: ['matched-thread'] } }] });
+    const sql = (tx.$queryRaw.mock.calls as any)[0][0];
+    expect(sql.text).toContain('mt.last_message_at >=');
+    expect(sql.text).toContain('mm.tenant_id =');
+    expect(sql.values).toEqual(expect.arrayContaining([since, ctx.tenantId, ['person@client.example']]));
+  });
+
   test('does not return a V2 briefing with missing source provenance through edit', async () => {
     const h = harness();
     const update = jest.fn();

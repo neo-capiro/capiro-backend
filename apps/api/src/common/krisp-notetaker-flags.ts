@@ -2,7 +2,7 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 import { tenantFeatureEnabled } from './tenant-flags.js';
 
 export const KRISP_NOTETAKER_FLAG = 'notetaker.krisp.enabled';
-/** C2 uses Krisp's finished notes; other firms retain Meri's transcript generation. */
+/** C2 uses Krisp's finished notes as the debrief source; other firms use transcripts. */
 export function krispImportMode(tenantSlug: string): 'direct_notes' | 'generated' {
   return tenantSlug === 'c2-strategies' ? 'direct_notes' : 'generated';
 }
