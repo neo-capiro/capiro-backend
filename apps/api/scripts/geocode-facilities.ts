@@ -29,12 +29,14 @@ import {
 import { hasGeocodableAddress, nextGeocodeAttempt } from '../src/clients/geocode-retry.js';
 dotenvConfig();
 
-const prisma = new PrismaClient();
 const BATCH_CAP = Number(process.env.GEOCODE_BATCH_CAP ?? '500');
 const DELAY_MS = Number(process.env.GEOCODE_DELAY_MS ?? '250');
 
 /** apps/api-side equivalent of withSystem for a plain PrismaClient script (sync-congress.ts precedent, reused verbatim by emit-state-changes.ts). */
-async function bypassRls<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
+async function bypassRls<T>(
+  prisma: PrismaClient,
+  fn: (tx: PrismaClient) => Promise<T>,
+): Promise<T> {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe("SELECT set_config('app.bypass_rls', 'on', true)");
     return fn(tx as unknown as PrismaClient);
@@ -42,32 +44,38 @@ async function bypassRls<T>(fn: (tx: PrismaClient) => Promise<T>): Promise<T> {
 }
 
 async function main() {
-  await runWithSyncRun(prisma as never, 'geocode-facilities', async () => {
-    let inserted = 0; // newly matched (previously ungeocoded or status changed to matched)
-    let updated = 0; // a previously-matched row whose district/coords changed
-    let skipped = 0;
-    let errors = 0;
-    let discrepancies = 0;
-    // First per-row failure, surfaced on the sync_run row. A partial failure
-    // used to land as `success_with_errors` with a null error_message — which
-    // is how the same MA facility failed nine nights running (a VARCHAR(8)
-    // overflow on a named state-legislative district) with nothing in the
-    // ingestion dashboard to say why.
-    let firstError: string | null = null;
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/geocode-facilities.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+  const prisma = new PrismaClient();
+  try {
+    await runWithSyncRun(prisma as never, 'geocode-facilities', async () => {
+      let inserted = 0; // newly matched (previously ungeocoded or status changed to matched)
+      let updated = 0; // a previously-matched row whose district/coords changed
+      let skipped = 0;
+      let errors = 0;
+      let discrepancies = 0;
+      // First per-row failure, surfaced on the sync_run row. A partial failure
+      // used to land as `success_with_errors` with a null error_message — which
+      // is how the same MA facility failed nine nights running (a VARCHAR(8)
+      // overflow on a named state-legislative district) with nothing in the
+      // ingestion dashboard to say why.
+      let firstError: string | null = null;
 
-    // W4.2: select by a deterministic address CHANGE-HASH, not the
-    // `updated_at > geocoded_at` race. A row is a candidate only when it has
-    // never been stamped (geocode_input_hash IS NULL) or its current normalized
-    // address hash differs from the stamped one — so an unrelated updated_at
-    // bump no longer forces a re-geocode, and never-tried rows are processed
-    // first. The identical md5 expression is SELECTed as "currentHash" and
-    // written back after EVERY attempt (below) so address-less / no-match rows
-    // can't perpetually re-select and starve the batch cap.
-    const ADDR_HASH_SQL =
-      "md5(regexp_replace(lower(trim(coalesce(address_line,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(city,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(state,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(zip,''))), '\\s+', ' ', 'g'))";
-    const rows = await bypassRls((tx) =>
-      tx.$queryRawUnsafe<Array<FacilityGeocodeInput & { tenantId: string; currentHash: string }>>(
-        `SELECT id, tenant_id AS "tenantId", address_line AS "addressLine", city, state, zip,
+      // W4.2: select by a deterministic address CHANGE-HASH, not the
+      // `updated_at > geocoded_at` race. A row is a candidate only when it has
+      // never been stamped (geocode_input_hash IS NULL) or its current normalized
+      // address hash differs from the stamped one — so an unrelated updated_at
+      // bump no longer forces a re-geocode, and never-tried rows are processed
+      // first. The identical md5 expression is SELECTed as "currentHash" and
+      // written back after EVERY attempt (below) so address-less / no-match rows
+      // can't perpetually re-select and starve the batch cap.
+      const ADDR_HASH_SQL =
+        "md5(regexp_replace(lower(trim(coalesce(address_line,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(city,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(state,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(zip,''))), '\\s+', ' ', 'g'))";
+      const rows = await bypassRls(prisma, (tx) =>
+        tx.$queryRawUnsafe<Array<FacilityGeocodeInput & { tenantId: string; currentHash: string }>>(
+          `SELECT id, tenant_id AS "tenantId", address_line AS "addressLine", city, state, zip,
                 congressional_district AS "congressionalDistrict",
                 congressional_district_congress AS "congressionalDistrictCongress",
                 district_source AS "districtSource",
@@ -91,67 +99,68 @@ async function main() {
                  AND congressional_district_congress IS NULL)
           ORDER BY (geocode_input_hash IS NOT NULL), updated_at ASC
           LIMIT $1`,
-        BATCH_CAP,
-      ),
-    );
+          BATCH_CAP,
+        ),
+      );
 
-    console.log(`[geocode-facilities] ${rows.length} facilities to (re)geocode`);
+      console.log(`[geocode-facilities] ${rows.length} facilities to (re)geocode`);
 
-    for (const row of rows) {
-      try {
-        const currentHash = facilityAddressHash(row);
-        const outcome = await computeFacilityGeocode(row);
-        if (outcome.discrepancy) {
-          discrepancies++;
-          console.log(
-            `[geocode-facilities] DISCREPANCY facility=${row.id} hand="${outcome.discrepancy.handEntered}" geocoded="${outcome.discrepancy.geocoded}"`,
+      for (const row of rows) {
+        try {
+          const currentHash = facilityAddressHash(row);
+          const outcome = await computeFacilityGeocode(row);
+          if (outcome.discrepancy) {
+            discrepancies++;
+            console.log(
+              `[geocode-facilities] DISCREPANCY facility=${row.id} hand="${outcome.discrepancy.handEntered}" geocoded="${outcome.discrepancy.geocoded}"`,
+            );
+          }
+          const addressReady = hasGeocodableAddress(row.addressLine, row.city, row.state);
+          const attemptCount = (row.geocodeAttemptCount ?? 0) + (addressReady ? 1 : 0);
+          const retry = nextGeocodeAttempt(outcome.status, attemptCount, addressReady, new Date());
+          const wasUngeocoded = row.geocodeStatus == null;
+          await bypassRls(prisma, (tx) =>
+            tx.clientFacility.update({
+              where: { id: row.id },
+              data: {
+                ...(outcome.update ?? {}),
+                ...(retry.status === 'manual_review' ? { geocodeStatus: 'manual_review' } : {}),
+                geocodeInputHash: currentHash,
+                geocodeAttemptCount: attemptCount,
+                geocodeNextAttemptAt: retry.nextAttemptAt,
+                geocodeLastError:
+                  outcome.status === 'error' ? 'Census geocoder request failed' : null,
+                geocodeMatchedAddress: outcome.matchedAddress,
+                geocodeCandidates: outcome.candidates
+                  ? (outcome.candidates as unknown as Prisma.InputJsonValue)
+                  : Prisma.JsonNull,
+              },
+            }),
           );
+          if (wasUngeocoded && outcome.status === 'matched') inserted++;
+          else if (outcome.update || outcome.status !== 'matched') updated++;
+          else skipped++;
+        } catch (err) {
+          errors++;
+          if (!firstError) firstError = `facility ${row.id}: ${(err as Error).message}`;
+          console.error(`[geocode-facilities] facility ${row.id} failed:`, err);
         }
-        const addressReady = hasGeocodableAddress(row.addressLine, row.city, row.state);
-        const attemptCount = (row.geocodeAttemptCount ?? 0) + (addressReady ? 1 : 0);
-        const retry = nextGeocodeAttempt(outcome.status, attemptCount, addressReady, new Date());
-        const wasUngeocoded = row.geocodeStatus == null;
-        await bypassRls((tx) =>
-          tx.clientFacility.update({
-            where: { id: row.id },
-            data: {
-              ...(outcome.update ?? {}),
-              ...(retry.status === 'manual_review' ? { geocodeStatus: 'manual_review' } : {}),
-              geocodeInputHash: currentHash,
-              geocodeAttemptCount: attemptCount,
-              geocodeNextAttemptAt: retry.nextAttemptAt,
-              geocodeLastError:
-                outcome.status === 'error' ? 'Census geocoder request failed' : null,
-              geocodeMatchedAddress: outcome.matchedAddress,
-              geocodeCandidates: outcome.candidates
-                ? (outcome.candidates as unknown as Prisma.InputJsonValue)
-                : Prisma.JsonNull,
-            },
-          }),
-        );
-        if (wasUngeocoded && outcome.status === 'matched') inserted++;
-        else if (outcome.update || outcome.status !== 'matched') updated++;
-        else skipped++;
-      } catch (err) {
-        errors++;
-        if (!firstError) firstError = `facility ${row.id}: ${(err as Error).message}`;
-        console.error(`[geocode-facilities] facility ${row.id} failed:`, err);
+        await new Promise((r) => setTimeout(r, DELAY_MS));
       }
-      await new Promise((r) => setTimeout(r, DELAY_MS));
-    }
 
-    console.log(
-      `[geocode-facilities] done: +${inserted} newly matched, ~${updated} updated, ${skipped} unchanged, ${discrepancies} discrepancies, ${errors} errors`,
-    );
-    return { inserted, updated, skipped, errors, errorMessage: firstError };
-  });
+      console.log(
+        `[geocode-facilities] done: +${inserted} newly matched, ~${updated} updated, ${skipped} unchanged, ${discrepancies} discrepancies, ${errors} errors`,
+      );
+      return { inserted, updated, skipped, errors, errorMessage: firstError };
+    });
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 if (require.main === module) {
-  main()
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(() => prisma.$disconnect());
+  void main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
 }
