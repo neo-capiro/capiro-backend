@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -9,8 +9,9 @@ import {
   UNRESOLVABLE_HOUSE_SENTINELS,
   toUsaSpendingDistrictCode,
 } from '../common/district-code.util.js';
-import { computeFacilityGeocode } from './facility-geocode.util.js';
+import { computeFacilityGeocode, facilityAddressHash } from './facility-geocode.util.js';
 import { nextGeocodeAttempt } from './geocode-retry.js';
+import { facilityGeocodeCandidateGuard, facilityGeocodeCandidateRevision, facilityWithCandidateRevision, isFacilityCandidateRevision, persistFacilityGeocodeSnapshot } from './facility-geocode-candidate-revision.js';
 
 /**
  * Normalize a congressional district to STORAGE form before it is written.
@@ -132,13 +133,11 @@ export class ClientFacilitiesService {
 
     const outcome = await computeFacilityGeocode(facility);
     const persisted = await this.prisma.withTenant(tenantId, async (tx) => {
-      const current = await tx.clientFacility.findUnique({ where: { id: facilityId } });
-      if (!current) return;
-      const attemptCount = (current.geocodeAttemptCount ?? 0) + 1;
+      const attemptCount = (facility.geocodeAttemptCount ?? 0) + 1;
       const retry = nextGeocodeAttempt(
         outcome.status,
         attemptCount,
-        Boolean(current.addressLine?.trim() && current.city?.trim() && current.state?.trim()),
+        Boolean(facility.addressLine?.trim() && facility.city?.trim() && facility.state?.trim()),
         new Date(),
       );
       if (outcome.discrepancy) {
@@ -148,33 +147,20 @@ export class ClientFacilitiesService {
       }
       // Provider results belong to the address and district choices we read.
       // A concurrent edit must never be overwritten by an older request.
-      return tx.clientFacility.updateMany({
-        where: {
-          id: facilityId,
-          addressLine: facility.addressLine,
-          city: facility.city,
-          state: facility.state,
-          zip: facility.zip,
-          congressionalDistrict: facility.congressionalDistrict,
-          districtSource: facility.districtSource,
-          stateHouseDistrict: facility.stateHouseDistrict,
-          stateSenateDistrict: facility.stateSenateDistrict,
-        },
-        data: {
-          ...(outcome.update ?? {}),
-          ...(retry.status === 'manual_review' ? { geocodeStatus: 'manual_review' } : {}),
-          geocodeAttemptCount: attemptCount,
-          geocodeNextAttemptAt: retry.nextAttemptAt,
-          geocodeLastError: outcome.status === 'error' ? 'Census geocoder request failed' : null,
-          ...(outcome.status !== 'error'
-            ? {
-                geocodeMatchedAddress: outcome.matchedAddress,
-                geocodeCandidates: outcome.candidates
-                  ? (outcome.candidates as unknown as Prisma.InputJsonValue)
-                  : Prisma.JsonNull,
-              }
-            : {}),
-        },
+      return persistFacilityGeocodeSnapshot(tx, facility, {
+        ...(outcome.update ?? {}),
+        ...(retry.status === 'manual_review' ? { geocodeStatus: 'manual_review' } : {}),
+        geocodeAttemptCount: attemptCount,
+        geocodeNextAttemptAt: retry.nextAttemptAt,
+        geocodeLastError: outcome.status === 'error' ? 'Census geocoder request failed' : null,
+        ...(outcome.status !== 'error'
+          ? {
+              geocodeMatchedAddress: outcome.matchedAddress,
+              geocodeCandidates: outcome.candidates
+                ? (outcome.candidates as unknown as Prisma.InputJsonValue)
+                : Prisma.JsonNull,
+            }
+          : {}),
       });
     });
     if (persisted?.count) this.clientKb.indexFacilityFireAndForget(tenantId, facilityId);
@@ -203,7 +189,7 @@ export class ClientFacilitiesService {
     );
     if (!resolved) throw new NotFoundException('Facility not found');
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, id);
-    return resolved;
+    return facilityWithCandidateRevision(resolved);
   }
 
   private validateStateDistricts(input: Partial<CreateFacilityInput>) {
@@ -218,7 +204,7 @@ export class ClientFacilitiesService {
   }
 
   async listFacilities(ctx: TenantContext, clientId: string) {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+    const facilities = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const client = await tx.client.findFirst({
         where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
         select: { id: true },
@@ -229,6 +215,7 @@ export class ClientFacilitiesService {
         orderBy: { createdAt: 'asc' },
       });
     });
+    return facilities.map(facilityWithCandidateRevision);
   }
 
   async createFacility(ctx: TenantContext, clientId: string, input: CreateFacilityInput) {
@@ -268,7 +255,7 @@ export class ClientFacilitiesService {
     // Client KB (F5): keep retrieval in sync with the Facilities tab.
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, facility.id);
     this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);
-    return facility;
+    return facilityWithCandidateRevision(facility);
   }
 
   async updateFacility(
@@ -403,7 +390,7 @@ export class ClientFacilitiesService {
     ) {
       this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);
     }
-    return facility;
+    return facilityWithCandidateRevision(facility);
   }
 
   async deleteFacility(ctx: TenantContext, clientId: string, id: string) {
@@ -425,46 +412,43 @@ export class ClientFacilitiesService {
     clientId: string,
     id: string,
     candidateIndex: number,
+    review?: { expectedRevision: string },
   ) {
-    if (!Number.isInteger(candidateIndex) || candidateIndex < 0) {
+    if (!Number.isSafeInteger(candidateIndex) || candidateIndex < 0) {
       throw new BadRequestException('candidateIndex must be a non-negative integer');
+    }
+    if (review !== undefined && !isFacilityCandidateRevision(review.expectedRevision)) {
+      throw new BadRequestException('expectedRevision must be a v1 facility candidate revision');
     }
     const facility = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.clientFacility.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
       });
       if (!existing) throw new NotFoundException('Facility not found');
+      if (review && facilityGeocodeCandidateRevision(existing) !== review.expectedRevision) {
+        throw new ConflictException({
+          code: 'FACILITY_GEOCODE_CANDIDATES_CHANGED',
+          message: 'Facility or geocode candidates changed. Refresh the facility and review its current candidates.',
+        });
+      }
       const candidates = Array.isArray(existing.geocodeCandidates)
         ? existing.geocodeCandidates
         : [];
-      const candidate = candidates[candidateIndex] as
-        | {
-            matchedAddress?: unknown;
-            latitude?: unknown;
-            longitude?: unknown;
-            congressionalDistrict?: unknown;
-            congressionalDistrictCongress?: unknown;
-            addressLine?: unknown;
-            city?: unknown;
-            state?: unknown;
-            zip?: unknown;
-            stateHouseDistrict?: unknown;
-            stateSenateDistrict?: unknown;
-          }
-        | undefined;
-      if (!candidate || typeof candidate.matchedAddress !== 'string') {
+      const candidate = candidates[candidateIndex];
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate) || typeof candidate.matchedAddress !== 'string') {
         throw new BadRequestException('Geocode candidate is no longer available');
       }
-      return tx.clientFacility.update({
-        where: { id },
+      const address = {
+        addressLine: typeof candidate.addressLine === 'string' ? candidate.addressLine : candidate.matchedAddress,
+        city: typeof candidate.city === 'string' ? candidate.city : existing.city,
+        state: typeof candidate.state === 'string' ? candidate.state : existing.state,
+        zip: typeof candidate.zip === 'string' ? candidate.zip : existing.zip,
+      };
+      const result = await tx.clientFacility.updateMany({
+        // Exact domain equality closes the pre-read/write race without truncating timestamptz(6).
+        where: facilityGeocodeCandidateGuard(existing),
         data: {
-          addressLine:
-            typeof candidate.addressLine === 'string'
-              ? candidate.addressLine
-              : candidate.matchedAddress,
-          city: typeof candidate.city === 'string' ? candidate.city : existing.city,
-          state: typeof candidate.state === 'string' ? candidate.state : existing.state,
-          zip: typeof candidate.zip === 'string' ? candidate.zip : existing.zip,
+          ...address,
           latitude: typeof candidate.latitude === 'number' ? candidate.latitude : null,
           longitude: typeof candidate.longitude === 'number' ? candidate.longitude : null,
           congressionalDistrict:
@@ -488,12 +472,25 @@ export class ClientFacilitiesService {
           geocodeMatchedAddress: candidate.matchedAddress,
           geocodeCandidates: Prisma.JsonNull,
           geocodeStatus: 'matched',
+          // A deliberate choice resolves this exact address; do not queue it again as changed input.
+          geocodeInputHash: facilityAddressHash(address),
+          geocodeNextAttemptAt: null,
+          geocodeLastError: null,
           geocodedAt: new Date(),
         },
       });
+      if (result.count !== 1) {
+        throw new ConflictException({
+          code: 'FACILITY_GEOCODE_CANDIDATES_CHANGED',
+          message: 'Facility or geocode candidates changed. Refresh the facility and review its current candidates.',
+        });
+      }
+      const selected = await tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } });
+      if (!selected) throw new NotFoundException('Facility not found');
+      return selected;
     });
     this.clientKb.indexFacilityFireAndForget(ctx.tenantId, id);
-    return facility;
+    return facilityWithCandidateRevision(facility);
   }
 
   async retryGeocode(ctx: TenantContext, clientId: string, id: string) {
@@ -512,6 +509,6 @@ export class ClientFacilitiesService {
       });
     });
     this.geocodeFacilityFireAndForget(ctx.tenantId, facility.id);
-    return facility;
+    return facilityWithCandidateRevision(facility);
   }
 }

@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import { isDeepStrictEqual } from 'node:util';
+import { Prisma } from '@prisma/client';
 import { describe, expect, jest, test } from '@jest/globals';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
@@ -49,6 +51,17 @@ function makePrisma(seed: { clients?: Row[]; facilities?: Row[] }) {
   const matchWhere = (row: Row, where: Row | undefined): boolean => {
     if (!where) return true;
     for (const [key, cond] of Object.entries(where)) {
+      // Prisma omits undefined filter members. JSON equality is structural
+      // (JSONB key order is not significant), and AnyNull matches SQL/JSON null.
+      if (cond === undefined) continue;
+      if (cond && typeof cond === 'object' && 'equals' in cond) {
+        const equals = (cond as Row).equals;
+        if (equals === undefined) continue;
+        if (equals === Prisma.AnyNull) {
+          if (row[key] != null && row[key] !== Prisma.JsonNull && row[key] !== Prisma.DbNull) return false;
+        } else if (!isDeepStrictEqual(row[key], equals)) return false;
+        continue;
+      }
       if (cond && typeof cond === 'object' && 'not' in (cond as Row)) {
         if (row[key] === (cond as Row).not) return false;
         continue;

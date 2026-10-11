@@ -1,0 +1,37 @@
+{
+  "snapshot": {
+    "id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    "tenantId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "clientId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    "addressLine": "1 Main St",
+    "city": "Austin",
+    "state": "TX",
+    "zip": "78701",
+    "geocodeCandidates": [
+      {
+        "matchedAddress": "2 MAIN ST, AUSTIN TX",
+        "addressLine": "2 Main St",
+        "city": "Austin",
+        "state": "TX",
+        "zip": "78701",
+        "latitude": 30,
+        "longitude": -97,
+        "congressionalDistrict": "7",
+        "congressionalDistrictCongress": 119,
+        "stateHouseDistrict": "12",
+        "stateSenateDistrict": "3"
+      }
+    ],
+    "geocodeStatus": "ambiguous",
+    "geocodeAttemptCount": 1,
+    "geocodeInputHash": "old-address-hash",
+    "congressionalDistrict": null,
+    "congressionalDistrictCongress": null,
+    "districtSource": null,
+    "stateHouseDistrict": null,
+    "stateSenateDistrict": null,
+    "latitude": null,
+    "longitude": null
+  },
+  "expectedRevision": "v1:bfb3a93592f58572f58fd8a237c66f9537b0c949f272545c74653e59047b930c"
+}

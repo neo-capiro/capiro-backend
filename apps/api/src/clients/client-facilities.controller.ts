@@ -137,6 +137,12 @@ export class ChooseGeocodeCandidateDto {
   candidateIndex!: number;
 }
 
+export class ReviewedChooseGeocodeCandidateDto extends ChooseGeocodeCandidateDto {
+  @IsString()
+  @Matches(/^v1:[0-9a-f]{64}$/)
+  expectedRevision!: string;
+}
+
 export class UpdateFacilityDto {
   @IsOptional()
   @IsString()
@@ -250,6 +256,18 @@ export class ClientFacilitiesController {
     @Body() body: ChooseGeocodeCandidateDto,
   ) {
     return this.service.chooseGeocodeCandidate(ctx, clientId, id, body.candidateIndex);
+  }
+
+  @Post(':id/geocode-candidate/reviewed')
+  chooseReviewedGeocodeCandidate(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('clientId') clientId: string,
+    @Param('id') id: string,
+    @Body() body: ReviewedChooseGeocodeCandidateDto,
+  ) {
+    return this.service.chooseGeocodeCandidate(ctx, clientId, id, body.candidateIndex, {
+      expectedRevision: body.expectedRevision,
+    });
   }
 
   @Delete(':id')

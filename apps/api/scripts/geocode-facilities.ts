@@ -24,9 +24,9 @@ import { runWithSyncRun } from '../src/ingestion/sync-run.helper.js';
 import {
   computeFacilityGeocode,
   facilityAddressHash,
-  type FacilityGeocodeInput,
 } from '../src/clients/facility-geocode.util.js';
 import { hasGeocodableAddress, nextGeocodeAttempt } from '../src/clients/geocode-retry.js';
+import { persistFacilityGeocodeSnapshot, type FacilityCandidateSnapshot } from '../src/clients/facility-geocode-candidate-revision.js';
 dotenvConfig();
 
 const BATCH_CAP = Number(process.env.GEOCODE_BATCH_CAP ?? '500');
@@ -74,8 +74,8 @@ async function main() {
       const ADDR_HASH_SQL =
         "md5(regexp_replace(lower(trim(coalesce(address_line,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(city,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(state,''))), '\\s+', ' ', 'g') || '|' || regexp_replace(lower(trim(coalesce(zip,''))), '\\s+', ' ', 'g'))";
       const rows = await bypassRls(prisma, (tx) =>
-        tx.$queryRawUnsafe<Array<FacilityGeocodeInput & { tenantId: string; currentHash: string }>>(
-          `SELECT id, tenant_id AS "tenantId", address_line AS "addressLine", city, state, zip,
+        tx.$queryRawUnsafe<Array<FacilityCandidateSnapshot & { currentHash: string }>>(
+          `SELECT id, tenant_id AS "tenantId", client_id AS "clientId", address_line AS "addressLine", city, state, zip,
                 congressional_district AS "congressionalDistrict",
                 congressional_district_congress AS "congressionalDistrictCongress",
                 district_source AS "districtSource",
@@ -83,6 +83,7 @@ async function main() {
                 latitude, longitude, geocode_status AS "geocodeStatus",
                 geocode_input_hash AS "geocodeInputHash",
                 geocode_attempt_count AS "geocodeAttemptCount",
+                geocode_candidates_jsonb AS "geocodeCandidates",
                 ${ADDR_HASH_SQL} AS "currentHash"
            FROM client_facilities
           WHERE (geocode_input_hash IS NULL OR geocode_input_hash IS DISTINCT FROM ${ADDR_HASH_SQL})
@@ -119,25 +120,25 @@ async function main() {
           const attemptCount = (row.geocodeAttemptCount ?? 0) + (addressReady ? 1 : 0);
           const retry = nextGeocodeAttempt(outcome.status, attemptCount, addressReady, new Date());
           const wasUngeocoded = row.geocodeStatus == null;
-          await bypassRls(prisma, (tx) =>
-            tx.clientFacility.update({
-              where: { id: row.id },
-              data: {
-                ...(outcome.update ?? {}),
-                ...(retry.status === 'manual_review' ? { geocodeStatus: 'manual_review' } : {}),
-                geocodeInputHash: currentHash,
-                geocodeAttemptCount: attemptCount,
-                geocodeNextAttemptAt: retry.nextAttemptAt,
-                geocodeLastError:
-                  outcome.status === 'error' ? 'Census geocoder request failed' : null,
-                geocodeMatchedAddress: outcome.matchedAddress,
-                geocodeCandidates: outcome.candidates
-                  ? (outcome.candidates as unknown as Prisma.InputJsonValue)
-                  : Prisma.JsonNull,
-              },
+          const persisted = await bypassRls(prisma, (tx) =>
+            persistFacilityGeocodeSnapshot(tx, row, {
+              ...(outcome.update ?? {}),
+              ...(retry.status === 'manual_review' ? { geocodeStatus: 'manual_review' } : {}),
+              geocodeInputHash: currentHash,
+              geocodeAttemptCount: attemptCount,
+              geocodeNextAttemptAt: retry.nextAttemptAt,
+              geocodeLastError:
+                outcome.status === 'error' ? 'Census geocoder request failed' : null,
+              geocodeMatchedAddress: outcome.matchedAddress,
+              geocodeCandidates: outcome.candidates
+                ? (outcome.candidates as unknown as Prisma.InputJsonValue)
+                : Prisma.JsonNull,
             }),
           );
-          if (wasUngeocoded && outcome.status === 'matched') inserted++;
+          if (persisted.count === 0) {
+            // A changed address, candidate generation or reviewed choice owns the newer state.
+            skipped++;
+          } else if (wasUngeocoded && outcome.status === 'matched') inserted++;
           else if (outcome.update || outcome.status !== 'matched') updated++;
           else skipped++;
         } catch (err) {
