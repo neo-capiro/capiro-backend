@@ -9149,6 +9149,22 @@ export class EngagementService {
    * campaign send path uses.
    */
   async sendSingleMail(ctx: TenantContext, input: SendSingleMailInput) {
+    // Authorization must precede the irreversible provider call. The transaction
+    // below checks again before persistence, but rejecting there alone is too
+    // late: a request for somebody else's thread would already have sent mail.
+    if (input.threadId) {
+      await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        const thread = await tx.mailThread.findFirst({
+          where: {
+            id: input.threadId,
+            tenantId: ctx.tenantId,
+            ...ownMailThreadWhere(ctx.userId),
+          },
+          select: { id: true },
+        });
+        if (!thread) throw new NotFoundException('Mail thread not found');
+      });
+    }
     const connection = await this.findCampaignSendConnection(ctx).catch((error) => {
       if (error instanceof BadRequestException) {
         throw new BadRequestException('Connect your email in Settings before sending from Capiro');
