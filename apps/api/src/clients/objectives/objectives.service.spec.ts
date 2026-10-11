@@ -40,6 +40,7 @@ const record: ClientObjective = {
 function setup(current: ClientObjective = record) {
   let createdRecord = current;
   const tx = {
+    $queryRawUnsafe: jest.fn().mockResolvedValue([{ allowed: true }]),
     client: { findFirst: jest.fn().mockResolvedValue({ id: clientId }) },
     tenantMembership: { findFirst: jest.fn().mockResolvedValue({ id: 'active-member' }) },
     clientObjective: {

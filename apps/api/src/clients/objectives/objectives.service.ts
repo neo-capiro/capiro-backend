@@ -7,6 +7,7 @@ import {
 import { createHash, randomUUID } from 'node:crypto';
 import type { ClientObjective, Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
+import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   normalizeObjectiveFields,
@@ -50,6 +51,7 @@ export class ClientObjectivesService {
         where: { tenantId: ctx.tenantId, clientId, deletedAt: null },
         orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       });
+      await this.assertClient(tx, ctx, clientId);
       return records.map(presentObjective);
     });
   }
@@ -73,10 +75,11 @@ export class ClientObjectivesService {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       await this.assertClient(tx, ctx, clientId);
       const ownerUserId = input.ownerUserId === undefined ? ctx.userId : input.ownerUserId;
-      await this.assertOwner(tx, ctx.tenantId, ownerUserId);
+      await this.assertOwner(tx, ctx, clientId, ownerUserId);
       const createRequestHash = createHash('sha256')
         .update(JSON.stringify({ ...fields, ownerUserId }))
         .digest('hex');
+      await this.assertClient(tx, ctx, clientId);
       const inserted = await tx.clientObjective.createMany({
         data: {
           id: randomUUID(),
@@ -90,9 +93,11 @@ export class ClientObjectivesService {
         },
         skipDuplicates: true,
       });
+      await this.assertClient(tx, ctx, clientId);
       const record = await tx.clientObjective.findFirstOrThrow({
         where: { tenantId: ctx.tenantId, clientId, clientRequestId: input.requestId },
       });
+      await this.assertClient(tx, ctx, clientId);
       if (record.createRequestHash !== createRequestHash || record.deletedAt !== null) {
         throw new ConflictException({
           code: 'OBJECTIVE_CREATE_REQUEST_CONFLICT',
@@ -118,7 +123,7 @@ export class ClientObjectivesService {
       const current = await this.findObjective(tx, ctx, clientId, id, expectedVersion);
       const ownerUserId = input.ownerUserId === undefined ? current.ownerUserId : input.ownerUserId;
       if (ownerUserId !== current.ownerUserId)
-        await this.assertOwner(tx, ctx.tenantId, ownerUserId);
+        await this.assertOwner(tx, ctx, clientId, ownerUserId);
       const fieldKeys: (keyof ObjectiveFields)[] = [
         'outcome',
         'governmentProblem',
@@ -181,15 +186,23 @@ export class ClientObjectivesService {
       where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
       select: { id: true },
     });
-    if (!client) throw new NotFoundException('Client not found');
+    if (!client || !(await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId, clientId))) {
+      throw new NotFoundException('Client not found');
+    }
   }
 
-  private async assertOwner(tx: Prisma.TransactionClient, tenantId: string, userId: string | null) {
+  private async assertOwner(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    clientId: string,
+    userId: string | null,
+  ) {
     if (userId === null) return;
     const member = await tx.tenantMembership.findFirst({
-      where: { tenantId, userId, status: 'active' },
+      where: { tenantId: ctx.tenantId, userId, status: 'active' },
       select: { id: true },
     });
+    await this.assertClient(tx, ctx, clientId);
     if (!member)
       throw new BadRequestException('Objective owner must be an active member of this tenant');
   }
@@ -204,6 +217,7 @@ export class ClientObjectivesService {
     const record = await tx.clientObjective.findFirst({
       where: { id, tenantId: ctx.tenantId, clientId, deletedAt: null },
     });
+    await this.assertClient(tx, ctx, clientId);
     if (!record) throw new NotFoundException('Objective not found');
     if (version !== undefined && record.version !== version) this.conflict();
     return record;
@@ -215,6 +229,7 @@ export class ClientObjectivesService {
     current: ClientObjective,
     data: Prisma.ClientObjectiveUpdateManyMutationInput,
   ) {
+    await this.assertClient(tx, ctx, current.clientId);
     const result = await tx.clientObjective.updateMany({
       where: {
         id: current.id,
@@ -225,10 +240,12 @@ export class ClientObjectivesService {
       },
       data: { ...data, version: { increment: 1 } },
     });
+    await this.assertClient(tx, ctx, current.clientId);
     if (result.count !== 1) this.conflict();
     const record = await tx.clientObjective.findFirst({
       where: { id: current.id, tenantId: ctx.tenantId, clientId: current.clientId },
     });
+    await this.assertClient(tx, ctx, current.clientId);
     if (!record) throw new NotFoundException('Objective not found');
     return record;
   }
@@ -246,6 +263,7 @@ export class ClientObjectivesService {
     record: ClientObjective,
     operation: string,
   ) {
+    await this.assertClient(tx, ctx, record.clientId);
     await tx.clientObjectiveRevision.create({
       data: {
         tenantId: ctx.tenantId,
@@ -260,5 +278,6 @@ export class ClientObjectivesService {
         },
       },
     });
+    await this.assertClient(tx, ctx, record.clientId);
   }
 }
