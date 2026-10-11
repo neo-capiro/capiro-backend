@@ -443,6 +443,16 @@ describe('create', () => {
     rawQueries: [],
   });
 
+  test('Portfolio explicitly creates identified while omitted legacy stages retain their default', async () => {
+    const h = makeHarness(baseFx());
+    const modern = await h.service.create(ctx, { displayName: 'Modern', stage: 'identified' });
+    const legacy = await h.service.create(ctx, { displayName: 'Legacy' });
+    expect(modern.stage).toBe('identified');
+    expect(legacy.stage).toBe('researching');
+    expect(modern.linkedClientId).toBeNull();
+    expect(h.fx.clients.size).toBe(0);
+  });
+
   test('effective owner (default = caller) must be an active member', async () => {
     const h = makeHarness({ ...baseFx(), memberships: [] });
     await expect(h.service.create(ctx, { displayName: 'Acme' })).rejects.toThrow(
@@ -572,6 +582,38 @@ describe('update', () => {
     expect(after.stage).toBe('won');
     expect(after.linkedClientId).toBeNull();
     expect(after.convertedAt).toBeNull();
+  });
+
+  test.each(['closed_won', 'closed_lost'] as const)(
+    '%s records outcome without converting or billing',
+    async (stage) => {
+      const row = prospect({ stage: 'negotiation' });
+      const h = makeHarness(baseFx(row));
+      const after = await h.service.update(ctx, row.id as string, { stage });
+      expect(after.stage).toBe(stage);
+      expect(after.linkedClientId).toBeNull();
+      expect(after.convertedAt).toBeNull();
+      expect(h.fx.clients.size).toBe(0);
+      expect(h.fx.activities).toHaveLength(1);
+      expect(h.fx.activities[0]?.kind).toBe('stage');
+    },
+  );
+
+  test('legacy migration is rejected atomically while ordinary edits and legacy transitions still work', async () => {
+    const row = prospect();
+    const h = makeHarness(baseFx(row));
+    await expect(
+      h.service.update(ctx, row.id as string, { stage: 'identified', displayName: 'Changed' }),
+    ).rejects.toThrow(ConflictException);
+    expect(h.fx.rows.get(row.id as string)?.stage).toBe('researching');
+    expect(h.fx.rows.get(row.id as string)?.displayName).toBe('Acme');
+    expect(h.fx.activities).toHaveLength(0);
+    expect(h.fx.audits).toHaveLength(0);
+    const edited = await h.service.update(ctx, row.id as string, { displayName: 'Changed' });
+    expect(edited.displayName).toBe('Changed');
+    expect(edited.stage).toBe('researching');
+    const oldTransition = await h.service.update(ctx, row.id as string, { stage: 'proposal' });
+    expect(oldTransition.stage).toBe('proposal');
   });
 
   test('nextActionDueAt sets ISO date; explicit null clears', async () => {
@@ -1262,16 +1304,14 @@ describe('Phase 3 Jev identity review hook', () => {
     const hook = {
       recordIdentityReviewOutcome: jest.fn(async () => undefined),
     };
-    const serviceWithHook: BusinessDevelopmentService = new (
-      h.service.constructor as never as new (
-        prisma: unknown,
-        clients: unknown,
-        entityResolution: unknown,
-        prepopulation: unknown,
-        samEntity: unknown,
-        jevReview?: unknown,
-      ) => BusinessDevelopmentService
-    )(
+    const serviceWithHook: BusinessDevelopmentService = new (h.service.constructor as never as new (
+      prisma: unknown,
+      clients: unknown,
+      entityResolution: unknown,
+      prepopulation: unknown,
+      samEntity: unknown,
+      jevReview?: unknown,
+    ) => BusinessDevelopmentService)(
       (h as unknown as { prisma: unknown }).prisma,
       (h as unknown as { clients: unknown }).clients,
       (h as unknown as { entityResolution: unknown }).entityResolution,
@@ -1282,9 +1322,7 @@ describe('Phase 3 Jev identity review hook', () => {
     return { service: serviceWithHook, hook, fx: h.fx };
   };
 
-  const createUnresolved = async (
-    service: BusinessDevelopmentService,
-  ): Promise<string> => {
+  const createUnresolved = async (service: BusinessDevelopmentService): Promise<string> => {
     const created = (await service.create(ctx, { displayName: 'Acme' })) as never as Record<
       string,
       unknown

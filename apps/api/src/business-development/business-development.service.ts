@@ -16,6 +16,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { BIZDEV_JEV_REVIEW_HOOK, type BizDevJevReviewHook } from './bizdev-jev.service.js';
 import { Inject, Optional } from '@nestjs/common';
 import type { BizDevStage } from './business-development.dto.js';
+import { isPortfolioProspectStage, LEGACY_PROSPECT_STAGES } from './prospect-stages.js';
 
 /**
  * Transaction-scoped advisory lock keyed by (tenant, canonical entity) —
@@ -177,7 +178,8 @@ export class BusinessDevelopmentService {
     private readonly prepopulation: ClientPrepopulationService,
     private readonly samEntity: SamEntityEnrichmentService,
     /** Phase 3 — optional Jev review-metadata hook (best-effort, never in-transaction). */
-    @Optional() @Inject(BIZDEV_JEV_REVIEW_HOOK)
+    @Optional()
+    @Inject(BIZDEV_JEV_REVIEW_HOOK)
     private readonly jevReview?: BizDevJevReviewHook,
   ) {}
 
@@ -569,6 +571,13 @@ export class BusinessDevelopmentService {
       // Stage Won alone NEVER converts (invariant 6): the stage column moves,
       // linkedClientId/convertedAt are untouched here.
       if (input.stage !== undefined && input.stage !== before.stage) {
+        if (
+          !isPortfolioProspectStage(before.stage) &&
+          isPortfolioProspectStage(input.stage) &&
+          !LEGACY_PROSPECT_STAGES.some((stage) => stage === input.stage)
+        ) {
+          throw new ConflictException('Legacy prospect stage mapping is pending');
+        }
         data.stage = input.stage;
       }
 
