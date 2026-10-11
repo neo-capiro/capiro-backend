@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -11,7 +17,13 @@ import {
 } from '../common/district-code.util.js';
 import { computeFacilityGeocode, facilityAddressHash } from './facility-geocode.util.js';
 import { nextGeocodeAttempt } from './geocode-retry.js';
-import { facilityGeocodeCandidateGuard, facilityGeocodeCandidateRevision, facilityWithCandidateRevision, isFacilityCandidateRevision, persistFacilityGeocodeSnapshot } from './facility-geocode-candidate-revision.js';
+import {
+  facilityGeocodeCandidateGuard,
+  facilityGeocodeCandidateRevision,
+  facilityWithCandidateRevision,
+  isFacilityCandidateRevision,
+  persistFacilityGeocodeSnapshot,
+} from './facility-geocode-candidate-revision.js';
 
 /**
  * Normalize a congressional district to STORAGE form before it is written.
@@ -428,18 +440,27 @@ export class ClientFacilitiesService {
       if (review && facilityGeocodeCandidateRevision(existing) !== review.expectedRevision) {
         throw new ConflictException({
           code: 'FACILITY_GEOCODE_CANDIDATES_CHANGED',
-          message: 'Facility or geocode candidates changed. Refresh the facility and review its current candidates.',
+          message:
+            'Facility or geocode candidates changed. Refresh the facility and review its current candidates.',
         });
       }
       const candidates = Array.isArray(existing.geocodeCandidates)
         ? existing.geocodeCandidates
         : [];
       const candidate = candidates[candidateIndex];
-      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate) || typeof candidate.matchedAddress !== 'string') {
+      if (
+        !candidate ||
+        typeof candidate !== 'object' ||
+        Array.isArray(candidate) ||
+        typeof candidate.matchedAddress !== 'string'
+      ) {
         throw new BadRequestException('Geocode candidate is no longer available');
       }
       const address = {
-        addressLine: typeof candidate.addressLine === 'string' ? candidate.addressLine : candidate.matchedAddress,
+        addressLine:
+          typeof candidate.addressLine === 'string'
+            ? candidate.addressLine
+            : candidate.matchedAddress,
         city: typeof candidate.city === 'string' ? candidate.city : existing.city,
         state: typeof candidate.state === 'string' ? candidate.state : existing.state,
         zip: typeof candidate.zip === 'string' ? candidate.zip : existing.zip,
@@ -482,10 +503,13 @@ export class ClientFacilitiesService {
       if (result.count !== 1) {
         throw new ConflictException({
           code: 'FACILITY_GEOCODE_CANDIDATES_CHANGED',
-          message: 'Facility or geocode candidates changed. Refresh the facility and review its current candidates.',
+          message:
+            'Facility or geocode candidates changed. Refresh the facility and review its current candidates.',
         });
       }
-      const selected = await tx.clientFacility.findFirst({ where: { id, tenantId: ctx.tenantId, clientId } });
+      const selected = await tx.clientFacility.findFirst({
+        where: { id, tenantId: ctx.tenantId, clientId },
+      });
       if (!selected) throw new NotFoundException('Facility not found');
       return selected;
     });

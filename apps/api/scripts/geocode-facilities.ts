@@ -26,7 +26,10 @@ import {
   facilityAddressHash,
 } from '../src/clients/facility-geocode.util.js';
 import { hasGeocodableAddress, nextGeocodeAttempt } from '../src/clients/geocode-retry.js';
-import { persistFacilityGeocodeSnapshot, type FacilityCandidateSnapshot } from '../src/clients/facility-geocode-candidate-revision.js';
+import {
+  persistFacilityGeocodeSnapshot,
+  type FacilityCandidateSnapshot,
+} from '../src/clients/facility-geocode-candidate-revision.js';
 dotenvConfig();
 
 const BATCH_CAP = Number(process.env.GEOCODE_BATCH_CAP ?? '500');
@@ -45,7 +48,9 @@ async function bypassRls<T>(
 
 async function main() {
   if (!process.env.DATABASE_URL) {
-    console.error('Usage: apps/api/scripts/geocode-facilities.ts requires DATABASE_URL (database configuration is required)');
+    console.error(
+      'Usage: apps/api/scripts/geocode-facilities.ts requires DATABASE_URL (database configuration is required)',
+    );
     process.exit(2);
   }
   const prisma = new PrismaClient();
