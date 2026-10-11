@@ -86,6 +86,10 @@ export interface PersonnelListItemDto {
   emailDomain: string | null;
   // Full email — populated ONLY for capiro_admin callers (PII gate); null otherwise.
   email: string | null;
+  // Uploaded phone follows the same admin-only contact gate as full email.
+  phone: string | null;
+  parentOffice: string | null;
+  department: string | null;
   publicProfileUrl: string | null;
   headshotUrl: string | null;
   confidence: number;

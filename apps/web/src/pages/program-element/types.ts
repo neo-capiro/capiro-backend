@@ -573,6 +573,10 @@ export interface ProgramTeamPerson {
   pePrimary: string | null;
   peSecondary: string[];
   emailDomain: string | null;
+  email?: string | null;
+  phone?: string | null;
+  parentOffice?: string | null;
+  department?: string | null;
   publicProfileUrl: string | null;
   headshotUrl: string | null;
   confidence: number;
@@ -698,6 +702,10 @@ export interface AcquisitionPersonnelDetail {
   pePrimary: string | null;
   peSecondary: string[];
   emailDomain: string | null;
+  email?: string | null;
+  phone?: string | null;
+  parentOffice?: string | null;
+  department?: string | null;
   publicProfileUrl: string | null;
   confidence: number;
   status: string;

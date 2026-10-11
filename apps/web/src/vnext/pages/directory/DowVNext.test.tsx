@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -67,6 +67,23 @@ describe('Department of War vNext', () => {
     const call = get.mock.calls.find(([url]) => url === '/api/acquisition-personnel');
     expect(call?.[1]?.params?.sort).toBe('pe_first');
     expect(screen.getAllByText(/PE 0605053A/).length).toBeGreaterThan(0);
+  });
+
+  test('shows uploaded office hierarchy and contact fields in the selected directory rail', async () => {
+    get.mockImplementation((url: string) => {
+      if (url === '/api/acquisition-personnel') return Promise.resolve(listResponse([person({
+        parentOffice: 'Acquisition Office', department: 'Department of Defense',
+        phone: '202-555-0100', email: 'ada@example.gov',
+      })]));
+      return Promise.resolve({ data: null });
+    });
+    renderAt();
+    fireEvent.click(await screen.findByRole('button', { name: /Ada Lovelace/ }));
+
+    expect(screen.getByText('Acquisition Office')).toBeTruthy();
+    expect(screen.getByText('Department of Defense')).toBeTruthy();
+    expect(screen.getByText('202-555-0100')).toBeTruthy();
+    expect(screen.getByText('ada@example.gov')).toBeTruthy();
   });
 
   test('never fabricates a PE code for an unaligned record', async () => {
