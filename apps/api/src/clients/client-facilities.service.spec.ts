@@ -58,7 +58,8 @@ function makePrisma(seed: { clients?: Row[]; facilities?: Row[] }) {
         const equals = (cond as Row).equals;
         if (equals === undefined) continue;
         if (equals === Prisma.AnyNull) {
-          if (row[key] != null && row[key] !== Prisma.JsonNull && row[key] !== Prisma.DbNull) return false;
+          if (row[key] != null && row[key] !== Prisma.JsonNull && row[key] !== Prisma.DbNull)
+            return false;
         } else if (!isDeepStrictEqual(row[key], equals)) return false;
         continue;
       }
