@@ -1,0 +1,29 @@
+{
+  "sourceHead": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "started": "2026-10-12T22:18:03.788Z",
+  "finished": "2026-10-12T22:18:04.261Z",
+  "node": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+  "args": [
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-memory-funding-fixtures-independent-review-20261012/jest.safe.cjs",
+    "--runInBand",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/01-original-destination.jest.json"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "TMPDIR": "/tmp"
+  },
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "exitCode": 1,
+  "signal": null,
+  "summary": null,
+  "rawLog": {
+    "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/01-original-destination.log",
+    "bytes": 296,
+    "sha256": "a63f2cb99c990b5da17e586aa079613e34f9b7963d12c47adb1abb11fc89b7d5"
+  }
+}

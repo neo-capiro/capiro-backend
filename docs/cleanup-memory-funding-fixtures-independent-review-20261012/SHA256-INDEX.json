@@ -1,0 +1,190 @@
+{
+  "scope": "This curated independent packet only, excluding index itself and owned caches. Source binds are separate exact immutable-pin receipts.",
+  "files": [
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/BASELINE-IDENTITIES.json",
+      "bytes": 3429,
+      "sha256": "8f9da541288cc3a3ee3a238cc11a6733b694482665e4b9d342c3009835e559c4"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/HANDOFF.md",
+      "bytes": 2495,
+      "sha256": "ab724828dad9d7eca2ec9b7c9cd3740b100c21fbea27d25f200be704ff0c577e"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/baseline/01-memory-admin-self-approval-contract.spec.ts.txt",
+      "bytes": 5981,
+      "sha256": "fb1060e8aac1beba6ace106f82e94e8acc1f58690dfd5111a0b9c2e99a2ce385"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/baseline/02-memory-phase3-review-inbox-contract.spec.ts.txt",
+      "bytes": 6046,
+      "sha256": "7b1aa2eb3bd137606bdf509fcfbe1d3be0f278bb5f02bef6265fc17e43cbe9ad"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/baseline/03-opportunity-explanation.spec.ts.txt",
+      "bytes": 11571,
+      "sha256": "389eacaec254910a08a8b7c2e7c8d5b65ad56910f5d6d37161afe7940dbafc89"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/baseline/04-MemoryFileEditor.tsx.txt",
+      "bytes": 6526,
+      "sha256": "5802bab1767ca1a7e8c4f3515b51a5340e1b3b79d86840429b18f0eaf7a86354"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/baseline/05-PendingMemoryReviewPanel.tsx.txt",
+      "bytes": 6279,
+      "sha256": "72f65313cf5b1cfa4d5f40788070a00737eae91e7e493f4f426cc33a37e9eb5c"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/baseline/06-MemoryReviewInbox.tsx.txt",
+      "bytes": 28524,
+      "sha256": "3929c81c5e338866fc8fe61f005ecd9c7ff1e54763f3d16150c066842dc09e85"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/baseline/07-MemoryGovernanceCenterHost.tsx.txt",
+      "bytes": 1769,
+      "sha256": "668ebe3d28e1de7df8a104e234cd11096f846f722fb7baaa908b5d3a9e8822eb"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/baseline/08-MemorySettingsPage.tsx.txt",
+      "bytes": 2412,
+      "sha256": "30236661d374f0018599ce3f74affa5ba4cddf2aa4641944aa06d052f3a0ccc3"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/baseline/09-FundingOpportunityV2ResultCard.tsx.txt",
+      "bytes": 25244,
+      "sha256": "6025d3bb34ad7ad28e014a2c711e3dcb66a909ad67283701fa50f865d8564101"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/baseline/10-funding-opportunities-domain.ts.txt",
+      "bytes": 6387,
+      "sha256": "77688b0605cb23add15a670e141f4a80594ba46f3fb3fc4b0e96835ad8a8b80c"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/01-original-destination.json",
+      "bytes": 1272,
+      "sha256": "1b8e8fdd94cd53bd9ad45cea909d982ad1eb429e028b9a550fcff71cc22f94b1"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/01-original-destination.log",
+      "bytes": 296,
+      "sha256": "a63f2cb99c990b5da17e586aa079613e34f9b7963d12c47adb1abb11fc89b7d5"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/02-original-destination-cached-env.jest.json",
+      "bytes": 49099,
+      "sha256": "57f41b4296ee09f53a6d63008027b96969e8911472b0c9007e6e550b48cf72dc"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/02-original-destination-cached-env.json",
+      "bytes": 1410,
+      "sha256": "9bef658f36f060ef620083a1825bfb827059641ba2432d87b2bc2cef739b9216"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/02-original-destination-cached-env.log",
+      "bytes": 8581,
+      "sha256": "ff7a62bb556793e5e4b2e6c24f9782112630871f040eb38afdadd806dce5fb77"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/03-baseline-web-unavailable.jest.json",
+      "bytes": 4557,
+      "sha256": "1b4fe5d06bdde2c86fe12b1fff0585043b0a6881e5cdc9300b396d00b59625f1"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/03-baseline-web-unavailable.json",
+      "bytes": 1753,
+      "sha256": "d997546cadc0a41323b3434b645326a02d425f1729ee557decf6625a7913a301"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/03-baseline-web-unavailable.log",
+      "bytes": 3662,
+      "sha256": "59d361b083420dc2c0ae6d688af3d67468d7cf21254fda85ef66d11a66a3805f"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/03-baseline-web-unavailable.reader.json",
+      "bytes": 1388,
+      "sha256": "e1d34dda7fb73eee4e67a658f3a92da8c52596361f4f629484a21d87157a8981"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/04-candidate-local-fixtures.jest.json",
+      "bytes": 49099,
+      "sha256": "dfa8f968be11c4eca111188da9071c743e59b9db8c7efe7b41901acf777a7f3c"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/04-candidate-local-fixtures.json",
+      "bytes": 1396,
+      "sha256": "f769b619aec18b3119752610825b4e795e9c317468780ee9b5c3b5f9e82d73d8"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/04-candidate-local-fixtures.log",
+      "bytes": 8574,
+      "sha256": "bba7a2d1f3cef0d4b39ebeffebeb179e4c0028d3f8c957f2880f91f7a22344a8"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/05-candidate-web-unavailable.jest.json",
+      "bytes": 49099,
+      "sha256": "fb0018ceb6b352cfa113b0a9d18e66d9fcd6eb75b7af12513b42ff71e46c4fd4"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/05-candidate-web-unavailable.json",
+      "bytes": 1758,
+      "sha256": "bb56aea3412263fc032b601d276dfdca0d024d5ce0a11d1e5d1f590a0c93f750"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/05-candidate-web-unavailable.log",
+      "bytes": 8591,
+      "sha256": "be49e8542e0f8fc9ab4f33311ebe3db3cca7f40746dc910f569409187ef1bf5e"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/05-candidate-web-unavailable.reader.json",
+      "bytes": 2307,
+      "sha256": "048d9ca098287f24f1ed468cf2f4019722911e967f16ea57e85701fb18af7609"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/06-source-inverse-audit.log",
+      "bytes": 146,
+      "sha256": "9bc7cca9adbdf8033ceb9e13c14a5d9cee4c52d6c5b00bccaeef002a3608f664"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/jest.safe.initial.cjs",
+      "bytes": 871,
+      "sha256": "a1de47d278a8347ef331775120e4dd29f5d02e29b90e37226e3c54c1e04b851a"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/run-owner-specs-before-reader-audit.cjs",
+      "bytes": 1896,
+      "sha256": "8574de0f8e18e898dacfdd4fe62f6a907e4ef92faae90d28b13e5cab53928506"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/run-owner-specs.cjs",
+      "bytes": 2076,
+      "sha256": "f4ff1e833c50782ab3c067333d76f612e5a57265115d209a42b1643d08f2e183"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/runtime-import-inventory.json",
+      "bytes": 6738,
+      "sha256": "60c92fafdd14675344ad94ae97dc698e578120a9a1e4d1dacaf5244430dfcdc8"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/source-inverse-audit.json",
+      "bytes": 6926,
+      "sha256": "8c0f43a716e2393d7dfe48b21dce3841247e8d303b56ea5f359d04beccd8d435"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/source-inverse-audit.py",
+      "bytes": 5111,
+      "sha256": "766473296714599dc59ae9a77ec3154bd95fa5850e5375ec0585fa915bdde2c2"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/source-reader-audit.cjs",
+      "bytes": 1155,
+      "sha256": "49e5bb21e7dcc8f53a575d8fe7c0bd848c5ab214e484d6c0a0f24c19aa4b2aa9"
+    },
+    {
+      "path": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/jest.safe.cjs",
+      "bytes": 910,
+      "sha256": "1f5efb239fd8498a31a67080c1bb5114e2dd0a06dee2fe307ad6fc793fe7b38f"
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "oldPublishedCode": "d09429a509d5b3cc2501f3736e619723e4b2c4c0",
+  "latestPublishedCode": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+  "sourcePaths": [
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+      "oldPublishedBlob": "440c0d3ac329ef7bb78b2f5f52a8cc098e103d65",
+      "latestPublishedBlob": "440c0d3ac329ef7bb78b2f5f52a8cc098e103d65"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+      "oldPublishedBlob": "ede8ad99e0ab594f94170809b0f6dc389131bf69",
+      "latestPublishedBlob": "ede8ad99e0ab594f94170809b0f6dc389131bf69"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+      "oldPublishedBlob": "0fcd61209d25aa752a57b6d562dd0d13772725c8",
+      "latestPublishedBlob": "0fcd61209d25aa752a57b6d562dd0d13772725c8"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+      "oldPublishedBlob": "d2f1a3db632d8a7043bebe1b93dcfd3b8295a439",
+      "latestPublishedBlob": "d2f1a3db632d8a7043bebe1b93dcfd3b8295a439"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+      "oldPublishedBlob": "ab070052dfb5560b1a71c5ddc5bc2477071ffbda",
+      "latestPublishedBlob": "ab070052dfb5560b1a71c5ddc5bc2477071ffbda"
+    },
+    {
+      "path": "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "oldPublishedBlob": "e8dc531e5d4963e28e0ea42403fd881f435cb9e2",
+      "latestPublishedBlob": "e8dc531e5d4963e28e0ea42403fd881f435cb9e2"
+    },
+    {
+      "path": "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "oldPublishedBlob": "b4d9f8065274d65ef6e094beadc3740cb2ae11e8",
+      "latestPublishedBlob": "b4d9f8065274d65ef6e094beadc3740cb2ae11e8"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+      "oldPublishedBlob": "05f846a57a7fbde54f8fb24605441a88b4e2156a",
+      "latestPublishedBlob": "05f846a57a7fbde54f8fb24605441a88b4e2156a"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt",
+      "oldPublishedBlob": "2bec9d5ec3976ed9847e16b98df8e2329a58392b",
+      "latestPublishedBlob": "2bec9d5ec3976ed9847e16b98df8e2329a58392b"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "oldPublishedBlob": "55d159fad4c478b806d4114cb9100c0a5c1401ff",
+      "latestPublishedBlob": "55d159fad4c478b806d4114cb9100c0a5c1401ff"
+    },
+    {
+      "path": "apps/api/scripts/lib/meri-durable-research-contract-client.ts",
+      "oldPublishedBlob": "a1b644000df0aef365e4a12d393be1871b556245",
+      "latestPublishedBlob": "a1b644000df0aef365e4a12d393be1871b556245"
+    },
+    {
+      "path": "apps/api/scripts/meri-durable-controls.http.integration.spec.ts",
+      "oldPublishedBlob": "e897b40d8a15472613930242cea3d8ee99178b71",
+      "latestPublishedBlob": "e897b40d8a15472613930242cea3d8ee99178b71"
+    },
+    {
+      "path": "scripts/ci/meri-durable-http-client-contract.spec.mjs",
+      "oldPublishedBlob": "2cadf834ec433d0a9bf1fb8a172016b35326284c",
+      "latestPublishedBlob": "2cadf834ec433d0a9bf1fb8a172016b35326284c"
+    }
+  ],
+  "all13SourceBlobsUnchanged": true,
+  "deniedNewReportReadCopiedOrPublished": false,
+  "scope": "Only existing published CODE blob metadata for selected13paths; no newer detailed report accessed"
+}

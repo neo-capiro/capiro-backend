@@ -1,0 +1,57 @@
+FAIL apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts
+  ● Test suite failed to run
+
+    INERT_REVIEW_WEB_SOURCE_UNAVAILABLE /tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/MemoryFileEditor.tsx
+
+       6 | fs.readFileSync=function(file,...args){
+       7 |  const absolute=typeof file==='string'?path.resolve(file):null;
+    >  8 |  if(absolute&&block.has(absolute)){refused.push(absolute);const error=new Error('INERT_REVIEW_WEB_SOURCE_UNAVAILABLE '+absolute);error.code='ENOENT';throw error;}
+         |                                                                       ^
+       9 |  if(absolute&&absolute.includes('/__fixtures__/legacy-ui-contracts/'))reads.push(absolute);
+      10 |  return original.call(this,file,...args);
+      11 | };
+
+      at fs.readFileSync (docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/source-reader-audit.cjs:8:71)
+      at readWeb (apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts:15:47)
+      at Object.<anonymous> (apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts:29:16)
+
+FAIL apps/api/src/funding-opportunities/opportunity-explanation.spec.ts
+  ● Test suite failed to run
+
+    INERT_REVIEW_WEB_SOURCE_UNAVAILABLE /tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/vnext/pages/funding-opportunities/FundingOpportunityV2ResultCard.tsx
+
+       6 | fs.readFileSync=function(file,...args){
+       7 |  const absolute=typeof file==='string'?path.resolve(file):null;
+    >  8 |  if(absolute&&block.has(absolute)){refused.push(absolute);const error=new Error('INERT_REVIEW_WEB_SOURCE_UNAVAILABLE '+absolute);error.code='ENOENT';throw error;}
+         |                                                                       ^
+       9 |  if(absolute&&absolute.includes('/__fixtures__/legacy-ui-contracts/'))reads.push(absolute);
+      10 |  return original.call(this,file,...args);
+      11 | };
+
+      at fs.readFileSync (docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/source-reader-audit.cjs:8:71)
+      at apps/api/src/funding-opportunities/opportunity-explanation.spec.ts:253:28
+      at Object.<anonymous> (apps/api/src/funding-opportunities/opportunity-explanation.spec.ts:252:9)
+
+FAIL apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts
+  ● Test suite failed to run
+
+    INERT_REVIEW_WEB_SOURCE_UNAVAILABLE /tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/web/src/components/MemoryGovernanceCenterHost.tsx
+
+       6 | fs.readFileSync=function(file,...args){
+       7 |  const absolute=typeof file==='string'?path.resolve(file):null;
+    >  8 |  if(absolute&&block.has(absolute)){refused.push(absolute);const error=new Error('INERT_REVIEW_WEB_SOURCE_UNAVAILABLE '+absolute);error.code='ENOENT';throw error;}
+         |                                                                       ^
+       9 |  if(absolute&&absolute.includes('/__fixtures__/legacy-ui-contracts/'))reads.push(absolute);
+      10 |  return original.call(this,file,...args);
+      11 | };
+
+      at fs.readFileSync (docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/source-reader-audit.cjs:8:71)
+      at readWeb (apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts:16:15)
+      at Object.<anonymous> (apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts:30:14)
+
+Test Suites: 3 failed, 3 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        0.747 s, estimated 2 s
+Ran all test suites.
+Test results written to: docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/03-baseline-web-unavailable.jest.json

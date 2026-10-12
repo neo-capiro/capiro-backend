@@ -1,0 +1,130 @@
+{
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "sourceHead": "44eda40f7951e73722566862649939e51a8f151a",
+  "sourceTree": "d13ee8799aa89c5a55d2d96efdbd9458c6e4439f",
+  "independentInitialBase": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "fixtures": [
+    {
+      "original": "apps/web/src/components/MemoryFileEditor.tsx",
+      "fixture": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+      "bytes": 6526,
+      "sha256": "5802bab1767ca1a7e8c4f3515b51a5340e1b3b79d86840429b18f0eaf7a86354",
+      "baseSourceBlob": "440c0d3ac329ef7bb78b2f5f52a8cc098e103d65",
+      "candidateFixtureBlob": "440c0d3ac329ef7bb78b2f5f52a8cc098e103d65",
+      "legacyPublishedFixtureEqual": true
+    },
+    {
+      "original": "apps/web/src/components/MemoryGovernanceCenterHost.tsx",
+      "fixture": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+      "bytes": 1769,
+      "sha256": "668ebe3d28e1de7df8a104e234cd11096f846f722fb7baaa908b5d3a9e8822eb",
+      "baseSourceBlob": "ede8ad99e0ab594f94170809b0f6dc389131bf69",
+      "candidateFixtureBlob": "ede8ad99e0ab594f94170809b0f6dc389131bf69",
+      "legacyPublishedFixtureEqual": true
+    },
+    {
+      "original": "apps/web/src/components/MemoryReviewInbox.tsx",
+      "fixture": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+      "bytes": 28524,
+      "sha256": "3929c81c5e338866fc8fe61f005ecd9c7ff1e54763f3d16150c066842dc09e85",
+      "baseSourceBlob": "0fcd61209d25aa752a57b6d562dd0d13772725c8",
+      "candidateFixtureBlob": "0fcd61209d25aa752a57b6d562dd0d13772725c8",
+      "legacyPublishedFixtureEqual": true
+    },
+    {
+      "original": "apps/web/src/components/PendingMemoryReviewPanel.tsx",
+      "fixture": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+      "bytes": 6279,
+      "sha256": "72f65313cf5b1cfa4d5f40788070a00737eae91e7e493f4f426cc33a37e9eb5c",
+      "baseSourceBlob": "d2f1a3db632d8a7043bebe1b93dcfd3b8295a439",
+      "candidateFixtureBlob": "d2f1a3db632d8a7043bebe1b93dcfd3b8295a439",
+      "legacyPublishedFixtureEqual": true
+    },
+    {
+      "original": "apps/web/src/pages/settings/MemorySettingsPage.tsx",
+      "fixture": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+      "bytes": 2412,
+      "sha256": "30236661d374f0018599ce3f74affa5ba4cddf2aa4641944aa06d052f3a0ccc3",
+      "baseSourceBlob": "ab070052dfb5560b1a71c5ddc5bc2477071ffbda",
+      "candidateFixtureBlob": "ab070052dfb5560b1a71c5ddc5bc2477071ffbda",
+      "legacyPublishedFixtureEqual": true
+    },
+    {
+      "original": "apps/web/src/vnext/pages/funding-opportunities/FundingOpportunityV2ResultCard.tsx",
+      "fixture": "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+      "bytes": 25244,
+      "sha256": "6025d3bb34ad7ad28e014a2c711e3dcb66a909ad67283701fa50f865d8564101",
+      "baseSourceBlob": "05f846a57a7fbde54f8fb24605441a88b4e2156a",
+      "candidateFixtureBlob": "05f846a57a7fbde54f8fb24605441a88b4e2156a",
+      "legacyPublishedFixtureEqual": true
+    },
+    {
+      "original": "apps/web/src/vnext/pages/funding-opportunities/funding-opportunities-domain.ts",
+      "fixture": "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt",
+      "bytes": 6387,
+      "sha256": "77688b0605cb23add15a670e141f4a80594ba46f3fb3fc4b0e96835ad8a8b80c",
+      "baseSourceBlob": "2bec9d5ec3976ed9847e16b98df8e2329a58392b",
+      "candidateFixtureBlob": "2bec9d5ec3976ed9847e16b98df8e2329a58392b",
+      "legacyPublishedFixtureEqual": true
+    }
+  ],
+  "specInverses": [
+    {
+      "path": "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "originalBytes": 5981,
+      "candidateBytes": 6028,
+      "originalSha256": "fb1060e8aac1beba6ace106f82e94e8acc1f58690dfd5111a0b9c2e99a2ce385",
+      "candidateSha256": "fe20d9a510d10b8f91310a3f32f1e24296e09e6b9c12aa6b8a41bde0b0fea215",
+      "exactReaderOnlyInverse": true,
+      "allCaseAssertionAndOpaqueCoreBytesPreserved": true
+    },
+    {
+      "path": "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "originalBytes": 6046,
+      "candidateBytes": 6093,
+      "originalSha256": "7b1aa2eb3bd137606bdf509fcfbe1d3be0f278bb5f02bef6265fc17e43cbe9ad",
+      "candidateSha256": "48f91990bad6dfb44c70af373594daa8dc0534ce32d18170a847845995fb4873",
+      "exactReaderOnlyInverse": true,
+      "allCaseAssertionAndOpaqueCoreBytesPreserved": true
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "originalBytes": 11571,
+      "candidateBytes": 11543,
+      "originalSha256": "389eacaec254910a08a8b7c2e7c8d5b65ad56910f5d6d37161afe7940dbafc89",
+      "candidateSha256": "93cbcbdc1898e0749f4994baf957471200a96bc58cc33074e3da4f3703470f85",
+      "exactReaderOnlyInverse": true,
+      "allCaseAssertionAndOpaqueCoreBytesPreserved": true
+    }
+  ],
+  "exact10SourcePaths": [
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+    "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+    "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+    "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+    "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+    "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt",
+    "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts"
+  ],
+  "allOtherTrackedSourceIncludingCurrent20QualificationPathsNineFixesSharedExportsSchemaAndFrontendUnchanged": true,
+  "originalAndCandidateCases": 60,
+  "pass": 59,
+  "inheritedFail": 1,
+  "unchangedFailedCase": [
+    {
+      "file": "memory-admin-self-approval-contract.spec.ts",
+      "case": "memory administrator self-approval policy contract removes the independent-approver claim from every active shared-memory UI surface"
+    }
+  ],
+  "blockedWebProbe": {
+    "baselineCollectionsRefused": 3,
+    "candidateBlockedReads": 0,
+    "candidateFixtureReads": 8,
+    "uniqueCandidateFixtures": 7,
+    "candidateSameCasesAndFailure": true
+  },
+  "claim": "Backend static input adoption and case/outcome preservation; inherited editor-literal RED remains open, not UI/native DB/frontend acceptance"
+}

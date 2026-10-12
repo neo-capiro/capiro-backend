@@ -1,0 +1,36 @@
+{
+  "sourceHead": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "started": "2026-10-12T22:18:38.008Z",
+  "finished": "2026-10-12T22:18:43.662Z",
+  "node": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+  "args": [
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-memory-funding-fixtures-independent-review-20261012/jest.safe.cjs",
+    "--runInBand",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/02-original-destination-cached-env.jest.json"
+  ],
+  "env": {
+    "PATH": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "TMPDIR": "/tmp"
+  },
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "exitCode": 1,
+  "signal": null,
+  "summary": {
+    "suites": 3,
+    "passedSuites": 2,
+    "failedSuites": 1,
+    "cases": 60,
+    "passed": 59,
+    "failed": 1
+  },
+  "rawLog": {
+    "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-memory-funding-fixtures-independent-review-20261012/evidence/02-original-destination-cached-env.log",
+    "bytes": 8581,
+    "sha256": "ff7a62bb556793e5e4b2e6c24f9782112630871f040eb38afdadd806dce5fb77"
+  }
+}

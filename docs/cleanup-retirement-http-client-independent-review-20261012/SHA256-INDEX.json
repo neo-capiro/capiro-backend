@@ -1,0 +1,90 @@
+{
+  "scope": "This curated independent packet only, excluding index itself and owned caches. Source binds are separate exact immutable-pin receipts.",
+  "files": [
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/HANDOFF.md",
+      "bytes": 2942,
+      "sha256": "f6467af3fc83608ae61f8b60ffae60f13990883e6a01c5f0bfa21293dbd37b29"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/RESULT.json",
+      "bytes": 2080,
+      "sha256": "1d6051351ac549d6860991e25505fdf1ada3d5213f316d7ec5b56f6dfe338062"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/01-published-controls.tap",
+      "bytes": 4993,
+      "sha256": "d17f00828e967bf886654636ad2338c1473aa1cc585dd0230e0e3b26d2d61f16"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/02-source-oracle-audit.log",
+      "bytes": 1367,
+      "sha256": "3a1073b098dca091dff9f882b9fee7166a4c0ae688a7ad7a7d953e5852c15756"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/03-source-oracle-audit.log",
+      "bytes": 918,
+      "sha256": "34266c31add01eb6170d440ca7f1ec7e794647140f2ef8f0c1dbfb964590fd59"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/04-source-oracle-audit.log",
+      "bytes": 143,
+      "sha256": "cbfe86c2de70928198215720a443cc88b83990f406e404adc563e1154d85ce5a"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/05-independent-fake-adversaries.tap",
+      "bytes": 2027,
+      "sha256": "c5c14e85628feedc8f894e3620f564a310d3adbbb728bf8e6c6100a9bcee9e43"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/06-client-strict-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/independent-fake-adversaries.cjs",
+      "bytes": 6664,
+      "sha256": "72a72b259ef35a8ae23fb8cf4d715f10f033b368152300d947321d91aefedd43"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/independently-bound-oracle.ts.txt",
+      "bytes": 13817,
+      "sha256": "476ace880c73c1f52558d3b08a7396a43f0b96a3e1bf8916ccc9ddc52ee8e50c"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/latest-code-only-binding.json",
+      "bytes": 3678,
+      "sha256": "893ed5533387a11de0c96f14f95570f5ada6905d733210b0f151f7a089ec0fdd"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/original-web-module.ts.txt",
+      "bytes": 16414,
+      "sha256": "fe527c6d0c90c61c0cf453af61e1b8d5509794e56a64f816b7a4fca88d20aa02"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/seal-independent-packets.py",
+      "bytes": 9957,
+      "sha256": "fab3ae17739460b72c63da73810733c000f83276f4471d94819b6b1ea7863236"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/source-oracle-audit.before-case-count-correction.cjs",
+      "bytes": 6042,
+      "sha256": "1db62baa3058d72ddd733aa236ecff15994bc93a75e5e1bbfcde0b21f882d9f1"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/source-oracle-audit.cjs",
+      "bytes": 6390,
+      "sha256": "cc4f889b9da69232ba74c0394e50aac7622abd082cf6d8b5968ddfeb4ec481ba"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/source-oracle-audit.initial.cjs",
+      "bytes": 6016,
+      "sha256": "bce4c493050b2c61f5fea0676fd1fc35314c34177990dbf85bb9899d9d1134de"
+    },
+    {
+      "path": "docs/cleanup-retirement-http-client-independent-review-20261012/evidence/source-oracle-audit.json",
+      "bytes": 8208,
+      "sha256": "b3a8fee0f1a8557ee1691c5fedaea698b0c23c94e3578ea2243d539d46f8a716"
+    }
+  ]
+}
