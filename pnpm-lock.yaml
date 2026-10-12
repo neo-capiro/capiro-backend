@@ -243,6 +243,9 @@ importers:
       '@capiro/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@capiro/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@capiro/strategy-verifier':
         specifier: workspace:*
         version: link:../../packages/strategy-verifier

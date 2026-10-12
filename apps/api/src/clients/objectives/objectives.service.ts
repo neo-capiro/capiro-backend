@@ -6,7 +6,11 @@ import {
 } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import type { ClientObjective, Prisma } from '@prisma/client';
-import type { TenantContext } from '@capiro/shared';
+import {
+  requireClientObjectiveDestinationRevision,
+  ClientObjectiveDestinationError,
+  type TenantContext,
+} from '@capiro/shared';
 import { clientMemoryAllowed } from '../../memory/memory-wall.helpers.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
@@ -55,46 +59,21 @@ export class ClientObjectivesService {
     ctx: TenantContext,
     input: ObjectiveDestinationQueryDto,
   ): Promise<ObjectiveRevisionBinding> {
-    const binding = normalizeObjectiveDestination(input);
-    // Lock the actual current authority, including the grant that a DELETE
-    // revokes. A trusted request context alone is insufficient after revocation.
-    const scope = await tx.$queryRaw<Array<{ memoryWall: boolean }>>`
-      SELECT c.memory_wall AS "memoryWall"
-      FROM tenants t
-      JOIN tenant_memberships m ON m.tenant_id=t.id
-      JOIN users u ON u.id=m.user_id
-      JOIN clients c ON c.tenant_id=t.id
-      WHERE t.id=${ctx.tenantId}::uuid AND t.status::text='active'
-        AND m.user_id=${ctx.userId}::uuid AND m.status::text='active'
-        AND m.role::text IN ('standard_user','user_admin','capiro_admin')
-        AND u.clerk_user_id=${ctx.clerkUserId}
-        AND c.id=${binding.clientId}::uuid AND c.status::text<>'archived'
-      FOR SHARE OF t,m,u,c
-    `;
-    if (!scope[0]) throw new NotFoundException('Objective destination not found');
-    if (scope[0].memoryWall) {
-      const grants = await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT id FROM client_memory_access
-        WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${binding.clientId}::uuid
-          AND user_id=${ctx.userId}::uuid FOR SHARE
-      `;
-      if (!grants[0]) throw new NotFoundException('Objective destination not found');
+    try {
+      return await requireClientObjectiveDestinationRevision(
+        tx,
+        ctx,
+        normalizeObjectiveDestination(input),
+      );
+    } catch (error) {
+      if (error instanceof ClientObjectiveDestinationError) {
+        if (error.code === 'OBJECTIVE_VERSION_CONFLICT') this.conflict();
+        if (error.code === 'OBJECTIVE_DESTINATION_INVALID')
+          throw new BadRequestException('Invalid Objective destination binding');
+        throw new NotFoundException('Objective destination not found');
+      }
+      throw error;
     }
-    const objectives = await tx.$queryRaw<Array<{ version: number }>>`
-      SELECT version FROM client_objectives
-      WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${binding.clientId}::uuid
-        AND id=${binding.objectiveId}::uuid AND deleted_at IS NULL FOR SHARE
-    `;
-    if (!objectives[0]) throw new NotFoundException('Objective destination not found');
-    if (objectives[0].version !== binding.objectiveVersion) this.conflict();
-    const revisions = await tx.$queryRaw<Array<{ id: string }>>`
-      SELECT id FROM client_objective_revisions
-      WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${binding.clientId}::uuid
-        AND objective_id=${binding.objectiveId}::uuid AND version=${binding.objectiveVersion}
-      FOR SHARE
-    `;
-    if (!revisions[0]) throw new NotFoundException('Objective destination not found');
-    return { ...binding, objectiveRevisionId: revisions[0].id };
   }
 
   async list(ctx: TenantContext, clientId: string) {

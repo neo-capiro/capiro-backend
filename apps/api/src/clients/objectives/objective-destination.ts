@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { IsInt, IsUUID, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { normalizeClientObjectiveDestination } from '@capiro/shared';
 
 /** An observation of canonical state, never a bearer capability or stored link. */
 export interface ObjectiveRevisionBinding {
@@ -25,20 +26,9 @@ export class ObjectiveDestinationQueryDto {
 }
 
 export function normalizeObjectiveDestination(input: ObjectiveDestinationQueryDto) {
-  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (
-    !input ||
-    !uuid.test(input.clientId) ||
-    !uuid.test(input.objectiveId) ||
-    !Number.isInteger(input.objectiveVersion) ||
-    input.objectiveVersion < 1 ||
-    input.objectiveVersion > 2147483647
-  ) {
+  try {
+    return normalizeClientObjectiveDestination(input);
+  } catch {
     throw new BadRequestException('Invalid Objective destination binding');
   }
-  return {
-    clientId: input.clientId.toLowerCase(),
-    objectiveId: input.objectiveId.toLowerCase(),
-    objectiveVersion: input.objectiveVersion,
-  };
 }
