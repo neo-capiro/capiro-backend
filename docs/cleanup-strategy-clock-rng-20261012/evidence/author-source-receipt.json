@@ -1,0 +1,179 @@
+{
+  "sourceHead": "e22731a66021bb4e7e5b4112624c823c611d2a3c",
+  "sourceTree": "19b961637081340dcad1eb70522868fe2863762d",
+  "baseHead": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "baseTree": "d3ede11cd213151b244853e39bb7fab30610d2d9",
+  "recordedAtUTC": "2026-10-12T14:45:04.659450+00:00",
+  "sourcePaths": [
+    {
+      "path": "apps/api-strategy/src/fiscal/fiscal.spec.ts",
+      "gitBlob": "905f54bbea50fae41c3eea0a66380fb09fb6a8a0",
+      "sha256": "1fa81c9a24a1a70616aaeada8659a438552096243d7d3439fdee38398bcb63c7"
+    },
+    {
+      "path": "apps/api-strategy/src/fiscal/fiscal.ts",
+      "gitBlob": "08ba8d786d31b96382fc1b43d4fa92831ad1d72e",
+      "sha256": "31bbedc196283335625110729e4296ad6eb72d9d900da8696f770f166213003c"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/context-load.spec.ts",
+      "gitBlob": "9e32c5df266483080066980fa14459422fb33c05",
+      "sha256": "598ef991b079ec233275df1f2c629730d5a166deb2f28d0cbed8d6cfa8027181"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/context-load.ts",
+      "gitBlob": "2fae41c88c7f3686eb81973e882bbe85f84ce2b4",
+      "sha256": "8a44d6eeaf5476aabfba62cb5c43c124aa1fd109563896e6aed9bf0cf0f8a0e6"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/draft-job.service.spec.ts",
+      "gitBlob": "4de4c602d3fe8ecf38fe5c65c620a79961246d25",
+      "sha256": "6855a39f2896c6a9eb39ae286090a75757439ed67b968beed6d4ea7e9e63c681"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/draft-job.service.ts",
+      "gitBlob": "ed7e9327e5e2f912d968d778b7041eba6d595751",
+      "sha256": "4e013d0f60b56f35c8469375fc40d133d539a0c34633321169221ef52cd5f6dc"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/meri.module.ts",
+      "gitBlob": "f4d8cf791c041315e73384379ffa7f3c67587f7b",
+      "sha256": "1d4d25e208f07aca7d2fc89c9525cac1b97d1bff05417004ac6b126cf91dba4d"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/meri.service.spec.ts",
+      "gitBlob": "5fb4144706d4a8ba90823e4899a51be3db3be365",
+      "sha256": "b7250a9f1d5f5090cec0aca0c953e2d37281d6df39c3d7f36de49e5cd1bc3583"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/meri.service.ts",
+      "gitBlob": "7579ff15d9fb4ef0757485529eb2e75a7b1b5ca3",
+      "sha256": "487b88a3da52861aac30d2c3be42c98a0442e157ceb9154df302c7696a9c0189"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-time.providers.spec.ts",
+      "gitBlob": "cc37a19519b5067cc71ccd7026fc0b28ddfeb955",
+      "sha256": "a2cba034cceba25423f9b5bea881d9a1fdb16bef6b7c48975d2fa3113f3046d2"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+      "gitBlob": "9be11ff6c17a14c49087b5e3112cdd8d6b32b055",
+      "sha256": "457d68075d1d3a3078694761b8443468c89af678651f9889e21546c7a76cd39a"
+    }
+  ],
+  "sharedCanonicalDependency": {
+    "owner": "root",
+    "timeSource": "/workspace/capirov2-cleanup-clock-source/packages/shared/src/time.ts",
+    "sha256": "c8f5e960d56e7bdb509a990517c2c2ffe7cbfbc975442bb7a53a4ed52845a854",
+    "gitBlob": "9224a10408f143c5192b34332f5de70b492af9c8",
+    "sharedIndexSha256": "fde2cea920fcb64f3150bbe5849d2cfd438462edaf711634dc7ed48f0eba7d9a",
+    "types": "root-owned cached compiler build; private app @capiro/shared link; no author shared source edits"
+  },
+  "checks": [
+    {
+      "command": "Jest --runInBand --no-cache --runTestsByPath (clock.jest.cjs), seven selected source-only suites",
+      "cwd": "apps/api-strategy",
+      "sourceHead": "e22731a66021bb4e7e5b4112624c823c611d2a3c",
+      "exitCode": 0,
+      "result": "137 passed, seven suites;102 original full names retained",
+      "evidence": [
+        "author-frozen.json",
+        "author-frozen.log",
+        "test-name-retention.json"
+      ]
+    },
+    {
+      "command": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit --pretty false",
+      "cwd": "apps/api-strategy",
+      "sourceHead": "e22731a66021bb4e7e5b4112624c823c611d2a3c",
+      "exitCode": 0,
+      "result": "complete strict app typecheck passed",
+      "evidence": [
+        "strategy-tsc-frozen.log"
+      ]
+    },
+    {
+      "command": "read-only source/path/hash verification and git diff --check",
+      "exitCode": 0,
+      "result": "eleven agreed app source/test paths; frozen blobs match; no shared/root/manifest/workflow changes"
+    }
+  ],
+  "initialChecks": {
+    "focusedSyntheticTests": 125,
+    "typeCheckInitial": "failed missing isolated shared dependency, raw log retained; local binding repaired and strict retry passed",
+    "baselineNameInventoryInitial": "failed missing parent generated client; repaired mapper read local engine-free client;102 deliberately skipped names (not acceptance)",
+    "postInventoryVerification": "failed because parent advanced via legitimate app source cherry-pick; immutable baseline provenance retained"
+  },
+  "runtimeMembers": {
+    "clock": "this.clock()",
+    "retryArgument": "this.retryRuntime",
+    "random": "runtime.random()",
+    "delay": "runtime.delay(...)",
+    "productionRetryCalls": 6
+  },
+  "transportContractDelta": "none; internal constructor DI and helper argument requirements only",
+  "pending": [
+    "root shared utility +same-change data-driven AST ratchet/CI integration",
+    "independent review of complete integrated slice",
+    "full Cleanup prerequisite/native gates remain open"
+  ],
+  "sourceOnlyLimits": "No DB/PGlite/migration/native engine/download/provider/model/cloud/customer/credentials/permissions/security/network/main merge/deploy operations; copied generated JS/types exclude engines.",
+  "retainedEvidence": {
+    "author-frozen.json": {
+      "bytes": 56165,
+      "sha256": "77da59916fc16b1781848d1d18c763b95ccb7ac3168f347bec26037cd49579ef"
+    },
+    "author-frozen.log": {
+      "bytes": 11115,
+      "sha256": "7451affceee2868f76a391c33ff3a6c6686fa63215ddf82609c95c77f5973bf8"
+    },
+    "author-initial.json": {
+      "bytes": 50768,
+      "sha256": "9b06c7e0c700a8136b82fda86dbb9786a7e4301cdba467a90b8049b49dbb0443"
+    },
+    "author-initial.log": {
+      "bytes": 10624,
+      "sha256": "4b80e4696c40b3d87c4d7617049f4890e035f8c98d1907a1efb8af829f7c459e"
+    },
+    "baseline-test-names-repaired.json": {
+      "bytes": 41243,
+      "sha256": "a54704aec66eeb5c255d6abea4ace4d01a3fdfcaa90abd84d71093b82d049634"
+    },
+    "baseline-test-names-repaired.log": {
+      "bytes": 937,
+      "sha256": "2b8e99f35dab5e20b50dc9dfa294180093701f3cd262cbf548eb5c327aa82ecd"
+    },
+    "baseline-test-names.json": {
+      "bytes": 13727,
+      "sha256": "36668eeaa62f861274acc18dcca260df655bd8ee2ecbefbd3938d923c6982797"
+    },
+    "baseline-test-names.log": {
+      "bytes": 3092,
+      "sha256": "808badc72acdd2bda266dddbc6a2243cab1aa386b2e71b3e6f39636b30884cd0"
+    },
+    "clock.jest.cjs": {
+      "bytes": 791,
+      "sha256": "de4f794bf8fe7b022bb422afb9ccd4cf0d45bbae8c04683213e7f822a59c73d2"
+    },
+    "inventory-post-verification-failure.txt": {
+      "bytes": 562,
+      "sha256": "a75210be74fafed75a03334f9792f52da3bac07f3edbbb5583e0d2274c936f41"
+    },
+    "strategy-tsc-dependency-retry.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "strategy-tsc-frozen.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "strategy-tsc-initial.log": {
+      "bytes": 1070,
+      "sha256": "e6ec18d9667908fd065855e9ef5953b4f07d00078e7a90632e134a38810c7510"
+    },
+    "test-name-retention.json": {
+      "bytes": 5958,
+      "sha256": "bf00d31fd2143cad7fb4f5db527f15aa05edbaf7a6f2fc3d2215c5a4b2aed675"
+    }
+  }
+}

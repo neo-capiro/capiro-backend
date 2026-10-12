@@ -1,0 +1,65 @@
+{
+  "baseline": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "sourceHead": "e22731a66021bb4e7e5b4112624c823c611d2a3c",
+  "baselineSourceFiles": {
+    "apps/api-strategy/src/meri/meri.service.spec.ts": {
+      "baselineGitBlob": "058cb8687d8d00f1f358bca86a69242d08196030",
+      "sha256": "21bf3503686cdaed8ba8a3c000681b9f1012a5880de2f2c0dde6849c8d8b046d"
+    },
+    "apps/api-strategy/src/meri/draft-job.service.spec.ts": {
+      "baselineGitBlob": "094727a79e8a954407ba733b7d733ab14d52c8f3",
+      "sha256": "e49bbe198aba3977ae085cb56db2026f95761fafef82755c660b23f47115f33e"
+    },
+    "apps/api-strategy/src/meri/context-load.spec.ts": {
+      "baselineGitBlob": "d90ba96df9edb1e01fb9aad63099947893561c96",
+      "sha256": "c9b4e75b911978efa05256c29abed9f61e23f1d420e45e97ca5ac1c7df7d1bec"
+    },
+    "apps/api-strategy/src/fiscal/fiscal.spec.ts": {
+      "baselineGitBlob": "0f3e6bd68190abb909e2b0ddf983f166c5f3cf2b",
+      "sha256": "b4d5b06b3a67b34a0f72accecde5e6c0f5680fba1c5622b7a22f50e508a22f81"
+    }
+  },
+  "baselineSourceVerification": "All four parent source specs were byte-compared successfully against immutable2408 Git blobs before baseline inventory. Parent later cherry-picked app source as abb22da7e, so a post-run assertion that its files remained original correctly failed; provenance here uses immutable Git blobs, not mutable parent worktree state.",
+  "baselineCases": 102,
+  "frozenCases": 137,
+  "retained": 102,
+  "removed": [],
+  "added": [
+    "MeriService injected grounding time and retry hooks propagates an unavailable injected clock instead of sending an ambient fiscal fallback",
+    "MeriService injected grounding time and retry hooks forwards the same injected fiscal clock through reference assistance without persisting rows",
+    "MeriService injected grounding time and retry hooks samples the injected clock once per fiscal projection and refreshes the next call",
+    "MeriService injected grounding time and retry hooks retains the existing sampling point after asynchronous grounding loads finish",
+    "MeriService injected grounding time and retry hooks threads retry hooks into firm-phases grounding",
+    "MeriService injected grounding time and retry hooks threads retry hooks into reference-calendars grounding",
+    "MeriService injected grounding time and retry hooks threads retry hooks into draft client lookup without bypassing unknown-client denial",
+    "MeriService injected grounding time and retry hooks threads retry hooks into steward-facts before its existing fail-soft policy",
+    "MeriService injected grounding time and retry hooks threads retry hooks into steward-health before its existing fail-soft policy",
+    "DraftJobService.submit uses the injected retry hooks for the client lookup while retaining unknown-client denial",
+    "DraftJobService.submit does not invoke retry hooks or job persistence after a non-transient client lookup denial",
+    "createGovernedStrategyMeriService resolves one Strategy packet before draft reasoning and exposes it request-scoped",
+    "createGovernedStrategyMeriService loads the canonical Strategy client before assistant context resolution",
+    "createGovernedStrategyMeriService Context Plane failure prevents draft and assistant provider reasoning",
+    "createGovernedStrategyMeriService workspace_draft execution drafting uses destination-owned governed context",
+    "createGovernedStrategyMeriService outreach_record execution drafting uses destination-owned governed context",
+    "createGovernedStrategyMeriService document context failure or unresolvable bearer uses the deterministic placeholder without provider reasoning",
+    "withContextRetry injected randomness and delay samples once per retry and retains the exact jitter floor and two backoff bases",
+    "withContextRetry injected randomness and delay does not sample randomness or wait on a successful or explicitly empty source",
+    "withContextRetry injected randomness and delay does not wait or sample for a non-transient denial",
+    "withContextRetry injected randomness and delay preserves the existing classifier ordering for contradictory timeout and status fields",
+    "withContextRetry injected randomness and delay awaits the injected delay before starting the next attempt",
+    "withContextRetry injected randomness and delay propagates an injected random failure without another source attempt",
+    "withContextRetry injected randomness and delay propagates an injected delay failure without another source attempt",
+    "withContextRetry injected randomness and delay does not perform a final sleep or consume a third random sample when retries are exhausted",
+    "Strategy grounding time providers registers the canonical lazy defaults in the existing Meri module",
+    "Strategy grounding time providers requires the clock token for the actual raw Meri constructor",
+    "Strategy grounding time providers requires the retry token for the actual draft-job constructor",
+    "Strategy grounding time providers uses overridden tokens through real Nest injection and the actual grounding/retry methods",
+    "fiscal calendar helpers does not mutate the explicitly sampled date while deriving fiscal and quarter coordinates",
+    "fiscal calendar helpers retains fractional-quarter and leap-month arithmetic with an explicit date",
+    "reference baseline builds the full baseline: 16 congress + 9 ppbe lane bars + 3 current phases",
+    "reference baseline congress milestones carry real dates and no fy; current phases carry fy and no dates",
+    "reference baseline parseReferencePayload accepts a valid array and normalizes dates",
+    "reference baseline parseReferencePayload rejects malformed payloads"
+  ],
+  "inventoryScope": "Original four suites. Baseline run deliberately skips execution and proves names only; frozen seven-suite run executes all cases. Additional two unchanged regression suites and new DI suite account for other cases."
+}

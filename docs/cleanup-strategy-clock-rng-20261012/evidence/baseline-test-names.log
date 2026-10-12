@@ -1,0 +1,65 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-cleanup-clock-source/apps/api-strategy/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL ../../../capirov2-cleanup-clock-source/apps/api-strategy/src/meri/meri.service.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../../generated/prisma-client/index.js mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(\.{1,2}\/.*)\.js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { describe, expect, it, jest } from '@jest/globals';
+    > 2 | import { Prisma } from '../../generated/prisma-client/index.js';
+        | ^
+      3 | import { CONTEXT_GAP_LABELS, MeriService } from './meri.service.js';
+      4 | import { StrategyConversationService } from './strategy-conversation.service.js';
+      5 | import { REQUIRED_TEMPLATE_KEYS } from '../context/steward.service.js';
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (src/meri/meri.service.spec.ts:2:1)
+
+FAIL ../../../capirov2-cleanup-clock-source/apps/api-strategy/src/meri/draft-job.service.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../../generated/prisma-client/index.js mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(\.{1,2}\/.*)\.js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+       8 | // load-bearing: `Prisma.dmmf` below drives the tenant-scoped model set, and it
+       9 | // must reflect THIS service's schema, not apps/api's default client.
+    > 10 | import { Prisma, PrismaClient } from '../../generated/prisma-client/index.js';
+         | ^
+      11 |
+      12 | /**
+      13 |  * Tenant isolation for the api-strategy engine.
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (src/prisma/prisma.service.ts:10:1)
+      at Object.<anonymous> (src/meri/draft-job.service.ts:4:1)
+      at Object.<anonymous> (src/meri/draft-job.service.spec.ts:3:1)
+
+
+Test Suites: 2 failed, 2 skipped, 2 of 4 total
+Tests:       32 skipped, 32 total
+Snapshots:   0 total
+Time:        1.66 s
+Ran all test suites within paths "/workspace/capirov2-cleanup-clock-source/apps/api-strategy/src/meri/context-load.spec.ts", "/workspace/capirov2-cleanup-clock-source/apps/api-strategy/src/meri/meri.service.spec.ts", "/workspace/capirov2-cleanup-clock-source/apps/api-strategy/src/meri/draft-job.service.spec.ts", "/workspace/capirov2-cleanup-clock-source/apps/api-strategy/src/fiscal/fiscal.spec.ts".
+Test results written to: ../../docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names.json

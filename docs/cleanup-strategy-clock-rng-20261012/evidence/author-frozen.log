@@ -1,0 +1,86 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-cleanup-clock-investigation/apps/api-strategy/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/meri/meri.service.spec.ts
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] strategy draft: deterministic repair retimed 1 node(s), 0 error(s) remain
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [ContextLoad] firm-phases: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [ContextLoad] firm-phases: recovered after 1 retry
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [ContextLoad] reference-calendars: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [ContextLoad] reference-calendars: recovered after 1 retry
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [ContextLoad] client-existence: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [ContextLoad] client-existence: recovered after 1 retry
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [ContextLoad] steward-facts: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [ContextLoad] steward-facts: recovered after 1 retry
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [ContextLoad] steward-health: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [ContextLoad] steward-health: recovered after 1 retry
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 4ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 3 edits, 1 violation(s), grounding unknown) in 3ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [MeriService] assistant failed for strategy S1: Meri selected an owner who is not an active team member
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [MeriService] assistant failed for strategy S1: Meri selected an owner who is not an active team member
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [MeriService] assistant failed for strategy S1: Meri selected an owner who is not an active team member
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 2 edits, 1 violation(s), grounding unknown) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [MeriService] could not resolve owner names for strategy assistant: directory unavailable
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [MeriService] assistant failed for strategy S1: Meri selected an owner who is not an active team member
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 4 edits, 1 violation(s), grounding unknown) in 2ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [MeriService] assistant failed for strategy S1: Meri returned an invalid node status: not-a-status
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 0ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding degraded) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 2 violation(s), grounding unknown) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [MeriService] assistant failed for strategy S1: This change would break the plan — "Node one" starts before the step it depends on ("Node three").
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [MeriService] assistant failed for strategy S1: Meri returned an invalid edit op: duplicate
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 0ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (node scope, 0 edits, grounding unknown) in 0ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding unknown) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [MeriService] assistant failed for strategy S1: The strategy changed while Meri was working. Review the current plan and try again.
+[Nest] 247052  - 10/12/2026, 2:33:41 PM    WARN [MeriService] assistant failed for strategy S1: anthropic 529 overloaded: model claude-x
+[Nest] 247052  - 10/12/2026, 2:33:41 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding unknown) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [MeriService] assistant failed for strategy S1: Meri returned an invalid node status: not-a-status
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding unknown) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 2 edits, 1 violation(s), grounding unknown) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding unknown) in 0ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S1] assistant complete (node scope, 0 edits, grounding unknown) in 0ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [MeriService] steward context unavailable; drafting without it: Steward temporarily unreachable
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding degraded) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding degraded) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding degraded) in 1ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding ok) in 0ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding degraded) in 0ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S9] assistant complete (strategy scope, 0 edits, grounding degraded) in 0ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 0ms
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [MeriService] steward context unavailable; drafting without it: The table `public.sp_context_fact` does not exist
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [MeriService] execution document draft unavailable (workspace_draft); staging the deterministic placeholder: orchestrator unavailable
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] client-existence: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [ContextLoad] client-existence: recovered after 1 retry
+PASS src/meri/draft-job.service.spec.ts
+PASS src/meri/governed-strategy-meri.factory.spec.ts
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [GovernedStrategyMeri] Strategy document governed context unavailable; using deterministic placeholder: context_plane_unavailable
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [GovernedStrategyMeri] Strategy document generation skipped: caller identity is unavailable
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] firm-phases: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] firm-phases: transient load failure (attempt 2/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [ContextLoad] firm-phases: recovered after 2 retries
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] reference-calendars: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] reference-calendars: transient load failure (attempt 2/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] reference-calendars: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] reference-calendars: transient load failure (attempt 2/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [ContextLoad] reference-calendars: recovered after 2 retries
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] gated: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:42 PM     LOG [ContextLoad] gated: recovered after 1 retry
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] hook-failure: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] hook-failure: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] exhausted: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 247052  - 10/12/2026, 2:33:42 PM    WARN [ContextLoad] exhausted: transient load failure (attempt 2/3), retrying — [object Object]
+PASS src/meri/context-load.spec.ts
+PASS src/meri/strategy-time.providers.spec.ts
+PASS src/fiscal/fiscal.spec.ts
+PASS src/reference/baseline.spec.ts
+
+Test Suites: 7 passed, 7 total
+Tests:       137 passed, 137 total
+Snapshots:   0 total
+Time:        7.661 s
+Ran all test suites within paths "src/meri/context-load.spec.ts", "src/meri/meri.service.spec.ts", "src/meri/draft-job.service.spec.ts", "src/fiscal/fiscal.spec.ts", "src/meri/strategy-time.providers.spec.ts", "src/meri/governed-strategy-meri.factory.spec.ts", "src/reference/baseline.spec.ts".
+Test results written to: ../../docs/cleanup-strategy-clock-rng-20261012/evidence/author-frozen.json

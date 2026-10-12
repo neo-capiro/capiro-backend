@@ -1,0 +1,8 @@
+apps/api-strategy/src/meri/meri.service.spec.ts(2,49): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+apps/api-strategy/src/meri/meri.service.ts(11,32): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+apps/api-strategy/src/meri/strategy-time.providers.spec.ts(5,76): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+apps/api-strategy/src/meri/strategy-time.providers.ts(8,8): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+apps/api-strategy/src/strategy/objective-destination.ts(10,8): error TS2307: Cannot find module '@capiro/shared' or its corresponding type declarations.
+apps/api-strategy/src/strategy/objective-destination.ts(27,9): error TS18046: 'error' is of type 'unknown'.
+apps/api-strategy/src/strategy/objective-destination.ts(29,9): error TS18046: 'error' is of type 'unknown'.
+apps/api-strategy/src/strategy/objective-destination.ts(31,15): error TS18046: 'error' is of type 'unknown'.
