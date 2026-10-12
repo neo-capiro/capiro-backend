@@ -13,6 +13,12 @@ tenant/actor navigation behavior before enablement.
 | Planner prerequisite and PR2396 base | [draft PR2395](https://github.com/neo-capiro/capirov2/pull/2395), head `c5e41e320af4b4d841d4b3136777d712116916ed` |
 | Main used for these candidates | `4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace` |
 
+The complete prerequisite includes **both Core and Planner changes in PR2396**.
+PR2395 alone does not enforce expected-tenant/actor headers. PR2396 adds the
+[Planner scope constraint](https://github.com/neo-capiro/capirov2/blob/e2c2c110edd986e799d47d43b0db50b24fab0201/apps/api-strategy/src/planner/planner-command-scope.ts)
+and its controller calls; pairing Core PR2396 with unchanged Planner PR2395 would
+omit that protection.
+
 Authoritative pinned implementation: [controller](https://github.com/neo-capiro/capirov2/blob/e2c2c110edd986e799d47d43b0db50b24fab0201/apps/api/src/clients/activity-commands/activity-command.controller.ts),
 [input normalization](https://github.com/neo-capiro/capirov2/blob/e2c2c110edd986e799d47d43b0db50b24fab0201/apps/api/src/clients/activity-commands/activity-command.input.ts),
 [command lifecycle and receipt](https://github.com/neo-capiro/capirov2/blob/e2c2c110edd986e799d47d43b0db50b24fab0201/apps/api/src/clients/activity-commands/activity-command.service.ts),
@@ -160,7 +166,7 @@ seconds each and receipt bodies are limited to 4 KiB. No value was provisioned.
 ## Generic follow-up limits
 
 Planner is the sole task owner. The generated task has fixed name `Follow up on
-logged activity`, empty description, selected assignee and explicit schedule.
+logged activity`, empty description, selected assignee and optional explicit schedule.
 It has no client, meeting, project, parent, person, objective or strategy-step
 association and no copied client/activity text. Core retains the protected
 activity/task lineage. Planner does not continuously enforce Core client walls;
@@ -186,7 +192,7 @@ command context for recovery; exact message text is diagnostic, not an API code.
 | 404 | Missing or inaccessible command/client, revoked membership/wall, foreign actor/tenant/client. Deliberately nondisclosing. |
 | 409 | Changed payload under same key; stale expectedVersion; active attempt lease. |
 | 429 | Existing global throttling; no command-specific rate policy. |
-| 503 | Missing/invalid Planner bridge configuration (new follow-up is rejected before local writes); config loss may also affect subsequent reads/replays. |
+| 503 | Missing/invalid Planner bridge configuration (new follow-up is rejected before local writes); config loss may also affect subsequent reads/replays. The existing Prisma exception filter also maps P2024/P2028 connection/transaction capacity timeouts to 503 with `Retry-After: 2`; retain the command key and reconcile uncertain state. |
 | 5xx / transport loss | Uncertain commit state: retain key and recover; never infer that nothing was saved. |
 
 Remote Planner failures normally return a successful Core HTTP response with
