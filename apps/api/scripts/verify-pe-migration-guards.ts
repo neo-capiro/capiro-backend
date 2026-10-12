@@ -1,9 +1,10 @@
 /**
- * @cleanup-smoke noArgsExit=1 helpExit=0
+ * @cleanup-smoke noArgsExit=0 helpExit=0
  * Executable migration guards for PE permanent release gate (K4).
  *
  * Offline (always):
- *  - entrypoints: no _prisma_migrations mutation, no migrate resolve
+ *  - entrypoints: no _prisma_migrations mutation or automatic migrate resolve;
+ *    the existing explicit operator interface requires exact raw source attestation
  *  - exactly one active migrate deploy path among entrypoint trio
  *  - package scripts expose prisma validate / generate
  *

@@ -11,12 +11,14 @@ const apiRoot = path.join(repoRoot, 'apps/api');
 const cases = [
   {
     file: 'lint-pe-scripts.ts',
-    failure: /PE_LINT_SCRIPTS_FAILED: scripts\/entrypoint\.sh: contains prisma migrate resolve/u,
+    noArgsExit: 0,
+    success: 'PE_LINT_SCRIPTS_OK\n',
     usage: 'Usage: tsx scripts/lint-pe-scripts.ts [--help]\n',
   },
   {
     file: 'verify-pe-migration-guards.ts',
-    failure: /PE_MIGRATION_GUARDS_FAILED: migration history mutation forbidden:\nscripts\/entrypoint\.sh: contains prisma migrate resolve/u,
+    noArgsExit: 0,
+    success: 'PE_MIGRATION_GUARDS_OK\n',
     usage:
       'Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]\n',
   },
@@ -68,13 +70,31 @@ process.on('exit', () => process.stderr.write('RESOURCE_PROBE:' + writes + ':' +
 `;
 const probeUrl = `data:text/javascript,${encodeURIComponent(probe)}`;
 
-function invoke(file, args, expectedExit) {
+function invoke(file, args, expectedExit, sourceOverride) {
   const env = { ...process.env, TSX_DISABLE_CACHE: '1' };
   delete env.DATABASE_URL;
   delete env.NODE_OPTIONS;
+  const overrideProbe = sourceOverride
+    ? `
+const originalRead = fs.readFileSync;
+const overriddenPath = ${JSON.stringify(sourceOverride.path)};
+const overriddenSource = ${JSON.stringify(sourceOverride.source)};
+fs.readFileSync = (file, ...args) => {
+  const normalized = String(file).replaceAll('\\\\', '/');
+  if (normalized.endsWith('/' + overriddenPath)) {
+    return args[0] === 'utf8' ? overriddenSource : Buffer.from(overriddenSource);
+  }
+  return originalRead(file, ...args);
+};
+syncBuiltinESMExports();
+`
+    : '';
+  const actualProbeUrl = sourceOverride
+    ? `data:text/javascript,${encodeURIComponent(probe + overrideProbe)}`
+    : probeUrl;
   const result = spawnSync(
     process.execPath,
-    ['--import', 'tsx', '--import', probeUrl, path.join(apiRoot, 'scripts', file), ...args],
+    ['--import', 'tsx', '--import', actualProbeUrl, path.join(apiRoot, 'scripts', file), ...args],
     { cwd: apiRoot, env, encoding: 'utf8', timeout: 15000 },
   );
   assert.equal(result.error, undefined, `${file} ${args.join(' ')}: ${result.error}`);
@@ -103,10 +123,9 @@ for (const subject of cases) {
     assert.ok(normal.stderr.startsWith(subject.usage), 'usage precedes the gate result');
     assert.doesNotMatch(normal.stderr, /AssertionError|node:internal|\n\s+at /u,
       'CLI renders a failure without an uncaught stack');
-    if (subject.failure) {
-      assert.equal(normal.stdout, '', 'a refused policy gate emits no success output');
-      assert.match(normal.stderr, subject.failure, 'strict migration-history refusal retained');
-      assert.doesNotMatch(normal.stderr, /_OK\b/u, 'failed verifier never emits its success marker');
+    if (subject.success) {
+      assert.equal(normal.stderr, subject.usage);
+      assert.equal(normal.stdout, subject.success, 'canonical source protocol passes the strict gate');
     } else {
       assert.equal(normal.stderr, subject.usage);
       assert.deepEqual(JSON.parse(normal.stdout), {
@@ -135,4 +154,28 @@ test('migration guard help and unknown refuse before optional Prisma subprocesse
   const unknown = invoke(file, ['--validate-generate', '--unknown'], 2);
   assert.equal(unknown.stdout, '');
   assert.equal(unknown.stderr, `Unknown argument(s): --unknown\n${usage}`);
+});
+
+test('both migration CLIs refuse unreviewed raw source before success or optional Prisma', () => {
+  const sourcePath = 'scripts/entrypoint.sh';
+  const source = readFileSync(path.join(apiRoot, sourcePath), 'utf8');
+  for (const variant of [
+    `${source}\n# unreviewed source envelope drift\n`,
+    `${source}\nnode ./node_modules/prisma/build/index.js migrate resolve --applied unsafe\n`,
+    source.replace('    shift\n    if [ -z "${1:-}" ]; then',
+      '    echo bypassed-shift\n    if [ -z "${1:-}" ]; then'),
+  ]) {
+    assert.notEqual(variant, source, 'each source mutation is present');
+    for (const [file, args, prefix] of [
+      ['lint-pe-scripts.ts', [], cases[0].usage + 'PE_LINT_SCRIPTS_FAILED: '],
+      ['verify-pe-migration-guards.ts', ['--validate-generate'], 'PE_MIGRATION_GUARDS_FAILED: '],
+    ]) {
+      const result = invoke(file, args, 1, { path: sourcePath, source: variant });
+      assert.equal(result.stdout, '', 'refused source emits no success marker');
+      assert.ok(result.stderr.startsWith(prefix), 'guard renders the expected CLI failure');
+      assert.match(result.stderr,
+        /scripts\/entrypoint\.sh: raw LF-normalized source differs from the approved manual recovery envelope/u);
+      assert.doesNotMatch(result.stderr, /_OK\b|RESOURCE_PROBE|AssertionError|node:internal|\n\s+at /u);
+    }
+  }
 });

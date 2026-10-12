@@ -1,5 +1,5 @@
 /**
- * @cleanup-smoke noArgsExit=1 helpExit=0
+ * @cleanup-smoke noArgsExit=0 helpExit=0
  * Static lint for PE production scripts (Phase K / closeout Phase 8).
  *
  * Does not require ESLint binary path stability across platforms. Enforces:
