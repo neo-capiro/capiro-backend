@@ -1,0 +1,1955 @@
+{
+  "preservedInitialPacketHead": "23e3d3a68cf57062482e3cc4ca9b53e9cb249796",
+  "initialArtifactSha256": "697d826647e88e7f8559da386be7de1ae6408dc61c73877b86c2e17275fd63ab",
+  "finalArtifactSha256": "697d826647e88e7f8559da386be7de1ae6408dc61c73877b86c2e17275fd63ab",
+  "all182EntryBytesAndModesUnchanged": true,
+  "initialPack1ReadOnlyRegistryMetadataGET": "https://registry.npmjs.org/npm",
+  "initialGETLog": "evidence/npm-original-2026-10-12T22_09_46_397Z-debug-0.log",
+  "initialNoHTTPClaimWithdrawn": true,
+  "finalPacks": [
+    {
+      "command": [
+        "node",
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/bin/npm-cli.js",
+        "pack",
+        "--ignore-scripts",
+        "--offline",
+        "--no-update-notifier",
+        "--userconfig",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/user.npmrc",
+        "--globalconfig",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/global.npmrc",
+        "--cache",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/npm-cache-no-notifier",
+        "--pack-destination",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/pack-4",
+        "--json"
+      ],
+      "cwd": "/tmp/capiro-shared-newsletter-dist-fe50-20261012/packages/shared",
+      "exitCode": 0,
+      "filename": "capiro-shared-0.0.0.tgz",
+      "bytes": 510772,
+      "sha256": "697d826647e88e7f8559da386be7de1ae6408dc61c73877b86c2e17275fd63ab",
+      "sha512": "08ad832f150f093b3e3e4070c7c18e8d12df87a8ecb1375d217db3831885c3686355c1cb17ae6803cbc927e2c8474d2bf57067c457586280f664092063af7c4b",
+      "integrity": "sha512-CK2DLxUPCTs+PkBwx8GOjRLfh6jssTddIX2zgxiFw2hjVcHLF65oA8vJJ+LIR00r9XBnxFdYYoD2ZAkgY698Sw==",
+      "npmResult": {
+        "id": "@capiro/shared@0.0.0",
+        "name": "@capiro/shared",
+        "version": "0.0.0",
+        "size": 510772,
+        "unpackedSize": 2223132,
+        "shasum": "a5ffd2d2f9e07ae96a2f8972a9b6b254b7781c07",
+        "integrity": "sha512-CK2DLxUPCTs+PkBwx8GOjRLfh6jssTddIX2zgxiFw2hjVcHLF65oA8vJJ+LIR00r9XBnxFdYYoD2ZAkgY698Sw==",
+        "filename": "capiro-shared-0.0.0.tgz",
+        "files": [
+          {
+            "path": "dist/ai-model-policy.d.ts",
+            "size": 1280,
+            "mode": 384
+          },
+          {
+            "path": "dist/ai-model-policy.d.ts.map",
+            "size": 711,
+            "mode": 384
+          },
+          {
+            "path": "dist/ai-model-policy.js",
+            "size": 5334,
+            "mode": 384
+          },
+          {
+            "path": "dist/ai-model-policy.js.map",
+            "size": 4469,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-memory-wall.d.ts",
+            "size": 651,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-memory-wall.d.ts.map",
+            "size": 440,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-memory-wall.js",
+            "size": 876,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-memory-wall.js.map",
+            "size": 392,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-objective-destination.d.ts",
+            "size": 1427,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-objective-destination.d.ts.map",
+            "size": 921,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-objective-destination.js",
+            "size": 3738,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-objective-destination.js.map",
+            "size": 2215,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-registration-integrity.d.ts",
+            "size": 1312,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-registration-integrity.d.ts.map",
+            "size": 920,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-registration-integrity.js",
+            "size": 7738,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-registration-integrity.js.map",
+            "size": 6102,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-budget-line.d.ts",
+            "size": 1564,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-budget-line.d.ts.map",
+            "size": 697,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-budget-line.js",
+            "size": 5399,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-budget-line.js.map",
+            "size": 2652,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-research.d.ts",
+            "size": 20390,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-research.d.ts.map",
+            "size": 18480,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-research.js",
+            "size": 121,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-research.js.map",
+            "size": 124,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-claim.d.ts",
+            "size": 16089,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-claim.d.ts.map",
+            "size": 7232,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-claim.js",
+            "size": 17500,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-claim.js.map",
+            "size": 11322,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-detail.d.ts",
+            "size": 6942,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-detail.d.ts.map",
+            "size": 5520,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-detail.js",
+            "size": 136,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-detail.js.map",
+            "size": 154,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-workflow.d.ts",
+            "size": 1836,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-workflow.d.ts.map",
+            "size": 1725,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-workflow.js",
+            "size": 138,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-workflow.js.map",
+            "size": 158,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2.d.ts",
+            "size": 7137,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2.d.ts.map",
+            "size": 5598,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2.js",
+            "size": 8937,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2.js.map",
+            "size": 9409,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-priorities.d.ts",
+            "size": 650,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-priorities.d.ts.map",
+            "size": 353,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-priorities.js",
+            "size": 1616,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-priorities.js.map",
+            "size": 1108,
+            "mode": 384
+          },
+          {
+            "path": "dist/index.d.ts",
+            "size": 203549,
+            "mode": 384
+          },
+          {
+            "path": "dist/index.d.ts.map",
+            "size": 27568,
+            "mode": 384
+          },
+          {
+            "path": "dist/index.js",
+            "size": 253411,
+            "mode": 384
+          },
+          {
+            "path": "dist/index.js.map",
+            "size": 110449,
+            "mode": 384
+          },
+          {
+            "path": "dist/legislative-research.d.ts",
+            "size": 3348,
+            "mode": 384
+          },
+          {
+            "path": "dist/legislative-research.d.ts.map",
+            "size": 2513,
+            "mode": 384
+          },
+          {
+            "path": "dist/legislative-research.js",
+            "size": 13461,
+            "mode": 384
+          },
+          {
+            "path": "dist/legislative-research.js.map",
+            "size": 13736,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-phase8.d.ts",
+            "size": 4425,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-phase8.d.ts.map",
+            "size": 2236,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-phase8.js",
+            "size": 7924,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-phase8.js.map",
+            "size": 7932,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-query.d.ts",
+            "size": 2123,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-query.d.ts.map",
+            "size": 1618,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-query.js",
+            "size": 10705,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-query.js.map",
+            "size": 11056,
+            "mode": 384
+          },
+          {
+            "path": "dist/market-title.d.ts",
+            "size": 1203,
+            "mode": 384
+          },
+          {
+            "path": "dist/market-title.d.ts.map",
+            "size": 213,
+            "mode": 384
+          },
+          {
+            "path": "dist/market-title.js",
+            "size": 2780,
+            "mode": 384
+          },
+          {
+            "path": "dist/market-title.js.map",
+            "size": 1507,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-document-request.d.ts",
+            "size": 971,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-document-request.d.ts.map",
+            "size": 519,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-document-request.js",
+            "size": 3879,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-document-request.js.map",
+            "size": 2275,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-read-outcome.d.ts",
+            "size": 1451,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-read-outcome.d.ts.map",
+            "size": 1153,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-read-outcome.js",
+            "size": 36414,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-read-outcome.js.map",
+            "size": 29747,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-skills.d.ts",
+            "size": 15889,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-skills.d.ts.map",
+            "size": 1404,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-skills.js",
+            "size": 15787,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-skills.js.map",
+            "size": 6704,
+            "mode": 384
+          },
+          {
+            "path": "dist/money.d.ts",
+            "size": 801,
+            "mode": 384
+          },
+          {
+            "path": "dist/money.d.ts.map",
+            "size": 456,
+            "mode": 384
+          },
+          {
+            "path": "dist/money.js",
+            "size": 2278,
+            "mode": 384
+          },
+          {
+            "path": "dist/money.js.map",
+            "size": 1039,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.catalog.d.ts",
+            "size": 252,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.catalog.d.ts.map",
+            "size": 259,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.catalog.js",
+            "size": 98670,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.catalog.js.map",
+            "size": 103128,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.d.ts",
+            "size": 1157,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.d.ts.map",
+            "size": 896,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.js",
+            "size": 5876,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.js.map",
+            "size": 6016,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-render.d.ts",
+            "size": 1930,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-render.d.ts.map",
+            "size": 1652,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-render.js",
+            "size": 32251,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-render.js.map",
+            "size": 28687,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-social-share.d.ts",
+            "size": 585,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-social-share.d.ts.map",
+            "size": 401,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-social-share.js",
+            "size": 2406,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-social-share.js.map",
+            "size": 1701,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter.d.ts",
+            "size": 16528,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter.d.ts.map",
+            "size": 13109,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter.js",
+            "size": 30650,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter.js.map",
+            "size": 24139,
+            "mode": 384
+          },
+          {
+            "path": "dist/pe-source-coverage.d.ts",
+            "size": 2196,
+            "mode": 384
+          },
+          {
+            "path": "dist/pe-source-coverage.d.ts.map",
+            "size": 840,
+            "mode": 384
+          },
+          {
+            "path": "dist/pe-source-coverage.js",
+            "size": 7755,
+            "mode": 384
+          },
+          {
+            "path": "dist/pe-source-coverage.js.map",
+            "size": 3786,
+            "mode": 384
+          },
+          {
+            "path": "dist/prospect-resource-scope.d.ts",
+            "size": 1001,
+            "mode": 384
+          },
+          {
+            "path": "dist/prospect-resource-scope.d.ts.map",
+            "size": 653,
+            "mode": 384
+          },
+          {
+            "path": "dist/prospect-resource-scope.js",
+            "size": 3243,
+            "mode": 384
+          },
+          {
+            "path": "dist/prospect-resource-scope.js.map",
+            "size": 1755,
+            "mode": 384
+          },
+          {
+            "path": "dist/research-portfolios.d.ts",
+            "size": 32756,
+            "mode": 384
+          },
+          {
+            "path": "dist/research-portfolios.d.ts.map",
+            "size": 27935,
+            "mode": 384
+          },
+          {
+            "path": "dist/research-portfolios.js",
+            "size": 124,
+            "mode": 384
+          },
+          {
+            "path": "dist/research-portfolios.js.map",
+            "size": 130,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/deadline.d.ts",
+            "size": 695,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/deadline.d.ts.map",
+            "size": 722,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/deadline.js",
+            "size": 2398,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/deadline.js.map",
+            "size": 2447,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/synthesis.d.ts",
+            "size": 953,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/synthesis.d.ts.map",
+            "size": 1014,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/synthesis.js",
+            "size": 7073,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/synthesis.js.map",
+            "size": 7056,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/time-zone.d.ts",
+            "size": 686,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/time-zone.d.ts.map",
+            "size": 538,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/time-zone.js",
+            "size": 3269,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/time-zone.js.map",
+            "size": 3764,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/validate.d.ts",
+            "size": 1017,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/validate.d.ts.map",
+            "size": 1132,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/validate.js",
+            "size": 4364,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/validate.js.map",
+            "size": 4571,
+            "mode": 384
+          },
+          {
+            "path": "dist/tenant-feature.d.ts",
+            "size": 220,
+            "mode": 384
+          },
+          {
+            "path": "dist/tenant-feature.d.ts.map",
+            "size": 231,
+            "mode": 384
+          },
+          {
+            "path": "dist/tenant-feature.js",
+            "size": 659,
+            "mode": 384
+          },
+          {
+            "path": "dist/tenant-feature.js.map",
+            "size": 574,
+            "mode": 384
+          },
+          {
+            "path": "dist/time.d.ts",
+            "size": 582,
+            "mode": 384
+          },
+          {
+            "path": "dist/time.d.ts.map",
+            "size": 432,
+            "mode": 384
+          },
+          {
+            "path": "dist/time.js",
+            "size": 522,
+            "mode": 384
+          },
+          {
+            "path": "dist/time.js.map",
+            "size": 402,
+            "mode": 384
+          },
+          {
+            "path": "dist/us-states.d.ts",
+            "size": 292,
+            "mode": 384
+          },
+          {
+            "path": "dist/us-states.d.ts.map",
+            "size": 288,
+            "mode": 384
+          },
+          {
+            "path": "dist/us-states.js",
+            "size": 1829,
+            "mode": 384
+          },
+          {
+            "path": "dist/us-states.js.map",
+            "size": 1717,
+            "mode": 384
+          },
+          {
+            "path": "dist/workspace-saved-revision.d.ts",
+            "size": 1591,
+            "mode": 384
+          },
+          {
+            "path": "dist/workspace-saved-revision.d.ts.map",
+            "size": 734,
+            "mode": 384
+          },
+          {
+            "path": "dist/workspace-saved-revision.js",
+            "size": 9715,
+            "mode": 384
+          },
+          {
+            "path": "dist/workspace-saved-revision.js.map",
+            "size": 7823,
+            "mode": 384
+          },
+          {
+            "path": "package.json",
+            "size": 3761,
+            "mode": 420
+          },
+          {
+            "path": "src/ai-model-policy.ts",
+            "size": 5033,
+            "mode": 420
+          },
+          {
+            "path": "src/client-memory-wall.ts",
+            "size": 1137,
+            "mode": 420
+          },
+          {
+            "path": "src/client-objective-destination.ts",
+            "size": 4318,
+            "mode": 420
+          },
+          {
+            "path": "src/client-registration-integrity.ts",
+            "size": 7777,
+            "mode": 420
+          },
+          {
+            "path": "src/defense-budget-line.ts",
+            "size": 5738,
+            "mode": 420
+          },
+          {
+            "path": "src/defense-research.ts",
+            "size": 20679,
+            "mode": 420
+          },
+          {
+            "path": "src/funding-claim.ts",
+            "size": 25949,
+            "mode": 420
+          },
+          {
+            "path": "src/funding-opportunities-v2-detail.ts",
+            "size": 6645,
+            "mode": 420
+          },
+          {
+            "path": "src/funding-opportunities-v2-workflow.ts",
+            "size": 1582,
+            "mode": 420
+          },
+          {
+            "path": "src/funding-opportunities-v2.ts",
+            "size": 14664,
+            "mode": 420
+          },
+          {
+            "path": "src/funding-priorities.ts",
+            "size": 1265,
+            "mode": 420
+          },
+          {
+            "path": "src/index.ts",
+            "size": 273692,
+            "mode": 420
+          },
+          {
+            "path": "src/legislative-research.ts",
+            "size": 13892,
+            "mode": 420
+          },
+          {
+            "path": "src/legiwatch-phase8.ts",
+            "size": 8328,
+            "mode": 420
+          },
+          {
+            "path": "src/legiwatch-query.ts",
+            "size": 10141,
+            "mode": 420
+          },
+          {
+            "path": "src/market-title.ts",
+            "size": 2561,
+            "mode": 420
+          },
+          {
+            "path": "src/meri-document-request.ts",
+            "size": 3733,
+            "mode": 420
+          },
+          {
+            "path": "src/meri-read-outcome.ts",
+            "size": 35738,
+            "mode": 420
+          },
+          {
+            "path": "src/meri-skills.ts",
+            "size": 15699,
+            "mode": 420
+          },
+          {
+            "path": "src/money.ts",
+            "size": 2461,
+            "mode": 420
+          },
+          {
+            "path": "src/newsletter-fonts.catalog.ts",
+            "size": 94631,
+            "mode": 420
+          },
+          {
+            "path": "src/newsletter-fonts.ts",
+            "size": 5766,
+            "mode": 420
+          },
+          {
+            "path": "src/newsletter-render.ts",
+            "size": 30096,
+            "mode": 420
+          },
+          {
+            "path": "src/newsletter-social-share.ts",
+            "size": 2068,
+            "mode": 420
+          },
+          {
+            "path": "src/newsletter.ts",
+            "size": 36470,
+            "mode": 420
+          },
+          {
+            "path": "src/pe-source-coverage.ts",
+            "size": 7723,
+            "mode": 420
+          },
+          {
+            "path": "src/prospect-resource-scope.ts",
+            "size": 3684,
+            "mode": 420
+          },
+          {
+            "path": "src/research-portfolios.ts",
+            "size": 31751,
+            "mode": 420
+          },
+          {
+            "path": "src/schedule/deadline.ts",
+            "size": 2333,
+            "mode": 420
+          },
+          {
+            "path": "src/schedule/synthesis.ts",
+            "size": 7016,
+            "mode": 420
+          },
+          {
+            "path": "src/schedule/time-zone.ts",
+            "size": 3231,
+            "mode": 420
+          },
+          {
+            "path": "src/schedule/validate.ts",
+            "size": 4554,
+            "mode": 420
+          },
+          {
+            "path": "src/tenant-feature.ts",
+            "size": 550,
+            "mode": 420
+          },
+          {
+            "path": "src/time.ts",
+            "size": 653,
+            "mode": 420
+          },
+          {
+            "path": "src/us-states.ts",
+            "size": 1573,
+            "mode": 420
+          },
+          {
+            "path": "src/workspace-saved-revision.ts",
+            "size": 9740,
+            "mode": 420
+          },
+          {
+            "path": "tsconfig.json",
+            "size": 686,
+            "mode": 420
+          }
+        ],
+        "entryCount": 182,
+        "bundled": []
+      }
+    },
+    {
+      "command": [
+        "node",
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/bin/npm-cli.js",
+        "pack",
+        "--ignore-scripts",
+        "--offline",
+        "--no-update-notifier",
+        "--userconfig",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/user.npmrc",
+        "--globalconfig",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/global.npmrc",
+        "--cache",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/npm-cache-no-notifier",
+        "--pack-destination",
+        "/tmp/capiro-shared-newsletter-dist-fe50-20261012/pack-5",
+        "--json"
+      ],
+      "cwd": "/tmp/capiro-shared-newsletter-dist-fe50-20261012/packages/shared",
+      "exitCode": 0,
+      "filename": "capiro-shared-0.0.0.tgz",
+      "bytes": 510772,
+      "sha256": "697d826647e88e7f8559da386be7de1ae6408dc61c73877b86c2e17275fd63ab",
+      "sha512": "08ad832f150f093b3e3e4070c7c18e8d12df87a8ecb1375d217db3831885c3686355c1cb17ae6803cbc927e2c8474d2bf57067c457586280f664092063af7c4b",
+      "integrity": "sha512-CK2DLxUPCTs+PkBwx8GOjRLfh6jssTddIX2zgxiFw2hjVcHLF65oA8vJJ+LIR00r9XBnxFdYYoD2ZAkgY698Sw==",
+      "npmResult": {
+        "id": "@capiro/shared@0.0.0",
+        "name": "@capiro/shared",
+        "version": "0.0.0",
+        "size": 510772,
+        "unpackedSize": 2223132,
+        "shasum": "a5ffd2d2f9e07ae96a2f8972a9b6b254b7781c07",
+        "integrity": "sha512-CK2DLxUPCTs+PkBwx8GOjRLfh6jssTddIX2zgxiFw2hjVcHLF65oA8vJJ+LIR00r9XBnxFdYYoD2ZAkgY698Sw==",
+        "filename": "capiro-shared-0.0.0.tgz",
+        "files": [
+          {
+            "path": "dist/ai-model-policy.d.ts",
+            "size": 1280,
+            "mode": 384
+          },
+          {
+            "path": "dist/ai-model-policy.d.ts.map",
+            "size": 711,
+            "mode": 384
+          },
+          {
+            "path": "dist/ai-model-policy.js",
+            "size": 5334,
+            "mode": 384
+          },
+          {
+            "path": "dist/ai-model-policy.js.map",
+            "size": 4469,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-memory-wall.d.ts",
+            "size": 651,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-memory-wall.d.ts.map",
+            "size": 440,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-memory-wall.js",
+            "size": 876,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-memory-wall.js.map",
+            "size": 392,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-objective-destination.d.ts",
+            "size": 1427,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-objective-destination.d.ts.map",
+            "size": 921,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-objective-destination.js",
+            "size": 3738,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-objective-destination.js.map",
+            "size": 2215,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-registration-integrity.d.ts",
+            "size": 1312,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-registration-integrity.d.ts.map",
+            "size": 920,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-registration-integrity.js",
+            "size": 7738,
+            "mode": 384
+          },
+          {
+            "path": "dist/client-registration-integrity.js.map",
+            "size": 6102,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-budget-line.d.ts",
+            "size": 1564,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-budget-line.d.ts.map",
+            "size": 697,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-budget-line.js",
+            "size": 5399,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-budget-line.js.map",
+            "size": 2652,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-research.d.ts",
+            "size": 20390,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-research.d.ts.map",
+            "size": 18480,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-research.js",
+            "size": 121,
+            "mode": 384
+          },
+          {
+            "path": "dist/defense-research.js.map",
+            "size": 124,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-claim.d.ts",
+            "size": 16089,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-claim.d.ts.map",
+            "size": 7232,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-claim.js",
+            "size": 17500,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-claim.js.map",
+            "size": 11322,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-detail.d.ts",
+            "size": 6942,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-detail.d.ts.map",
+            "size": 5520,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-detail.js",
+            "size": 136,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-detail.js.map",
+            "size": 154,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-workflow.d.ts",
+            "size": 1836,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-workflow.d.ts.map",
+            "size": 1725,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-workflow.js",
+            "size": 138,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2-workflow.js.map",
+            "size": 158,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2.d.ts",
+            "size": 7137,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2.d.ts.map",
+            "size": 5598,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2.js",
+            "size": 8937,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-opportunities-v2.js.map",
+            "size": 9409,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-priorities.d.ts",
+            "size": 650,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-priorities.d.ts.map",
+            "size": 353,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-priorities.js",
+            "size": 1616,
+            "mode": 384
+          },
+          {
+            "path": "dist/funding-priorities.js.map",
+            "size": 1108,
+            "mode": 384
+          },
+          {
+            "path": "dist/index.d.ts",
+            "size": 203549,
+            "mode": 384
+          },
+          {
+            "path": "dist/index.d.ts.map",
+            "size": 27568,
+            "mode": 384
+          },
+          {
+            "path": "dist/index.js",
+            "size": 253411,
+            "mode": 384
+          },
+          {
+            "path": "dist/index.js.map",
+            "size": 110449,
+            "mode": 384
+          },
+          {
+            "path": "dist/legislative-research.d.ts",
+            "size": 3348,
+            "mode": 384
+          },
+          {
+            "path": "dist/legislative-research.d.ts.map",
+            "size": 2513,
+            "mode": 384
+          },
+          {
+            "path": "dist/legislative-research.js",
+            "size": 13461,
+            "mode": 384
+          },
+          {
+            "path": "dist/legislative-research.js.map",
+            "size": 13736,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-phase8.d.ts",
+            "size": 4425,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-phase8.d.ts.map",
+            "size": 2236,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-phase8.js",
+            "size": 7924,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-phase8.js.map",
+            "size": 7932,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-query.d.ts",
+            "size": 2123,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-query.d.ts.map",
+            "size": 1618,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-query.js",
+            "size": 10705,
+            "mode": 384
+          },
+          {
+            "path": "dist/legiwatch-query.js.map",
+            "size": 11056,
+            "mode": 384
+          },
+          {
+            "path": "dist/market-title.d.ts",
+            "size": 1203,
+            "mode": 384
+          },
+          {
+            "path": "dist/market-title.d.ts.map",
+            "size": 213,
+            "mode": 384
+          },
+          {
+            "path": "dist/market-title.js",
+            "size": 2780,
+            "mode": 384
+          },
+          {
+            "path": "dist/market-title.js.map",
+            "size": 1507,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-document-request.d.ts",
+            "size": 971,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-document-request.d.ts.map",
+            "size": 519,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-document-request.js",
+            "size": 3879,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-document-request.js.map",
+            "size": 2275,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-read-outcome.d.ts",
+            "size": 1451,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-read-outcome.d.ts.map",
+            "size": 1153,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-read-outcome.js",
+            "size": 36414,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-read-outcome.js.map",
+            "size": 29747,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-skills.d.ts",
+            "size": 15889,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-skills.d.ts.map",
+            "size": 1404,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-skills.js",
+            "size": 15787,
+            "mode": 384
+          },
+          {
+            "path": "dist/meri-skills.js.map",
+            "size": 6704,
+            "mode": 384
+          },
+          {
+            "path": "dist/money.d.ts",
+            "size": 801,
+            "mode": 384
+          },
+          {
+            "path": "dist/money.d.ts.map",
+            "size": 456,
+            "mode": 384
+          },
+          {
+            "path": "dist/money.js",
+            "size": 2278,
+            "mode": 384
+          },
+          {
+            "path": "dist/money.js.map",
+            "size": 1039,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.catalog.d.ts",
+            "size": 252,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.catalog.d.ts.map",
+            "size": 259,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.catalog.js",
+            "size": 98670,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.catalog.js.map",
+            "size": 103128,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.d.ts",
+            "size": 1157,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.d.ts.map",
+            "size": 896,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.js",
+            "size": 5876,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-fonts.js.map",
+            "size": 6016,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-render.d.ts",
+            "size": 1930,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-render.d.ts.map",
+            "size": 1652,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-render.js",
+            "size": 32251,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-render.js.map",
+            "size": 28687,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-social-share.d.ts",
+            "size": 585,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-social-share.d.ts.map",
+            "size": 401,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-social-share.js",
+            "size": 2406,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter-social-share.js.map",
+            "size": 1701,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter.d.ts",
+            "size": 16528,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter.d.ts.map",
+            "size": 13109,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter.js",
+            "size": 30650,
+            "mode": 384
+          },
+          {
+            "path": "dist/newsletter.js.map",
+            "size": 24139,
+            "mode": 384
+          },
+          {
+            "path": "dist/pe-source-coverage.d.ts",
+            "size": 2196,
+            "mode": 384
+          },
+          {
+            "path": "dist/pe-source-coverage.d.ts.map",
+            "size": 840,
+            "mode": 384
+          },
+          {
+            "path": "dist/pe-source-coverage.js",
+            "size": 7755,
+            "mode": 384
+          },
+          {
+            "path": "dist/pe-source-coverage.js.map",
+            "size": 3786,
+            "mode": 384
+          },
+          {
+            "path": "dist/prospect-resource-scope.d.ts",
+            "size": 1001,
+            "mode": 384
+          },
+          {
+            "path": "dist/prospect-resource-scope.d.ts.map",
+            "size": 653,
+            "mode": 384
+          },
+          {
+            "path": "dist/prospect-resource-scope.js",
+            "size": 3243,
+            "mode": 384
+          },
+          {
+            "path": "dist/prospect-resource-scope.js.map",
+            "size": 1755,
+            "mode": 384
+          },
+          {
+            "path": "dist/research-portfolios.d.ts",
+            "size": 32756,
+            "mode": 384
+          },
+          {
+            "path": "dist/research-portfolios.d.ts.map",
+            "size": 27935,
+            "mode": 384
+          },
+          {
+            "path": "dist/research-portfolios.js",
+            "size": 124,
+            "mode": 384
+          },
+          {
+            "path": "dist/research-portfolios.js.map",
+            "size": 130,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/deadline.d.ts",
+            "size": 695,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/deadline.d.ts.map",
+            "size": 722,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/deadline.js",
+            "size": 2398,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/deadline.js.map",
+            "size": 2447,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/synthesis.d.ts",
+            "size": 953,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/synthesis.d.ts.map",
+            "size": 1014,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/synthesis.js",
+            "size": 7073,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/synthesis.js.map",
+            "size": 7056,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/time-zone.d.ts",
+            "size": 686,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/time-zone.d.ts.map",
+            "size": 538,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/time-zone.js",
+            "size": 3269,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/time-zone.js.map",
+            "size": 3764,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/validate.d.ts",
+            "size": 1017,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/validate.d.ts.map",
+            "size": 1132,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/validate.js",
+            "size": 4364,
+            "mode": 384
+          },
+          {
+            "path": "dist/schedule/validate.js.map",
+            "size": 4571,
+            "mode": 384
+          },
+          {
+            "path": "dist/tenant-feature.d.ts",
+            "size": 220,
+            "mode": 384
+          },
+          {
+            "path": "dist/tenant-feature.d.ts.map",
+            "size": 231,
+            "mode": 384
+          },
+          {
+            "path": "dist/tenant-feature.js",
+            "size": 659,
+            "mode": 384
+          },
+          {
+            "path": "dist/tenant-feature.js.map",
+            "size": 574,
+            "mode": 384
+          },
+          {
+            "path": "dist/time.d.ts",
+            "size": 582,
+            "mode": 384
+          },
+          {
+            "path": "dist/time.d.ts.map",
+            "size": 432,
+            "mode": 384
+          },
+          {
+            "path": "dist/time.js",
+            "size": 522,
+            "mode": 384
+          },
+          {
+            "path": "dist/time.js.map",
+            "size": 402,
+            "mode": 384
+          },
+          {
+            "path": "dist/us-states.d.ts",
+            "size": 292,
+            "mode": 384
+          },
+          {
+            "path": "dist/us-states.d.ts.map",
+            "size": 288,
+            "mode": 384
+          },
+          {
+            "path": "dist/us-states.js",
+            "size": 1829,
+            "mode": 384
+          },
+          {
+            "path": "dist/us-states.js.map",
+            "size": 1717,
+            "mode": 384
+          },
+          {
+            "path": "dist/workspace-saved-revision.d.ts",
+            "size": 1591,
+            "mode": 384
+          },
+          {
+            "path": "dist/workspace-saved-revision.d.ts.map",
+            "size": 734,
+            "mode": 384
+          },
+          {
+            "path": "dist/workspace-saved-revision.js",
+            "size": 9715,
+            "mode": 384
+          },
+          {
+            "path": "dist/workspace-saved-revision.js.map",
+            "size": 7823,
+            "mode": 384
+          },
+          {
+            "path": "package.json",
+            "size": 3761,
+            "mode": 420
+          },
+          {
+            "path": "src/ai-model-policy.ts",
+            "size": 5033,
+            "mode": 420
+          },
+          {
+            "path": "src/client-memory-wall.ts",
+            "size": 1137,
+            "mode": 420
+          },
+          {
+            "path": "src/client-objective-destination.ts",
+            "size": 4318,
+            "mode": 420
+          },
+          {
+            "path": "src/client-registration-integrity.ts",
+            "size": 7777,
+            "mode": 420
+          },
+          {
+            "path": "src/defense-budget-line.ts",
+            "size": 5738,
+            "mode": 420
+          },
+          {
+            "path": "src/defense-research.ts",
+            "size": 20679,
+            "mode": 420
+          },
+          {
+            "path": "src/funding-claim.ts",
+            "size": 25949,
+            "mode": 420
+          },
+          {
+            "path": "src/funding-opportunities-v2-detail.ts",
+            "size": 6645,
+            "mode": 420
+          },
+          {
+            "path": "src/funding-opportunities-v2-workflow.ts",
+            "size": 1582,
+            "mode": 420
+          },
+          {
+            "path": "src/funding-opportunities-v2.ts",
+            "size": 14664,
+            "mode": 420
+          },
+          {
+            "path": "src/funding-priorities.ts",
+            "size": 1265,
+            "mode": 420
+          },
+          {
+            "path": "src/index.ts",
+            "size": 273692,
+            "mode": 420
+          },
+          {
+            "path": "src/legislative-research.ts",
+            "size": 13892,
+            "mode": 420
+          },
+          {
+            "path": "src/legiwatch-phase8.ts",
+            "size": 8328,
+            "mode": 420
+          },
+          {
+            "path": "src/legiwatch-query.ts",
+            "size": 10141,
+            "mode": 420
+          },
+          {
+            "path": "src/market-title.ts",
+            "size": 2561,
+            "mode": 420
+          },
+          {
+            "path": "src/meri-document-request.ts",
+            "size": 3733,
+            "mode": 420
+          },
+          {
+            "path": "src/meri-read-outcome.ts",
+            "size": 35738,
+            "mode": 420
+          },
+          {
+            "path": "src/meri-skills.ts",
+            "size": 15699,
+            "mode": 420
+          },
+          {
+            "path": "src/money.ts",
+            "size": 2461,
+            "mode": 420
+          },
+          {
+            "path": "src/newsletter-fonts.catalog.ts",
+            "size": 94631,
+            "mode": 420
+          },
+          {
+            "path": "src/newsletter-fonts.ts",
+            "size": 5766,
+            "mode": 420
+          },
+          {
+            "path": "src/newsletter-render.ts",
+            "size": 30096,
+            "mode": 420
+          },
+          {
+            "path": "src/newsletter-social-share.ts",
+            "size": 2068,
+            "mode": 420
+          },
+          {
+            "path": "src/newsletter.ts",
+            "size": 36470,
+            "mode": 420
+          },
+          {
+            "path": "src/pe-source-coverage.ts",
+            "size": 7723,
+            "mode": 420
+          },
+          {
+            "path": "src/prospect-resource-scope.ts",
+            "size": 3684,
+            "mode": 420
+          },
+          {
+            "path": "src/research-portfolios.ts",
+            "size": 31751,
+            "mode": 420
+          },
+          {
+            "path": "src/schedule/deadline.ts",
+            "size": 2333,
+            "mode": 420
+          },
+          {
+            "path": "src/schedule/synthesis.ts",
+            "size": 7016,
+            "mode": 420
+          },
+          {
+            "path": "src/schedule/time-zone.ts",
+            "size": 3231,
+            "mode": 420
+          },
+          {
+            "path": "src/schedule/validate.ts",
+            "size": 4554,
+            "mode": 420
+          },
+          {
+            "path": "src/tenant-feature.ts",
+            "size": 550,
+            "mode": 420
+          },
+          {
+            "path": "src/time.ts",
+            "size": 653,
+            "mode": 420
+          },
+          {
+            "path": "src/us-states.ts",
+            "size": 1573,
+            "mode": 420
+          },
+          {
+            "path": "src/workspace-saved-revision.ts",
+            "size": 9740,
+            "mode": 420
+          },
+          {
+            "path": "tsconfig.json",
+            "size": 686,
+            "mode": 420
+          }
+        ],
+        "entryCount": 182,
+        "bundled": []
+      }
+    }
+  ],
+  "finalDebugLogs": [
+    {
+      "path": "evidence/npm-notifier-disabled-2026-10-12T22_22_41_544Z-debug-0.log",
+      "sha256": "a8d2b92332576a92a6aa5f94ef8b4ee4df6d3222e6f05a21a109af4f3626d4b4",
+      "httpFetchLines": 0
+    },
+    {
+      "path": "evidence/npm-notifier-disabled-2026-10-12T22_22_42_517Z-debug-0.log",
+      "sha256": "3af0230ca6acea61d072507a784408a992d02728216bb44d0392ceabcd2ba31c",
+      "httpFetchLines": 0
+    }
+  ],
+  "effectiveConfigCommand": [
+    "node",
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/bin/npm-cli.js",
+    "config",
+    "get",
+    "offline",
+    "ignore-scripts",
+    "update-notifier",
+    "--offline",
+    "--ignore-scripts",
+    "--no-update-notifier",
+    "--userconfig",
+    "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/user.npmrc",
+    "--globalconfig",
+    "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/global.npmrc",
+    "--cache",
+    "/tmp/capiro-shared-newsletter-dist-fe50-20261012/npm-cache-no-notifier"
+  ],
+  "effectiveConfigExitCode": 0,
+  "effectiveConfig": {
+    "offline": true,
+    "ignoreScripts": true,
+    "updateNotifier": false
+  },
+  "notifierSource": {
+    "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/lib/cli/update-notifier.js",
+    "sha256": "3392228e8585df9cf83eb9ecdee2eedc3a3841bdb1e5ed609111fc8007eb6563",
+    "disabledGuard": "Returns resolved null when update-notifier config is false."
+  },
+  "noGeneralNetworkTraceClaim": true,
+  "noProductOrArtifactBytesChanged": true,
+  "qualificationResultsUnchanged": "16 grouped checks and 116 characterization cases; exact immutable tarball retained."
+}
