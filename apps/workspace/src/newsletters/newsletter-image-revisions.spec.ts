@@ -11,7 +11,7 @@ const scope = { tenantId: ctx.tenantId, ownerId: ctx.clerkUserId };
 function fixture() {
   const asset = {
     findFirst: jest.fn(async ({ where }) =>
-      where.token ? { id: parent, revisionRootId: root } : { folderId: null },
+      where.token ? { id: parent, revisionRootId: root, ownerId: ctx.clerkUserId } : { folderId: null },
     ),
     create: jest.fn(async ({ data }) => ({ id: root, ...data })),
     updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -24,7 +24,7 @@ function fixture() {
   const prisma = {
     ...tx,
     wsNewsletterDocument: {
-      findFirst: jest.fn().mockResolvedValue({ config: {}, design: { sections: [] } }),
+      findFirst: jest.fn().mockResolvedValue({ ownerId: ctx.clerkUserId, config: {}, design: { sections: [] } }),
     },
     $transaction: async (fn: (value: unknown) => Promise<unknown>) => fn(tx),
   };
@@ -112,9 +112,9 @@ describe('immutable newsletter image revisions', () => {
   it('does not save an edit when the image moves folders while its root lock is pending', async () => {
     const f = fixture();
     f.asset.findFirst
-      .mockResolvedValueOnce({ id: parent, revisionRootId: root } as never)
+      .mockResolvedValueOnce({ id: parent, revisionRootId: root, ownerId: ctx.clerkUserId } as never)
       .mockResolvedValueOnce({ folderId: null } as never)
-      .mockResolvedValueOnce({ id: parent, revisionRootId: root } as never)
+      .mockResolvedValueOnce({ id: parent, revisionRootId: root, ownerId: ctx.clerkUserId } as never)
       .mockResolvedValueOnce({ folderId: root } as never);
     await expect(f.service.saveImageRevision(ctx, file, token)).rejects.toBeInstanceOf(
       ConflictException,
@@ -123,7 +123,7 @@ describe('immutable newsletter image revisions', () => {
   });
   it('returns paginated private metadata without loading file bytes or exposing separate tokens', async () => {
     const f = fixture();
-    f.asset.findFirst.mockResolvedValue({ id: parent, revisionRootId: root } as never);
+    f.asset.findFirst.mockResolvedValue({ id: parent, revisionRootId: root, ownerId: ctx.clerkUserId } as never);
     f.raw.mockResolvedValue([
       {
         id: root,
