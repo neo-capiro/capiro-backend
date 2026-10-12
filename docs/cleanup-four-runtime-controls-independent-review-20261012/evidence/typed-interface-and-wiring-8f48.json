@@ -1,0 +1,20 @@
+{
+  "source": "8f48604aa1cefdb3e420026633ce8e1f2ca95953",
+  "baselineFiles": 2047,
+  "typedInterfaceMutation": {
+    "file": "apps/api/src/external/tango/tango-rest-page.ts",
+    "before": "'interleaved' | 'captured'",
+    "after": "'interleaved' | 'captured' | 'unreviewed'",
+    "rejected": true,
+    "errors": [
+      "tango-rest-page-leaves: carrier drift or missing declaration: apps/api/src/external/tango/tango-rest-page.ts/RateReadProfile"
+    ]
+  },
+  "runnerNoDbSetupOrProviderEnvironment": true,
+  "cachedTransformerResolved": true,
+  "isolatedRuntimeAndSeparateStrictScope": true,
+  "exactThreeSuitePackageAlias": true,
+  "allThreeControlCiStepsRunOnDraft": true,
+  "pnpmOrRunnerTestsExecuted": false,
+  "mutantCodeExecuted": false
+}
