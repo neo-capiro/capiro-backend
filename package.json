@@ -32,7 +32,7 @@
     "verify:pe-phase-10": "pnpm -C apps/api run verify:pe-phase-10",
     "verify:engagement-phase-0": "pnpm --filter @capiro/api verify:engagement-phase-0",
     "verify:engagement-phase-0:browser": "node scripts/run-engagement-phase0-local.mjs --run",
-    "verify:engagement-phase-1": "pnpm --filter @capiro/api exec tsx scripts/verify-engagement-phase1-runtime.ts && node --check scripts/run-engagement-phase1-local.mjs && node --check scripts/verify-engagement-phase1-local.mjs && node --check scripts/run-engagement-phase1-post-acceptance.mjs && node --check scripts/verify-engagement-phase1-background-final.mjs && node --check apps/web/scripts/engagement-phase1-browser-parity.mjs && node --check apps/web/scripts/engagement-phase1-post-acceptance.mjs",
+    "verify:engagement-phase-1": "pnpm --filter @capiro/api exec tsx scripts/verify-engagement-phase1-runtime.ts --run && node --check scripts/run-engagement-phase1-local.mjs && node --check scripts/verify-engagement-phase1-local.mjs && node --check scripts/run-engagement-phase1-post-acceptance.mjs && node --check scripts/verify-engagement-phase1-background-final.mjs && node --check apps/web/scripts/engagement-phase1-browser-parity.mjs && node --check apps/web/scripts/engagement-phase1-post-acceptance.mjs",
     "verify:engagement-phase-1:local": "node scripts/verify-engagement-phase1-local.mjs --run",
     "verify:engagement-phase-2": "bash scripts/verify-engagement-phase2-code.sh",
     "verify:engagement-phase-3": "node scripts/verify-engagement-phase3-code.mjs --run",
