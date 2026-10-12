@@ -1,0 +1,115 @@
+{
+  "source": "34bd52b6f49393f49732cf1f918002ba0893574d",
+  "tree": "bde461631aea971158fdd5c9b287860aeff061e1",
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "paths": [
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "baselineEntry": "100644 blob baf92415c3c766a847a4fc60ee6ad5cb4dec1ca2",
+      "candidateEntry": "100644 blob 76e9225f1f0f1944fe9088c3ec79b527a1055e08",
+      "sha256": "cae6f04eaa53075c350ef0f38e65b71100fbc4898ec61589ea757e180006b4c1",
+      "applicationReviewScope": false
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-dibbs.client.ts",
+      "baselineEntry": "100644 blob 880ac38de2f6b5781cf5bc6994fcf0350529f7da",
+      "candidateEntry": "100644 blob f0e9ccff04fe4116cd1ee70861e74192fbb677ab",
+      "sha256": "50dfeda0178913b8718eb36d7c4e76f9e7058e6e066306b37ddac0ea13bb0269",
+      "applicationReviewScope": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-rest-page.spec.ts",
+      "baselineEntry": null,
+      "candidateEntry": "100644 blob 94a35b5b6296e0e972c814bdbec977d7ab61bbe8",
+      "sha256": "aa811830dcfff1ade200097715c29d2ab26cc4eb102ad292eb16584aa24c7a61",
+      "applicationReviewScope": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-rest-page.ts",
+      "baselineEntry": null,
+      "candidateEntry": "100644 blob 7a266d4b721dfca17862fd5aa9ec11497eb53c22",
+      "sha256": "acea0b45c771e67d8e7261924823b64c73cdfed78189feef140a1c08ec68872a",
+      "applicationReviewScope": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-sbir.client.ts",
+      "baselineEntry": "100644 blob 71790479b3b08e0d32be71fbc497bc306b28ee79",
+      "candidateEntry": "100644 blob 800243ca9006979f2e69bd207271dfdd13f7743b",
+      "sha256": "1414e9afedb5930fdbd3f35b848e08b54c7fae47b817e0997c848d392a7c5bbd",
+      "applicationReviewScope": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-subaward.client.ts",
+      "baselineEntry": "100644 blob 14108e15698f0dc2f678971fe01bf42cc4da0794",
+      "candidateEntry": "100644 blob ff5081ab9c4d3d10f7a9de0a39d1cfd084485952",
+      "sha256": "08453fe5638a18a5319d1e505bfc3290e05ebff8aa66963d966d50ef6bfe8c78",
+      "applicationReviewScope": true
+    },
+    {
+      "path": "package.json",
+      "baselineEntry": "100644 blob 4bd52e61f66c11f5293783dde6e98724dda934ea",
+      "candidateEntry": "100644 blob 68d694287508467e4eacebea551130a8f4109b6d",
+      "sha256": "2384cad9cd99bf2b6af903144593198b3bd9110f627c86ed1eaa7e78764f2ccf",
+      "applicationReviewScope": false
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.mjs",
+      "baselineEntry": null,
+      "candidateEntry": "100644 blob 24ffb4c6e0a58fe3cc0f118eb600613ae2f91872",
+      "sha256": "eeaf236aade7bf9576f76e183f11a51eb9e8aa8203139eeb070ea0f2a6dcd5a6",
+      "applicationReviewScope": false
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.test.mjs",
+      "baselineEntry": null,
+      "candidateEntry": "100644 blob fc802086ed11b731acf90ee97e5d3c8786cdc3ad",
+      "sha256": "9b939dae53b0117c6fb67753d51d053fcc3c9201dabc396b70531751fbfc761b",
+      "applicationReviewScope": false
+    },
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "baselineEntry": "100644 blob 5e46f212702716896bd2e4e2a986180435ae6142",
+      "candidateEntry": "100644 blob 0e0aa012076fb550e736babacc8b661219b64efa",
+      "sha256": "36bbac9707e78fb75f8041b65df06f58c6845b8b1d1ac619bc6640452f1fe99f",
+      "applicationReviewScope": false
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "baselineEntry": "100644 blob 0d1699b9c75a44e2d5541db42ee4aeeaca50f2ce",
+      "candidateEntry": "100644 blob eae840ad18450bb27699ffdd400af0e87ad1b7e1",
+      "sha256": "ca727cc614baca1d7d067df9c3ed725a63ade418163adf79da0e37bad5889da4",
+      "applicationReviewScope": false
+    },
+    {
+      "path": "scripts/cleanup-runtime-equivalence.jest.cjs",
+      "baselineEntry": null,
+      "candidateEntry": "100644 blob 80c16954796a00453a595700d9a2ebe64cb2f930",
+      "sha256": "16bb7322aee00089c7ff17393fc1cbb125b345f5f66da7aa6a2399ee4708ad67",
+      "applicationReviewScope": false
+    },
+    {
+      "path": "scripts/duplicate-helper-names.txt",
+      "baselineEntry": null,
+      "candidateEntry": "100644 blob 44637f3d1e6cbf5489bd7727232aa7e0faa8b20f",
+      "sha256": "f465c9783334023d1bc4a68ed507e606dbec7eafd8cb9403cc0165ab354d986c",
+      "applicationReviewScope": false
+    },
+    {
+      "path": "scripts/registry-ownership.json",
+      "baselineEntry": "100644 blob 7bee2f07b06ade07f7587c868afbe761972a4b8e",
+      "candidateEntry": "100644 blob 48c9ab7fe8915bd83bfbf935d7ff8210ec5b58f2",
+      "sha256": "821e862128f46374b7345cfae3bb71240e11f4d5aa67ed0c8efab53c8922d6df",
+      "applicationReviewScope": false
+    }
+  ],
+  "applicationPathsReviewed": 5,
+  "rootControlPathsOwnedByOtherReviewer": 9,
+  "baselineOutside14PathSourceUnionExact": 21373,
+  "allOtherApplicationPathsExact": 10503,
+  "schemaMigrationPathsExact": 603,
+  "allPriorDocumentationAndReceiptsExact": 9697,
+  "prior54ErrorRealmGoldensExact": true,
+  "oldClockAndSharedIndexExact": true,
+  "rootGenericControlAcceptance": false,
+  "nativeAcceptance": false
+}
