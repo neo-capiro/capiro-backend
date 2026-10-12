@@ -1,0 +1,7 @@
+{
+  "source": "c00c86917af2da637c2183fd078f4390fe0ac361",
+  "negativeCases": 21,
+  "rejected": 21,
+  "positiveCases": 2,
+  "mutantsExecuted": false
+}

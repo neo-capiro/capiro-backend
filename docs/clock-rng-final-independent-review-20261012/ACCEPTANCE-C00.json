@@ -1,0 +1,48 @@
+{
+  "acceptedSource": "c00c86917af2da637c2183fd078f4390fe0ac361",
+  "acceptedTree": "c7ccd8cb80528c3cedaeead92e5c3babcfbdf158",
+  "integrationExactPacketBlobs": "b3e02fb8f056ab3481b5153bf1a1b2fe3a7d4a7d",
+  "integrationTree": "62bbe8e9c2fae921ae1a59a7ca9e582c7dfb8dc0",
+  "scope": "Clock/RNG18-source-path slice and declared bounded static grammar",
+  "sourceTests": {
+    "permanent": {
+      "pass": 84,
+      "fail": 0,
+      "priorReportedCaseNamesRetained": 84
+    },
+    "sourceScan": 169,
+    "wholeMapRefusals": {
+      "original": 21,
+      "providerShadows": 3,
+      "moduleProvenance": 1,
+      "pass": 25
+    },
+    "actualProviderRoleImportRefusals": 21,
+    "legitimateProviderPositives": 2,
+    "strictTypeDiagnostics": 0,
+    "runtimeExtensions": [
+      "ts",
+      "cts",
+      "mts",
+      "tsx"
+    ]
+  },
+  "exactEqualityCarries": {
+    "originalSource": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+    "nonGuardPacketPaths": 15,
+    "runtimeControls": 17,
+    "requiredNestInjectionControls": 4,
+    "parsedCIAndPackage": true,
+    "originalDataFields": true,
+    "originalAllowanceRows": 119,
+    "deferredAmbientSamples": 123
+  },
+  "allPreviousChecksumEntriesPreserved": 49,
+  "reviewerRuntimeEdits": 0,
+  "mutantsExecuted": false,
+  "moduleGraphContainmentClaim": false,
+  "nativeAcceptance": false,
+  "fullCleanup1Acceptance": false,
+  "widerCleanup4Acceptance": false,
+  "remainingConcreteBoundedSourceBlockers": []
+}
