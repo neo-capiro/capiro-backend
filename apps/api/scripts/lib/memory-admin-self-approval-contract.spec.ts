@@ -92,6 +92,21 @@ describe('memory administrator self-approval policy contract', () => {
   });
 
   it('removes the independent-approver claim from every active shared-memory UI surface', () => {
+    const assertNoRebinding = (rootNode: ts.Node, name: string, allowedDefinition?: ts.Node): void => {
+      const bindings: ts.Node[] = [];
+      const visit = (node: ts.Node): void => {
+        if (node !== allowedDefinition &&
+          (ts.isVariableDeclaration(node) || ts.isBindingElement(node) || ts.isParameter(node) ||
+            ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) &&
+          node.name && ts.isIdentifier(node.name) && node.name.text === name) bindings.push(node);
+        if (ts.isBinaryExpression(node) && ts.isIdentifier(node.left) && node.left.text === name &&
+          node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+          node.operatorToken.kind <= ts.SyntaxKind.LastAssignment) bindings.push(node);
+        ts.forEachChild(node, visit);
+      };
+      visit(rootNode);
+      expect(bindings).toHaveLength(0);
+    };
     expect(editorShared).toContain('Submitted for approval');
     expect(editorShared).not.toContain('Submitted for independent review');
     // The editor delegates its success message to this existing UI-free owner.
@@ -105,6 +120,7 @@ describe('memory administrator self-approval policy contract', () => {
       "export function settingsMemorySuccessMessage(result: MemorySaveSectionsResp): string {\n" +
       "  return result.status === 'pending_review' ? 'Submitted for approval' : 'Saved';\n}",
     );
+    assertNoRebinding(sharedTree, 'settingsMemorySuccessMessage', successMessages[0]);
     const editorTree = ts.createSourceFile('MemoryFileEditor.tsx', editor, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const successImports = editorTree.statements.filter(ts.isImportDeclaration)
       .filter((node) => ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === './memory-file-editor-shared.js')
@@ -115,6 +131,7 @@ describe('memory administrator self-approval policy contract', () => {
     const editorFunctions = editorTree.statements.filter(ts.isFunctionDeclaration)
       .filter((node) => node.name?.text === 'MemoryFileEditor');
     expect(editorFunctions).toHaveLength(1);
+    assertNoRebinding(editorFunctions[0]!, 'settingsMemorySuccessMessage');
     const mutations = editorFunctions[0]!.body!.statements.filter(ts.isVariableStatement)
       .flatMap((node) => [...node.declarationList.declarations])
       .filter((node) => ts.isIdentifier(node.name) && node.name.text === 'saveMutation');
@@ -146,6 +163,7 @@ describe('memory administrator self-approval policy contract', () => {
       "export function pendingReviewHeadline(pending: PendingMemoryReviewState): string {\n" +
       "  return pending.blocked ? 'Review blocked' : 'Waiting for approval';\n}",
     );
+    assertNoRebinding(pendingSharedTree, 'pendingReviewHeadline', headlines[0]);
     const panelTree = ts.createSourceFile('PendingMemoryReviewPanel.tsx', pendingPanel, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const headlineImports = panelTree.statements.filter(ts.isImportDeclaration)
       .filter((node) => ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === './pending-memory-review-shared.js')
@@ -156,6 +174,7 @@ describe('memory administrator self-approval policy contract', () => {
     const panels = panelTree.statements.filter(ts.isFunctionDeclaration)
       .filter((node) => node.name?.text === 'PendingMemoryReviewPanel');
     expect(panels).toHaveLength(1);
+    assertNoRebinding(panels[0]!, 'pendingReviewHeadline');
     const alerts: ts.JsxSelfClosingElement[] = [];
     const collectAlerts = (node: ts.Node): void => {
       if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(panelTree) === 'Alert') alerts.push(node);
