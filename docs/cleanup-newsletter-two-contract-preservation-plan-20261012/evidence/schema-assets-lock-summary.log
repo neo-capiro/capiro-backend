@@ -1,0 +1,130 @@
+{
+  "schemaRows": [
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "names": [
+        {
+          "name": "WsNewsletterDocument",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNewsletterBrandKit",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNewsletterReviewer",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNewsletterLibraryItem",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNewsletterInvitation",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNewsletterComment",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNewsletterThreadWatcher",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNewsletterReviewEmailRequest",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNewsletterAsset",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNewsletterAssetFolder",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNewsletterStage",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNotificationKind",
+          "Qpresent": true,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsNotification",
+          "Qpresent": true,
+          "CequalsQ": false
+        },
+        {
+          "name": "WsDocVersion",
+          "Qpresent": true,
+          "CequalsQ": true
+        },
+        {
+          "name": "WsDraft",
+          "Qpresent": true,
+          "CequalsQ": false
+        }
+      ]
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "names": [
+        {
+          "name": "OutreachDraftVersion",
+          "Qpresent": true,
+          "CequalsQ": false
+        },
+        {
+          "name": "NewsletterRecipientAccess",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "NewsletterReviewEmailDelivery",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "NewsletterSubscription",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "NewsletterAccountInvitation",
+          "Qpresent": false,
+          "CequalsQ": false
+        },
+        {
+          "name": "NewsletterInvitationEmailDelivery",
+          "Qpresent": false,
+          "CequalsQ": false
+        }
+      ]
+    }
+  ],
+  "frontendCount": 262,
+  "kindCounts": {
+    "static-asset": 179,
+    "other": 1,
+    "test": 37,
+    "runtime-ts": 43,
+    "stylesheet": 2
+  },
+  "CEqualsW": 261,
+  "urlSites": 9,
+  "readCommands": 282
+}
