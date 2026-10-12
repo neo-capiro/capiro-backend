@@ -1,0 +1,154 @@
+{
+  "base": "61e9b467295235829e7d8097368ce41b0434818a",
+  "baseTree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "tests": 19,
+  "entries": [
+    {
+      "path": "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "blob": "223004e13f7e0aa0f2dd637952972fa9eb58f612",
+      "bytes": 14420,
+      "sha256": "701b62d22496e3a2d338b1be259be8054322121d58411e7e2be3c6036db79052",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-account-provider.spec.ts",
+      "blob": "e6899c8911882971b82315c54e4d4dd510145475",
+      "bytes": 3068,
+      "sha256": "34e90203f190c8671f755bf95c1286df28dca1eec6e807e8d05d0afcfcdf4fea",
+      "hostRequirements": "synthetic Clerk key;mock fetch before constructor;fake role facade"
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts",
+      "blob": "f186e230eaa03aca0c9cc6f9fa335586ed4cbf4c",
+      "bytes": 8201,
+      "sha256": "0c1e871a419b8e1ab30c87e78642da51fb7df2c370c14709bb8a4d7ef106b6f6",
+      "hostRequirements": "spec-owned hoisted SES mock;fake DB ports;disabled timer init"
+    },
+    {
+      "path": "apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts",
+      "blob": "ddcf9bbea3b898d7f7ae50e3e63a2f13f6c74358",
+      "bytes": 8093,
+      "sha256": "76d98ef7a226209d4587b1ff64864f6d3ee7c76c4e3c581c5b7dfef2946d23c2",
+      "hostRequirements": "spec-owned hoisted SES mock;fake DB ports;disabled timer init"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts",
+      "blob": "8607b64eab56bf98285f25f41e29693b042b6e72",
+      "bytes": 6876,
+      "sha256": "42a7a81d1e7e3fe1f4e9e518127856c950f69cf126322a5f0c52566e11c25a04",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-asset-import.spec.ts",
+      "blob": "dfa53b8276dc980f80095aad9e804f3b0658dca9",
+      "bytes": 11558,
+      "sha256": "23abe3fae4f902495e507d499bb80c1049405190c1a76d651d6e54d46ecc18e6",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-assets.spec.ts",
+      "blob": "9a8086c6f6a614c991e1e2c3384d1511d4755506",
+      "bytes": 8251,
+      "sha256": "e9f0dbd6f71e034b2f8a1fa8938b0bf88f1a1a1c04d5e68fc59a27aab8109f1f",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-brand.spec.ts",
+      "blob": "68fd261f676b1f47a224abd883ef769ce798ac55",
+      "bytes": 7658,
+      "sha256": "c094e8f76d370af48b247d0e980e9e0e5beb45643f386c9299bb189f3c87f965",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-fonts.spec.ts",
+      "blob": "8ab3a56f56a6579012dd032fbea35e2ed3ac3efa",
+      "bytes": 2785,
+      "sha256": "4aadc0c4863debd4b48f5fd490d3a4f35f602b9474482d93059797e0f3112533",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-html-check.spec.ts",
+      "blob": "0eebc5e773c1589c6904e3576dfb05347938120f",
+      "bytes": 4971,
+      "sha256": "be89fd54421e3a32c8af0d1cfe09b78e63dccc2cad64d676ce909e4f7bffe241",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts",
+      "blob": "e5479196260458df5df3d40a6b25eb81ea83516e",
+      "bytes": 6367,
+      "sha256": "5fc4118e099f35a4df9cd1e6f509e96d663d6e55ac05edf9987f6b08611da9c4",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image.spec.ts",
+      "blob": "13332f56469c6aa3bb1f974e85a74d8da3d1ab85",
+      "bytes": 7641,
+      "sha256": "d897771f677513e038b037572a3fd4590e2008ca6d224ba674d4b5a4cf0698f0",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts",
+      "blob": "7b0266d9c7d2c3a108baaa9cf8a04a9b4bd92e89",
+      "bytes": 3890,
+      "sha256": "a50d5a1027fed540a90e9270a03103e736969cdf4c5f8147ef2739e87f2f8093",
+      "hostRequirements": "official exact parser8.0.2;mock page transport"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-social-share.spec.ts",
+      "blob": "20c0bce02c988ea427948327366dd66968605783",
+      "bytes": 6057,
+      "sha256": "07307f4a9909800d543f38b0388e76cfaae53a7f955c1bca6d7f50a7f30bd96b",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-social.spec.ts",
+      "blob": "4075873fe83e36708730b7b8600d356e630c2804",
+      "bytes": 3004,
+      "sha256": "c76e977df3220c80d9abdeddbccd429603b2ebf210d9dfbe201305cdd3033705",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.spec.ts",
+      "blob": "ffec0efbab0c58e5b4df1b5a379a67fa92ee2d13",
+      "bytes": 9684,
+      "sha256": "95cedd27f2dddaea01dabe633bc9f2fe5729bef6a162ab52df73e8c6c54d877a",
+      "hostRequirements": "mock fetch and guard; isolated Nest fixture bound127.0.0.1"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-survey.spec.ts",
+      "blob": "1f116df7b7468a4ccd2cd5eeef800137683f6ae5",
+      "bytes": 15787,
+      "sha256": "b3cf26e0eb4a50a609239f8b396e1d245fc6d19cece31613ff15ec5c70dad0de",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-video.spec.ts",
+      "blob": "6e1a6cfc5e3dd0beb01f6492fe83ee416dcca5ae",
+      "bytes": 10762,
+      "sha256": "b54edd6dfaacc7ba6552e053894be0ccff374dca163b649ea1d8fbec84d1564a",
+      "hostRequirements": "cached Sharp CPU raster +mocked video transport"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.spec.ts",
+      "blob": "b8ccfef719c438c3c60e913c9fead548ee627299",
+      "bytes": 38553,
+      "sha256": "cf9d1bd1152ae6665c6f534c436be3772319f4b1869b3e386228976e96ad731d",
+      "hostRequirements": "pure renderer/validation or actual owner with mock collaborators"
+    }
+  ],
+  "productionSpecsUnchanged": true,
+  "excludedDefaultSetup": [
+    "apps/api/jest.worker-database.cjs",
+    "apps/api/jest.setup.ts",
+    "apps/workspace/jest.setup.ts"
+  ],
+  "hostEnvironment": "env-i PATH/NODE_OPTIONS only; no credential/customer/DB environment inherited",
+  "collaboratorModulesReplacedWithReflectionTokens": true,
+  "actualCoreReportingGraphLoaded": false,
+  "actualPrismaClientConstructed": false,
+  "externalNetworkRefused": true,
+  "loopbackFixturePermittedOnly": true,
+  "rootAuthorizedCachedSharpSyntheticCPU": true,
+  "dependencyInstallOrNativeDownload": false
+}

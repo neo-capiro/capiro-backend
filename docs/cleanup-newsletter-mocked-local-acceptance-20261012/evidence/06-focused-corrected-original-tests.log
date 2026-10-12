@@ -1,0 +1,10 @@
+PASS apps/workspace/src/newsletters/newsletter-stock-image.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-survey.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       52 passed, 52 total
+Snapshots:   0 total
+Time:        2.987 s, estimated 3 s
+Ran all test suites within paths "apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts", "apps/workspace/src/newsletters/newsletter-survey.spec.ts", "apps/workspace/src/newsletters/newsletter-stock-image.spec.ts".
+Test results written to: docs/cleanup-newsletter-mocked-local-acceptance-20261012/evidence/06-focused-corrected-original-tests.json

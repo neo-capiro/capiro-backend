@@ -1,0 +1,500 @@
+FAIL apps/workspace/src/newsletters/newsletter.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-survey.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/api/src/engagement/newsletter-outreach.service.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-asset-import.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-video.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-stock-image.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-assets.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-brand.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-image.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-social-share.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-html-check.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/api/src/workspace-collab/newsletter-account-provider.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-social.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+FAIL apps/workspace/src/newsletters/newsletter-fonts.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '/workspace/capirov2/apps/api/node_modules/jest-environment-node'
+    Require stack:
+    - /tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/requireOrImportModule.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-util@29.7.0/node_modules/jest-util/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/FailedTestsInteractiveMode.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/plugins/FailedTestsInteractive.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/watch.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/cli/index.js
+    - /workspace/capirov2/node_modules/.pnpm/@jest+core@29.7.0_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+node@20.19.39_typescript@5.9.3_/node_modules/@jest/core/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/run.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/build/index.js
+    - /workspace/capirov2/node_modules/.pnpm/jest-cli@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@ty_fysru2dtb22frfi4un37nyeami/node_modules/jest-cli/bin/jest.js
+    - /workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/bin/jest.js
+
+    > 1 | const Environment=require('/workspace/capirov2/apps/api/node_modules/jest-environment-node').TestEnvironment;
+        |                   ^
+      2 | const net=require('node:net');
+      3 | class NewsletterMockEnvironment extends Environment {
+      4 |   async setup(){
+
+      at Object.<anonymous> (docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.environment.cjs:1:19)
+
+Test Suites: 19 failed, 19 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        1.375 s
+Ran all test suites.
+Test results written to: docs/cleanup-newsletter-mocked-local-acceptance-20261012/evidence/01-original-newsletter-suites.json
