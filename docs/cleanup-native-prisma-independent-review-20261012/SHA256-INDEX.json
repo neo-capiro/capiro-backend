@@ -1,0 +1,63 @@
+{
+  "acceptedSealedNativeRun": "ec6b3ba9cdf1d0fe6b0912005f5aab35a70e9992",
+  "frozenRunner": "ee9499c5771038f6abf5972ab13d3c20ca65b0cf",
+  "completeSealedArtifactInventoryRequired": true,
+  "newInventoryGuardReviewPending": true,
+  "files": [
+    {
+      "path": "HANDOFF.md",
+      "bytes": 6286,
+      "sha256": "3889bd30a299b38fe17ba9790c9a39f0e837b2c7601c79b345e0181b8e314fcc"
+    },
+    {
+      "path": "evidence/COMMANDS.json",
+      "bytes": 1718,
+      "sha256": "f6bcc8a31612930de94251dc0a681918999457d28d0159cd47b83c25620b24c7"
+    },
+    {
+      "path": "evidence/SOURCE-ARTIFACT-RESULT-REVIEW.json",
+      "bytes": 5707,
+      "sha256": "7b07c9f0f773467de1c9d08f29101b3ae8675d156ca18c0766c25fec30852f98"
+    },
+    {
+      "path": "evidence/artifact-manifest-probe.json",
+      "bytes": 923,
+      "sha256": "ac331722ba1ef3fa4c1fbd6283ef9ce33d4032c0c3eb777dd57006fa2f28e5cd"
+    },
+    {
+      "path": "evidence/artifact-manifest-probe.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/artifact-manifest-probe.stdout.log",
+      "bytes": 703,
+      "sha256": "39260d5e9699fc22e13e0dcd2378628887958e2110b51d4cd2b060e56bcc8edf"
+    },
+    {
+      "path": "evidence/frozen-native-prisma-harness.source.txt",
+      "bytes": 16995,
+      "sha256": "c2ca702b4ab3ca6aacf33dd9ee72330cb039f9b53da02b2a0147e1c5750b1205"
+    },
+    {
+      "path": "evidence/probe-artifact-manifest.cjs",
+      "bytes": 2648,
+      "sha256": "590bae2b6621e07d2c29fee5c19f18c4eb7dd739049d8c1d68152393e1da3a17"
+    },
+    {
+      "path": "evidence/review-native-prisma.cjs",
+      "bytes": 14698,
+      "sha256": "9223a051a56f602b74a08d565c80f39f6bfd7f274b7c137ecb4f01a9445e6371"
+    },
+    {
+      "path": "evidence/review-native-prisma.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/review-native-prisma.stdout.log",
+      "bytes": 104,
+      "sha256": "db03b30225cb654d643815a7c4677d7e934bf5d28d172851d311ae1182ea5968"
+    }
+  ]
+}

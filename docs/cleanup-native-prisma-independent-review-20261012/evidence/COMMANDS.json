@@ -1,0 +1,44 @@
+{
+  "source": "ee9499c5771038f6abf5972ab13d3c20ca65b0cf",
+  "evidence": "ec6b3ba9cdf1d0fe6b0912005f5aab35a70e9992",
+  "commands": [
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "docs/cleanup-native-prisma-independent-review-20261012/evidence/probe-artifact-manifest.cjs"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "environment": {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC"
+      },
+      "completedToolSession": null,
+      "exitCode": 0,
+      "stdout": "artifact-manifest-probe.stdout.log",
+      "stderr": "artifact-manifest-probe.stderr.log",
+      "stdoutSha256": "39260d5e9699fc22e13e0dcd2378628887958e2110b51d4cd2b060e56bcc8edf",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "driverClientOrSqlExecuted": false
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "docs/cleanup-native-prisma-independent-review-20261012/evidence/review-native-prisma.cjs"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "environment": {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC"
+      },
+      "completedToolSession": 4300,
+      "exitCode": 0,
+      "stdout": "review-native-prisma.stdout.log",
+      "stderr": "review-native-prisma.stderr.log",
+      "stdoutSha256": "db03b30225cb654d643815a7c4677d7e934bf5d28d172851d311ae1182ea5968",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "driverClientOrSqlExecuted": false
+    }
+  ]
+}
