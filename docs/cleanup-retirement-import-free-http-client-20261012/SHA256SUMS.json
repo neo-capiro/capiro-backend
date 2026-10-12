@@ -1,0 +1,11 @@
+{
+  "apps/api/scripts/lib/meri-durable-research-contract-client.ts": "f3f061fae8e4fbbad9f0703d1a597444beed9949793e629d5c36551d87901bc4",
+  "apps/api/scripts/meri-durable-controls.http.integration.spec.ts": "ad9b9ccaebf40e5a82f8b167202e783f306b1e8bd60817b64fdfdae95dd60fb4",
+  "docs/cleanup-retirement-import-free-http-client-20261012/HANDOFF.md": "c18349ace0e04878d05a1ee7f0e59742ae1d69aa9c933b1aca585683783adab8",
+  "docs/cleanup-retirement-import-free-http-client-20261012/RECEIPT.json": "4f6ccb5690045452028eee8b5a1cd1b3fc5030bbef20d3b7b2f1109f94dc9ad2",
+  "docs/cleanup-retirement-import-free-http-client-20261012/client-types.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "docs/cleanup-retirement-import-free-http-client-20261012/original-candidate-controls.tap": "ebe5f8d9589c52b06f20aa5b63359e0f87898ae699d06c624dda4b555f0ef886",
+  "docs/cleanup-retirement-import-free-http-client-20261012/seal.py": "240bfc47c2ec4fc55134cf89390ba9d9d489b415137cb36c9efaca9fd7ea1ee5",
+  "docs/cleanup-retirement-import-free-http-client-20261012/tsconfig.client.json": "440914275c227cd62fe98024e97f6b6a61faa38027e3da6258a565554a62b0af",
+  "scripts/ci/meri-durable-http-client-contract.spec.mjs": "f8a3dd1d90d70a384ee47aae1f195b6a003fa1c26aecd9722b6117538d3b1430"
+}

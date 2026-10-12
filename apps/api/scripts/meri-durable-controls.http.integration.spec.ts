@@ -24,7 +24,7 @@ import {
   cancelMeriDurableResearch,
   fetchMeriDurableResearchSnapshot,
   steerMeriDurableResearch,
-} from '../../web/src/components/chat/meri-durable-research.js';
+} from './lib/meri-durable-research-contract-client.js';
 
 const ctx: TenantContext = {
   tenantId: 'tenant-1',
