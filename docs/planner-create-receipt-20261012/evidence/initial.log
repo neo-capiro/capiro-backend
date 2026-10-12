@@ -1,0 +1,38 @@
+PASS apps/api-strategy/src/planner/planner.http.spec.ts (12.442 s)
+PASS apps/api-strategy/src/planner/planner.spec.ts
+FAIL apps/api-strategy/src/planner/planner-task-create-command.spec.ts
+  ● Test suite failed to run
+
+    [96mapps/api-strategy/src/planner/planner-task-create-command.spec.ts[0m:[93m143[0m:[93m15[0m - [91merror[0m[90m TS2532: [0mObject is possibly 'undefined'.
+
+    [7m143[0m       taskId: h.state().tasks[0].id,
+    [7m   [0m [91m              ~~~~~~~~~~~~~~~~~~[0m
+    [96mapps/api-strategy/src/planner/planner-task-create-command.spec.ts[0m:[93m145[0m:[93m12[0m - [91merror[0m[90m TS2532: [0mObject is possibly 'undefined'.
+
+    [7m145[0m     expect(h.state().tasks[0].data.dueOn).toBe('2026-11-01');
+    [7m   [0m [91m           ~~~~~~~~~~~~~~~~~~[0m
+    [96mapps/api-strategy/src/planner/planner-task-create-command.spec.ts[0m:[93m146[0m:[93m12[0m - [91merror[0m[90m TS2532: [0mObject is possibly 'undefined'.
+
+    [7m146[0m     expect(h.state().tasks[0].data.dueTime).toBeNull();
+    [7m   [0m [91m           ~~~~~~~~~~~~~~~~~~[0m
+    [96mapps/api-strategy/src/planner/planner-task-create-command.spec.ts[0m:[93m274[0m:[93m7[0m - [91merror[0m[90m TS2532: [0mObject is possibly 'undefined'.
+
+    [7m274[0m       h.projects[0].ownerId = 'user_other';
+    [7m   [0m [91m      ~~~~~~~~~~~~~[0m
+    [96mapps/api-strategy/src/planner/planner-task-create-command.spec.ts[0m:[93m288[0m:[93m7[0m - [91merror[0m[90m TS2532: [0mObject is possibly 'undefined'.
+
+    [7m288[0m       h.state().tasks[0].data.clientId = CLIENT;
+    [7m   [0m [91m      ~~~~~~~~~~~~~~~~~~[0m
+    [96mapps/api-strategy/src/planner/planner-task-create-command.spec.ts[0m:[93m316[0m:[93m35[0m - [91merror[0m[90m TS18048: [0m'receipt' is possibly 'undefined'.
+
+    [7m316[0m       h.service.saveResource(ctx, receipt.id, { version: 1, data: {} }),
+    [7m   [0m [91m                                  ~~~~~~~[0m
+
+PASS apps/api-strategy/src/planner/planner-links.spec.ts
+
+Test Suites: 1 failed, 3 passed, 4 total
+Tests:       112 passed, 112 total
+Snapshots:   0 total
+Time:        14.418 s
+Ran all test suites within paths "apps/api-strategy/src/planner/planner-task-create-command.spec.ts", "apps/api-strategy/src/planner/planner.http.spec.ts", "apps/api-strategy/src/planner/planner.spec.ts", "apps/api-strategy/src/planner/planner-links.spec.ts".
+Test results written to: ../../tmp/capiro-planner-initial.json

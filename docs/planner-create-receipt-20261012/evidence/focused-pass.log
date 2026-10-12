@@ -1,0 +1,13 @@
+PASS apps/api-strategy/src/planner/planner-task-create-command.spec.ts (8.276 s)
+PASS apps/api-strategy/src/planner/planner-schedule.spec.ts
+PASS apps/api-strategy/src/planner/planner-resources.spec.ts
+PASS apps/api-strategy/src/planner/planner.http.spec.ts
+PASS apps/api-strategy/src/planner/planner.spec.ts
+PASS apps/api-strategy/src/planner/planner-links.spec.ts
+
+Test Suites: 6 passed, 6 total
+Tests:       173 passed, 173 total
+Snapshots:   0 total
+Time:        10.961 s
+Ran all test suites within paths "apps/api-strategy/src/planner/planner-task-create-command.spec.ts", "apps/api-strategy/src/planner/planner.http.spec.ts", "apps/api-strategy/src/planner/planner.spec.ts", "apps/api-strategy/src/planner/planner-links.spec.ts", "apps/api-strategy/src/planner/planner-resources.spec.ts", "apps/api-strategy/src/planner/planner-schedule.spec.ts".
+Test results written to: ../../tmp/capiro-planner-focused-pass.json

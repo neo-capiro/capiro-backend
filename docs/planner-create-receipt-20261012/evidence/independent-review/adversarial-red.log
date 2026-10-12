@@ -1,0 +1,54 @@
+FAIL apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts (9.2 s)
+  independent durable task command recovery
+    ✓ recovers a committed task when the transaction response is lost, with no duplicate effects (112 ms)
+    ✕ rolls back task and receipt if current task projection fails after receipt insertion (3 ms)
+    ✕ replays against current authorized links after an obsolete original link is removed and revoked (3 ms)
+    ✓ refuses replay and recovery while the revoked original link remains current (3 ms)
+    ✓ does not conflate array order or omitted/null payloads {"tags":["alpha","beta"]} versus {"tags":["beta","alpha"]} (2 ms)
+    ✓ does not conflate array order or omitted/null payloads {} versus {"clientId":null} (2 ms)
+    ✓ defensively rejects a receipt with foreign tenantId even if persistence returns it (2 ms)
+    ✓ defensively rejects a receipt with foreign ownerId even if persistence returns it (2 ms)
+    ✓ defensively rejects a receipt with foreign kind even if persistence returns it (2 ms)
+
+  ● independent durable task command recovery › rolls back task and receipt if current task projection fails after receipt insertion
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"requestId": "20000000-0000-4000-8000-000000000001", "status": "completed", "taskId": "f5339b6e-daa0-463b-927a-2107e5e518bc"}
+
+      157 |     const h = harness();
+      158 |     h.tx.spPlannerEvent.findMany.mockRejectedValueOnce(new Error('Synthetic projection failure'));
+    > 159 |     await expect(h.service.createTaskCommand(ctx, command)).rejects.toThrow('Synthetic projection failure');
+          |           ^
+      160 |     expect(h.tx.spPlannerResource.create).toHaveBeenCalledTimes(1);
+      161 |     expect(h.state()).toEqual({ tasks: [], receipts: [], events: [], inbox: [] });
+      162 |     await expect(h.service.taskCreateCommand(ctx, REQUEST)).rejects.toMatchObject({ status: 404 });
+
+      at expect (../../../capirov2-sender/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (src/planner/planner-task-create-command.independent-review.spec.ts:159:11)
+
+  ● independent durable task command recovery › replays against current authorized links after an obsolete original link is removed and revoked
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [ForbiddenException: Original client revoked]
+
+      175 |     const before = structuredClone(h.state());
+      176 |     expect(await h.service.taskCreateCommand(ctx, REQUEST, 'Bearer synthetic')).toEqual(receipt);
+    > 177 |     await expect(h.service.createTaskCommand(ctx, linked, 'Bearer synthetic')).resolves.toEqual(receipt);
+          |           ^
+      178 |     expect(h.state()).toEqual(before);
+      179 |   });
+      180 |   it('refuses replay and recovery while the revoked original link remains current', async () => {
+
+      at expect (../../../capirov2-sender/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (src/planner/planner-task-create-command.independent-review.spec.ts:177:11)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 7 passed, 9 total
+Snapshots:   0 total
+Time:        9.579 s
+Ran all test suites within paths "apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts".
+Test results written to: ../backend-qualification-20261012/independent-review/planner/adversarial-red.json

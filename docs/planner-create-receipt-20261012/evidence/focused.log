@@ -1,0 +1,51 @@
+PASS apps/api-strategy/src/planner/planner.http.spec.ts (5.339 s)
+PASS apps/api-strategy/src/planner/planner.spec.ts
+PASS apps/api-strategy/src/planner/planner-links.spec.ts
+FAIL apps/api-strategy/src/planner/planner-task-create-command.spec.ts
+  ● durable Planner task create command › refuses inactive actor on create
+
+    expect(received).rejects.toMatchObject(expected)
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+    -   "status": 403,
+    +   "status": 400,
+      }
+
+      247 |         ? h.service.taskCreateCommand(ctx, REQUEST)
+      248 |         : h.service.createTaskCommand(ctx, command),
+    > 249 |     ).rejects.toMatchObject({ status: 403 });
+          |               ^
+      250 |     expect(h.state().tasks).toHaveLength(mode === 'create' ? 0 : 1);
+      251 |   });
+      252 |   it('uses canonical active Clerk assignee membership checks', async () => {
+
+      at Object.toMatchObject (../../../capirov2-sender/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at src/planner/planner-task-create-command.spec.ts:249:15
+
+  ● durable Planner task create command › retains canonical date/time rejection for {"dueOn":"2026-03-08","dueTime":"02:30","timeZone":"America/New_York"}
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"requestId": "20000000-0000-4000-8000-000000000001", "status": "completed", "taskId": "efcb95c7-3292-4666-bf58-c579609a845a"}
+
+      326 |   ])('retains canonical date/time rejection for %j', async (due) => {
+      327 |     const h = harness();
+    > 328 |     await expect(
+          |           ^
+      329 |       h.service.createTaskCommand(ctx, { ...command, data: { ...command.data, ...due } }),
+      330 |     ).rejects.toMatchObject({ status: 400 });
+      331 |     expect(h.state().tasks).toHaveLength(0);
+
+      at expect (../../../capirov2-sender/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/planner/planner-task-create-command.spec.ts:328:11
+
+Test Suites: 1 failed, 3 passed, 4 total
+Tests:       2 failed, 139 passed, 141 total
+Snapshots:   0 total
+Time:        9.056 s, estimated 14 s
+Ran all test suites within paths "apps/api-strategy/src/planner/planner-task-create-command.spec.ts", "apps/api-strategy/src/planner/planner.http.spec.ts", "apps/api-strategy/src/planner/planner.spec.ts", "apps/api-strategy/src/planner/planner-links.spec.ts".
+Test results written to: ../../tmp/capiro-planner-focused.json
