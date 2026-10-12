@@ -1,0 +1,82 @@
+{
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "reviewedSource": "8834c1d76659b343fb37c60733fa1dd618a06db9",
+  "reviewedTree": "a143416a96a04d8626ba67cef9e69803586749e2",
+  "authorEvidence": "9b1d3dc10be2f175b0d1154850895925b264d8c2",
+  "authorEvidenceTree": "d8d9d45844bbcd8e27b9e30a21fc1ec284c304e7",
+  "authorEvidenceHashRowsVerified": 48,
+  "authorDocumentationOnlyPaths": 49,
+  "exactSixApplicationPaths": [
+    "apps/api-strategy/src/context/frontmatter.spec.ts",
+    "apps/api-strategy/src/context/frontmatter.ts",
+    "apps/api-strategy/src/context/template-registry.spec.ts",
+    "apps/api-strategy/src/context/template-registry.ts",
+    "apps/api-strategy/src/reports/report-context.spec.ts",
+    "apps/api-strategy/src/reports/report-context.ts"
+  ],
+  "originalMetadataInitializerBytesExact": true,
+  "reportGuardRows": [
+    {
+      "name": "isClientSafeContextFrontmatter",
+      "sha256": "2a58e7197ac2a90fd34c7d13da405c4d4c97d248e9ab86910300bb4e697e34e5",
+      "byteExact": true
+    },
+    {
+      "name": "includeContextDocument",
+      "sha256": "b4e7404c4f57e588f7048882bc9c05e28feb99bc344a7304c0ad5d2ccf47499c",
+      "byteExact": true
+    },
+    {
+      "name": "contextMetadata",
+      "sha256": "a78222117652a3d7986045f42216c7a63eb128fc867df17acce10c14076075d7",
+      "byteExact": true
+    }
+  ],
+  "intentionalOrchestratorImportSubset": [
+    "context_manifest",
+    "strategy_brief",
+    "client_constraints",
+    "ask_and_options",
+    "stakeholder_map",
+    "calendar_and_deadlines",
+    "decision_rules",
+    "current_plan",
+    "evidence_register",
+    "meeting_intelligence",
+    "decision_log",
+    "agent_mission",
+    "execution_playbook",
+    "agent_permissions"
+  ],
+  "intentionalUiSubset": [
+    "context_manifest",
+    "strategy_brief",
+    "client_constraints",
+    "ask_and_options",
+    "stakeholder_map",
+    "calendar_and_deadlines",
+    "decision_rules",
+    "current_plan",
+    "evidence_register",
+    "meeting_intelligence",
+    "decision_log",
+    "agent_mission",
+    "execution_playbook",
+    "agent_permissions"
+  ],
+  "strategyStewardRequired": [
+    "strategy_brief",
+    "client_constraints"
+  ],
+  "orchestratorPriority": [
+    "01_strategy_brief",
+    "02_client_constraints",
+    "03_ask_and_options"
+  ],
+  "profilesNotCollapsed": true,
+  "goldenOriginalHashVerified": "3cd2149f1ad4dba5d3fac7810abbfcd317791d246be1a59116d29bdae5a5353d",
+  "originalGoldenNotRegenerated": true,
+  "productionModulesExecuted": false,
+  "sourceEditsByReviewer": false,
+  "nativeDatabaseProviderPackageManagerOrRootGuardAdoptionAcceptance": false
+}
