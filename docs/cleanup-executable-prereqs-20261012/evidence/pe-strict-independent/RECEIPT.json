@@ -1,0 +1,58 @@
+{
+  "reviewedSource": "de623f0e6dd1e34e24435bb93dd3851c615f7be1",
+  "reviewedTree": "1f0f9c0ca2fc90a09b081d2b60d4290872d0ed2d",
+  "base": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "supersedesOnlyThreeWrappersFrom": "5db091dac54bc05f4a97a1495c8e6df238547c4d",
+  "sourceSemanticsAccepted": true,
+  "verifierPolicyQualityGreen": false,
+  "nativeSmokeRun": false,
+  "unchangedSelectedCliCount": 447,
+  "allCallersUnchanged": true,
+  "originalStatementsPreserved": 29,
+  "pureCanonicalOwnersUnchanged": 6,
+  "passingInertProbes": 33,
+  "checks": [
+    {
+      "output": "review-initial.json",
+      "log": "review-initial.log",
+      "exitCode": 1,
+      "disposition": "reviewer cross-realm fixture assertion; raw retained"
+    },
+    {
+      "output": "review-final.json",
+      "log": "review-final.log",
+      "exitCode": 0,
+      "disposition": "passing body/import/default-refusal and inert probe checks"
+    },
+    {
+      "output": "review-exact.json",
+      "log": "review-exact.log",
+      "exitCode": 1,
+      "disposition": "reviewer expected-prefix printer quote mismatch; raw retained"
+    },
+    {
+      "output": "review-exact-final.json",
+      "log": "review-exact-final.log",
+      "exitCode": 0,
+      "disposition": "all33probes plus exact preflight and original body/import comparisons"
+    }
+  ],
+  "existingBaselineRefusals": [
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "exitCode": 1,
+      "reason": "existing entrypoint.sh prisma migrate resolve"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "exitCode": 1,
+      "reason": "existing entrypoint.sh prisma migrate resolve"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "exitCode": 1,
+      "reason": "existing public-law facade lacks4 strict contract markers"
+    }
+  ],
+  "limits": "No native smoke/compiler/Prisma/Postgres/RLS/provider/real subject child or full gate acceptance."
+}

@@ -1,0 +1,7 @@
+scripts/lint-pe-scripts.ts(23,3): error TS2724: '"./lib/pe-migration-guards.js"' has no exported member named 'assertNoAutomaticMigrationHistoryMutation'. Did you mean 'assertNoMigrationHistoryMutation'?
+scripts/lint-pe-scripts.ts(109,62): error TS7006: Parameter 'f' implicitly has an 'any' type.
+scripts/verify-pe-migration-guards.ts(23,3): error TS2724: '"./lib/pe-migration-guards.js"' has no exported member named 'assertNoAutomaticMigrationHistoryMutation'. Did you mean 'assertNoMigrationHistoryMutation'?
+scripts/verify-pe-migration-guards.ts(66,69): error TS7006: Parameter 'f' implicitly has an 'any' type.
+scripts/verify-pe-phase-e-exact-sha.ts(11,3): error TS2305: Module '"./lib/pe-exact-sha-loader-contract.js"' has no exported member 'PE_INSPECT_ONLY_DOLLAR_LOADERS'.
+scripts/verify-pe-phase-e-exact-sha.ts(12,3): error TS2305: Module '"./lib/pe-exact-sha-loader-contract.js"' has no exported member 'inspectOnlyDollarLoaderViolations'.
+scripts/verify-pe-phase-e-exact-sha.ts(13,3): error TS2305: Module '"./lib/pe-exact-sha-loader-contract.js"' has no exported member 'isPeInspectOnlyDollarLoader'.

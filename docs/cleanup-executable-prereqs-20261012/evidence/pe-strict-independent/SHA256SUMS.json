@@ -1,0 +1,16 @@
+{
+  "RECEIPT.json": "4f009758d4acab0a1f2dd2d2143f1b8c39a128e7d8acb3ac78181fa847a27f8e",
+  "REVIEW.md": "f08fb3aa33c92335140916a69212cc2da6e67771b3b5f1aa1d4eec4d58fc1bd2",
+  "parent-original-pe-compiler-red.json": "d53f5cae29bc3854aa4597ced8a630fcbc302a6bf653f5b84bfe27d1970f8e8d",
+  "parent-original-pe-compiler-red.log": "ecd5ff08cb636a5d1cb678dd550b4356d05af596ad58025053470c05eb8c72f6",
+  "review-exact-final.json": "c5dd3978e7b81ed6ebfaed9134245c78067edbe16b1213d27662552f9fbf2554",
+  "review-exact-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "review-exact.json": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "review-exact.log": "3d677f9dc68f100e2bfa709c019f9e329b0b1172ee14a026581344887ed64107",
+  "review-final.json": "2838fd122760d0095b0d6d5f205114cc024ace28fb8d21d75a3ba0ae12879f5c",
+  "review-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "review-initial.json": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "review-initial.log": "b7d8d1edaba260907e0537e77620b302328fca79147e9b99fd8b29c27241cecf",
+  "review-pe-strict.mjs": "8ec16c2437c26e8d5cdfbabd04dfba27a1f91e4fbf5bd850afd504e163bda3ea",
+  "selected-source-manifest.json": "15a9496ac85f6e5dc75694b0e7f8c6f1638737d25d6cb414ee42f1d79684fcce"
+}

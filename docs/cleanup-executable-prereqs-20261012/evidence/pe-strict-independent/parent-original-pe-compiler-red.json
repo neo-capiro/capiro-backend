@@ -1,0 +1,19 @@
+{
+  "kind": "parent-authored compiler RED preserved byte-exact; reviewer did not rerun compiler",
+  "source": "5db091dac54bc05f4a97a1495c8e6df238547c4d",
+  "check": {
+    "argv": [
+      "node",
+      "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+      "-p",
+      "tsconfig.pe-scripts.json",
+      "--noEmit"
+    ],
+    "exitCode": 2,
+    "log": "prepared-types-apps-api-4.log",
+    "seconds": 14.376
+  },
+  "originLog": "/workspace/capirov2-cleanup-source-prereqs/docs/cleanup-executable-prereqs-20261012/evidence/prepared-types-apps-api-4.log",
+  "copiedLog": "parent-original-pe-compiler-red.log",
+  "sha256": "ecd5ff08cb636a5d1cb678dd550b4356d05af596ad58025053470c05eb8c72f6"
+}
