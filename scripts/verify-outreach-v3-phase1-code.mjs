@@ -3,13 +3,23 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  executeOutreachV3Plan,
+  outreachV3CompletionMarker,
+  outreachV3FailureMarker,
+  outreachV3QualificationPlan,
+  outreachV3Scope,
+} from './outreach-v3-qualification-plan.mjs';
 
-const usage = 'Usage: node scripts/verify-outreach-v3-phase1-code.mjs (--run | --help)';
+const usage = 'Usage: node scripts/verify-outreach-v3-phase1-code.mjs (--run [--backend-only | --frontend-only] | --help)';
 if (process.argv.length === 3 && process.argv[2] === '--help') {
   console.log(usage);
   process.exit(0);
 }
-if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+let SCOPE;
+try {
+  SCOPE = outreachV3Scope(process.argv.slice(2));
+} catch {
   console.error(usage);
   process.exit(2);
 }
@@ -102,9 +112,11 @@ function run(label, command, args) {
 }
 
 try {
-  for (const [label, command, args] of steps) run(label, command, args);
-  console.log('\nOUTREACH_V3_PHASE1_DB_FREE_COMPLETE');
+  executeOutreachV3Plan(outreachV3QualificationPlan('phase1', SCOPE, steps), run);
+  console.log(`\n${outreachV3CompletionMarker('phase1', SCOPE)}`);
 } catch (error) {
+  const marker = outreachV3FailureMarker('phase1', SCOPE);
+  if (marker) console.error(marker);
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
