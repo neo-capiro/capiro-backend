@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/browser-vm.cjs",
+    "browser-bundle-021.js"
+  ],
+  "cwd": "/tmp/capiro-shared-independent-consumer-20261012",
+  "exitCode": 1,
+  "fixtureGlobalTestMisreadsEsbuildRequireShim": true
+}

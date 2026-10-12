@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/audit-corrected-packet.py", line 17, in <module>
+    assert set(row['path'] for row in index['files']) | {prefix + 'SHA256-INDEX.json'} == set(git('ls-tree','-r','--name-only',pin,'--',prefix).decode().splitlines())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

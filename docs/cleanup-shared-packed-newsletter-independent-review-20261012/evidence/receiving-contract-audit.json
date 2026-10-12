@@ -1,0 +1,180 @@
+{
+  "acceptedReceivingContractSource": "acf472fe9ffd528eb3088a53c77dae9e01a2f8a2",
+  "acceptedReceivingContractTree": "b6030dedeb7e6634924a6b341ef3de75f15411e0",
+  "path": "docs/contracts/newsletter-outreach-response-routing.md",
+  "bytes": 3739,
+  "sha256": "dc8377aefa66ed65521154a680a0cc2f03532a2146c076b2e80c3aec054d83f6",
+  "allowedReadBindingsVerified": [
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "sha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "sha256": "ecd579acea11a6f284925f2eb98025e630d8b9da233742462d6149ad54f73bf3"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "sha256": "701b62d22496e3a2d338b1be259be8054322121d58411e7e2be3c6036db79052"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "apps/api/src/engagement/engagement.controller.ts",
+      "sha256": "9e4cb0008290eb3afaac654dc0f15909f16c88e4db28149971f6790737dccdae"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "apps/api/prisma/schema.prisma",
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "apps/workspace/prisma/schema.prisma",
+      "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "packages/shared/src/newsletter.ts",
+      "sha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "scripts/engagement-phase3-qualification-plan.mjs",
+      "sha256": "d204addc0fa4db86ce9acbeb0049a41ec76f978e4906b2b6e8211b783f3339dd"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "scripts/verify-engagement-phase3-prototype-boundary.mjs",
+      "sha256": "c61330913b739f3e333988dec4b6517e6a4c310319bfca10da480267a4d4d5d8"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "scripts/verify-engagement-phase3-prototype-boundary.spec.mjs",
+      "sha256": "c5870f782d1a81af779c7967e04f53d11d7a6384c71d5e9e5c77c172f50001cc"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "scripts/verify-outreach-v3-p1-architecture.mjs",
+      "sha256": "a2e6496f1936a06c4ee8ba6336092f368aa118ab3666f72847d6ca56ed3a8f42"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "scripts/verify-outreach-v3-p1-architecture.spec.mjs",
+      "sha256": "1e5c2c3014950abed5c5a040d768fb1d2eee1afbcfbaa4427ebb251db08b58ac"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "scripts/verify-outreach-v3-phase1-code.mjs",
+      "sha256": "e8e3d548417572c8a49857bbd1039c7a4282bc71608a6a99502188cb769204bd"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "scripts/verify-outreach-v3-phase3-code.mjs",
+      "sha256": "13d6c4987261fda7aaa506e53137a19641a73403fcf19693cd5f9913eb893bc3"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "sha256": "ceabc0b16c7bfeb0e8087c625ee9b33591732880b783296196de4cfc1bfb4ce5"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "scripts/verify-outreach-v3-phase5-code.mjs",
+      "sha256": "88bf833d405f42befdc7f6df3ba187db7092dcbcbf1ef74d4b3bd04ce6c43c10"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": "package.json",
+      "sha256": "cdf66b87a4aee12a9363a5e2a8ee7438e652257e5d8213518f23fbd3c965e7c7"
+    },
+    {
+      "repository": "capirov2",
+      "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+      "path": ".github/workflows/ci-pr.yml",
+      "sha256": "1b3302488e86ab3fae0e5f4a04443aa1c0c9dcaaad17adea40fc4af87d009128"
+    },
+    {
+      "repository": "capiro-frontend",
+      "source": "b680b65e14134be736942b29d715e49c2c6a8b19",
+      "path": "docs/newsletter-port-20261012/HANDOVER.md",
+      "sha256": "02e04e44bc9ec8a14c4d72b6a740dbd6bf38ac9b27761ff1a6deca3c2f3b8ded"
+    },
+    {
+      "repository": "capiro-frontend",
+      "source": "b680b65e14134be736942b29d715e49c2c6a8b19",
+      "path": "docs/newsletter-port-20261012/scope-audit/OUTLINE.md",
+      "sha256": "71ef916a5e8a9479f376657198345dee0d65eb2679cf8680a6db5f5028cdc5ec"
+    },
+    {
+      "repository": "capiro-frontend",
+      "source": "b680b65e14134be736942b29d715e49c2c6a8b19",
+      "path": "apps/web/src/shared/capiro/operations/engagement.ts",
+      "sha256": "c76d84157ccbb5b7e4debc46a710f76e4f9922ee9811ec2beab1202d0e924457"
+    },
+    {
+      "repository": "capiro-frontend",
+      "source": "b680b65e14134be736942b29d715e49c2c6a8b19",
+      "path": "AGENTS.md",
+      "sha256": "3889dd45c593695fbdbb3c3935eb06b0ee48c38c17d9ba3fcce0c606e5cf4389"
+    },
+    {
+      "repository": "capiro-frontend",
+      "source": "b680b65e14134be736942b29d715e49c2c6a8b19",
+      "path": "apps/web/AGENTS.md",
+      "sha256": "063098f6cb31bb44c6f8fbea25b3876de7ee1e5f7d00a50dbab506f6415eb7f0"
+    },
+    {
+      "repository": "capiro-frontend",
+      "source": "b680b65e14134be736942b29d715e49c2c6a8b19",
+      "path": "apps/web/package.json",
+      "sha256": "4086045450c1a8dc98a1a45814c18e39f0b6d63a3e2278378e9378e5715b0b14"
+    }
+  ],
+  "readBindingsCount": 26,
+  "protectedEngagementServiceBodyRead": false,
+  "existingProducerType": "outbound_campaign",
+  "existingMetadataFields": [
+    "newsletterStageId",
+    "newsletterRevision"
+  ],
+  "canonicalStageUuidVersions": "1-5, RFC variant, case insensitive",
+  "recordAndStageCurrentAuthoritySourceVerified": true,
+  "metadataIsRoutingHintOnly": true,
+  "savedWsDocVersionBridge": false,
+  "frontendFourProbeMetadataStrippingPreserved": true,
+  "receivingSchemaAndDispatchImplemented": false,
+  "ownerOperationExecuted": false,
+  "effectfulGetExecuted": false
+}

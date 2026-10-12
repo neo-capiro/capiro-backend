@@ -1,0 +1,18 @@
+{
+  "artifactPacket": "23e3d3a68cf57062482e3cc4ca9b53e9cb249796",
+  "artifactTree": "4ec6259ab10c2cdf7d82dd37ce9dd8ad8404eae7",
+  "source": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "sourceTree": "00ca67ae1f2cacc1ae0b51fff25cb33d58954f67",
+  "producerIndexBindingsVerified": 108,
+  "packedEntriesVerified": 182,
+  "allDeclarationsVerified": 36,
+  "canonicalSourceConfigBindings": 39,
+  "sourceMapsPackageLocal": 72,
+  "originalCOriginalWFiveModulesByteExact": true,
+  "producerGoldenPackedBrowserCaseCount": 116,
+  "producerGoldenPackedBrowserResultsEqual": true,
+  "sharedPublishedD587SourceContinuity": true,
+  "nonDocDelta": [],
+  "artifactIntegrity": "sha512-CK2DLxUPCTs+PkBwx8GOjRLfh6jssTddIX2zgxiFw2hjVcHLF65oA8vJJ+LIR00r9XBnxFdYYoD2ZAkgY698Sw==",
+  "packingHttpClaimHeldPendingCorrection": true
+}

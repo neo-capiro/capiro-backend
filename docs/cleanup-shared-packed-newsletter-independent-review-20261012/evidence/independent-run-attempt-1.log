@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-shared-packed-newsletter-independent-review-20261012/evidence/run-independent-controls.py", line 41, in <module>
+    assert all(not edge.get('external') for item in meta['inputs'].values() for edge in item.get('imports', []))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
