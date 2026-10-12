@@ -1,0 +1,9 @@
+{
+  "profile": "strategy-existing-template-vocabulary",
+  "files": 168,
+  "roles": 4,
+  "services": 3,
+  "carriers": 2,
+  "refusals": 5,
+  "applicationSourcesExecuted": false
+}

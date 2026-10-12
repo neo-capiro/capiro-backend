@@ -1,0 +1,8 @@
+{
+  "source": "4104f49f6ebfdbf00ad1706079ba340bd9b566c8",
+  "tree": "257856362ba9075b25bee52debf3efa35f3dfb77",
+  "shellCommand": "python3 docs/cleanup-next-registry-control-wiring-review-20261012/evidence/verify-carry-4104.py > docs/cleanup-next-registry-control-wiring-review-20261012/evidence/carry-4104.log 2>&1",
+  "exitCode": 0,
+  "applicationSourceExecuted": false,
+  "nativeAcceptance": false
+}
