@@ -29,8 +29,11 @@
       "result": "source-review.json"
     },
     {
-      "command": "git diff --check",
-      "exitCode": 0
+      "command": "git diff --check f2b4cf3d733bf3cbb84dd8c453c037848d82ea82 HEAD -- apps packages scripts",
+      "exitCode": 0,
+      "scope": "source and independent tests",
+      "log": "review-diff-check-source.log",
+      "result": "review-diff-check-source-exit.json"
     }
   ],
   "retainedFailedEvidence": [
@@ -47,6 +50,13 @@
       "log": "review-types-app.log",
       "exitCode": 2,
       "outcome": "one reviewer fixture tuple typing issue, subsequently corrected"
+    },
+    {
+      "command": "git diff --check f2b4cf3d733bf3cbb84dd8c453c037848d82ea82 HEAD",
+      "log": "review-diff-check-raw.log",
+      "result": "review-diff-check-raw-exit.json",
+      "exitCode": 2,
+      "outcome": "Exact raw ts-jest warning output contains trailing whitespace; source/test formatting check passes. No raw tool-output bytes edited."
     }
   ],
   "runtimeSourceChangesByReviewer": false,

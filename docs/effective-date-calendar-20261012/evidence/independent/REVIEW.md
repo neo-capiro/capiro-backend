@@ -74,6 +74,10 @@ before assertions ran. `review-types-initial.log` preserves the first focused ty
 command's incorrect root ambient-type resolution. `review-types-app.log` preserves
 one reviewer-only mock tuple type error; that fixture was corrected. Final logs
 and JSON receipts are retained separately; no failed evidence was replaced.
+The whole-candidate whitespace check flags trailing spaces in unchanged raw
+ts-jest warning output; its failure is retained in `review-diff-check-raw.log`.
+The source/test check scoped to `apps`, `packages` and `scripts` passes. Raw
+tool-output bytes were preserved rather than edited to satisfy a formatting check.
 
 This review does not constitute native Prisma/PostgreSQL/RLS acceptance, provider
 verification, migration application, deployment or a main merge. Those checks

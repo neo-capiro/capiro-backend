@@ -1,11 +1,11 @@
 [
   {
     "path": "docs/effective-date-calendar-20261012/evidence/independent/FINAL-RECEIPT.json",
-    "sha256": "a4b019461eed8751fdb96f00b3d901804485e53ead349d8964e078985b2dfb2b"
+    "sha256": "df2dd3957ad84f9929932e095a828e5432a683e225eb8e0ad89976dbb4c5ed70"
   },
   {
     "path": "docs/effective-date-calendar-20261012/evidence/independent/REVIEW.md",
-    "sha256": "9cc71378582f954aa404512a59089ab94416872f8164a941a082c15793240779"
+    "sha256": "e6118462df68ce0233b474788e17e448a2a82f6e389bd0f68d70964149dc67f2"
   },
   {
     "path": "docs/effective-date-calendar-20261012/evidence/independent/review-combined.json",
@@ -14,6 +14,22 @@
   {
     "path": "docs/effective-date-calendar-20261012/evidence/independent/review-combined.log",
     "sha256": "606689e6f6734796f83387e77bc1257ad68944d6762cc7c68cbc0682fe50036b"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/independent/review-diff-check-raw-exit.json",
+    "sha256": "5a7d656a62b2b052fbaa14543d4f4d18c8e3d26b493f99571f3e335db8a2fbb4"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/independent/review-diff-check-raw.log",
+    "sha256": "1335d58a65fff297e7af962363c79cb6bbd9c71242c19dda2537b5c7fdf1aa60"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/independent/review-diff-check-source-exit.json",
+    "sha256": "a2b0dda7d9b45f3e0dfc5dba6c1b1461fee3c67ce82bc4c836d6554ee199c126"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/independent/review-diff-check-source.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   {
     "path": "docs/effective-date-calendar-20261012/evidence/independent/review-final.json",
