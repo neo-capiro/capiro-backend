@@ -1,0 +1,146 @@
+{
+  "checks": [
+    {
+      "repository": "capirov2",
+      "path": "apps/api/src/engagement/newsletter-outreach.service.ts",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "apps/api/src/engagement/newsletter-outreach.controller.ts",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "apps/api/src/engagement/newsletter-source-access.ts",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "apps/api/src/engagement/newsletter-outreach.service.spec.ts",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "apps/api/src/engagement/engagement.controller.ts",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "apps/api/prisma/schema.prisma",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "apps/workspace/prisma/schema.prisma",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "packages/shared/src/newsletter.ts",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "scripts/engagement-phase3-qualification-plan.mjs",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "scripts/verify-engagement-phase3-prototype-boundary.mjs",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "scripts/verify-engagement-phase3-prototype-boundary.spec.mjs",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "scripts/verify-outreach-v3-p1-architecture.mjs",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "scripts/verify-outreach-v3-p1-architecture.spec.mjs",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "scripts/verify-outreach-v3-phase1-code.mjs",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "scripts/verify-outreach-v3-phase3-code.mjs",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "scripts/verify-outreach-v3-phase5-code.mjs",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": "package.json",
+      "verified": true
+    },
+    {
+      "repository": "capirov2",
+      "path": ".github/workflows/ci-pr.yml",
+      "verified": true
+    },
+    {
+      "repository": "capiro-frontend",
+      "path": "docs/newsletter-port-20261012/HANDOVER.md",
+      "verified": true
+    },
+    {
+      "repository": "capiro-frontend",
+      "path": "docs/newsletter-port-20261012/scope-audit/OUTLINE.md",
+      "verified": true
+    },
+    {
+      "repository": "capiro-frontend",
+      "path": "apps/web/src/shared/capiro/operations/engagement.ts",
+      "verified": true
+    },
+    {
+      "repository": "capiro-frontend",
+      "path": "AGENTS.md",
+      "verified": true
+    },
+    {
+      "repository": "capiro-frontend",
+      "path": "apps/web/AGENTS.md",
+      "verified": true
+    },
+    {
+      "repository": "capiro-frontend",
+      "path": "apps/web/package.json",
+      "verified": true
+    },
+    {
+      "laterRoot": "f3fab43ab8e01a066f56559fabb273969f01f1ff",
+      "changedPaths": 19,
+      "onlyDocs": true
+    },
+    {
+      "laterRoot": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+      "changedPaths": 65,
+      "onlyDocs": true
+    }
+  ],
+  "protectedBodyRead": false,
+  "applicationChanged": false
+}

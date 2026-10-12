@@ -1,0 +1,116 @@
+  private async assertClient(ctx: TenantContext, clientId?: string | null) {
+    if (!clientId) return;
+    if (!uuid.test(clientId)) throw new NotFoundException('Client not found');
+    const rows = await this.prisma.withTenant(
+      ctx.tenantId,
+      (tx) => tx.$queryRaw<Array<{ allowed: boolean }>>`
+      SELECT (NOT c.memory_wall OR EXISTS (
+        SELECT 1 FROM client_memory_access a WHERE a.client_id = c.id AND a.user_id = ${ctx.userId}::uuid
+      )) AS allowed FROM clients c WHERE c.id = ${clientId}::uuid AND c.tenant_id = ${ctx.tenantId}::uuid
+    `,
+    );
+    if (!rows[0]?.allowed) throw new NotFoundException('Client not found');
+  }
+  async stage(ctx: TenantContext, id: string): Promise<NewsletterOutreachStage> {
+    if (!uuid.test(id)) throw new NotFoundException('Staged newsletter not found');
+    const rows = await this.prisma.withTenant(
+      ctx.tenantId,
+      (tx) => tx.$queryRaw<NewsletterOutreachStage[]>`
+      SELECT id::text, document_id::text AS "documentId", revision, name, config, design
+      FROM ws_newsletter_stage WHERE id = ${id}::uuid
+        AND tenant_id = ${ctx.tenantId}::uuid AND owner_id = ${ctx.clerkUserId}
+    `,
+    );
+    const stage = rows[0];
+    if (!stage) throw new NotFoundException('Staged newsletter not found');
+    for (const clientId of newsletterSourceClients(stage.design, stage.config.clientId))
+      await this.assertClient(ctx, clientId);
+    return stage;
+  }
+  private async record(ctx: TenantContext, id: string) {
+    if (!uuid.test(id)) throw new NotFoundException('Newsletter outreach not found');
+    const row = await this.engagement.getOutreachRecord(ctx, id);
+    const stageId = (row.metadata as Record<string, unknown> | null)?.newsletterStageId;
+    if (typeof stageId !== 'string') throw new NotFoundException('Newsletter outreach not found');
+    const stage = await this.stage(ctx, stageId);
+    await this.assertClient(ctx, row.clientId);
+    return { row, stage };
+  }
+  private async mutation<T>(
+    ctx: TenantContext,
+    id: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    // Verify ownership before reporting a conflicting operation, then keep a
+    // campaign-scoped advisory lock while the existing services commit their
+    // own transactions. No row lock crosses those service transactions.
+    await this.record(ctx, id);
+    return this.prisma.withTenant(
+      ctx.tenantId,
+      async (tx) => {
+        const locks = await tx.$queryRaw<Array<{ locked: boolean }>>`
+        SELECT pg_try_advisory_xact_lock(hashtextextended(${`newsletter-operation:${ctx.tenantId}:${id}`}, 0)) AS locked
+      `;
+        if (!locks[0]?.locked)
+          throw new ConflictException(
+            'This newsletter is updating in another tab. Try again after that operation finishes.',
+          );
+        return operation();
+      },
+      { timeoutMs: 300000 },
+    );
+  }
+  async open(ctx: TenantContext, stageId: string) {
+    const stage = await this.stage(ctx, stageId);
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // One stage lock covers the lookup and creation, including a StrictMode
+      // double request or two tabs opening the same saved handoff.
+      await tx.$queryRaw`SELECT id FROM ws_newsletter_stage WHERE id = ${stageId}::uuid AND tenant_id = ${ctx.tenantId}::uuid AND owner_id = ${ctx.clerkUserId} FOR UPDATE`;
+      const existing = await tx.outreachRecord.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          createdByUserId: ctx.userId,
+          deletedAt: null,
+          status: 'draft',
+          metadata: { path: ['newsletterStageId'], equals: stageId },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      });
+      return (
+        existing ??
+        tx.outreachRecord.create({
+          data: {
+            tenantId: ctx.tenantId,
+            createdByUserId: ctx.userId,
+            type: 'outbound_campaign',
+            clientId: stage.config.clientId,
+            status: 'draft',
+            title: stage.name,
+            subject: stage.config.subject,
+            recipients: [],
+            recipientCount: 0,
+            lastStep: 1,
+            metadata: {
+              direction: 'to-clients',
+              contextPool: [],
+              newsletterStageId: stage.id,
+              newsletterRevision: stage.revision,
+            },
+          },
+        })
+      );
+    });
+    return this.get(ctx, row.id);
+  }
+  async get(ctx: TenantContext, id: string) {
+    const { row, stage } = await this.record(ctx, id);
+    const draftRows = await this.drafts.listForOutreach(ctx, id);
+    const metadata = row.metadata as Record<string, unknown> | null;
+    const preparedIds = Array.isArray(metadata?.newsletterVersionIds)
+      ? (metadata.newsletterVersionIds as string[])
+      : [];
+    const accesses = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.newsletterRecipientAccess.findMany({
+        where: {
+          tenantId: ctx.tenantI

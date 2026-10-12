@@ -1,0 +1,444 @@
+{
+  "old": "8ac4c42cc49876ec19808369c0683956e0f2f474",
+  "new": "d09429a509d5b3cc2501f3736e619723e4b2c4c0",
+  "newTree": "9aaeb9e8e3605b075610e0921b36b30424c7dde9",
+  "destination": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "destinationTree": "00ca67ae1f2cacc1ae0b51fff25cb33d58954f67",
+  "rows": [
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "440c0d3ac329ef7bb78b2f5f52a8cc098e103d65",
+        "sha256": "5802bab1767ca1a7e8c4f3515b51a5340e1b3b79d86840429b18f0eaf7a86354",
+        "bytes": 6526
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false,
+      "currentFrontendOriginal": {
+        "path": "apps/web/src/components/MemoryFileEditor.tsx",
+        "identity": {
+          "blob": "440c0d3ac329ef7bb78b2f5f52a8cc098e103d65",
+          "sha256": "5802bab1767ca1a7e8c4f3515b51a5340e1b3b79d86840429b18f0eaf7a86354",
+          "bytes": 6526
+        },
+        "byteExactToNewFixture": true
+      }
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "ede8ad99e0ab594f94170809b0f6dc389131bf69",
+        "sha256": "668ebe3d28e1de7df8a104e234cd11096f846f722fb7baaa908b5d3a9e8822eb",
+        "bytes": 1769
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false,
+      "currentFrontendOriginal": {
+        "path": "apps/web/src/components/MemoryGovernanceCenterHost.tsx",
+        "identity": {
+          "blob": "ede8ad99e0ab594f94170809b0f6dc389131bf69",
+          "sha256": "668ebe3d28e1de7df8a104e234cd11096f846f722fb7baaa908b5d3a9e8822eb",
+          "bytes": 1769
+        },
+        "byteExactToNewFixture": true
+      }
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "0fcd61209d25aa752a57b6d562dd0d13772725c8",
+        "sha256": "3929c81c5e338866fc8fe61f005ecd9c7ff1e54763f3d16150c066842dc09e85",
+        "bytes": 28524
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false,
+      "currentFrontendOriginal": {
+        "path": "apps/web/src/components/MemoryReviewInbox.tsx",
+        "identity": {
+          "blob": "0fcd61209d25aa752a57b6d562dd0d13772725c8",
+          "sha256": "3929c81c5e338866fc8fe61f005ecd9c7ff1e54763f3d16150c066842dc09e85",
+          "bytes": 28524
+        },
+        "byteExactToNewFixture": true
+      }
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "d2f1a3db632d8a7043bebe1b93dcfd3b8295a439",
+        "sha256": "72f65313cf5b1cfa4d5f40788070a00737eae91e7e493f4f426cc33a37e9eb5c",
+        "bytes": 6279
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false,
+      "currentFrontendOriginal": {
+        "path": "apps/web/src/components/PendingMemoryReviewPanel.tsx",
+        "identity": {
+          "blob": "d2f1a3db632d8a7043bebe1b93dcfd3b8295a439",
+          "sha256": "72f65313cf5b1cfa4d5f40788070a00737eae91e7e493f4f426cc33a37e9eb5c",
+          "bytes": 6279
+        },
+        "byteExactToNewFixture": true
+      }
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "ab070052dfb5560b1a71c5ddc5bc2477071ffbda",
+        "sha256": "30236661d374f0018599ce3f74affa5ba4cddf2aa4641944aa06d052f3a0ccc3",
+        "bytes": 2412
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false,
+      "currentFrontendOriginal": {
+        "path": "apps/web/src/pages/settings/MemorySettingsPage.tsx",
+        "identity": {
+          "blob": "ab070052dfb5560b1a71c5ddc5bc2477071ffbda",
+          "sha256": "30236661d374f0018599ce3f74affa5ba4cddf2aa4641944aa06d052f3a0ccc3",
+          "bytes": 2412
+        },
+        "byteExactToNewFixture": true
+      }
+    },
+    {
+      "path": "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "proposalOld": {
+        "blob": "b506c9200c82f5278ae60e6add4885accbf22f55",
+        "sha256": "fb1060e8aac1beba6ace106f82e94e8acc1f58690dfd5111a0b9c2e99a2ce385",
+        "bytes": 5981
+      },
+      "proposalNew": {
+        "blob": "e8dc531e5d4963e28e0ea42403fd881f435cb9e2",
+        "sha256": "fe20d9a510d10b8f91310a3f32f1e24296e09e6b9c12aa6b8a41bde0b0fea215",
+        "bytes": 6028
+      },
+      "destination": {
+        "blob": "b506c9200c82f5278ae60e6add4885accbf22f55",
+        "sha256": "fb1060e8aac1beba6ace106f82e94e8acc1f58690dfd5111a0b9c2e99a2ce385",
+        "bytes": 5981
+      },
+      "destinationEqualsOld": true,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "proposalOld": {
+        "blob": "c3aa3bf0defd1167fbcf4c1d4914a3b8776a7a50",
+        "sha256": "7b1aa2eb3bd137606bdf509fcfbe1d3be0f278bb5f02bef6265fc17e43cbe9ad",
+        "bytes": 6046
+      },
+      "proposalNew": {
+        "blob": "b4d9f8065274d65ef6e094beadc3740cb2ae11e8",
+        "sha256": "48f91990bad6dfb44c70af373594daa8dc0534ce32d18170a847845995fb4873",
+        "bytes": 6093
+      },
+      "destination": {
+        "blob": "c3aa3bf0defd1167fbcf4c1d4914a3b8776a7a50",
+        "sha256": "7b1aa2eb3bd137606bdf509fcfbe1d3be0f278bb5f02bef6265fc17e43cbe9ad",
+        "bytes": 6046
+      },
+      "destinationEqualsOld": true,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "apps/api/scripts/lib/meri-durable-research-contract-client.ts",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "a1b644000df0aef365e4a12d393be1871b556245",
+        "sha256": "f3f061fae8e4fbbad9f0703d1a597444beed9949793e629d5c36551d87901bc4",
+        "bytes": 14149
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "apps/api/scripts/meri-durable-controls.http.integration.spec.ts",
+      "proposalOld": {
+        "blob": "2e7f49d2c188b7eec3da2adf5f33f25fec5601ba",
+        "sha256": "cb4e626c09b57e31d353b09a04238031f68e94189daf6df0b0445f72c719dec7",
+        "bytes": 10633
+      },
+      "proposalNew": {
+        "blob": "e897b40d8a15472613930242cea3d8ee99178b71",
+        "sha256": "ad9b9ccaebf40e5a82f8b167202e783f306b1e8bd60817b64fdfdae95dd60fb4",
+        "bytes": 10625
+      },
+      "destination": {
+        "blob": "2e7f49d2c188b7eec3da2adf5f33f25fec5601ba",
+        "sha256": "cb4e626c09b57e31d353b09a04238031f68e94189daf6df0b0445f72c719dec7",
+        "bytes": 10633
+      },
+      "destinationEqualsOld": true,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "05f846a57a7fbde54f8fb24605441a88b4e2156a",
+        "sha256": "6025d3bb34ad7ad28e014a2c711e3dcb66a909ad67283701fa50f865d8564101",
+        "bytes": 25244
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false,
+      "currentFrontendOriginal": {
+        "path": "apps/web/src/vnext/pages/funding-opportunities/FundingOpportunityV2ResultCard.tsx",
+        "identity": {
+          "blob": "05f846a57a7fbde54f8fb24605441a88b4e2156a",
+          "sha256": "6025d3bb34ad7ad28e014a2c711e3dcb66a909ad67283701fa50f865d8564101",
+          "bytes": 25244
+        },
+        "byteExactToNewFixture": true
+      }
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "2bec9d5ec3976ed9847e16b98df8e2329a58392b",
+        "sha256": "77688b0605cb23add15a670e141f4a80594ba46f3fb3fc4b0e96835ad8a8b80c",
+        "bytes": 6387
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false,
+      "currentFrontendOriginal": {
+        "path": "apps/web/src/vnext/pages/funding-opportunities/funding-opportunities-domain.ts",
+        "identity": {
+          "blob": "2bec9d5ec3976ed9847e16b98df8e2329a58392b",
+          "sha256": "77688b0605cb23add15a670e141f4a80594ba46f3fb3fc4b0e96835ad8a8b80c",
+          "bytes": 6387
+        },
+        "byteExactToNewFixture": true
+      }
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "proposalOld": {
+        "blob": "4f780eeba0ded6d0530433b256dac59d6ebb34ff",
+        "sha256": "389eacaec254910a08a8b7c2e7c8d5b65ad56910f5d6d37161afe7940dbafc89",
+        "bytes": 11571
+      },
+      "proposalNew": {
+        "blob": "55d159fad4c478b806d4114cb9100c0a5c1401ff",
+        "sha256": "93cbcbdc1898e0749f4994baf957471200a96bc58cc33074e3da4f3703470f85",
+        "bytes": 11543
+      },
+      "destination": {
+        "blob": "4f780eeba0ded6d0530433b256dac59d6ebb34ff",
+        "sha256": "389eacaec254910a08a8b7c2e7c8d5b65ad56910f5d6d37161afe7940dbafc89",
+        "bytes": 11571
+      },
+      "destinationEqualsOld": true,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "docs/contracts/outreach-v3-verification-inputs-v1.md",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "85fd21aa22decd573ef8244f2dc071b7147af6fa",
+        "sha256": "9170159292ae60b7539cd2a1a2067dc15e8d5dda4ca808ea598e1b8ef62e6d0d",
+        "bytes": 8010
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/ci/backend-legacy-ui-contracts.spec.mjs",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "eb43b400f00e6ff4926660c0ba65e0e199810054",
+        "sha256": "405d5e77d5adcee8b46880944c943de17fde063b9ba2f96d19f185934e19669a",
+        "bytes": 16107
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/ci/meri-durable-http-client-contract.spec.mjs",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "2cadf834ec433d0a9bf1fb8a172016b35326284c",
+        "sha256": "f8a3dd1d90d70a384ee47aae1f195b6a003fa1c26aecd9722b6117538d3b1430",
+        "bytes": 35621
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/ci/outreach-operating-inputs.spec.mjs",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "2f56537e8c6013c4015dd4b4dea7a5cc7d23b159",
+        "sha256": "55ff75ef6c18daf88ea2f7a25e925910fc45ae55ae69c090546ab5938c840194",
+        "bytes": 23472
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/engagement-phase3-backend-boundary.mjs",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "4276d79eefdf17a0b12f42dd440427e2b09a2ffa",
+        "sha256": "e04927b67162a8b70d2702a57405c3be449a5cbbfcd2eb9e508badd695bec039",
+        "bytes": 5151
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/engagement-phase3-backend-boundary.spec.mjs",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "14d453ab71066e075795451026814539808f7b23",
+        "sha256": "69bac6ade0fc4c4af6cceb15f888a3847fdffa33a8c2f2cca65475dd5de63aaf",
+        "bytes": 12552
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/outreach-v3-backend-closeout-plan.mjs",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "dacf7c6e2e257d3cd5f41bda01c0c866b0c57258",
+        "sha256": "3e480e427314bca9e6b1569f579e08db1d72da9f678fa3c71a2283838996ba2b",
+        "bytes": 2935
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/outreach-v3-backend-closeout-plan.spec.mjs",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "886ad46ad84dece9e75e916710fec9be09b4761a",
+        "sha256": "8ab15281317529fb2ba42e559f1d7bf169e78dcbc5bf6a0ce7783a903a0b5d4f",
+        "bytes": 7738
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/verify-backend-cleanup-preservation-scope.test.mjs",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "7e1e2a09dbf9c2bbecd5e35958da07fe107aa0d8",
+        "sha256": "559d6223cddf584d4cb51844565bad41c16c02acde634c24a8eb85e37232af43",
+        "bytes": 6992
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/verify-backend-cleanup-preservation.mjs",
+      "proposalOld": {
+        "blob": "7b469ae09f5afa786ba8bfc85f8ffd20be97ae6d",
+        "sha256": "206001fc7319d348914c0353fcd9211301bb21f50961c877cea8120dda4a5db9",
+        "bytes": 4875
+      },
+      "proposalNew": {
+        "blob": "d67eb390558313798a563ec85a7a285d6bd1bdea",
+        "sha256": "040510254079957e9b26484681737d583cff67a16f5f05c15bc592545388eee1",
+        "bytes": 7239
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-prototype-boundary.mjs",
+      "proposalOld": {
+        "blob": "ea8d28b441000729b369653c6113cd7771db9136",
+        "sha256": "86a2a618b6c015db110f620e46385dbecd139a88e85105d8d0bd59fa017c8fc6",
+        "bytes": 4273
+      },
+      "proposalNew": {
+        "blob": "b13fe5c868b688f92e231df43044843ff79bac49",
+        "sha256": "73da4a72129a6070f957445de5905bc0d8dbaf7e898ddcbf0bd3d16b7edfc417",
+        "bytes": 3641
+      },
+      "destination": {
+        "blob": "389af421ff6891de11154893c9985d8715fe5605",
+        "sha256": "c61330913b739f3e333988dec4b6517e6a4c310319bfca10da480267a4d4d5d8",
+        "bytes": 7938
+      },
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-prototype-boundary.spec.mjs",
+      "proposalOld": {
+        "blob": "f33035a6292e3ffc20d4a4d7a3d315ac452fc109",
+        "sha256": "c5870f782d1a81af779c7967e04f53d11d7a6384c71d5e9e5c77c172f50001cc",
+        "bytes": 2640
+      },
+      "proposalNew": {
+        "blob": "6a3513fb42b40e3cc27c55f7cb9838f208441654",
+        "sha256": "e63b595c7ecd35ac97d35c6c0aca40fed946ba109e082814211d92987ea14f68",
+        "bytes": 2631
+      },
+      "destination": {
+        "blob": "f33035a6292e3ffc20d4a4d7a3d315ac452fc109",
+        "sha256": "c5870f782d1a81af779c7967e04f53d11d7a6384c71d5e9e5c77c172f50001cc",
+        "bytes": 2640
+      },
+      "destinationEqualsOld": true,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/verify-outreach-v3-backend-closeout.mjs",
+      "proposalOld": null,
+      "proposalNew": {
+        "blob": "28ae63fb576218a8502ad07927734bd944609698",
+        "sha256": "cad166157b1a004bb8213257a30bc6b362b908aacd513ef5c7ce32ee757c4156",
+        "bytes": 2338
+      },
+      "destination": null,
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    },
+    {
+      "path": "scripts/verify-outreach-v3-p1-architecture.mjs",
+      "proposalOld": {
+        "blob": "b96a59af4902d1fb204222416b796c8f120a5db1",
+        "sha256": "2544f528cc1c5f37b3b7b6117b3c61c9f9d7a5e4ffd2a01768676460314c096b",
+        "bytes": 12681
+      },
+      "proposalNew": {
+        "blob": "2057d73685c845494400efc8fea164f23068457a",
+        "sha256": "4da02ddc08287220272562af15e4736752d8df3566f994a37155e64cd694ff3f",
+        "bytes": 14800
+      },
+      "destination": {
+        "blob": "6b7e82f2681362afa84e5911a629ed245fb45b4e",
+        "sha256": "a2e6496f1936a06c4ee8ba6336092f368aa118ab3666f72847d6ca56ed3a8f42",
+        "bytes": 12837
+      },
+      "destinationEqualsOld": false,
+      "destinationEqualsNew": false
+    }
+  ]
+}

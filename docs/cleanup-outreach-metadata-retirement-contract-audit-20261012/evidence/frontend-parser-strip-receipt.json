@@ -1,0 +1,47 @@
+{
+  "frontendSource": "b680b65e14134be736942b29d715e49c2c6a8b19",
+  "frontendTree": "67aabd83e9f129c1fdb25fbe254f41edd99394e7",
+  "sourcePath": "apps/web/src/shared/capiro/operations/engagement.ts",
+  "sourceSha256": "c76d84157ccbb5b7e4debc46a710f76e4f9922ee9811ec2beab1202d0e924457",
+  "selectedActualDeclarations": [
+    "id",
+    "client",
+    "outreachRecord"
+  ],
+  "declarationSha256": "bdd2d26efe2319cef0d70f5adc22b5b60ed587081e3692a2316356bec1fed456",
+  "zodVersion": "4.6.5",
+  "zodPath": "/workspace/capiro-frontend/node_modules/zod/index.cjs",
+  "checks": [
+    {
+      "inputMetadata": {
+        "newsletterStageId": "22222222-2222-4222-8222-222222222222",
+        "newsletterRevision": 4,
+        "direction": "to-clients",
+        "contextPool": []
+      },
+      "outputMetadataPresent": false,
+      "knownIdTypeRetained": true
+    },
+    {
+      "inputMetadata": {
+        "newsletterStageId": "not-a-uuid"
+      },
+      "outputMetadataPresent": false,
+      "knownIdTypeRetained": true
+    },
+    {
+      "inputMetadata": null,
+      "outputMetadataPresent": false,
+      "knownIdTypeRetained": true
+    },
+    {
+      "inputMetadata": "untyped-metadata",
+      "outputMetadataPresent": false,
+      "knownIdTypeRetained": true
+    }
+  ],
+  "proposedParserNotImplemented": true,
+  "frontendProductionChanged": false,
+  "transportOrOperationImported": false,
+  "liveIncidentObserved": false
+}

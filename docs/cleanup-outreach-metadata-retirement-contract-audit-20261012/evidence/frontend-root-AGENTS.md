@@ -1,0 +1,11 @@
+# Capiro frontend implementation rules
+
+Read and apply [the human owner's complete implementation standards](docs/IMPLEMENTATION-STANDARDS.md), the [ownership outline](docs/ARCHITECTURE.md), and the assigned bounded handoff before editing. User instructions take precedence. Codex owns implementation and independent acceptance; G0/G1 work is Codex-only, with no Hermes or recursive delegation.
+
+This is a new private frontend, independent from current Capiro/Meri. Do not import or copy the old application's UI, agent, retrieval, queues or infrastructure. The NEW `neo-capiro/meri-greenfield` repository is the sole owner of Meri shared wire contracts, trusted server event production, authorization, control, agent runtime and infrastructure. Use deliberate versioned public package exports, never another repository's private source paths or a second hand-maintained DTO definition.
+
+Use dedicated branches/worktrees and explicit file ownership. Keep the web entry/routes thin. Feature presentation and interaction belong to cohesive Meri, Portfolio, Modules and Settings areas as implemented; shared shell/tokens/primitives belong to their canonical shared modules. Do not create empty speculative services or build future feature content merely to reserve folders. No browser code establishes tenant, actor, client, run or approval authority.
+
+Use the approved Next.js/React/AI Elements stack and adopted upstream components before replacements. Read the Figma design-to-code skill before requesting design context, capture the target, use downloaded exact assets, and verify rendered appearance and interaction. Preserve upstream license/version records. Keep sample identities and disconnected fixtures visibly synthetic; unavailable destinations/actions must not pretend to execute.
+
+Run relevant type, behavior, dependency-boundary, build and visual/accessibility checks; report failures and unrun live gates explicitly. First-party files over400 nonblank lines, functions over80 nonblank lines, cycles or the semantic responsibility triggers require design review, not automatic splitting. Generated output, immutable vendor source and historical evidence have distinct ownership. No production deployment, current Capiro change, source connection, paid model call or cutover is authorized by frontend work.

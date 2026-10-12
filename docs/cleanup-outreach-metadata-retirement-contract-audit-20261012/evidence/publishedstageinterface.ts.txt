@@ -1,0 +1,8 @@
+export interface NewsletterOutreachStage {
+  id: string;
+  documentId: string;
+  revision: number;
+  name: string;
+  config: NewsletterCampaignConfig;
+  design: NewsletterDesign;
+}
