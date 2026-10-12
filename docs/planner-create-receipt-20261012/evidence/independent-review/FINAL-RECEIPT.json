@@ -1,0 +1,36 @@
+{
+  "reviewer": "independent_backend_review (not implementing author)",
+  "originalRef": "ba695ab92843e5ef595f4c4013f88c1d354d446d",
+  "repairedRef": "78b24af72e97f5e36202f8e036d7a96345006b57",
+  "repairedTree": "2420d50afaca542f6a88ee8232fed4aadeaa6e29",
+  "verdict": "Acceptable within source-only scope; two P2 findings repaired; no remaining blocking source findings",
+  "retainedRed": {
+    "numPassedTests": 8,
+    "numFailedTests": 2,
+    "numPendingTests": 0,
+    "numPassedTestSuites": 0,
+    "numFailedTestSuites": 1,
+    "success": false
+  },
+  "repairedFocusedReplay": {
+    "numPassedTests": 183,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numPassedTestSuites": 7,
+    "numFailedTestSuites": 0,
+    "success": true
+  },
+  "tenantGuards": {
+    "numPassedTests": 11,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numPassedTestSuites": 2,
+    "numFailedTestSuites": 0,
+    "success": true
+  },
+  "totalPassed": 194,
+  "totalFailed": 0,
+  "nativeQualification": "BLOCKED/UNRUN; official Prisma engine CDN403, no bypass or database target",
+  "sourceScope": "Planner durable task-create prerequisite only; full Core+Planner Quick log remains open",
+  "reviewerProductionEdits": false
+}

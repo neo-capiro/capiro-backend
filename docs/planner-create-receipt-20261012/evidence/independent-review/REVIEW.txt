@@ -1,0 +1,81 @@
+Independent Planner command receipt review — 2026-10-12
+Reviewer: independent_backend_review, not the implementing author.
+
+Original source: ba695ab92843e5ef595f4c4013f88c1d354d446d
+Repaired exact source: 78b24af72e97f5e36202f8e036d7a96345006b57
+Repaired tree: 2420d50afaca542f6a88ee8232fed4aadeaa6e29
+Verdict: acceptable within the bounded source-only scope; no remaining blocking source findings.
+
+Two independent P2 findings were reproduced and repaired:
+1. saveTask previously authorized submitted original Core links before receipt
+lookup. After legitimate unlinking and later revocation of that old client,
+GET recovery succeeded but identical POST replay incorrectly failed403. The
+repair checks current task links on receipt hit; submitted links are checked
+on receipt miss before the first new task write. Legacy non-command behavior
+is unchanged. The retained current-revoked-link negative control still denies.
+2. Recursive hashing ran before task-shape validation. Valid approximately30KB
+JSON with5000 nested objects under an invalid customValues value raised a
+RangeError instead of400. The helper now applies existing bounded validateTask
+with existing defaults before hashing the original payload. Hashing preserves
+array order and omitted versus explicit null values; no parallel schema added.
+
+Independent exact-source replay:
+-183/183 tests,7 suites, zero skipped: command,10 independent adversarial cases,
+HTTP routing/guard coverage, canonical tasks/resources/links/scheduling.
+-11/11 tests,2 suites: tenant predicate injection, transaction retry-error
+classification and static prohibition of unscoped tenant-model access.
+-194/194 total independent tests on repaired source. Checked-in strategy Jest
+config unchanged; normal ts-jest diagnostics retained. No isolated-transpile
+workaround used for this smaller service graph. git diff --check passed.
+
+Security/durability review:
+Trusted tenant and raw Clerk actor scope receipt keys; fresh requests retain
+canonical task validation, active assignee membership, project ACL and direct
+Core link checks. Replays and GET recovery recheck active actor, current task
+editor authority and current direct Core references. Receipt body only returns
+requestId/status/taskId. It is not a task snapshot or new grant. Hidden receipt
+kind is denied by central resourceAccess and generic kind allowlists; template,
+form, report and resource paths do not introduce a receipt escape.
+
+The existing tenant advisory transaction lock covers lookup, task, rules,
+activity/inbox, receipt and final projection. Independent synthetic controls
+proved no duplicates after a committed-but-lost response; receipt persistence
+failure and post-receipt projection failure roll back local state. Request hash
+changes conflict. Another tenant/actor cannot reuse or disclose the original
+receipt. Foreign stored receipt fields defensively reject even if a test
+persistence boundary returns them. No automatic cross-service atomicity or
+retry scheduler is introduced. Transient failure can be recovered by the same
+command key or read-only lookup after the transaction outcome is known.
+
+Important scope limits:
+This is a Planner task-create prerequisite, not full Quick log. It introduces
+no Core activity command/outbox, lineage model, cross-service transaction,
+second task owner or migration. Linked-record revalidation concerns the task's
+own clientId/meetingId. Existing project ACLs remain authoritative for project
+membership; this does not claim a new inherited Core-client ethical-wall audit
+of all projects. Existing date-only storage, default-zone derived deadlines,
+and DST gap/fold policy remain unchanged. Full Quick log audience/date/lineage
+choices remain outside this candidate.
+
+Core link checks for a new command execute after receipt lookup under the
+existing15s transaction timeout. Slow external authorization may abort safely;
+native timing/contention behavior has not been qualified. No external Core
+request was sent during reviewer tests: link service boundaries are synthetic.
+
+Retained failures:
+adversarial-red.log/json contains the first obsolete-link failure and one
+reviewer fault-injection mistake. The initial injection targeted an unused
+spPlannerEvent.findMany; corrected injection targets the actual raw SQL task
+projection boundary. adversarial-red-corrected.log/json has8 passes and the two
+real findings. Both original RED findings are GREEN at the repaired source.
+Tests were adopted by the author with formatting only.
+
+Native Prisma/PostgreSQL/RLS/multi-connection contention, deployed authentication,
+external Core/provider behavior and full monorepo gates remain unrun here.
+Official native Prisma5.22 engine CDN downloads remain blocked by prior HTTP403
+from binaries.prisma.sh. Official engine-free generated strategy client and
+existing frozen dependencies were borrowed by symlink, with no database target,
+checksum/download bypass, migration, credentials/resource change, deployment,
+merge, provider message or customer mutation. Reviewer changed tests/evidence
+only in an isolated detached worktree. Author typecheck/build receipts are
+separate evidence and are not represented as independent reviewer runs.

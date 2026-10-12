@@ -1,0 +1,29 @@
+{
+  "refs": {
+    "main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+    "cleanup2392": "03d85a40e390f8f52614aab20427a3a9433786bb",
+    "facility2373": "6e5774a14c73ea04f0a77650a5bbd33173bcc9b3",
+    "reply2364": "4b3c672574ed3738e42b1c5e1f7483e32f358095",
+    "attachment2381": "171ec869ed3928c96172c8790a9aeb3b4de901ae",
+    "stages2365": "fd6ed6c017ae91ab774fd34f74475a746de13b68",
+    "contacts2371": "6c6f88e9e5ba077452716f3a0db0dd3bbea2963f",
+    "objectives2362": "72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e"
+  },
+  "changedPathsAtInitialSource": [
+    "apps/api-strategy/src/planner/planner-task-create-command.spec.ts",
+    "apps/api-strategy/src/planner/planner-task-create-command.ts",
+    "apps/api-strategy/src/planner/planner.controller.ts",
+    "apps/api-strategy/src/planner/planner.http.spec.ts",
+    "apps/api-strategy/src/planner/planner.service.ts",
+    "docs/planner-create-receipt-20261012/SCOPE.md"
+  ],
+  "intersections": {
+    "cleanup2392": [],
+    "facility2373": [],
+    "reply2364": [],
+    "attachment2381": [],
+    "stages2365": [],
+    "contacts2371": [],
+    "objectives2362": []
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "reviewer": "independent_backend_review",
+  "originalRef": "ba695ab92843e5ef595f4c4013f88c1d354d446d",
+  "originalTree": "6eb5a1b400f36e0d2fc7c86cae58189a6724f9ea",
+  "paths": [
+    {
+      "path": "apps/api-strategy/src/planner/planner-task-create-command.spec.ts",
+      "gitBlob": "cf104878051fea4b5e177eb8172cca01f3a7bf2e"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-task-create-command.ts",
+      "gitBlob": "a5fba1d2523b75d46d491804439c2608bc1c1ce5"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.controller.ts",
+      "gitBlob": "019773bae37a348d67c90acecd1e6e35ca1d2722"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.http.spec.ts",
+      "gitBlob": "02c971d7abd48381e4399fc7a52aae9d138b64a4"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.service.ts",
+      "gitBlob": "270e46cc5ff049a0c7828be1840beb10981f6172"
+    },
+    {
+      "path": "docs/planner-create-receipt-20261012/SCOPE.md",
+      "gitBlob": "97ec8b48640ae88395c319b6b2aae24863af215e"
+    }
+  ],
+  "independentVerdict": "Changes requested: obsolete original-link replay authorization; recursive hashing before bounded task validation",
+  "productionEditsByReviewer": false,
+  "testsUse": "Authors synthetic rollback/serialization store, with independently authored adversarial assertions; no native database, external provider, Core request or migration",
+  "failures": {
+    "adversarial-red.log": "Includes one reviewer fault-injection mistake and obsolete-link finding; retained",
+    "adversarial-red-corrected.log": "Corrected actual query boundary; eight passes and two real findings at exact original ref"
+  },
+  "nativeQualification": "blocked/unrun; official Prisma engines host403; generated client only; no bypass"
+}
