@@ -1,0 +1,196 @@
+{
+  "sourceHarness": "ee9499c5771038f6abf5972ab13d3c20ca65b0cf",
+  "sourceHarnessTree": "f0530159db532171beba479da52615c759822086",
+  "evidenceHead": "ec6b3ba9cdf1d0fe6b0912005f5aab35a70e9992",
+  "evidenceTree": "807b584491ab0ff6b08f4751ed62af3553c7ece6",
+  "productSource": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "evidenceHashesVerified": 19,
+  "sourceHashesVerified": 60,
+  "actualCachedArtifactsVerified": 10,
+  "engineSha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8",
+  "schemasByteExact": 2,
+  "oldNativePG32BindingsExact": true,
+  "harnessSevenFilesEqualFrozen": true,
+  "nativeGroups": [
+    "actual PrismaService withTenantUser, scoped ORM and strict role",
+    "native Prisma actual Objective helper and immutable revision privilege",
+    "native Core and Workspace clients execute exact saved revision owner",
+    "actual native Prisma V3 engine/repository duplicate staging and durable receipt",
+    "native Prisma staging hash/id errors and committed revocation before replay",
+    "actual calendar native Prisma RepeatableRead and ORM SyncRun receipt"
+  ],
+  "reportedNativePassed": 6,
+  "reportedNativeExitCode": 0,
+  "cleanupSelectCount": 5,
+  "cleanupStateZero": true,
+  "controls": [
+    {
+      "name": "all10 fixed manifest artifacts accepted with no imports",
+      "status": "PASS"
+    },
+    {
+      "name": "changed pinned native engine bytes refused",
+      "status": "PASS"
+    },
+    {
+      "name": "changed pinned Core generated client bytes refused",
+      "status": "PASS"
+    },
+    {
+      "name": "fixed passwordless socket URL/core",
+      "status": "PASS"
+    },
+    {
+      "name": "fixed passwordless socket URL/workspace",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI preflight refusal: []",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI preflight refusal: [\"--help\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI preflight refusal: [\"--unknown\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI preflight refusal: [\"--run\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI preflight refusal: [\"--run\",\"--run\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI preflight refusal: [\"--plan\",\"--run\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "CLI preflight refusal: [\"--run\",\"--verified-target\",\"unused\",\"--output\",\"/tmp/foreign.json\"]",
+      "status": "PASS"
+    },
+    {
+      "name": "existing evidence output refused",
+      "status": "PASS"
+    },
+    {
+      "name": "native guard canonical exact ordered target/schema/role/GUC checks",
+      "status": "PASS"
+    },
+    {
+      "name": "native target dataDirectory mismatch refuses before role/owner writes",
+      "status": "PASS"
+    },
+    {
+      "name": "native target listenAddresses mismatch refuses before role/owner writes",
+      "status": "PASS"
+    },
+    {
+      "name": "native target inetServerAddr mismatch refuses before role/owner writes",
+      "status": "PASS"
+    },
+    {
+      "name": "native target user mismatch refuses before role/owner writes",
+      "status": "PASS"
+    },
+    {
+      "name": "native target database mismatch refuses before role/owner writes",
+      "status": "PASS"
+    },
+    {
+      "name": "native target systemIdentifier mismatch refuses before role/owner writes",
+      "status": "PASS"
+    },
+    {
+      "name": "native schema mismatch refuses before role/owner writes",
+      "status": "PASS"
+    },
+    {
+      "name": "synthetic role unsafe rolsuper refused",
+      "status": "PASS"
+    },
+    {
+      "name": "synthetic role unsafe rolbypassrls refused",
+      "status": "PASS"
+    },
+    {
+      "name": "synthetic role unsafe rolinherit refused",
+      "status": "PASS"
+    },
+    {
+      "name": "synthetic role unsafe rolcanlogin refused",
+      "status": "PASS"
+    },
+    {
+      "name": "synthetic role unsafe owner_member refused",
+      "status": "PASS"
+    },
+    {
+      "name": "exact P2010/meta.42501 accepted",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong P2010/SQLSTATE combination refused for42501",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong P2010/SQLSTATE combination refused for42501",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong P2010/SQLSTATE combination refused for42501",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong P2010/SQLSTATE combination refused for42501",
+      "status": "PASS"
+    },
+    {
+      "name": "exact P2010/meta.23514 accepted",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong P2010/SQLSTATE combination refused for23514",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong P2010/SQLSTATE combination refused for23514",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong P2010/SQLSTATE combination refused for23514",
+      "status": "PASS"
+    },
+    {
+      "name": "wrong P2010/SQLSTATE combination refused for23514",
+      "status": "PASS"
+    },
+    {
+      "name": "scoped facade forwards exact tx/options and guards before owner callback",
+      "status": "PASS"
+    },
+    {
+      "name": "facade concurrent per-call actor contexts remain separate",
+      "status": "PASS"
+    },
+    {
+      "name": "facade preserves callback failure identity",
+      "status": "PASS"
+    },
+    {
+      "name": "calendar facade forwards actual RepeatableRead options unchanged",
+      "status": "PASS"
+    }
+  ],
+  "passed": 40,
+  "failed": 0,
+  "reviewerDatabaseDriverLoaded": false,
+  "reviewerActualClientConstructed": false,
+  "reviewerSqlExecuted": false,
+  "expectedRealErrorObjectsSeparatelySerialized": false,
+  "guardOccursAfterCoreLocalContextGucs": true,
+  "manifestCompletenessReliesOnSealedExactInventory": true
+}

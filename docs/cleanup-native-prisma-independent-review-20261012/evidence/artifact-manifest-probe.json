@@ -1,0 +1,35 @@
+{
+  "source": "ee9499c5771038f6abf5972ab13d3c20ca65b0cf",
+  "manifestHashBoundBySealedPacket": true,
+  "cases": [
+    {
+      "name": "canonical complete manifest",
+      "accepted": true,
+      "artifactReads": 10,
+      "driverLoaded": false,
+      "sqlExecuted": false
+    },
+    {
+      "name": "empty clients array",
+      "accepted": true,
+      "artifactReads": 0,
+      "driverLoaded": false,
+      "sqlExecuted": false
+    },
+    {
+      "name": "one client removed",
+      "accepted": true,
+      "artifactReads": 5,
+      "driverLoaded": false,
+      "sqlExecuted": false
+    },
+    {
+      "name": "all artifacts removed",
+      "accepted": true,
+      "artifactReads": 0,
+      "driverLoaded": false,
+      "sqlExecuted": false
+    }
+  ],
+  "qualification": "Validator verifies declared entries but relies on complete immutable manifest; mutation cases are not the manifest used in sealed native execution."
+}
