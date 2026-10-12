@@ -354,7 +354,13 @@ function directParent(node) {
 
 export function analyzeTimeSource(file, source, policy = {}) {
   const t = ts();
-  const sf = t.createSourceFile(file, source, t.ScriptTarget.Latest, true, t.ScriptKind.TS);
+  const sf = t.createSourceFile(
+    file,
+    source,
+    t.ScriptTarget.Latest,
+    true,
+    file.endsWith('.tsx') ? t.ScriptKind.TSX : t.ScriptKind.TS,
+  );
   const inventory = lexicalInventory(sf);
   const events = [];
   const retryCalls = [];
@@ -565,7 +571,7 @@ export function checkTimeSources(sources, data) {
   return problems;
 }
 
-function sourceFiles(root, directories) {
+export function sourceFiles(root, directories) {
   const sources = new Map();
   function walk(relative) {
     for (const entry of readdirSync(path.join(root, relative), { withFileTypes: true })) {
@@ -573,7 +579,10 @@ function sourceFiles(root, directories) {
       if (entry.isSymbolicLink())
         throw new Error(`source symlink is outside the ratchet inventory: ${file}`);
       if (entry.isDirectory()) walk(file);
-      else if (entry.name.endsWith('.ts') && !/\.(?:spec|test|d)\.ts$/.test(entry.name)) {
+      else if (
+        /\.(?:[cm]?ts|tsx)$/.test(entry.name) &&
+        !/\.(?:spec|test|d)\.(?:[cm]?ts|tsx)$/.test(entry.name)
+      ) {
         sources.set(file, readFileSync(path.join(root, file), 'utf8'));
       }
     }

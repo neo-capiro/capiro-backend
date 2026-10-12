@@ -1,9 +1,15 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
 import vm from 'node:vm';
-import { analyzeTimeSource, checkTimeSources } from './check-strategy-time-bypasses.mjs';
+import {
+  analyzeTimeSource,
+  checkTimeSources,
+  sourceFiles,
+} from './check-strategy-time-bypasses.mjs';
 
 const file = 'apps/api-strategy/src/meri/context-load.ts';
 const valid = `
@@ -327,6 +333,56 @@ test('only data-owned lazy provider values are permitted, never invocation or ca
     [],
   );
   assert.notDeepEqual(checkProvider('\nfunction deferred(clock=systemWallClock){}'), []);
+});
+
+test('source discovery includes supported runtime TypeScript extensions and excludes declarations and tests', () => {
+  const fixture = mkdtempSync(path.join(tmpdir(), 'strategy-time-extensions-'));
+  try {
+    mkdirSync(path.join(fixture, 'src'));
+    const runtime = ['main.ts', 'hidden.cts', 'hidden.mts', 'component.tsx'];
+    const excluded = [
+      'types.d.ts',
+      'types.d.cts',
+      'types.d.mts',
+      'unit.spec.ts',
+      'unit.test.cts',
+      'unit.spec.mts',
+      'unit.test.tsx',
+    ];
+    for (const name of [...runtime, ...excluded])
+      writeFileSync(
+        path.join(fixture, 'src', name),
+        name.endsWith('.tsx')
+          ? 'export const view = <span>{Date.now()}</span>;'
+          : 'export const clock = () => Date.now();',
+      );
+    const sources = sourceFiles(fixture, ['src']);
+    assert.deepEqual([...sources.keys()].sort(), runtime.map((name) => 'src/' + name).sort());
+    for (const [name, source] of sources) {
+      const result = analyzeTimeSource(name, source);
+      assert.deepEqual(result.problems, []);
+      assert.equal(
+        result.events.length,
+        1,
+        name + ' runtime clock cannot hide from source discovery',
+      );
+    }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test('TSX parsing permits benign markup but finds protected calls inside expressions', () => {
+  assert.deepEqual(
+    analyzeTimeSource('src/view.tsx', 'const view=<span title="Date.now()">label</span>;').events,
+    [],
+  );
+  const result = analyzeTimeSource(
+    'src/view.tsx',
+    'const view=<span>{globalThis["Da"+"te"].now()}</span>;',
+  );
+  assert.deepEqual(result.problems, []);
+  assert.equal(result.events.length, 1);
 });
 
 test('system defaults sample only on invocation and pass delay unchanged', async () => {
