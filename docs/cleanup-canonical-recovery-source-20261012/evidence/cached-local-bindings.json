@@ -1,0 +1,9 @@
+{
+  "bindings": {
+    "node_modules": "/workspace/capirov2/node_modules",
+    "apps/api/node_modules": "/workspace/capirov2-cleanup-reviewed-source-composition/apps/api/node_modules"
+  },
+  "freshInstall": false,
+  "nativeGeneration": false,
+  "cacheWrites": false
+}

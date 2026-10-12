@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "node",
+    "/workspace/capirov2-cleanup-canonical-recovery-source/node_modules/typescript/bin/tsc",
+    "-p",
+    "tsconfig.pe-scripts.json",
+    "--noEmit"
+  ],
+  "cwd": "apps/api",
+  "source": "479427e5a7bf5dc7afed825cf5190aa28996e7c1",
+  "exit": 0,
+  "seconds": 13.53,
+  "cachedNoEngineDeclarations": true,
+  "nativeAcceptance": false
+}

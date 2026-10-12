@@ -1,0 +1,64 @@
+{
+  "base": "fa28aa3945be41c31463d669940d17fb32968f3d",
+  "source": "577bddc91784eb27f68f19f2feea8e93fe5e2829",
+  "tree": "36010242e323610ccb26d2394a90a708c962680e",
+  "nonDocPaths": 7,
+  "runbookPaths": 2,
+  "paths": [
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.spec.ts",
+      "gitBlob": "92ebecd7ab6fa18a69d7dcb404f097a89bf33411",
+      "bytes": 15452,
+      "sha256": "56219e60d984b3bed650378ab32e40c6e258bf460591e71d3aee40f9a328d64b"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.ts",
+      "gitBlob": "20affa081ef362cd6cb18fd4261b634404aedec8",
+      "bytes": 11419,
+      "sha256": "808fabdbe0c88d0bd4419e34a9eb1455b0a6cb378d0457bd2d8a500840c342dc"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-a-safety.spec.ts",
+      "gitBlob": "342604b55711082a13f82a907a903388171fc04a",
+      "bytes": 5670,
+      "sha256": "0f0d7fb4a6097f30c1680decaf74314d468573846edea55e143827371a59d538"
+    },
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "gitBlob": "5feb9e7372bcb0ddaf3fe0f3bb5617cf31066164",
+      "bytes": 4278,
+      "sha256": "56c8a40eafd03f7467e95d2ff17255640e71d72bfd9f30988a429b8cafd453a2"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "gitBlob": "15948b8f9aa5a98f8ffc6f1733159cd127d79c8b",
+      "bytes": 5190,
+      "sha256": "4aaf98051cfe514dbcc84f4a6bfdff3dd50bf94b523b5642a95d0a5281fefaa4"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-a-safety.ts",
+      "gitBlob": "0f68c7ccd86f9ef052128081b9a900b95b0c022e",
+      "bytes": 16305,
+      "sha256": "cb5e065993446a0b3691cceeb81e1dcdcc91504c84febd989266185964a65a22"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs",
+      "gitBlob": "e43f814f50460a8815bd87af5b43fcfaf45ce77d",
+      "bytes": 7773,
+      "sha256": "a00a9735fc26596d6955707411a052f860a9f7aa690ef55bf0daadd5f67a0325"
+    },
+    {
+      "path": "docs/runbooks/prisma-failed-migration-recovery.md",
+      "gitBlob": "903f0c8d3c7cce5d2a94a570414ff464a25f7111",
+      "bytes": 6292,
+      "sha256": "622f2c4ba12a0b3996aa2a90cfb61f429a41aa227e8f5527b105059b1875e99e"
+    },
+    {
+      "path": "docs/runbooks/program-elements-trust-gates.md",
+      "gitBlob": "1e1a990467675a2ee52b77f045ae3e8c9d3ba99f",
+      "bytes": 8945,
+      "sha256": "a6975e64de92d5071eba7bbf7064e15d34fb5d8b2d888b842673630f44e0374e"
+    }
+  ],
+  "nativeAcceptance": false
+}

@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "node",
+    "--test",
+    "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs"
+  ],
+  "source": "bce2efe7b158146cfa96bce3e64be7d841b28ffc",
+  "dirtyMetadataAndSmoke": true,
+  "exit": 0,
+  "seconds": 12.557,
+  "nativeAcceptance": false
+}

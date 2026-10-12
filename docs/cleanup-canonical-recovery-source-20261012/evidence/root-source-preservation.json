@@ -1,0 +1,10 @@
+{
+  "source": "577bddc91784eb27f68f19f2feea8e93fe5e2829",
+  "entrypointTrioModeBlobExact": true,
+  "urlComposerModeBlobExact": true,
+  "schemaMigrationPathsExact": 603,
+  "allBaselinePathsOutsideSevenSourceTwoRunbooksModeBlobExact": 20935,
+  "priorSourcePacketsImmutable": true,
+  "backendHttpDtoSchemaEntrypointRuntimeDelta": false,
+  "nativeAcceptance": false
+}
