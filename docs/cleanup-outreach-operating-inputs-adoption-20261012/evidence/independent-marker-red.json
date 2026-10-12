@@ -1,0 +1,130 @@
+{
+  "sourceSha256": "0e2d4bdfbb897ded35be2367c3bf85285040da381bd309693ae7eebfa6758b90",
+  "documentSha256": "9170159292ae60b7539cd2a1a2067dc15e8d5dda4ca808ea598e1b8ef62e6d0d",
+  "scope": "Only exact pure validator function with Node crypto; no verifier import/Git/app/process/provider/DB execution",
+  "rows": [
+    {
+      "name": "valid original owned input",
+      "expectedValid": true,
+      "actualValid": true,
+      "pass": true,
+      "problems": []
+    },
+    {
+      "name": "outreach-v3-phase1-foundations: missing begin",
+      "expectedValid": false,
+      "actualValid": false,
+      "pass": true,
+      "problems": [
+        "verification-input contract requires one complete outreach-v3-phase1-foundations block"
+      ]
+    },
+    {
+      "name": "outreach-v3-phase1-foundations: missing end",
+      "expectedValid": false,
+      "actualValid": false,
+      "pass": true,
+      "problems": [
+        "verification-input contract requires one complete outreach-v3-phase1-foundations block"
+      ]
+    },
+    {
+      "name": "outreach-v3-phase1-foundations: canonical duplicate begin withLF",
+      "expectedValid": false,
+      "actualValid": false,
+      "pass": true,
+      "problems": [
+        "verification-input contract requires one complete outreach-v3-phase1-foundations block"
+      ]
+    },
+    {
+      "name": "outreach-v3-phase1-foundations: duplicate exact begin token atEOF withoutLF",
+      "expectedValid": false,
+      "actualValid": true,
+      "pass": false,
+      "problems": []
+    },
+    {
+      "name": "outreach-v3-phase1-foundations: duplicate exact begin token withCRLF",
+      "expectedValid": false,
+      "actualValid": true,
+      "pass": false,
+      "problems": []
+    },
+    {
+      "name": "outreach-v3-phase1-foundations: duplicate exact begin token withspaceLF",
+      "expectedValid": false,
+      "actualValid": true,
+      "pass": false,
+      "problems": []
+    },
+    {
+      "name": "outreach-v3-phase1-foundations: canonical duplicate end",
+      "expectedValid": false,
+      "actualValid": false,
+      "pass": true,
+      "problems": [
+        "verification-input contract requires one complete outreach-v3-phase1-foundations block"
+      ]
+    },
+    {
+      "name": "outreach-v3-phase2-readiness: missing begin",
+      "expectedValid": false,
+      "actualValid": false,
+      "pass": true,
+      "problems": [
+        "verification-input contract requires one complete outreach-v3-phase2-readiness block"
+      ]
+    },
+    {
+      "name": "outreach-v3-phase2-readiness: missing end",
+      "expectedValid": false,
+      "actualValid": false,
+      "pass": true,
+      "problems": [
+        "verification-input contract requires one complete outreach-v3-phase2-readiness block"
+      ]
+    },
+    {
+      "name": "outreach-v3-phase2-readiness: canonical duplicate begin withLF",
+      "expectedValid": false,
+      "actualValid": false,
+      "pass": true,
+      "problems": [
+        "verification-input contract requires one complete outreach-v3-phase2-readiness block"
+      ]
+    },
+    {
+      "name": "outreach-v3-phase2-readiness: duplicate exact begin token atEOF withoutLF",
+      "expectedValid": false,
+      "actualValid": true,
+      "pass": false,
+      "problems": []
+    },
+    {
+      "name": "outreach-v3-phase2-readiness: duplicate exact begin token withCRLF",
+      "expectedValid": false,
+      "actualValid": true,
+      "pass": false,
+      "problems": []
+    },
+    {
+      "name": "outreach-v3-phase2-readiness: duplicate exact begin token withspaceLF",
+      "expectedValid": false,
+      "actualValid": true,
+      "pass": false,
+      "problems": []
+    },
+    {
+      "name": "outreach-v3-phase2-readiness: canonical duplicate end",
+      "expectedValid": false,
+      "actualValid": false,
+      "pass": true,
+      "problems": [
+        "verification-input contract requires one complete outreach-v3-phase2-readiness block"
+      ]
+    }
+  ],
+  "passed": 9,
+  "failed": 6
+}
