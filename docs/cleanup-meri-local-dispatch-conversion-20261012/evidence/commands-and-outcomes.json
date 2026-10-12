@@ -1,0 +1,101 @@
+{
+  "scope": "source-only; no application dependency graph evaluated",
+  "dependencyLinks": [
+    "node_modules -> /workspace/capirov2/node_modules",
+    "apps/api/node_modules -> /workspace/capirov2-cleanup-reviewed-source-composition/apps/api/node_modules"
+  ],
+  "inertJest": [
+    {
+      "name": "01-equivalence-initial",
+      "exitCode": 1,
+      "passed": 867,
+      "failed": 5,
+      "total": 872,
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-meri-local-dispatch-conversion-20261012/jest.inert.config.cjs --runInBand --json --outputFile docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/01-equivalence-initial.json",
+      "stdoutStderr": "evidence/01-equivalence-initial.log",
+      "json": "evidence/01-equivalence-initial.json"
+    },
+    {
+      "name": "03-equivalence-repaired",
+      "exitCode": 0,
+      "passed": 872,
+      "failed": 0,
+      "total": 872,
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-meri-local-dispatch-conversion-20261012/jest.inert.config.cjs --runInBand --json --outputFile docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/03-equivalence-repaired.json",
+      "stdoutStderr": "evidence/03-equivalence-repaired.log",
+      "json": "evidence/03-equivalence-repaired.json"
+    },
+    {
+      "name": "06-equivalence-expanded",
+      "exitCode": 0,
+      "passed": 878,
+      "failed": 0,
+      "total": 878,
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-meri-local-dispatch-conversion-20261012/jest.inert.config.cjs --runInBand --json --outputFile docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/06-equivalence-expanded.json",
+      "stdoutStderr": "evidence/06-equivalence-expanded.log",
+      "json": "evidence/06-equivalence-expanded.json"
+    },
+    {
+      "name": "11-equivalence-final",
+      "exitCode": 0,
+      "passed": 887,
+      "failed": 0,
+      "total": 887,
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-meri-local-dispatch-conversion-20261012/jest.inert.config.cjs --runInBand --json --outputFile docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/11-equivalence-final.json",
+      "stdoutStderr": "evidence/11-equivalence-final.log",
+      "json": "evidence/11-equivalence-final.json"
+    },
+    {
+      "name": "14-rp-narrowed-equivalence",
+      "exitCode": 0,
+      "passed": 887,
+      "failed": 0,
+      "total": 887,
+      "command": "node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-meri-local-dispatch-conversion-20261012/jest.inert.config.cjs --runInBand --json --outputFile docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/14-rp-narrowed-equivalence.json",
+      "stdoutStderr": "evidence/14-rp-narrowed-equivalence.log",
+      "json": "evidence/14-rp-narrowed-equivalence.json"
+    }
+  ],
+  "strictTypes": [
+    {
+      "name": "04-focused-strict-types",
+      "exitCode": 0,
+      "stdoutStderr": "evidence/04-focused-strict-types.log",
+      "command": "node /workspace/capirov2/node_modules/typescript/bin/tsc -p docs/cleanup-meri-local-dispatch-conversion-20261012/tsconfig.focused.json"
+    },
+    {
+      "name": "07-expanded-strict-types",
+      "exitCode": 0,
+      "stdoutStderr": "evidence/07-expanded-strict-types.log",
+      "command": "node /workspace/capirov2/node_modules/typescript/bin/tsc -p docs/cleanup-meri-local-dispatch-conversion-20261012/tsconfig.focused.json"
+    },
+    {
+      "name": "13-final-strict-types",
+      "exitCode": 0,
+      "stdoutStderr": "evidence/13-final-strict-types.log",
+      "command": "node /workspace/capirov2/node_modules/typescript/bin/tsc -p docs/cleanup-meri-local-dispatch-conversion-20261012/tsconfig.focused.json"
+    },
+    {
+      "name": "08-api-full-cached-types",
+      "exitCode": 2,
+      "stdoutStderr": "evidence/08-api-full-cached-types.log",
+      "command": "NODE_OPTIONS=--max-old-space-size=8192 node /workspace/capirov2/node_modules/typescript/bin/tsc -p apps/api/tsconfig.json --noEmit --incremental false --typeRoots /workspace/capirov2-cleanup-reviewed-source-composition/apps/api/node_modules/@types"
+    },
+    {
+      "name": "15-api-full-cached-types-repaired",
+      "command": "NODE_OPTIONS=--max-old-space-size=8192 node /workspace/capirov2/node_modules/typescript/bin/tsc -p apps/api/tsconfig.json --noEmit --incremental false --typeRoots /workspace/capirov2-cleanup-reviewed-source-composition/apps/api/node_modules/@types",
+      "status": "completed",
+      "exitCode": 0,
+      "stdoutStderr": "evidence/15-api-full-cached-types-repaired.log"
+    }
+  ],
+  "limitations": [
+    "no nativePrisma or native PostgreSQL/RLS checks",
+    "no provider/tool/client/database operations",
+    "no publication/merge/deployment",
+    "baseline catalog 1/5 failure unchanged; registration loop is not dispatch proof"
+  ],
+  "sourceCommit": "eef2ee4b92aa6a16ae10225c3414794d5fb52a93",
+  "sourceTree": "4927911d7bc178d1f8e80c69453c96c6a4d3eeb3",
+  "independentReview": "pending root assignment; author checks are not independent acceptance"
+}
