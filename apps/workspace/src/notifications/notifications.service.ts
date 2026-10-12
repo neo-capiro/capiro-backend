@@ -2,7 +2,7 @@ import { prospectNotificationVisible } from '../prospect-resources/prospect-noti
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
-export type WsNotificationKind = 'collab_invite' | 'collab_accepted' | 'collab_declined';
+export type WsNotificationKind = 'collab_invite' | 'collab_accepted' | 'collab_declined' | 'newsletter_review' | 'newsletter_comment';
 type WsRoleValue = 'editor' | 'reviewer' | 'viewer' | 'commenter';
 
 export interface CreateNotificationInput {
@@ -16,6 +16,7 @@ export interface CreateNotificationInput {
   draftTitle?: string | null;
   role?: WsRoleValue | null;
   actionable?: boolean;
+  newsletterId?: string;
 }
 
 /**
@@ -92,6 +93,7 @@ export class NotificationsService {
         collaboratorId: input.collaboratorId ?? null,
         actorName: input.actorName ?? null,
         draftTitle: input.draftTitle ?? null,
+        newsletterId: input.newsletterId ?? null,
         role: input.role ?? null,
         actionable: input.actionable ?? false,
       },

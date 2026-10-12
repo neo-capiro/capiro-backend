@@ -32,6 +32,12 @@
       ],
       "market-title": [
         "dist/market-title.d.ts"
+      ],
+      "newsletter": [
+        "dist/newsletter.d.ts"
+      ],
+      "newsletter-render": [
+        "dist/newsletter-render.d.ts"
       ]
     }
   },
@@ -95,6 +101,18 @@
       "require": "./dist/market-title.js",
       "import": "./dist/market-title.js",
       "default": "./dist/market-title.js"
+    },
+    "./newsletter": {
+      "types": "./dist/newsletter.d.ts",
+      "require": "./dist/newsletter.js",
+      "import": "./dist/newsletter.js",
+      "default": "./dist/newsletter.js"
+    },
+    "./newsletter-render": {
+      "types": "./dist/newsletter-render.d.ts",
+      "require": "./dist/newsletter-render.js",
+      "import": "./dist/newsletter-render.js",
+      "default": "./dist/newsletter-render.js"
     }
   },
   "scripts": {

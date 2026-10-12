@@ -91,6 +91,9 @@ export class TenantContextMiddleware implements NestMiddleware {
       '/api/clio/runtime',
       '/api/clio/mcp-oauth/callback',
       '/api/insights',
+      // Recipient capabilities authorize these routes; no private newsletter
+      // authoring endpoint is covered by this distinct public prefix.
+      '/api/engagement/newsletter-public',
       // BYOK3 service-to-service endpoints: intel-api resolves a tenant AI
       // credential for live-hearing extraction. These authenticate via
       // InternalServiceGuard (shared INTERNAL_SERVICE_SECRET header), NOT a
@@ -101,7 +104,7 @@ export class TenantContextMiddleware implements NestMiddleware {
       '/api/internal',
     ];
     if (bypassPaths.some((bypassPath) => isBypassPath(bypassPath, path, originalUrl, baseUrl))) {
-      this.logger.log(
+      if (!originalUrl.includes('/newsletter-public/')) this.logger.log(
         `Bypassing tenant context for public/external route (path=${path}, originalUrl=${originalUrl}, baseUrl=${baseUrl})`,
       );
       next();
