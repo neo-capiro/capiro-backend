@@ -8,6 +8,11 @@
       "sha256": "86f2ece75f36968201e1d2fe322c65c463c18d882c4f24ad3d6e08431550fea0"
     },
     {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/FULL-FLOOR-LIMIT.md",
+      "bytes": 1148,
+      "sha256": "f462c19780f3794dc34edae3c8afb1180dc2541b54232e9287dcaeecf242b2de"
+    },
+    {
       "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/HANDOFF.md",
       "bytes": 4711,
       "sha256": "0a6a36d76aaff9225c6b35bf333b3d0c33ade8862ca0cb8079607c5da4f5816a"
@@ -111,6 +116,11 @@
       "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/17-sha-index-initial-verification.log",
       "bytes": 440,
       "sha256": "70fc234a69bf99470ce9a5bb7fa9bd9de15dabdfb5634a763e3d47fd19c775fb"
+    },
+    {
+      "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log",
+      "bytes": 2537,
+      "sha256": "73395ccd75a762d20cdd01d729628e5261f99f0646a9738fa9ed39d884b65fef"
     },
     {
       "path": "docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/freeze-packet.cjs",
