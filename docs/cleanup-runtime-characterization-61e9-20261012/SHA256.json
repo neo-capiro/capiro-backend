@@ -1,0 +1,92 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "tree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "excludesItselfOnly": true,
+  "entries": [
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/FRONTEND-COORDINATION.md",
+      "bytes": 6380,
+      "sha256": "10236269fde881eac60b97521632f5f31fde97a3f0d8aca424643f9d84e86e84"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/HANDOFF.md",
+      "bytes": 3176,
+      "sha256": "645ac8d84eadfd621718216b47e7fea571314f245830d535525fb6b718027dfc"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/PRE-RUN-AUDIT.md",
+      "bytes": 3156,
+      "sha256": "8053a01a9cf216f1666ea08100b4d3a29d2ef6d79a52b55ab03fa46f1f9553fa"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/RECEIPT.json",
+      "bytes": 3028,
+      "sha256": "0f4dff0bd92484bb79ea20fcfcdc146e28bbf8c74cca3d9b8894b0a6fc23f676"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/SOURCE-BINDINGS.json",
+      "bytes": 1720,
+      "sha256": "68de52e1750856283c1a65f26429e9b9ad60b1ce399961cdb46cc4797cab0eb1"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/frontend-frozen4a-pr-associations.json",
+      "bytes": 249369,
+      "sha256": "0d74211818ddc9117288d2cefb4b82ac296ab8cfd7f0b3e17f636088b4f7b74d"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/frontend-pr15-metadata.json",
+      "bytes": 4700,
+      "sha256": "6877e8ff821c65ae64a0ec226c95a9bbeae5139b61ecfba1992001de7850bbe1"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/frontend-pr9-metadata.json",
+      "bytes": 6586,
+      "sha256": "c2b63759df9e79991a07db19d229e815f51d12af449cd2f0ebdd842ced5da2b9"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/frontend-search-migration.json",
+      "bytes": 7734,
+      "sha256": "786d1c07668e574d14cefe52158b8f3c5cd82dcc98f58fdb007ebe5474f77db0"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/frontend-search-newsletter.json",
+      "bytes": 9993,
+      "sha256": "d6064ddc2d3ac4a2ed6b1033b0396eeb5b516af9e0da3cb255af7f10643bf731"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/meri-runtime-gate.log",
+      "bytes": 73189,
+      "sha256": "29801dd2ceb2f3524d095ab543ae89798de6d069a108da763ab6e5b79e7ab2a0"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/raw-log-whitespace.json",
+      "bytes": 82,
+      "sha256": "f393a2ad627e82666a4f0bb2651c7be6f251ee5d59729b163bd60fb1a9489bdc"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/runtime-command-results.json",
+      "bytes": 2122,
+      "sha256": "ac9ffcf15a54d40b8f128c1a7cfd5b0d1bc9131c5fdb5ab16b41331e2166906f"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/strategy-host-fallback-launch.red.log",
+      "bytes": 3688,
+      "sha256": "cc3ee2f4a88de4a6e494d19eb3cf600e5334f2b2a9b7ff3f4b264512360be1cf"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/strategy-private-cache-missing.red.log",
+      "bytes": 532,
+      "sha256": "da950d1a2edeac5bdb6d578224235f588174aabd70a10d68f852dadda6ab7c38"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/strategy-runtime-gate.log",
+      "bytes": 718,
+      "sha256": "56d8a084ac761c85194d25016b035a0cfb91b03dc5ce38d2500d1ece6a54e0e4"
+    },
+    {
+      "path": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/workspace-runtime-gate.log",
+      "bytes": 8718,
+      "sha256": "2661fc79b5d23029130b7f68bc073c1ef8f2347537c20fed8749c899940755c4"
+    }
+  ]
+}

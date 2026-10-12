@@ -1,0 +1,43 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "tree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "files": [
+    {
+      "path": "scripts/cleanup-runtime-equivalence.jest.cjs",
+      "git": "100644 blob 80c16954796a00453a595700d9a2ebe64cb2f930",
+      "sha256": "16bb7322aee00089c7ff17393fc1cbb125b345f5f66da7aa6a2399ee4708ad67",
+      "bytes": 768
+    },
+    {
+      "path": "apps/api-strategy/src/context/template-registry.spec.ts",
+      "git": "100644 blob dc3f84f2ab7010e96eddec1d269c95859afc06ec",
+      "sha256": "5657253f8f40128398e3f0bad3d8e444803b2dcdaf6ccffbf3d24e2fc7ade83c",
+      "bytes": 4570
+    },
+    {
+      "path": "apps/api-strategy/src/context/frontmatter.spec.ts",
+      "git": "100644 blob 64d6548c55217a666c9e99a2d6caf1a7a0151929",
+      "sha256": "c9562788190a020eb51ac3d9f12b5dc7f59d54a995e9759016864f4e45553727",
+      "bytes": 15693
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-context.spec.ts",
+      "git": "100644 blob 4e24a2bb06692a92be975a8c58a3b3c4bcf3cfc5",
+      "sha256": "1d3a066d359926ad92148cd402c3b212f8ed3ed369e71f752443e9e9ea811885",
+      "bytes": 22847
+    },
+    {
+      "path": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "git": "100644 blob 65da08cddfc67bb1336980b8dc9ced040c61f39c",
+      "sha256": "dc7ae9e34e26c5e3d3f9c56a5a8802865b3b3ce2d3d8cac504664b6af08c35d8",
+      "bytes": 11659
+    },
+    {
+      "path": "apps/api/src/meri/meri-local-dispatch.equivalence.spec.ts",
+      "git": "100644 blob 5a12ea1a984a6b9929636ae7342d4229a7173db4",
+      "sha256": "b88051b59c8d74328674350ce0b93e0e28c573955de0b93b2445556ed4016382",
+      "bytes": 23400
+    }
+  ],
+  "productAndReportingSourceChanged": false
+}

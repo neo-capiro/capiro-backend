@@ -1,0 +1,61 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "tree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "node": "24.19.0",
+  "pnpm": "9.12.0",
+  "results": [
+    {
+      "scope": "Strategy",
+      "alias": "gate:cleanup4:strategy-template-metadata",
+      "passedTests": 128,
+      "totalTests": 128,
+      "passedSuites": 3,
+      "totalSuites": 3,
+      "exitCode": 0,
+      "execSession": 68807,
+      "raw": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/strategy-runtime-gate.log",
+      "sha256": "56d8a084ac761c85194d25016b035a0cfb91b03dc5ce38d2500d1ece6a54e0e4"
+    },
+    {
+      "scope": "Workspace",
+      "alias": "gate:cleanup4:workspace-product-metadata",
+      "passedTests": 115,
+      "totalTests": 115,
+      "passedSuites": 1,
+      "totalSuites": 1,
+      "exitCode": 0,
+      "execSession": 13889,
+      "raw": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/workspace-runtime-gate.log",
+      "sha256": "2661fc79b5d23029130b7f68bc073c1ef8f2347537c20fed8749c899940755c4"
+    },
+    {
+      "scope": "Meri",
+      "alias": "gate:cleanup4:meri-local-dispatch",
+      "passedTests": 887,
+      "totalTests": 887,
+      "passedSuites": 1,
+      "totalSuites": 1,
+      "exitCode": 0,
+      "execSession": 32023,
+      "raw": "docs/cleanup-runtime-characterization-61e9-20261012/evidence/meri-runtime-gate.log",
+      "sha256": "29801dd2ceb2f3524d095ab543ae89798de6d069a108da763ab6e5b79e7ab2a0"
+    }
+  ],
+  "totalPassCount": 1130,
+  "totalSuiteCount": 5,
+  "Tango": "Parent-owned actual gateexit0; not rerun by this worker",
+  "failingLaunches": [
+    {
+      "raw": "evidence/strategy-host-fallback-launch.red.log",
+      "exitCode": 1,
+      "classification": "Author missedPATHshim; nestedhostfallbackattemptedautoinstall andfailedENOENTbeforetests"
+    },
+    {
+      "raw": "evidence/strategy-private-cache-missing.red.log",
+      "exitCode": 254,
+      "classification": "Pinned9.12 launcher foundnoStrategyprivateJest binary; beforetests"
+    }
+  ],
+  "successfulGatesInstalledOrDownloadedDependencies": false,
+  "applicationOrReportingSourceEdited": false
+}

@@ -1,0 +1,47 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Action completed."
+    }
+  ],
+  "structuredContent": {
+    "url": "https://github.com/neo-capiro/capiro-frontend/pull/9",
+    "number": 9,
+    "state": "open",
+    "merged": false,
+    "mergeable": true,
+    "draft": true,
+    "body": "## Result\nOne shared Next `apps/web` application serves Portfolio at `/`, Meri at `/meri`, Modules at `/modules` and Settings at `/settings`, preserving `/portfolio`, existing deep links, calendar, sign-in, health and narrow API routes. Shared HeaderFrame/mode navigation preserves Meri assets. The composed auth/session/client boundary cancels obsolete requests and clears retained data/editors on identity, organization and client replacement. Browser selection never grants backend authority. Portfolio Core/Intel, Modules fixed operations and Meri public contracts remain separate.\n\nThe PR is stacked on preserved PR8. Original feature files and meaningful tests, the Portfolio historical archive, Meri PR1 ancestry through PR4, the root lockfile and existing Modules CommitmentView survive. Header and architecture guard collisions are resolved for the canonical shared app without removing the inherited rules. Quicklog Commitment/Weowe/Theyowe/counterparty UI remains excluded.\n\nThe three Portfolio defects have failing regression baselines and fixes: accepted Intel normalization/partial rejection handling, requested-code acknowledgement copy, and a visible disabled Core-404 preference entry with zero Intel calls. Published bounded workflows also cover selected sender, ordered owners, memory wording, generic follow-up, prospect Files/manual Workspace, saved Newsletter staging, effective-date Calendar and existing Objective destinations. The newest destination views resolve existing Strategy, explicit-client Planner tasks and explicitly selected saved Workspace revisions on open/reload/history/recheck; bound views mount no ordinary editors or write fallback.\n\n## Exact qualification and publication\n\n- Tested source: `2d50edd8f3c5ea232db8e1338566f0667db4b4bd`.\n- Source tree: `d7986d01b5f5aca3a8e4c824556315a82b692e92`; application source tree: `faf8af48ba71d9152cbd2e2010ddb950fd8e2bfb`.\n- Evidence-only publication: `a397d45c461b24eb741afcd3b7cf28ca354d1e96`; application/configuration/build/lockfile bytes unchanged.\n- Clean 847-package install; 58 root / 1,141 application / 94 gateway / 21 transport tests; types, lint, format, architecture and public packages pass. Lint has 0 errors and 76 existing warnings; architecture has 0 blocking/boundary violations.\n- Full Portfolio **929/929**, full Modules **120/120**: zero failures, skips or flakes. Portfolio finished 2026-10-12 11:02:08 UTC with clean unchanged source.\n- One production build, actual standalone route/security/navigation/back-forward/desktop-mobile/light-dark audits, Meri actual-server checks, fresh official Elements **15/15**, and unchanged recovery/destination controls pass.\n- Coordinator-relayed independent bounded review passes this exact source: **40 browser / 13 unit** cases, types/architecture/public packages, no new blocking findings. Counts overlap other gates and are not added together.\n\n[Exact qualification](https://github.com/neo-capiro/capiro-frontend/blob/a397d45c461b24eb741afcd3b7cf28ca354d1e96/docs/integration-contracts-20261012/QUALIFICATION-2d50edd.md) links raw execution receipts, reports, captures and manifests. All 367 manifest-listed evidence files were checked against staged Git bytes. Earlier failed/interrupted candidates remain preserved. The absent-default-browser launch failure is retained; installed Chromium passed the unchanged controls. Two independent reviewer fixture-setup failures and fixture-only corrections remain recorded in the relay receipt. The earlier accepted f4e9e1f checkpoint remains intact.\n\n## Acceptance and release boundaries\nThe active ledger preserves all 345 historical IDs: **337 in scope, eight prior exclusions, zero full/native accepted rows**. It maps specific tested behaviors to 63 rows, related executed cases to 153, and 13 scoped Figma comparisons to 53. Component passes, partial matches, the ordered-owner visual failure and unassessed/native criteria are explicit. These tests and scoped render checks do not establish broad visual, native or full WCAG acceptance.\n\nBackend composition is pinned to independently accepted PR2406 `243248e726243c44bd4b9d24fd1ed220da18c56a`, tree `d8f01afa7eca0e6571e7ed3669905fea3491bbdd`. Source compatibility verifies all 194 manifest entries, nine migration entries and 19 candidate ancestors. Corrected Workspace migration allocations remain unapplied. Native PostgreSQL/RLS/roles/MVCC/client-grant locking, live Clerk/provider qualification, full Cleanup and unpublished Engagement reporting remain open.\n\nA [concrete one-image build proposal](https://github.com/neo-capiro/capiro-frontend/blob/a397d45c461b24eb741afcd3b7cf28ca354d1e96/docs/integration-contracts-20261012/IMAGE-BUILD-PROPOSAL.md), recipe hashes and reproducible 431,566,703-byte archive are prepared. The archive has not been uploaded. The last local official Alpine index probe returned proxy 403. Shipping remains reserved for the designated session. No main merge, image build/push, deployment, resources/credentials/security/database change, real provider messages, billing or paid workloads occurred.",
+    "title": "Integrate shared Capiro frontend and governed contract workflows",
+    "base": "integration/capiro-shared-20261012",
+    "base_sha": "d393f08a551f00ee507636264a01657ff0f64655",
+    "head": "integration/capiro-contracts-20261012",
+    "head_sha": "a397d45c461b24eb741afcd3b7cf28ca354d1e96",
+    "head_repo_id": 1413425685,
+    "head_repo_full_name": "neo-capiro/capiro-frontend",
+    "merge_commit_sha": "e6cf19556783372a218e66653fe1262f16eeec4c",
+    "user": {
+      "login": "neo-capiro",
+      "name": "neo-capiro",
+      "email": null,
+      "avatar_url": "https://avatars.githubusercontent.com/u/276034435?v=4",
+      "id": 276034435
+    },
+    "requested_reviewers": null,
+    "requested_team_reviewers": null,
+    "diff": null,
+    "comments": null,
+    "created_at": "2026-10-12T04:59:00Z",
+    "updated_at": "2026-10-12T11:07:07Z",
+    "closed_at": null,
+    "merged_at": null,
+    "commits": 22,
+    "changed_files": 1599,
+    "additions": 757526,
+    "deletions": 378,
+    "display_url": "https://github.com/neo-capiro/capiro-frontend/pull/9",
+    "display_title": "Integrate shared Capiro frontend and governed contract workflows"
+  },
+  "isError": false
+}
