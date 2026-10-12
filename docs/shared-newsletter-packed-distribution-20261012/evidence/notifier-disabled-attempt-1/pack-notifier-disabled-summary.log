@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/tmp/capirov2-four-runtime-controls-review/docs/shared-newsletter-packed-distribution-20261012/evidence/pack-canonical-package.py", line 25, in <module>
+    raise RuntimeError(f'pack {number} failed: {result.returncode}')
+RuntimeError: pack 3 failed: 1

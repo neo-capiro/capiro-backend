@@ -1,0 +1,19 @@
+0 verbose cli /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/bin/npm-cli.js
+1 info using npm@11.9.0
+2 info using node@v24.19.0
+3 silly config load:file:/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/npmrc
+4 silly config load:file:/tmp/capiro-shared-newsletter-dist-fe50-20261012/packages/shared/.npmrc
+5 silly config load:file:/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/user.npmrc
+6 silly config load:file:/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/global.npmrc
+7 verbose title npm pack
+8 verbose argv "pack" "--ignore-scripts" "--offline" "--no-update-notifier" "--userconfig" "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/user.npmrc" "--globalconfig" "/tmp/capiro-shared-newsletter-dist-fe50-20261012/empty-pack-configuration/global.npmrc" "--cache" "/tmp/capiro-shared-newsletter-dist-fe50-20261012/npm-cache-no-notifier" "--pack-destination" "/tmp/capiro-shared-newsletter-dist-fe50-20261012/pack-5" "--json"
+9 verbose logfile logs-max:10 dir:/tmp/capiro-shared-newsletter-dist-fe50-20261012/npm-cache-no-notifier/_logs/2026-10-12T22_22_42_517Z-
+10 verbose logfile /tmp/capiro-shared-newsletter-dist-fe50-20261012/npm-cache-no-notifier/_logs/2026-10-12T22_22_42_517Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 verbose cwd /tmp/capiro-shared-newsletter-dist-fe50-20261012/packages/shared
+14 verbose os Linux 6.18.44
+15 verbose node v24.19.0
+16 verbose npm  v11.9.0
+17 verbose exit 0
+18 info ok

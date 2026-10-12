@@ -12,11 +12,20 @@ PACKAGE = STAGE / 'packages/shared'
 NPM = '/opt/codex/runtimes/codex-primary-runtime/dependencies/node/lib/node_modules/npm/bin/npm-cli.js'
 entries = []
 packs = []
-for number in (1, 2):
+configuration = STAGE / 'empty-pack-configuration'
+configuration.mkdir(exist_ok=True)
+for name in ('user.npmrc', 'global.npmrc'):
+    file = configuration / name
+    if not file.exists():
+        file.write_text('')
+    assert file.read_bytes() == b''
+for number in (4, 5):
     destination = STAGE / f'pack-{number}'
     destination.mkdir(exist_ok=False)
-    command = ['node', NPM, 'pack', '--ignore-scripts', '--offline', '--cache',
-               str(STAGE / 'npm-cache'), '--pack-destination', str(destination), '--json']
+    command = ['node', NPM, 'pack', '--ignore-scripts', '--offline', '--no-update-notifier',
+               '--userconfig', str(configuration / 'user.npmrc'),
+               '--globalconfig', str(configuration / 'global.npmrc'), '--cache',
+               str(STAGE / 'npm-cache-no-notifier'), '--pack-destination', str(destination), '--json']
     result = subprocess.run(command, cwd=PACKAGE, capture_output=True)
     (ROOT / f'evidence/npm-pack-{number}.stdout.json').write_bytes(result.stdout)
     (ROOT / f'evidence/npm-pack-{number}.stderr.log').write_bytes(result.stderr)
@@ -35,7 +44,7 @@ for number in (1, 2):
                       filename=path.name, bytes=len(data), sha256=sha256,
                       sha512=hashlib.sha512(data).hexdigest(), integrity=integrity,
                       npmResult=item))
-    if number == 1:
+    if number == 4:
         with tarfile.open(path, 'r:gz') as archive:
             names = set()
             for member in archive.getmembers():
@@ -56,6 +65,17 @@ for number in (1, 2):
                                     sha256=hashlib.sha256(contents).hexdigest()))
         (ROOT / 'artifact' / path.name).write_bytes(data)
 assert packs[0]['sha256'] == packs[1]['sha256'], 'repeat packing must be byte exact'
+initial = json.loads((ROOT / 'evidence/PACKED-MANIFEST-INITIAL.json').read_text())
+assert packs[0]['sha256'] == initial['packs'][0]['sha256'], 'notifier disable must preserve artifact bytes'
+debug_logs = []
+for log in sorted((STAGE / 'npm-cache-no-notifier/_logs').glob('*.log')):
+    contents = log.read_bytes()
+    (ROOT / 'evidence' / ('npm-notifier-disabled-' + log.name)).write_bytes(contents)
+    assert b'http fetch' not in contents
+    debug_logs.append(dict(path='evidence/npm-notifier-disabled-'+log.name,
+                           sha256=hashlib.sha256(contents).hexdigest(),
+                           httpFetchLines=0))
+assert len(debug_logs) == 2
 manifest = dict(sourceHead='fe50dc1c2de1660a036e338cf81acdcf0f2fb26a',
                 sourceTree='00ca67ae1f2cacc1ae0b51fff25cb33d58954f67',
                 npmVersion=subprocess.check_output(['node', NPM, '--version'], text=True).strip(),
@@ -63,7 +83,10 @@ manifest = dict(sourceHead='fe50dc1c2de1660a036e338cf81acdcf0f2fb26a',
                 typescriptVersion=subprocess.check_output(['node', '/workspace/capirov2/node_modules/typescript/bin/tsc', '--version'], text=True).strip(),
                 packs=packs, packedEntries=sorted(entries, key=lambda x:x['path']),
                 lifecycleScriptsRun=False, registryPublication=False, networkRequired=False,
-                repeatPackingByteExact=True)
+                repeatPackingByteExact=True, updateNotifierDisabled=True,
+                originalArtifactBytesPreserved=True, debugLogs=debug_logs,
+                originalPackLimitation='Pack 1 used --offline but npm update notifier made one official read-only registry metadata GET; original logs/manifest retained.',
+                noGeneralNetworkTraceClaim=True)
 (ROOT / 'PACKED-MANIFEST.json').write_text(json.dumps(manifest, indent=2)+'\n')
 print(json.dumps(dict(filename=packs[0]['filename'], bytes=packs[0]['bytes'],
                      sha256=packs[0]['sha256'], integrity=packs[0]['integrity'],

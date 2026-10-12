@@ -1,0 +1,547 @@
+{
+  "sourceHead": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "sourceTree": "00ca67ae1f2cacc1ae0b51fff25cb33d58954f67",
+  "files": [
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/BUILD-RECEIPT.json",
+      "bytes": 1379,
+      "sha256": "6ee51964ea038d69c6c5210b8bdd92fdb39980900e0064de0e3b081f662be72e"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/CONSUMER-QUALIFICATION.json",
+      "bytes": 7698,
+      "sha256": "404268e36daacf8938ca3bb2b2e58507f915795474dbed68c372f0a976451cd3"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/HANDOFF.md",
+      "bytes": 6062,
+      "sha256": "838167d68fc71068ef1f761edf490f34719bf3e97cdd167312a398bf8e84b1e3"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/PACKED-MANIFEST.json",
+      "bytes": 84647,
+      "sha256": "d5b85b061b6faf90865a9b535778ebb18562eefed49241ffeefa9d2a9dcb9f74"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/artifact/capiro-shared-0.0.0.tgz",
+      "bytes": 510772,
+      "sha256": "697d826647e88e7f8559da386be7de1ae6408dc61c73877b86c2e17275fd63ab"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/DISCOVERY-NOTES.md",
+      "bytes": 1243,
+      "sha256": "48eb100d7b527dd1b360a45e5cd0109e9de25b0b9e60738b3528a66915ff08b4"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/FAILURE.json",
+      "bytes": 253,
+      "sha256": "98be4d5905cfd75fdda1091557f7e8539137f532c3e6160089c7a3e5e96e0492"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/consumer-qualification.stderr.log",
+      "bytes": 814,
+      "sha256": "973c41e5c304890e4b951ae8fbb81c89032a60c612f7e87261e9840d9bbb7f01"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/consumer-qualification.stdout.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-esm-imports.command.json",
+      "bytes": 181,
+      "sha256": "6a8d26f5874acebc7363ef5777cb96be9cc1309cc9fc0025ae7903bcb2cf2ea2"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-esm-imports.log",
+      "bytes": 68,
+      "sha256": "3a8fce20fb3f56a91278db2e5b8cd4297d99f95663d8a88b8a2bd00f7f841a8d"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-extraction.command.json",
+      "bytes": 910,
+      "sha256": "4c61a989213f6442938cd517cc4eb06d9e495aa7af2f5733fcc054e086abfa03"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-extraction.log",
+      "bytes": 93,
+      "sha256": "05ddbe549707a902c25d674e15cd2e5e9a8cee1558dffb560b078a458da1b513"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-types-browser-negative.command.json",
+      "bytes": 268,
+      "sha256": "af05da7bd6cc8eb2ae12ac98958e0f2bc3a2cec18d6f811f8636683a0f1ecff4"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-types-browser-negative.log",
+      "bytes": 589,
+      "sha256": "960eaf4a0f529eb27f884c6bd773e57dd2015e8e487f68568fc568bb7d7b37bb"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-types-browser-positive.command.json",
+      "bytes": 259,
+      "sha256": "2efba5d6b82801268ecac170fe0cd9324c62d0019018af5d1c7948322898212b"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-types-browser-positive.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-types-node-negative.command.json",
+      "bytes": 265,
+      "sha256": "6cec9ef3d0e4e335a0c9b31e20808a826913857cfe9ef31cb759382fb0b137b5"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-types-node-negative.log",
+      "bytes": 589,
+      "sha256": "960eaf4a0f529eb27f884c6bd773e57dd2015e8e487f68568fc568bb7d7b37bb"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-types-node-positive.command.json",
+      "bytes": 256,
+      "sha256": "bd53b80898c50bbc4ae08d2e6d2a857b871648e04e49f69cdd538e5abba901c3"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/packed-types-node-positive.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/qualify-packed-consumer.mjs",
+      "bytes": 16680,
+      "sha256": "0d470147a89b42150833b9ba52654c2e6548089fad794d429dfe7b63b3649088"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-1/renderer-characterizations.cjs",
+      "bytes": 8607,
+      "sha256": "947cc71424e33dd9350c494216c2a0c1216d01297a262f76652fe42aa10802f5"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/FAILURE.json",
+      "bytes": 383,
+      "sha256": "67c3964214e00da85882501da73295fefbcb75316abe578b31874409ad504030"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/browser-bundle.js",
+      "bytes": 189282,
+      "sha256": "d46ab49d2c9a1dc5902a246c91e216b02cb4d4b1146c35183bea76435cd33036"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/browser-bundle.js.map",
+      "bytes": 288057,
+      "sha256": "b4812a948ef0a2c5f8e36d42097115fb634d381f0398f585025f7e8e53bed62c"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/browser-metafile.json",
+      "bytes": 3919,
+      "sha256": "5a808da3c7d00e73621c5f32a4a74610a59c821de65f47f515451fd77506f82f"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/browser-renderer-results.json",
+      "bytes": 54439,
+      "sha256": "550c4d8687373a0e1f162ec8f2e6f2b4e9d3d875978ac46c8e4e33a83cfc2dce"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/consumer-qualification.stderr.log",
+      "bytes": 41482,
+      "sha256": "cd7a85d2df38ce98d944133decea7e9b7b709b36a2a684c49791d41ee5f86bf8"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/consumer-qualification.stdout.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/original-C-renderer-golden.json",
+      "bytes": 54405,
+      "sha256": "b56b5d3526230e9011aaa82f258c7327816a60a78ddc020714c81e9c7d98b32f"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-esm-imports.command.json",
+      "bytes": 191,
+      "sha256": "2212c511b57ebde8e6e657255186def0f5f43bed24dff642d63e983a92d82126"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-esm-imports.log",
+      "bytes": 68,
+      "sha256": "3a8fce20fb3f56a91278db2e5b8cd4297d99f95663d8a88b8a2bd00f7f841a8d"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-extraction.command.json",
+      "bytes": 930,
+      "sha256": "53f193d5fae2cb257ea6ab6961fb6e5c460932a4c8e7cf2996f1a3a937f3949b"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-extraction.log",
+      "bytes": 93,
+      "sha256": "05ddbe549707a902c25d674e15cd2e5e9a8cee1558dffb560b078a458da1b513"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-renderer-results.json",
+      "bytes": 54405,
+      "sha256": "b56b5d3526230e9011aaa82f258c7327816a60a78ddc020714c81e9c7d98b32f"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-types-browser-negative.command.json",
+      "bytes": 278,
+      "sha256": "638bcd251503234426f68626eeeb6a5ce78e245c4fcd4ce957b025f6b849041b"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-types-browser-negative.log",
+      "bytes": 589,
+      "sha256": "960eaf4a0f529eb27f884c6bd773e57dd2015e8e487f68568fc568bb7d7b37bb"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-types-browser-positive.command.json",
+      "bytes": 269,
+      "sha256": "ccd16a003c82e377597aa16cd4f3bbae7aace2ac8898828a1bb84e163ba41489"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-types-browser-positive.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-types-node-negative.command.json",
+      "bytes": 275,
+      "sha256": "17d12fdf93835b0fe3b633f0bd5dda4279fef620c088d4118d6364e3954cb40d"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-types-node-negative.log",
+      "bytes": 589,
+      "sha256": "960eaf4a0f529eb27f884c6bd773e57dd2015e8e487f68568fc568bb7d7b37bb"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-types-node-positive.command.json",
+      "bytes": 266,
+      "sha256": "1e71ae0bad68c283279b400e17370af6fffa6b23e919dd3651445dcbbe6edffb"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/packed-types-node-positive.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/qualify-packed-consumer.mjs",
+      "bytes": 16721,
+      "sha256": "204c9d011326fab792cfbe8a3e96212bff9ffbf129aaea75fc80376d859841a0"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-2/renderer-characterizations.cjs",
+      "bytes": 8668,
+      "sha256": "1a89dcb2bb8d888c5c2c9661b482f92b28b4c7167d9e5dfe0f98ea1c0adbd2cd"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/FAILURE.json",
+      "bytes": 374,
+      "sha256": "e27e413311ff9a8f1d16c9ec6dc4b1b0cade7add79608544c21161aa02e55208"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/browser-bundle.js",
+      "bytes": 189356,
+      "sha256": "f20de83f443058f7e813d4b9db926d221f5795cbd96dddd18a194d430010ba34"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/browser-bundle.js.map",
+      "bytes": 288263,
+      "sha256": "5326ca80998ef2cea361e2215d7e9d6708f9de5213c0a9cfa2edb53548ed9142"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/browser-metafile.json",
+      "bytes": 3919,
+      "sha256": "44225ba4c4d18f07c98d3c8e8905dcba5c41f65eb1e9706ccdd61b229afbbdcc"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/browser-renderer-results.json",
+      "bytes": 54405,
+      "sha256": "b56b5d3526230e9011aaa82f258c7327816a60a78ddc020714c81e9c7d98b32f"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/consumer-qualification.stderr.log",
+      "bytes": 826,
+      "sha256": "62b4deee8178e2c09d40a28590cdd26980a70b9130f9980996963bcdf9233bb9"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/consumer-qualification.stdout.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/original-C-renderer-golden.json",
+      "bytes": 54405,
+      "sha256": "b56b5d3526230e9011aaa82f258c7327816a60a78ddc020714c81e9c7d98b32f"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-esm-imports.command.json",
+      "bytes": 191,
+      "sha256": "47a77cb4be08b7d2fd5fcb5f6aef48072be69ded474705d684fbb0cbe9c5fd4c"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-esm-imports.log",
+      "bytes": 68,
+      "sha256": "3a8fce20fb3f56a91278db2e5b8cd4297d99f95663d8a88b8a2bd00f7f841a8d"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-extraction.command.json",
+      "bytes": 930,
+      "sha256": "268ad8107c7239326607115838292cfabd4968313786a53b409381da0e112d14"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-extraction.log",
+      "bytes": 93,
+      "sha256": "05ddbe549707a902c25d674e15cd2e5e9a8cee1558dffb560b078a458da1b513"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-renderer-results.json",
+      "bytes": 54405,
+      "sha256": "b56b5d3526230e9011aaa82f258c7327816a60a78ddc020714c81e9c7d98b32f"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-types-browser-negative.command.json",
+      "bytes": 278,
+      "sha256": "6acbab9a3883adbe256cfdfbaec6b42f73426cd12285fd2158f1639e2b2456a1"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-types-browser-negative.log",
+      "bytes": 589,
+      "sha256": "960eaf4a0f529eb27f884c6bd773e57dd2015e8e487f68568fc568bb7d7b37bb"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-types-browser-positive.command.json",
+      "bytes": 269,
+      "sha256": "ca11c8111c5f853ff3b2ea9262554f145583328909c9baf578a4eb49d5b9bf4b"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-types-browser-positive.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-types-node-negative.command.json",
+      "bytes": 275,
+      "sha256": "ccd8bf8a3ecc8d5936fa637354fee015d17648fcb084a42e4428fd25d5104f5d"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-types-node-negative.log",
+      "bytes": 589,
+      "sha256": "960eaf4a0f529eb27f884c6bd773e57dd2015e8e487f68568fc568bb7d7b37bb"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-types-node-positive.command.json",
+      "bytes": 266,
+      "sha256": "d0dc971c35dc3b477cfa1ebaf8b7ac756a140eef82d96ed47d2a656a5fc6ddc5"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/packed-types-node-positive.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/qualify-packed-consumer.mjs",
+      "bytes": 16721,
+      "sha256": "204c9d011326fab792cfbe8a3e96212bff9ffbf129aaea75fc80376d859841a0"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/attempt-3/renderer-characterizations.cjs",
+      "bytes": 8823,
+      "sha256": "ceb63415819751398431a4277c75949dac7a1ca2fac7d25b55aa31c4d46a66ba"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/browser-bundle.js",
+      "bytes": 189356,
+      "sha256": "f20de83f443058f7e813d4b9db926d221f5795cbd96dddd18a194d430010ba34"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/browser-bundle.js.map",
+      "bytes": 288263,
+      "sha256": "5326ca80998ef2cea361e2215d7e9d6708f9de5213c0a9cfa2edb53548ed9142"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/browser-metafile.json",
+      "bytes": 3919,
+      "sha256": "44225ba4c4d18f07c98d3c8e8905dcba5c41f65eb1e9706ccdd61b229afbbdcc"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/browser-renderer-results.json",
+      "bytes": 54405,
+      "sha256": "b56b5d3526230e9011aaa82f258c7327816a60a78ddc020714c81e9c7d98b32f"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/canonical-source-binding.json",
+      "bytes": 15498,
+      "sha256": "f05f3526ea7a73f15b23ad2b5ff9b9f198607fcacf48a0d9559cff8b7f2584e7"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/canonical-source-binding.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/consumer-negative.ts",
+      "bytes": 410,
+      "sha256": "77dff4d542cea9386399c8ecd680f99c50b253643c5cf3b167cc2b6554d8461c"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/consumer-positive.ts",
+      "bytes": 1503,
+      "sha256": "67539f5f8c8805273737ff8a8f15b5e4b9b7c513b201af176dafabd9158b2021"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/consumer-qualification.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/consumer-qualification.stdout.json",
+      "bytes": 249,
+      "sha256": "00a88f4644a6342f0cd094641ef7b5d0ba816a5aff24a7fbf23a1c25c9a05a4d"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/effective-shared-tsconfig.json",
+      "bytes": 2641,
+      "sha256": "5004c3dd50b92f70820cd7034fc81c508b963ef169157e00e8671393311d49bc"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/frontend-pr16-handover.json",
+      "bytes": 5108,
+      "sha256": "bb8ca0f66df064422dd510c987ce41a00faa5ad5c3d73bf1b5bd45d8a084b174"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-pack-1.stderr.log",
+      "bytes": 208,
+      "sha256": "76162e465989f3f070a9de8db711fbf358e53b74d09ce1bbdb57c727e4c4a16d"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-pack-1.stdout.json",
+      "bytes": 19847,
+      "sha256": "0d0dd66a13cc9a776ef45610e6dba04c3e670e24c608261fe15049cab3792c3b"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-pack-2.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/npm-pack-2.stdout.json",
+      "bytes": 19847,
+      "sha256": "0d0dd66a13cc9a776ef45610e6dba04c3e670e24c608261fe15049cab3792c3b"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/original-C-renderer-golden.json",
+      "bytes": 54405,
+      "sha256": "b56b5d3526230e9011aaa82f258c7327816a60a78ddc020714c81e9c7d98b32f"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/pack-canonical-package.py",
+      "bytes": 4076,
+      "sha256": "e03bf9d2bd4b6817362f32a18f95982570ccc45078af15fe0443de75e6869633"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/pack-summary.json",
+      "bytes": 309,
+      "sha256": "2212c8a1821ffb7e2b62ac9e614202640f019124f177de5ff87cd00b0d95a93c"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/pack-summary.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-esm-imports.command.json",
+      "bytes": 191,
+      "sha256": "060052ac4e9c334bc58f0e31ec0f14ed7adb8ee4f0156dbab621928e1ff5d728"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-esm-imports.log",
+      "bytes": 68,
+      "sha256": "3a8fce20fb3f56a91278db2e5b8cd4297d99f95663d8a88b8a2bd00f7f841a8d"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-extraction.command.json",
+      "bytes": 930,
+      "sha256": "c56a265f73fa337c59c6d0efdc911807578efef8ac741680e4564cabafd5ee37"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-extraction.log",
+      "bytes": 93,
+      "sha256": "05ddbe549707a902c25d674e15cd2e5e9a8cee1558dffb560b078a458da1b513"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-renderer-results.json",
+      "bytes": 54405,
+      "sha256": "b56b5d3526230e9011aaa82f258c7327816a60a78ddc020714c81e9c7d98b32f"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-types-browser-negative.command.json",
+      "bytes": 278,
+      "sha256": "fea07c2420ab91c6ddf597a9b2ff8fae4b83d7fbc4b4a6c72f0a9371b9982e4c"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-types-browser-negative.log",
+      "bytes": 589,
+      "sha256": "960eaf4a0f529eb27f884c6bd773e57dd2015e8e487f68568fc568bb7d7b37bb"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-types-browser-positive.command.json",
+      "bytes": 269,
+      "sha256": "e0202527941ee9e59464ff431d8471fcc8cb49ab73fbb19271afbfafbcdbecf1"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-types-browser-positive.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-types-node-negative.command.json",
+      "bytes": 275,
+      "sha256": "a60c6cdfb5ae3aeff223eddaf3ae2729c7ee695c920f63ade6443969e23af583"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-types-node-negative.log",
+      "bytes": 589,
+      "sha256": "960eaf4a0f529eb27f884c6bd773e57dd2015e8e487f68568fc568bb7d7b37bb"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-types-node-positive.command.json",
+      "bytes": 266,
+      "sha256": "efbb5eda1793a7092e326b46414bc5b85c982dd61dd958d21296242cac9ea103"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/packed-types-node-positive.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/prepare-canonical-package.py",
+      "bytes": 2559,
+      "sha256": "4bbb71b493deba2cff782bbc216b5b525fa31d3e3235d37227dc8019e109720c"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/pristine-shared-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/published-backend-shared-continuity.json",
+      "bytes": 5252,
+      "sha256": "f78c69b34a2fb59cd71e1d049ed4772d1c5f543d7e8193e8ca1b35a0ed246c83"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/qualify-packed-consumer.mjs",
+      "bytes": 16868,
+      "sha256": "fe88480d48bc93f36db8ef0dcd25ce3e6904430cba9c1cd050d168f4aa92f824"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/renderer-characterizations.cjs",
+      "bytes": 8823,
+      "sha256": "ceb63415819751398431a4277c75949dac7a1ca2fac7d25b55aa31c4d46a66ba"
+    },
+    {
+      "path": "docs/shared-newsletter-packed-distribution-20261012/evidence/static-five-module-closure.json",
+      "bytes": 2671,
+      "sha256": "60d9fded5ff63103b77e53dbab9ed8aa5aac9e565b672a142204342cc7895406"
+    }
+  ],
+  "indexExcludesItself": true
+}
