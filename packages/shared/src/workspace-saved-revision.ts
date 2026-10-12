@@ -23,7 +23,7 @@ export function canonicalWorkspaceSnapshot(value: unknown): string {
  * tenant-scoped transaction. Locks remain held through the caller's command
  * commit. Core does not add ws_* ORM models or bypass source restrictions.
  * This first distribution slice supports ordinary manually editable drafts;
- * prospect and private Intel source drafts remain transfer-ineligible.
+ * prospect and any receipt-backed Intel source draft remain transfer-ineligible.
  */
 export async function workspaceSavedOutreachRevisionWithinTx(
   tx: ResourceScopeTransaction,
@@ -56,8 +56,7 @@ export async function workspaceSavedOutreachRevisionWithinTx(
   // require an unauthorized UPDATE privilege. No later attachment path exists.
   const sources = await tx.$queryRawUnsafe<Array<{ sourceType: string }>>(
     `SELECT source_type AS "sourceType" FROM ws_source_action
-     WHERE tenant_id=$1::uuid AND draft_id=$2::uuid
-       AND source_type IN ('legiwatch_research','legiwatch_editorial')`,
+     WHERE tenant_id=$1::uuid AND draft_id=$2::uuid`,
     input.tenantId, input.draftId,
   );
   if (sources.length) unavailable();

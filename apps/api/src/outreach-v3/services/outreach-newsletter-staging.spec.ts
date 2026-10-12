@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { canonicalWorkspaceSnapshot, workspaceSavedOutreachRevisionWithinTx, workspaceCanRead } from '@capiro/shared';
-import type { TenantContext } from '@capiro/shared';
+import type { TenantContext, ResourceScopeTransaction } from '@capiro/shared';
 import { OutreachCommandEngineService } from './outreach-command-engine.service.js';
 import { createBlankCampaignSpecV1, hashCampaignSpecV1 } from '../state/outreach-campaign-spec.v1.js';
 
@@ -138,7 +138,7 @@ describe('saved newsletter staging through canonical Workspace and Outreach owne
   it('locks same-client wall and its live grant, then delegates canonical client authorization', async () => {
     const h = harness(true); await h.stage();
     expect(h.authorization.authorizeClientWithinTx).toHaveBeenCalledWith(h.tx, expect.anything(), clientId);
-    expect(h.sql.filter((q) => q.text.includes('FROM clients') || q.text.includes('FROM client_memory_access')).every((q) => q.text.includes('FOR SHARE'))).toBe(true);
+    expect(h.sql.filter((q) => q.text.includes('SELECT memory_wall') || q.text.includes('SELECT id FROM client_memory_access')).every((q) => q.text.includes('FOR SHARE'))).toBe(true);
   });
   it.each(['grant', 'clientExists', 'authorized'])('refuses current client %s failure before state change', async (key) => {
     const h = harness(true); (h.state as any)[key] = false; await expect(h.stage()).rejects.toThrow(); expect(h.state.writes).toBe(0);
@@ -191,9 +191,9 @@ describe('saved newsletter staging through canonical Workspace and Outreach owne
   });
   it('refuses the saved-revision chooser itself when canonical client authority is revoked', async () => {
     const h = harness(true); h.state.grant = false;
-    await expect(workspaceSavedOutreachRevisionWithinTx(h.tx, { ...ctx, draftId, versionId })).rejects.toThrow();
+    await expect(workspaceSavedOutreachRevisionWithinTx(h.tx as unknown as ResourceScopeTransaction, { ...ctx, draftId, versionId })).rejects.toThrow();
   });
   it('requires exact version/draft/tenant binding in the Workspace owner seam', async () => {
-    const h = harness(); await expect(workspaceSavedOutreachRevisionWithinTx(h.tx, { ...ctx, draftId, versionId: id(99) })).rejects.toThrow();
+    const h = harness(); await expect(workspaceSavedOutreachRevisionWithinTx(h.tx as unknown as ResourceScopeTransaction, { ...ctx, draftId, versionId: id(99) })).rejects.toThrow();
   });
 });
