@@ -1,0 +1,32 @@
+✔ lint-pe-scripts.ts preserves its static gate and refuses unused CLI modes (1319.495521ms)
+✖ verify-pe-migration-guards.ts preserves its static gate and refuses unused CLI modes (335.48833ms)
+✔ verify-pe-phase-e-exact-sha.ts preserves its static gate and refuses unused CLI modes (1054.129156ms)
+✔ migration guard help and unknown refuse before optional Prisma subprocesses (629.990327ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 3
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3875.277853
+
+✖ failing tests:
+
+test at scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs:77:3
+✖ verify-pe-migration-guards.ts preserves its static gate and refuses unused CLI modes (335.48833ms)
+  AssertionError [ERR_ASSERTION]: strict migration-history refusal retained
+      at TestContext.<anonymous> (file:///workspace/capirov2-cleanup-source-prereqs/scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs:97:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]\nPE_MIGRATION_GUARDS_FAILED: migration history mutation forbidden:\nscripts/entrypoint.sh: contains prisma migrate resolve\n\nfalse !== true\n\n',
+    expected: /PE_MIGRATION_GUARDS_FAILED: scripts\/entrypoint\.sh: contains prisma migrate resolve/u,
+    operator: 'match',
+    diff: 'simple'
+  }

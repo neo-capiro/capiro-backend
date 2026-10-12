@@ -1,0 +1,45 @@
+✔ keyorder fingerprint (2.381474ms)
+✔ taskInput clone/read-only/unknown (1.099771ms)
+✔ task registration omits empty or AWS-only tags and preserves user tags (1.659047ms)
+✔ qualification valid vs wrong repo/expiry/missingreview/check (0.797714ms)
+✔ schemaChange evidence (2.067783ms)
+✔ candidateTask exact only-image edit preserves env (1.201823ms)
+✔ Web promotion refreshes only release identity and rollback preserves baseline values (0.869345ms)
+✔ stable exactly one deployment (0.485967ms)
+✔ service fingerprint capacity/network/desired drift vs timestamps (0.596591ms)
+✔ ECS deployment summaries are observations while deployment identity and unknown config stay guarded (0.495763ms)
+✔ baseline missing/hash drift (0.444391ms)
+✔ prepare is read-only, secret-free and binds exact candidate to baseline (15.040625ms)
+✔ promotion binds release identity, preserves other task fields and verifies actual task health (7.575741ms)
+✔ wrong account blocks before any mutation (1.346912ms)
+✔ SHA tag moved blocks before any mutation (3.241685ms)
+✔ task/config drift blocks before any mutation (2.216504ms)
+✔ force deployment same revision blocks before any mutation (2.275836ms)
+✔ capacity provider drift blocks before any mutation (1.355588ms)
+✔ scaling drift blocks before any mutation (0.823696ms)
+✔ active deployment blocks before any mutation (1.197812ms)
+✔ healthy unrelated target only blocks before any mutation (1.806613ms)
+✔ unhealthy task target blocks before any mutation (1.117306ms)
+✔ wrong approval hash and expired manifest block without AWS mutation (2.857738ms)
+✔ unqualified source blocked; schema changes require three rehearsal records (0.94327ms)
+✔ mutable baseline refuses promotion despite a healthy observed digest (2.325614ms)
+✔ mutable baseline without automatic rollback uses observed digest for explicit rollback (2.682096ms)
+✔ alarm automatic rollback also refuses mutable baseline (0.798952ms)
+✔ drift after registration leaves unused revisions, never updates service (2.249435ms)
+✔ drift in last pre-update read prevents update (2.188037ms)
+✔ lost update response is durably unknown and never blindly retried/rolled back (1.470186ms)
+✔ same-revision concurrent deployment during wait is not reported successful (1.666163ms)
+✔ different revision with same digest during final snapshot is rejected (3.306828ms)
+✔ guarded explicit rollback uses pinned bytes and persists observed deployment identity (2.781438ms)
+✔ rollback refuses changed deployment and changed flags/config (1.700765ms)
+✔ rollback timeout preserves unknown receipt and never repeats write (3.340186ms)
+✔ receipt replacement is atomic; failed replacement preserves previous complete receipt (34.181668ms)
+✔ CLI rejects ambiguous action, unknown flags, missing values and duplicates (0.791866ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 439.86738

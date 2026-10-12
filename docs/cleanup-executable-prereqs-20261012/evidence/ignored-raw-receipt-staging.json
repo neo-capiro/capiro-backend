@@ -1,0 +1,6 @@
+{
+  "initialPublishedHead": "2b3a51da89e90ed628edfd1ac76297e492542824",
+  "initialPublishedTree": "41aef4de19b015da9b67ddc38ba36d849d364121",
+  "correction": "51 existing packet-hashed raw .log receipts were ignored by repository patterns; explicitly stage same full bytes, no overwriting or invented output",
+  "reviewedSourceUnchanged": true
+}

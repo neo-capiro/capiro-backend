@@ -1,0 +1,14 @@
+✔ coverage driver refuses bare noargs before any work and preserves package mode (3258.72064ms)
+✔ verify-engagement-phase3-code.mjs refuses accidental execution and retains its configured gate (1147.691844ms)
+✔ verify-outreach-v3-phase6-code.mjs refuses accidental execution and retains its configured gate (6409.183947ms)
+✔ verify-outreach-v3-templates-code.mjs refuses accidental execution and retains its configured gate (747.53863ms)
+✔ verify-outreach-v3-phase4-6-combined.mjs refuses accidental execution and retains its configured gate (1292.281866ms)
+✔ existing package and combined callers select the explicit execution modes (2.246539ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10217.394235

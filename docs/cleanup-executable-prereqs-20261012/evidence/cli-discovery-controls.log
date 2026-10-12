@@ -1,0 +1,2677 @@
+{
+  "schema": "capiro.cleanup1-discovery-controls",
+  "schemaVersion": 1,
+  "parserAvailable": true,
+  "status": "PASS",
+  "totals": {
+    "fixtures": 111,
+    "checks": 287,
+    "passed": 287,
+    "failed": 0,
+    "resolverChecks": 87
+  },
+  "results": [
+    {
+      "group": "helper",
+      "name": "imports / function / pure class are declarations-only",
+      "origin": "guard-config.test.mjs",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "a pure export-assignment object is declarations-only",
+      "origin": "guard-config.test.mjs",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "a constant enum is declarations-only",
+      "origin": "guard-config.test.mjs",
+      "file": "probe.ts",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "a namespace of pure const declarations is declarations-only",
+      "origin": "guard-config.test.mjs",
+      "file": "probe.ts",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "declarations-only file is a module",
+      "origin": "run-smoke.selfTest",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "static pure (literal) initializer is a helper",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "instance property initializer is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "instance method body is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "static method body is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "a pure computed class key is a helper",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "export default pure class is a helper",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "arrow body is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "function-expression body is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "object-literal method body is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "object-literal getter body is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "enum with numeric constant initializers is a helper",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "enum with a string constant initializer is a helper",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "ambient declare-namespace is a helper",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "namespace of only functions/types is a helper",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "an empty namespace is a helper",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "a plain template literal initializer is a helper",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "a pure computed object key is a helper",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "export = <literal> is a helper",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "extends a PURE reference is a helper",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "extends a pure dotted reference is a helper",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "a pure computed object method key is a helper",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "a pure constant computed object getter key is a helper",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "an object method body assignment is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "an object getter body update is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "an arrow body delete is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "a function-expression body assignment is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "an instance field assignment initializer is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "an instance field delete initializer is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "helper",
+      "name": "an instance field update initializer is DEFERRED (a helper)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": false,
+      "got": false,
+      "certainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "object binding default call evaluates work",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "array binding default call evaluates work",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "computed binding key evaluates work",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "nested binding default update evaluates work",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "export default <call> evaluates work",
+      "origin": "guard-config.test.mjs",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "export default class with a static initializer evaluates work",
+      "origin": "guard-config.test.mjs",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "static property initializer evaluates work",
+      "origin": "guard-config.test.mjs",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "static block evaluates work",
+      "origin": "guard-config.test.mjs",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "non-constant enum member initializer evaluates work",
+      "origin": "guard-config.test.mjs",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "namespace body execution is an entrypoint",
+      "origin": "guard-config.test.mjs",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "a computed object key evaluates work",
+      "origin": "guard-config.test.mjs",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "renamed top-level run() is executable",
+      "origin": "run-smoke.selfTest",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "const initializer call is executable",
+      "origin": "run-smoke.selfTest",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "assignment call is executable",
+      "origin": "run-smoke.selfTest",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "computed class method name evaluates work at definition",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "computed STATIC field key evaluates work at definition",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "computed INSTANCE field key evaluates work at definition",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "class decorator evaluates work at definition",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "member decorator evaluates work at definition",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "static block with any body runs at definition",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "enum call initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "namespace local const initializer call evaluates work",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "nested namespace execution evaluates work",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "export = <call> evaluates work",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "export default class with a static block evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "template interpolation call evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "template interpolation member call evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "member assignment call evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "top-level bare call evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "top-level new evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "top-level await evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "tagged template statement evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "immediately-invoked arrow evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "object spread of a call evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "array element call evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "class extends CALL heritage evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "class expression with call heritage evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "export default class with call heritage evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "computed object METHOD key evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "computed object GETTER key evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "computed object SETTER key evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "postfix ++ initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "postfix -- initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "prefix ++ initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "prefix -- initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "member assignment initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "compound assignment initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "nullish assignment initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "delete initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "export const assignment initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "static field assignment initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "static field update initializer evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "delete inside a computed object key evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "update inside a computed class key evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "nested class expression with executable heritage evaluates work",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "malformed source defaults to executable",
+      "origin": "run-smoke.selfTest",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "unsupported",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "malformed export const initializer is executable (fail closed)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "unsupported",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "unbalanced class body is executable (fail closed)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "unsupported",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "unbalanced namespace body is executable (fail closed)",
+      "origin": "round34",
+      "file": "probe.ts",
+      "expected": true,
+      "got": true,
+      "certainty": "unsupported",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "top-level debugger statement is unsupported (fail closed)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "unsupported",
+      "ok": true
+    },
+    {
+      "group": "entrypoint",
+      "name": "top-level throw is unsupported (fail closed)",
+      "origin": "round34",
+      "file": "probe.mjs",
+      "expected": true,
+      "got": true,
+      "certainty": "unsupported",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "pure declarations file certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "declarations-only",
+      "gotCertainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "top-level execution certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "execution",
+      "gotCertainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "export default class static initializer certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "execution",
+      "gotCertainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "namespace execution certainty",
+      "file": "probe.ts",
+      "expectedCertainty": "execution",
+      "gotCertainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "pure namespace certainty",
+      "file": "probe.ts",
+      "expectedCertainty": "declarations-only",
+      "gotCertainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "decorator certainty",
+      "file": "probe.ts",
+      "expectedCertainty": "execution",
+      "gotCertainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "deferred instance initializer certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "declarations-only",
+      "gotCertainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "malformed source certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "unsupported",
+      "gotCertainty": "unsupported",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "extends call heritage certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "execution",
+      "gotCertainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "computed object method key certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "execution",
+      "gotCertainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "postfix update certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "execution",
+      "gotCertainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "assignment certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "execution",
+      "gotCertainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "delete certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "execution",
+      "gotCertainty": "execution",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "extends pure reference certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "declarations-only",
+      "gotCertainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "pure computed object method key certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "declarations-only",
+      "gotCertainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "certainty",
+      "name": "deferred instance field assignment certainty",
+      "file": "probe.mjs",
+      "expectedCertainty": "declarations-only",
+      "gotCertainty": "declarations-only",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: imports / function / pure class are declarations-only",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: a pure export-assignment object is declarations-only",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: a constant enum is declarations-only",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: a namespace of pure const declarations is declarations-only",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: declarations-only file is a module",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: static pure (literal) initializer is a helper",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: instance property initializer is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: instance method body is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: static method body is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: a pure computed class key is a helper",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: export default pure class is a helper",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: arrow body is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: function-expression body is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: object-literal method body is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: object-literal getter body is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: enum with numeric constant initializers is a helper",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: enum with a string constant initializer is a helper",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: ambient declare-namespace is a helper",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: namespace of only functions/types is a helper",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: an empty namespace is a helper",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: a plain template literal initializer is a helper",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: a pure computed object key is a helper",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: export = <literal> is a helper",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: extends a PURE reference is a helper",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: extends a pure dotted reference is a helper",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: a pure computed object method key is a helper",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: a pure constant computed object getter key is a helper",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: an object method body assignment is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: an object getter body update is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: an arrow body delete is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: a function-expression body assignment is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: an instance field assignment initializer is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: an instance field delete initializer is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: an instance field update initializer is DEFERRED (a helper)",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: object binding default call evaluates work",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: array binding default call evaluates work",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: computed binding key evaluates work",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: nested binding default update evaluates work",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: export default <call> evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: export default class with a static initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: static property initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: static block evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: non-constant enum member initializer evaluates work",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: namespace body execution is an entrypoint",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: a computed object key evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: renamed top-level run() is executable",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: const initializer call is executable",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: assignment call is executable",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: computed class method name evaluates work at definition",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: computed STATIC field key evaluates work at definition",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: computed INSTANCE field key evaluates work at definition",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: class decorator evaluates work at definition",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: member decorator evaluates work at definition",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: static block with any body runs at definition",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: enum call initializer evaluates work",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: namespace local const initializer call evaluates work",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: nested namespace execution evaluates work",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: export = <call> evaluates work",
+      "file": "probe.ts",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: export default class with a static block evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: template interpolation call evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: template interpolation member call evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: member assignment call evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: top-level bare call evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: top-level new evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: top-level await evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: tagged template statement evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: immediately-invoked arrow evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: object spread of a call evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: array element call evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: class extends CALL heritage evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: class expression with call heritage evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: export default class with call heritage evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: computed object METHOD key evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: computed object GETTER key evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: computed object SETTER key evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: postfix ++ initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: postfix -- initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: prefix ++ initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: prefix -- initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: member assignment initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: compound assignment initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: nullish assignment initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: delete initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: export const assignment initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: static field assignment initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: static field update initializer evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: delete inside a computed object key evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: update inside a computed class key evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "boolean-view",
+      "name": "topLevelExecutable agrees for: nested class expression with executable heritage evaluates work",
+      "file": "probe.mjs",
+      "ok": true
+    },
+    {
+      "group": "resolver",
+      "name": "tokeniser keeps a quoted path as ONE token and splits on the operator",
+      "ok": true,
+      "detail": "{\"words\":[\"node\",\"a b.ts\",\"tsx\",\"c.ts\"],\"ops\":[\"&&\"]}"
+    },
+    {
+      "group": "resolver",
+      "name": "a bare extension option value (`eslint src --ext .ts`) is NOT a file target",
+      "ok": true,
+      "detail": "{\"targets\":0,\"ignored\":[{\"token\":\"src\",\"quoted\":false,\"role\":\"positional-non-source\"},{\"token\":\".ts\",\"quoted\":false,\"role\":\"extension-value\",\"option\":\"--ext\"}]}"
+    },
+    {
+      "group": "resolver",
+      "name": "pnpm --filter exec resolves the operand against the SELECTED package cwd",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/defense-api/scripts/run.ts\",\"cwdSource\":\"filter\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "pnpm -C <dir> exec resolves the operand against that dir",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/z.ts\",\"cwdSource\":\"dir\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a test glob stays unresolved but keeps its test-runner owner",
+      "ok": true,
+      "detail": "{\"resolution\":\"dynamic\",\"disposition\":\"test-runner-target\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a shell-interpolated CLI operand stays explicitly unresolved (operational-cli)",
+      "ok": true,
+      "detail": "{\"resolution\":\"dynamic\",\"disposition\":\"operational-cli\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "an operand that escapes the root is refused (escapes-root)",
+      "ok": true,
+      "detail": "{\"resolution\":\"escapes-root\",\"rel\":null}"
+    },
+    {
+      "group": "resolver",
+      "name": "a symlinked operand is refused conservatively (no silent resolution)",
+      "ok": true,
+      "detail": "{\"resolution\":\"symlink\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a `--artifact <data.json>` argument is not treated as a code entrypoint",
+      "ok": true,
+      "detail": "{\"dataarg\":\"scripts/parse.ts\",\"anyData\":false}"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: generated build output",
+      "ok": true,
+      "detail": "got=generated-build-output want=generated-build-output"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: dependency runner binary",
+      "ok": true,
+      "detail": "got=dependency-runner want=dependency-runner"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: runner config",
+      "ok": true,
+      "detail": "got=runner-config want=runner-config"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: runtime server",
+      "ok": true,
+      "detail": "got=runtime-server want=runtime-server"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: test-runner target",
+      "ok": true,
+      "detail": "got=test-runner-target want=test-runner-target"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: test directory operand",
+      "ok": true,
+      "detail": "got=test-runner-target want=test-runner-target"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: shell-script operand",
+      "ok": true,
+      "detail": "got=shell-script want=shell-script"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: build tool operand (actual build runner)",
+      "ok": true,
+      "detail": "got=build-artifact want=build-artifact"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: standalone ts-node is a general TS executable, NOT build-owned",
+      "ok": true,
+      "detail": "got=operational-cli want=operational-cli"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: cdk --app nested ts-node operand is build-owned via OUTER context",
+      "ok": true,
+      "detail": "got=build-artifact want=build-artifact"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: tsx operand under a start:* script label stays operational (not server)",
+      "ok": true,
+      "detail": "got=operational-cli want=operational-cli"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: jest positional source owned by the test runner is test-owned",
+      "ok": true,
+      "detail": "got=test-runner-target want=test-runner-target"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: a non-server file named index run by eslint is NOT server-hidden",
+      "ok": true,
+      "detail": "got=lint-target want=lint-target"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: operational CLI source",
+      "ok": true,
+      "detail": "got=operational-cli want=operational-cli"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: missing in-scope CLI",
+      "ok": true,
+      "detail": "got=missing-cli want=missing-cli"
+    },
+    {
+      "group": "resolver",
+      "name": "disposition: missing out-of-scope CLI",
+      "ok": true,
+      "detail": "got=unresolved-missing want=unresolved-missing"
+    },
+    {
+      "group": "resolver",
+      "name": "analyzeCommand recognises pnpm -C <dir> (not silently lowercased to -c)",
+      "ok": true,
+      "detail": "{\"runner\":\"tsx\",\"cwdSource\":\"dir\",\"rel\":\"apps/api/scripts/z.ts\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "an unknown --filter selector leaves the cwd context UNRESOLVED (no false resolution)",
+      "ok": true,
+      "detail": "{\"ctx\":\"filter-unknown\",\"target\":{\"resolution\":\"unresolved-context\",\"rel\":null}}"
+    },
+    {
+      "group": "resolver",
+      "name": "an unknown --filter selector operand is an unresolved operational CLI (never wrong-cwd)",
+      "ok": true,
+      "detail": "{\"resolution\":\"unresolved-context\",\"disposition\":\"operational-cli\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a `cd <dir> && <cli>` segment propagates its cwd (no wrong-cwd)",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/z.ts\",\"cwdSource\":\"cd\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a `cd` that escapes the root leaves the context unresolved (fail closed)",
+      "ok": true,
+      "detail": "{\"resolution\":\"unresolved-context\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a standalone ts-node CLI is discovered as an operational CLI (not build-owned)",
+      "ok": true,
+      "detail": "{\"rel\":\"tools/migrate.ts\",\"disposition\":\"operational-cli\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a cdk --app nested ts-node operand is build-owned via the OUTER context",
+      "ok": true,
+      "detail": "{\"rel\":\"bin/app.ts\",\"disposition\":\"build-artifact\",\"owner\":\"cdk\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a `start:*` script label does NOT make an unknown CLI a runtime server",
+      "ok": true,
+      "detail": "{\"disposition\":\"operational-cli\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a jest positional source operand is test-owned (not executed as a standalone CLI)",
+      "ok": true,
+      "detail": "{\"disposition\":\"test-runner-target\",\"runner\":\"jest\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "the exported resolver result retains the ignored extension-value accounting",
+      "ok": true,
+      "detail": "[{\"package\":\"capiro\",\"packageDir\":\"/tmp/cleanup-resolver-lkx3aL\",\"script\":\"lint\",\"scriptBody\":\"eslint src --ext .ts\",\"reference\":\"capiro#lint\",\"command\":\"eslint src --ext .ts\",\"token\":\".ts\",\"quoted\":false,\"role\":\"extension-value\",\"option\":\"--ext\"}]"
+    },
+    {
+      "group": "resolver",
+      "name": "a resolved nested/out-of-root operational CLI is INCLUDED as an executed entrypoint",
+      "ok": true,
+      "detail": "{\"kind\":\"entrypoint\",\"subject\":\"declared:capiro#pnpm-filter-cwd\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a walked §6.2 CLI is still a mandatory entrypoint",
+      "ok": true,
+      "detail": "{\"kind\":\"entrypoint\",\"subject\":\"apps/api/scripts\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a genuinely missing in-scope CLI target keeps an undiscovered-declared failure packet",
+      "ok": true,
+      "detail": "{\"kind\":\"undiscovered-declared\",\"subject\":\"declared-missing\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "an unresolved dynamic CLI operand keeps an undiscovered-declared failure packet",
+      "ok": true,
+      "detail": "{\"kind\":\"undiscovered-declared\",\"subject\":\"declared-unresolved\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "an unknown --filter selector operand FAILS CLOSED (undiscovered-declared), never silently non-smoke",
+      "ok": true,
+      "detail": "{\"kind\":\"undiscovered-declared\",\"subject\":\"declared-unresolved\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a cd that escapes the root FAILS CLOSED (undiscovered-declared)",
+      "ok": true,
+      "detail": "{\"kind\":\"undiscovered-declared\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a test-runner operand is recorded with explicit test-owner accounting (never executed)",
+      "ok": true,
+      "detail": "{\"kind\":\"declared-non-smoke\",\"disposition\":\"test-runner-target\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a generated build output is a non-smoke declaration record (outside §6.2)",
+      "ok": true,
+      "detail": "{\"kind\":\"declared-non-smoke\",\"disposition\":\"generated-build-output\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a dependency runner binary is a non-smoke declaration record",
+      "ok": true,
+      "detail": "{\"kind\":\"declared-non-smoke\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a runtime server target is a non-smoke declaration record (explicit outside-§6.2 disposition)",
+      "ok": true,
+      "detail": "{\"kind\":\"declared-non-smoke\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a runner config operand is a non-smoke declaration record",
+      "ok": true,
+      "detail": "{\"kind\":\"declared-non-smoke\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a shell-script operand is a non-smoke declaration record",
+      "ok": true,
+      "detail": "{\"kind\":\"declared-non-smoke\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "every declaration is visible (no declaration silently dropped)",
+      "ok": true,
+      "detail": "[\"../../outside/cli.ts\",\"apps/api/scripts/cli.ts\",\"apps/api/scripts/extract-florida-legislative-directories.py\",\"apps/api/scripts/extract-florida-legislative-directories.py\",\"apps/api/scripts/gone.ts\",\"apps/api/scripts/z.ts\",\"apps/api/src/feature.spec.ts\",\"apps/defense-api/scripts/run.ts\",\"bin/app.ts\",\"dist/main.js\",\"jest.e2e.config.cjs\",\"node_modules/jest/bin/jest.js\",\"packages/meriv2-core/scripts/canary.ts\",\"scripts/${PHASE}.ts\",\"scripts/check.ts\",\"scripts/do.sh\",\"scripts/nope.ts\",\"scripts/parse.ts\",\"src/**/*.spec.ts\",\"src/arbitrary.ts\",\"src/server.ts\",\"tools/migrate.ts\"]"
+    },
+    {
+      "group": "resolver",
+      "name": "a `python <x>.py` command resolves the .py file (reference retained, never dropped)",
+      "ok": true,
+      "detail": "[{\"reference\":\"@capiro/api#extract:florida-legislative-directories\",\"resolution\":\"resolved\",\"rel\":\"apps/api/scripts/extract-florida-legislative-directories.py\"},{\"reference\":\"@capiro/api#verify:florida-legislative-directories\",\"resolution\":\"resolved\",\"rel\":\"apps/api/scripts/extract-florida-legislative-directories.py\"}]"
+    },
+    {
+      "group": "resolver",
+      "name": "a resolved .py launched by an actual python interpreter is a python-script disposition",
+      "ok": true,
+      "detail": "[{\"runner\":\"python\",\"owner\":\"python-interpreter\",\"disposition\":\"python-script\"},{\"runner\":\"python\",\"owner\":\"python-interpreter\",\"disposition\":\"python-script\"}]"
+    },
+    {
+      "group": "resolver",
+      "name": "`tsx foo.py` is NOT laundered into python-script (conservative operational)",
+      "ok": true,
+      "detail": "operational-cli"
+    },
+    {
+      "group": "resolver",
+      "name": "a versioned python interpreter (python3 / python3.11) is recognised",
+      "ok": true,
+      "detail": "[\"python-script\",\"python-script\"]"
+    },
+    {
+      "group": "resolver",
+      "name": "a MISSING python target stays fail-closed (missing-cli / unresolved-missing)",
+      "ok": true,
+      "detail": "[\"missing-cli\",\"unresolved-missing\"]"
+    },
+    {
+      "group": "resolver",
+      "name": "an unresolved/dynamic/symlink python context is NOT accepted (conservative operational, fails closed)",
+      "ok": true,
+      "detail": "[\"operational-cli\",\"operational-cli\",\"operational-cli\"]"
+    },
+    {
+      "group": "resolver",
+      "name": "a resolved real TS operand is unchanged (still operational-cli)",
+      "ok": true,
+      "detail": "operational-cli"
+    },
+    {
+      "group": "resolver",
+      "name": "the python CLI is retained as TWO declared-non-smoke records over ONE file",
+      "ok": true,
+      "detail": "[{\"kind\":\"declared-non-smoke\",\"disposition\":\"python-script\",\"declaredBy\":[\"@capiro/api#extract:florida-legislative-directories\"]},{\"kind\":\"declared-non-smoke\",\"disposition\":\"python-script\",\"declaredBy\":[\"@capiro/api#verify:florida-legislative-directories\"]}]"
+    },
+    {
+      "group": "resolver",
+      "name": "the python CLI is NEVER promoted to an executed entrypoint subject",
+      "ok": true,
+      "detail": "[{\"kind\":\"declared-non-smoke\",\"rel\":\"apps/api/scripts/extract-florida-legislative-directories.py\"},{\"kind\":\"declared-non-smoke\",\"rel\":\"apps/api/scripts/extract-florida-legislative-directories.py\"}]"
+    },
+    {
+      "group": "resolver",
+      "name": "a DIRECTORY named *.py is refused (explicit nonregular resolution, never python-script)",
+      "ok": true,
+      "detail": "{\"resolution\":\"not-a-regular-file\",\"disposition\":\"operational-cli\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a genuine regular .py launched by python keeps its python-script language owner",
+      "ok": true,
+      "detail": "{\"resolution\":\"resolved\",\"disposition\":\"python-script\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "a genuine regular .ts target resolves unchanged (operational-cli)",
+      "ok": true,
+      "detail": "{\"resolution\":\"resolved\",\"disposition\":\"operational-cli\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "classifyDisposition: a not-a-regular-file target is NEVER python-script/static",
+      "ok": true,
+      "detail": "operational-cli"
+    },
+    {
+      "group": "resolver",
+      "name": "discovery: a directory named *.py declared by python FAILS CLOSED (undiscovered-declared), never python-script",
+      "ok": true,
+      "detail": "{\"kind\":\"undiscovered-declared\",\"disposition\":\"operational-cli\",\"resolution\":\"not-a-regular-file\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "cwd provenance: a root package declaration carries cwdRel \".\" (package)",
+      "ok": true,
+      "detail": "{\"cwdRel\":\".\",\"cwdSource\":\"package\",\"rel\":\"apps/api/scripts/tool.mjs\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "cwd provenance: a package-local declaration carries its own package cwd",
+      "ok": true,
+      "detail": "{\"cwdRel\":\"apps/api\",\"cwdSource\":\"package\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "cwd provenance: a valid `cd <dir>` propagates its cwd to the operand",
+      "ok": true,
+      "detail": "{\"cwdRel\":\"apps/api\",\"cwdSource\":\"cd\",\"rel\":\"apps/api/scripts/tool.mjs\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "cwd provenance: pnpm --filter selects the package cwd for the operand",
+      "ok": true,
+      "detail": "{\"cwdRel\":\"apps/api\",\"cwdSource\":\"filter\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "cwd provenance: pnpm -C <dir> selects that directory as the operand cwd",
+      "ok": true,
+      "detail": "{\"cwdRel\":\"apps/api\",\"cwdSource\":\"dir\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "cwd provenance: a nested command operand carries the NESTED cwd (not the outer segment cwd)",
+      "ok": true,
+      "detail": "{\"cwdRel\":\"apps/api\",\"cwdSource\":\"filter\",\"rel\":\"apps/api/scripts/tool.mjs\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "cwd provenance: an unknown --filter selector leaves cwdRel null with unresolved evidence",
+      "ok": true,
+      "detail": "{\"cwdRel\":null,\"resolution\":\"unresolved-context\",\"contextUnresolved\":\"filter-unknown\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "cwd provenance: a `cd` that escapes the root leaves cwdRel null with unresolved evidence",
+      "ok": true,
+      "detail": "{\"cwdRel\":null,\"resolution\":\"unresolved-context\",\"contextUnresolved\":\"cd-escaping\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "discovery: one physical path retains ALL FOUR distinct declaration contexts",
+      "ok": true,
+      "detail": "{\"kind\":\"entrypoint\",\"declaredContexts\":4}"
+    },
+    {
+      "group": "resolver",
+      "name": "discovery: declaredContexts binds reference/package/packageDir/script/scriptBody/command/token/role/runner/cwdRel/cwdSource/resolution/disposition",
+      "ok": true,
+      "detail": "[{\"reference\":\"@probe/root#root-cwd\",\"package\":\"@probe/root\",\"packageDir\":\".\",\"script\":\"root-cwd\",\"scriptBody\":\"node apps/api/scripts/tool.mjs\",\"command\":\"node apps/api/scripts/tool.mjs\",\"token\":\"apps/api/scripts/tool.mjs\",\"role\":\"positional\",\"runner\":\"node\",\"cwdRel\":\".\",\"cwdSource\":\"package\",\"resolution\":\"resolved\",\"disposition\":\"operational-cli\"},{\"reference\":\"@probe/root#cd-cwd\",\"package\":\"@probe/root\",\"packageDir\":\".\",\"script\":\"cd-cwd\",\"scriptBody\":\"cd apps/api && node scripts/tool.mjs\",\"command\":\"node scripts/tool.mjs\",\"token\":\"scripts/tool.mjs\",\"role\":\"positional\",\"runner\":\"node\",\"cwdRel\":\"apps/api\",\"cwdSource\":\"cd\",\"resolution\":\"resolved\",\"disposition\":\"operational-cli\"},{\"reference\":\"@probe/root#filter-cwd\",\"package\":\"@probe/root\",\"packageDir\":\".\",\"script\":\"filter-cwd\",\"scriptBody\":\"pnpm --filter @probe/api exec node scripts/tool.mjs\",\"command\":\"pnpm --filter @probe/api exec node scripts/tool.mjs\",\"token\":\"scripts/tool.mjs\",\"role\":\"positional\",\"runner\":\"node\",\"cwdRel\":\"apps/api\",\"cwdSource\":\"filter\",\"resolution\":\"resolved\",\"disposition\":\"operational-cli\"},{\"reference\":\"@probe/api#local-cwd\",\"package\":\"@probe/api\",\"packageDir\":\"apps/api\",\"script\":\"local-cwd\",\"scriptBody\":\"node scripts/tool.mjs\",\"command\":\"node scripts/tool.mjs\",\"token\":\"scripts/tool.mjs\",\"role\":\"positional\",\"runner\":\"node\",\"cwdRel\":\"apps/api\",\"cwdSource\":\"package\",\"resolution\":\"resolved\",\"disposition\":\"operational-cli\"}]"
+    },
+    {
+      "group": "resolver",
+      "name": "discovery: the four retained contexts carry the four distinct effective cwds",
+      "ok": true,
+      "detail": "[{\"reference\":\"@probe/root#root-cwd\",\"cwdRel\":\".\"},{\"reference\":\"@probe/root#cd-cwd\",\"cwdRel\":\"apps/api\"},{\"reference\":\"@probe/root#filter-cwd\",\"cwdRel\":\"apps/api\"},{\"reference\":\"@probe/api#local-cwd\",\"cwdRel\":\"apps/api\"}]"
+    },
+    {
+      "group": "resolver",
+      "name": "discovery: declaredBy compatibility preserved (name list agrees with declaredContexts)",
+      "ok": true,
+      "detail": "{\"declaredBy\":[\"@probe/root#root-cwd\",\"@probe/root#cd-cwd\",\"@probe/root#filter-cwd\",\"@probe/api#local-cwd\"]}"
+    },
+    {
+      "group": "resolver",
+      "name": "discovery: declaredContexts is deterministic across independent discovery runs",
+      "ok": true
+    },
+    {
+      "group": "resolver",
+      "name": "discovery: a walked entrypoint carries its declared invocation contexts",
+      "ok": true,
+      "detail": "{\"kind\":\"entrypoint\",\"declaredBy\":[\"@probe/root#walked-decl\"],\"cwds\":[\".\"]}"
+    },
+    {
+      "group": "resolver",
+      "name": "discovery: an unsafe walked subject keeps its declared contexts (classification unchanged)",
+      "ok": true,
+      "detail": "{\"kind\":\"unsafe\",\"cwds\":[\".\"]}"
+    },
+    {
+      "group": "resolver",
+      "name": "discovery: an undeclared walked entrypoint keeps NO declaredBy/declaredContexts (no invented owner/cwd)",
+      "ok": true,
+      "detail": "{\"kind\":\"entrypoint\",\"hasDeclaredBy\":false,\"hasContexts\":false}"
+    },
+    {
+      "group": "resolver",
+      "name": "discovery: an unknown --filter operand FAILS CLOSED (undiscovered-declared), cwd not guessed",
+      "ok": true,
+      "detail": "{\"kind\":\"undiscovered-declared\",\"resolution\":\"unresolved-context\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "discovery: a root-escaping `cd` operand FAILS CLOSED (undiscovered-declared)",
+      "ok": true,
+      "detail": "{\"kind\":\"undiscovered-declared\",\"resolution\":\"unresolved-context\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "provenance fixture: git index contains the committed inputs",
+      "ok": true,
+      "detail": "{\"init\":0,\"add\":0}"
+    },
+    {
+      "group": "resolver",
+      "name": "provenance: only indexed manifests define canonical commands",
+      "ok": true,
+      "detail": "{\"tracked\":[\"package.json\"],\"untracked\":[\"apps/new/package.json\",\".corepack-home/v1/pnpm/9.12.0/package.json\"]}"
+    },
+    {
+      "group": "resolver",
+      "name": "provenance: untracked source and generated Corepack manifests are diagnosed",
+      "ok": true,
+      "detail": "{\"tracked\":[\"package.json\"],\"untracked\":[\"apps/new/package.json\",\".corepack-home/v1/pnpm/9.12.0/package.json\"]}"
+    },
+    {
+      "group": "resolver",
+      "name": "provenance: a genuinely missing indexed CLI remains an undiscovered-declared failure",
+      "ok": true,
+      "detail": "{\"path\":\"/tmp/cleanup-discovery-git-TCWMIP/scripts/missing.mjs\",\"rel\":\"scripts/missing.mjs\",\"subject\":\"declared-missing\",\"kind\":\"undiscovered-declared\",\"reason\":\"package.json-declared in-scope CLI target does not resolve to a file (§6.2 mandatory)\",\"disposition\":\"missing-cli\",\"owner\":\"node\",\"resolution\":\"missing\",\"declaredBy\":[\"#missing\"],\"command\":\"node scripts/missing.mjs\"}"
+    },
+    {
+      "group": "resolver",
+      "name": "provenance: an untracked manifest produces an explicit failure packet",
+      "ok": true,
+      "detail": "{\"path\":\"/tmp/cleanup-discovery-git-TCWMIP/apps/new/package.json\",\"rel\":\"apps/new/package.json\",\"subject\":\"untracked-input\",\"kind\":\"undiscovered-declared\",\"reason\":\"untracked package.json was present in the working tree but is not a committed source input\",\"disposition\":\"untracked-manifest\",\"owner\":\"source-provenance\",\"resolution\":\"untracked\",\"declaredBy\":[\"untracked-manifest:apps/new/package.json\"],\"command\":null}"
+    },
+    {
+      "group": "resolver",
+      "name": "provenance: generated Corepack cache is an explicit failure, never its declared bundle.ts CLI",
+      "ok": true,
+      "detail": "{\"path\":\"/tmp/cleanup-discovery-git-TCWMIP/.corepack-home/v1/pnpm/9.12.0/package.json\",\"rel\":\".corepack-home/v1/pnpm/9.12.0/package.json\",\"subject\":\"untracked-input\",\"kind\":\"undiscovered-declared\",\"reason\":\"untracked package.json was present in the working tree but is not a committed source input\",\"disposition\":\"untracked-manifest\",\"owner\":\"source-provenance\",\"resolution\":\"untracked\",\"declaredBy\":[\"untracked-manifest:.corepack-home/v1/pnpm/9.12.0/package.json\"],\"command\":null}"
+    },
+    {
+      "group": "resolver",
+      "name": "provenance: Gitless archive stage still reports generated Corepack cache as untracked-input",
+      "ok": true,
+      "detail": "{\"tracked\":[\"/tmp/cleanup-discovery-stage-76SRyy/package.json\"],\"untracked\":[\"/tmp/cleanup-discovery-stage-76SRyy/.corepack-home/v1/pnpm/9.12.0/package.json\"],\"cache\":{\"path\":\"/tmp/cleanup-discovery-stage-76SRyy/.corepack-home/v1/pnpm/9.12.0/package.json\",\"rel\":\".corepack-home/v1/pnpm/9.12.0/package.json\",\"subject\":\"untracked-input\",\"kind\":\"undiscovered-declared\",\"reason\":\"untracked package.json was present in the working tree but is not a committed source input\",\"disposition\":\"untracked-manifest\",\"owner\":\"source-provenance\",\"resolution\":\"untracked\",\"declaredBy\":[\"untracked-manifest:.corepack-home/v1/pnpm/9.12.0/package.json\"],\"command\":null}}"
+    }
+  ],
+  "resolver": {
+    "module": "discovery-resolver-controls",
+    "checks": [
+      {
+        "group": "resolver",
+        "name": "tokeniser keeps a quoted path as ONE token and splits on the operator",
+        "ok": true,
+        "detail": "{\"words\":[\"node\",\"a b.ts\",\"tsx\",\"c.ts\"],\"ops\":[\"&&\"]}"
+      },
+      {
+        "group": "resolver",
+        "name": "a bare extension option value (`eslint src --ext .ts`) is NOT a file target",
+        "ok": true,
+        "detail": "{\"targets\":0,\"ignored\":[{\"token\":\"src\",\"quoted\":false,\"role\":\"positional-non-source\"},{\"token\":\".ts\",\"quoted\":false,\"role\":\"extension-value\",\"option\":\"--ext\"}]}"
+      },
+      {
+        "group": "resolver",
+        "name": "pnpm --filter exec resolves the operand against the SELECTED package cwd",
+        "ok": true,
+        "detail": "{\"rel\":\"apps/defense-api/scripts/run.ts\",\"cwdSource\":\"filter\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "pnpm -C <dir> exec resolves the operand against that dir",
+        "ok": true,
+        "detail": "{\"rel\":\"apps/api/scripts/z.ts\",\"cwdSource\":\"dir\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a test glob stays unresolved but keeps its test-runner owner",
+        "ok": true,
+        "detail": "{\"resolution\":\"dynamic\",\"disposition\":\"test-runner-target\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a shell-interpolated CLI operand stays explicitly unresolved (operational-cli)",
+        "ok": true,
+        "detail": "{\"resolution\":\"dynamic\",\"disposition\":\"operational-cli\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "an operand that escapes the root is refused (escapes-root)",
+        "ok": true,
+        "detail": "{\"resolution\":\"escapes-root\",\"rel\":null}"
+      },
+      {
+        "group": "resolver",
+        "name": "a symlinked operand is refused conservatively (no silent resolution)",
+        "ok": true,
+        "detail": "{\"resolution\":\"symlink\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a `--artifact <data.json>` argument is not treated as a code entrypoint",
+        "ok": true,
+        "detail": "{\"dataarg\":\"scripts/parse.ts\",\"anyData\":false}"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: generated build output",
+        "ok": true,
+        "detail": "got=generated-build-output want=generated-build-output"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: dependency runner binary",
+        "ok": true,
+        "detail": "got=dependency-runner want=dependency-runner"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: runner config",
+        "ok": true,
+        "detail": "got=runner-config want=runner-config"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: runtime server",
+        "ok": true,
+        "detail": "got=runtime-server want=runtime-server"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: test-runner target",
+        "ok": true,
+        "detail": "got=test-runner-target want=test-runner-target"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: test directory operand",
+        "ok": true,
+        "detail": "got=test-runner-target want=test-runner-target"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: shell-script operand",
+        "ok": true,
+        "detail": "got=shell-script want=shell-script"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: build tool operand (actual build runner)",
+        "ok": true,
+        "detail": "got=build-artifact want=build-artifact"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: standalone ts-node is a general TS executable, NOT build-owned",
+        "ok": true,
+        "detail": "got=operational-cli want=operational-cli"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: cdk --app nested ts-node operand is build-owned via OUTER context",
+        "ok": true,
+        "detail": "got=build-artifact want=build-artifact"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: tsx operand under a start:* script label stays operational (not server)",
+        "ok": true,
+        "detail": "got=operational-cli want=operational-cli"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: jest positional source owned by the test runner is test-owned",
+        "ok": true,
+        "detail": "got=test-runner-target want=test-runner-target"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: a non-server file named index run by eslint is NOT server-hidden",
+        "ok": true,
+        "detail": "got=lint-target want=lint-target"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: operational CLI source",
+        "ok": true,
+        "detail": "got=operational-cli want=operational-cli"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: missing in-scope CLI",
+        "ok": true,
+        "detail": "got=missing-cli want=missing-cli"
+      },
+      {
+        "group": "resolver",
+        "name": "disposition: missing out-of-scope CLI",
+        "ok": true,
+        "detail": "got=unresolved-missing want=unresolved-missing"
+      },
+      {
+        "group": "resolver",
+        "name": "analyzeCommand recognises pnpm -C <dir> (not silently lowercased to -c)",
+        "ok": true,
+        "detail": "{\"runner\":\"tsx\",\"cwdSource\":\"dir\",\"rel\":\"apps/api/scripts/z.ts\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "an unknown --filter selector leaves the cwd context UNRESOLVED (no false resolution)",
+        "ok": true,
+        "detail": "{\"ctx\":\"filter-unknown\",\"target\":{\"resolution\":\"unresolved-context\",\"rel\":null}}"
+      },
+      {
+        "group": "resolver",
+        "name": "an unknown --filter selector operand is an unresolved operational CLI (never wrong-cwd)",
+        "ok": true,
+        "detail": "{\"resolution\":\"unresolved-context\",\"disposition\":\"operational-cli\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a `cd <dir> && <cli>` segment propagates its cwd (no wrong-cwd)",
+        "ok": true,
+        "detail": "{\"rel\":\"apps/api/scripts/z.ts\",\"cwdSource\":\"cd\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a `cd` that escapes the root leaves the context unresolved (fail closed)",
+        "ok": true,
+        "detail": "{\"resolution\":\"unresolved-context\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a standalone ts-node CLI is discovered as an operational CLI (not build-owned)",
+        "ok": true,
+        "detail": "{\"rel\":\"tools/migrate.ts\",\"disposition\":\"operational-cli\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a cdk --app nested ts-node operand is build-owned via the OUTER context",
+        "ok": true,
+        "detail": "{\"rel\":\"bin/app.ts\",\"disposition\":\"build-artifact\",\"owner\":\"cdk\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a `start:*` script label does NOT make an unknown CLI a runtime server",
+        "ok": true,
+        "detail": "{\"disposition\":\"operational-cli\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a jest positional source operand is test-owned (not executed as a standalone CLI)",
+        "ok": true,
+        "detail": "{\"disposition\":\"test-runner-target\",\"runner\":\"jest\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "the exported resolver result retains the ignored extension-value accounting",
+        "ok": true,
+        "detail": "[{\"package\":\"capiro\",\"packageDir\":\"/tmp/cleanup-resolver-lkx3aL\",\"script\":\"lint\",\"scriptBody\":\"eslint src --ext .ts\",\"reference\":\"capiro#lint\",\"command\":\"eslint src --ext .ts\",\"token\":\".ts\",\"quoted\":false,\"role\":\"extension-value\",\"option\":\"--ext\"}]"
+      },
+      {
+        "group": "resolver",
+        "name": "a resolved nested/out-of-root operational CLI is INCLUDED as an executed entrypoint",
+        "ok": true,
+        "detail": "{\"kind\":\"entrypoint\",\"subject\":\"declared:capiro#pnpm-filter-cwd\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a walked §6.2 CLI is still a mandatory entrypoint",
+        "ok": true,
+        "detail": "{\"kind\":\"entrypoint\",\"subject\":\"apps/api/scripts\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a genuinely missing in-scope CLI target keeps an undiscovered-declared failure packet",
+        "ok": true,
+        "detail": "{\"kind\":\"undiscovered-declared\",\"subject\":\"declared-missing\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "an unresolved dynamic CLI operand keeps an undiscovered-declared failure packet",
+        "ok": true,
+        "detail": "{\"kind\":\"undiscovered-declared\",\"subject\":\"declared-unresolved\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "an unknown --filter selector operand FAILS CLOSED (undiscovered-declared), never silently non-smoke",
+        "ok": true,
+        "detail": "{\"kind\":\"undiscovered-declared\",\"subject\":\"declared-unresolved\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a cd that escapes the root FAILS CLOSED (undiscovered-declared)",
+        "ok": true,
+        "detail": "{\"kind\":\"undiscovered-declared\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a test-runner operand is recorded with explicit test-owner accounting (never executed)",
+        "ok": true,
+        "detail": "{\"kind\":\"declared-non-smoke\",\"disposition\":\"test-runner-target\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a generated build output is a non-smoke declaration record (outside §6.2)",
+        "ok": true,
+        "detail": "{\"kind\":\"declared-non-smoke\",\"disposition\":\"generated-build-output\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a dependency runner binary is a non-smoke declaration record",
+        "ok": true,
+        "detail": "{\"kind\":\"declared-non-smoke\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a runtime server target is a non-smoke declaration record (explicit outside-§6.2 disposition)",
+        "ok": true,
+        "detail": "{\"kind\":\"declared-non-smoke\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a runner config operand is a non-smoke declaration record",
+        "ok": true,
+        "detail": "{\"kind\":\"declared-non-smoke\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a shell-script operand is a non-smoke declaration record",
+        "ok": true,
+        "detail": "{\"kind\":\"declared-non-smoke\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "every declaration is visible (no declaration silently dropped)",
+        "ok": true,
+        "detail": "[\"../../outside/cli.ts\",\"apps/api/scripts/cli.ts\",\"apps/api/scripts/extract-florida-legislative-directories.py\",\"apps/api/scripts/extract-florida-legislative-directories.py\",\"apps/api/scripts/gone.ts\",\"apps/api/scripts/z.ts\",\"apps/api/src/feature.spec.ts\",\"apps/defense-api/scripts/run.ts\",\"bin/app.ts\",\"dist/main.js\",\"jest.e2e.config.cjs\",\"node_modules/jest/bin/jest.js\",\"packages/meriv2-core/scripts/canary.ts\",\"scripts/${PHASE}.ts\",\"scripts/check.ts\",\"scripts/do.sh\",\"scripts/nope.ts\",\"scripts/parse.ts\",\"src/**/*.spec.ts\",\"src/arbitrary.ts\",\"src/server.ts\",\"tools/migrate.ts\"]"
+      },
+      {
+        "group": "resolver",
+        "name": "a `python <x>.py` command resolves the .py file (reference retained, never dropped)",
+        "ok": true,
+        "detail": "[{\"reference\":\"@capiro/api#extract:florida-legislative-directories\",\"resolution\":\"resolved\",\"rel\":\"apps/api/scripts/extract-florida-legislative-directories.py\"},{\"reference\":\"@capiro/api#verify:florida-legislative-directories\",\"resolution\":\"resolved\",\"rel\":\"apps/api/scripts/extract-florida-legislative-directories.py\"}]"
+      },
+      {
+        "group": "resolver",
+        "name": "a resolved .py launched by an actual python interpreter is a python-script disposition",
+        "ok": true,
+        "detail": "[{\"runner\":\"python\",\"owner\":\"python-interpreter\",\"disposition\":\"python-script\"},{\"runner\":\"python\",\"owner\":\"python-interpreter\",\"disposition\":\"python-script\"}]"
+      },
+      {
+        "group": "resolver",
+        "name": "`tsx foo.py` is NOT laundered into python-script (conservative operational)",
+        "ok": true,
+        "detail": "operational-cli"
+      },
+      {
+        "group": "resolver",
+        "name": "a versioned python interpreter (python3 / python3.11) is recognised",
+        "ok": true,
+        "detail": "[\"python-script\",\"python-script\"]"
+      },
+      {
+        "group": "resolver",
+        "name": "a MISSING python target stays fail-closed (missing-cli / unresolved-missing)",
+        "ok": true,
+        "detail": "[\"missing-cli\",\"unresolved-missing\"]"
+      },
+      {
+        "group": "resolver",
+        "name": "an unresolved/dynamic/symlink python context is NOT accepted (conservative operational, fails closed)",
+        "ok": true,
+        "detail": "[\"operational-cli\",\"operational-cli\",\"operational-cli\"]"
+      },
+      {
+        "group": "resolver",
+        "name": "a resolved real TS operand is unchanged (still operational-cli)",
+        "ok": true,
+        "detail": "operational-cli"
+      },
+      {
+        "group": "resolver",
+        "name": "the python CLI is retained as TWO declared-non-smoke records over ONE file",
+        "ok": true,
+        "detail": "[{\"kind\":\"declared-non-smoke\",\"disposition\":\"python-script\",\"declaredBy\":[\"@capiro/api#extract:florida-legislative-directories\"]},{\"kind\":\"declared-non-smoke\",\"disposition\":\"python-script\",\"declaredBy\":[\"@capiro/api#verify:florida-legislative-directories\"]}]"
+      },
+      {
+        "group": "resolver",
+        "name": "the python CLI is NEVER promoted to an executed entrypoint subject",
+        "ok": true,
+        "detail": "[{\"kind\":\"declared-non-smoke\",\"rel\":\"apps/api/scripts/extract-florida-legislative-directories.py\"},{\"kind\":\"declared-non-smoke\",\"rel\":\"apps/api/scripts/extract-florida-legislative-directories.py\"}]"
+      },
+      {
+        "group": "resolver",
+        "name": "a DIRECTORY named *.py is refused (explicit nonregular resolution, never python-script)",
+        "ok": true,
+        "detail": "{\"resolution\":\"not-a-regular-file\",\"disposition\":\"operational-cli\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a genuine regular .py launched by python keeps its python-script language owner",
+        "ok": true,
+        "detail": "{\"resolution\":\"resolved\",\"disposition\":\"python-script\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "a genuine regular .ts target resolves unchanged (operational-cli)",
+        "ok": true,
+        "detail": "{\"resolution\":\"resolved\",\"disposition\":\"operational-cli\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "classifyDisposition: a not-a-regular-file target is NEVER python-script/static",
+        "ok": true,
+        "detail": "operational-cli"
+      },
+      {
+        "group": "resolver",
+        "name": "discovery: a directory named *.py declared by python FAILS CLOSED (undiscovered-declared), never python-script",
+        "ok": true,
+        "detail": "{\"kind\":\"undiscovered-declared\",\"disposition\":\"operational-cli\",\"resolution\":\"not-a-regular-file\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "cwd provenance: a root package declaration carries cwdRel \".\" (package)",
+        "ok": true,
+        "detail": "{\"cwdRel\":\".\",\"cwdSource\":\"package\",\"rel\":\"apps/api/scripts/tool.mjs\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "cwd provenance: a package-local declaration carries its own package cwd",
+        "ok": true,
+        "detail": "{\"cwdRel\":\"apps/api\",\"cwdSource\":\"package\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "cwd provenance: a valid `cd <dir>` propagates its cwd to the operand",
+        "ok": true,
+        "detail": "{\"cwdRel\":\"apps/api\",\"cwdSource\":\"cd\",\"rel\":\"apps/api/scripts/tool.mjs\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "cwd provenance: pnpm --filter selects the package cwd for the operand",
+        "ok": true,
+        "detail": "{\"cwdRel\":\"apps/api\",\"cwdSource\":\"filter\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "cwd provenance: pnpm -C <dir> selects that directory as the operand cwd",
+        "ok": true,
+        "detail": "{\"cwdRel\":\"apps/api\",\"cwdSource\":\"dir\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "cwd provenance: a nested command operand carries the NESTED cwd (not the outer segment cwd)",
+        "ok": true,
+        "detail": "{\"cwdRel\":\"apps/api\",\"cwdSource\":\"filter\",\"rel\":\"apps/api/scripts/tool.mjs\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "cwd provenance: an unknown --filter selector leaves cwdRel null with unresolved evidence",
+        "ok": true,
+        "detail": "{\"cwdRel\":null,\"resolution\":\"unresolved-context\",\"contextUnresolved\":\"filter-unknown\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "cwd provenance: a `cd` that escapes the root leaves cwdRel null with unresolved evidence",
+        "ok": true,
+        "detail": "{\"cwdRel\":null,\"resolution\":\"unresolved-context\",\"contextUnresolved\":\"cd-escaping\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "discovery: one physical path retains ALL FOUR distinct declaration contexts",
+        "ok": true,
+        "detail": "{\"kind\":\"entrypoint\",\"declaredContexts\":4}"
+      },
+      {
+        "group": "resolver",
+        "name": "discovery: declaredContexts binds reference/package/packageDir/script/scriptBody/command/token/role/runner/cwdRel/cwdSource/resolution/disposition",
+        "ok": true,
+        "detail": "[{\"reference\":\"@probe/root#root-cwd\",\"package\":\"@probe/root\",\"packageDir\":\".\",\"script\":\"root-cwd\",\"scriptBody\":\"node apps/api/scripts/tool.mjs\",\"command\":\"node apps/api/scripts/tool.mjs\",\"token\":\"apps/api/scripts/tool.mjs\",\"role\":\"positional\",\"runner\":\"node\",\"cwdRel\":\".\",\"cwdSource\":\"package\",\"resolution\":\"resolved\",\"disposition\":\"operational-cli\"},{\"reference\":\"@probe/root#cd-cwd\",\"package\":\"@probe/root\",\"packageDir\":\".\",\"script\":\"cd-cwd\",\"scriptBody\":\"cd apps/api && node scripts/tool.mjs\",\"command\":\"node scripts/tool.mjs\",\"token\":\"scripts/tool.mjs\",\"role\":\"positional\",\"runner\":\"node\",\"cwdRel\":\"apps/api\",\"cwdSource\":\"cd\",\"resolution\":\"resolved\",\"disposition\":\"operational-cli\"},{\"reference\":\"@probe/root#filter-cwd\",\"package\":\"@probe/root\",\"packageDir\":\".\",\"script\":\"filter-cwd\",\"scriptBody\":\"pnpm --filter @probe/api exec node scripts/tool.mjs\",\"command\":\"pnpm --filter @probe/api exec node scripts/tool.mjs\",\"token\":\"scripts/tool.mjs\",\"role\":\"positional\",\"runner\":\"node\",\"cwdRel\":\"apps/api\",\"cwdSource\":\"filter\",\"resolution\":\"resolved\",\"disposition\":\"operational-cli\"},{\"reference\":\"@probe/api#local-cwd\",\"package\":\"@probe/api\",\"packageDir\":\"apps/api\",\"script\":\"local-cwd\",\"scriptBody\":\"node scripts/tool.mjs\",\"command\":\"node scripts/tool.mjs\",\"token\":\"scripts/tool.mjs\",\"role\":\"positional\",\"runner\":\"node\",\"cwdRel\":\"apps/api\",\"cwdSource\":\"package\",\"resolution\":\"resolved\",\"disposition\":\"operational-cli\"}]"
+      },
+      {
+        "group": "resolver",
+        "name": "discovery: the four retained contexts carry the four distinct effective cwds",
+        "ok": true,
+        "detail": "[{\"reference\":\"@probe/root#root-cwd\",\"cwdRel\":\".\"},{\"reference\":\"@probe/root#cd-cwd\",\"cwdRel\":\"apps/api\"},{\"reference\":\"@probe/root#filter-cwd\",\"cwdRel\":\"apps/api\"},{\"reference\":\"@probe/api#local-cwd\",\"cwdRel\":\"apps/api\"}]"
+      },
+      {
+        "group": "resolver",
+        "name": "discovery: declaredBy compatibility preserved (name list agrees with declaredContexts)",
+        "ok": true,
+        "detail": "{\"declaredBy\":[\"@probe/root#root-cwd\",\"@probe/root#cd-cwd\",\"@probe/root#filter-cwd\",\"@probe/api#local-cwd\"]}"
+      },
+      {
+        "group": "resolver",
+        "name": "discovery: declaredContexts is deterministic across independent discovery runs",
+        "ok": true
+      },
+      {
+        "group": "resolver",
+        "name": "discovery: a walked entrypoint carries its declared invocation contexts",
+        "ok": true,
+        "detail": "{\"kind\":\"entrypoint\",\"declaredBy\":[\"@probe/root#walked-decl\"],\"cwds\":[\".\"]}"
+      },
+      {
+        "group": "resolver",
+        "name": "discovery: an unsafe walked subject keeps its declared contexts (classification unchanged)",
+        "ok": true,
+        "detail": "{\"kind\":\"unsafe\",\"cwds\":[\".\"]}"
+      },
+      {
+        "group": "resolver",
+        "name": "discovery: an undeclared walked entrypoint keeps NO declaredBy/declaredContexts (no invented owner/cwd)",
+        "ok": true,
+        "detail": "{\"kind\":\"entrypoint\",\"hasDeclaredBy\":false,\"hasContexts\":false}"
+      },
+      {
+        "group": "resolver",
+        "name": "discovery: an unknown --filter operand FAILS CLOSED (undiscovered-declared), cwd not guessed",
+        "ok": true,
+        "detail": "{\"kind\":\"undiscovered-declared\",\"resolution\":\"unresolved-context\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "discovery: a root-escaping `cd` operand FAILS CLOSED (undiscovered-declared)",
+        "ok": true,
+        "detail": "{\"kind\":\"undiscovered-declared\",\"resolution\":\"unresolved-context\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "provenance fixture: git index contains the committed inputs",
+        "ok": true,
+        "detail": "{\"init\":0,\"add\":0}"
+      },
+      {
+        "group": "resolver",
+        "name": "provenance: only indexed manifests define canonical commands",
+        "ok": true,
+        "detail": "{\"tracked\":[\"package.json\"],\"untracked\":[\"apps/new/package.json\",\".corepack-home/v1/pnpm/9.12.0/package.json\"]}"
+      },
+      {
+        "group": "resolver",
+        "name": "provenance: untracked source and generated Corepack manifests are diagnosed",
+        "ok": true,
+        "detail": "{\"tracked\":[\"package.json\"],\"untracked\":[\"apps/new/package.json\",\".corepack-home/v1/pnpm/9.12.0/package.json\"]}"
+      },
+      {
+        "group": "resolver",
+        "name": "provenance: a genuinely missing indexed CLI remains an undiscovered-declared failure",
+        "ok": true,
+        "detail": "{\"path\":\"/tmp/cleanup-discovery-git-TCWMIP/scripts/missing.mjs\",\"rel\":\"scripts/missing.mjs\",\"subject\":\"declared-missing\",\"kind\":\"undiscovered-declared\",\"reason\":\"package.json-declared in-scope CLI target does not resolve to a file (§6.2 mandatory)\",\"disposition\":\"missing-cli\",\"owner\":\"node\",\"resolution\":\"missing\",\"declaredBy\":[\"#missing\"],\"command\":\"node scripts/missing.mjs\"}"
+      },
+      {
+        "group": "resolver",
+        "name": "provenance: an untracked manifest produces an explicit failure packet",
+        "ok": true,
+        "detail": "{\"path\":\"/tmp/cleanup-discovery-git-TCWMIP/apps/new/package.json\",\"rel\":\"apps/new/package.json\",\"subject\":\"untracked-input\",\"kind\":\"undiscovered-declared\",\"reason\":\"untracked package.json was present in the working tree but is not a committed source input\",\"disposition\":\"untracked-manifest\",\"owner\":\"source-provenance\",\"resolution\":\"untracked\",\"declaredBy\":[\"untracked-manifest:apps/new/package.json\"],\"command\":null}"
+      },
+      {
+        "group": "resolver",
+        "name": "provenance: generated Corepack cache is an explicit failure, never its declared bundle.ts CLI",
+        "ok": true,
+        "detail": "{\"path\":\"/tmp/cleanup-discovery-git-TCWMIP/.corepack-home/v1/pnpm/9.12.0/package.json\",\"rel\":\".corepack-home/v1/pnpm/9.12.0/package.json\",\"subject\":\"untracked-input\",\"kind\":\"undiscovered-declared\",\"reason\":\"untracked package.json was present in the working tree but is not a committed source input\",\"disposition\":\"untracked-manifest\",\"owner\":\"source-provenance\",\"resolution\":\"untracked\",\"declaredBy\":[\"untracked-manifest:.corepack-home/v1/pnpm/9.12.0/package.json\"],\"command\":null}"
+      },
+      {
+        "group": "resolver",
+        "name": "provenance: Gitless archive stage still reports generated Corepack cache as untracked-input",
+        "ok": true,
+        "detail": "{\"tracked\":[\"/tmp/cleanup-discovery-stage-76SRyy/package.json\"],\"untracked\":[\"/tmp/cleanup-discovery-stage-76SRyy/.corepack-home/v1/pnpm/9.12.0/package.json\"],\"cache\":{\"path\":\"/tmp/cleanup-discovery-stage-76SRyy/.corepack-home/v1/pnpm/9.12.0/package.json\",\"rel\":\".corepack-home/v1/pnpm/9.12.0/package.json\",\"subject\":\"untracked-input\",\"kind\":\"undiscovered-declared\",\"reason\":\"untracked package.json was present in the working tree but is not a committed source input\",\"disposition\":\"untracked-manifest\",\"owner\":\"source-provenance\",\"resolution\":\"untracked\",\"declaredBy\":[\"untracked-manifest:.corepack-home/v1/pnpm/9.12.0/package.json\"],\"command\":null}}"
+      }
+    ],
+    "passed": 87,
+    "total": 87,
+    "ok": true
+  }
+}

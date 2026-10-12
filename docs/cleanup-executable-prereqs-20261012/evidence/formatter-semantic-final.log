@@ -1,0 +1,432 @@
+{
+  "before": "pre-repair working-tree source, saved full bytes",
+  "typescriptVersion": "5.9.3",
+  "receipts": [
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-plan.spec.ts",
+      "beforeSha256": "cc952a89fcb4972884a6121dd21fae385af24dca145e8c34fb7fcf34edded382",
+      "afterSha256": "e3011aa7d180d7cc3f183fa80e71b315d8f108abfcb24abff389499944413f69",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": true,
+      "canonicalAstSha256": "e42e5a3c77295f866ca867a007563c8c65c79ec1ddcb117dd40bd9f03c8bfb4a"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/tool-ledger-adapter.spec.ts",
+      "beforeSha256": "eb584f614015cc9d9824589e6393623fd71423e6f2b700fbc630ebab08ec3677",
+      "afterSha256": "8d092cc48d40ceec4b9b9b9177b7adc47c3d1ca852a704ca3f182acce6e53651",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "c99b14b096fdc276351d72187468116016cd599f066c852dbe82548c7c130662"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "beforeSha256": "703ffdcf3bbb251b21ed4722eed2a0d8701d00c4be436dff5b90743f0e04cb4b",
+      "afterSha256": "3515da5753b98b414f62bc3132cd758386cb0c95d34789e1277c2c267b3dca5e",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "9ee367a781f5770f6f653b4a314c788536e82f2c83198e5a5cf318e39da93efa"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "beforeSha256": "d7e0baa9640dbe197c34c758e8da6c4a8f9182b7862910774188440407f94b80",
+      "afterSha256": "aa2d2419017afe3b775fe0114000f2efae9fafa38c9931b6d57f21cb9a3ec02a",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "794fef559615feb7a34f1d035055804c15026ce2fc68e20437821f6d8b3318e1"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/case12-setup-binding.spec.ts",
+      "beforeSha256": "dd421900257d14ea95a11c2db26f16509467dd2930dcf734f49a836d5b03142d",
+      "afterSha256": "b432d627c13008177c6111ef722e58a6f34409474bc498fb81a61d781dab512e",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "00b4cd2fcf5fc0e618d3b1c4522740fb4947c0b465ef33062e914b242cce5965"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/case12-setup-binding.ts",
+      "beforeSha256": "b962ec4db5e3050c817133a6c1480a35174e923d6fdca57556db90ee8be87170",
+      "afterSha256": "eee8b93cf567e8deb38183622c70167a1ba607be05847a78ec71cbca70967a28",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "21a68044c496c0ffdb982682d6cc82afbdb6907d5c8b8c9de311889765b57fca"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler-v2.spec.ts",
+      "beforeSha256": "9fe332e53e04cdf072e15efa89d64a72707085cf6905455ec885549bc5e42bec",
+      "afterSha256": "205bfde88001cfb230e43e2d6f76473f1fe4c3ad3051bae749445f23c80d54f3",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "1fb09cef3012518d3eec255cd9fe5589ff44886517fa0c8d36fb769626eb871f"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-artifact-capture.spec.ts",
+      "beforeSha256": "4836991564542228b9288f8c3b86546fe54be536535b4a246164df727b7290a1",
+      "afterSha256": "55112ca4ccaa9009a0c27652c974b2cfb90d646639ad4544977ac2be2f284817",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": true,
+      "canonicalAstSha256": "9e966c10557145adf4f3e6eab38a125cfb15350f95ee8cf6e11521b831cb6fe5"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-artifact-capture.ts",
+      "beforeSha256": "01fbb382eb884f8531e5e7ee7c3edfb9e158a237f96b862f3ce729ff8fff34a2",
+      "afterSha256": "076aa18d07d1169c6690d60e8e5ec90fe0accc73b4154c2abb4b8c0884a847e8",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "ba8283ff51b50becf09495dc2b5bfcaabf47bbb143b5606eaa47fe1469218515"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.spec.ts",
+      "beforeSha256": "31ae1b3b69e88b6e48f8785b3b6159845902e7daf610da5b2a096d9b5982c25c",
+      "afterSha256": "15b8fb42fe9967690c3a9c659b6b6c657f3b3fba224cb2ddc8fa532d6a919277",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "976bc92a7e863d2bb3dd2730611e3a852ee097e8babc1b8478166233feb2c249"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.ts",
+      "beforeSha256": "76f1f5865eb2672aeab198da78e84e22007f9cb3a08286b8e0d9cb2e8de73a19",
+      "afterSha256": "980689f917cc2c54fe293aee1b89d6d2706c1d51c3c4025efe8edff6fee1457f",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "dfbe564767ba8ce87dc8bd4361ed82473ec90d4a68b92ac7153eb6bf75ed2983"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "beforeSha256": "a81cccf9c0cf66a749da79c98b6202337a8d45c44f3fb3290928ae558277f9ba",
+      "afterSha256": "ab907f9d68fa52fe4199eea4ac5639f6c021c8e3992cc0359f910d24637065a3",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "aabad542b3b4402d08033852a84d22043ec9273fd78b1d317cc7988a6be23b68"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "beforeSha256": "e27af6aa57f515b5c67138bf1944002d9561ca270dee97fda9331e4ed26461ac",
+      "afterSha256": "7db6b13760e9cdb216cc25d16e995e808810d672b239a847e4ce74fe1eb97208",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": true,
+      "canonicalAstSha256": "a88c613fd5f4432810116bfd5ed0302c8b1d90ca572f863800e66cf5c1ca40c6"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/semantic-clock.spec.ts",
+      "beforeSha256": "9b7d7db022682068ff9ac7a374db2e3f43d8d47b40ca5815eb823d6539441f79",
+      "afterSha256": "0dd677ea821a41a3dc9b29a43c1f35f89c480cc84f29366ded3f36c4269c2dd8",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "3f62a3d4e15a395ea711a3dab72590004b69a875bafe47e982adb73db805316f"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "beforeSha256": "616ebe8aabe11560b890c116c1d0b00691f57e91b19ba2aac2f1805272fcffd8",
+      "afterSha256": "1ea3eeb5625d82cf080e2ff01c8f63ccb9ac306842636a478cdd983006bad289",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "c02b140a6541f809b5bb15fc96da42ee8d8fc076acea2bc73d32cf5023ed141e"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.spec.ts",
+      "beforeSha256": "cb323aa2ff8e2a128ae23d76db5716b08ba277a1298e0342d82101f54748a6ad",
+      "afterSha256": "d1d876fef5adde56e6e58d0d058508aa1651dd33041246b6846b7647327b5f73",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "4d9fda63e0c1df8225d5a656af01f4896dcb768d502e71f54c9bd85bee73f01e"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts",
+      "beforeSha256": "9a920c3e9960984813267f4af0a868ce6211d18a1505946eaf0f05f41876c010",
+      "afterSha256": "6819e1eddf19e1d28312486faed22d357113ec4a1352b0664e05fc31746006d0",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "2dacdc966e4b3101052745000e091dff85f19428999e7c0416c02a5ea0be1614"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts",
+      "beforeSha256": "cca60c41c004e38120c6f07f88573b5ca0d14d3e701dcc2ff70953f5b7b235b1",
+      "afterSha256": "004564cde9933486af71a715ee44fabc0b1d2fa0dfe0e2dcca2f1b3078f9a3ff",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "1ae176a10765618cf8cf036e244f57680abc7db1d0afd3391bff397b8dc66746"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat.controller.ts",
+      "beforeSha256": "ad16874a5fa68c561199a82e5c8bbd44af6d615d9f7f413931eea5cda9383ee4",
+      "afterSha256": "419eea571ba4f7f616b0f13a6a5305da56081258e7112e952d013c184c056efb",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": true,
+      "canonicalAstSha256": "a052e202b8b20ec441594c5760a97d1065bf576878fd30cb8d401ad66b2b63d3"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "beforeSha256": "eeadabc5635c7c3ca80ae8916d9b57494da7ce8172fe732d93c784151c7dfbbb",
+      "afterSha256": "4ea9a8e7764e45b62b5aae208ecb3c5342aeb030e8f08f940eb072a2b3a70501",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "b5866d8d3877c6a20df24ecf2cad667411770c76b17c6aaf36f696fd5c96a32c"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.spec.ts",
+      "beforeSha256": "6e29327a20dd9e6492d290e87903289ada2db4a7965acf7cfd882073b5714928",
+      "afterSha256": "19b189eeba22086c53cfc8200215781fc5d6d317ac5579e06f9900761004c349",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "da4e70f9de6f6071988a80725d4a896417d26ba44a5235c750a7aa3543bdc2e9"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.ts",
+      "beforeSha256": "ed4568929b5e4cb8d2d8f91f12fbd4f3590bf3300adbf47449682fc2a03860d2",
+      "afterSha256": "87aa89ce9fa5325a288e4652063c061362e3e187eafad0bbc6fc872c4f427ef4",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "601b0b1fd2e5903bb62972f390af553638cb963bef04f8ecf5bf16656f21f38f"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-budget.spec.ts",
+      "beforeSha256": "9c25dac0de8f06867a83050c28e2e8e3047d2a970b5f22986a085a4355105209",
+      "afterSha256": "0f32643b0e64e9af65be2377e8efbb0dce28e34469de3b12b2f086f6fddb3d94",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "83961344c0079dbc875ba48b2a3fa2d88ba54ef010c9930a1fdb1bb43c0c888c"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-prompt.spec.ts",
+      "beforeSha256": "62d33f6b93a9e733c88bf8470f4b26d7b9fadb89e66f041a7dc1f381eb32da3e",
+      "afterSha256": "06feeac33e729b23b09866ef0af29e5f1b006a9aacab36021cd2344e9bf9a88a",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "19dfb02c746cf767434a0715cb1ee8eb33cc5decd5a54689a2fa8abb06098f35"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-prompt.ts",
+      "beforeSha256": "704b125bbe910a23cb810c03e643f56b2da053ebd93dc26733d3170e9b79157e",
+      "afterSha256": "0bac24e3dde4c71a792bce41fd4c049a4aa0a8e2e3ef913fd975f2e4f4eee1c9",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": true,
+      "canonicalAstSha256": "94ff7cb2e520b7c2bf1ab43eea398f6a9e2c726d9b1549b4e1684fff35837ef5"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-governed-context.runtime.ts",
+      "beforeSha256": "5bebbafafa1da4186db3d11ea2b82a36bd7f588025d4c3733f80ffe25ea5f0ca",
+      "afterSha256": "2a3951f265ca19358317ebe4612958a6872c4360a493b2bfba230e70fc26e639",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": true,
+      "canonicalAstSha256": "4a0c63208f86a752f1d6e573c3b38a722b7dde12dd0ca04f7b82f4bc33b872fc"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/api-managed-mcp.repo.ts",
+      "beforeSha256": "b018e2e4e8d007f2022a418baa177ed7b5f3f7d6a574c76120c5b81a25c7851c",
+      "afterSha256": "61035b85998c27a7e91d620ae1c6c04e2b69a06af69f75f03159f423646b5d81",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "e8d301f4a5d3527a3eb2612c9fac782d36c14d626e98b05f460f9b43e990e507"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.spec.ts",
+      "beforeSha256": "a720922ff16f1508ed68d1fbeee72a15a3ba6746d20f3a768a691bd252f713c5",
+      "afterSha256": "8343c45708d8843a497a643a4aa9c447a203f7b24848078cf465554053dccd91",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": true,
+      "canonicalAstSha256": "9e76cc2af62f40a31d9e360db5aed21891f6b213bc4d9785eb2e2af18c302f7a"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.spec.ts",
+      "beforeSha256": "d7b055eabf00863af1bbe8ea27d2ce8024b3a602e8d58134b3a4bc92a53fcccc",
+      "afterSha256": "4b5be67b89655a969bda9524670714a9d33b37334778c1fc6d521533565b16bf",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "0543c189b438974eda8a53445fd757a2239793b278d9ef04125e65396dcc990a"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts",
+      "beforeSha256": "344933663d9fa245ce0f2135ea151895bde8e769d0cf2695ccaed3e7e0366180",
+      "afterSha256": "3f6b2955839321552b2f22f18d7622a1dd80ff79482a8a5e20ac8e6f239b3520",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "bf81dfe6e75d1f7fe3f5422c0295ecd92f43405d21243c98d4cabc78954c48f5"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-access.service.spec.ts",
+      "beforeSha256": "fb402be85ab78987d0980089f823f489bb19e4e47ff6b72d5aebbf6796b59fa1",
+      "afterSha256": "47da7612ac2930e2b338c2000ed1d45883e4af0923df2954e771330029cf470f",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "fd9b6986e69838371c684b0d5f08e2116e78708fca45bf57dde2edd922f2d301"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "beforeSha256": "e72121c6d79fad002d5529abfa20f5496bab366eeb9e7b322316d9852268b85a",
+      "afterSha256": "2fd36c21b9a2302460f9035ff7978fc2406a98b41c1294a45e6980556df0a675",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "47cc0de677520e8030965f85ea612f052edbd605e34e5198a3368f6bc318b315"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "beforeSha256": "9e0f855a63eead087a87b4abeeb4c5356ada55354c9ef7f9cb810a3ac3e9ddb7",
+      "afterSha256": "ac08b8e3054508c4e4f6d1e4d4f774cc4d4b3ab648f418fb162d2fced1974df5",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "8c4af020c552087589ea8a50f2072a4860fd318afa169cd3aabea0bc61561e80"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-catalog-availability.spec.ts",
+      "beforeSha256": "0e2b10e2a4e7af84ad484f9b4f412d97443bc77e18bfa418d8465c9000881c84",
+      "afterSha256": "89703684ce696db20adc6591c5c48832e78b55cdeda1d0708a5708fa0101e8b2",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "1d182ae01d1403c07a500ed0c6f1a3c5a90f0eb36bcf7dd8b35aa461fd703d3c"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-catalog-availability.ts",
+      "beforeSha256": "6c94f8b57364dbc1c7f9f495cce182e22c63618db39efdab6cf75305a5deb0af",
+      "afterSha256": "f314d306aa5978eaf87457cd5c7e005a1f1e34459a828afcb0a40a4086275a2d",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "db43a0090f09488d6e89b57fad4ef15933ed34259e395ba2d2667b6ce2d5a65d"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-document-request-scope.spec.ts",
+      "beforeSha256": "8cbc6ff932aeaf45ca99645070605361d327e7541cbbaba559cb117b7a1875ec",
+      "afterSha256": "6a58fc2c15ea120d02a683f694a547572517841f4ab19b9768eb5c08dbe652fd",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "4d13c43953589e54852267e449dd7535aa24c148c6c218225b94ee18843a72ac"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-managed-mcp-assistant.service.spec.ts",
+      "beforeSha256": "bfc6ce080ac9fe65f4fe16d43aa71759db27123df8b7c7d5bc89df014a02f16c",
+      "afterSha256": "da0e25010abe1dbe9402d2d9977e1f0356ced590ae95cbb571b936eca3373e4a",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "9902fd9736da0fa49faf6afae6145100779ffdbc73c66abc75ae0cb5fc1ee7ec"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-managed-mcp-assistant.service.ts",
+      "beforeSha256": "19668d2db11b36d9855814ce393002f0f690a5ebbcf0fbe332eb9ff65b007946",
+      "afterSha256": "fa235839f8f9ec72e88e29c05033472dfd8af981734e5fed228841d3ecd415e6",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "566cff641fa590dabb0653248aae5e62391d47e9a27aae4a07c053d9e4b6e4ce"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-managed-mcp-request-path.spec.ts",
+      "beforeSha256": "23a15c9fa9daf4f453b9541d478c029b655ec1a476b1e20f77ebee72e0efefdf",
+      "afterSha256": "fcaee95532c9bdba7e0c372f7916b2dcbcea03d43b4a1b3d06b46f36535afd38",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "8c8ebc7f74b30792fdeaacacd882a34f64ae0773e37c8c77302e42489bd7949e"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-provider-settlement.spec.ts",
+      "beforeSha256": "60ce8208eecd6cfe4afbc8b4b6134b2ef477fc834ffc0ea9bd7be0efec24fee7",
+      "afterSha256": "78c6f28c7ec255dc47141e97985b9b33330071e3b01d710618d19dc9dd6159a9",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": true,
+      "canonicalAstSha256": "1516797b75b997fbfa74ac598d5330b0e4ea913390be335df22dc7650aea12d5"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-retrieval-assistant.service.spec.ts",
+      "beforeSha256": "36d5875ade15da166d2b246a5a77f6bd769710466778fc2658b056f20fa49625",
+      "afterSha256": "8521d8904ec4c0db89638617dac21e50ffba8acb24c4e1b45e94cadeeb6fc2a9",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "72a887ac76cac24ff100c783bfcb6a06ed3b235834ce0df89a19447c166d5e0c"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-semantic-compatibility-tools.spec.ts",
+      "beforeSha256": "ef40ae16c9871359e7a058158fcfe25479130ae7e12cb0bb8fb1ddb330045603",
+      "afterSha256": "ff460fab71ce5ca36a4aad295edaebc49c73c7ab51caf2080640772add78d094",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "63224dc4e96476d677e9da56d23103a41e1a9772032a0522190d64f04939b63a"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-semantic-compatibility-tools.ts",
+      "beforeSha256": "a0eef57eeedf342aa69a3e608ba19790efcfe676b27229937d56220ac341bdcc",
+      "afterSha256": "3fa29e786e63b03ced7cce54b117210f20752322ec5d028eaecc17436583f726",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "37dc3348d8b10e2a85c621f3d795dc4dc870243414c5264de4ca63f00a6520d8"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.spec.ts",
+      "beforeSha256": "fc6b346ea703e3388e6f7689ade4fb309efba063b215377717eba626211b38d2",
+      "afterSha256": "bff0a304e7cd2dce4eb79eab459ad39e6164cff209077bab8bb8cb845377fa55",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "5f434cf98a87452e256433d5e51b91b9a076144bf9723dd0a306d585e0bf5302"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/request-scoped-llm.client.ts",
+      "beforeSha256": "ea736b3eb1f9ffe0cf49de0321410aac334b3e22890522b3413c49816f68d21a",
+      "afterSha256": "123c498a226447a1f9fab5798a757ddaede37ee29116415b8ad2d4a7b83bf86f",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "82b082584b7490c9e3c8cc40f0d9ba2b2ec2b840a9e98953a3cfc045379315ce"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/structured-record-citations.spec.ts",
+      "beforeSha256": "2a4d7b5a154c979b4aa4b6be2c38c057f8ce37c105c1155d636187c9b62356c3",
+      "afterSha256": "4a44528c157516715a4e223839aca2676543255d678b8129abc24227648fd70e",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": true,
+      "canonicalAstSha256": "84d15d1701988bc6ed873941ad49fb6467c843a31d412e56c891e1c327116568"
+    },
+    {
+      "path": "packages/shared/src/meri-read-outcome.ts",
+      "beforeSha256": "691393b5aa888bc4ab5e6b3de73fe22bf8649722eded4de5722fee6aa590992c",
+      "afterSha256": "66f1cc4fb2bd6226ea56774e70dd981e3f80e12f61ab915d63d10c3646c4731f",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "cda2164fb1e5330f8bed8265059b495e628c6ff4ffb3966badd694cdf785390f"
+    }
+  ],
+  "preserved": "Every TS node and literal/SQL/template value; only formatting and redundant parentheses ignored.",
+  "pass": true,
+  "nativeAcceptance": false
+}

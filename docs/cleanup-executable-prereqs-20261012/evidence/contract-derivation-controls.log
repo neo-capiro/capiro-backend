@@ -1,0 +1,14 @@
+✔ explicit source documentation states exits without claiming execution or printed usage (85.626305ms)
+✔ duplicates, malformed values and out-of-range exits cannot document a contract (39.778546ms)
+✔ a string or a late comment cannot declare a source contract (3.867286ms)
+✔ a script shebang preserves leading source documentation (3.695511ms)
+✔ explicit documentation cannot override a conflicting source-derived exit (13.302239ms)
+✔ explicit documentation never bypasses actual usage, exit, network, write or termination checks (6.019631ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 919.622039

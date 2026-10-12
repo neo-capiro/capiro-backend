@@ -1,0 +1,76 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-cleanup-source-prereqs/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/engagement/outreach-job.spec.ts (13.046 s)
+  computeJobRollup (W4.2)
+    ✓ all pending → queued (6 ms)
+    ✓ some done, some pending → running (2 ms)
+    ✓ all done → complete
+    ✓ all failed → failed (1 ms)
+    ✓ mix of done + failed → partial
+    ✓ done + skipped (no failures) → complete (1 ms)
+    ✓ claimed/generating count as in-flight (queued bucket) (1 ms)
+  outreachRecipientKey precedence
+    ✓ id > directoryContactId > email > name > index (1 ms)
+  OutreachJobService.submit idempotency (W4.2)
+    ✓ a duplicate requestKey returns the existing job and inserts nothing (2 ms)
+    ✓ a fresh submit creates the job + one item per recipient with pinned id (1 ms)
+  OutreachJobService send at-most-once (W4.3)
+    ✓ a successful send flips via a pending-guarded claim, then marks sent (1 ms)
+    ✓ a failed send marks the item failed with the error
+  OutreachJobService retryItem (W4.4)
+    ✓ a failed generate item in a finalized job → item pending + job reopened (1 ms)
+    ✓ a still-running job is not reopened (only the item flips)
+    ✓ a send job is refused (at-most-once — never auto-resend)
+    ✓ a non-failed item is refused
+  computeJobRollup — held is terminal and never "complete"
+    ✓ all held → partial (nothing failed, but nothing is sendable either)
+    ✓ done + held → partial, never complete
+    ✓ held counts as TERMINAL, so a job with only held items finalizes (1 ms)
+    ✓ held + failed (no successes) is partial — some drafts do exist
+  classifyGenerationItem — fails closed
+    ✓ the versioned lifecycle is authoritative
+    ✓ an outstanding or refused review is held, whatever the audit says (1 ms)
+    ✓ a generation failure is failed even when version fields are present
+    ✓ the pre-Phase-0 shape still works
+    ✓ missing/garbage results are failed, never done
+  buildItemResult — held content is preserved, internals are not
+    ✓ keeps the real subject/body plus version metadata (1 ms)
+    ✓ drops anything not on the allowlist (no auditor internals reach the client)
+    ✓ a non-object result yields null (1 ms)
+  per-USER job idempotency (§3.c3)
+    ✓ the requestKey lookup is scoped by userId, not just tenantId
+    ✓ two users' identical request keys do not collide
+  legacy async SEND is refused under versioned outreach (§3.c3)
+    ✓ kind=send is rejected when ENGAGEMENT_VERSIONED_OUTREACH is on
+    ✓ kind=generate is unaffected by that flag (1 ms)
+  job ownership (§3.c3): user A cannot touch user B's job
+    ✓ getJob returns null for a foreign job (no existence leak)
+    ✓ retryItem refuses a foreign job
+    ✓ cancelJob refuses a foreign job
+    ✓ a HELD item is not retryable — it needs review or a new version (1 ms)
+  cancel is terminal (§3.c3)
+    ✓ finalizeJob cannot overwrite a canceled job
+  async provider/model pinning (Phase 1 §3.k)
+    ✓ with the gateway ON, submit stores the pinned identity in job params (1 ms)
+    ✓ a generate job is always pinned — pinning is no longer flag-gated (Phase 26 cutover)
+    ✓ a SEND job is never pinned — it drafts nothing (1 ms)
+    ✓ with the gateway ON, no available credential REJECTS the submission — no job is created (§e1) (1 ms)
+  readPinnedIdentity (Phase 1 §3.k3)
+    ✓ round-trips a well-formed identity
+    ✓ absent params yield null (per-chunk resolution, the pre-Phase-1 behavior)
+    ✓ a HALF-formed identity degrades to null rather than pinning nothing silently (1 ms)
+    ✓ a non-object value is rejected
+  the job item result keeps the Context Used manifest (§3.k4)
+    ✓ manifest is on the persisted-field allowlist (1 ms)
+  the job item result preserves candidate status (§e4)
+    ✓ isCandidate + baseVersion survive the allowlist
+    ✓ a normal (non-candidate) result carries neither field
+
+Test Suites: 1 passed, 1 total
+Tests:       48 passed, 48 total
+Snapshots:   0 total
+Time:        17.207 s
+Ran all test suites within paths "src/engagement/outreach-job.spec.ts".
+Test results written to: ../../docs/cleanup-executable-prereqs-20261012/evidence/outreach-job-canonical-unit.json
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

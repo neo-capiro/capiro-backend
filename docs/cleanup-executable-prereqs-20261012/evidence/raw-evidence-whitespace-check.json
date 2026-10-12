@@ -1,0 +1,10 @@
+{
+  "result": "git diff --cached --check fails only on preserved ts-jest raw warning whitespace",
+  "paths": [
+    "evidence/outreach-job-canonical-unit.log:1",
+    "evidence/outreach-job-canonical-unit.log:3"
+  ],
+  "rawBytesPreserved": true,
+  "authoredSourcePreviouslyPassed": true,
+  "sourceUntouched": true
+}

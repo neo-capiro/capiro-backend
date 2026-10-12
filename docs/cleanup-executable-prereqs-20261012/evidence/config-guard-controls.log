@@ -1,0 +1,773 @@
+{
+  "module": "config-guard-controls",
+  "checks": [
+    {
+      "name": "codemod: an unconditional top-level main() is wrapped in a direct-invocation boundary and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/probe.ts\",\"mainName\":\"main\",\"boundary\":\"wrapped\",\"configLeadStatements\":0,\"guardLine\":7,\"callLine\":11,\"edits\":[{\"kind\":\"boundary-open\",\"offset\":223,\"length\":31,\"line\":11},{\"kind\":\"boundary-close\",\"offset\":296,\"length\":2,\"line\":14},{\"kind\":\"guard\",\"offset\":155,\"length\":174,\"line\":7}]}"
+    },
+    {
+      "name": "codemod: a require.main boundary is preserved (existing-conditional) and only the guard is inserted",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/probe.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":6,\"callLine\":11,\"edits\":[{\"kind\":\"guard\",\"offset\":154,\"length\":174,\"line\":6}]}"
+    },
+    {
+      "name": "codemod: a bare-identifier direct-run boundary is preserved (existing-conditional)",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/probe.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":6,\"callLine\":12,\"edits\":[{\"kind\":\"guard\",\"offset\":154,\"length\":174,\"line\":6}]}"
+    },
+    {
+      "name": "codemod: the special IIFE boundary is preserved (existing-iife); its flow is untouched",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/probe.ts\",\"mainName\":\"main\",\"boundary\":\"existing-iife\",\"configLeadStatements\":0,\"guardLine\":6,\"callLine\":17,\"edits\":[{\"kind\":\"guard\",\"offset\":154,\"length\":174,\"line\":6}]}"
+    },
+    {
+      "name": "codemod: every preexisting executable statement/import is preserved; only insertions are added",
+      "ok": true,
+      "detail": "preserved"
+    },
+    {
+      "name": "codemod: an in-main dotenv/config load stays AHEAD of the inserted guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/probe.ts\",\"mainName\":\"main\",\"boundary\":\"wrapped\",\"configLeadStatements\":1,\"guardLine\":6,\"callLine\":10,\"edits\":[{\"kind\":\"boundary-open\",\"offset\":224,\"length\":31,\"line\":10},{\"kind\":\"boundary-close\",\"offset\":273,\"length\":2,\"line\":10},{\"kind\":\"guard\",\"offset\":156,\"length\":174,\"line\":6}]}"
+    },
+    {
+      "name": "codemod refuses: source already references DATABASE_URL (idempotency)",
+      "ok": true,
+      "detail": "[\"source already references DATABASE_URL (idempotency guard)\"]"
+    },
+    {
+      "name": "codemod refuses: no top-level main function",
+      "ok": true,
+      "detail": "[\"expected exactly one top-level function 'main' (found 0)\"]"
+    },
+    {
+      "name": "codemod refuses: main without a direct new PrismaClient()",
+      "ok": true,
+      "detail": "[\"no direct 'new PrismaClient()' inside 'main'\"]"
+    },
+    {
+      "name": "codemod refuses: main invoked from a named helper (complicated placement)",
+      "ok": true,
+      "detail": "[\"'main' is invoked from a named helper — complicated placement, refused\"]"
+    },
+    {
+      "name": "codemod refuses: multiple main() call sites",
+      "ok": true,
+      "detail": "[\"expected exactly one 'main()' call site at module top level (found 2)\"]"
+    },
+    {
+      "name": "codemod refuses: source that does not parse",
+      "ok": true,
+      "detail": "[\"source does not parse cleanly (2 diagnostic(s))\"]"
+    },
+    {
+      "name": "scanner(smoke-context): the transformed entrypoint derives a documented configuration-conditioned no-args exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "scanner(generic, no context): the SAME source is CONSERVATIVELY undocumented (env-only guard not recognized)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "scanner(smoke-context): the transformed special IIFE entrypoint is recognized (reachability through the IIFE)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "scanner rejects: a local `process` shadow is not the real process.env",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "scanner rejects: a DYNAMIC (non-literal) exit is not a definite integer",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "scanner rejects: an exit inside a literal-dead branch is not guaranteed",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "scanner rejects: an ARBITRARY other env var is not DATABASE_URL",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "scanner rejects: a bare PRESENCE test is not a missing-value test",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "scanner rejects: usage without a definite exit is UNRESOLVED",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "scanner rejects: `=== null` is FALSE for an absent (undefined) value",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "scanner rejects: usage through a local helper is not INLINE",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "scanner rejects: a guard after an unconditional return is unreachable",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "scanner accepts: `!process.env.DATABASE_URL` (missing value) → exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "scanner accepts: `process.env.DATABASE_URL == null` (undefined == null) → exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "scanner accepts: `process.env['DATABASE_URL'] === undefined` → exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "root1192/pos: a bare healthy inline guard is documented (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "root1192/pos: main behind require.main===module is documented (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "root1192/pos: the async IIFE direct-run boundary is documented (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "root1192/neg: a guard inside a literal-dead enclosing branch is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: main invoked only under if(false) is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: a guard inside an unknown enclosing branch is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: invoking a SHADOWED same-named main is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: a prior direct DATABASE_URL assignment is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: a prior env-ALIAS DATABASE_URL assignment is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: replacing process.env is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: overwriting process.exit is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: a conditional Usage print is not guaranteed (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: a Usage print in a literal-dead branch is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: a SHADOWED console cannot prove usage (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: an unbound usage callee is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1192/neg: an object COPY of the smoke context is NOT selected",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/pos: an inline LITERAL Usage string is required and accepted",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "configguard/neg: a DYNAMIC (non-literal) Usage argument is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/neg: a conditional exit is not definite and is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/pos: process.stderr.write literal usage + integer exit is accepted",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":7,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "codemod: a REAL imported dotenv call stays ahead of the inserted guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/probe.ts\",\"mainName\":\"main\",\"boundary\":\"wrapped\",\"configLeadStatements\":1,\"guardLine\":6,\"callLine\":10,\"edits\":[{\"kind\":\"boundary-open\",\"offset\":224,\"length\":31,\"line\":10},{\"kind\":\"boundary-close\",\"offset\":265,\"length\":2,\"line\":10},{\"kind\":\"guard\",\"offset\":156,\"length\":174,\"line\":6}]}"
+    },
+    {
+      "name": "codemod: an arbitrary local config() is NOT skipped as a dotenv load (guard first)",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/probe.ts\",\"mainName\":\"main\",\"boundary\":\"wrapped\",\"configLeadStatements\":0,\"guardLine\":4,\"callLine\":9,\"edits\":[{\"kind\":\"boundary-open\",\"offset\":169,\"length\":31,\"line\":9},{\"kind\":\"boundary-close\",\"offset\":210,\"length\":2,\"line\":9},{\"kind\":\"guard\",\"offset\":89,\"length\":174,\"line\":4}]}"
+    },
+    {
+      "name": "codemod: a comma/sequence statement is NOT skipped as a dotenv load (guard first)",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/probe.ts\",\"mainName\":\"main\",\"boundary\":\"wrapped\",\"configLeadStatements\":0,\"guardLine\":5,\"callLine\":10,\"edits\":[{\"kind\":\"boundary-open\",\"offset\":238,\"length\":31,\"line\":10},{\"kind\":\"boundary-close\",\"offset\":279,\"length\":2,\"line\":10},{\"kind\":\"guard\",\"offset\":138,\"length\":174,\"line\":5}]}"
+    },
+    {
+      "name": "codemod: a source-proven argv[1] basename alias boundary is accepted (existing-conditional)",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/probe.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":4,\"callLine\":9,\"edits\":[{\"kind\":\"guard\",\"offset\":89,\"length\":174,\"line\":4}]}"
+    },
+    {
+      "name": "codemod: an UNPROVEN bare-identifier boundary is refused (never guessed)",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"direct\\\"\"]"
+    },
+    {
+      "name": "codemod CLI: an unknown option is rejected even alongside --help",
+      "ok": true,
+      "detail": "unknown option: --definitely-not-a-flag"
+    },
+    {
+      "name": "codemod CLI: --help alone parses without requiring --root/--manifest/--out-ledger",
+      "ok": true,
+      "detail": "{\"apply\":false,\"subjects\":[],\"help\":true}"
+    },
+    {
+      "name": "codemod CLI: missing required options throw a usage error",
+      "ok": true,
+      "detail": "--root is required"
+    },
+    {
+      "name": "root1217/neg1: `.endsWith(<wrong literal>)` is not a direct-run test",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1217/neg2: a regex for an UNRELATED basename is not a direct-run test",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1217/neg3: a TRANSFORMED argv subtree (.slice) is not the original value",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1217/neg4: an UNKNOWN typeof symbol is not an always-true guard",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1217/neg5: a conditional IIFE return cannot prove a definite true",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1217/neg1(codemod): `.endsWith(<wrong literal>)` boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1217/neg2(codemod): an unrelated-basename regex boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1217/neg3(codemod): a transformed argv subtree boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1217/neg4(codemod): an unknown typeof symbol boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1217/neg5(codemod): a conditional IIFE-return boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1217/neg6(codemod): a SHADOWED `process` argv basename test is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1217/neg7(codemod): a SHADOWED `require` is not the real require.main",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1217/neg8(codemod): an unknown path (unresolved alias) is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "pending/pos(codemod): backfill-sam-opportunity-fields source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/backfill-sam-opportunity-fields.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":200,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): backfill-sam-opportunity-fields derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): diag-tango-health source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/diag-tango-health.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":186,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): diag-tango-health derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): diag-tango-opportunity-parity source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/diag-tango-opportunity-parity.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":198,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): diag-tango-opportunity-parity derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): sync-sam-opportunities source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/sync-sam-opportunities.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":191,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): sync-sam-opportunities derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): sync-tango-dibbs source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/sync-tango-dibbs.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":185,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): sync-tango-dibbs derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): sync-tango-entities source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/sync-tango-entities.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":188,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): sync-tango-entities derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): sync-tango-forecasts source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/sync-tango-forecasts.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":189,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): sync-tango-forecasts derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): sync-tango-opportunity-attachments source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/sync-tango-opportunity-attachments.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":203,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): sync-tango-opportunity-attachments derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): sync-tango-opportunity-notices source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/sync-tango-opportunity-notices.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":199,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): sync-tango-opportunity-notices derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): sync-tango-opportunity-shadow source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/sync-tango-opportunity-shadow.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":198,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): sync-tango-opportunity-shadow derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): sync-tango-opportunity-text source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/sync-tango-opportunity-text.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":196,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): sync-tango-opportunity-text derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): sync-tango-sbir source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/sync-tango-sbir.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":184,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): sync-tango-sbir derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): sync-tango-vehicles source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/sync-tango-vehicles.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":14,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":188,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): sync-tango-vehicles derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): repair-cpf-cds-existing-geography source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/repair-cpf-cds-existing-geography.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":7,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":202,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): repair-cpf-cds-existing-geography derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): sync-tango-subawards source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/sync-tango-subawards.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":7,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":189,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): sync-tango-subawards derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): diag-funding-opportunities-makegov source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/diag-funding-opportunities-makegov.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":7,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":203,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): diag-funding-opportunities-makegov derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): diag-tango-dibbs-sbir-ingestion source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/diag-tango-dibbs-sbir-ingestion.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":7,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":200,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): diag-tango-dibbs-sbir-ingestion derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): process-tango-events source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/process-tango-events.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":7,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":189,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): process-tango-events derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): build-district-boundary-artifacts source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/build-district-boundary-artifacts.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":6,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":202,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): build-district-boundary-artifacts derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): measure-accuracy source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/measure-accuracy.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":7,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":185,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): measure-accuracy derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "pending/pos(codemod): reconcile-person-role-staleness source-proven boundary is preserved (existing-conditional) and gains the guard",
+      "ok": true,
+      "detail": "{\"rel\":\"apps/api/scripts/reconcile-person-role-staleness.ts\",\"mainName\":\"main\",\"boundary\":\"existing-conditional\",\"configLeadStatements\":0,\"guardLine\":3,\"callLine\":10,\"edits\":[{\"kind\":\"guard\",\"offset\":88,\"length\":200,\"line\":3}]}"
+    },
+    {
+      "name": "pending/pos(contract): reconcile-person-role-staleness derives documented missing-database-url exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "root1237/1: an IIFE whose earlier unknown-conditioned return may exit does not prove a definite later return (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/2: a regex optional group is NOT dropped — /fixture(\\.wrong)?$/ does not match fixture.ts (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/3: `.endsWith(<stem>)` is not a suffix of the invoked path (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/4: `.startsWith(<basename>)` is not a provable absolute-path prefix (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/5: an argv[1] alias reassigned to an unrelated path is not argv[1] (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/6: a logical assignment (`&&=`) to a direct alias changes its truth (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/6b: an (illegal, runtime-throwing) const assignment is not a successful proof (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/7: a possibly-throwing call before an IIFE return makes the return not definite (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/8: a `finally{return false}` overrides the direct return (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/9: an unknown try operation can route into `catch{return false}` (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/10: `path.resolve(argv1, <extra>)` changes the basename (refused)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/11: `import {dirname as path}` is not the `node:path` namespace — `path.resolve` is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/1(codemod): an unknown-conditioned earlier IIFE exit is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"direct\\\"\"]"
+    },
+    {
+      "name": "root1237/2(codemod): a wrong optional-group regex boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1237/3(codemod): a stem `.endsWith` boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1237/4(codemod): a basename `.startsWith` boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1237/5(codemod): a reassigned argv alias boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"invoked.endsWith('fixture.ts')\\\"\"]"
+    },
+    {
+      "name": "root1237/6(codemod): a logical-assigned direct alias boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"direct\\\"\"]"
+    },
+    {
+      "name": "root1237/6b(codemod): an assigned const direct alias boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"direct\\\"\"]"
+    },
+    {
+      "name": "root1237/7(codemod): a possibly-throwing pre-return op boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"direct\\\"\"]"
+    },
+    {
+      "name": "root1237/8(codemod): a `finally`-overridden return boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"direct\\\"\"]"
+    },
+    {
+      "name": "root1237/9(codemod): an unknown-try/false-catch boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"direct\\\"\"]"
+    },
+    {
+      "name": "root1237/10(codemod): a two-arg path.resolve boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1237/11(codemod): a named-import path alias boundary is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"isDirectRun\\\"\"]"
+    },
+    {
+      "name": "root1262/contract: anchored complete basename regex is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1262/codemod: anchored complete basename regex is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"/^fixture\\\\\\\\.ts$/.test(process.argv[1])\\\"\"]"
+    },
+    {
+      "name": "root1262/contract: anchored basename prefix regex is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1262/codemod: anchored basename prefix regex is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"/^fixture/.test(process.argv[1])\\\"\"]"
+    },
+    {
+      "name": "root1262/contract: endsWith explicit end position is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1262/codemod: endsWith explicit end position is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"process.argv[1].endsWith('fixture.ts',0)\\\"\"]"
+    },
+    {
+      "name": "root1262/contract: includes explicit start position is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1262/codemod: includes explicit start position is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"process.argv[1].includes('fixture.ts',999999)\\\"\"]"
+    },
+    {
+      "name": "root1262/contract: typeof unknown property before IIFE return is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1262/codemod: typeof unknown property before IIFE return is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"direct\\\"\"]"
+    },
+    {
+      "name": "root1262/contract: typeof lexical TDZ before IIFE return is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1262/codemod: typeof lexical TDZ before IIFE return is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"direct\\\"\"]"
+    },
+    {
+      "name": "root1262/contract: regex language exceeds finite expansion cap is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1262/codemod: regex language exceeds finite expansion cap is refused",
+      "ok": true,
+      "detail": "[\"enclosing boundary condition is not a source-proven direct-invocation test: \\\"/a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?a?fixture\\\\\\\\.ts$/.test(process.argv[1])\\\"\"]"
+    },
+    {
+      "name": "exported executor remains a library boundary: export async function main() ",
+      "ok": true,
+      "detail": "[\"'main' is exported; a CLI guard must stay outside the library function\"]"
+    },
+    {
+      "name": "exported executor remains a library boundary: export default async function main() ",
+      "ok": true,
+      "detail": "[\"'main' is exported; a CLI guard must stay outside the library function\"]"
+    },
+    {
+      "name": "exported executor remains a library boundary: async function main() export {main};",
+      "ok": true,
+      "detail": "[\"'main' is exported; a CLI guard must stay outside the library function\"]"
+    },
+    {
+      "name": "exported executor remains a library boundary: async function main() export {main as execute};",
+      "ok": true,
+      "detail": "[\"'main' is exported; a CLI guard must stay outside the library function\"]"
+    },
+    {
+      "name": "exported executor remains a library boundary: async function main() export default main;",
+      "ok": true,
+      "detail": "[\"'main' is exported; a CLI guard must stay outside the library function\"]"
+    }
+  ],
+  "passed": 153,
+  "total": 153,
+  "ok": true
+}

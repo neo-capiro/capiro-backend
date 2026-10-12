@@ -1,0 +1,15 @@
+PASS src/meri/full-chat-read-tools.catalog.spec.ts (35.678 s)
+  FULL_CHAT_READ_TOOLS catalog
+    ✓ exposes own proposal reads only in full chat and identifies their memory domain without exhaustive fact coverage (4 ms)
+    ✓ matches the intended full-chat read tool set (2 ms)
+    ✓ has unique names and non-empty descriptions
+  Combined delegated-tool coverage (in-editor + write + full-chat-read)
+    ✓ the three catalogs together cover apps/api's full tool surface exactly — no gap, no duplicate (1 ms)
+    ✓ W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed
+
+Test Suites: 1 passed, 1 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        36.646 s
+Ran all test suites within paths "src/meri/full-chat-read-tools.catalog.spec.ts".
+Test results written to: ../../docs/cleanup-executable-prereqs-20261012/evidence/meri-canonical-catalog-unit.json

@@ -1,0 +1,468 @@
+{
+  "module": "contract-controls",
+  "checks": [
+    {
+      "name": "reachable pure argv helper + required-value guard derives documented no-args exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true}"
+    },
+    {
+      "name": "direct argv-length usage branch still derives documented exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true}"
+    },
+    {
+      "name": "argv-length/help conjunction is not a generic no-args branch",
+      "ok": true,
+      "detail": "{\"noArgs\":{\"documented\":false,\"exit\":null,\"usagePrinted\":false},\"help\":{\"supported\":true,\"exit\":0,\"usagePrinted\":true}}"
+    },
+    {
+      "name": "usage resolved through a nested local helper derives documented exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true}"
+    },
+    {
+      "name": "positive argv-bound --help derives a documented handler (exit 0)",
+      "ok": true,
+      "detail": "{\"supported\":true,\"exit\":0,\"usagePrinted\":true}"
+    },
+    {
+      "name": "guard inside an un-invoked function is not reachable (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "foreign imported usage helper is unresolved (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "non-argv helper does not bind its result to argv (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "negated --help test is not help support",
+      "ok": true,
+      "detail": "{\"supported\":false}"
+    },
+    {
+      "name": "ambiguous helper exit stays unresolved (documented but exit null)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":null,\"usagePrinted\":true}"
+    },
+    {
+      "name": "dynamic helper exit stays unresolved (documented but exit null)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":null,\"usagePrinted\":true}"
+    },
+    {
+      "name": "side-effecting argv helper is not treated as a pure binding (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "arbitrary console output is not usage text (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "unrelated array length is not an argv no-args test (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "a '--help' constant not bound to argv is not help support",
+      "ok": true,
+      "detail": "{\"supported\":false}"
+    },
+    {
+      "name": "exec78/1: helper reads argv but returns an unrelated constant is not a value binding (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "exec78/2: helper returning a guaranteed-present argv slot (argv[0]) is not a missing-value proof (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "exec78/3: nested unreachable helper does not shadow the real module binding (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "exec78/4: exit inside a literal-dead branch is not a guaranteed exit (documented, exit null)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":null,\"usagePrinted\":true}"
+    },
+    {
+      "name": "exec78/3b: a reachable nested local helper call still resolves (documented exit 2)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true}"
+    },
+    {
+      "name": "exec83/1: helper returning a bare computed index (argv[argv.length-1]) is not a missing-value proof (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "exec83/2: helper returning a defined fallback (argv[2] || constant) is not a missing-value proof (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1048/pos: argv destructuring + `!a || !b` derives documented exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true}"
+    },
+    {
+      "name": "contract1048/pos: `!a && !b` (both destructured slots absent) derives documented exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true}"
+    },
+    {
+      "name": "contract1048/pos: sound OR (one definitely-true leaf) derives documented exit 3",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":3,\"usagePrinted\":true}"
+    },
+    {
+      "name": "contract1048/pos: empty `?? ''` fallback through pure .toUpperCase() derives documented exit 1",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":1,\"usagePrinted\":true}"
+    },
+    {
+      "name": "contract1048/neg: destructuring argv.slice(2) is not an exact argv slot proof (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1048/neg: destructured slot 0 (always present) is not an absence proof (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1048/neg: destructured rest element is an array, never absent (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1048/neg: defaulted destructured element is defined, not absent (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1048/neg: `!a && unknown` is undecided and not a no-args proof (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1048/neg: a bare absent local (no negation) is not a no-args guard (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1048/neg: without `?? ''`, .toUpperCase() on an absent value proves nothing (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1048/neg: a non-empty-preserving method breaks the empty-string chain (undocumented)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1051/neg1: `a===null` on an absent slot is false (undefined!==null) — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1051/neg2: `a==='' || a===null` is false for undefined — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1051/neg3: a local `process` shadow is not real process.argv — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1051/neg4: a function parameter shadows the destructured absent slot — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1051/neg5: a reassigned (let) destructured slot is not provably absent — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1051/neg6: `boom()||!a` throws before the true disjunct — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1051/pos: nested parenthesised guard `(!file)||(!label)` derives exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true}"
+    },
+    {
+      "name": "contract1051/pos: `a == null` on an absent slot is true (loose) — exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true}"
+    },
+    {
+      "name": "contract1051/pos: `a === undefined` on an absent slot is true — exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true}"
+    },
+    {
+      "name": "contract1051/neg: `a===''` on an absent slot is false — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1051/pos: empty-preserving `.trim()` on `?? ''` derives exit 1",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":1,\"usagePrinted\":true}"
+    },
+    {
+      "name": "contract1051/neg: `.toUpperCase(boom())` (side-effecting argument) is refused — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1051/neg: a defined non-empty `?? 'X'` fallback is not provably empty — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1051/neg: `load() || !file` (unknown left disjunct) is refused — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1051/pos: safe short-circuit `!file || unknown` derives exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true}"
+    },
+    {
+      "name": "contract1051/neg: a destructured slot reassigned after declaration is not provably absent — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1062/neg1: helper returning null is not `=== undefined` — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1062/neg2: helper returning '' is not `=== undefined` — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1062/neg3: parameter shadows the argv helper — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1062/neg4: guard before const initialization (TDZ) — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1062/neg5: nested destructuring is not a flat argv slot — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1062/neg6: overridden String.prototype.toUpperCase breaks empty-preservation — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1062/neg7: side-effecting call argument `arg(boom())` is refused — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1062/neg8: shadowed `undefined` identifier is not the global literal — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1062/neg9: source argv mutation before destructuring refuses the absence proof — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1062/pos: flat slot `a === undefined` still derives exit 2",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true}"
+    },
+    {
+      "name": "contract1076/1: guard reads a captured argv local in TDZ across a function boundary — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1076/2: guard after an unconditional return is unreachable — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1076/3: whitelisted method on an undefined receiver breaks helper purity — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1076/4: helper argument equal to the executable path is present, not absent — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1076/5: Object.assign over String.prototype disables empty-preservation — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "contract1076/6: guard after an unconditional throw is unreachable — undocumented",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/pos: the named smoke-context constant is a frozen, identity-stable object",
+      "ok": true,
+      "detail": "{\"id\":\"cleanup1.missing-database-url-smoke\",\"databaseUrl\":\"required-absent\",\"description\":\"CleanUp1 smoke context: isolated invocations run with DATABASE_URL absent, so a literal global `!process.env.DATABASE_URL` guard that prints inline Usage and exits with a definite integer is the documented configuration-conditioned no-args contract.\"}"
+    },
+    {
+      "name": "configguard/pos: inline `!process.env.DATABASE_URL` + inline Usage + exit 2 derives documented exit 2 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":2,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "configguard/neg: the env-only guard is NOT recognized by the generic deriver (conservative default)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/pos: `process.env.DATABASE_URL == null` derives documented exit 3 (smoke context)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":3,\"usagePrinted\":true,\"conditioned\":\"missing-database-url\"}"
+    },
+    {
+      "name": "configguard/pos: a preexisting argv no-args branch is preserved (env guard does not override configured behavior)",
+      "ok": true,
+      "detail": "{\"documented\":true,\"exit\":4,\"usagePrinted\":true}"
+    },
+    {
+      "name": "configguard/neg: a dynamic (non-literal) exit is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/neg: an exit inside a literal-dead branch is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/neg: an arbitrary other env var is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/neg: a presence test (`if (process.env.DATABASE_URL)`) is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/neg: `=== null` is false for an absent (undefined) value and is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/neg: usage without a definite integer exit is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/neg: usage through a local helper is refused (inline only)",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/neg: a guard after an unconditional return is unreachable",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "configguard/neg: an optional-chained `process.env?.DATABASE_URL` access is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/1(contract): an IIFE whose earlier unknown-conditioned return may exit is not a definite later return",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/2(contract): a regex optional group is NOT dropped — /fixture(\\.wrong)?$/ does not match fixture.ts",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/3(contract): `.endsWith(<stem>)` is not a suffix of the invoked path",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/4(contract): `.startsWith(<basename>)` is not a provable absolute-path prefix",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/5(contract): an argv[1] alias reassigned to an unrelated path is not argv[1]",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/6(contract): a logical assignment (`&&=`) to a direct alias changes its truth",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/6b(contract): an (illegal, runtime-throwing) const assignment is not a successful proof",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/7(contract): a possibly-throwing call before an IIFE return makes the return not definite",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/8(contract): a `finally{return false}` overrides the direct return",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/9(contract): an unknown try operation can route into `catch{return false}`",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/10(contract): `path.resolve(argv1, <extra>)` changes the basename",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    },
+    {
+      "name": "root1237/11(contract): `import {dirname as path}` is not the `node:path` namespace — `path.resolve` is refused",
+      "ok": true,
+      "detail": "{\"documented\":false,\"exit\":null,\"usagePrinted\":false}"
+    }
+  ],
+  "passed": 92,
+  "total": 92,
+  "ok": true
+}

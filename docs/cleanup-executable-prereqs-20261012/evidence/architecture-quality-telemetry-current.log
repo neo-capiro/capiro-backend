@@ -1,0 +1,15 @@
+OK: diff-scoped bypass/governed-write check passed
+OK: repo-wide quality_telemetry table census: zero out-of-module consumers
+OK: repo-wide quality-telemetry-implementation census: no governed-write reference, no LearningSignal creation, no banned content-shaped key
+OK: QualityTelemetryEvent.tenantId present — auto-covered by PrismaService tenant-scope + tenant-scope-guard.spec.ts
+OK: QualityTelemetryEvent model has no vector/embedding column
+OK: QualityTelemetryMemoryItemUse.tenantId present — auto-covered by PrismaService tenant-scope + tenant-scope-guard.spec.ts
+OK: QualityTelemetryMemoryItemUse model has no vector/embedding column
+OK: CHECK constraint for /context_layer/ lists exactly the five frozen SteeringLayer values — no sixth layer
+OK: CHECK constraint for /surface(?!_)/ lists exactly the six frozen QualityTelemetrySurface values
+OK: CHECK constraint for /event_type/ lists exactly the frozen QualityTelemetryEventType vocabulary
+OK: recordEvent wraps validate()+write in one try/catch after the kill-switch check — never throws into its caller
+OK: QualityTelemetryModule imports neither MemoryModule nor LearningModule
+OK: InternalQualityTelemetryController is guarded by InternalServiceGuard
+
+quality-telemetry architecture guard passed.
