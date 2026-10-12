@@ -1603,6 +1603,15 @@ export class ClientsService {
     input: { memoryWall: boolean; userIds: string[] },
   ) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // Match memory readers' client-before-grant lock order and serialize
+      // complete roster replacements for this tenant/client.
+      const locked = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM clients
+        WHERE tenant_id = ${ctx.tenantId}::uuid AND id = ${clientId}::uuid
+        FOR UPDATE
+      `;
+      if (!locked.length) throw new NotFoundException('Client not found');
+
       const client = await tx.client.findFirst({
         where: { id: clientId, tenantId: ctx.tenantId },
         select: { id: true, memoryWall: true },

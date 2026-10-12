@@ -1,0 +1,178 @@
+{
+  "before": [
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) a lock error propagates unchanged before any owner operation",
+      "status": "failed",
+      "assertions": 0
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) an absent tenant/client lock row retains 404 and stops before all owner reads and writes",
+      "status": "failed",
+      "assertions": 0
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) an empty complete roster removes every prior grant and retains the self-grant audit evidence",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) an unchanged flag and roster still audit but do not write client or grants",
+      "status": "failed",
+      "assertions": 0
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) awaits the lock before any client, membership, roster, audit or mutation operation",
+      "status": "failed",
+      "assertions": 0
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) binds tenant and client as separate parameters in the first transaction operation",
+      "status": "failed",
+      "assertions": 0
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) foreign-tenant membership still rejects the complete request before roster writes or audit",
+      "status": "failed",
+      "assertions": 1
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when add fails",
+      "status": "failed",
+      "assertions": 1
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when audit fails",
+      "status": "failed",
+      "assertions": 1
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when client fails",
+      "status": "failed",
+      "assertions": 1
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when members fails",
+      "status": "failed",
+      "assertions": 1
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when remove fails",
+      "status": "failed",
+      "assertions": 1
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when roster fails",
+      "status": "failed",
+      "assertions": 1
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when update fails",
+      "status": "failed",
+      "assertions": 1
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves replace-set writes, actor/tenant audit, sorted snapshots and ordered deduplicated return",
+      "status": "failed",
+      "assertions": 0
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves the original findFirst absence 404 after a successful lock",
+      "status": "failed",
+      "assertions": 1
+    }
+  ],
+  "candidate": [
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) a lock error propagates unchanged before any owner operation",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) an absent tenant/client lock row retains 404 and stops before all owner reads and writes",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) an empty complete roster removes every prior grant and retains the self-grant audit evidence",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) an unchanged flag and roster still audit but do not write client or grants",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) awaits the lock before any client, membership, roster, audit or mutation operation",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) binds tenant and client as separate parameters in the first transaction operation",
+      "status": "passed",
+      "assertions": 5
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) foreign-tenant membership still rejects the complete request before roster writes or audit",
+      "status": "passed",
+      "assertions": 3
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when add fails",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when audit fails",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when client fails",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when members fails",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when remove fails",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when roster fails",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves error propagation and stops later operations when update fails",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves replace-set writes, actor/tenant audit, sorted snapshots and ordered deduplicated return",
+      "status": "passed",
+      "assertions": 3
+    },
+    {
+      "fullName": "ClientsService.setMemoryAccess client-first lock contract (exact method fragment) preserves the original findFirst absence 404 after a successful lock",
+      "status": "passed",
+      "assertions": 2
+    }
+  ],
+  "sameNames": true,
+  "beforeCounts": {
+    "passed": 1,
+    "failed": 15,
+    "total": 16
+  },
+  "candidateCounts": {
+    "passed": 16,
+    "failed": 0,
+    "total": 16
+  },
+  "skipped": 0
+}

@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "node",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/source-inverse.cjs"
+  ],
+  "envKeys": [
+    "NODE_OPTIONS",
+    "PATH"
+  ],
+  "sourceHead": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "exit": 0
+}
