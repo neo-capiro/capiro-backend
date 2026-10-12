@@ -1,0 +1,58 @@
+{
+  "base": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "baseTree": "613e54b654bc30dcebd09c955c58a2e8940abf30",
+  "donor": "8ac4c42cc49876ec19808369c0683956e0f2f474",
+  "source": "ec7261b0689bef2bcec1be3beb9af7754c12dc30",
+  "sourceTree": "627d404198c9ed2efb576f8e58d38d162fb7c606",
+  "changedSourceCount": 8,
+  "sourceEntries": [
+    {
+      "path": "apps/api/scripts/engagement-phase1-qualification-plan.spec.mjs",
+      "blob": "7dc95ea85b0cf9a1476cefa4eae7488818acdabd",
+      "bytes": 6666,
+      "sha256": "9f0a674f11767dec8bb4c87c2a690b51793527ffe467bbefe51aa58eb18978a9"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase1-qualification-plan.ts",
+      "blob": "6771d57177d20846394a1eab8263272628df249c",
+      "bytes": 4688,
+      "sha256": "4eefd0212439c021fdbca7fa3025442b3f2d5b766943421c929dee4dfd8416de"
+    },
+    {
+      "path": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "blob": "9dff1de2265bea2b1646c43050d54b3d8c34d172",
+      "bytes": 7905,
+      "sha256": "385b31449f270d1c0fe386cea98f1c76a6afae46fbb78ac0fc1b32b50c74ad8c"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.mjs",
+      "blob": "347f03d8b21a9d61f3cf534303473b1afb84752c",
+      "bytes": 5730,
+      "sha256": "d204addc0fa4db86ce9acbeb0049a41ec76f978e4906b2b6e8211b783f3339dd"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.spec.mjs",
+      "blob": "0fddab832fb3c6bd5c1d659b79c95d40a251f9be",
+      "bytes": 9378,
+      "sha256": "726cc8b3c0ea0e283effee88290306cbf3f792981a0449366cfb5a7d5484b615"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-code.mode.spec.mjs",
+      "blob": "294bc921b66e1ed26b8f09526ef87909f5400f02",
+      "bytes": 12151,
+      "sha256": "56c90678df02f237b88377d74b82e98f6a3082850879026a891d56c97a980308"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-code.sh",
+      "blob": "9ede89a5885fbb74747847a2e4fc0352485ae571",
+      "bytes": 16913,
+      "sha256": "bc68bb67cf4dbcf31df371a0ac8aac5a8c235366bee6c4e86df90a0e3ae9a910"
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-code.mjs",
+      "blob": "8e006ea5a7da244ee957180a9b89d68d407512ee",
+      "bytes": 9581,
+      "sha256": "2029f17a3ad869a1448f8fd7aa68c565f9ab501884c776bc356bada7c98d1188"
+    }
+  ]
+}
