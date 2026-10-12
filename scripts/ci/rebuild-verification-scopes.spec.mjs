@@ -7,15 +7,8 @@ import test from 'node:test';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const baseline = '5470c6df029c9553dd49e531229c3c91b26275ef';
-const proposal = '8ac4c42cc49876ec19808369c0683956e0f2f474';
 const before = (path) =>
   execFileSync('git', ['show', `${baseline}:${path}`], {
-    cwd: root,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-const proposed = (path) =>
-  execFileSync('git', ['show', `${proposal}:${path}`], {
     cwd: root,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -81,12 +74,7 @@ function assertWorkflowPreserved(source) {
     before('.github/workflows/ci-pr.yml'),
     'all prior backend/trigger/condition/guard bytes retained',
   );
-  const expectedFrontend = proposed('.github/workflows/ci-pr.yml')
-    .slice(proposed('.github/workflows/ci-pr.yml').indexOf('\n  frontend:\n'))
-    .replace(
-      '      - name: Engagement Phase1 retained frontend regression and routing contract',
-      webStep + '      - name: Engagement Phase1 retained frontend regression and routing contract',
-    );
+  const expectedFrontend = current('scripts/ci/__fixtures__/rebuild-verification-frontend.job.yml');
   assert.equal(
     source.slice(frontIndex),
     expectedFrontend,
