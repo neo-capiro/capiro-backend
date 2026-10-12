@@ -1,0 +1,1 @@
+PASS cached official schema/WASM and engine-free clients; isolated outputs and cache, no native/SQL/client execution.

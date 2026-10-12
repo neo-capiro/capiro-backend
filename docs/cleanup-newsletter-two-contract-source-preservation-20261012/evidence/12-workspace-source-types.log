@@ -1,0 +1,130 @@
+apps/workspace/src/auth/auth.module.ts(2,28): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+apps/workspace/src/auth/clerk.service.ts(4,55): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+apps/workspace/src/auth/current-tenant.decorator.ts(2,31): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+apps/workspace/src/auth/org-tenant-resolver.module.ts(2,37): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+apps/workspace/src/auth/org-tenant-resolver.provider.ts(2,56): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+apps/workspace/src/auth/tenant-context.ts(6,66): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+apps/workspace/src/auth/tenant.guard.ts(3,29): error TS2307: Cannot find module '@capiro/auth' or its corresponding type declarations.
+apps/workspace/src/export/export.service.ts(15,25): error TS2307: Cannot find module 'pdfkit' or its corresponding type declarations.
+apps/workspace/src/export/export.service.ts(247,27): error TS2503: Cannot find namespace 'PDFKit'.
+apps/workspace/src/export/export.service.ts(254,8): error TS2503: Cannot find namespace 'PDFKit'.
+apps/workspace/src/export/export.service.ts(293,8): error TS2503: Cannot find namespace 'PDFKit'.
+apps/workspace/src/export/export.service.ts(869,10): error TS2503: Cannot find namespace 'PDFKit'.
+apps/workspace/src/hillday/hillday-export.service.ts(3,25): error TS2307: Cannot find module 'pdfkit' or its corresponding type declarations.
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(2,24): error TS2307: Cannot find module 'htmlparser2' or its corresponding type declarations.
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(10,16): error TS7006: Parameter 'text' implicitly has an 'any' type.
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(32,17): error TS7006: Parameter 'name' implicitly has an 'any' type.
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(32,23): error TS7006: Parameter 'attrs' implicitly has an 'any' type.
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(41,14): error TS7006: Parameter 'text' implicitly has an 'any' type.
+apps/workspace/src/newsletters/newsletter-link-preview.service.ts(44,18): error TS7006: Parameter 'name' implicitly has an 'any' type.
+packages/meriv2-core/src/canary/canary-report.ts(3,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/context/governed-artifact-capture.ts(2,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/grounding/grounded-json.ts(1,24): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/grounding/grounded-json.ts(219,13): error TS7006: Parameter 'i' implicitly has an 'any' type.
+packages/meriv2-core/src/ids/canonical-ids.ts(12,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/ids/canonical-ids.ts(37,17): error TS7006: Parameter 'v' implicitly has an 'any' type.
+packages/meriv2-core/src/ids/canonical-ids.ts(38,14): error TS7006: Parameter 'v' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-claim-question.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/bd-claim-question.ts(165,42): error TS7006: Parameter 'check' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-entity-question.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(113,10): error TS7006: Parameter 'ids' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(120,16): error TS7006: Parameter 'v' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(307,17): error TS7006: Parameter 'caseItem' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(307,27): error TS7006: Parameter 'ctx' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(373,17): error TS7006: Parameter 'fixture' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(373,26): error TS7006: Parameter 'ctx' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-fixture-schema.ts(374,46): error TS7006: Parameter 'caseItem' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/bd-signal-question.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/decision-contract.ts(2,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(140,14): error TS7006: Parameter 'source' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(174,24): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Readonly<Record<"client_fit" | "claim_support" | "citation_support" | "passage_relevance" | "conflict_detection" | "status_selection" | "program_identity" | "mention_scope" | "evidence_selection" | "bd_entity" | "bd_signal" | "bd_claim", JevTaskRegistration>>'.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(216,47): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(217,47): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(225,41): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(235,29): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(235,62): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(237,36): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(247,43): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(249,6): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(264,6): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(276,6): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(286,6): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(312,58): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(314,57): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(315,21): error TS2538: Type 'unknown' cannot be used as an index type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(371,25): error TS18046: 'minimum' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(381,25): error TS18046: 'minimum' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(398,40): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(400,6): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(400,11): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(404,6): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(404,11): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(454,55): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts(471,49): error TS7006: Parameter 'c' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(2,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(45,17): error TS7006: Parameter 'data' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(45,23): error TS7006: Parameter 'context' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(47,25): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(47,31): error TS7006: Parameter 'index' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(84,6): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(88,34): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(92,29): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(96,29): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(100,39): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(101,24): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(103,41): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(104,47): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(105,42): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(108,19): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(108,41): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/package9-economics.ts(108,69): error TS18046: 'item' is of type 'unknown'.
+packages/meriv2-core/src/jev/evaluation/shadow-events.ts(2,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/evaluation/shadow-events.ts(156,16): error TS7006: Parameter 'row' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/shadow-events.ts(191,8): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/evaluation/shadow-report.ts(262,66): error TS2345: Argument of type 'JoinedShadowRow' is not assignable to parameter of type '{ conversationId: string | null; turnId: string | null; }'.
+  Type 'JoinedShadowRow' is missing the following properties from type '{ conversationId: string | null; turnId: string | null; }': conversationId, turnId
+packages/meriv2-core/src/jev/fixture-schema.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/jev-client.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/jev-client.ts(174,27): error TS18046: 'total' is of type 'unknown'.
+packages/meriv2-core/src/jev/jev-client.ts(174,35): error TS18046: 'value' is of type 'unknown'.
+packages/meriv2-core/src/jev/jev-client.ts(177,76): error TS18046: 'levelSum' is of type 'unknown'.
+packages/meriv2-core/src/jev/jev-client.ts(196,83): error TS18046: 'total' is of type 'unknown'.
+packages/meriv2-core/src/jev/jev-client.ts(196,91): error TS18046: 'value' is of type 'unknown'.
+packages/meriv2-core/src/jev/jev-client.ts(197,82): error TS18046: 'sum' is of type 'unknown'.
+packages/meriv2-core/src/jev/replay/recorded-decision-store.ts(11,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(73,17): error TS7006: Parameter 'fixture' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(73,26): error TS7006: Parameter 'context' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(74,28): error TS7006: Parameter 'item' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(74,34): error TS7006: Parameter 'index' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(75,28): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Readonly<Record<"client_fit" | "claim_support" | "citation_support" | "passage_relevance" | "conflict_detection" | "status_selection" | "program_identity" | "mention_scope" | "evidence_selection" | "bd_entity" | "bd_signal" | "bd_claim", JevTaskRegistration>>'.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(77,43): error TS7006: Parameter 'value' implicitly has an 'any' type.
+packages/meriv2-core/src/jev/task-evaluation-fixture.ts(87,12): error TS7006: Parameter 'outcome' implicitly has an 'any' type.
+packages/meriv2-core/src/llm/llm-client.ts(3,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/registry/types.ts(2,40): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/tools/client/get-client-context.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/tools/delegated/delegated-tool.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts(99,44): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts(101,14): error TS7006: Parameter 's' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts(104,24): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts(105,51): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(718,45): error TS7006: Parameter 'claim' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(720,58): error TS7006: Parameter 'i' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(738,31): error TS7006: Parameter 'claim' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(750,37): error TS7006: Parameter 'id' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(876,63): error TS7006: Parameter 'dev' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts(878,56): error TS7006: Parameter 'i' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(36,17): error TS7006: Parameter 'value' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(181,58): error TS7006: Parameter 'o' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(189,40): error TS7006: Parameter 'ref' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(191,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(194,24): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(194,61): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(199,23): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(209,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts(213,47): error TS7006: Parameter 'r' implicitly has an 'any' type.
+packages/meriv2-core/src/tools/hearing/tag-live-policy-mentions.ts(1,19): error TS2307: Cannot find module 'zod' or its corresponding type declarations.
