@@ -91,7 +91,6 @@ export class ClientObjectivesService {
       SELECT id FROM client_objective_revisions
       WHERE tenant_id=${ctx.tenantId}::uuid AND client_id=${binding.clientId}::uuid
         AND objective_id=${binding.objectiveId}::uuid AND version=${binding.objectiveVersion}
-      FOR SHARE
     `;
     if (!revisions[0]) throw new NotFoundException('Objective destination not found');
     return { ...binding, objectiveRevisionId: revisions[0].id };
