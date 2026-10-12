@@ -1,0 +1,76 @@
+{
+  "acceptedDataWiringSource": "721bfd4825bfccd819be50172ed712023891f978",
+  "tree": "befb2cd1b4c5ba09223b4d327506706d7c007cdd",
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "onlySourcePaths": [
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "gitTreeEntry": "100644 blob baf92415c3c766a847a4fc60ee6ad5cb4dec1ca2",
+      "sha256": "4ab5e5b3aa91b3466ceafa1cd84f882ede5a21aeb083e96ca409cef0363fa91e"
+    },
+    {
+      "path": "package.json",
+      "gitTreeEntry": "100644 blob dd946b25b0ab2d5ae8cbb223e4586e02227adea1",
+      "sha256": "78d6a5775c0e97ca2b1760139a5d60dbf8a298fd62f0d58b232ad24bfc28ca38"
+    },
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "gitTreeEntry": "100644 blob 2e81eb30b3bb8e86fcfa4a2317b2b0efefc67867",
+      "sha256": "e1b8cd6d59cf9c7df1fec321ea7c7d935e9ea19597cd376a96cb4004c95b66b0"
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "gitTreeEntry": "100644 blob 722ad5477272942a2af4d4c3ed0cc5f659dffb41",
+      "sha256": "a5ff0e335f69dd30b7e88ab43811c895186ef216c3d3153b5d6e3bd3f26260a8"
+    },
+    {
+      "path": "scripts/registry-ownership.json",
+      "gitTreeEntry": "100644 blob 7bee2f07b06ade07f7587c868afbe761972a4b8e",
+      "sha256": "f68cf0819176ebdd56f25ef3387b2a9fd3e014f40ade90ecb4dc7cca75699019"
+    }
+  ],
+  "baselineUnchangedOutsideSourcePaths": 21043,
+  "allBaselineAppPathsUnchanged": 10506,
+  "allSchemaMigrationPathsUnchanged": 603,
+  "allBaselineDocumentationPathsUnchanged": 9364,
+  "packageOnlyNewAlias": "node scripts/check-registry-ownership.mjs && node --test scripts/check-registry-ownership.test.mjs",
+  "ciAndAliasExact79Blobs": true,
+  "dataOnlyTwoFullStatementHashesUpdated": {
+    "before": [
+      "d8b436439591a168fc5f2b744ccde4a2f3e233d45bfd9bde9d16d75ea4c1f74c",
+      "f27cc5feabcb5bb83ba8867252c2143a126db57265db724ad9f06df1f62648cb"
+    ],
+    "after": [
+      "acb6d11b65700793f099ac20f6196dee28eb8c44a24d40a1fba6f0856790f1c1",
+      "99f60cff678bd1e17647714fc67dac0ba0ef4535c6b17618a6a4b72eff75f004"
+    ]
+  },
+  "workflowOnlyNewStep": {
+    "name": "Guard existing Strategy template vocabulary ownership",
+    "run": "pnpm gate:cleanup4:registry-ownership"
+  },
+  "workflowJob": "verify",
+  "stepIndex": 23,
+  "dependencyStepIndices": [
+    9
+  ],
+  "allOriginalWorkflowValuesUnchanged": true,
+  "originalNativeReadinessConditions": [
+    {
+      "name": "Test apps/api",
+      "condition": "${{ toJSON(github.event.pull_request.draft) == 'false' }}",
+      "command": "pnpm --filter @capiro/api test"
+    },
+    {
+      "name": "Test apps/defense-api",
+      "condition": "${{ toJSON(github.event.pull_request.draft) == 'false' }}",
+      "command": "pnpm turbo run build --filter=@capiro/defense-api\npnpm --filter @capiro/defense-api test\n"
+    }
+  ],
+  "typescriptDeclaredBeforeAndAfter": "^5.5.4",
+  "clock119AllowanceDataAnd123DeferredSamplesUnchanged": true,
+  "noAppExtractionOrReportMetadataConversion": true,
+  "noCIOrInstallExecution": true,
+  "nativeAcceptance": false,
+  "genericGuardAcceptance": false
+}

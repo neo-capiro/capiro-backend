@@ -1,0 +1,13 @@
+{
+  "source": "721bfd4825bfccd819be50172ed712023891f978",
+  "tree": "befb2cd1b4c5ba09223b4d327506706d7c007cdd",
+  "argv": [
+    "node",
+    "scripts/check-registry-ownership.mjs",
+    "-h"
+  ],
+  "exitCode": 0,
+  "expected": true,
+  "applicationSourceExecuted": false,
+  "nativeAcceptance": false
+}

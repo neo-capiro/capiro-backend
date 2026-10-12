@@ -1,0 +1,38 @@
+{
+  "acceptedSource": "721bfd4825bfccd819be50172ed712023891f978",
+  "acceptedTree": "befb2cd1b4c5ba09223b4d327506706d7c007cdd",
+  "scope": "Current existing-owner data/CI/current unmodified source closure only",
+  "actualOwner": "apps/api-strategy/src/context/frontmatter.ts",
+  "productionSourceFiles": 168,
+  "runtimeBindingRoles": 4,
+  "services": 3,
+  "fullDirectNamedExportConstCarrierFingerprints": 2,
+  "finiteDataClosureRefusals": 5,
+  "cliExpectedExits": {
+    "noargs": 0,
+    "help": 0,
+    "shortHelp": 0,
+    "unknown": 1,
+    "helpUnknown": 1
+  },
+  "ciAndAliasExact79Blobs": true,
+  "workflowOriginalValuesPreserved": true,
+  "newStepIndex": 23,
+  "dependencyStepIndex": 9,
+  "protectedBaseline": {
+    "outsideScopedSourcePaths": 21043,
+    "allApplications": 10506,
+    "schemaMigration": 603,
+    "allPriorDocsAndReceipts": 9364
+  },
+  "previousChecksumEntriesUnchanged": 22,
+  "applicationSourceExecuted": false,
+  "applicationConversionAdopted": false,
+  "backendContractDelta": false,
+  "clock123SamplesAdopted": false,
+  "genericGrammarAcceptance": false,
+  "cleanInstallOrPackageManagerRun": false,
+  "nativeAcceptance": false,
+  "ciDispatched": false,
+  "remainingScopedDataCiDiscrepancies": []
+}
