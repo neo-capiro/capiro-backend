@@ -1,0 +1,3638 @@
+{
+  "frozenHead": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "frozenTree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "sourcePath": "apps/api/src/meri/meri-tools.service.ts",
+  "guard": "assertMeriToolRequestActive();",
+  "defaultBody": "assertNever(name);",
+  "count": 134,
+  "coreRegistryCount": 134,
+  "federalRegistryCount": 5,
+  "rows": [
+    {
+      "name": "manage_research_portfolio",
+      "caseLine": 2585,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "get_research_portfolio",
+      "caseLine": 2586,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_research_portfolio_analytics",
+      "caseLine": 2587,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_research_portfolio_changes",
+      "caseLine": 2588,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "create_research_portfolio_snapshot",
+      "caseLine": 2589,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "request_research_portfolio_output",
+      "caseLine": 2590,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "save_research_portfolio_output_to_client",
+      "caseLine": 2591,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "watch_research_portfolio",
+      "caseLine": 2592,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "update_research_portfolio_change_state",
+      "caseLine": 2593,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "get_research_portfolio_bookmarks",
+      "caseLine": 2594,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "create_research_portfolio_bookmark",
+      "caseLine": 2595,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "get_research_portfolio_fit",
+      "caseLine": 2596,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_research_portfolio_reviews",
+      "caseLine": 2597,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "add_research_portfolio_review_note",
+      "caseLine": 2598,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "get_research_portfolio_rules",
+      "caseLine": 2599,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_research_portfolio_imports",
+      "caseLine": 2600,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_research_portfolio_operations",
+      "caseLine": 2601,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "prepare_research_portfolio_brief",
+      "caseLine": 2602,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "prepare_research_portfolio_meeting",
+      "caseLine": 2603,
+      "bodyLine": 2604,
+      "group": [
+        "manage_research_portfolio",
+        "get_research_portfolio",
+        "get_research_portfolio_analytics",
+        "get_research_portfolio_changes",
+        "create_research_portfolio_snapshot",
+        "request_research_portfolio_output",
+        "save_research_portfolio_output_to_client",
+        "watch_research_portfolio",
+        "update_research_portfolio_change_state",
+        "get_research_portfolio_bookmarks",
+        "create_research_portfolio_bookmark",
+        "get_research_portfolio_fit",
+        "get_research_portfolio_reviews",
+        "add_research_portfolio_review_note",
+        "get_research_portfolio_rules",
+        "get_research_portfolio_imports",
+        "get_research_portfolio_operations",
+        "prepare_research_portfolio_brief",
+        "prepare_research_portfolio_meeting"
+      ],
+      "body": "return executeMeriResearchPortfolioToolAtCurrentUse({\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        });",
+      "calls": [
+        {
+          "target": "executeMeriResearchPortfolioToolAtCurrentUse",
+          "args": [
+            "{\n          prisma: this.prisma,\n          scopeService: this.researchPortfolioScope,\n          ctx,\n          name,\n          input,\n          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),\n        }"
+          ],
+          "line": 2604
+        },
+        {
+          "target": "this.requireResearchPortfolioTools().execute",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2610
+        },
+        {
+          "target": "this.requireResearchPortfolioTools",
+          "args": [],
+          "line": 2610
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "search_legiwatch_news",
+      "caseLine": 2612,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_florida_budget_project",
+      "caseLine": 2613,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "compare_florida_budget_amounts",
+      "caseLine": 2614,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "prepare_legiwatch_briefing",
+      "caseLine": 2615,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "get_legiwatch_review",
+      "caseLine": 2616,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_legislative_research",
+      "caseLine": 2617,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_legal_reference",
+      "caseLine": 2618,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "compare_legislative_versions",
+      "caseLine": 2619,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "save_legislative_research",
+      "caseLine": 2620,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "preview_legiwatch_relevance",
+      "caseLine": 2621,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "save_legiwatch_relevance",
+      "caseLine": 2622,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "apply_legiwatch_suggestion",
+      "caseLine": 2623,
+      "bodyLine": 2624,
+      "group": [
+        "search_legiwatch_news",
+        "get_florida_budget_project",
+        "compare_florida_budget_amounts",
+        "prepare_legiwatch_briefing",
+        "get_legiwatch_review",
+        "search_legislative_research",
+        "get_legal_reference",
+        "compare_legislative_versions",
+        "save_legislative_research",
+        "preview_legiwatch_relevance",
+        "save_legiwatch_relevance",
+        "apply_legiwatch_suggestion"
+      ],
+      "body": "return this.legiwatchTool(ctx, name, input);",
+      "calls": [
+        {
+          "target": "this.legiwatchTool",
+          "args": [
+            "ctx",
+            "name",
+            "input"
+          ],
+          "line": 2624
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "get_research_evidence",
+      "caseLine": 2625,
+      "bodyLine": 2626,
+      "group": [
+        "get_research_evidence"
+      ],
+      "body": "return getResearchEvidence(ctx, input, this.prisma);",
+      "calls": [
+        {
+          "target": "getResearchEvidence",
+          "args": [
+            "ctx",
+            "input",
+            "this.prisma"
+          ],
+          "line": 2626
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "read_chat_attachments",
+      "caseLine": 2627,
+      "bodyLine": 2628,
+      "group": [
+        "read_chat_attachments"
+      ],
+      "body": "return this.readChatAttachments(ctx, input);",
+      "calls": [
+        {
+          "target": "this.readChatAttachments",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2628
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "read_monday_client_boards",
+      "caseLine": 2629,
+      "bodyLine": 2630,
+      "group": [
+        "read_monday_client_boards"
+      ],
+      "body": "return this.readMondayClientBoards(ctx, input);",
+      "calls": [
+        {
+          "target": "this.readMondayClientBoards",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2630
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_capiro_data",
+      "caseLine": 2631,
+      "bodyLine": 2632,
+      "group": [
+        "search_capiro_data"
+      ],
+      "body": "return searchCapiroData(ctx, input, this.contextPlane);",
+      "calls": [
+        {
+          "target": "searchCapiroData",
+          "args": [
+            "ctx",
+            "input",
+            "this.contextPlane"
+          ],
+          "line": 2632
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_client_context",
+      "caseLine": 2633,
+      "bodyLine": 2634,
+      "group": [
+        "get_client_context"
+      ],
+      "body": "return this.getClientContext(ctx, input);",
+      "calls": [
+        {
+          "target": "this.getClientContext",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2634
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_research_sources",
+      "caseLine": 2635,
+      "bodyLine": 2636,
+      "group": [
+        "search_research_sources"
+      ],
+      "body": "return this.searchResearchSources(ctx, input);",
+      "calls": [
+        {
+          "target": "this.searchResearchSources",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2636
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_client_knowledge",
+      "caseLine": 2637,
+      "bodyLine": 2638,
+      "group": [
+        "search_client_knowledge"
+      ],
+      "body": "return this.searchClientKnowledge(ctx, input);",
+      "calls": [
+        {
+          "target": "this.searchClientKnowledge",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2638
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "run_analysis",
+      "caseLine": 2639,
+      "bodyLine": 2640,
+      "group": [
+        "run_analysis"
+      ],
+      "body": "return this.runAnalysis(ctx, input);",
+      "calls": [
+        {
+          "target": "this.runAnalysis",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2640
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "query_intelligence",
+      "caseLine": 2641,
+      "bodyLine": 2642,
+      "group": [
+        "query_intelligence"
+      ],
+      "body": "return this.queryIntelligence(input);",
+      "calls": [
+        {
+          "target": "this.queryIntelligence",
+          "args": [
+            "input"
+          ],
+          "line": 2642
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "query_knowledge_graph",
+      "caseLine": 2643,
+      "bodyLine": 2644,
+      "group": [
+        "query_knowledge_graph"
+      ],
+      "body": "return this.queryKnowledgeGraph(ctx, input);",
+      "calls": [
+        {
+          "target": "this.queryKnowledgeGraph",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2644
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "find_path_to",
+      "caseLine": 2645,
+      "bodyLine": 2646,
+      "group": [
+        "find_path_to"
+      ],
+      "body": "return this.findPathTo(ctx, input);",
+      "calls": [
+        {
+          "target": "this.findPathTo",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2646
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_memory",
+      "caseLine": 2647,
+      "bodyLine": 2648,
+      "group": [
+        "search_memory"
+      ],
+      "body": "return this.searchMemory(ctx, input);",
+      "calls": [
+        {
+          "target": "this.searchMemory",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2648
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "list_memory_proposals",
+      "caseLine": 2649,
+      "bodyLine": 2650,
+      "group": [
+        "list_memory_proposals"
+      ],
+      "body": "return readOwnPendingMemoryProposals(ctx, input, this.governedMemoryCandidates);",
+      "calls": [
+        {
+          "target": "readOwnPendingMemoryProposals",
+          "args": [
+            "ctx",
+            "input",
+            "this.governedMemoryCandidates"
+          ],
+          "line": 2650
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_congress_bills",
+      "caseLine": 2651,
+      "bodyLine": 2652,
+      "group": [
+        "search_congress_bills"
+      ],
+      "body": "return this.searchCongressBills(input);",
+      "calls": [
+        {
+          "target": "this.searchCongressBills",
+          "args": [
+            "input"
+          ],
+          "line": 2652
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_bill_status",
+      "caseLine": 2653,
+      "bodyLine": 2654,
+      "group": [
+        "get_bill_status"
+      ],
+      "body": "return this.getBillStatus(input);",
+      "calls": [
+        {
+          "target": "this.getBillStatus",
+          "args": [
+            "input"
+          ],
+          "line": 2654
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "read_bill_text",
+      "caseLine": 2655,
+      "bodyLine": 2656,
+      "group": [
+        "read_bill_text"
+      ],
+      "body": "return this.readBillText(input);",
+      "calls": [
+        {
+          "target": "this.readBillText",
+          "args": [
+            "input"
+          ],
+          "line": 2656
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_certification_status",
+      "caseLine": 2657,
+      "bodyLine": 2658,
+      "group": [
+        "get_certification_status"
+      ],
+      "body": "return this.getCertificationStatus(input);",
+      "calls": [
+        {
+          "target": "this.getCertificationStatus",
+          "args": [
+            "input"
+          ],
+          "line": 2658
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_floor_votes",
+      "caseLine": 2659,
+      "bodyLine": 2660,
+      "group": [
+        "search_floor_votes"
+      ],
+      "body": "return this.searchFloorVotes(input);",
+      "calls": [
+        {
+          "target": "this.searchFloorVotes",
+          "args": [
+            "input"
+          ],
+          "line": 2660
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_cbo_cost_estimates",
+      "caseLine": 2661,
+      "bodyLine": 2662,
+      "group": [
+        "search_cbo_cost_estimates"
+      ],
+      "body": "return this.searchCboCostEstimates(input);",
+      "calls": [
+        {
+          "target": "this.searchCboCostEstimates",
+          "args": [
+            "input"
+          ],
+          "line": 2662
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "resolve_entity",
+      "caseLine": 2663,
+      "bodyLine": 2664,
+      "group": [
+        "resolve_entity"
+      ],
+      "body": "return this.resolveEntity(input);",
+      "calls": [
+        {
+          "target": "this.resolveEntity",
+          "args": [
+            "input"
+          ],
+          "line": 2664
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_lda_filings",
+      "caseLine": 2665,
+      "bodyLine": 2666,
+      "group": [
+        "search_lda_filings"
+      ],
+      "body": "return this.searchLdaFilings(input);",
+      "calls": [
+        {
+          "target": "this.searchLdaFilings",
+          "args": [
+            "input"
+          ],
+          "line": 2666
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "list_global_datasets",
+      "caseLine": 2667,
+      "bodyLine": 2668,
+      "group": [
+        "list_global_datasets"
+      ],
+      "body": "return this.listGlobalDatasets();",
+      "calls": [
+        {
+          "target": "this.listGlobalDatasets",
+          "args": [],
+          "line": 2668
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "query_global_data",
+      "caseLine": 2669,
+      "bodyLine": 2670,
+      "group": [
+        "query_global_data"
+      ],
+      "body": "return this.queryGlobalData(ctx, input);",
+      "calls": [
+        {
+          "target": "this.queryGlobalData",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2670
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_sec_filings",
+      "caseLine": 2671,
+      "bodyLine": 2672,
+      "group": [
+        "search_sec_filings"
+      ],
+      "body": "return this.searchSecFilings(input);",
+      "calls": [
+        {
+          "target": "this.searchSecFilings",
+          "args": [
+            "input"
+          ],
+          "line": 2672
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_fara_registrations",
+      "caseLine": 2673,
+      "bodyLine": 2674,
+      "group": [
+        "search_fara_registrations"
+      ],
+      "body": "return this.searchFaraRegistrations(input);",
+      "calls": [
+        {
+          "target": "this.searchFaraRegistrations",
+          "args": [
+            "input"
+          ],
+          "line": 2674
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_federal_grants",
+      "caseLine": 2675,
+      "bodyLine": 2676,
+      "group": [
+        "search_federal_grants"
+      ],
+      "body": "return this.searchFederalGrants(ctx, input);",
+      "calls": [
+        {
+          "target": "this.searchFederalGrants",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2676
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_federal_awards",
+      "caseLine": 2677,
+      "bodyLine": 2678,
+      "group": [
+        "search_federal_awards"
+      ],
+      "body": "return this.searchFederalAwards(ctx, input);",
+      "calls": [
+        {
+          "target": "this.searchFederalAwards",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2678
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_gao_reports",
+      "caseLine": 2679,
+      "bodyLine": 2680,
+      "group": [
+        "search_gao_reports"
+      ],
+      "body": "return this.searchGaoReports(input);",
+      "calls": [
+        {
+          "target": "this.searchGaoReports",
+          "args": [
+            "input"
+          ],
+          "line": 2680
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_state_bills",
+      "caseLine": 2681,
+      "bodyLine": 2682,
+      "group": [
+        "search_state_bills"
+      ],
+      "body": "return this.searchStateBills(input);",
+      "calls": [
+        {
+          "target": "this.searchStateBills",
+          "args": [
+            "input"
+          ],
+          "line": 2682
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_state_bill_status",
+      "caseLine": 2683,
+      "bodyLine": 2684,
+      "group": [
+        "get_state_bill_status"
+      ],
+      "body": "return this.getStateBillStatus(input);",
+      "calls": [
+        {
+          "target": "this.getStateBillStatus",
+          "args": [
+            "input"
+          ],
+          "line": 2684
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_state_floor_votes",
+      "caseLine": 2685,
+      "bodyLine": 2686,
+      "group": [
+        "search_state_floor_votes"
+      ],
+      "body": "return this.searchStateFloorVotes(input);",
+      "calls": [
+        {
+          "target": "this.searchStateFloorVotes",
+          "args": [
+            "input"
+          ],
+          "line": 2686
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_state_legislator",
+      "caseLine": 2687,
+      "bodyLine": 2688,
+      "group": [
+        "get_state_legislator"
+      ],
+      "body": "return this.getStateLegislator(input);",
+      "calls": [
+        {
+          "target": "this.getStateLegislator",
+          "args": [
+            "input"
+          ],
+          "line": 2688
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_committee_roster",
+      "caseLine": 2689,
+      "bodyLine": 2690,
+      "group": [
+        "get_committee_roster"
+      ],
+      "body": "return this.getCommitteeRoster(input);",
+      "calls": [
+        {
+          "target": "this.getCommitteeRoster",
+          "args": [
+            "input"
+          ],
+          "line": 2690
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_representation",
+      "caseLine": 2691,
+      "bodyLine": 2692,
+      "group": [
+        "get_representation"
+      ],
+      "body": "return this.getRepresentation(ctx, input);",
+      "calls": [
+        {
+          "target": "this.getRepresentation",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2692
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "list_members",
+      "caseLine": 2693,
+      "bodyLine": 2694,
+      "group": [
+        "list_members"
+      ],
+      "body": "return this.listMembers(input);",
+      "calls": [
+        {
+          "target": "this.listMembers",
+          "args": [
+            "input"
+          ],
+          "line": 2694
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_state_rule_status",
+      "caseLine": 2695,
+      "bodyLine": 2696,
+      "group": [
+        "get_state_rule_status"
+      ],
+      "body": "return this.getStateRuleStatus(input);",
+      "calls": [
+        {
+          "target": "this.getStateRuleStatus",
+          "args": [
+            "input"
+          ],
+          "line": 2696
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_intel_articles",
+      "caseLine": 2697,
+      "bodyLine": 2698,
+      "group": [
+        "search_intel_articles"
+      ],
+      "body": "return this.searchIntelArticles(input);",
+      "calls": [
+        {
+          "target": "this.searchIntelArticles",
+          "args": [
+            "input"
+          ],
+          "line": 2698
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_committee_hearings",
+      "caseLine": 2699,
+      "bodyLine": 2700,
+      "group": [
+        "search_committee_hearings"
+      ],
+      "body": "return this.searchCommitteeHearings(ctx, input);",
+      "calls": [
+        {
+          "target": "this.searchCommitteeHearings",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2700
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_crs_reports",
+      "caseLine": 2701,
+      "bodyLine": 2702,
+      "group": [
+        "search_crs_reports"
+      ],
+      "body": "return this.searchCrsReports(input);",
+      "calls": [
+        {
+          "target": "this.searchCrsReports",
+          "args": [
+            "input"
+          ],
+          "line": 2702
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "query_economic_data",
+      "caseLine": 2703,
+      "bodyLine": 2704,
+      "group": [
+        "query_economic_data"
+      ],
+      "body": "return this.queryEconomicData(input);",
+      "calls": [
+        {
+          "target": "this.queryEconomicData",
+          "args": [
+            "input"
+          ],
+          "line": 2704
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_district_nexus_context",
+      "caseLine": 2705,
+      "bodyLine": 2706,
+      "group": [
+        "get_district_nexus_context"
+      ],
+      "body": "return (\n          this.districtTools?.getContext(ctx, input) ?? {\n            available: false,\n            reason: 'feature_disabled',\n          }\n        );",
+      "calls": [
+        {
+          "target": "this.districtTools?.getContext",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2707
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_district_nexus_changes",
+      "caseLine": 2712,
+      "bodyLine": 2713,
+      "group": [
+        "get_district_nexus_changes"
+      ],
+      "body": "return (\n          this.districtTools?.getChanges(ctx, input) ?? {\n            available: false,\n            reason: 'feature_disabled',\n          }\n        );",
+      "calls": [
+        {
+          "target": "this.districtTools?.getChanges",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2714
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_public_web",
+      "caseLine": 2719,
+      "bodyLine": 2720,
+      "group": [
+        "search_public_web"
+      ],
+      "body": "return this.searchPublicWeb(input);",
+      "calls": [
+        {
+          "target": "this.searchPublicWeb",
+          "args": [
+            "input"
+          ],
+          "line": 2720
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "scrape_web_page",
+      "caseLine": 2721,
+      "bodyLine": 2722,
+      "group": [
+        "scrape_web_page"
+      ],
+      "body": "return this.scrapeWebPage(input);",
+      "calls": [
+        {
+          "target": "this.scrapeWebPage",
+          "args": [
+            "input"
+          ],
+          "line": 2722
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "create_meeting_brief",
+      "caseLine": 2723,
+      "bodyLine": 2724,
+      "group": [
+        "create_meeting_brief"
+      ],
+      "body": "return this.createMeetingBrief(ctx, input);",
+      "calls": [
+        {
+          "target": "this.createMeetingBrief",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2724
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "draft_policy_memo",
+      "caseLine": 2725,
+      "bodyLine": 2726,
+      "group": [
+        "draft_policy_memo"
+      ],
+      "body": "return this.draftPolicyMemo(ctx, input);",
+      "calls": [
+        {
+          "target": "this.draftPolicyMemo",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2726
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "save_note",
+      "caseLine": 2727,
+      "bodyLine": 2728,
+      "group": [
+        "save_note"
+      ],
+      "body": "return this.saveNote(ctx, input);",
+      "calls": [
+        {
+          "target": "this.saveNote",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2728
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "save_chat_attachments",
+      "caseLine": 2729,
+      "bodyLine": 2730,
+      "group": [
+        "save_chat_attachments"
+      ],
+      "body": "return this.saveChatAttachments(ctx, input);",
+      "calls": [
+        {
+          "target": "this.saveChatAttachments",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2730
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "send_email",
+      "caseLine": 2731,
+      "bodyLine": 2732,
+      "group": [
+        "send_email"
+      ],
+      "body": "return this.sendEmail(ctx, input, execution?.actionProposalId);",
+      "calls": [
+        {
+          "target": "this.sendEmail",
+          "args": [
+            "ctx",
+            "input",
+            "execution?.actionProposalId"
+          ],
+          "line": 2732
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "list_emails",
+      "caseLine": 2733,
+      "bodyLine": 2734,
+      "group": [
+        "list_emails"
+      ],
+      "body": "return this.listEmails(ctx, input);",
+      "calls": [
+        {
+          "target": "this.listEmails",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2734
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_emails",
+      "caseLine": 2735,
+      "bodyLine": 2736,
+      "group": [
+        "search_emails"
+      ],
+      "body": "return this.searchEmails(ctx, input);",
+      "calls": [
+        {
+          "target": "this.searchEmails",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2736
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_email_thread",
+      "caseLine": 2737,
+      "bodyLine": 2738,
+      "group": [
+        "get_email_thread"
+      ],
+      "body": "return this.getEmailThread(ctx, input);",
+      "calls": [
+        {
+          "target": "this.getEmailThread",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2738
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "list_upcoming_meetings",
+      "caseLine": 2739,
+      "bodyLine": 2740,
+      "group": [
+        "list_upcoming_meetings"
+      ],
+      "body": "return this.listUpcomingMeetings(ctx, input);",
+      "calls": [
+        {
+          "target": "this.listUpcomingMeetings",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2740
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "reply_email",
+      "caseLine": 2741,
+      "bodyLine": 2742,
+      "group": [
+        "reply_email"
+      ],
+      "body": "return this.replyEmail(ctx, input);",
+      "calls": [
+        {
+          "target": "this.replyEmail",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2742
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "save_memory",
+      "caseLine": 2743,
+      "bodyLine": 2744,
+      "group": [
+        "save_memory"
+      ],
+      "body": "return this.saveMemory(ctx, input);",
+      "calls": [
+        {
+          "target": "this.saveMemory",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2744
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "confirm_memory",
+      "caseLine": 2745,
+      "bodyLine": 2746,
+      "group": [
+        "confirm_memory"
+      ],
+      "body": "return this.confirmMemoryTool(input);",
+      "calls": [
+        {
+          "target": "this.confirmMemoryTool",
+          "args": [
+            "input"
+          ],
+          "line": 2746
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "correct_memory",
+      "caseLine": 2747,
+      "bodyLine": 2748,
+      "group": [
+        "correct_memory"
+      ],
+      "body": "return this.correctMemoryTool(input);",
+      "calls": [
+        {
+          "target": "this.correctMemoryTool",
+          "args": [
+            "input"
+          ],
+          "line": 2748
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "forget_memory",
+      "caseLine": 2749,
+      "bodyLine": 2750,
+      "group": [
+        "forget_memory"
+      ],
+      "body": "return this.forgetMemoryTool(input);",
+      "calls": [
+        {
+          "target": "this.forgetMemoryTool",
+          "args": [
+            "input"
+          ],
+          "line": 2750
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "search_program_elements",
+      "caseLine": 2751,
+      "bodyLine": 2752,
+      "group": [
+        "search_program_elements"
+      ],
+      "body": "return this.searchProgramElements(ctx, input);",
+      "calls": [
+        {
+          "target": "this.searchProgramElements",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2752
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_program_element",
+      "caseLine": 2753,
+      "bodyLine": 2754,
+      "group": [
+        "get_program_element"
+      ],
+      "body": "return this.getProgramElementDetail(ctx, input);",
+      "calls": [
+        {
+          "target": "this.getProgramElementDetail",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2754
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_pe_budget_timeline",
+      "caseLine": 2755,
+      "bodyLine": 2756,
+      "group": [
+        "get_pe_budget_timeline"
+      ],
+      "body": "return this.getPeBudgetTimeline(input, ctx);",
+      "calls": [
+        {
+          "target": "this.getPeBudgetTimeline",
+          "args": [
+            "input",
+            "ctx"
+          ],
+          "line": 2756
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_pe_buyer_workspace",
+      "caseLine": 2757,
+      "bodyLine": 2758,
+      "group": [
+        "get_pe_buyer_workspace"
+      ],
+      "body": "return this.getPeBuyerWorkspace(input);",
+      "calls": [
+        {
+          "target": "this.getPeBuyerWorkspace",
+          "args": [
+            "input"
+          ],
+          "line": 2758
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_pe_contractors",
+      "caseLine": 2759,
+      "bodyLine": 2760,
+      "group": [
+        "get_pe_contractors"
+      ],
+      "body": "return this.getPeContractors(input);",
+      "calls": [
+        {
+          "target": "this.getPeContractors",
+          "args": [
+            "input"
+          ],
+          "line": 2760
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_pe_bills",
+      "caseLine": 2761,
+      "bodyLine": 2762,
+      "group": [
+        "get_pe_bills"
+      ],
+      "body": "return this.getPeBills(input);",
+      "calls": [
+        {
+          "target": "this.getPeBills",
+          "args": [
+            "input"
+          ],
+          "line": 2762
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_pe_report_language",
+      "caseLine": 2763,
+      "bodyLine": 2764,
+      "group": [
+        "get_pe_report_language"
+      ],
+      "body": "return this.getPeReportLanguage(input);",
+      "calls": [
+        {
+          "target": "this.getPeReportLanguage",
+          "args": [
+            "input"
+          ],
+          "line": 2764
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_acquisition_personnel",
+      "caseLine": 2765,
+      "bodyLine": 2766,
+      "group": [
+        "search_acquisition_personnel"
+      ],
+      "body": "return this.searchAcquisitionPersonnel(ctx, input);",
+      "calls": [
+        {
+          "target": "this.searchAcquisitionPersonnel",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2766
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_acquisition_person",
+      "caseLine": 2767,
+      "bodyLine": 2768,
+      "group": [
+        "get_acquisition_person"
+      ],
+      "body": "return this.getAcquisitionPerson(ctx, input);",
+      "calls": [
+        {
+          "target": "this.getAcquisitionPerson",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2768
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "find_contacts",
+      "caseLine": 2769,
+      "bodyLine": 2770,
+      "group": [
+        "find_contacts"
+      ],
+      "body": "return this.findContacts(ctx, input);",
+      "calls": [
+        {
+          "target": "this.findContacts",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2770
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "create_word",
+      "caseLine": 2771,
+      "bodyLine": 2772,
+      "group": [
+        "create_word"
+      ],
+      "body": "if (input.format !== undefined && input.format !== 'docx' && input.format !== 'pdf' && input.format !== 'txt') {\n          throw new BadRequestException('Document format must be docx, pdf or txt');\n        }\nreturn this.createDocument(ctx, input, input.format === 'txt' ? 'txt' : input.format === 'pdf' ? 'pdf' : 'docx', execution?.actionProposalId);",
+      "calls": [
+        {
+          "target": "this.createDocument",
+          "args": [
+            "ctx",
+            "input",
+            "input.format === 'txt' ? 'txt' : input.format === 'pdf' ? 'pdf' : 'docx'",
+            "execution?.actionProposalId"
+          ],
+          "line": 2775
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "create_excel",
+      "caseLine": 2776,
+      "bodyLine": 2777,
+      "group": [
+        "create_excel"
+      ],
+      "body": "return this.createDocument(ctx, input, 'xlsx');",
+      "calls": [
+        {
+          "target": "this.createDocument",
+          "args": [
+            "ctx",
+            "input",
+            "'xlsx'"
+          ],
+          "line": 2777
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "create_powerpoint",
+      "caseLine": 2778,
+      "bodyLine": 2779,
+      "group": [
+        "create_powerpoint"
+      ],
+      "body": "return this.createDocument(ctx, input, 'pptx');",
+      "calls": [
+        {
+          "target": "this.createDocument",
+          "args": [
+            "ctx",
+            "input",
+            "'pptx'"
+          ],
+          "line": 2779
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "schedule_task",
+      "caseLine": 2780,
+      "bodyLine": 2781,
+      "group": [
+        "schedule_task"
+      ],
+      "body": "return this.scheduleTask(ctx, input, execution?.actionProposalId);",
+      "calls": [
+        {
+          "target": "this.scheduleTask",
+          "args": [
+            "ctx",
+            "input",
+            "execution?.actionProposalId"
+          ],
+          "line": 2781
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "list_scheduled_tasks",
+      "caseLine": 2782,
+      "bodyLine": 2783,
+      "group": [
+        "list_scheduled_tasks"
+      ],
+      "body": "return this.listScheduledTasks(ctx);",
+      "calls": [
+        {
+          "target": "this.listScheduledTasks",
+          "args": [
+            "ctx"
+          ],
+          "line": 2783
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "cancel_scheduled_task",
+      "caseLine": 2784,
+      "bodyLine": 2785,
+      "group": [
+        "cancel_scheduled_task"
+      ],
+      "body": "return this.cancelScheduledTask(ctx, input);",
+      "calls": [
+        {
+          "target": "this.cancelScheduledTask",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2785
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "update_scheduled_task",
+      "caseLine": 2786,
+      "bodyLine": 2787,
+      "group": [
+        "update_scheduled_task"
+      ],
+      "body": "return this.updateScheduledTask(ctx, input);",
+      "calls": [
+        {
+          "target": "this.updateScheduledTask",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2787
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "query_tasks",
+      "caseLine": 2788,
+      "bodyLine": 2789,
+      "group": [
+        "query_tasks"
+      ],
+      "body": "return this.queryTasks(ctx, input);",
+      "calls": [
+        {
+          "target": "this.queryTasks",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2789
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "query_action_items",
+      "caseLine": 2790,
+      "bodyLine": 2791,
+      "group": [
+        "query_action_items"
+      ],
+      "body": "return this.queryActionItems(ctx, input);",
+      "calls": [
+        {
+          "target": "this.queryActionItems",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2791
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_tracked_bills",
+      "caseLine": 2792,
+      "bodyLine": 2793,
+      "group": [
+        "search_tracked_bills"
+      ],
+      "body": "return this.searchTrackedBills(ctx, input);",
+      "calls": [
+        {
+          "target": "this.searchTrackedBills",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2793
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "query_regulatory_dockets",
+      "caseLine": 2794,
+      "bodyLine": 2795,
+      "group": [
+        "query_regulatory_dockets"
+      ],
+      "body": "return this.queryRegulatoryDockets(input);",
+      "calls": [
+        {
+          "target": "this.queryRegulatoryDockets",
+          "args": [
+            "input"
+          ],
+          "line": 2795
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "search_sam_opportunities",
+      "caseLine": 2796,
+      "bodyLine": 2797,
+      "group": [
+        "search_sam_opportunities"
+      ],
+      "body": "return this.searchSamOpportunities(ctx, input);",
+      "calls": [
+        {
+          "target": "this.searchSamOpportunities",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2797
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "query_debriefs",
+      "caseLine": 2798,
+      "bodyLine": 2799,
+      "group": [
+        "query_debriefs"
+      ],
+      "body": "return this.queryDebriefs(ctx, input);",
+      "calls": [
+        {
+          "target": "this.queryDebriefs",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2799
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "read_client_meetings",
+      "caseLine": 2800,
+      "bodyLine": 2801,
+      "group": [
+        "read_client_meetings"
+      ],
+      "body": "return this.readClientMeetings(ctx, input);",
+      "calls": [
+        {
+          "target": "this.readClientMeetings",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2801
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "read_client_documents",
+      "caseLine": 2802,
+      "bodyLine": 2803,
+      "group": [
+        "read_client_documents"
+      ],
+      "body": "return this.readClientDocuments(ctx, input);",
+      "calls": [
+        {
+          "target": "this.readClientDocuments",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2803
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "query_outreach",
+      "caseLine": 2804,
+      "bodyLine": 2805,
+      "group": [
+        "query_outreach"
+      ],
+      "body": "return this.queryOutreach(ctx, input);",
+      "calls": [
+        {
+          "target": "this.queryOutreach",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2805
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "lookup_client_registry",
+      "caseLine": 2806,
+      "bodyLine": 2807,
+      "group": [
+        "lookup_client_registry"
+      ],
+      "body": "return this.lookupClientRegistry(ctx, input);",
+      "calls": [
+        {
+          "target": "this.lookupClientRegistry",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2807
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "create_client",
+      "caseLine": 2808,
+      "bodyLine": 2809,
+      "group": [
+        "create_client"
+      ],
+      "body": "return this.createClient(ctx, input);",
+      "calls": [
+        {
+          "target": "this.createClient",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2809
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "create_task",
+      "caseLine": 2810,
+      "bodyLine": 2811,
+      "group": [
+        "create_task"
+      ],
+      "body": "return this.createEngagementTask(ctx, input);",
+      "calls": [
+        {
+          "target": "this.createEngagementTask",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2811
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "update_task",
+      "caseLine": 2812,
+      "bodyLine": 2813,
+      "group": [
+        "update_task"
+      ],
+      "body": "return this.updateEngagementTask(ctx, input);",
+      "calls": [
+        {
+          "target": "this.updateEngagementTask",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2813
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "update_client_profile",
+      "caseLine": 2814,
+      "bodyLine": 2815,
+      "group": [
+        "update_client_profile"
+      ],
+      "body": "return this.updateClientProfile(ctx, input);",
+      "calls": [
+        {
+          "target": "this.updateClientProfile",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2815
+        }
+      ],
+      "readOnly": false
+    },
+    {
+      "name": "search_funding_opportunities",
+      "caseLine": 2821,
+      "bodyLine": 2822,
+      "group": [
+        "search_funding_opportunities"
+      ],
+      "body": "return this.opportunityTools.searchFundingOpportunities(toolActor(ctx), {\n          clientId: String(input.clientId ?? ''),\n          source: input.source as string | undefined,\n          query: input.query as string | undefined,\n          page: input.page as number | undefined,\n          pageSize: input.pageSize as number | undefined,\n          activeState: input.activeState as string | undefined,\n        });",
+      "calls": [
+        {
+          "target": "this.opportunityTools.searchFundingOpportunities",
+          "args": [
+            "toolActor(ctx)",
+            "{\n          clientId: String(input.clientId ?? ''),\n          source: input.source as string | undefined,\n          query: input.query as string | undefined,\n          page: input.page as number | undefined,\n          pageSize: input.pageSize as number | undefined,\n          activeState: input.activeState as string | undefined,\n        }"
+          ],
+          "line": 2822
+        },
+        {
+          "target": "toolActor",
+          "args": [
+            "ctx"
+          ],
+          "line": 2822
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.clientId ?? ''"
+          ],
+          "line": 2823
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_funding_opportunity_requirements",
+      "caseLine": 2830,
+      "bodyLine": 2831,
+      "group": [
+        "get_funding_opportunity_requirements"
+      ],
+      "body": "return this.opportunityTools.getFundingOpportunityRequirements(toolActor(ctx), {\n          clientId: String(input.clientId ?? ''),\n          source: String(input.source ?? ''),\n          sourceRecordId: String(input.sourceRecordId ?? ''),\n          offset: input.offset as number | undefined,\n          limit: input.limit as number | undefined,\n        });",
+      "calls": [
+        {
+          "target": "this.opportunityTools.getFundingOpportunityRequirements",
+          "args": [
+            "toolActor(ctx)",
+            "{\n          clientId: String(input.clientId ?? ''),\n          source: String(input.source ?? ''),\n          sourceRecordId: String(input.sourceRecordId ?? ''),\n          offset: input.offset as number | undefined,\n          limit: input.limit as number | undefined,\n        }"
+          ],
+          "line": 2831
+        },
+        {
+          "target": "toolActor",
+          "args": [
+            "ctx"
+          ],
+          "line": 2831
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.clientId ?? ''"
+          ],
+          "line": 2832
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.source ?? ''"
+          ],
+          "line": 2833
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.sourceRecordId ?? ''"
+          ],
+          "line": 2834
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_funding_opportunity",
+      "caseLine": 2838,
+      "bodyLine": 2839,
+      "group": [
+        "get_funding_opportunity"
+      ],
+      "body": "return this.opportunityTools.getFundingOpportunity(toolActor(ctx), {\n          clientId: String(input.clientId ?? ''),\n          source: String(input.source ?? ''),\n          sourceRecordId: String(input.sourceRecordId ?? ''),\n          summaryOffset: input.summaryOffset as number | undefined,\n          summaryLimit: input.summaryLimit as number | undefined,\n        });",
+      "calls": [
+        {
+          "target": "this.opportunityTools.getFundingOpportunity",
+          "args": [
+            "toolActor(ctx)",
+            "{\n          clientId: String(input.clientId ?? ''),\n          source: String(input.source ?? ''),\n          sourceRecordId: String(input.sourceRecordId ?? ''),\n          summaryOffset: input.summaryOffset as number | undefined,\n          summaryLimit: input.summaryLimit as number | undefined,\n        }"
+          ],
+          "line": 2839
+        },
+        {
+          "target": "toolActor",
+          "args": [
+            "ctx"
+          ],
+          "line": 2839
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.clientId ?? ''"
+          ],
+          "line": 2840
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.source ?? ''"
+          ],
+          "line": 2841
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.sourceRecordId ?? ''"
+          ],
+          "line": 2842
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "explain_opportunity_match",
+      "caseLine": 2846,
+      "bodyLine": 2847,
+      "group": [
+        "explain_opportunity_match"
+      ],
+      "body": "return this.opportunityTools.explainOpportunityMatch(toolActor(ctx), {\n          clientId: String(input.clientId ?? ''),\n          source: String(input.source ?? ''),\n          sourceRecordId: String(input.sourceRecordId ?? ''),\n        });",
+      "calls": [
+        {
+          "target": "this.opportunityTools.explainOpportunityMatch",
+          "args": [
+            "toolActor(ctx)",
+            "{\n          clientId: String(input.clientId ?? ''),\n          source: String(input.source ?? ''),\n          sourceRecordId: String(input.sourceRecordId ?? ''),\n        }"
+          ],
+          "line": 2847
+        },
+        {
+          "target": "toolActor",
+          "args": [
+            "ctx"
+          ],
+          "line": 2847
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.clientId ?? ''"
+          ],
+          "line": 2848
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.source ?? ''"
+          ],
+          "line": 2849
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.sourceRecordId ?? ''"
+          ],
+          "line": 2850
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_opportunity_client_context",
+      "caseLine": 2852,
+      "bodyLine": 2853,
+      "group": [
+        "get_opportunity_client_context"
+      ],
+      "body": "return this.opportunityTools.getOpportunityClientContext(toolActor(ctx), {\n          clientId: String(input.clientId ?? ''),\n        });",
+      "calls": [
+        {
+          "target": "this.opportunityTools.getOpportunityClientContext",
+          "args": [
+            "toolActor(ctx)",
+            "{\n          clientId: String(input.clientId ?? ''),\n        }"
+          ],
+          "line": 2853
+        },
+        {
+          "target": "toolActor",
+          "args": [
+            "ctx"
+          ],
+          "line": 2853
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.clientId ?? ''"
+          ],
+          "line": 2854
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_opportunity_government_landscape",
+      "caseLine": 2856,
+      "bodyLine": 2857,
+      "group": [
+        "get_opportunity_government_landscape"
+      ],
+      "body": "return this.opportunityTools.getOpportunityGovernmentLandscape(toolActor(ctx), {\n          clientId: String(input.clientId ?? ''),\n          source: String(input.source ?? ''),\n          sourceRecordId: String(input.sourceRecordId ?? ''),\n        });",
+      "calls": [
+        {
+          "target": "this.opportunityTools.getOpportunityGovernmentLandscape",
+          "args": [
+            "toolActor(ctx)",
+            "{\n          clientId: String(input.clientId ?? ''),\n          source: String(input.source ?? ''),\n          sourceRecordId: String(input.sourceRecordId ?? ''),\n        }"
+          ],
+          "line": 2857
+        },
+        {
+          "target": "toolActor",
+          "args": [
+            "ctx"
+          ],
+          "line": 2857
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.clientId ?? ''"
+          ],
+          "line": 2858
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.source ?? ''"
+          ],
+          "line": 2859
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.sourceRecordId ?? ''"
+          ],
+          "line": 2860
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "compare_funding_opportunities",
+      "caseLine": 2862,
+      "bodyLine": 2863,
+      "group": [
+        "compare_funding_opportunities"
+      ],
+      "body": "return this.opportunityTools.compareFundingOpportunities(toolActor(ctx), {\n          clientId: String(input.clientId ?? ''),\n          opportunities: Array.isArray(input.opportunities)\n            ? (input.opportunities as Array<Record<string, unknown>>).map((o) => ({\n                source: String(o?.source ?? ''),\n                sourceRecordId: String(o?.sourceRecordId ?? ''),\n              }))\n            : [],\n        });",
+      "calls": [
+        {
+          "target": "this.opportunityTools.compareFundingOpportunities",
+          "args": [
+            "toolActor(ctx)",
+            "{\n          clientId: String(input.clientId ?? ''),\n          opportunities: Array.isArray(input.opportunities)\n            ? (input.opportunities as Array<Record<string, unknown>>).map((o) => ({\n                source: String(o?.source ?? ''),\n                sourceRecordId: String(o?.sourceRecordId ?? ''),\n              }))\n            : [],\n        }"
+          ],
+          "line": 2863
+        },
+        {
+          "target": "toolActor",
+          "args": [
+            "ctx"
+          ],
+          "line": 2863
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.clientId ?? ''"
+          ],
+          "line": 2864
+        },
+        {
+          "target": "Array.isArray",
+          "args": [
+            "input.opportunities"
+          ],
+          "line": 2865
+        },
+        {
+          "target": "(input.opportunities as Array<Record<string, unknown>>).map",
+          "args": [
+            "(o) => ({\n                source: String(o?.source ?? ''),\n                sourceRecordId: String(o?.sourceRecordId ?? ''),\n              })"
+          ],
+          "line": 2866
+        },
+        {
+          "target": "String",
+          "args": [
+            "o?.source ?? ''"
+          ],
+          "line": 2867
+        },
+        {
+          "target": "String",
+          "args": [
+            "o?.sourceRecordId ?? ''"
+          ],
+          "line": 2868
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "build_opportunity_action_plan",
+      "caseLine": 2872,
+      "bodyLine": 2873,
+      "group": [
+        "build_opportunity_action_plan"
+      ],
+      "body": "return this.opportunityTools.buildOpportunityActionPlan(toolActor(ctx), {\n          clientId: String(input.clientId ?? ''),\n          source: String(input.source ?? ''),\n          sourceRecordId: String(input.sourceRecordId ?? ''),\n        });",
+      "calls": [
+        {
+          "target": "this.opportunityTools.buildOpportunityActionPlan",
+          "args": [
+            "toolActor(ctx)",
+            "{\n          clientId: String(input.clientId ?? ''),\n          source: String(input.source ?? ''),\n          sourceRecordId: String(input.sourceRecordId ?? ''),\n        }"
+          ],
+          "line": 2873
+        },
+        {
+          "target": "toolActor",
+          "args": [
+            "ctx"
+          ],
+          "line": 2873
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.clientId ?? ''"
+          ],
+          "line": 2874
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.source ?? ''"
+          ],
+          "line": 2875
+        },
+        {
+          "target": "String",
+          "args": [
+            "input.sourceRecordId ?? ''"
+          ],
+          "line": 2876
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_business_development_context",
+      "caseLine": 2884,
+      "bodyLine": 2885,
+      "group": [
+        "get_business_development_context"
+      ],
+      "body": "return this.requireBizDevTools().getContext(ctx, input);",
+      "calls": [
+        {
+          "target": "this.requireBizDevTools().getContext",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2885
+        },
+        {
+          "target": "this.requireBizDevTools",
+          "args": [],
+          "line": 2885
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_business_development_evidence",
+      "caseLine": 2886,
+      "bodyLine": 2887,
+      "group": [
+        "get_business_development_evidence"
+      ],
+      "body": "return this.requireBizDevTools().getEvidence(ctx, input);",
+      "calls": [
+        {
+          "target": "this.requireBizDevTools().getEvidence",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2887
+        },
+        {
+          "target": "this.requireBizDevTools",
+          "args": [],
+          "line": 2887
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_business_development_recent_changes",
+      "caseLine": 2888,
+      "bodyLine": 2889,
+      "group": [
+        "get_business_development_recent_changes"
+      ],
+      "body": "return this.requireBizDevTools().getRecentChanges(ctx, input);",
+      "calls": [
+        {
+          "target": "this.requireBizDevTools().getRecentChanges",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2889
+        },
+        {
+          "target": "this.requireBizDevTools",
+          "args": [],
+          "line": 2889
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "get_business_development_brief",
+      "caseLine": 2890,
+      "bodyLine": 2891,
+      "group": [
+        "get_business_development_brief"
+      ],
+      "body": "return this.requireBizDevTools().getBrief(ctx, input);",
+      "calls": [
+        {
+          "target": "this.requireBizDevTools().getBrief",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2891
+        },
+        {
+          "target": "this.requireBizDevTools",
+          "args": [],
+          "line": 2891
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "resolve_business_development_source",
+      "caseLine": 2892,
+      "bodyLine": 2893,
+      "group": [
+        "resolve_business_development_source"
+      ],
+      "body": "return this.requireBizDevTools().resolveSource(ctx, input);",
+      "calls": [
+        {
+          "target": "this.requireBizDevTools().resolveSource",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2893
+        },
+        {
+          "target": "this.requireBizDevTools",
+          "args": [],
+          "line": 2893
+        }
+      ],
+      "readOnly": true
+    },
+    {
+      "name": "save_business_development_brief",
+      "caseLine": 2894,
+      "bodyLine": 2895,
+      "group": [
+        "save_business_development_brief"
+      ],
+      "body": "return this.requireBizDevTools().saveBrief(ctx, input);",
+      "calls": [
+        {
+          "target": "this.requireBizDevTools().saveBrief",
+          "args": [
+            "ctx",
+            "input"
+          ],
+          "line": 2895
+        },
+        {
+          "target": "this.requireBizDevTools",
+          "args": [],
+          "line": 2895
+        }
+      ],
+      "readOnly": false
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "frozenHead": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "files": [
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "blob": "c4cc8ee7623c94b733650e9031d8b8e29388a3a1",
+      "sha256": "ffba9eac10be1154eb52e3537689ad23b8b89a85614b7b28c9737f079a06b328",
+      "bytes": 416090,
+      "equalFrozen": true
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "blob": "39ed5db53cf9599b72f9ddf1885568441b873217",
+      "sha256": "fde2cea920fcb64f3150bbe5849d2cfd438462edaf711634dc7ed48f0eba7d9a",
+      "bytes": 273692,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/governed-meri-tools.proxy.ts",
+      "blob": "88c7c163a62959ea3b631b2116e3db3f8cca3e1b",
+      "sha256": "546290f7aaa4f179320022f94479b36147c0e2f518ea34595abb424f17c4da1a",
+      "bytes": 8007,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.module.ts",
+      "blob": "8e4ec3ea811f7b2e8895760269e3b297099abea4",
+      "sha256": "0556ee521e5208eac4e1566c8e69847859b8a12c64699ad6ae281233f8673c67",
+      "bytes": 12478,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-request-control.ts",
+      "blob": "e0cd084e488b50feadabfd8e325f86edc1611b41",
+      "sha256": "e0808b351f92eb2a5d1b609fcfeafd08f2ed4388e2c26e9cdcf4b991af0a4287",
+      "bytes": 2198,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-rp-tool-transport.ts",
+      "blob": "4bca739696cbed54cda61f53173e0c6489a4a181",
+      "sha256": "6741fbafae5a3b98dea3f9232efd319b1e2b3c0ccfedbdb301013a8e19dd2afc",
+      "bytes": 7196,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.service.ts",
+      "blob": "397c46f49a540a32d231a114945119d51be04c4a",
+      "sha256": "0def3e294659424a8a831c0c2fa652b5fa594b22ea0836d9cf209958d53e60f5",
+      "bytes": 293639,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri.controller.ts",
+      "blob": "598e9146e5568349f213cbd548de0213113dc924",
+      "sha256": "c9562a30e6a67ed75eaf74850d1e4d67c133f040035fb4df8ac80605a3123586",
+      "bytes": 44992,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-research.service.ts",
+      "blob": "aaa52e7b1dc0a158844e738056d805e5f3667f7b",
+      "sha256": "ff01f6b1e223e90517fa021d1eefc621dc85488a57a64846148758b37876fb9b",
+      "bytes": 241376,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-research-replay-authorization.ts",
+      "blob": "7490f984f70ea984db561712477488777d54c7bd",
+      "sha256": "684d2d020b99070d2abc018c3c230ce6344803cb9b6cbbbe05dc666688118b01",
+      "bytes": 38199,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-action-proposal.service.ts",
+      "blob": "388eca6ff9c93cc9ed173bcf0485bf52a3d7aa5e",
+      "sha256": "3d5871ce2f9af47057601364f89fb6220410d2f9000430e8f6a79bd7aa88c155",
+      "bytes": 44090,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-v3-visual-analysis.service.ts",
+      "blob": "4f3d03776664e6f35aef71d1eda1d68f7f939387",
+      "sha256": "39a8ab10ba2a62627e2405d8e93ff75648bc03d40fcad4cfed858f264f0e9587",
+      "bytes": 22342,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.registration.spec.ts",
+      "blob": "4e79ee826a4d39d3b4e4c684a20ee29cc5ceae60",
+      "sha256": "bf4e65f471aba4524987f9d5e883dd99dc893d6461ef02a196877977d8d81b20",
+      "bytes": 39716,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-manifest.parity.spec.ts",
+      "blob": "3ba4c553c04e1b2f948a931e5757d8b6493fea52",
+      "sha256": "831a5f8ef099b79699bd3be3dc9995316a4af79d90762b9c8977982359d8caa6",
+      "bytes": 6152,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/governed-meri-tools.proxy.spec.ts",
+      "blob": "a7444703e5cfd0375ddca5da0d9c357fd4f71f83",
+      "sha256": "84745419f5f5c4c091326b3d88fe7364359f2a88a71300fa2a45ee1a63de2a79",
+      "bytes": 3951,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/governed-meri-tools.chart-scope.spec.ts",
+      "blob": "85a4d58951c30d3c68ecb1b853305207cabe814d",
+      "sha256": "71001bf80e30c62624a63cb866a86ab4d2f02a8bbc839e892cca7e098eaec273",
+      "bytes": 5210,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-tool-request-control.spec.ts",
+      "blob": "edca0a6c3b08fbdfec54d0bde4f00a1552797482",
+      "sha256": "ce5f236ae55d84db57150cb5ef5f0dffab79ff62a1e0c6b2e9d829fa90c5eed4",
+      "bytes": 1584,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.award-compatibility.spec.ts",
+      "blob": "07833534a1f70806141be8f945c3fb5c76d012bc",
+      "sha256": "77c1e42a49299b71b6f67ff560d5696f6355024a37e8860f88814f3b58a40eee",
+      "bytes": 8102,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/capabilities/capability-registry.ts",
+      "blob": "f42b3eb825a29f19f7c28ced4a8819474dbcdb44",
+      "sha256": "adb6182920b520badf8d34958d25649fc2cd2d3ed60fbe764b0bcb2ede0ff83e",
+      "bytes": 3487,
+      "equalFrozen": true
+    },
+    {
+      "path": "apps/api/src/capabilities/adapters/capability-tool-adapter.ts",
+      "blob": "a55f6c886906e98353a561e08d291d02b25e5dee",
+      "sha256": "7ae1af3a6187465721f52b8c67340a33621442e8760328385f9149f9156757df",
+      "bytes": 1482,
+      "equalFrozen": true
+    },
+    {
+      "path": "docs/cleanup-source-gates-20261012/evidence/meri-catalog-baseline-classification.json",
+      "blob": "f4e3b812d1741bf3cf1bf3bc0221ff5b476de919",
+      "sha256": "a1974af2939ce9a505890caec140f49b05c56e7abf969bd6fe41fa6d26111fbe",
+      "bytes": 912,
+      "equalFrozen": true
+    },
+    {
+      "path": "docs/cleanup-source-gates-20261012/evidence/meri-catalog-baseline.command.json",
+      "blob": "a555ae716f3b11815d2fbc5dd81e2297e1f8243c",
+      "sha256": "a21ee2b837f71edae1f15f84e9c014db92ecd91670ee238dc79833b0afa0e36f",
+      "bytes": 759,
+      "equalFrozen": true
+    },
+    {
+      "path": "docs/cleanup-canonical-recovery-source-20261012/HANDOFF.md",
+      "blob": "1a12f59d91267ed8a90bd12602d38c95ebc0d841",
+      "sha256": "828c887aaf4de0430ee6b19064a96a1702058e3b13f96a06a9bcf349a33042e5",
+      "bytes": 7315,
+      "equalFrozen": true
+    }
+  ]
+}

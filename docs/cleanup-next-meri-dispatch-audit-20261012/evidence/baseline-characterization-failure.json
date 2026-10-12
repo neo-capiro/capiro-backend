@@ -1,0 +1,25 @@
+{
+  "error": "Unqualified direct arg name",
+  "stack": "Error: Unqualified direct arg name\n    at /workspace/capirov2-cleanup-next-meri-dispatch-audit/docs/cleanup-next-meri-dispatch-audit-20261012/evidence/characterize-baseline.cjs:84:15\n    at Array.map (<anonymous>)\n    at /workspace/capirov2-cleanup-next-meri-dispatch-audit/docs/cleanup-next-meri-dispatch-audit-20261012/evidence/characterize-baseline.cjs:80:36\n    at async check (/workspace/capirov2-cleanup-next-meri-dispatch-audit/docs/cleanup-next-meri-dispatch-audit-20261012/evidence/characterize-baseline.cjs:69:35)\n    at async /workspace/capirov2-cleanup-next-meri-dispatch-audit/docs/cleanup-next-meri-dispatch-audit-20261012/evidence/characterize-baseline.cjs:71:31",
+  "checksPassedBeforeFailure": [
+    "all-case:manage_research_portfolio",
+    "all-case:get_research_portfolio",
+    "all-case:get_research_portfolio_analytics",
+    "all-case:get_research_portfolio_changes",
+    "all-case:create_research_portfolio_snapshot",
+    "all-case:request_research_portfolio_output",
+    "all-case:save_research_portfolio_output_to_client",
+    "all-case:watch_research_portfolio",
+    "all-case:update_research_portfolio_change_state",
+    "all-case:get_research_portfolio_bookmarks",
+    "all-case:create_research_portfolio_bookmark",
+    "all-case:get_research_portfolio_fit",
+    "all-case:get_research_portfolio_reviews",
+    "all-case:add_research_portfolio_review_note",
+    "all-case:get_research_portfolio_rules",
+    "all-case:get_research_portfolio_imports",
+    "all-case:get_research_portfolio_operations",
+    "all-case:prepare_research_portfolio_brief",
+    "all-case:prepare_research_portfolio_meeting"
+  ]
+}

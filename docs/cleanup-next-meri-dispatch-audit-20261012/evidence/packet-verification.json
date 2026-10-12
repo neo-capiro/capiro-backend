@@ -1,0 +1,14 @@
+{
+  "frozenHead": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "authorSourceHashesVerified": 23,
+  "inheritedFailureHashesVerified": 5,
+  "independentFilesHashesVerified": 3,
+  "nonpacketTrackedChanges": 0,
+  "caseNames": 134,
+  "proxyOwnedNames": 5,
+  "inertBaselineChecks": 293,
+  "independentSourceReview": 28,
+  "implementationExists": false,
+  "retirementCoordination": "pending",
+  "nativeAcceptance": false
+}

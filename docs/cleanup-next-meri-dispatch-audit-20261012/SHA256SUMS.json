@@ -1,0 +1,95 @@
+{
+  "scope": "curated audit packet files; excludes checksum file itself to avoid circular identity",
+  "files": [
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/AUDIT.md",
+      "sha256": "d9bf6e4aa6e48e62db0afc5a7a0337243bf8266e4b1b0145a35bbfd3234ca952",
+      "bytes": 7959
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/INDEPENDENT-AUDIT.md",
+      "sha256": "c59128f0f86da4bdaca780209ad0a20ae42603d898b232b560abbee1a5269947",
+      "bytes": 15238
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/PATH-MAP.md",
+      "sha256": "fcbd61dd008f842ce9d97665ffca1c08ad922c75326f3e49f3d808c58c41cf57",
+      "bytes": 4176
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/PROOF-PLAN.md",
+      "sha256": "478ed996bf1899dcf63ae9f4142304388d551dde77f53dc187ad8e1e74d653a5",
+      "bytes": 5109
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/DISPATCH-MAP.md",
+      "sha256": "fc79f6565a48cadc3266c00448b2f2e4b07841470ec417203e26df58ee35f1a9",
+      "bytes": 18332
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/audit-dispatch.cjs",
+      "sha256": "bf1312a4cc81743575f9a0d9ed32ffc5b258fecaf0fa8493844c291a81dc594a",
+      "bytes": 7882
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/author-command-receipts.json",
+      "sha256": "059e46bfa07ca7678f9cd2c7cb3daa4313be3c66d27839f7a8eaecb3adf6517d",
+      "bytes": 3269
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/baseline-characterization-failure.json",
+      "sha256": "a21019c3ea15680ba0d9f7e1215be3e8a12cc36680efcdbd855afd396df473a2",
+      "bytes": 1693
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/baseline-characterization.json",
+      "sha256": "36354831ffb66ffcd0dc2d884a65050593ff87dff96886143cdf20fd833a0c0c",
+      "bytes": 11848
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/characterize-baseline-initial.cjs",
+      "sha256": "053002f5045917e0044cfc6b5b82de7a2363f8a2c0b312c0c42bb6ae2338937a",
+      "bytes": 12133
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/characterize-baseline.cjs",
+      "sha256": "9f8800cd874600ce70f248631bbb2652486b9fb37834f3568eb1f4006df60da4",
+      "bytes": 12178
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/dispatch-map.json",
+      "sha256": "5c39e7dcabc3cb8c3368ea002593f8e2e656d997e8c54556f37b57c648763d5e",
+      "bytes": 102994
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/independent-read-only-receipt.txt",
+      "sha256": "9c975a99b3c774020737552a80ecebfe23f57b94628ac4ae330b146b4c7ea8f7",
+      "bytes": 1977
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/independent-source-inventory.json",
+      "sha256": "55a933f69de85bc4254cb6a8bc4707219ee96048e20c6c7147738cd44fe8e615",
+      "bytes": 12772
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/inherited-baseline-preservation.json",
+      "sha256": "1585948ef9d867a0aa6e19b209a178bcd411d15d467df53987411e405c1c9c63",
+      "bytes": 4001
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/inventory-validation.json",
+      "sha256": "ab63b034347f750f6580fbd3bdb669a7a572c3e3b9729ecacfd98354be2fc22b",
+      "bytes": 491
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/source-manifest.json",
+      "sha256": "f5cc490c6d74d26916e9a4aa0fe7190d731d13158d114dccbb8ec340527b0f50",
+      "bytes": 6298
+    },
+    {
+      "path": "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/packet-verification.json",
+      "sha256": "ce614aee863766935f867fe54ba0d284e808707a5dbc6f247689bc1c55d2ba09",
+      "bytes": 417
+    }
+  ]
+}
