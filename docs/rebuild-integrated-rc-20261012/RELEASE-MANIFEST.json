@@ -507,5 +507,18 @@
     "Full Cleanup2392 retains separate unaccepted source/native/browser/exact-source gates; selective guards do not accept the full candidate.",
     "Unpublished scoped EngagementService reporting must be published/composed/reviewed by its owner before new client/organization reporting can activate.",
     "General Workspace Objective authority and durable creation/association, comprehensive effective Dates/correction review and Contacts ClientPerson carryover are separate contracts."
-  ]
+  ],
+  "independentReview": {
+    "acceptedImplementationSource": "11903f32f6257a47e42f49c1abe92c0e0fb0e4fb",
+    "acceptedImplementationTree": "b10a7ed7e2e19d371ad46bfc2a6b57efdbaa997c",
+    "runtimeRepairs": [],
+    "evidenceCommit": "c1c9793e08df061d79f24b55c550fd5ed15cabe5",
+    "adoptionCommit": "3e6a97764",
+    "receipt": "evidence/independent-review/FINAL-SOURCE-RECEIPT.json",
+    "newControls": {
+      "sourceComposition": 20,
+      "contacts": 87
+    },
+    "combinedRerunsOverlapAuthor": true
+  }
 }

@@ -1,0 +1,21 @@
+{
+  "scope": "Documentation/evidence setup only; no runtime source or migration bytes changed",
+  "failures": [
+    {
+      "exitCode": 1,
+      "phase": "Read independent checksum keys",
+      "error": "Checksum keys were already repository-relative; prefixing the evidence directory duplicated docs/rebuild-integrated-rc-20261012/evidence/independent-review in the Git path.",
+      "gitDiagnostic": "fatal: path 'docs/rebuild-integrated-rc-20261012/evidence/independent-review/docs/rebuild-integrated-rc-20261012/evidence/independent-review/COMMANDS.json' does not exist in 'HEAD'",
+      "correction": "Use the published repository-relative key directly; do not rewrite checksum bytes."
+    },
+    {
+      "exitCode": 1,
+      "phase": "Premature verification after preceding setup failure",
+      "error": "ENOENT: no such file or directory, open '/workspace/capirov2-integrated-rc/docs/rebuild-integrated-rc-20261012/SHA256SUMS.json'",
+      "correction": "Create and commit the enclosing manifest successfully before running Git-blob verification."
+    }
+  ],
+  "preservedPrematureDocsCommit": "3c7771c57",
+  "prematureCommitActualContents": "Only the pure verification script; acceptance documentation and checksum creation had aborted. Follow-up records them explicitly. Original commit retained.",
+  "nativeAcceptance": false
+}
