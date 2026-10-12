@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards, ParseUUIDPipe, Query, Header } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
 import { VersionsService } from './versions.service.js';
 import { CreateVersionDto } from './dto/version.dto.js';
+import { WorkspaceObjectiveDestinationQueryDto } from './dto/objective-destination.dto.js';
 
 /** Version history nested under a draft (Phase 6b). All tenant-scoped. */
 @Controller('drafts/:draftId/versions')
@@ -23,6 +24,17 @@ export class VersionsController {
     @Param('versionId', ParseUUIDPipe) versionId: string,
   ) {
     return this.versions.outreachRevision(ctx.tenantId, draftId, versionId, ctx.clerkUserId);
+  }
+
+  @Header('Cache-Control', 'private, no-store')
+  @Get(':versionId/objective-destination')
+  objectiveDestination(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Param('versionId', ParseUUIDPipe) versionId: string,
+    @Query() query: WorkspaceObjectiveDestinationQueryDto,
+  ) {
+    return this.versions.objectiveDestination(ctx.tenantId, draftId, versionId, ctx.clerkUserId, query);
   }
 
   /** Snapshot the current draft (called on a manual "Save draft"). */

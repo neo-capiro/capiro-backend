@@ -5751,3 +5751,5 @@ export * from './client-memory-wall.js';
 export * from './prospect-resource-scope.js';
 
 export * from './workspace-saved-revision.js';
+
+export * from './client-objective-destination.js';

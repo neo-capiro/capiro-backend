@@ -1,7 +1,11 @@
-import { workspaceSavedOutreachRevisionWithinTx, WorkspaceRevisionUnavailable } from '@capiro/shared';
+import {
+  workspaceSavedOutreachRevisionWithinTx, WorkspaceRevisionUnavailable,
+  normalizeClientObjectiveDestination, requireClientObjectiveDestinationRevision,
+  ClientObjectiveDestinationError, type ClientObjectiveDestinationInput,
+} from '@capiro/shared';
 import { createHash } from 'node:crypto';
 import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
 import { canEdit, canRead, type ResolvedRole } from '../collaborators/role-policy.js';
@@ -66,6 +70,58 @@ export class VersionsService {
       });
     } catch (error) {
       if (error instanceof WorkspaceRevisionUnavailable) throw new NotFoundException('Saved revision unavailable for staging');
+      throw error;
+    }
+  }
+
+  /** Current Objective authority and the exact eligible saved revision are one
+   * read-only observation. Neither the binding nor its hash grants later access. */
+  async objectiveDestination(
+    tenantId: string, draftId: string, versionId: string, clerkUserId: string,
+    input: ClientObjectiveDestinationInput,
+  ) {
+    try {
+      const binding = normalizeClientObjectiveDestination(input);
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+        const revision = await workspaceSavedOutreachRevisionWithinTx(tx, {
+          tenantId, draftId, versionId, clerkUserId,
+        });
+        // The saved/current canonical UUID must exist and match BEFORE probing
+        // Objective version conflicts. Display names never infer this authority.
+        if (!revision.clientId || revision.clientId !== binding.clientId)
+          throw new NotFoundException('Objective destination not found');
+        const objective = await requireClientObjectiveDestinationRevision(
+          tx, { tenantId, clerkUserId }, binding,
+        );
+        const { snapshotJson, ...selected } = revision;
+        return {
+          ...selected,
+          snapshotHash: createHash('sha256').update(snapshotJson).digest('hex'),
+          hashFormat: 'workspace-snapshot-canonical-json-v1',
+          destination: {
+            kind: 'workspace_saved_revision' as const,
+            resourceId: revision.versionId,
+            draftId: revision.draftId,
+            ...objective,
+          },
+        };
+      });
+    } catch (error) {
+      if (error instanceof WorkspaceRevisionUnavailable)
+        throw new NotFoundException('Objective destination not found');
+      if (error instanceof ClientObjectiveDestinationError) {
+        if (error.code === 'OBJECTIVE_DESTINATION_INVALID')
+          throw new BadRequestException('Invalid Objective destination binding');
+        if (error.code === 'OBJECTIVE_VERSION_CONFLICT')
+          throw new ConflictException({
+            code: 'OBJECTIVE_VERSION_CONFLICT',
+            message: 'The Objective changed. Refresh before opening this saved revision.',
+          });
+        throw new NotFoundException('Objective destination not found');
+      }
+      // Permission, deadlock and other infrastructure failures remain errors;
+      // there is no fallback, successful stale binding or automatic write retry.
       throw error;
     }
   }
