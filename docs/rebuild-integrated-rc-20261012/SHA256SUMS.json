@@ -354,6 +354,10 @@
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
+      "path": "docs/rebuild-integrated-rc-20261012/evidence/source-evidence-verification-at-605711381.json",
+      "sha256": "f4bf22b38ef5ee35abe653a1fc885105ca251cfdda8dbec57cc819a7b72d6ee5"
+    },
+    {
       "path": "docs/rebuild-integrated-rc-20261012/evidence/strategy-combined-regressions.json",
       "sha256": "4ebd258d2a1c4f3c1eeaf7707f83bb3b1fe318024302229d22dc685a5d9c7075"
     },
