@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
@@ -92,6 +97,10 @@ export class FederalRegisterService {
           count(*) FILTER (WHERE effective_date_evidence IS NOT NULL
             AND effective_date_evidence->>'status' IS DISTINCT FROM 'supported') AS "notSupported"
         FROM federal_register_document WHERE type = 'RULE'`;
+        if (!count || !catalog)
+          throw new InternalServerErrorException(
+            'Federal Register coverage snapshot is unavailable',
+          );
         const runSelect = {
           source: true,
           startedAt: true,

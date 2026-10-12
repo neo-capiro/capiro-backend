@@ -53,7 +53,7 @@ describe('Federal Register atomic evidence ingestion', () => {
       persistFederalRegisterObservation(h.prisma as any, source, observedAt, metadata),
     ).resolves.toBe('updated');
     expect(h.trace).toEqual(['identity_lock', 'row_lock', 'metadata', 'evidence']);
-    expect(h.tx.federalRegisterDocument.upsert.mock.calls[0][0]).toMatchObject({
+    expect(h.tx.federalRegisterDocument.upsert.mock.calls[0]![0]).toMatchObject({
       create: { effectiveDate: new Date('2026-11-12T00:00:00Z') },
       update: { effectiveDate: new Date('2026-11-12T00:00:00Z') },
     });
@@ -86,7 +86,7 @@ describe('Federal Register atomic evidence ingestion', () => {
       observedAt,
       metadata,
     );
-    expect(h.tx.federalRegisterDocument.upsert.mock.calls[0][0]).toMatchObject({
+    expect(h.tx.federalRegisterDocument.upsert.mock.calls[0]![0]).toMatchObject({
       update: { effectiveDate: null },
     });
   });

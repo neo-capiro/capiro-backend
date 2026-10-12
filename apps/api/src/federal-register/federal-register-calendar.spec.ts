@@ -62,7 +62,7 @@ describe('effective date calendar owner', () => {
       latestRefresh: null,
     });
     expect(output.pagination).toMatchObject({ totalCandidates: 2, hasMoreCandidates: true });
-    expect(h.prisma.$transaction.mock.calls[0][1]).toMatchObject({
+    expect(h.prisma.$transaction.mock.calls[0]![1]).toMatchObject({
       isolationLevel: 'RepeatableRead',
     });
   });

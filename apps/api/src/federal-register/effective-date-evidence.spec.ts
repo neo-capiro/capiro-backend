@@ -44,7 +44,7 @@ describe('publisher effective-date evidence', () => {
         effective_on: null,
         publication_date: '2026-11-12',
         comments_close_on: '2026-11-12',
-      } as typeof source,
+      } as unknown as typeof source,
       time,
     );
     expect(receipt).toMatchObject({ date: null, status: 'missing_date' });
