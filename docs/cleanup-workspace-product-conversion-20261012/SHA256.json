@@ -1,0 +1,178 @@
+{
+  "files": [
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/AUTHOR-RECEIPT.json",
+      "sha256": "a1f866afc42571ac132fc523d9738151ea79fcb0e9ca8929f2d70f12d0e45059"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/before-source-bindings.json",
+      "sha256": "28d753bffef9784dbe691b86c7955fd793b4031919e6ede6d71fd0336ba76afb"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/capture-before.cjs",
+      "sha256": "9ced29648db3398a3770a9ab3d738351b770bc6b27ab8f5a7e2726743aa99a3c"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/capture-before.json",
+      "sha256": "a3a09b04163331ec4e012b249d1901fa47ee9a31b4f8db161e7559b1d022b923"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/capture-before.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-after-red.json",
+      "sha256": "6a731c1acb7e1474deea92b1383c1ca5b66d3ae36be5960b37ea39c3c2bc2221"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-after-red.stderr.log",
+      "sha256": "ec2f892613ae40e75b9fa9683ff41dcc3e3cfb817f92b269840513e26a9e9374"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-after-red.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-baseline.jest.cjs",
+      "sha256": "636ac5ac6729b7f51ebb42e4c668a3835ad8c56a91dc3dce39374dd390cb8791"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-before-red.json",
+      "sha256": "c1e960644832131142120398f4bbd6d4655b8168b18d70a8d44085060e476436"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-before-red.stderr.log",
+      "sha256": "b5129b2dfd19572f0f83e1a455b7c92d970f4150cf217e0b2761efd82807bfbd"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-before-red.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/cascade.config.before.ts",
+      "sha256": "3a32a9d94d87ffd08448a6259d1b81214ac28d6ef918e0487ae608c412428341"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/cascade.service.before.ts",
+      "sha256": "d6b684beea01c875de10fa88c8700a841db457e6d4ade0ba23d2dbd6e4a7ba21"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/cascade.spec.before.ts",
+      "sha256": "3f5a444f632021bca7a5a8e3ac60b560c118289597403f78dd7921b2efd05ebd"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/focused-strict-accepted.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/focused-strict-accepted.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/focused-strict-final.log",
+      "sha256": "fade86b34279ac4bb5f88039dd8502300952492985edcccc2605a65ba8696b23"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/focused-strict-final.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/focused-strict-first.log",
+      "sha256": "7c1018d9171cf9de2cad98e29619e69c1185bcd55d2677e124ca0a007e4e51cb"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/focused-strict-first.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/focused-strict-second.log",
+      "sha256": "ffaa0c55f8907592114b0f23d333b22bf34a5815b6014bd39dec35e1e040e357"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/focused-strict-second.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/format-new-source.log",
+      "sha256": "ac627268d09ea7f855375c376cec798e8a3a3fd4b326513707f4547417b56e53"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/format-new-source.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/inert-nest.cjs",
+      "sha256": "768bd32213a9e4e02032b0f40e23aeebc7ac45c0f3fb5d616fdde23760a1635c"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization-accepted.json",
+      "sha256": "f39750cab1ef80c4f186e5e10a344e4903b003e8405e1f2d987c12e615def2b3"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization-accepted.stderr.log",
+      "sha256": "b4a4270cd1138af80d80b746112cfe119302b9ffcc5225a0a7b682d0131b3df5"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization-accepted.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization-final.json",
+      "sha256": "9c0fb1e6f14383b86f258f43c875b2e946069042384e3d967aab5986042c9edd"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization-final.stderr.log",
+      "sha256": "60270bc732d280d511294f616697669c776bf319460a9dd5aaf28decb5d6ae3a"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization-final.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization-first.json",
+      "sha256": "631b50d2bef526cbe142af0e35bbd71e6110f7cafc9b8991f1f050a493e15a37"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization-first.stderr.log",
+      "sha256": "41bfdb9d6f6bc94075fce8b2c53a5c83883ef37a223e5be52bc0e4429f936a07"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization-first.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-characterization.jest.cjs",
+      "sha256": "071634466d3ae38e8a13e81fb65a351880e90b1a8b6b0fdfbdcd71b061540d5e"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-differential.cjs",
+      "sha256": "ee0559cb625352ece5c43bf75fa9c906b7d4bd087c5d57a34079ed294714a905"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-differential.json",
+      "sha256": "4aa99a2dd358e900d5efa488b97c26cb2bb068c720cf980e275772ec0c845b61"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/product-differential.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/registry-projection-orders.json",
+      "sha256": "fb90356efeab1a94ed4768bfa7348eb5824072dc59cd4361b31a7b6458fbc557"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/source-preservation-check.cjs",
+      "sha256": "0eaa68ef53a34930399e35ca24590dfd18267ab38c797667a676755478ca98e9"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/source-preservation-check.json",
+      "sha256": "916332119d6dd874e31814de95352ea737d7f059f871b47a44289e639c955ae3"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/source-preservation-check.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "manifestExcludesSelf": true,
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa"
+}

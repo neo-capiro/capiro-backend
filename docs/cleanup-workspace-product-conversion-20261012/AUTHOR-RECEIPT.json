@@ -1,0 +1,60 @@
+{
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "baseTree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "worktree": "/tmp/capirov2-cleanup-workspace-product-conversion",
+  "branch": "codex/cleanup-workspace-product-conversion-20261012",
+  "ownedApplicationPaths": [
+    "apps/workspace/src/cascade/cascade.config.ts",
+    "apps/workspace/src/cascade/workspace-product.registry.ts",
+    "apps/workspace/test/product-registry-characterization.spec.ts",
+    "apps/workspace/test/fixtures/product-registry-before.json"
+  ],
+  "descriptorCount": 11,
+  "compatibilityProjections": 6,
+  "cascadeNameReferences": 19,
+  "beforeGoldenCapturedBeforeApplicationEdits": true,
+  "beforeFixtureSha256": "5b9e9a08b8ede106fa19ed8ff7f1341a1ff65729e8296c45ae2b328c37a01d9c",
+  "newCharacterizationCases": {
+    "passed": 115,
+    "failed": 0
+  },
+  "pureDifferentialProfiles": {
+    "products": 21,
+    "industries": 11,
+    "sections": 78
+  },
+  "focusedStrictNoUncheckedIndexedAccessAccepted": true,
+  "strictRawEvidence": [
+    "evidence/focused-strict-first.log",
+    "evidence/focused-strict-second.log",
+    "evidence/focused-strict-final.log",
+    "evidence/focused-strict-accepted.log"
+  ],
+  "strictFailureQualification": "First attempt lacked explicit cached typeRoots; next attempts found four then one test fixture indexing errors. Only guarded test indexing changed; runtime source unchanged. All raw outputs retained.",
+  "oldCascadeSpecBefore": {
+    "passed": 6,
+    "failed": 1
+  },
+  "oldCascadeSpecAfter": {
+    "passed": 6,
+    "failed": 1
+  },
+  "oldCascadeFailure": "CascadeService allLibraryProducts returns the 10 canonical products",
+  "oldCascadeSpecSourceByteExact": true,
+  "originalWscSectionSpecInterfacesIndustryDataAndSectionLibraryByteExact": true,
+  "registryRuntimeImports": 0,
+  "fieldApiDtoSchemaRouteDelta": 0,
+  "rootGuardDataCiPackageOrOtherWorkersEdited": false,
+  "sourceRetirement": false,
+  "independentReviewAcceptance": false,
+  "rootSameChangeGuardAdoptionAccepted": false,
+  "strictFullWorkspaceOrNativeAcceptance": false,
+  "realProviderModelDatabaseSqlMigrationPrismaCloudUploadCustomerMutation": false,
+  "dependencies": "Existing cached TypeScript/Jest/ts-jest plus identity Injectable stub; local /tmp dependency symlink is untracked and not published.",
+  "publicationOwner": "root, draft source plus guard after independent review; no main merge/deployment",
+  "remainingGates": [
+    "Independent adversarial source review",
+    "Root-owned same-change registry ownership profile/data/test/package/CI integration",
+    "Any wider full-tooling/native acceptance remains unclaimed"
+  ]
+}

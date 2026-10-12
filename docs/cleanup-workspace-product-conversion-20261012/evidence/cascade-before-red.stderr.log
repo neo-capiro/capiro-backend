@@ -1,0 +1,34 @@
+FAIL apps/workspace/test/cascade.spec.ts
+  CascadeService
+    ✓ industries returns all 8 sectors (3 ms)
+    ✓ Defense products include presets + universal + White paper is a canonical product (2 ms)
+    ✕ allLibraryProducts returns the 10 canonical products (4 ms)
+    ✓ pathways + committees derive correctly for Defense (3 ms)
+    ✓ Appropriations Justification defaults: funding=true (1 ms)
+    ✓ Report Language Request defaults: funding=false (1 ms)
+    ✓ White paper is a funding product
+
+  ● CascadeService › allLibraryProducts returns the 10 canonical products
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 10
+    Received length: 11
+    Received array:  ["White paper", "NDAA Authorization Request", "Appropriations Justification", "CDS / Earmark Application", "Authorization Bill Language", "Report Language Request", "Meeting Brief & Advocacy", "Member letter", "Written testimony", "One-pager", …]
+
+      31 |   test('allLibraryProducts returns the 10 canonical products', () => {
+      32 |     const all = svc.allLibraryProducts();
+    > 33 |     expect(all).toHaveLength(10);
+         |                 ^
+      34 |     expect(all).toContain('NDAA Authorization Request');
+      35 |     expect(all).toContain('Strategy memo');
+      36 |   });
+
+      at Object.<anonymous> (test/cascade.spec.ts:33:17)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 6 passed, 7 total
+Snapshots:   0 total
+Time:        0.821 s
+Ran all test suites.
+Test results written to: docs/cleanup-workspace-product-conversion-20261012/evidence/cascade-before-red.json

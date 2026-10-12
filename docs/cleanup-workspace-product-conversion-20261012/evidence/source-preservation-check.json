@@ -1,0 +1,60 @@
+{
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "baseTree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "preserved": [
+    {
+      "name": "WSC",
+      "sha256": "7af22a4c6b558bc8f29bcbcd9cc3496d03ab2c837ae2c2e3fd0faba5e61f7437",
+      "byteExact": true
+    },
+    {
+      "name": "sectionSpecFor",
+      "sha256": "449d661304a135784e1149cf39a239711988e9e6b25f52c61aff1e4d73f39cb8",
+      "byteExact": true
+    },
+    {
+      "name": "INDUSTRY_DATA",
+      "sha256": "a2f7f1010526e2a79d07d8f95a6a5bdb74e67be264a563e8ee0ebec56fb4e7ab",
+      "byteExact": true
+    },
+    {
+      "name": "SECTION_LIBRARY",
+      "sha256": "fb61fb1fbcbc29000317c4f8e6e570741ee2e07a0c7ae996b68a578619aa9bdb",
+      "byteExact": true
+    }
+  ],
+  "originalConfigRestoredByteExactByOnlyAllowedEdits": true,
+  "compatibilityConstAliases": {
+    "PRODUCT_META": "WORKSPACE_PRODUCT_METADATA",
+    "SUGGESTED_SECTIONS": "WORKSPACE_PRODUCT_SECTIONS",
+    "SUGGESTED_PAGES": "WORKSPACE_PRODUCT_PAGES",
+    "CANONICAL_PRODUCTS": "WORKSPACE_PRODUCT_CANONICAL",
+    "UNIVERSAL_PRODUCTS": "WORKSPACE_PRODUCT_UNIVERSAL",
+    "FUNDING_PRODUCTS": "WORKSPACE_PRODUCT_FUNDING"
+  },
+  "cascadeDescriptorReferences": 19,
+  "registryRuntimeImports": 0,
+  "beforeFixtureSha256": "5b9e9a08b8ede106fa19ed8ff7f1341a1ff65729e8296c45ae2b328c37a01d9c",
+  "existingCascadeServiceAndSpecByteExact": true,
+  "publicInterfacesByteExact": true,
+  "sourceFiles": [
+    {
+      "path": "apps/workspace/src/cascade/cascade.config.ts",
+      "sha256": "411597caae641c0e70fc3c6bf25eb0c7813ca1e5ac4a9c52ec8b26431f378620"
+    },
+    {
+      "path": "apps/workspace/src/cascade/workspace-product.registry.ts",
+      "sha256": "8584e4d816647ee0a3861a14728485c4c9ddb43ec0ffd38088e643fa25b4a732"
+    },
+    {
+      "path": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "sha256": "dc7ae9e34e26c5e3d3f9c56a5a8802865b3b3ce2d3d8cac504664b6af08c35d8"
+    },
+    {
+      "path": "apps/workspace/test/fixtures/product-registry-before.json",
+      "sha256": "5b9e9a08b8ede106fa19ed8ff7f1341a1ff65729e8296c45ae2b328c37a01d9c"
+    }
+  ],
+  "fieldApiDtoSchemaRouteDelta": 0,
+  "nativeOrFullCleanupAcceptance": false
+}
