@@ -1,0 +1,50 @@
+diff --git a/scripts/ci/outreach-operating-inputs.spec.mjs b/scripts/ci/outreach-operating-inputs.spec.mjs
+index 97f2737fb..bb8a402fc 100644
+--- a/scripts/ci/outreach-operating-inputs.spec.mjs
++++ b/scripts/ci/outreach-operating-inputs.spec.mjs
+@@ -323,6 +323,22 @@ test('missing, duplicate, reordered markers and changed original claims are refu
+   assert.ok(next.module.validateVerificationInputsDocument(contract.replace('Open P0 = 0', 'Open P0 waived')).length > 0);
+ });
+ 
++test('the exact canonical LF contract passes the bounded document validator', () => {
++  assert.deepEqual(normalize(load(after, fixture()).module.validateVerificationInputsDocument(contract)), []);
++});
++
++for (const id of ['outreach-v3-phase1-foundations', 'outreach-v3-phase2-readiness']) {
++  for (const [label, suffix] of [['EOF without LF', ''], ['CRLF', '\r\n'], ['space plus LF', ' \n']]) {
++    test(`duplicate bare begin marker is refused for ${id}: ${label}`, () => {
++      const validate = load(after, fixture()).module.validateVerificationInputsDocument;
++      const duplicate = `<!-- ${id}:begin -->${suffix}`;
++      for (const source of [contract + duplicate, duplicate + contract]) {
++        assert.match(validate(source).join('\n'), new RegExp(`requires one complete ${id} block`));
++      }
++    });
++  }
++}
++
+ test('current-catalog, completion, scope and authority qualifications cannot be omitted', () => {
+   const next = load(after, fixture());
+   for (const line of ['# Outreach V3 verification inputs v1',
+diff --git a/scripts/verify-outreach-v3-p1-architecture.mjs b/scripts/verify-outreach-v3-p1-architecture.mjs
+index 6beef9d62..2710abe4d 100755
+--- a/scripts/verify-outreach-v3-p1-architecture.mjs
++++ b/scripts/verify-outreach-v3-p1-architecture.mjs
+@@ -70,13 +70,14 @@ export function validateVerificationInputsDocument(source) {
+     ['outreach-v3-phase1-foundations', '89ca2d953e3d9b5861e9e286d9e3372e838ac851660681a750b4e5e145aaed55'],
+     ['outreach-v3-phase2-readiness', '9c1ceeac9a5733306312b8124b15f10acf5a87b77ef0294a66389b9131e00716'],
+   ]) {
+-    const begin = `<!-- ${id}:begin -->\n`;
++    const beginMarker = `<!-- ${id}:begin -->`;
++    const begin = `${beginMarker}\n`;
+     const end = `<!-- ${id}:end -->`;
+-    const start = source.indexOf(begin);
++    const start = source.indexOf(beginMarker);
+     const finish = source.indexOf(end);
+     if (
+-      start < 0 || finish < start + begin.length ||
+-      source.indexOf(begin, start + begin.length) >= 0 ||
++      start < 0 || !source.startsWith(begin, start) || finish < start + begin.length ||
++      source.indexOf(beginMarker, start + beginMarker.length) >= 0 ||
+       source.indexOf(end, finish + end.length) >= 0
+     ) {
+       problems.push(`verification-input contract requires one complete ${id} block`);

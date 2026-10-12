@@ -1,0 +1,6 @@
+{
+  "base": "f76a101fd8b4fe9e1437a2d433924d1b81d82325",
+  "to": "1295c3d06524ade68f0ee20e9d6df4ae5c5de8d1",
+  "exitCode": 2,
+  "qualification": "OPEN: inherited exact snapshot/raw EOF bytes preserved without trimming, re-encoding or exclusions"
+}

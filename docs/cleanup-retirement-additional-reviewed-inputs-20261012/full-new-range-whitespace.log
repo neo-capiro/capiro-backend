@@ -1,0 +1,6 @@
+apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt:1441: new blank line at EOF.
+docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/published-unadapted-controls.stdout:128: trailing whitespace.
++  
+docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/published-unadapted-controls.stdout:131: trailing whitespace.
++  
+docs/cleanup-static-fixtures-independent-review-20261012/evidence/attempt-1-all46-web-refused.stderr.log:7: new blank line at EOF.

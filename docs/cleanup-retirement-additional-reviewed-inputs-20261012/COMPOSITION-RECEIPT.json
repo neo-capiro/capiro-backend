@@ -1,0 +1,49 @@
+{
+  "base": "f76a101fd8b4fe9e1437a2d433924d1b81d82325",
+  "sourceNonDocs": 11,
+  "ownedContractDocuments": 1,
+  "otherNonDocsExact": 11771,
+  "schemaMigrationHistoryExact": 617,
+  "inheritedFilesExact": 1083,
+  "componentChecks": [
+    {
+      "index": "docs/cleanup-intelligence-meri-fixture-adoption-20261012/SHA256-INDEX.json",
+      "entries": 16,
+      "allPass": true
+    },
+    {
+      "index": "docs/cleanup-outreach-skeleton-owned-input-adoption-20261012/SHA256-INDEX.json",
+      "entries": 42,
+      "allPass": true
+    },
+    {
+      "index": "docs/cleanup-outreach-operating-inputs-adoption-20261012/SHA256-INDEX.json",
+      "entries": 45,
+      "allPass": true
+    },
+    {
+      "index": "docs/cleanup-static-fixtures-independent-review-20261012/SHA256-INDEX.json",
+      "entries": 51,
+      "allPass": true
+    },
+    {
+      "index": "docs/cleanup-outreach-operating-inputs-independent-review-20261012/SHA256-INDEX.json",
+      "entries": 29,
+      "allPass": true
+    }
+  ],
+  "independentReviews": [
+    {
+      "head": "27bc19ac6650bb4ca34c9e2bbcc8fa9fdae622aa",
+      "tree": "2af852d33057ea7ecbc585e8b2b496b103f91ce1",
+      "ancestor": true
+    },
+    {
+      "head": "d052234bed3b615c508dac6ce45962026de9e030",
+      "tree": "f1f760cbdfcdefd6a46fedf99ffeeb4aef521275",
+      "ancestor": true
+    }
+  ],
+  "fullFloorOrNativeAcceptance": false,
+  "deniedReportReadOrRepublished": false
+}

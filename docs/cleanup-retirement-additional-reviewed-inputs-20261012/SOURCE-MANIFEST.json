@@ -1,0 +1,105 @@
+{
+  "base": "f76a101fd8b4fe9e1437a2d433924d1b81d82325",
+  "publishedCode": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+  "nonDocumentPaths": 11,
+  "ownedContractDocuments": 1,
+  "paths": [
+    {
+      "path": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/IntelligenceMappingsPage.tsx.txt",
+      "acceptedSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+      "blob": "138efadf24e54c7f882891222db95895d94e7d7e",
+      "mode": "100644",
+      "bytes": 53172,
+      "sha256": "1d6215ccd58961b7465ac72d83fd3c5c27f7a3e6f1dbf47ccc032f7a319aff81"
+    },
+    {
+      "path": "apps/api/src/intelligence/__fixtures__/legacy-ui-contracts/intelligence-mappings-shared.ts.txt",
+      "acceptedSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+      "blob": "2956b7e17ca874f1cd4b5afc19724e9deeafe4ec",
+      "mode": "100644",
+      "bytes": 7013,
+      "sha256": "1344af785ccc5ce86aa6ccbd85ec41e6f6d7fa8004eeba587b0f290f25e86594"
+    },
+    {
+      "path": "apps/api/src/intelligence/intelligence.mapping-governance.spec.ts",
+      "acceptedSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+      "blob": "7cbde562cea54a3800b91e32dc76b08acc4cd068",
+      "mode": "100644",
+      "bytes": 18129,
+      "sha256": "fcf9d351de93427bdf0a93301e85cff2afc5a13d0026f6d06a79cc8c91ca4bd1"
+    },
+    {
+      "path": "apps/api/src/meri/__fixtures__/legacy-ui-contracts/components/chat/useMeriChatController.ts.txt",
+      "acceptedSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+      "blob": "da1a889742a20f16d040474428f0f7eb5990938c",
+      "mode": "100644",
+      "bytes": 165027,
+      "sha256": "db455369723bf5040235e54daac271854051d3cdce9d76cb9c9778f003b26f9c"
+    },
+    {
+      "path": "apps/api/src/meri/__fixtures__/legacy-ui-contracts/vnext/shell/AppShellUui/index.tsx.txt",
+      "acceptedSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+      "blob": "4e529de1fc3fe5be4e40b202ab447e512189ea5c",
+      "mode": "100644",
+      "bytes": 25996,
+      "sha256": "25d795dd4af7e4f5428ca76fa76f7abf8e27f67a6c5819ba423256b97afd2582"
+    },
+    {
+      "path": "apps/api/src/meri/meri-stream-launcher.fail-closed.spec.ts",
+      "acceptedSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+      "blob": "4e1e959a7317dde7ec9a6e9a7e70d7517ef6511b",
+      "mode": "100644",
+      "bytes": 1742,
+      "sha256": "c30e778cd1ee210c1d0cd6764fdc1b720a4a829742fd1a2a9cd8adb1e86e32ea"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/state/__fixtures__/legacy-ui-contracts/outreach-v3-skeleton-editing.ts.txt",
+      "acceptedSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+      "blob": "07a82c29a30090a6521bf9528c838e4145b288bd",
+      "mode": "100644",
+      "bytes": 7644,
+      "sha256": "44df643386b3ddc4e88a039b32b0a54ea91b43323eab8b952f576c2974798e0b"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts",
+      "acceptedSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+      "blob": "d461cf46efbb5af290f9ccf46261a4577727fec5",
+      "mode": "100644",
+      "bytes": 5360,
+      "sha256": "d822ed36a9ddea41b7ed8206782c2f5ec465bf0fe741f00348c7b3f48648029a"
+    },
+    {
+      "path": "scripts/ci/outreach-operating-inputs.spec.mjs",
+      "acceptedSource": "7a425df71ce2162bbfdfd430a10d285a179e2832",
+      "blob": "bb8a402fcfb3c80590c8c05a8a30cbd42493d243",
+      "mode": "100644",
+      "bytes": 24288,
+      "sha256": "66981a120c01571e76edeb0aabc298fa8b332f1831555a1dede5f2554c4486dc"
+    },
+    {
+      "path": "scripts/ci/outreach-skeleton-owned-input.spec.mjs",
+      "acceptedSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+      "blob": "992657e2c126f1299d41a1f8bd7f5023984bac49",
+      "mode": "100644",
+      "bytes": 11766,
+      "sha256": "c07f24a71030fe26ef48bb332cbf3e9cd95bb3a6efad6843d91058035b219f6e"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-p1-architecture.mjs",
+      "acceptedSource": "7a425df71ce2162bbfdfd430a10d285a179e2832",
+      "blob": "2710abe4d59c8584b01906339a3a81a355498103",
+      "mode": "100755",
+      "bytes": 15052,
+      "sha256": "75b8d5a58131b0c943dcf5bc9ed025e9d208ce5ff84b8a8c55282920c982d359"
+    },
+    {
+      "path": "docs/contracts/outreach-v3-verification-inputs-v1.md",
+      "acceptedSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+      "blob": "85fd21aa22decd573ef8244f2dc071b7147af6fa",
+      "mode": "100644",
+      "bytes": 8010,
+      "sha256": "9170159292ae60b7539cd2a1a2067dc15e8d5dda4ca808ea598e1b8ef62e6d0d"
+    }
+  ],
+  "operatingDifferences": "Preserve current smoke/Usage; inverse-baseline hash adaptation; bare-marker/LF refusal repair and seven controls"
+}
