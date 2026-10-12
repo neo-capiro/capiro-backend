@@ -36,5 +36,11 @@
     "actualExit": 2
   },
   "nativeConcurrency": "NOT RUN",
-  "migration": "NONE"
+  "migration": "NONE",
+  "primaryApiTypecheck": {
+    "command": "NODE_OPTIONS=--max-old-space-size=8192 node_modules/.bin/tsc --noEmit --rootDir .",
+    "cwd": "apps/api",
+    "exitCode": 0
+  },
+  "rawResultPath": "reconciliation-tests.json"
 }

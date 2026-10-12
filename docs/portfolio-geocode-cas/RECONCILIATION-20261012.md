@@ -58,7 +58,9 @@ The first default whole-program ts-jest attempt was killed with status137 while
 other full-graph checks ran concurrently. The successful command uses a scratch
 config copied from the repository config with only TypeScript isolated transpilation
 enabled; it changes no assertions, suite discovery, module mappings or source files.
-Full application typechecking is recorded separately, not inferred from transpilation.
+Primary API TypeScript (`tsc --noEmit --rootDir .`, 8 GiB heap) passed separately
+on this reconciled source. This does not claim the full multi-tsconfig script,
+monorepo build or runtime acceptance.
 
 Native PostgreSQL multi-connection contention, deployed registered-route/Clerk/client
 privacy acceptance, provider/geocoder requests, migrations and deployment remain
