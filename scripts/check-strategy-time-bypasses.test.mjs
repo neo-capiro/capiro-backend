@@ -303,11 +303,17 @@ test('only data-owned lazy provider values are permitted, never invocation or ca
   const owner = {
     file: provider,
     binding: 'STRATEGY_TIME_PROVIDERS',
+    values: [
+      { provide: 'STRATEGY_WALL_CLOCK', hook: 'systemWallClock' },
+      { provide: 'STRATEGY_CONTEXT_RETRY', member: 'random', hook: 'systemRandom' },
+      { provide: 'STRATEGY_CONTEXT_RETRY', member: 'delay', hook: 'systemDelay' },
+    ],
     reason: 'canonical lazy Nest registration',
   };
   const policy = { ...data(), requiredFiles: [file, provider], systemHookValueOwners: [owner] };
   const source = `import {systemWallClock,systemRandom,systemDelay} from '@capiro/shared';
-    export const STRATEGY_TIME_PROVIDERS=[{useValue:systemWallClock},{useValue:Object.freeze({random:systemRandom,delay:systemDelay})}];`;
+    const STRATEGY_WALL_CLOCK=Symbol('clock'), STRATEGY_CONTEXT_RETRY=Symbol('retry');
+    export const STRATEGY_TIME_PROVIDERS=[{provide:STRATEGY_WALL_CLOCK,useValue:systemWallClock},{provide:STRATEGY_CONTEXT_RETRY,useValue:Object.freeze({random:systemRandom,delay:systemDelay})}];`;
   const checkProvider = (addition, override = policy) =>
     checkTimeSources(
       new Map([
@@ -333,6 +339,35 @@ test('only data-owned lazy provider values are permitted, never invocation or ca
     [],
   );
   assert.notDeepEqual(checkProvider('\nfunction deferred(clock=systemWallClock){}'), []);
+  const providerShadows = [
+    'export function reviewShadowProvider(){const STRATEGY_TIME_PROVIDERS={clock:systemWallClock};return STRATEGY_TIME_PROVIDERS;} export function reviewShadowCall(){return reviewShadowProvider().clock();}',
+    '{const STRATEGY_TIME_PROVIDERS={clock:systemWallClock};const reviewGet=()=>STRATEGY_TIME_PROVIDERS;exportedReviewSink(reviewGet);} declare function exportedReviewSink(x:unknown):void;',
+    'export const reviewFactory=()=>{const STRATEGY_TIME_PROVIDERS={clock:systemWallClock};return STRATEGY_TIME_PROVIDERS;}; export function reviewShadowCall(){return reviewFactory().clock();}',
+  ];
+  for (const shadow of providerShadows) assert.notDeepEqual(checkProvider('\n' + shadow), []);
+  for (const changed of [
+    source.replace('export const STRATEGY_TIME_PROVIDERS', 'export let STRATEGY_TIME_PROVIDERS'),
+    source.replace('export const STRATEGY_TIME_PROVIDERS', '{ const STRATEGY_TIME_PROVIDERS') + '}',
+    source + '\nconst STRATEGY_TIME_PROVIDERS=[];',
+    source.replace('useValue:systemWallClock', 'fallback:systemWallClock'),
+    source.replace('useValue:systemWallClock', 'useValue:{fallback:systemWallClock}'),
+    source.replace('provide:STRATEGY_WALL_CLOCK', 'provide:STRATEGY_CONTEXT_RETRY'),
+    source.replace('random:systemRandom', 'random:systemDelay'),
+    source.replace('Object.freeze({random:', '({random:'),
+    source.replace('random:systemRandom', 'random:systemRandom,fallback:systemWallClock'),
+    source.replace('const STRATEGY_WALL_CLOCK', 'let STRATEGY_WALL_CLOCK'),
+    source + '\nconst Object={freeze:(value:unknown)=>value};',
+  ])
+    assert.notDeepEqual(
+      checkTimeSources(
+        new Map([
+          [file, valid],
+          [provider, changed],
+        ]),
+        policy,
+      ),
+      [],
+    );
 });
 
 test('source discovery includes supported runtime TypeScript extensions and excludes declarations and tests', () => {

@@ -320,7 +320,14 @@ function lexicalInventory(sf) {
       return union([resolve(node.left, seen), resolve(node.right, seen)]);
     return new Set();
   }
-  return { resolve, nameOf, property, hooks };
+  return {
+    resolve,
+    nameOf,
+    property,
+    hooks,
+    unshadowed: (node, name) =>
+      t.isIdentifier(node) && node.text === name && !symbol(node)?.declarations?.length,
+  };
 }
 
 function valueReference(node) {
@@ -373,17 +380,83 @@ export function analyzeTimeSource(file, source, policy = {}) {
   function add(node, kind) {
     events.push(eventKey(node, kind, file));
   }
-  function providerValue(node) {
-    for (let parent = node.parent; parent; parent = parent.parent) {
-      if (t.isFunctionLike(parent)) return false;
-      if (t.isVariableDeclaration(parent))
-        return (
-          policy.systemHookValueOwners?.some(
-            (owner) => owner.file === file && parent.name.getText(sf) === owner.binding,
-          ) ?? false
-        );
+  // Grant value references to concrete AST leaves in the canonical registration,
+  // never to a raw variable name or arbitrary descendants of its initializer.
+  const providerReferences = new Set();
+  function declarationsNamed(name) {
+    const matches = [];
+    function walk(node) {
+      if (
+        (t.isVariableDeclaration(node) || t.isParameter(node) || t.isBindingElement(node)) &&
+        t.isIdentifier(node.name) &&
+        node.name.text === name
+      )
+        matches.push(node);
+      t.forEachChild(node, walk);
     }
-    return false;
+    walk(sf);
+    return matches;
+  }
+  function topLevelConst(name) {
+    const declarations = declarationsNamed(name);
+    if (declarations.length !== 1) return null;
+    const declaration = declarations[0];
+    const list = declaration.parent,
+      statement = list.parent;
+    if (
+      !t.isVariableDeclaration(declaration) ||
+      !t.isVariableDeclarationList(list) ||
+      !(list.flags & t.NodeFlags.Const) ||
+      !t.isVariableStatement(statement) ||
+      statement.parent !== sf
+    )
+      return null;
+    return declaration;
+  }
+  function propertyValue(object, name) {
+    const matches = object.properties.filter(
+      (item) => t.isPropertyAssignment(item) && inventory.nameOf(item.name) === name,
+    );
+    return matches.length === 1 ? unwrap(matches[0].initializer) : null;
+  }
+  for (const owner of policy.systemHookValueOwners ?? []) {
+    if (owner.file !== file) continue;
+    const declaration = topLevelConst(owner.binding);
+    const array = declaration?.initializer && unwrap(declaration.initializer);
+    if (!array || !t.isArrayLiteralExpression(array)) continue;
+    for (const role of owner.values ?? []) {
+      const token = topLevelConst(role.provide);
+      if (!token) continue;
+      const entries = array.elements.map(unwrap).filter((entry) => {
+        if (!t.isObjectLiteralExpression(entry)) return false;
+        const provide = propertyValue(entry, 'provide');
+        return provide && t.isIdentifier(provide) && provide.text === role.provide;
+      });
+      if (entries.length !== 1) continue;
+      let value = propertyValue(entries[0], 'useValue');
+      if (!value) continue;
+      if (role.member) {
+        const freeze = inventory.property(value.expression ?? value);
+        if (
+          !t.isCallExpression(value) ||
+          value.arguments.length !== 1 ||
+          !freeze ||
+          freeze[1] !== 'freeze' ||
+          !inventory.unshadowed(freeze[0], 'Object')
+        )
+          continue;
+        const object = unwrap(value.arguments[0]);
+        if (!t.isObjectLiteralExpression(object)) continue;
+        value = propertyValue(object, role.member);
+      }
+      if (
+        value &&
+        t.isIdentifier(value) &&
+        value.text === role.hook &&
+        inventory.resolve(value).has(`hook:${role.hook}`)
+      )
+        providerReferences.add(value);
+    }
   }
   function visit(node) {
     if (t.isCallExpression(node)) {
@@ -432,7 +505,7 @@ export function analyzeTimeSource(file, source, policy = {}) {
           if (caps.has(base)) add(node, `${base} value/alias`);
         for (const base of ['Date.now', 'Math.random'])
           if (caps.has(base)) add(node, `${base} reference/alias`);
-        if ([...caps].some((cap) => cap.startsWith('hook:')) && !providerValue(node))
+        if ([...caps].some((cap) => cap.startsWith('hook:')) && !providerReferences.has(node))
           add(node, 'system time hook reference outside its provider');
         if (caps.has('retry'))
           problems.push(`${file}: retry reference/alias is outside the adopted boundary`);
@@ -494,12 +567,28 @@ export function checkTimeSources(sources, data) {
       !data.requiredFiles.includes(owner.file) ||
       !/^[A-Za-z_$][\w$]*$/.test(owner.binding) ||
       !owner.reason ||
-      uniqueProviders.has(key)
+      uniqueProviders.has(key) ||
+      !Array.isArray(owner.values) ||
+      !owner.values.length
     )
       problems.push(
         'system hook values need unique exact required-file/provider-binding ownership and reasons',
       );
     uniqueProviders.add(key);
+    const roles = new Set();
+    for (const role of owner.values ?? []) {
+      const roleKey = `${role.provide}|${role.member ?? ''}`;
+      if (
+        !/^[A-Za-z_$][\w$]*$/.test(role.provide) ||
+        !['systemWallClock', 'systemRandom', 'systemDelay'].includes(role.hook) ||
+        (role.member !== undefined && !/^[A-Za-z_$][\w$]*$/.test(role.member)) ||
+        roles.has(roleKey)
+      )
+        problems.push(
+          'system hook provider roles need unique exact provide/member bindings and canonical hooks',
+        );
+      roles.add(roleKey);
+    }
   }
   const uniqueAmbient = new Set();
   for (const item of data.existingAmbient) {
