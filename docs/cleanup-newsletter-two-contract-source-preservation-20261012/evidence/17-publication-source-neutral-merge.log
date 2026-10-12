@@ -1,0 +1,9 @@
+{
+  "result": "PASS complete non-doc source equal frozen a247; actual publication ancestry retained",
+  "sourceHead": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "mergedHead": "283000672c3178abbe6f2f7473f355738e1c8f3e",
+  "mergedTree": "f5bade2106a2cfc283f84c6eb1259c9a231beb6d",
+  "overlay": 76,
+  "original": 58,
+  "canonicalIntegration": 18
+}
