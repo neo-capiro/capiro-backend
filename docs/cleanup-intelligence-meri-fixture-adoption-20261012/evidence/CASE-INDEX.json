@@ -1,0 +1,151 @@
+{
+  "beforePassed": 36,
+  "afterPassed": 36,
+  "caseNamesAndPassStatusesExact": true,
+  "cases": [
+    {
+      "name": "Meri stream/launcher fail-closed contracts provider resolution failures are classified before they can become a generic 500",
+      "status": "passed"
+    },
+    {
+      "name": "Meri stream/launcher fail-closed contracts the chat controller formats HTTP stream failures instead of dumping the raw body",
+      "status": "passed"
+    },
+    {
+      "name": "Meri stream/launcher fail-closed contracts the stream controller classifies pre-stream failures instead of letting Nest emit a generic 500",
+      "status": "passed"
+    },
+    {
+      "name": "Meri stream/launcher fail-closed contracts vNext Ctrl/Cmd+J uses the canonical /meri launcher, not the legacy popup flag",
+      "status": "passed"
+    },
+    {
+      "name": "a bulk sweep cannot reach an award-bearing mapping, in either direction a low-confidence bulk reject cannot sweep an award-bearing row",
+      "status": "passed"
+    },
+    {
+      "name": "a bulk sweep cannot reach an award-bearing mapping, in either direction a reasoned rejection records reason, actor and timestamp",
+      "status": "passed"
+    },
+    {
+      "name": "a bulk sweep cannot reach an award-bearing mapping, in either direction a whitespace-only reason does not count as a reason",
+      "status": "passed"
+    },
+    {
+      "name": "a bulk sweep cannot reach an award-bearing mapping, in either direction bulk confirm still excludes them too",
+      "status": "passed"
+    },
+    {
+      "name": "a bulk sweep cannot reach an award-bearing mapping, in either direction rejecting assistance_recipient without a written reason is a 400",
+      "status": "passed"
+    },
+    {
+      "name": "a bulk sweep cannot reach an award-bearing mapping, in either direction rejecting contracting without a written reason is a 400",
+      "status": "passed"
+    },
+    {
+      "name": "a rejection survives an entity-resolution rerun persistSourceCandidates skips a rejected row",
+      "status": "passed"
+    },
+    {
+      "name": "a rejection survives an entity-resolution rerun the prune script does NOT hard-delete a rejected row",
+      "status": "passed"
+    },
+    {
+      "name": "award-bearing identity may only be decided explicitly a bare {confirmed:true} \u2014 what a bulk toggle sends \u2014 is a 400",
+      "status": "passed"
+    },
+    {
+      "name": "award-bearing identity may only be decided explicitly a non-award-bearing source still confirms with a bare body",
+      "status": "passed"
+    },
+    {
+      "name": "award-bearing identity may only be decided explicitly an explicit rollUpAwards:false is a real answer, not a missing one",
+      "status": "passed"
+    },
+    {
+      "name": "award-bearing identity may only be decided explicitly confirming assistance_recipient without a relationship type is a 400",
+      "status": "passed"
+    },
+    {
+      "name": "award-bearing identity may only be decided explicitly confirming assistance_recipient without a roll-up choice is a 400",
+      "status": "passed"
+    },
+    {
+      "name": "award-bearing identity may only be decided explicitly confirming contracting without a relationship type is a 400",
+      "status": "passed"
+    },
+    {
+      "name": "award-bearing identity may only be decided explicitly confirming contracting without a roll-up choice is a 400",
+      "status": "passed"
+    },
+    {
+      "name": "award-bearing identity may only be decided explicitly the award-bearing set is exactly the two money-attributing sources",
+      "status": "passed"
+    },
+    {
+      "name": "award-bearing identity may only be decided explicitly the decision may NOT be inherited from a previous one",
+      "status": "passed"
+    },
+    {
+      "name": "tenant isolation and role gating a mapping in another tenant is not found, not silently updated",
+      "status": "passed"
+    },
+    {
+      "name": "tenant isolation and role gating an unrecognized role fails CLOSED",
+      "status": "passed"
+    },
+    {
+      "name": "tenant isolation and role gating capiro_admin is allowed",
+      "status": "passed"
+    },
+    {
+      "name": "tenant isolation and role gating client_portal_user is DENIED",
+      "status": "passed"
+    },
+    {
+      "name": "tenant isolation and role gating confirmMapping requires user_admin",
+      "status": "passed"
+    },
+    {
+      "name": "tenant isolation and role gating standard_user is DENIED",
+      "status": "passed"
+    },
+    {
+      "name": "tenant isolation and role gating the write is tenant-scoped",
+      "status": "passed"
+    },
+    {
+      "name": "tenant isolation and role gating user_admin is allowed",
+      "status": "passed"
+    },
+    {
+      "name": "the mapping id comes from the path, and only the path a body carrying an `id` is REJECTED",
+      "status": "passed"
+    },
+    {
+      "name": "the mapping id comes from the path, and only the path a well-formed body validates",
+      "status": "passed"
+    },
+    {
+      "name": "the mapping id comes from the path, and only the path the web client does not send `id` in the body",
+      "status": "passed"
+    },
+    {
+      "name": "the page explains the constraint rather than just enforcing it an award-bearing row shows \"Review individually\" instead of a bare toggle",
+      "status": "passed"
+    },
+    {
+      "name": "the page explains the constraint rather than just enforcing it both bulk buttons carry an explanation of what they skip",
+      "status": "passed"
+    },
+    {
+      "name": "the page explains the constraint rather than just enforcing it the page imports the shared set rather than declaring its own copy",
+      "status": "passed"
+    },
+    {
+      "name": "the page explains the constraint rather than just enforcing it the web mirror of the award-bearing set matches the API",
+      "status": "passed"
+    }
+  ]
+}
