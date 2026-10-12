@@ -1,0 +1,39 @@
+{
+  "acceptedSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "runs": [
+    {
+      "command": "node audit-applicability.mjs",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "exit": 0,
+      "role": "pure parsed-YAML/source discovery; no leaf runner execution"
+    },
+    {
+      "command": "node verify-format-equivalence.mjs243248 a0947",
+      "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+      "exit": 0,
+      "role": "Git source/AST/emittedJS comparisons"
+    },
+    {
+      "command": "app-local Jest with focused-core-jest.cjs --runInBand --json",
+      "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+      "exit": 0,
+      "tests": 127,
+      "suites": 7
+    },
+    {
+      "command": "app-local Jest with focused-workspace-jest.cjs --runInBand --json",
+      "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+      "exit": 0,
+      "tests": 172,
+      "suites": 5
+    }
+  ],
+  "removedEnvironmentNames": [
+    "DATABASE_URL",
+    "WS_TEST_DATABASE_URL",
+    "CI_DISPOSABLE_POSTGRES",
+    "CAPIRO_DISPOSABLE_PG",
+    "ALLOW_DISPOSABLE_PG"
+  ],
+  "noGenerationInstallDatabaseProviderCloudOrFullNativeCommand": true
+}

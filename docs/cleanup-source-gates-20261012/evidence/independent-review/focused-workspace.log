@@ -1,0 +1,15 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS ../../docs/cleanup-source-gates-20261012/evidence/independent-review/workspace-independent-current-allocation.spec.ts
+PASS src/prospect-resources/prospect-draft-access.spec.ts
+PASS src/versions/objective-destination.spec.ts
+PASS src/prospect-resources/prospect-independent-review.spec.ts
+PASS src/documents/documents.service.spec.ts
+
+Test Suites: 5 passed, 5 total
+Tests:       172 passed, 172 total
+Snapshots:   0 total
+Time:        6.046 s
+Ran all test suites.
+Test results written to: ../../docs/cleanup-source-gates-20261012/evidence/independent-review/focused-workspace.json

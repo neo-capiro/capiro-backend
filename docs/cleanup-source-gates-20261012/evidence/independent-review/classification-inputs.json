@@ -1,0 +1,55 @@
+{
+  "reviewedAt": "2026-10-12T10:48:58.734664+00:00",
+  "target": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "tree": "d8f01afa7eca0e6571e7ed3669905fea3491bbdd",
+  "referenceTooling": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "inputEvidenceHashes": {
+    "cleanup-integrated-scope.command.json": "9eeafc7d1101f413351887f596b0b36c4ab6972d552b5c7a1793edcb82cc37f0",
+    "cleanup-integrated-scope.log": "41a2574220dda7cfc3bfcc8fd0296ba91e0abcbb17a17e7be5c2625898981b11",
+    "cleanup-reference-pure-fixtures.command.json": "186ff758d1e0a920f0bac3c5dfbd9538c3443252ccf20098d28e20a05b297261",
+    "cleanup-reference-pure-fixtures.log": "49814ab10a1fb3012528584eb6c82bd3751f1493f3955d806c8f62d3e8e65d40",
+    "cleanup-reference-fixture-child-error.json": "593ba2913493c6c039e6c0a0afca6a100c0efd07b5a0c9a167c19c7dfab9752e",
+    "cleanup-reference-fixture-diagnostic.json": "af912066a2d7750a53501d3a54fd72223398ee8646c3d49688a8cbd191f2d1ce",
+    "workspace-typechecks-other.json": "4311b067c5994553ee3e64fe26738f739d5ac02b774e0d9b04c51f3d20dcb5f8",
+    "types-apps-intel-api-0.log": "aa19a2dfb400fad874c6735c8aa4bf47abfbf2577e99f1a0d194f3965a89d681",
+    "types-apps-onboard-api-0.log": "4178fc9df6387f4dc8fe49d8b3a86902a424e6d20be920b5fd0571d764179736"
+  },
+  "unchangedMainBlobs": {
+    "package.json": {
+      "main": "d05a0f54f7c63e6113322c5d613ee398eed68f36",
+      "candidate": "d05a0f54f7c63e6113322c5d613ee398eed68f36"
+    },
+    ".github/workflows/ci-pr.yml": {
+      "main": "0bfa8d0f243f3d26d3b900c82e75445380c05de6",
+      "candidate": "0bfa8d0f243f3d26d3b900c82e75445380c05de6"
+    },
+    "scripts/migration-timestamp-offsets.json": {
+      "main": "f6586720188fed067136fea8c2e8a7febed660fc",
+      "candidate": "f6586720188fed067136fea8c2e8a7febed660fc"
+    },
+    "apps/intel-api/src/prisma/prisma.service.ts": {
+      "main": "4f0c826d0e79bec312d64ee80a77489141e2a231",
+      "candidate": "4f0c826d0e79bec312d64ee80a77489141e2a231"
+    },
+    "apps/intel-api/tsconfig.json": {
+      "main": "410e389b6dc669e990526cdb19154a52373d2461",
+      "candidate": "410e389b6dc669e990526cdb19154a52373d2461"
+    },
+    "apps/onboard-api/src/prisma/prisma.service.ts": {
+      "main": "1347f72262e1b80e267503fcf23f59271ad17c87",
+      "candidate": "1347f72262e1b80e267503fcf23f59271ad17c87"
+    },
+    "apps/onboard-api/tsconfig.json": {
+      "main": "410e389b6dc669e990526cdb19154a52373d2461",
+      "candidate": "410e389b6dc669e990526cdb19154a52373d2461"
+    }
+  },
+  "pnpmToolchain": {
+    "sourcePackageManager": "pnpm@9.12.0",
+    "installed": "11.25.0",
+    "versionCommandOrInstallExecutedInReview": false
+  },
+  "sourceEdits": false,
+  "runnerDatabaseProviderExecutionInReview": false,
+  "nativeAcceptance": false
+}

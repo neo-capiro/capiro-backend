@@ -1,0 +1,32 @@
+{
+  "acceptedSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "acceptedTree": "d6c9d0b4c4a3836576576ebd12a90c30f0520d1f",
+  "preRepairSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "preRepairTree": "d8f01afa7eca0e6571e7ed3669905fea3491bbdd",
+  "reviewedAt": "2026-10-12T11:09:39.357809+00:00",
+  "worktree": "/workspace/capirov2-cleanup-review",
+  "runtimeDelta": [
+    "packages/shared/src/index.ts",
+    "packages/shared/src/workspace-saved-revision.ts"
+  ],
+  "semanticASTAndEmittedJSSemanticsIdentical": true,
+  "focusedCore": {
+    "tests": 127,
+    "passed": 127,
+    "suites": 7
+  },
+  "focusedWorkspace": {
+    "tests": 172,
+    "passed": 172,
+    "suites": 5
+  },
+  "overlapCounts": true,
+  "applicabilityEvidenceCorrections": [
+    "exact Core package argument prevents api-strategy false-positive",
+    "parsed YAML run steps omit knowledge-phase18 comment-only context reference"
+  ],
+  "nativeOrFullCleanupAcceptance": false,
+  "baselineAndEnvironmentFailuresPreserved": true,
+  "runtimeSourceEditsByReviewer": false,
+  "finalAuthorClassificationDocs": "Pending owner completion/skim; source repair acceptance is final."
+}

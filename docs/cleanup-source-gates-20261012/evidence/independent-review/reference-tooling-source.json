@@ -1,0 +1,36 @@
+{
+  "source": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "files": [
+    {
+      "path": "scripts/cleanup-gates/lib/scope.mjs",
+      "sha256": "5557dfaf0043657d094d50cd8582cc8449e1f64ce6cc5c22a7ea035cc07d7dae",
+      "workingBytesMatchPublishedReference": true
+    },
+    {
+      "path": "scripts/cleanup-gates/gate-config.mjs",
+      "sha256": "b2f9d7766b4b4ed87825b624ff7fcf384121afdd310c133b393df3609e6b783c",
+      "workingBytesMatchPublishedReference": true
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/standalone-node.mjs",
+      "sha256": "b9118a6459969969779f685d1b9545a0de99f52ff340f6f08c224543678b82fe",
+      "workingBytesMatchPublishedReference": true
+    },
+    {
+      "path": "scripts/test-proof/cli.test.mjs",
+      "sha256": "50a3d14b263748e2e259c6b9473c24fbbe58d98594290a8b8c76f03062a3b6d5",
+      "workingBytesMatchPublishedReference": true
+    },
+    {
+      "path": "scripts/dump-test-names.mjs",
+      "sha256": "45b4ab32024439c78f83e222f7fa72daeb8da0fec81ae59db8ffd3f2cc9a7a0f",
+      "workingBytesMatchPublishedReference": true
+    },
+    {
+      "path": "scripts/test-proof/run-fixtures.mjs",
+      "sha256": "3080d603eacd176b4800eec4c8c334be2aaeabb4f64f99660d77024cc0db94e1",
+      "workingBytesMatchPublishedReference": true
+    }
+  ],
+  "noPatchesToReferenceTools": true
+}

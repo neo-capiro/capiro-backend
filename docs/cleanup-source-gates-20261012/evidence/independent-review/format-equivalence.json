@@ -1,0 +1,39 @@
+{
+  "before": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "beforeTree": "d8f01afa7eca0e6571e7ed3669905fea3491bbdd",
+  "after": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "afterTree": "d6c9d0b4c4a3836576576ebd12a90c30f0520d1f",
+  "changedRuntimePaths": [
+    "packages/shared/src/index.ts",
+    "packages/shared/src/workspace-saved-revision.ts"
+  ],
+  "typescriptVersion": "5.9.3",
+  "files": [
+    {
+      "file": "packages/shared/src/index.ts",
+      "beforeBlob": "c9f3a056b94de58b5777f50bec1f9a2659954591",
+      "afterBlob": "7cd14e664a22bb847656570249e3bf8edf6ff37b",
+      "beforeSourceHash": "54f5f522696eb619c974206ca12d91042b972355a790048a36ea9bb35c0a11f6",
+      "afterSourceHash": "0b9644efe0f8f0125cab5527e41d8f85c00f6f11dc83647b6741b1d0ef720357",
+      "semanticASTHash": "3769010a75758949770aba1f4798c3f2bdbd8fd6dd2d4641db2668081b07e845",
+      "emittedJavaScriptSemanticHash": "ca9f8f20f20f9095f580debc812f17a797def1732ec414ce9542f4512aad5253",
+      "semanticASTIdentical": true,
+      "emittedJavaScriptSemanticsIdentical": true,
+      "emittedJavaScriptBytesIdentical": true
+    },
+    {
+      "file": "packages/shared/src/workspace-saved-revision.ts",
+      "beforeBlob": "c388618b7d618c0b3314fcb6bea77a2e0c205076",
+      "afterBlob": "cd780f1d3505ce402004befd4266b0608f95a33a",
+      "beforeSourceHash": "6fcb81da835a33908c0be9564e91a661f64394b592375114d9f82e6dbb231db8",
+      "afterSourceHash": "f177cee24ac6a540ccc00d097caa69cd6cfc0d09ab3fe800395c6af6ae26b9b9",
+      "semanticASTHash": "661f7f358373ab3c27efa3d6a0b3f063832da893833c1714b3dee10b9623afe2",
+      "emittedJavaScriptSemanticHash": "65687faaf41c44e30ad56e33cb8cc0bdfda15e1a2d71d12bad4fa82e95360598",
+      "semanticASTIdentical": true,
+      "emittedJavaScriptSemanticsIdentical": true,
+      "emittedJavaScriptBytesIdentical": false
+    }
+  ],
+  "sourceOnly": true,
+  "databaseProviderExecution": false
+}

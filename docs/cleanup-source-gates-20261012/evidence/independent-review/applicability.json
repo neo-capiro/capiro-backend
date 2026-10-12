@@ -1,0 +1,117 @@
+{
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "measuredTree": "d8f01afa7eca0e6571e7ed3669905fea3491bbdd",
+  "toolingSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "execution": "Independent YAML parsing and unchanged published discovery predicates only; no leaf runner/database/provider command executed.",
+  "directCI": {
+    "api": [],
+    "apiStrategy": [
+      {
+        "job": "verify",
+        "name": "Test api-strategy",
+        "run": "pnpm --filter @capiro/api-strategy test"
+      }
+    ],
+    "web": [],
+    "defense": []
+  },
+  "guardCI": [
+    {
+      "guard": "scripts/check-context-plane-new-bypasses.mjs",
+      "workflows": [
+        "context-plane-architecture-guard.yml"
+      ]
+    },
+    {
+      "guard": "scripts/check-evaluation-new-bypasses.mjs",
+      "workflows": []
+    },
+    {
+      "guard": "scripts/check-learning-signal-new-bypasses.mjs",
+      "workflows": []
+    },
+    {
+      "guard": "scripts/check-quality-telemetry-new-bypasses.mjs",
+      "workflows": []
+    }
+  ],
+  "inheritedMissingSourceCarrier": [
+    "scripts/cleanup-gates/gate.mjs",
+    "docs/plans/cleanup1-coverage-baseline.json",
+    "scripts/cleanup-gates/verify-baseline.mjs",
+    "scripts/test-proof/run-fixtures.mjs",
+    "scripts/cleanup-gates/pinned-visual-controls.mjs",
+    "apps/e2e/lib/render-context-controls.mjs",
+    "scripts/cleanup-gates/standalone-node.test.mjs",
+    "apps/e2e/package.json",
+    "apps/e2e/scripts/guard-route-coverage.mjs",
+    "apps/e2e/baselines/manifest.json",
+    ".github/workflows/defense-budget-parser-ci.yml"
+  ],
+  "unrunOwnedRuntimeEvidence": [
+    "apps/e2e/reports/regression-evidence.json",
+    "docs/plans/cleanup1-script-smoke-evidence.json"
+  ],
+  "inheritedCoverageScriptProblems": [
+    "coverage target @capiro/api has no test:coverage script — it cannot produce the required measurement",
+    "coverage target @capiro/web has no test:coverage script — it cannot produce the required measurement",
+    "coverage target @capiro/workspace has no test:coverage script — it cannot produce the required measurement",
+    "coverage target @capiro/onboard-web has no test:coverage script — it cannot produce the required measurement"
+  ],
+  "discoveredTestBearingPackages": [
+    "@capiro/api",
+    "@capiro/api-strategy",
+    "@capiro/defense-api",
+    "capiro-defense-budget-parser",
+    "@capiro/intel-api",
+    "@capiro/meriv2-orchestrator",
+    "@capiro/onboard-api",
+    "@capiro/onboard-web",
+    "@capiro/web",
+    "@capiro/workspace",
+    "@capiro/infra-cdk",
+    "@capiro/auth",
+    "@capiro/meriv2-core"
+  ],
+  "unsupportedRunners": [],
+  "referenceFixtureFailureClassification": "Environment/toolchain: implicit pnpm install failed before fixture JSON; reference run is not RC acceptance.",
+  "referenceMetadataCorrection": [
+    {
+      "file": "cleanup-reference-baseline-fixtures.command.json",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "originalDeclaredSource": null
+    },
+    {
+      "file": "cleanup-reference-config-controls.command.json",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "originalDeclaredSource": null
+    },
+    {
+      "file": "cleanup-reference-discovery-controls.command.json",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "originalDeclaredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a"
+    },
+    {
+      "file": "cleanup-reference-historical-baseline.command.json",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "originalDeclaredSource": null
+    },
+    {
+      "file": "cleanup-reference-pinned-controls.command.json",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "originalDeclaredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a"
+    },
+    {
+      "file": "cleanup-reference-pure-fixtures.command.json",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "originalDeclaredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a"
+    },
+    {
+      "file": "cleanup-reference-render-context-controls.command.json",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "originalDeclaredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a"
+    }
+  ],
+  "nativeAcceptance": false,
+  "fullCleanupAcceptance": false
+}

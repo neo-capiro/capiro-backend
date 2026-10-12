@@ -1,0 +1,14 @@
+{
+  "originalFixture": "docs/workspace-objective-revisions-20261012/evidence/independent-review/independent.spec.ts",
+  "originalFixtureUnchanged": true,
+  "copiedFixture": "workspace-independent-current-allocation.spec.ts",
+  "onlyReplacedLiteral": {
+    "from": "20281012040000_saved_version_immutability",
+    "to": "20261012040000_saved_version_immutability",
+    "count": 1
+  },
+  "migrationSQLByteIdentical": true,
+  "migrationSQLSHA256": "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4",
+  "testNamesAssertionsRetained": true,
+  "databaseExecution": false
+}

@@ -1,0 +1,460 @@
+{
+  "recordedAt": "2026-10-12T11:06:47.279126+00:00",
+  "sourceUnderRepair": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "commandReceiptCount": 50,
+  "allOutputsPresent": true,
+  "receipts": [
+    {
+      "commandFile": "additional-source-clients.command.json",
+      "commandHash": "44ce73162c886454d18b8ef04e7077165dbaa1f92fdd097bafd9f5d72a366910",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "additional-source-clients.log",
+      "outputHash": "8a6732aa2393946a2d75afd39364170506c9fe1ce69effc17a9b8f2af5ac1851",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "auth-full-unit.command.json",
+      "commandHash": "ce9f9cbf56aa5faa91308fc340787b5846f5395797d8e2564bd2bf4cd027dc93",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "auth-full-unit.log",
+      "outputHash": "03bf56a542e4762a47d2f9d30f75e9ef60ddd021dd312686d328ea2e71fff53f",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "cdk-construct-source-unit.command.json",
+      "commandHash": "31d3101e0bbd59799ac4d9d0fae5e2647ab493e471896dd964a5720fdf2b228b",
+      "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+      "outputFile": "cdk-construct-source-unit.log",
+      "outputHash": "7d6cbf52e9dee5e84c0b327be1108989ffc203907f50668724d0cb3daf0c19e8",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "cdk-jest-source-unit.command.json",
+      "commandHash": "7d16a5bf24d6dc04a1163ed6072217cbb4707caf4abfd4675457d78f592c36be",
+      "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+      "outputFile": "cdk-jest-source-unit.log",
+      "outputHash": "a0b06806a3d412d6d0490fbb99f9603475d13c6117a01bbd175864c15a58665c",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "cleanup-integrated-scope-corrected.command.json",
+      "commandHash": "c3ca7560fe761a31ba70ed8208cf3785763325d775c7527ac97c5c620b514d25",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "cleanup-integrated-scope-corrected.log",
+      "outputHash": "f6f6b21a2a70d620488a2dd0a3fca36b03a89e387b3508ef24a303d09fe514c9",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "cleanup-integrated-scope.command.json",
+      "commandHash": "9eeafc7d1101f413351887f596b0b36c4ab6972d552b5c7a1793edcb82cc37f0",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "cleanup-integrated-scope.log",
+      "outputHash": "41a2574220dda7cfc3bfcc8fd0296ba91e0abcbb17a17e7be5c2625898981b11",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "cleanup-reference-baseline-fixtures.command.json",
+      "commandHash": "82342c9b0633a08b4ca5f1b8e78c3d11654515c21f692f699f6280bb2bf1b54f",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "outputFile": "cleanup-reference-baseline-fixtures.log",
+      "outputHash": "b196994945a8cb41d689784d4a23b4080ad1d3ca0dd11e2c97f28a55d8064c93",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "cleanup-reference-config-controls.command.json",
+      "commandHash": "25e8477807169478e2e3044599c448ae37445172886bfa1faf60679dcbfea936",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "outputFile": "cleanup-reference-config-controls.log",
+      "outputHash": "850aae735802f784e63705f10b0ab422ded1fa2d5015b19d8d0a1c8a12260044",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "cleanup-reference-discovery-controls.command.json",
+      "commandHash": "7205877f1c0e4b96a5e9380030d146f38e710dd80ffd0697f98bb381aadb3d02",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "outputFile": "cleanup-reference-discovery-controls.log",
+      "outputHash": "4081ca4df56661260bf9f4d6eca433f0e9c2262eccf480af43d04a065680f9a3",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "cleanup-reference-historical-baseline.command.json",
+      "commandHash": "9484e41261dfc39e48a0973226c6c1bf9af82b3882632d3dd89fd7110468f70a",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "outputFile": "cleanup-reference-historical-baseline.log",
+      "outputHash": "9869c9571ac41c1ddab59b040ce63bff810b05fe650e2ed3aeedf0d1568ecfe3",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "cleanup-reference-pinned-controls.command.json",
+      "commandHash": "2cf00d5249a0bd08f5940cd4dc9f41c6a50afb4fb8ab1d9521215e9ad1541aab",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "outputFile": "cleanup-reference-pinned-controls.log",
+      "outputHash": "1638ec7e27a4b4c426f9f03722f36a55d7eee04a1908cc7556b277636944f6ef",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "cleanup-reference-pure-fixtures.command.json",
+      "commandHash": "186ff758d1e0a920f0bac3c5dfbd9538c3443252ccf20098d28e20a05b297261",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "outputFile": "cleanup-reference-pure-fixtures.log",
+      "outputHash": "49814ab10a1fb3012528584eb6c82bd3751f1493f3955d806c8f62d3e8e65d40",
+      "exitCode": 1,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "cleanup-reference-render-context-controls.command.json",
+      "commandHash": "35928be01479376f1fe42b6090f68849be30c019c15c01f343957fc51fd83766",
+      "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "outputFile": "cleanup-reference-render-context-controls.log",
+      "outputHash": "07a688c4cb2d7eb27433db068da00c21f4073a8f1894e040edfbfba0a13d4c7f",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "context-guard.command.json",
+      "commandHash": "d3fa09e1a529d26e44b1339e5f3a7c4e834b5b9789c29851e57aea2d449b36cd",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "context-guard.log",
+      "outputHash": "12c47d9a5175867d1bb310bb3caa9424616a015b672d3d1bd33e02fe69053fad",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "current-cli-static-contracts.command.json",
+      "commandHash": "3019e37509218648a13eed99af2a864c393a7f09df67f3a264e59258ca214d5c",
+      "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+      "outputFile": "current-cli-static-contracts.log",
+      "outputHash": "d78dde6dea55ee3c95d10dffea059d1969fc1ffdc8fcfb1430fd06e0da7d5f06",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "defense-api-source-types-diagnostic.command.json",
+      "commandHash": "c4038a5ebcaeeb251a36e6e6275de03a9db94bb86d6b56322f6b39a85c553414",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "defense-api-source-types-diagnostic.log",
+      "outputHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "evaluation-guard.command.json",
+      "commandHash": "a492bb3380b2b387f44444e339525f5d064af61a8048f0d9de04610d5bf94280",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "evaluation-guard.log",
+      "outputHash": "4bcdb6f9c5e556014c97aa1ef28473c0271a143597b5198b65758c401f8c32bb",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "formatter-equivalence.command.json",
+      "commandHash": "1bbdb10340625137e108e6691fd4a10cbc3d354d1a52bde7c4a03475493230c8",
+      "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+      "outputFile": "formatter-equivalence.log",
+      "outputHash": "79a7454023e6b766d1dd6c3af49832c9d61d21b0e5765cc61f20f7e42993c5b3",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "formatter-two-file-delta.command.json",
+      "commandHash": "2229c26952bd3ccf9270276e9d03eae61980bcfbe381bb864db89f7684432929",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "formatter-two-file-delta.log",
+      "outputHash": "04fd2540f7bfdb5a872d8c322b652c92ab463bfa8fca6c6c1834bdcc5412ecbe",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "intel-api-source-types.command.json",
+      "commandHash": "d285069ad32d6f556ba03b6f0e295eb30478b2b54851280e2cc445677eea0618",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "intel-api-source-types.log",
+      "outputHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "learning-guard.command.json",
+      "commandHash": "35d60c0c25961f16fa085dacedfcd5dd7b9bca137aba01e19a25c83a740c2a7f",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "learning-guard.log",
+      "outputHash": "06a0510284f8b2058334eb4276737a0885ec0137f984e27c2ddf8ad6d20b73f0",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "meri-adjacent-boundary.command.json",
+      "commandHash": "b0b7e16cf58e6d621e5a02cd9750d921bfd3acdf529f22b4c5cbb6b1b94104ea",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "meri-adjacent-boundary.log",
+      "outputHash": "c0b1267326df4b7fd97694c7f0cc9e35b875dfc58edc8de3aa516740047d3718",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "meri-build-isolation-selftest.command.json",
+      "commandHash": "cc97b900cbe4c38a1b31791d24de65b8df62f373551dbd699a72b28dc59bfc63",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "meri-build-isolation-selftest.log",
+      "outputHash": "496e6aa79a17d5b7bce97900bed5939acedd761e5789eb930e701a9cb103e824",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "meri-build-isolation.command.json",
+      "commandHash": "69fd9b1395823ead8c74dca06ea80a5a728fc3f81aa55afdb9daf386cb0e9bd7",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "meri-build-isolation.log",
+      "outputHash": "952655c65991fb058dc97be62bf6a4453b548f9f9273e54137d6f40074e34eb5",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "meri-catalog-baseline.command.json",
+      "commandHash": "a21ee2b837f71edae1f15f84e9c014db92ecd91670ee238dc79833b0afa0e36f",
+      "measuredSource": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "outputFile": "meri-catalog-baseline.log",
+      "outputHash": "5e1e8e06a71bff70cbe82147c78c30d3a9ee661b3c033cd13877f61c94769931",
+      "exitCode": 1,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "meri-core-full-unit.command.json",
+      "commandHash": "c06b0d61f69e5d614e2b4c7afb823067b10dd1208aaab2065559556a3ab547a3",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "meri-core-full-unit.log",
+      "outputHash": "0e05493c7227428cc8ccab35c6a71fab99804502080d4eadce36e4c0f4e2dcd8",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "meri-import-boundary.command.json",
+      "commandHash": "2a9290ac7e45c3b401558be149c994acb8fbbefcdbcdab3cf6c10c2906bbe39b",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "meri-import-boundary.log",
+      "outputHash": "5dc03159f007886f6b54b104a3757fc4e389b1fd22d484dcad882a20b62174e4",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "meri-orchestrator-contract.command.json",
+      "commandHash": "6316ccd20793b6c01925f9fe81666e90c4cfe455d75b393d97fecc44eeab37fa",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "meri-orchestrator-contract.log",
+      "outputHash": "92304abd97b92d707b47cea37090addec3d249e76570141a7ff3fdc983cc33c0",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "meri-orchestrator-full-unit.command.json",
+      "commandHash": "811888212832772dda1f38be590a71b60226997cf0fd14e259c38d8d254f0a2b",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "meri-orchestrator-full-unit.log",
+      "outputHash": "09d3e16d4967b3a2f9f8a4932e330979d7e39926c51bc8cbe98653c05dd1e0f1",
+      "exitCode": 1,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "meri-source-boundaries.command.json",
+      "commandHash": "28d1bdb051a7626140ed9467254388a2d0300bb5936929930252451509f6c1b4",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "meri-source-boundaries.log",
+      "outputHash": "d0d3c71173550c41f03b31dccea251c952ee3696bcd0130a3aeddad64a9b6849",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "meri-visual-isolation.command.json",
+      "commandHash": "732bd86338d1905b78ac92fefbde468c30a87c48c17b0400da0d0941bfc13024",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "meri-visual-isolation.log",
+      "outputHash": "d117c12667d4cace8ff8419c5c3d4c97faf00f67488a1efb30669c2ef61c3c3b",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "migration-entrypoint-controls.command.json",
+      "commandHash": "ef725bca944cf7215e07e44d42ff9f3ea0a3c2947640807d86a2f12e2b9894e3",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "migration-entrypoint-controls.log",
+      "outputHash": "17f645135d066ec5e64550739c05fcf05de7518494e2a226a8d620895c2b7b13",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "migration-guards.command.json",
+      "commandHash": "b3e21a9de6c3f289a87a25ee9026b86aba7eb7234c6010e1da17b39e8258124d",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "migration-guards.log",
+      "outputHash": "d9f3c3e55f9ac5241ab9754c8acfa4aaa12e2e871685cdb6351482c15f689a83",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "migration-integrity.command.json",
+      "commandHash": "5b2730a0ae526f2a363d87d2d068cf9c0bb117b99b25e95367b0581799a99f53",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "migration-integrity.log",
+      "outputHash": "cc8453a977bfe12dae006812634abc4bdfa545948c0ee065736996d88e0fc42b",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "migration-invocation-controls.command.json",
+      "commandHash": "516783c83e4641ac173eb5b32b5e2df5adea2830a35c8033d7a111d1b5352be1",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "migration-invocation-controls.log",
+      "outputHash": "962cdda268c7bba7b7079777ec11a696a5fd5693b689874e2a242593da1d73db",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "migration-timestamps.command.json",
+      "commandHash": "26c25d9634757e31b8dd684dd4823c995f9a45baa5e04b36b8fca542df3f66aa",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "migration-timestamps.log",
+      "outputHash": "031f49ae9c4d237a4ac65534eabb1196026cf614429f8b657964d7905124dc8d",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "mirror-hash.command.json",
+      "commandHash": "81c54515299a5af4ec766f0648ec4acb07dbd30e90b5328b328256fa4c2c99b1",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "mirror-hash.log",
+      "outputHash": "1bf6e3864ddf2e4bb5e07785211d6a7d2f7b87c5c420f4bd8d5aafe72b6984b4",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "mirror-structural.command.json",
+      "commandHash": "18ea9bbab891939e7baeaf390b659ab307324d7a31d0586410ae785d0f72408d",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "mirror-structural.log",
+      "outputHash": "b93cb36ce317586c3c062b7964d1805ecbcbeb629ecf35c6e1fbf0d0e70d5731",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "onboard-api-source-types.command.json",
+      "commandHash": "c1f5e4d1eb22936642b2567408ab2b8c28a9e882b3a8758503adf4b7ade1df1a",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "onboard-api-source-types.log",
+      "outputHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "onboard-web-full-unit.command.json",
+      "commandHash": "76b2b41be1f37e364341d55a8820a5e6441013e20117104b853b6a12698aaa62",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "onboard-web-full-unit.log",
+      "outputHash": "ff6fe04649739980c26222fd3766ba886181f5d3ef1ef1db7d94efa2cc7dc384",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "prettier-changed-core-after-repair.command.json",
+      "commandHash": "75cc6a5b3197d74b1767da93a0adee398ea84421dd77eacb22a05109d38a7813",
+      "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+      "outputFile": "prettier-changed-core-after-repair.log",
+      "outputHash": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "prettier-current-changed-core.command.json",
+      "commandHash": "3a81b4e5c6bbdcb425c0a6ebc870a8ef2441ad6d19ef051e3fcb340482509bfd",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "prettier-current-changed-core.log",
+      "outputHash": "e9f41c9fbf9b551c203930fae3b8e559ab1bec452cc0279ff64b54436d9c7714",
+      "exitCode": 1,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "prettier-current-core-scope.command.json",
+      "commandHash": "b20f161b164f2173486b42407979bb28e9ce910a7046e97180d35d693680c667",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "prettier-current-core-scope.log",
+      "outputHash": "9fae8da008954093a82959a40d575f8ca971c73855344c89725e4f481eb622a7",
+      "exitCode": 1,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "prettier-main-core-scope.command.json",
+      "commandHash": "a6610794aa27a505962e090042521b4d333b44d8a3e7138c8979299622644864",
+      "measuredSource": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "outputFile": "prettier-main-core-scope.log",
+      "outputHash": "a97f2718eddf04aea2e23f873fa46f082e0de84bcdd106a19992d98ad75ea30c",
+      "exitCode": 1,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "prettier-whole-core-after-repair.command.json",
+      "commandHash": "3db398ec605164bd36c73aa084c9e7ca0609e7af217e024133c25ac8a6cd35c8",
+      "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+      "outputFile": "prettier-whole-core-after-repair.log",
+      "outputHash": "f00a8a3cd9dcda4e86fda57701d68d17900e1d01ef6443390b62c8ab36860954",
+      "exitCode": 1,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "program-element-static-safety-corrected-launch.command.json",
+      "commandHash": "1a70a43653098a2a87e177d182b4f0ab8d6902073db40d954e28a25c92fe2941",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "program-element-static-safety-corrected-launch.log",
+      "outputHash": "8dc9a85a52aa142f2a7959f0d0bb79aabfa906596820ed025acd555b50bb9987",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "program-element-static-safety.command.json",
+      "commandHash": "8504672a06c474048b957a86a358414da0ddcfce83b9872ecb1ac8ec587aff4d",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "program-element-static-safety.log",
+      "outputHash": "ef44983196d20ca8a19d9ee246aa080d5463784f9227064249c0f95e8488ea62",
+      "exitCode": 1,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "quality-guard.command.json",
+      "commandHash": "ffb4379fa039e4f86d9b0922904295d21a47f86667c136efa975f639e6e3e3ae",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "quality-guard.log",
+      "outputHash": "21ffb3beaed9e61aec50b83312c574f406e2fec64b1457b71793e03798fd1223",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "release-policy-controls.command.json",
+      "commandHash": "a86a7b0cffc6c9f7a465e56f9c74392237188e3892b6e990835c1dfd2dae826c",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "release-policy-controls.log",
+      "outputHash": "d8e102f164bc5c6f300fe21f46c72026cc44bba0f479829f374ab613df13ebc9",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    },
+    {
+      "commandFile": "standalone-node-suite.command.json",
+      "commandHash": "c80cc1d0bde87a65655e95b52da3e59209e71caa16c73df68591a7b15d687028",
+      "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "outputFile": "standalone-node-suite.log",
+      "outputHash": "04fd1cb80c946cc33cf4633d984ffc2385f2192f994af2a5c66fe6f8a831d897",
+      "exitCode": 0,
+      "nativeAcceptance": false
+    }
+  ],
+  "reviewRole": "Read-only snapshot of author evidence; measuredSource retained per command, not rewritten to latest head",
+  "nativeAcceptance": false
+}

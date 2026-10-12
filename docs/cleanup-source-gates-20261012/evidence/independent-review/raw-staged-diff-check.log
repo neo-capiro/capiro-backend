@@ -1,0 +1,8 @@
+docs/cleanup-source-gates-20261012/evidence/independent-review/focused-core.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/cleanup-source-gates-20261012/evidence/independent-review/focused-core.log:3: trailing whitespace.
++  
+docs/cleanup-source-gates-20261012/evidence/independent-review/focused-workspace.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/cleanup-source-gates-20261012/evidence/independent-review/focused-workspace.log:3: trailing whitespace.
++  
