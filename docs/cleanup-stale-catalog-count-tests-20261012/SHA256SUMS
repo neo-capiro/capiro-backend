@@ -1,0 +1,16 @@
+769670dc6bc1fc86c9309426e0b40eff30ff2c4da106e0f11a2052cadf41b48b  docs/cleanup-stale-catalog-count-tests-20261012/HANDOFF.md
+23a5c977d365a87db1e4fd5e549f1a3307a4200aea7dfa356c2a65c1cf2fd337  docs/cleanup-stale-catalog-count-tests-20261012/evidence/AFTER-SOURCE.json
+10d7f97630a033db1e5db9806f285d2e306fe8056248cea8bb4270bdedab8602  docs/cleanup-stale-catalog-count-tests-20261012/evidence/BEFORE-SOURCE.json
+10abe9123cb37306a2e5d2abe8ec09a72df569239d582d00ac8c28f300139824  docs/cleanup-stale-catalog-count-tests-20261012/evidence/CASE-PRESERVATION.json
+fa006b23d35cbc8b8198c35ced4502c1a890bcb637fa415ffeca067701b7fe02  docs/cleanup-stale-catalog-count-tests-20261012/evidence/CHECKS.json
+6b9d9efb15c8eb2ef85aab190545ae5900d9a6aa3a2d7b0ff137e70b6a79c83b  docs/cleanup-stale-catalog-count-tests-20261012/evidence/COMMANDS.json
+814029ca04aca57d5ac95a1cb671bbf73f7f5d674718503e46e76e74026dd700  docs/cleanup-stale-catalog-count-tests-20261012/evidence/after-results.json
+3553ae485d1ffb51cc5908cc6c58ee1ac3f487f2b6542af63616366ecaa3b438  docs/cleanup-stale-catalog-count-tests-20261012/evidence/after.stderr
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  docs/cleanup-stale-catalog-count-tests-20261012/evidence/after.stdout
+aea46198b3ecdef2c3d2c629c62d5c09d344cef734066bf12c0ad62c338d84e5  docs/cleanup-stale-catalog-count-tests-20261012/evidence/before-results.json
+4071c23836ed3e7add1f4bdb1e3a62b45160c5955c63744794ba8775ae1af0dd  docs/cleanup-stale-catalog-count-tests-20261012/evidence/before.stderr
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  docs/cleanup-stale-catalog-count-tests-20261012/evidence/before.stdout
+3f5a444f632021bca7a5a8e3ac60b560c118289597403f78dd7921b2efd05ebd  docs/cleanup-stale-catalog-count-tests-20261012/evidence/cascade.spec.ts
+7cb22cd75827233d0b5feaf1310eb077035342c6f9151b738c1f555ddb50b506  docs/cleanup-stale-catalog-count-tests-20261012/evidence/focused.jest.cjs
+4ea9a8e7764e45b62b5aae208ecb3c5342aeb030e8f08f940eb072a2b3a70501  docs/cleanup-stale-catalog-count-tests-20261012/evidence/full-chat-read-tools.catalog.spec.ts
+959c04dc5854f54d8985d3381b6b1d89c66c96aa467260ee58891984ac7aebcf  docs/cleanup-stale-catalog-count-tests-20261012/evidence/meri-historical-before-catalog.spec.ts

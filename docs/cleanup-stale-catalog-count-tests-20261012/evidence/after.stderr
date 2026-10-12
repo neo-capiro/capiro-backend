@@ -1,0 +1,10 @@
+PASS apps/workspace/test/cascade.spec.ts
+PASS apps/workspace/test/product-registry-characterization.spec.ts
+PASS apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       127 passed, 127 total
+Snapshots:   0 total
+Time:        1.819 s, estimated 3 s
+Ran all test suites within paths "apps/workspace/test/cascade.spec.ts", "apps/workspace/test/product-registry-characterization.spec.ts", "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts".
+Test results written to: docs/cleanup-stale-catalog-count-tests-20261012/evidence/after-results.json

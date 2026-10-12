@@ -1,0 +1,1326 @@
+{
+  "base": "ab0fc946192f3f49ce9e94d66a3d3ac5cf7a94cf",
+  "baseTree": "1aba170aa516a31f70e4a63b57fb67e501caa795",
+  "source": "5a3c73f0b626a0d659d1a4fbbdb1ef37040310e6",
+  "sourceTree": "df6fa9ccf56959552eaf68f82e4c7942abc3d00a",
+  "ownedProductionPaths": [],
+  "ownedTestDelta": [
+    {
+      "path": "apps/workspace/test/cascade.spec.ts",
+      "change": "only expectation10 to11 atline33",
+      "beforeSha256": "3f5a444f632021bca7a5a8e3ac60b560c118289597403f78dd7921b2efd05ebd",
+      "afterSha256": "782870251eab85a057be6e3b74aacbc47ffe4e0158048a728f627a981074bddc",
+      "inverseLiteralRecoversAllOriginalBytes": true
+    }
+  ],
+  "before": {
+    "executorSession": 35379,
+    "executorExit": 1,
+    "total": 127,
+    "passed": 126,
+    "failed": 1,
+    "originalFailure": "CascadeService \u203a allLibraryProducts returns the 10 canonical products: expected10 received11"
+  },
+  "after": {
+    "executorSession": 29134,
+    "executorExit": 0,
+    "total": 127,
+    "passed": 127,
+    "failed": 0,
+    "pending": 0,
+    "todo": 0,
+    "snapshotMutation": false
+  },
+  "caseMultisetPreserved": true,
+  "beforeCases": [
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization before fixture remains the exact captured original",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization all exported data, independent key orders and eleven library entries remain exact",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: White paper",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Appropriations Justification",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: NDAA Authorization Request",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Meeting Brief & Advocacy",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: CDS / Earmark Application",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Authorization Bill Language",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Report Language Request",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Member letter",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Strategy memo",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Written testimony",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: One-pager",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: ",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Unknown work product",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: white paper",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile:  White paper ",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: toString",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: __proto__",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: constructor",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: hasOwnProperty",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: prototype",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: valueOf",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Defense & Aerospace",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Health & Pharma",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Energy & Resources",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Agriculture",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Transportation",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Homeland Security",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Environment",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Commerce & Tech",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Unknown industry",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: ",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: __proto__",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Problem statement",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Solution",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Current status",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Funding history & request",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: National security impact",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Economic & district impact",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: The ask",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Executive summary",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Account & program line",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Program description",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Funding history",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Justification & impact",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Performance & outcomes",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Requesting entity & recipient information",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Project title",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Project description",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Requested amount & total cost",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Federal nexus statement",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Evidence of community support",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Financial disclosure certification",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Outcomes & metrics",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Short title",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Findings & purpose",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Definitions",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Main operative provision",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Exceptions & special rules",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Conforming & transitional provisions",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Authorization of appropriations",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Effective date",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Requesting entity & contact",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Bill, account & subcommittee",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Background & problem",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Proposed report language",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Justification",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Relationship to existing law & PBR",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Meeting logistics",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Member profile",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Background",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Objectives & the ask",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Talking points",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Anticipated questions & responses",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Leave-behind summary",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Follow-up plan",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Opening",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Request",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Closing",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Disclosure & witness intro",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Opening statement",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Position",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Recommendations",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Header & title",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Key facts & data",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Our position & the ask",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Contact information",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Situation",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Analysis",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Recommendation",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Next steps",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: BLUF",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Operational need",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Strategy & COCOM alignment",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: UPL / UFR status",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Execution rationale",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Endorsements & attachments",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Precedent",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Certifications",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Contact block",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: ",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: unmatched custom heading",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Summary background",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Q&A budget",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Requested amount title",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Summary report language",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: opening recommendations",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification:   Opening",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: THE ASK",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Funding history background",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Effective date funding history",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization reference, copy, prototype and detached receiver behavior remain original",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization fresh module preserves metadata/export mutations, zero-page fallback and writable CommonJS const aliases",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization legacy aliases retain one-time canonical projection references",
+      "status": "passed"
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "name": "FULL_CHAT_READ_TOOLS catalog exposes own proposal reads only in full chat and identifies their memory domain without exhaustive fact coverage",
+      "status": "passed"
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "name": "FULL_CHAT_READ_TOOLS catalog matches the intended full-chat read tool set",
+      "status": "passed"
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "name": "FULL_CHAT_READ_TOOLS catalog has unique names and non-empty descriptions",
+      "status": "passed"
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "name": "Combined delegated-tool coverage (in-editor + write + full-chat-read) the three catalogs together cover apps/api's full tool surface exactly \u2014 no gap, no duplicate",
+      "status": "passed"
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "name": "Combined delegated-tool coverage (in-editor + write + full-chat-read) W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) \u2014 catches description drift the name-only check missed",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService industries returns all 8 sectors",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService Defense products include presets + universal + White paper is a canonical product",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService allLibraryProducts returns the 10 canonical products",
+      "status": "failed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService pathways + committees derive correctly for Defense",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService Appropriations Justification defaults: funding=true",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService Report Language Request defaults: funding=false",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService White paper is a funding product",
+      "status": "passed"
+    }
+  ],
+  "afterCases": [
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService industries returns all 8 sectors",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService Defense products include presets + universal + White paper is a canonical product",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService allLibraryProducts returns the 10 canonical products",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService pathways + committees derive correctly for Defense",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService Appropriations Justification defaults: funding=true",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService Report Language Request defaults: funding=false",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/cascade.spec.ts",
+      "name": "CascadeService White paper is a funding product",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization before fixture remains the exact captured original",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization all exported data, independent key orders and eleven library entries remain exact",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: White paper",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Appropriations Justification",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: NDAA Authorization Request",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Meeting Brief & Advocacy",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: CDS / Earmark Application",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Authorization Bill Language",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Report Language Request",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Member letter",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Strategy memo",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Written testimony",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: One-pager",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: ",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: Unknown work product",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: white paper",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile:  White paper ",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: toString",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: __proto__",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: constructor",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: hasOwnProperty",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: prototype",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original product/default profile: valueOf",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Defense & Aerospace",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Health & Pharma",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Energy & Resources",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Agriculture",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Transportation",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Homeland Security",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Environment",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Commerce & Tech",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: Unknown industry",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: ",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original industry/pathway/committee profile: __proto__",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Problem statement",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Solution",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Current status",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Funding history & request",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: National security impact",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Economic & district impact",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: The ask",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Executive summary",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Account & program line",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Program description",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Funding history",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Justification & impact",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Performance & outcomes",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Requesting entity & recipient information",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Project title",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Project description",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Requested amount & total cost",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Federal nexus statement",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Evidence of community support",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Financial disclosure certification",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Outcomes & metrics",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Short title",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Findings & purpose",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Definitions",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Main operative provision",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Exceptions & special rules",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Conforming & transitional provisions",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Authorization of appropriations",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Effective date",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Requesting entity & contact",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Bill, account & subcommittee",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Background & problem",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Proposed report language",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Justification",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Relationship to existing law & PBR",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Meeting logistics",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Member profile",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Background",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Objectives & the ask",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Talking points",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Anticipated questions & responses",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Leave-behind summary",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Follow-up plan",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Opening",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Request",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Closing",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Disclosure & witness intro",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Opening statement",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Position",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Recommendations",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Header & title",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Key facts & data",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Our position & the ask",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Contact information",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Situation",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Analysis",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Recommendation",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Next steps",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: BLUF",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Operational need",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Strategy & COCOM alignment",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: UPL / UFR status",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Execution rationale",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Endorsements & attachments",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Precedent",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Certifications",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Contact block",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: ",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: unmatched custom heading",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Summary background",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Q&A budget",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Requested amount title",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Summary report language",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: opening recommendations",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification:   Opening",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: THE ASK",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Funding history background",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization original ordered section specification: Effective date funding history",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization reference, copy, prototype and detached receiver behavior remain original",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization fresh module preserves metadata/export mutations, zero-page fallback and writable CommonJS const aliases",
+      "status": "passed"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "name": "Workspace product registry preconversion characterization legacy aliases retain one-time canonical projection references",
+      "status": "passed"
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "name": "FULL_CHAT_READ_TOOLS catalog exposes own proposal reads only in full chat and identifies their memory domain without exhaustive fact coverage",
+      "status": "passed"
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "name": "FULL_CHAT_READ_TOOLS catalog matches the intended full-chat read tool set",
+      "status": "passed"
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "name": "FULL_CHAT_READ_TOOLS catalog has unique names and non-empty descriptions",
+      "status": "passed"
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "name": "Combined delegated-tool coverage (in-editor + write + full-chat-read) the three catalogs together cover apps/api's full tool surface exactly \u2014 no gap, no duplicate",
+      "status": "passed"
+    },
+    {
+      "file": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "name": "Combined delegated-tool coverage (in-editor + write + full-chat-read) W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) \u2014 catches description drift the name-only check missed",
+      "status": "passed"
+    }
+  ],
+  "Meri": {
+    "alreadyCorrectedAtBase": true,
+    "activeExpectation": 139,
+    "freshCasesPassed": 5,
+    "currentOriginalSourceUntouched": true,
+    "historical138Source": {
+      "commit": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "sha256": "959c04dc5854f54d8985d3381b6b1d89c66c96aa467260ee58891984ac7aebcf",
+      "saved": "meri-historical-before-catalog.spec.ts",
+      "old138ExpectationPresent": true,
+      "executedInThisTask": false
+    },
+    "priorReceipt": "docs/cleanup-executable-prereqs-20261012/evidence/meri-canonical-catalog-unit.json",
+    "oldFailureRecord": "docs/cleanup-source-gates-20261012/GATE-MATRIX.json baselineFailures historical entry remains immutable"
+  },
+  "limits": "three affected source/mocked suites only; no full Workspace/app/fullgate/native/provider/reporting or archival release-source modification."
+}
