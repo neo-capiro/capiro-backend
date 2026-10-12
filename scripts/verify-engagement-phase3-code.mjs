@@ -5,13 +5,21 @@ import { openSync, readFileSync, closeSync } from 'node:fs';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  engagementPhase3Scope, engagementPhase3QualificationPlan, engagementPhase3CompletionMarker,
+  engagementPhase3FailureMarker, engagementPhase3Phase1Policy, engagementPhase3Phase1CompletionState,
+  executeEngagementPhase3Plan,
+} from './engagement-phase3-qualification-plan.mjs';
 
-const usage = 'Usage: node scripts/verify-engagement-phase3-code.mjs (--run | --help)';
+const usage = 'Usage: node scripts/verify-engagement-phase3-code.mjs (--run [--backend-only | --frontend-only] | --help)';
 if (process.argv.length === 3 && process.argv[2] === '--help') {
   console.log(usage);
   process.exit(0);
 }
-if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+let SCOPE;
+try {
+  SCOPE = engagementPhase3Scope(process.argv.slice(2));
+} catch {
   console.error(usage);
   process.exit(2);
 }
@@ -54,7 +62,7 @@ function resolveWhitespaceBase() {
 
 const PHASE3_WHITESPACE_BASE = resolveWhitespaceBase();
 const scopedOptions = { env: { ENGAGEMENT_PHASE3_SCOPE_END: PHASE3_SCOPE_END } };
-const steps = [
+const fullSteps = [
   ['Phase 0 prerequisite', 'pnpm', ['verify:engagement-phase-0']],
   ['Phase 1 prerequisite', 'pnpm', ['verify:engagement-phase-1']],
   ['Phase 2 prerequisite', 'pnpm', ['verify:engagement-phase-2']],
@@ -199,6 +207,8 @@ const steps = [
   ],
 ];
 
+const steps = engagementPhase3QualificationPlan(SCOPE, fullSteps);
+
 function run(label, command, args, options = {}) {
   console.log(`\n==> ${label}`);
   const result = spawnSync(command, args, {
@@ -213,15 +223,15 @@ function run(label, command, args, options = {}) {
   }
 }
 
-function runPhase1WithCompletionMarker() {
+function runPhase1WithCompletionMarker(label, command, args, options = {}) {
   if (process.platform !== 'win32') {
-    run('Phase 1 prerequisite', 'pnpm', ['verify:engagement-phase-1']);
+    run(label, command, args, options);
     return;
   }
 
-  const logPath = 'C:\\dev\\recovery-phase3-phase1-prerequisite.log';
+  const { logPath } = engagementPhase3Phase1Policy(SCOPE);
   const fd = openSync(logPath, 'w');
-  const child = spawn('pnpm', ['verify:engagement-phase-1'], {
+  const child = spawn(command, args, {
     cwd: ROOT,
     shell: true,
     stdio: ['ignore', fd, fd],
@@ -233,11 +243,11 @@ function runPhase1WithCompletionMarker() {
   let failed = false;
   while (Date.now() < deadline) {
     const output = readFileSync(logPath, 'utf8');
-    if (output.includes('ENGAGEMENT_PHASE1_DB_FREE_COMPLETE')) {
+    if (engagementPhase3Phase1CompletionState(output, SCOPE, child.exitCode) === 'complete') {
       complete = true;
       break;
     }
-    if (output.includes('ENGAGEMENT_PHASE1_DB_FREE_FAILED')) {
+    if (engagementPhase3Phase1CompletionState(output, SCOPE, child.exitCode) === 'failed') {
       failed = true;
       break;
     }
@@ -262,12 +272,11 @@ function runPhase1WithCompletionMarker() {
 }
 
 try {
-  for (const [label, command, args, options] of steps) {
-    if (label === 'Phase 1 prerequisite') runPhase1WithCompletionMarker();
-    else run(label, command, args, options);
-  }
-  console.log('\nENGAGEMENT_PHASE3_DB_FREE_COMPLETE');
+  executeEngagementPhase3Plan(steps, { run, runPhase1: runPhase1WithCompletionMarker });
+  console.log(`\n${engagementPhase3CompletionMarker(SCOPE)}`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
+  const marker = engagementPhase3FailureMarker(SCOPE);
+  if (marker) console.error(marker);
   process.exit(1);
 }
