@@ -1,0 +1,13 @@
+{
+  "unchangedHelperDeclarations": 5,
+  "originalCaseNamesRetained": 10,
+  "onlyIntentionalChangedCase": [
+    {
+      "file": "apps/api/scripts/lib/pe-phase-a-safety.spec.ts",
+      "name": "test:supported entrypoints contain no automatic migration-history mutation",
+      "exactBodyUnchanged": false,
+      "intentionalCanonicalAlignment": true
+    }
+  ],
+  "nativeOperations": false
+}

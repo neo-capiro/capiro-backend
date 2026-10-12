@@ -1,0 +1,8 @@
+PASS scripts/lib/pe-migration-guards.spec.ts
+PASS scripts/lib/pe-phase-a-safety.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       69 passed, 69 total
+Snapshots:   0 total
+Time:        1.278 s
+Ran all test suites.

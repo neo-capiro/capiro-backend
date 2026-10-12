@@ -1,0 +1,56 @@
+{
+  "base": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "author": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+  "authorTree": "88a1aea62dbaaf4a8aa82086caa7c9aea511d8d7",
+  "rootOverlay": "dced1ff282fffea55376f9cc8eef3e849a0ec782",
+  "reviewSourceComposition": "8252a43367b8b67909f52863deb0d1126fd898d6",
+  "allowedOwnedPaths": {
+    "apps/api/scripts/lib/pe-migration-guards.spec.ts": {
+      "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+      "gitBlob": "92ebecd7ab6fa18a69d7dcb404f097a89bf33411",
+      "sha256": "56219e60d984b3bed650378ab32e40c6e258bf460591e71d3aee40f9a328d64b"
+    },
+    "apps/api/scripts/lib/pe-migration-guards.ts": {
+      "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+      "gitBlob": "20affa081ef362cd6cb18fd4261b634404aedec8",
+      "sha256": "808fabdbe0c88d0bd4419e34a9eb1455b0a6cb378d0457bd2d8a500840c342dc"
+    },
+    "apps/api/scripts/lib/pe-phase-a-safety.spec.ts": {
+      "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+      "gitBlob": "342604b55711082a13f82a907a903388171fc04a",
+      "sha256": "0f0d7fb4a6097f30c1680decaf74314d468573846edea55e143827371a59d538"
+    },
+    "apps/api/scripts/verify-pe-phase-a-safety.ts": {
+      "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+      "gitBlob": "0f68c7ccd86f9ef052128081b9a900b95b0c022e",
+      "sha256": "cb5e065993446a0b3691cceeb81e1dcdcc91504c84febd989266185964a65a22"
+    },
+    "docs/runbooks/prisma-failed-migration-recovery.md": {
+      "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+      "gitBlob": "903f0c8d3c7cce5d2a94a570414ff464a25f7111",
+      "sha256": "622f2c4ba12a0b3996aa2a90cfb61f429a41aa227e8f5527b105059b1875e99e"
+    },
+    "docs/runbooks/program-elements-trust-gates.md": {
+      "owner": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+      "gitBlob": "1e1a990467675a2ee52b77f045ae3e8c9d3ba99f",
+      "sha256": "a6975e64de92d5071eba7bbf7064e15d34fb5d8b2d888b842673630f44e0374e"
+    },
+    "apps/api/scripts/lint-pe-scripts.ts": {
+      "owner": "dced1ff282fffea55376f9cc8eef3e849a0ec782",
+      "gitBlob": "4623abcfe13a3aa887b5b03dd67190e81da4d513",
+      "sha256": "a0c36656629218c3f8d2a4d21ead6446d45d34ef110d5bce1016da04b25cf678"
+    }
+  },
+  "preservedAnchors": [
+    "apps/api/scripts/entrypoint.sh",
+    "apps/api/scripts/entrypoint-legacy.sh",
+    "apps/api/scripts/entrypoint-dispatcher.inc",
+    "apps/api/scripts/lib/pe-compose-database-url.js",
+    "apps/api/scripts/verify-pe-migration-guards.ts"
+  ],
+  "schemaOrMigrationChanges": [],
+  "entrypointTrioBytesUnchanged": true,
+  "otherSourceDelta": false,
+  "reviewerSourceEdits": false,
+  "nativeOperations": false
+}

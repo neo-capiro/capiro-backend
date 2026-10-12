@@ -1,0 +1,169 @@
+{
+  "authorSource": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+  "rootOverlay": "dced1ff282fffea55376f9cc8eef3e849a0ec782",
+  "lintSha256": "a0c36656629218c3f8d2a4d21ead6446d45d34ef110d5bce1016da04b25cf678",
+  "results": [
+    {
+      "name": "actual raw overlay succeeds",
+      "args": [],
+      "exitCode": 0,
+      "stdout": [
+        "PE_LINT_SCRIPTS_OK"
+      ],
+      "stderr": [
+        "Usage: tsx scripts/lint-pe-scripts.ts [--help]"
+      ],
+      "frames": [
+        [
+          {
+            "path": "scripts/entrypoint.sh",
+            "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+          },
+          {
+            "path": "scripts/entrypoint-legacy.sh",
+            "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+          },
+          {
+            "path": "scripts/entrypoint-dispatcher.inc",
+            "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "CRLF source is normalized consistently",
+      "args": [],
+      "exitCode": 0,
+      "stdout": [
+        "PE_LINT_SCRIPTS_OK"
+      ],
+      "stderr": [
+        "Usage: tsx scripts/lint-pe-scripts.ts [--help]"
+      ],
+      "frames": [
+        [
+          {
+            "path": "scripts/entrypoint.sh",
+            "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+          },
+          {
+            "path": "scripts/entrypoint-legacy.sh",
+            "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+          },
+          {
+            "path": "scripts/entrypoint-dispatcher.inc",
+            "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "pre-stripped snapshot bytes refuse",
+      "args": [],
+      "exitCode": 1,
+      "stdout": [],
+      "stderr": [
+        "Usage: tsx scripts/lint-pe-scripts.ts [--help]",
+        "PE_LINT_SCRIPTS_FAILED: AssertionError [ERR_ASSERTION]: scripts/entrypoint.sh: raw LF-normalized source differs from the approved manual recovery envelope; scripts/entrypoint-legacy.sh: raw LF-normalized source differs from the approved manual recovery envelope; scripts/entrypoint-dispatcher.inc: raw LF-normalized source differs from the approved manual recovery envelope; scripts/entrypoint.sh: contains prisma migrate resolve\n\nfalse !== true\n"
+      ],
+      "frames": [
+        [
+          {
+            "path": "scripts/entrypoint.sh",
+            "sha256": "1ed8f988578e1d19b26c495a6873183bb9905b16d1a28d57e04f7e4561aa7923"
+          },
+          {
+            "path": "scripts/entrypoint-legacy.sh",
+            "sha256": "9e88f1888a4883a8d5eaec10c615d0d2ab82c6b625fb8b01b50f8f6eb36cc5b3"
+          },
+          {
+            "path": "scripts/entrypoint-dispatcher.inc",
+            "sha256": "94d08d89974ed309c85e7d9cb6ab098cc37032a303f2fe06081b2690795c4f15"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "comment-only unreviewed envelope refuses",
+      "args": [],
+      "exitCode": 1,
+      "stdout": [],
+      "stderr": [
+        "Usage: tsx scripts/lint-pe-scripts.ts [--help]",
+        "PE_LINT_SCRIPTS_FAILED: AssertionError [ERR_ASSERTION]: scripts/entrypoint.sh: raw LF-normalized source differs from the approved manual recovery envelope; scripts/entrypoint.sh: contains prisma migrate resolve\n\nfalse !== true\n"
+      ],
+      "frames": [
+        [
+          {
+            "path": "scripts/entrypoint.sh",
+            "sha256": "a577c012d7be33f2a92939b0a7361d47d7dffc82356f5884a5dcebb6d72d376d"
+          },
+          {
+            "path": "scripts/entrypoint-legacy.sh",
+            "sha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a"
+          },
+          {
+            "path": "scripts/entrypoint-dispatcher.inc",
+            "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "legacy extra history edit refuses",
+      "args": [],
+      "exitCode": 1,
+      "stdout": [],
+      "stderr": [
+        "Usage: tsx scripts/lint-pe-scripts.ts [--help]",
+        "PE_LINT_SCRIPTS_FAILED: AssertionError [ERR_ASSERTION]: scripts/entrypoint-legacy.sh: raw LF-normalized source differs from the approved manual recovery envelope; scripts/entrypoint.sh: contains prisma migrate resolve; scripts/entrypoint-legacy.sh: references _prisma_migrations (hand-edit / auto-resolve hazard); scripts/entrypoint-legacy.sh: auto-sets rolled_back_at = NOW()\n\nfalse !== true\n"
+      ],
+      "frames": [
+        [
+          {
+            "path": "scripts/entrypoint.sh",
+            "sha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b"
+          },
+          {
+            "path": "scripts/entrypoint-legacy.sh",
+            "sha256": "a80f4efada40e4d998ac020e4bf73c95a17f2589b51c971526625c10cd2b53a3"
+          },
+          {
+            "path": "scripts/entrypoint-dispatcher.inc",
+            "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf"
+          }
+        ]
+      ]
+    },
+    {
+      "name": "help does not enter source scanner",
+      "args": [
+        "--help"
+      ],
+      "exitCode": 0,
+      "stdout": [
+        "Usage: tsx scripts/lint-pe-scripts.ts [--help]"
+      ],
+      "stderr": [],
+      "frames": []
+    },
+    {
+      "name": "unknown arguments stay refused before scanning",
+      "args": [
+        "--not-supported"
+      ],
+      "exitCode": 2,
+      "stdout": [],
+      "stderr": [
+        "Unknown argument(s): --not-supported",
+        "Usage: tsx scripts/lint-pe-scripts.ts [--help]"
+      ],
+      "frames": []
+    }
+  ],
+  "cases": 7,
+  "catalogMode": "actual source-owned string arrays extracted by TypeScript AST; no transitive helper execution",
+  "shellMutantsExecuted": false,
+  "nativeOperations": false,
+  "compositionTestsDuplicated": false
+}

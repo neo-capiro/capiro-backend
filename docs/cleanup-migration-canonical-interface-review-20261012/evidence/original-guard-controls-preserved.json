@@ -1,0 +1,92 @@
+{
+  "base": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "source": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+  "unchangedHelperDeclarations": [
+    {
+      "name": "FORBIDDEN_MIGRATION_HISTORY_PATTERNS",
+      "sha256": "051e16f0826b81caa4aa7f867c1bd673d05057516a5e1dce47003cc83c987ee3"
+    },
+    {
+      "name": "stripShellComments",
+      "sha256": "f25ddad438913a5ec3a9642f9886f8e44906d08a8c44c47beef3a79b5cad35a9"
+    },
+    {
+      "name": "countMigrateDeployInvocations",
+      "sha256": "24cf02670dafe5848dbf81a14830bcd70dee64f3a120b31df101fc42dfa6d601"
+    },
+    {
+      "name": "interpretPrismaValidateGenerate",
+      "sha256": "f63b1bc2b8b1d45cd13004da90d6b027ef5ece523d6f535fe60f71faeeebd6e1"
+    },
+    {
+      "name": "interpretMigrateReplay",
+      "sha256": "3b737e4976d3c8d8464a5c4368aefff23e58857d2a197fe3aabe0d7694ba1008"
+    }
+  ],
+  "originalCaseChecks": [
+    {
+      "file": "apps/api/scripts/lib/pe-migration-guards.spec.ts",
+      "name": "test:stripShellComments drops # lines only",
+      "exactBodyUnchanged": true,
+      "intentionalCanonicalAlignment": false
+    },
+    {
+      "file": "apps/api/scripts/lib/pe-migration-guards.spec.ts",
+      "name": "test:blocks _prisma_migrations and migrate resolve in entrypoint body",
+      "exactBodyUnchanged": true,
+      "intentionalCanonicalAlignment": false
+    },
+    {
+      "file": "apps/api/scripts/lib/pe-migration-guards.spec.ts",
+      "name": "test:allows migrate deploy and ignores commented history references",
+      "exactBodyUnchanged": true,
+      "intentionalCanonicalAlignment": false
+    },
+    {
+      "file": "apps/api/scripts/lib/pe-migration-guards.spec.ts",
+      "name": "test:validate/generate exit codes",
+      "exactBodyUnchanged": true,
+      "intentionalCanonicalAlignment": false
+    },
+    {
+      "file": "apps/api/scripts/lib/pe-migration-guards.spec.ts",
+      "name": "test:replay interpretation forbids resolve and history mutation",
+      "exactBodyUnchanged": true,
+      "intentionalCanonicalAlignment": false
+    },
+    {
+      "file": "apps/api/scripts/lib/pe-phase-a-safety.spec.ts",
+      "name": "test:supported entrypoints contain no automatic migration-history mutation",
+      "exactBodyUnchanged": false,
+      "intentionalCanonicalAlignment": true
+    },
+    {
+      "file": "apps/api/scripts/lib/pe-phase-a-safety.spec.ts",
+      "name": "test:exactly one supported entrypoint can execute a migration",
+      "exactBodyUnchanged": true,
+      "intentionalCanonicalAlignment": false
+    },
+    {
+      "file": "apps/api/scripts/lib/pe-phase-a-safety.spec.ts",
+      "name": "test:canonical promotion gates SHA approval and comparison before DB access",
+      "exactBodyUnchanged": true,
+      "intentionalCanonicalAlignment": false
+    },
+    {
+      "file": "apps/api/scripts/lib/pe-phase-a-safety.spec.ts",
+      "name": "test:preflight stays network-free and vendor parsing requires explicit authorization",
+      "exactBodyUnchanged": true,
+      "intentionalCanonicalAlignment": false
+    },
+    {
+      "file": "apps/api/scripts/lib/pe-phase-a-safety.spec.ts",
+      "name": "test:historical LlamaParse unit audit remains SELECT-only",
+      "exactBodyUnchanged": true,
+      "intentionalCanonicalAlignment": false
+    }
+  ],
+  "originalCaseNamesRetained": 10,
+  "originalStrictNegativeAndReplayBodiesUnchanged": true,
+  "shellMutantsExecuted": false,
+  "nativeOperations": false
+}

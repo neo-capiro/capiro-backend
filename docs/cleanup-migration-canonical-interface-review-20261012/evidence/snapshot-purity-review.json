@@ -1,0 +1,45 @@
+{
+  "source": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+  "cases": 9,
+  "results": [
+    {
+      "name": "inspectApprovedManualMigrationEntrypoints: getter fields sampled once; subsequent calls revalidate",
+      "passed": true
+    },
+    {
+      "name": "inspectApprovedManualMigrationEntrypoints: frozen input remains unchanged",
+      "passed": true
+    },
+    {
+      "name": "inspectApprovedManualMigrationEntrypoints: rejected source and result mutation do not poison later checks",
+      "passed": true
+    },
+    {
+      "name": "assertNoMigrationHistoryMutation: getter fields sampled once; subsequent calls revalidate",
+      "passed": true
+    },
+    {
+      "name": "assertNoMigrationHistoryMutation: frozen input remains unchanged",
+      "passed": true
+    },
+    {
+      "name": "assertNoMigrationHistoryMutation: rejected source and result mutation do not poison later checks",
+      "passed": true
+    },
+    {
+      "name": "dedicated inspector refuses an empty envelope",
+      "passed": true
+    },
+    {
+      "name": "generic empty list retains original strict-scan semantics without attesting manual policy",
+      "passed": true
+    },
+    {
+      "name": "prototype-looking unknown path cannot grant an operator exception",
+      "passed": true
+    }
+  ],
+  "claims": "synchronous primitive capture and pure result/input behavior; not runtime operator concurrency exclusion",
+  "shellMutantsExecuted": false,
+  "nativeOperations": false
+}

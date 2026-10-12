@@ -1,0 +1,10 @@
+{
+  "source": "a96af2e1161def587d4ed9b6b79be7e5ff042c5b",
+  "workdir": "/workspace/capirov2-cleanup-migration-interface-review/apps/api",
+  "exitCode": 1,
+  "stderr": "/bin/bash: line 1: docs/cleanup-migration-canonical-interface-review-20261012/evidence/author-pure-controls-independent.log: No such file or directory",
+  "testsStarted": false,
+  "cause": "Reviewer redirection was relative to apps/api instead of repository root",
+  "correctedBy": "Absolute unique reviewer evidence output path",
+  "nativeOperations": false
+}
