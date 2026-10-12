@@ -1,0 +1,91 @@
+{
+  "candidate": "5f7308891e9bb3f0561804a0895b4372030c0d38",
+  "tree": "15355c281ff13f012c49e7edb51f134e0fb8f742",
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "candidatePaths": [
+    "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
+    "apps/api/prisma/schema.prisma",
+    "apps/api/src/clients/client-account-owner.service.spec.ts",
+    "apps/api/src/clients/client-account-owner.service.ts",
+    "apps/api/src/clients/client-ordered-owner.access.ts",
+    "apps/api/src/clients/client-ordered-owner.controller.ts",
+    "apps/api/src/clients/client-ordered-owner.http.spec.ts",
+    "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+    "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+    "apps/api/src/clients/client-ordered-owner.service.ts",
+    "apps/api/src/clients/client-ordered-owner.test-support.ts",
+    "apps/api/src/clients/client-team.service.spec.ts",
+    "apps/api/src/clients/client-team.service.ts",
+    "apps/api/src/clients/clients.module.ts",
+    "docs/ordered-client-owners-20261012/CONTRACT.md",
+    "docs/ordered-client-owners-20261012/DEPENDENCIES.md"
+  ],
+  "intersections": {
+    "Cleanup2392": {
+      "ref": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "paths": []
+    },
+    "Facility2373": {
+      "ref": "6e5774a14c73ea04f0a77650a5bbd33173bcc9b3",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "paths": []
+    },
+    "Reply2364": {
+      "ref": "4b3c672574ed3738e42b1c5e1f7483e32f358095",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "paths": []
+    },
+    "Attachment2381": {
+      "ref": "171ec869ed3928c96172c8790a9aeb3b4de901ae",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "paths": []
+    },
+    "Stages2365": {
+      "ref": "fd6ed6c017ae91ab774fd34f74475a746de13b68",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "paths": []
+    },
+    "Contacts2371": {
+      "ref": "6c6f88e9e5ba077452716f3a0db0dd3bbea2963f",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "paths": []
+    },
+    "Objectives2362": {
+      "ref": "72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts"
+      ]
+    },
+    "Sender2393": {
+      "ref": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "paths": []
+    },
+    "Facility2394": {
+      "ref": "5d075af9b376cd3ed67256b5c38e4a2a2130a51d",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "paths": []
+    },
+    "Planner2395": {
+      "ref": "c5e41e320af4b4d841d4b3136777d712116916ed",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "paths": []
+    },
+    "QuickLog2396": {
+      "ref": "e2c2c110edd986e799d47d43b0db50b24fab0201",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts"
+      ]
+    },
+    "Memory2397": {
+      "ref": "4915f3fa5c938182b2624377375674654baa5337",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "paths": []
+    }
+  }
+}

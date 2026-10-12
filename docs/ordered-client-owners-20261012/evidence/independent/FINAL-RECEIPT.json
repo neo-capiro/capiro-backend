@@ -1,0 +1,65 @@
+{
+  "verdict": "ACCEPTABLE bounded source after repairs; no remaining blocking findings",
+  "candidate": "5f7308891e9bb3f0561804a0895b4372030c0d38",
+  "tree": "15355c281ff13f012c49e7edb51f134e0fb8f742",
+  "runtime": "82a4366256a35ab27099aac099c7fb7e610a4959",
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "reviewerWorktree": "/workspace/capirov2-review-ordered-owners",
+  "runtimeEquivalence": "82a436..5f730 adds only byte-identical reviewer test suite; retained-test-equivalence.json",
+  "tests": {
+    "source": "5f7308891e9bb3f0561804a0895b4372030c0d38",
+    "json": "final-retained-replay.json",
+    "log": "final-retained-replay.log",
+    "suites": 9,
+    "passed": 107,
+    "failed": 0,
+    "success": true
+  },
+  "testBreakdown": {
+    "ownerAndHttpTests": 75,
+    "independentAdversarialTestsIncluded": 29,
+    "existingRoleWallTenantControls": 32,
+    "totalSuites": 9
+  },
+  "resolvedFindings": [
+    {
+      "finding": "Actor role/identity checked before waiting for client lock",
+      "resolution": "Recheck after client lock with FOR SHARE OF membership and user;18 independent revocation/demotion/remapping cases across6 paths pass"
+    },
+    {
+      "finding": "Wall grant may be revoked during later member lock wait",
+      "resolution": "Lock existing grant before wall helper and owner-member wait;3 wall-related negative controls fail against preserved partial repair and pass final"
+    },
+    {
+      "finding": "Migration UPDATE validates only destination on parent move",
+      "resolution": "Assignment tenant/client identity UPDATE explicitly rejected before target selection; migration source inspected only"
+    },
+    {
+      "finding": "Maximum-version error disagreed with initial documentation",
+      "resolution": "Final ranked parser accepts MAX; exact no-op allowed and changing ranked/legacy writes produce owner_version_exhausted409; aboveMAX400"
+    }
+  ],
+  "preservedNegativeEvidence": "initial-access-red26pass3fail; context explicitly identifies partial-repair source; original actor and migration findings are initial source observations, not native SQL results",
+  "intersections": "Only schema.prisma and clients.module.ts with Objective2362 and QuickLog2396; all other preserved candidates empty",
+  "migrationReview": "migration-source-review.json; NEVER executed, including ephemeral database",
+  "primaryCompile": {
+    "reviewer": "Not run; author requested serialized compiles",
+    "authorReported": "Core primary TypeScript passed on82a436; final5f730 primary TypeScript/Nest run pending report at receipt creation"
+  },
+  "limitations": [
+    "Synthetic transaction adapters and isolated-transpile Jest do not qualify native PostgreSQL/Prisma locking, RLS, backfill, deferred triggers, hard deletion or concurrency",
+    "No migration, DB connection/write, live provider message, paid model workload, deployment or main merge",
+    "Official native engine egress remains externally blocked; no proxy/checksum bypass",
+    "ESLint remains unavailable in checked-in dependency/config tooling",
+    "Coordinated migration and canonical-writer rollout via dot required; old Primary-only writer incompatible with deferred guard"
+  ],
+  "deliverables": [
+    "client-ordered-owner.independent.spec.ts retained at candidate head",
+    "independent-tests.patch",
+    "final-retained-replay.json",
+    "final-retained-replay.log",
+    "migration-source-review.json",
+    "intersections.json",
+    "INITIAL-REVIEW.md"
+  ]
+}

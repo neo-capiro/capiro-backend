@@ -1,0 +1,25 @@
+{
+  "candidate": "5f7308891e9bb3f0561804a0895b4372030c0d38",
+  "migration": "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
+  "sha256": "ae7f4d3dd629854f450af63b006fbb173c0ff22b3f05f0add9e65df50393f8c4",
+  "method": "Independent source inspection only; no SQL/migration execution or database connection",
+  "conclusions": [
+    "Tenant/client composite FK matches Prisma mapping and NoAction update policy",
+    "User FK Restrict matches Prisma relation and deliberately protects historical rank until explicit removal",
+    "Rank1..4 constraint, rank-key and per-client user uniqueness bound set size and membership uniqueness",
+    "Deferred final-state count=max(rank) plus Primary match enforce contiguous ranks, given positive unique bounded ranks",
+    "Tenant/client identity changes rejected on assignment UPDATE before target selection; closes original source-client omission",
+    "Client deletion cascades rank rows; deferred checks return when parent no longer exists",
+    "Historical Primary backfills to rank1/version0 including inactive members",
+    "FORCE RLS, USING/WITH CHECK and invoker-rights trigger; no new security-definer/bypass setting",
+    "Application owns version/audit; direct SQL owner mutation remains unsupported",
+    "Old Primary-only writers incompatible after migration; coordinated dot rollout documented"
+  ],
+  "unqualified": [
+    "SQL syntax and trigger execution on native PostgreSQL",
+    "RLS under actual deployment role and invoker trigger privileges",
+    "Backfill locking/volume and coordinated rollout",
+    "MVCC row locks, membership/grant revocation, deadlock abort and concurrency",
+    "Hard-user/client deletion on native database"
+  ]
+}

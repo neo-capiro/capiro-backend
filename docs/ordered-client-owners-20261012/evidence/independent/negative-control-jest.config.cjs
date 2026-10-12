@@ -1,0 +1,1 @@
+const c=require('/tmp/capiro-review-ordered-owners-jest.cjs');c.moduleNameMapper={'^\\./client-ordered-owner\\.access\\.js$':'<rootDir>/src/clients/client-ordered-owner.independent-initial-access.ts',...c.moduleNameMapper};module.exports=c;

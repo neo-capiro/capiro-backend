@@ -1,0 +1,1 @@
+const c=require('/workspace/capirov2-review-ordered-owners/apps/api/jest.config.cjs');c.rootDir='/workspace/capirov2-review-ordered-owners/apps/api';c.transform['^.+\\.ts$'][1].isolatedModules=true;module.exports=c;

@@ -1,0 +1,38 @@
+{
+  "initialFocused": {
+    "source": "f551c376d89c87afdfd2e40bfe41dac25248b4d5",
+    "json": "focused-replay.json",
+    "log": "focused-replay.log",
+    "suites": 5,
+    "passed": 74,
+    "failed": 0,
+    "success": true
+  },
+  "finalRuntime": {
+    "source": "82a4366256a35ab27099aac099c7fb7e610a4959",
+    "json": "final-replay.json",
+    "log": "final-replay.log",
+    "suites": 9,
+    "passed": 107,
+    "failed": 0,
+    "success": true
+  },
+  "retainedFinal": {
+    "source": "5f7308891e9bb3f0561804a0895b4372030c0d38",
+    "json": "final-retained-replay.json",
+    "log": "final-retained-replay.log",
+    "suites": 9,
+    "passed": 107,
+    "failed": 0,
+    "success": true
+  },
+  "partialRepairNegativeControl": {
+    "source": "captured uncommitted partial repair helper substituted with external Jest mapper",
+    "json": "initial-access-red.json",
+    "log": "initial-access-red.log",
+    "suites": 1,
+    "passed": 26,
+    "failed": 3,
+    "success": false
+  }
+}

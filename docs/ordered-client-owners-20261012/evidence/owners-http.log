@@ -1,0 +1,13 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-ordered-owners/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/clients/client-ordered-owner.http.spec.ts
+PASS apps/api/src/clients/client-team.service.spec.ts
+PASS apps/api/src/clients/client-account-owner.service.spec.ts
+PASS apps/api/src/clients/client-ordered-owner.service.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       45 passed, 45 total
+Snapshots:   0 total
+Time:        3.161 s
+Ran all test suites within paths "apps/api/src/clients/client-ordered-owner.service.spec.ts", "apps/api/src/clients/client-ordered-owner.http.spec.ts", "apps/api/src/clients/client-account-owner.service.spec.ts", "apps/api/src/clients/client-team.service.spec.ts".
