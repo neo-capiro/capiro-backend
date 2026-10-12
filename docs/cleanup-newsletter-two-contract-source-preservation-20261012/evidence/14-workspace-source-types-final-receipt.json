@@ -1,0 +1,17 @@
+{
+  "sourceHead": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "sourceTree": "b87c85a0fc0ae57f876b86a8018a953adbddb71c",
+  "attempts": [
+    {"configuration": "tsconfig.workspace-source.json", "log": "12-workspace-source-types.log", "exitCode": 2, "result": "cache-host import/declaration resolution plus unavailable exact parser"},
+    {"configuration": "tsconfig.workspace-source.host-repaired.json", "log": "13-workspace-source-types-host-repaired.log", "exitCode": 2, "result": "remaining auth cache host/module condition mismatches plus unavailable exact parser"},
+    {"configuration": "tsconfig.workspace-source.final-host.json", "log": "14-workspace-source-types-final-host.log", "exitCode": 2, "result": "six diagnostics: unavailable htmlparser2 module and five downstream contextual callback parameters"}
+  ],
+  "cachedReadOnlyDependencyLinks": ["apps/api/node_modules", "apps/workspace/node_modules", "packages/auth/node_modules", "packages/meriv2-core/node_modules", "node_modules"],
+  "exactUnavailableDependency": "htmlparser2@8.0.2",
+  "cachedOtherParserVersionsNotSubstituted": ["10.1.0", "12.0.0"],
+  "dependencyInstalledOrDownloaded": false,
+  "productionSourceEditedForTyping": false,
+  "sharpOnlyDeclarationRead": true,
+  "fullWorkspaceTypingAccepted": false,
+  "nativeAcceptance": false
+}
