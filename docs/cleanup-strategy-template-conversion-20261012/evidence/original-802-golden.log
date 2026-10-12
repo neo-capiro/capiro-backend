@@ -1,0 +1,40 @@
+{
+  "types": 17,
+  "templates": 17,
+  "known": 17,
+  "unknown": 19,
+  "invalid": 5,
+  "headingPrecedence": 9,
+  "metadataCases": 8,
+  "freshness": 3,
+  "identity": {
+    "frozenTypes": false,
+    "frozenMap": false,
+    "mapPrototypePlain": true,
+    "stableTypes": true,
+    "stableMap": true,
+    "namespaceDescriptors": {
+      "types": {
+        "writable": true,
+        "enumerable": true
+      },
+      "map": {
+        "writable": true,
+        "enumerable": true
+      }
+    },
+    "validatorUsesSameTypesInstance": true
+  },
+  "outputOrder": [
+    "situation",
+    "outcomes",
+    "ask",
+    "stakeholders",
+    "constraints",
+    "timing",
+    "decisions",
+    "intelligence",
+    "evidence",
+    "governance"
+  ]
+}

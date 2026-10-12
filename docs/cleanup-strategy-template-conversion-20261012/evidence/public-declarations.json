@@ -1,0 +1,18 @@
+{
+  "baseline": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "compared": [
+    {
+      "source": "frontmatter.ts",
+      "declaration": "frontmatter.d.ts",
+      "exactOriginalDeclarationBytes": true
+    },
+    {
+      "source": "report-context.ts",
+      "declaration": "report-context.d.ts",
+      "exactOriginalDeclarationBytes": true
+    }
+  ],
+  "originalAndCandidateStrictDiagnostics": 0,
+  "runtimeModuleBodiesExecuted": false,
+  "nativeGenerateExecuted": false
+}

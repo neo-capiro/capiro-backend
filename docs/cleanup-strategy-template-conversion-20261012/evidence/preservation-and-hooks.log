@@ -1,0 +1,39 @@
+{
+  "owner": "apps/api-strategy/src/context/template-registry.ts",
+  "runtimeSymbols": 8,
+  "compatibilityAliases": 2,
+  "directOwnerBindings": 6,
+  "serviceBindings": 4,
+  "exactUnchangedFunctions": {
+    "front": [
+      "parseFrontmatter",
+      "parseScalar",
+      "isRealIsoDate",
+      "checkVocab",
+      "checkDateOrNull",
+      "validateFrontmatter"
+    ],
+    "report": [
+      "isClientSafeContextFrontmatter",
+      "includeContextDocument",
+      "contextMetadata",
+      "extractHighlights",
+      "includeHighlightHeading",
+      "headingFromSourceRef",
+      "formatTableRow",
+      "cleanValue",
+      "cleanInline",
+      "splitTableCells",
+      "sectionTitleForTemplate",
+      "pushUnique",
+      "pushHighlight",
+      "asRecord",
+      "stringValue",
+      "dateValue",
+      "isoDate",
+      "boundedConfidence"
+    ]
+  },
+  "originalHeadingRegexPrefixExact": true,
+  "bothExistingTestsStrictlyAdditive": true
+}

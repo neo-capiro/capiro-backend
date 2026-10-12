@@ -1,0 +1,51 @@
+{
+  "sourceHead": "8834c1d76659b343fb37c60733fa1dd618a06db9",
+  "sourceTree": "a143416a96a04d8626ba67cef9e69803586749e2",
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "paths": [
+    {
+      "path": "apps/api-strategy/src/context/frontmatter.spec.ts",
+      "baseEntry": "100644 blob 14ed6f01c2ef73f1570173b6014029f67bb604c1",
+      "frozenEntry": "100644 blob 64d6548c55217a666c9e99a2d6caf1a7a0151929",
+      "sha256": "c9562788190a020eb51ac3d9f12b5dc7f59d54a995e9759016864f4e45553727"
+    },
+    {
+      "path": "apps/api-strategy/src/context/frontmatter.ts",
+      "baseEntry": "100644 blob 9d3564ce92fcc7a29d2f99bd1b1dcf379f1d49ba",
+      "frozenEntry": "100644 blob 2ed31f132a24dc1425c23c3ccf0ea36c36397f70",
+      "sha256": "09c1451c74d01742a2348dce9bd88c12babd06c98a673e899b0b96f30d8684e9"
+    },
+    {
+      "path": "apps/api-strategy/src/context/template-registry.spec.ts",
+      "baseEntry": null,
+      "frozenEntry": "100644 blob dc3f84f2ab7010e96eddec1d269c95859afc06ec",
+      "sha256": "5657253f8f40128398e3f0bad3d8e444803b2dcdaf6ccffbf3d24e2fc7ade83c"
+    },
+    {
+      "path": "apps/api-strategy/src/context/template-registry.ts",
+      "baseEntry": null,
+      "frozenEntry": "100644 blob 94c10925d1d04b58e7f18b4f8263816f64b6ce76",
+      "sha256": "088255d598e7c0319f05d6209f73c830bd2c59e3ab01ecd05c94596129d49ead"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-context.spec.ts",
+      "baseEntry": "100644 blob cef2327c6142597bf48b3715c169a4a3f51f2585",
+      "frozenEntry": "100644 blob 4e24a2bb06692a92be975a8c58a3b3c4bcf3cfc5",
+      "sha256": "1d3a066d359926ad92148cd402c3b212f8ed3ed369e71f752443e9e9ea811885"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-context.ts",
+      "baseEntry": "100644 blob 7eab9da1adf4f2cab0b6d2554e738bbb19dadc2f",
+      "frozenEntry": "100644 blob 76656bc1cf823a98c38f39ad6e6c2a51a5a28c02",
+      "sha256": "65619375d58a6689ee5ac633cf4c40cdfcac47baf8d748bdd0a21e05af23f8a9"
+    }
+  ],
+  "onlyAuthorizedAppPaths": 6,
+  "baselinePathsOutsideScopeExact": 21377,
+  "baselineApplicationsOutsideScopeExact": 10502,
+  "schemaMigrationPathsExact": 603,
+  "allPriorDocsReceiptsExact": 9697,
+  "allSharedRootPackageWorkflowClockAndOtherOwnersExact": true,
+  "noCurrentSourceDataStoreOrServiceAdded": true,
+  "nativeAcceptance": false
+}

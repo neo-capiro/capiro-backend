@@ -1,0 +1,7 @@
+{
+  "source": "8834c1d76659b343fb37c60733fa1dd618a06db9",
+  "sourceTree": "a143416a96a04d8626ba67cef9e69803586749e2",
+  "command": "node /workspace/capirov2/node_modules/prettier/bin/prettier.cjs --write apps/api-strategy/src/context/template-registry.ts apps/api-strategy/src/context/template-registry.spec.ts",
+  "exitCode": 0,
+  "packageManagerOrNativeGenerateExecuted": false
+}

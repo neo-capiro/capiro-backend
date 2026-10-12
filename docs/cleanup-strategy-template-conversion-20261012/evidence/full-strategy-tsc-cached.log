@@ -1,0 +1,1421 @@
+apps/api-strategy/src/agents/execution-assurance-tenant.interceptor.spec.ts(25,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/agents/execution-assurance-tenant.interceptor.spec.ts(28,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/agents/execution-assurance-tenant.interceptor.spec.ts(48,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/agents/execution-assurance-tenant.interceptor.spec.ts(53,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/agents/execution-assurance-tenant.interceptor.spec.ts(58,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/agents/execution-assurance-tenant.interceptor.spec.ts(76,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/agents/execution-assurance-tenant.interceptor.spec.ts(81,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/agents/execution-assurance-tenant.interceptor.spec.ts(83,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/agents/execution-assurance-tenant.interceptor.spec.ts(86,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/app.module.di-boot.spec.ts(19,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/app.module.di-boot.spec.ts(22,3): error TS2304: Cannot find name 'beforeAll'.
+apps/api-strategy/src/app.module.di-boot.spec.ts(28,3): error TS2304: Cannot find name 'afterAll'.
+apps/api-strategy/src/app.module.di-boot.spec.ts(32,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/app.module.di-boot.spec.ts(34,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(20,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(21,30): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(23,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(24,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(25,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(28,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(35,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(37,34): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(40,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(41,21): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(46,49): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(47,37): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(48,31): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(50,20): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(54,21): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(58,21): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(67,1): error TS2304: Cannot find name 'afterEach'.
+apps/api-strategy/src/context/context-import.service.spec.ts(67,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(69,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(70,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(73,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(74,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(75,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(76,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(77,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(77,51): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(77,86): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(80,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(85,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(86,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(87,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(90,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(91,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(92,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(96,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(97,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(98,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(102,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(111,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(112,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(113,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(114,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(115,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(118,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(124,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(125,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(126,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(127,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(128,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(131,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(134,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(136,5): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/context/context-import.service.spec.ts(137,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(137,156): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(140,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(144,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(144,156): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(146,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(147,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(150,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(152,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(154,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(155,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(158,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(161,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(162,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(165,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(168,65): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/api-strategy/src/context/context-import.service.spec.ts(170,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(173,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(178,65): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/api-strategy/src/context/context-import.service.spec.ts(179,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(179,44): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(183,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(186,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(195,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(197,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(200,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(204,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(206,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(209,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(213,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(214,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(219,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(219,156): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(220,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(223,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(227,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(228,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(229,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(233,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(234,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(237,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(238,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(239,33): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(241,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(242,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(245,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(248,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(251,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(253,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(254,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(263,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(275,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(278,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(290,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(293,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/context/context-import.service.spec.ts(294,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/context/context-import.service.spec.ts(295,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(24,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/cross-stage-integration.spec.ts(75,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/cross-stage-integration.spec.ts(77,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(78,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(79,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(97,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/cross-stage-integration.spec.ts(99,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(101,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(131,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(132,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(133,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(138,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(139,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(140,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(145,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(146,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(150,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(165,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(166,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(167,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(171,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/cross-stage-integration.spec.ts(173,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(174,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(178,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(179,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(180,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(183,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(184,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(191,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/cross-stage-integration.spec.ts(193,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(194,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(196,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(199,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/cross-stage-integration.spec.ts(205,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(209,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(211,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(218,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(220,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(224,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/cross-stage-integration.spec.ts(239,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(242,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(259,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(260,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/cross-stage-integration.spec.ts(273,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(72,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(73,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(76,14): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(80,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(81,31): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(83,37): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(84,34): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(97,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(98,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(99,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(107,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(110,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(113,14): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(114,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(116,9): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(119,31): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(122,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(128,19): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(132,24): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(149,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(150,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(151,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(159,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(161,14): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(162,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(163,31): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(166,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(169,19): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(172,24): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(187,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(193,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(200,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(201,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(204,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(209,12): error TS7006: Parameter 'kind' implicitly has an 'any' type.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(209,18): error TS7006: Parameter 'operationId' implicitly has an 'any' type.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(211,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(212,20): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(213,33): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(218,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(223,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(249,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(250,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(251,9): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(261,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(263,14): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(264,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(265,31): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(268,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(275,21): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(300,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(301,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/governed-strategy-meri.factory.spec.ts(302,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(65,10): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(69,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(72,3): error TS2304: Cannot find name 'afterEach'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(74,5): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(77,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(78,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(90,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(103,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(105,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(107,18): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(113,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(124,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(127,66): error TS7006: Parameter 'artifactKind' implicitly has an 'any' type.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(127,80): error TS7006: Parameter 'operationId' implicitly has an 'any' type.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(129,20): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(136,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(148,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(149,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(152,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(160,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(163,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(166,20): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(173,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(183,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(184,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(185,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(186,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(187,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-context-plane.client.spec.ts(188,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(5,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(6,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(14,25): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(16,32): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(18,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(22,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(23,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(30,19): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(37,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(38,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(39,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(39,64): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-conversation.service.spec.ts(40,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(9,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(67,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(70,3): error TS2304: Cannot find name 'afterEach'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(72,5): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(84,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(85,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(87,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(90,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(93,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(94,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(105,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(107,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(108,18): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(115,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(116,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(119,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(122,57): error TS7006: Parameter 'kind' implicitly has an 'any' type.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(122,63): error TS7006: Parameter 'operationId' implicitly has an 'any' type.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(123,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(134,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(137,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(138,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(140,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(148,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(151,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(152,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(166,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(168,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(169,18): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(177,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(178,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(181,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(182,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(184,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(187,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(190,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(191,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(193,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(198,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(223,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(224,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(245,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(247,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(248,18): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(255,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(256,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(260,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(263,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(266,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(276,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(279,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(280,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(286,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(293,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(294,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(303,22): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(309,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(310,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(313,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(314,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(320,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(324,53): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(327,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(328,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(330,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(333,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(336,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(337,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(342,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/meri/strategy-orchestrator.client.spec.ts(348,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(44,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(45,35): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(47,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(47,35): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(52,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(53,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(54,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(54,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(55,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(55,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(57,31): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(58,31): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(61,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(61,32): error TS7006: Parameter 'tenantId' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(61,42): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(62,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(74,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(75,13): error TS2503: Cannot find namespace 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(77,3): error TS2304: Cannot find name 'beforeEach'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(79,12): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(81,3): error TS2304: Cannot find name 'afterEach'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(86,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(88,6): error TS7006: Parameter 'name' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(88,15): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(90,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(92,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(93,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(96,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(103,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(105,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(107,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(114,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(117,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(119,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(127,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(128,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(129,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(131,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(137,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(144,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(145,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(147,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(149,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-attachments.spec.ts(153,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(31,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(32,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(33,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(34,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(35,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(36,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(37,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(39,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(43,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(44,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(46,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(63,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(73,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(78,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(79,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(80,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(83,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(88,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(95,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(104,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(109,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(116,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(119,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(120,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(123,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(135,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(137,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(139,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-budgets.spec.ts(140,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(13,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(16,14): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(17,11): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(18,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(19,22): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(20,27): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(22,3): error TS2304: Cannot find name 'beforeAll'.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(41,3): error TS2304: Cannot find name 'afterAll'.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(42,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(50,66): error TS7006: Parameter 'method' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(50,74): error TS7006: Parameter 'path' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(55,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(57,12): error TS7006: Parameter 'path' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(66,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(73,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(75,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(86,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(88,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(92,74): error TS7006: Parameter 'path' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(92,80): error TS7006: Parameter 'kind' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-capacity.http.spec.ts(99,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(25,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(26,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(28,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(35,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(36,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(37,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(39,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(40,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(41,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(43,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(44,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(46,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(47,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(48,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(49,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(51,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(54,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(59,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(60,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(71,58): error TS7006: Parameter 'patch' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(72,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(76,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(77,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(83,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-capacity.spec.ts(89,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-command-scope.spec.ts(7,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-command-scope.spec.ts(8,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-command-scope.spec.ts(9,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-command-scope.spec.ts(10,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-command-scope.spec.ts(11,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-command-scope.spec.ts(17,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-command-scope.spec.ts(24,50): error TS7006: Parameter 'headers' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-command-scope.spec.ts(25,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(14,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(15,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(16,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(17,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(18,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(20,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(22,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(23,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(28,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(29,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(30,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(34,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(36,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(37,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(38,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(46,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(48,6): error TS7006: Parameter 'unit' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(54,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(55,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(56,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(59,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(61,6): error TS7006: Parameter 'unit' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(66,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(67,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(70,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(71,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(79,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(81,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(88,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(89,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(90,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-date-rules.spec.ts(91,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(24,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(25,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(26,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(27,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(29,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(31,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(32,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(33,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(39,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(41,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(51,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(52,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(53,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(64,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(66,13): error TS2503: Cannot find namespace 'jest'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(67,3): error TS2304: Cannot find name 'beforeEach'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(69,12): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(71,3): error TS2304: Cannot find name 'afterEach'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(76,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(79,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(83,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(84,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(88,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(90,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(91,36): error TS7006: Parameter 'command' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(94,34): error TS7031: Binding element 'c' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(99,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(106,17): error TS7031: Binding element 'command' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(107,14): error TS7031: Binding element 'command' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(109,17): error TS7031: Binding element 'command' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(110,14): error TS7031: Binding element 'command' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-form-upload.spec.ts(111,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(50,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form.spec.ts(51,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form.spec.ts(59,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(60,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(62,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form.spec.ts(86,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(87,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(88,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(89,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(91,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form.spec.ts(103,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(106,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(110,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(114,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form.spec.ts(122,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(123,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(128,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(129,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(134,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(140,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form.spec.ts(156,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(157,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(158,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(159,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(160,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(161,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(162,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(164,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form.spec.ts(171,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(174,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(177,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(180,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(183,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(187,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form.spec.ts(195,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(198,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(201,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(203,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-form.spec.ts(211,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(217,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(220,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-form.spec.ts(223,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(20,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(21,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(23,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(24,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(25,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(26,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(27,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(28,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(33,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(35,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(36,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(37,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(39,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(40,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(42,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(44,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(45,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(49,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(54,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(55,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(75,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(82,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(83,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(84,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(90,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(91,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(92,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(93,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(95,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(101,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(109,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(112,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goal-activity.spec.ts(115,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(40,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goals.spec.ts(41,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goals.spec.ts(58,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(59,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(60,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(62,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goals.spec.ts(88,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(89,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(91,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goals.spec.ts(101,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(112,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(113,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(114,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(115,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(117,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goals.spec.ts(118,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(119,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(128,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(133,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(135,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goals.spec.ts(138,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(139,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(140,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(141,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(158,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(159,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(161,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goals.spec.ts(162,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(165,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(175,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(176,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(178,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-goals.spec.ts(192,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-goals.spec.ts(222,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-links.spec.ts(3,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-links.spec.ts(5,21): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-links.spec.ts(9,3): error TS2304: Cannot find name 'beforeEach'.
+apps/api-strategy/src/planner/planner-links.spec.ts(13,3): error TS2304: Cannot find name 'afterAll'.
+apps/api-strategy/src/planner/planner-links.spec.ts(16,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-links.spec.ts(17,20): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-links.spec.ts(20,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-links.spec.ts(23,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-links.spec.ts(28,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-links.spec.ts(31,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-links.spec.ts(33,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-links.spec.ts(35,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-links.spec.ts(37,12): error TS7006: Parameter 'status' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-links.spec.ts(38,22): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-links.spec.ts(40,13): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-links.spec.ts(43,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-links.spec.ts(46,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-links.spec.ts(47,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-links.spec.ts(50,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-links.spec.ts(52,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-data.spec.ts(37,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting-data.spec.ts(38,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting-data.spec.ts(52,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-data.spec.ts(53,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-data.spec.ts(54,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-data.spec.ts(56,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting-data.spec.ts(65,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-data.spec.ts(67,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-data.spec.ts(68,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(24,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(25,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(27,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(28,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(29,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(30,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(35,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(37,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(42,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(43,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(45,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(52,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(57,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(61,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(65,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting-sharing.spec.ts(72,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(35,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(36,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(60,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(67,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(74,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(77,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(82,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(84,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(106,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(112,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(122,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(123,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(128,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(140,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(141,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(143,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(144,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(148,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(153,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(154,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(155,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(158,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(161,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(165,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-reporting.spec.ts(166,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(20,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-resources.spec.ts(21,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-resources.spec.ts(33,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(34,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(38,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-resources.spec.ts(47,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(55,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(59,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-resources.spec.ts(64,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(65,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(68,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(74,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(80,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(87,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-resources.spec.ts(88,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(89,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(93,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(95,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-resources.spec.ts(96,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(99,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(104,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-resources.spec.ts(115,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(116,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(118,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-resources.spec.ts(119,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(122,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(124,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-resources.spec.ts(138,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(139,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(143,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-resources.spec.ts(144,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(161,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-resources.spec.ts(170,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-resources.spec.ts(171,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(16,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(17,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(20,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(21,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(24,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(26,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(33,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(38,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(43,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(48,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(51,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(57,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(58,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(60,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(61,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(71,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(82,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(88,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(89,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(91,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(92,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(95,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(99,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(100,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(103,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(106,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(110,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(112,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(113,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(114,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(117,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(121,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(145,38): error TS7006: Parameter 'patch' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(146,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(148,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(149,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-schedule.spec.ts(153,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(4,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(7,19): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(8,34): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(8,49): error TS7006: Parameter 'run' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(10,31): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(15,29): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(20,29): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(25,25): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(41,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(46,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(47,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(48,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(49,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(50,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(51,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(53,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(64,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(66,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(72,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(74,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(86,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(89,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(92,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(95,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(98,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(99,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(101,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(102,5): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(116,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(120,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(120,12): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(121,5): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(123,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(132,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(135,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(138,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(141,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-scheduler.service.spec.ts(144,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(55,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(56,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(58,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(58,34): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(61,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(61,35): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(62,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(62,34): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(63,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(63,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(77,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(78,18): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(80,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(80,34): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(81,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(81,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(88,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(88,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(93,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(96,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(96,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(104,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(104,32): error TS7006: Parameter '_tenant' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(104,41): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(122,29): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(137,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(138,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(140,69): error TS2503: Cannot find namespace 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(151,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(154,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(155,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(158,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(159,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(161,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(165,24): error TS2503: Cannot find namespace 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(172,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(175,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(176,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(177,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(179,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(180,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(182,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(187,26): error TS2503: Cannot find namespace 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(193,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(194,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(197,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(199,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(204,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(207,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(210,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(211,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(213,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(218,12): error TS7006: Parameter 'first' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(218,19): error TS7006: Parameter 'second' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(222,13): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(225,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(228,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(230,12): error TS7006: Parameter 'key' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(235,13): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(242,1): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(252,9): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(255,3): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts(256,3): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(55,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(56,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(58,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(58,34): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(61,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(61,35): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(62,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(62,34): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(63,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(63,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(77,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(78,18): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(80,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(80,34): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(81,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(81,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(88,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(88,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(93,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(96,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(96,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(104,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(104,32): error TS7006: Parameter '_tenant' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(104,41): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(122,29): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(136,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(137,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(140,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(145,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(146,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(147,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(155,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(156,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(157,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(158,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(160,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(171,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(172,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(173,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(174,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(175,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(176,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(177,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(178,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(179,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(179,31): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(183,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(187,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(190,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(192,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(195,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(198,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(199,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(201,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(202,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(204,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(206,12): error TS7006: Parameter 'kind' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(213,13): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(217,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(218,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(221,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(223,12): error TS7006: Parameter 'requestId' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(225,13): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(228,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(231,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(233,12): error TS7006: Parameter 'field' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(235,13): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(238,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(241,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(241,83): error TS7006: Parameter 'mode' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(245,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(250,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(252,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(254,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(260,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(262,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(264,12): error TS7006: Parameter 'mode' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(275,13): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(280,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(283,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(285,12): error TS7006: Parameter 'mode' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(290,13): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(295,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(299,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(302,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(306,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(307,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(308,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(310,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(313,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(315,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(318,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(322,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(325,61): error TS7006: Parameter 'due' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(327,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(330,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(332,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(335,57): error TS7006: Parameter 'dueOn' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(335,64): error TS7006: Parameter 'dueTime' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(335,73): error TS7006: Parameter 'deadlineAt' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-task-create-command.spec.ts(341,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(14,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(23,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(25,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(26,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(31,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(33,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(48,51): error TS7006: Parameter 'input' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(48,61): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(49,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(52,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(53,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(57,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(62,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(65,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(69,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(70,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(71,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(72,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(73,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(77,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(80,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(81,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(84,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(85,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(86,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(87,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(91,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(99,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(100,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(101,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-policy.spec.ts(109,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(10,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(11,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(24,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(25,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(26,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(27,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(28,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(30,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(31,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(39,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(41,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(46,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(51,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(52,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(53,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(60,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-review.spec.ts(65,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(20,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(21,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(28,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(34,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(35,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(36,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(38,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(40,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(46,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(50,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(51,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(53,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(54,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(55,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(56,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-time-tree.spec.ts(57,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timers.spec.ts(3,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timers.spec.ts(4,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timers.spec.ts(5,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timers.spec.ts(8,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timers.spec.ts(12,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timers.spec.ts(13,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timers.spec.ts(21,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timers.spec.ts(22,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timers.spec.ts(29,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timers.spec.ts(40,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timers.spec.ts(41,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timers.spec.ts(52,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timers.spec.ts(54,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timers.spec.ts(55,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timers.spec.ts(56,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timers.spec.ts(57,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheet-work.spec.ts(4,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timesheet-work.spec.ts(20,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timesheet-work.spec.ts(38,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheet-work.spec.ts(39,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheet-work.spec.ts(45,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheet-work.spec.ts(47,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timesheet-work.spec.ts(57,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheet-work.spec.ts(58,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheet-work.spec.ts(66,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timesheet-work.spec.ts(80,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheet-work.spec.ts(81,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(9,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(10,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(11,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(12,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(13,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(15,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(24,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(30,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(35,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(43,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(44,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(45,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(48,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(49,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(50,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(51,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(54,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(58,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-timesheets.spec.ts(61,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-view-preferences.spec.ts(11,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-view-preferences.spec.ts(12,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-view-preferences.spec.ts(13,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-view-preferences.spec.ts(14,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner-view-preferences.spec.ts(23,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner-view-preferences.spec.ts(34,82): error TS7006: Parameter 'patch' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner-view-preferences.spec.ts(35,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(17,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(20,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(25,12): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(26,11): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(27,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(28,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(29,24): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(30,24): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(31,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(32,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(33,19): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(34,19): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(35,26): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(36,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(37,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(38,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(39,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(40,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(41,12): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(42,19): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(43,13): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(44,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(45,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(46,21): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(47,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(48,12): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(49,20): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(50,27): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(51,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(52,19): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(53,12): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(54,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(60,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(61,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(62,19): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(63,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(64,22): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(65,26): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(66,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(67,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(68,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(69,26): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(70,24): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(71,20): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(72,24): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(73,22): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(74,23): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(77,11): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(78,13): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(79,14): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(80,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.http.spec.ts(82,3): error TS2304: Cannot find name 'beforeAll'.
+apps/api-strategy/src/planner/planner.http.spec.ts(104,3): error TS2304: Cannot find name 'afterAll'.
+apps/api-strategy/src/planner/planner.http.spec.ts(107,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(112,74): error TS7006: Parameter 'verb' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.http.spec.ts(112,80): error TS7006: Parameter 'header' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.http.spec.ts(125,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(126,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(128,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(136,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(142,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(150,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(206,51): error TS7006: Parameter 'method' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.http.spec.ts(206,59): error TS7006: Parameter 'path' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.http.spec.ts(210,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(217,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(219,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(241,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(242,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(243,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(244,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(246,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(254,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(256,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(276,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(277,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(278,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(279,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(281,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(295,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(297,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(311,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(313,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(319,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(336,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(338,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(344,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(351,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(357,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(364,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(370,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(372,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(380,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(385,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(387,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(393,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(410,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(417,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(432,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(434,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(439,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(448,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(453,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(459,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(466,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(468,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(472,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(477,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(485,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(494,19): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(495,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(502,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(508,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.http.spec.ts(514,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.http.spec.ts(533,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(72,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(73,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(79,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(80,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(81,18): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.spec.ts(84,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(84,32): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.spec.ts(84,39): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.spec.ts(92,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(93,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(94,18): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.spec.ts(97,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(97,32): error TS7031: Binding element 'where' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.spec.ts(97,39): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.spec.ts(103,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(103,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.spec.ts(111,15): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(111,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.spec.ts(122,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(123,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(125,31): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(125,68): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(126,38): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(127,36): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(130,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(130,32): error TS7006: Parameter 'tenantId' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.spec.ts(130,42): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.spec.ts(131,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(135,29): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/planner/planner.spec.ts(148,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(149,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(150,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(151,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(152,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(153,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(160,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(161,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(167,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(168,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(169,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(170,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(173,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(174,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(177,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(178,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(179,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(182,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(183,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(185,6): error TS7006: Parameter 'dueOn' implicitly has an 'any' type.
+apps/api-strategy/src/planner/planner.spec.ts(186,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(190,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(191,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(199,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(200,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(208,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(209,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(219,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(220,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(221,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(222,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(223,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(225,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(226,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(233,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(242,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(243,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(245,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(248,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(250,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(252,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(255,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(257,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(260,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(262,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(264,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(270,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(272,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(274,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(281,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(286,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(292,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(297,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(302,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(303,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(310,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(311,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(315,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(317,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(321,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(323,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(330,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(332,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(336,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(338,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(342,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(348,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(349,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(354,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(357,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(358,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(360,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(380,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(383,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(401,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(402,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(406,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(414,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(415,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(419,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(421,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(423,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(426,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(429,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(434,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(435,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(439,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/planner/planner.spec.ts(441,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(442,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/planner/planner.spec.ts(443,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/reports/dto/report-export.dto.spec.ts(5,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/reports/dto/report-export.dto.spec.ts(6,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/reports/dto/report-export.dto.spec.ts(18,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/reports/dto/report-export.dto.spec.ts(19,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/reports/dto/report-export.dto.spec.ts(31,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/reports/dto/report-export.dto.spec.ts(35,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/reports/dto/report-export.dto.spec.ts(40,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/reports/dto/report-export.dto.spec.ts(46,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/reports/dto/report-export.dto.spec.ts(53,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(33,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(37,27): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(42,27): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(46,3): error TS2304: Cannot find name 'beforeAll'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(82,3): error TS2304: Cannot find name 'afterAll'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(83,3): error TS2304: Cannot find name 'beforeEach'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(84,5): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(88,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(90,12): error TS7006: Parameter 'path' implicitly has an 'any' type.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(96,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(98,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(102,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(116,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(117,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(120,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(122,12): error TS7006: Parameter 'field' implicitly has an 'any' type.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(134,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(136,12): error TS7006: Parameter 'objectiveVersion' implicitly has an 'any' type.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(146,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(162,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.controller.spec.ts(163,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(82,16): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(94,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(98,37): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(100,18): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(101,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(103,35): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(106,17): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(107,21): error TS2304: Cannot find name 'jest'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(130,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(131,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(133,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(137,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(138,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(139,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(140,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(141,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(142,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(143,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(147,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(149,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(159,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(160,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(161,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(164,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(165,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(167,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(170,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(173,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(175,12): error TS7006: Parameter 'property' implicitly has an 'any' type.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(178,9): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ scope: boolean; grant: boolean; objective: boolean; revision: boolean; version: number; strategy: boolean; }'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(179,15): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(180,9): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(185,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(187,12): error TS7006: Parameter 'owner' implicitly has an 'any' type.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(189,13): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ state: { scope: boolean; grant: boolean; objective: boolean; revision: boolean; version: number; strategy: boolean; }; sql: { text: string; values: unknown[]; }[]; task: { id: string; tenantId: string; ownerId: string; ... 7 more ...; updatedAt: Date; }; ... 6 more ...; taskRead: () => Promise<...>; }'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(191,13): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(191,20): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ state: { scope: boolean; grant: boolean; objective: boolean; revision: boolean; version: number; strategy: boolean; }; sql: { text: string; values: unknown[]; }[]; task: { id: string; tenantId: string; ownerId: string; ... 7 more ...; updatedAt: Date; }; ... 6 more ...; taskRead: () => Promise<...>; }'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(194,13): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(194,20): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ state: { scope: boolean; grant: boolean; objective: boolean; revision: boolean; version: number; strategy: boolean; }; sql: { text: string; values: unknown[]; }[]; task: { id: string; tenantId: string; ownerId: string; ... 7 more ...; updatedAt: Date; }; ... 6 more ...; taskRead: () => Promise<...>; }'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(198,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(201,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(202,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(203,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(206,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(209,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(210,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(212,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(215,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(218,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(221,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(222,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(225,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(229,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(231,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(234,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(238,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/objective-destination.service.spec.ts(240,11): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/verifier.past-dates.spec.ts(12,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/verifier.past-dates.spec.ts(13,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/verifier.past-dates.spec.ts(14,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/verifier.past-dates.spec.ts(17,3): error TS2582: Cannot find name 'test'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+apps/api-strategy/src/strategy/verifier.past-dates.spec.ts(18,5): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/verifier.past-dates.spec.ts(19,7): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/verifier.past-dates.spec.ts(19,31): error TS2304: Cannot find name 'expect'.
+apps/api-strategy/src/strategy/verifier.past-dates.spec.ts(21,5): error TS2304: Cannot find name 'expect'.

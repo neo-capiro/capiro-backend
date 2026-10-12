@@ -1,0 +1,18 @@
+PASS apps/api-strategy/src/reports/report-context.spec.ts (10.355 s)
+PASS apps/api-strategy/src/context/frontmatter.spec.ts
+FAIL apps/api-strategy/src/context/template-registry.spec.ts
+  ● Test suite failed to run
+
+    [96mapps/api-strategy/src/context/template-registry.spec.ts[0m:[93m85[0m:[93m92[0m - [91merror[0m[90m TS2345: [0mArgument of type '(prefix: "01_" | "02_" | "06_" | "03_" | "04_" | "05_" | "08_" | "09_" | "10_", section: "situation" | "constraints" | "ask" | "stakeholders" | "timing" | "evidence" | "intelligence" | "decisions") => void' is not assignable to parameter of type '(...args: readonly ["01_", "situation"] | readonly ["02_", "constraints"] | readonly ["06_", "constraints"] | readonly ["03_", "ask"] | readonly ["04_", "stakeholders"] | readonly ["05_", "timing"] | readonly ["08_", "evidence"] | readonly ["09_", "intelligence"] | readonly [...]) => void | ... 2 more ... | undefined'.
+      Types of parameters 'prefix' and 'args' are incompatible.
+        Type 'readonly ["01_", "situation"] | readonly ["02_", "constraints"] | readonly ["06_", "constraints"] | readonly ["03_", "ask"] | readonly ["04_", "stakeholders"] | readonly ["05_", "timing"] | readonly ["08_", "evidence"] | readonly ["09_", "intelligence"] | readonly [...]' is not assignable to type '[prefix: "01_" | "02_" | "06_" | "03_" | "04_" | "05_" | "08_" | "09_" | "10_", section: "situation" | "constraints" | "ask" | "stakeholders" | "timing" | "evidence" | "intelligence" | "decisions"]'.
+          The type 'readonly ["01_", "situation"]' is 'readonly' and cannot be assigned to the mutable type '[prefix: "01_" | "02_" | "06_" | "03_" | "04_" | "05_" | "08_" | "09_" | "10_", section: "situation" | "constraints" | "ask" | "stakeholders" | "timing" | "evidence" | "intelligence" | "decisions"]'.
+
+    [7m85[0m   it.each(PREFIX_CASES)('routes an unknown %s suffix to %s without requiring a known key', (prefix, section) => {
+    [7m  [0m [91m                                                                                           ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+Test Suites: 1 failed, 2 passed, 3 total
+Tests:       101 passed, 101 total
+Snapshots:   0 total
+Time:        11.995 s
+Ran all test suites.

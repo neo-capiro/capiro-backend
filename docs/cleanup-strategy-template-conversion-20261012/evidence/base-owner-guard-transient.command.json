@@ -1,0 +1,6 @@
+{
+  "baseline": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "shellCommand": "node scripts/check-registry-ownership.mjs > docs/cleanup-strategy-template-conversion-20261012/evidence/base-owner-guard-transient.log 2>&1",
+  "exitCode": 1,
+  "nativeGenerateOrProviderExecuted": false
+}

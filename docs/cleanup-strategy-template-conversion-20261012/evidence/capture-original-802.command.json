@@ -1,0 +1,7 @@
+{
+  "source": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "sourceTree": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+  "command": "node docs/cleanup-strategy-template-conversion-20261012/evidence/capture-original-802.cjs",
+  "exitCode": 0,
+  "packageManagerOrNativeGenerateExecuted": false
+}

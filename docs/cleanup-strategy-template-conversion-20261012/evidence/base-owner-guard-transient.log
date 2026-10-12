@@ -1,0 +1,12 @@
+{
+  "errors": [
+    "strategy-existing-template-vocabulary: DOCUMENT_TYPES must have one named module export (variable) in apps/api-strategy/src/context/frontmatter.ts",
+    "strategy-existing-template-vocabulary: TEMPLATE_KEY_BY_TYPE must have one named module export (variable) in apps/api-strategy/src/context/frontmatter.ts",
+    "strategy-existing-template-vocabulary: unlisted owner import apps/api-strategy/src/context/frontmatter.ts/DOCUMENT_TYPES",
+    "strategy-existing-template-vocabulary: unlisted owner import apps/api-strategy/src/context/frontmatter.ts/TEMPLATE_KEY_BY_TYPE",
+    "strategy-existing-template-vocabulary: carrier drift or missing declaration: apps/api-strategy/src/context/frontmatter.ts/DOCUMENT_TYPES",
+    "strategy-existing-template-vocabulary: carrier drift or missing declaration: apps/api-strategy/src/context/frontmatter.ts/TEMPLATE_KEY_BY_TYPE"
+  ],
+  "profiles": 1,
+  "files": 169
+}
