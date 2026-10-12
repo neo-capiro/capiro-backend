@@ -1,0 +1,21 @@
+{
+  "checks": [
+    {
+      "index": "docs/cleanup-four-runtime-controls-20261012/SHA256SUMS.json",
+      "entries": 126,
+      "errors": []
+    },
+    {
+      "index": "docs/cleanup-strategy-runtime-controls-20261012/SHA256SUMS.json",
+      "entries": 96,
+      "errors": []
+    },
+    {
+      "index": "docs/cleanup-workspace-runtime-controls-20261012/SHA256SUMS.json",
+      "entries": 103,
+      "errors": []
+    }
+  ],
+  "totalEntries": 325,
+  "status": "PASS"
+}

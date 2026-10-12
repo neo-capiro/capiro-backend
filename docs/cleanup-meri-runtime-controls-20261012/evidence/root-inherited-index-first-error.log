@@ -1,0 +1,10 @@
+First root inherited-index checker returned exit 1 after ROOT-RECEIPT.json was written. The check used the nonexistent directory cleanup-tango-runtime-controls-20261012 rather than the existing cleanup-four-runtime-controls-20261012. No source or inherited file changed. Tool output follows verbatim.
+Traceback (most recent call last):
+  File "<stdin>", line 8, in <module>
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1027, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/pathlib.py", line 1013, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'docs/cleanup-tango-runtime-controls-20261012/SHA256SUMS.json'
