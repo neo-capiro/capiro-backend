@@ -1,0 +1,43 @@
+{
+  "acceptedSource": "51cc812e0c371c170562bd6bb7711e50764af7cf",
+  "sourceTree": "007c4555b74c69a813946583a3d0b6fc6ca4b07d",
+  "authorEvidence": "f4ed98ad00c1c9d29178f87aa24ea498c92d8466",
+  "authorTree": "9b9f307e0514a0269fa15ced63350107a818794b",
+  "sealedNativeSource": "ee9499c5771038f6abf5972ab13d3c20ca65b0cf",
+  "sealedNativeEvidence": "ec6b3ba9cdf1d0fe6b0912005f5aab35a70e9992",
+  "independentSameFourPassed": 4,
+  "unchangedInputCorpus": true,
+  "hostAdditionsOnly": [
+    "ROOT repository path",
+    "Buffer Node global"
+  ],
+  "accepted": [
+    true,
+    false,
+    false,
+    false
+  ],
+  "artifactAndSchemaReads": [
+    12,
+    0,
+    0,
+    0
+  ],
+  "sourcePaths": [
+    "docs/cleanup-native-prisma-owner-qualification-20261012/ARTIFACT-GUARD-CORRECTION.md",
+    "docs/cleanup-native-prisma-owner-qualification-20261012/artifact-guard.spec.cjs",
+    "docs/cleanup-native-prisma-owner-qualification-20261012/native-prisma-owner-harness.cjs"
+  ],
+  "productionDelta": 0,
+  "otherRuntimeDelta": 0,
+  "sixNativeCaseBodiesByteExact": true,
+  "currentAuthorHashBindingsVerified": 51,
+  "originalNative18EntriesByteExact": 18,
+  "originalNative19BindingsVerified": 19,
+  "originalPg32EntriesExact": 32,
+  "sourceOwnerOrDriverExecuted": false,
+  "nativeSqlOrClientExecuted": false,
+  "nativeReplay": false,
+  "authorFinalReceiptHash": "ca49c72f0fccbcfbcda0faacbbf8644c5457e7a37f05371573200254fff70f80",
+  "sealedSixNativeResultCarriedSeparately": true
+}
