@@ -1,0 +1,1 @@
+export const element=<span>{Date.now()}</span>;

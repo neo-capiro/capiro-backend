@@ -1,0 +1,64 @@
+{
+  "source": "72b85754840cf73b484631cb27dd73a48c0e68bd",
+  "tree": "a638542193201a11c44b5595e45ac96a187e0196",
+  "compilerVersion": "5.9.3",
+  "strictTypeDiagnostics": [],
+  "resolvedModule": {
+    "resolvedFileName": "/workspace/capirov2-clock-rng-final-review/docs/clock-rng-final-independent-review-20261012/evidence/strict-runtime-extension-fixture/src/hidden.cts",
+    "extension": ".cts",
+    "isExternalLibraryImport": false,
+    "resolvedUsingTsExtension": false
+  },
+  "collected": [
+    "src/hidden.cts",
+    "src/main.ts"
+  ],
+  "failures": [
+    "unadopted ambient time/randomness: src/hidden.cts|sample||Date.now (1 > 0)"
+  ],
+  "extensionResults": [
+    {
+      "extension": "ts",
+      "collected": [
+        "extensions-ts/runtime.ts"
+      ],
+      "ambientEvents": [
+        "extensions-ts/runtime.ts|sample||Date.now"
+      ],
+      "parseDiagnostics": []
+    },
+    {
+      "extension": "cts",
+      "collected": [
+        "extensions-cts/runtime.cts"
+      ],
+      "ambientEvents": [
+        "extensions-cts/runtime.cts|sample||Date.now"
+      ],
+      "parseDiagnostics": []
+    },
+    {
+      "extension": "mts",
+      "collected": [
+        "extensions-mts/runtime.mts"
+      ],
+      "ambientEvents": [
+        "extensions-mts/runtime.mts|sample||Date.now"
+      ],
+      "parseDiagnostics": []
+    },
+    {
+      "extension": "tsx",
+      "collected": [
+        "extensions-tsx/runtime.tsx"
+      ],
+      "ambientEvents": [
+        "extensions-tsx/runtime.tsx|<module>|VariableDeclaration:element|Date.now"
+      ],
+      "parseDiagnostics": []
+    }
+  ],
+  "moduleCodeExecuted": false,
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}

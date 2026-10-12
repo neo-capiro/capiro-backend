@@ -1,0 +1,13 @@
+{
+  "source": "72b85754840cf73b484631cb27dd73a48c0e68bd",
+  "tree": "a638542193201a11c44b5595e45ac96a187e0196",
+  "argv": [
+    "node",
+    "docs/clock-rng-final-independent-review-20261012/evidence/original-corpus-review-72b.mjs"
+  ],
+  "cwd": "/workspace/capirov2-clock-rng-final-review",
+  "exitCode": 0,
+  "probeExitIsNotGuardAcceptance": false,
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}

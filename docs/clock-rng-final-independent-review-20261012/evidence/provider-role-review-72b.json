@@ -1,0 +1,178 @@
+{
+  "source": "72b85754840cf73b484631cb27dd73a48c0e68bd",
+  "tree": "a638542193201a11c44b5595e45ac96a187e0196",
+  "file": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+  "roleMutationResults": [
+    {
+      "name": "mutable provider declaration",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport let STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:delay|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "function-scoped registration",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nfunction reviewRegister(){const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n\n}",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|reviewRegister|PropertyAssignment:useValue|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|reviewRegister|PropertyAssignment:random|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|reviewRegister|PropertyAssignment:delay|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "block-scoped registration",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\n{const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n\n}",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:delay|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "shadow parameter owner",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n\nfunction reviewShadow(STRATEGY_TIME_PROVIDERS: unknown){return STRATEGY_TIME_PROVIDERS;}",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:delay|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "wrong lazy field",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, fallback: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:fallback|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "nested wall clock box",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: { fallback: systemWallClock } },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:fallback|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "wrong token role",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_CONTEXT_RETRY, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:delay|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "wrong random hook",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemDelay, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "unfrozen retry value",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: ({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:delay|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "extra fallback member",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay, fallback: systemWallClock }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:fallback|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "mutable provide token",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport let STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "lexically shadowed freeze",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n\nconst Object={freeze:(value:unknown)=>value};",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider",
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:delay|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "hook invocation in approved role",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock() },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook invoked outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "callback wrapped hook",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: () => systemWallClock() },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook invoked outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "duplicate provide property",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ random: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    },
+    {
+      "name": "wrong retry member name",
+      "source": "import type { ValueProvider } from '@nestjs/common';\nimport {\n  systemDelay,\n  systemRandom,\n  systemWallClock,\n  type Delay,\n  type RandomSource,\n} from '@capiro/shared';\n\nexport const STRATEGY_WALL_CLOCK = Symbol('strategy.wall-clock');\nexport const STRATEGY_CONTEXT_RETRY = Symbol('strategy.context-retry');\n\n/** Non-security randomness and delay for the existing bounded context retry. */\nexport interface ContextRetryRuntime {\n  readonly random: RandomSource;\n  readonly delay: Delay;\n}\n\n// The shared functions sample only when called, never when this module loads.\nexport const STRATEGY_TIME_PROVIDERS = [\n  { provide: STRATEGY_WALL_CLOCK, useValue: systemWallClock },\n  {\n    provide: STRATEGY_CONTEXT_RETRY,\n    useValue: Object.freeze({ rng: systemRandom, delay: systemDelay }),\n  },\n] satisfies ValueProvider[];\n",
+      "events": [
+        "apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:rng|system time hook reference outside its provider"
+      ],
+      "problems": [],
+      "rejected": true
+    }
+  ],
+  "legitimateRegistrationResults": [
+    {
+      "name": "actual registration",
+      "events": [],
+      "problems": []
+    },
+    {
+      "name": "harmless parentheses and quoted keys",
+      "events": [],
+      "problems": []
+    }
+  ],
+  "validation": "Exact actual provider-file AST with unchanged169-map baseline separately validated; negative cases require real protected reference/call events, rather than unrelated missing-file errors.",
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}
