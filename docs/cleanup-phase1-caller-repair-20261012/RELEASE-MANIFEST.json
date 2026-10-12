@@ -1,0 +1,22 @@
+{
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "acceptedSourceHead": "2496e57b4193cdd4d004232711a77ef707ae6b98",
+  "acceptedSourceTree": "ed4f162b3b59dbc27b3757170073e88be0181f35",
+  "independentReviewHead": "341004160ab3361ad3fe44e2db5c937d0be045a3",
+  "paths": [
+    {
+      "path": "package.json",
+      "blob": "7ae18e455b84013937e68ccf83a01c6725cb58cb",
+      "sha256": "be21ca472ec8e321e1b610203f019904ce9cb10751bcf3a03ef5a0645254111b"
+    }
+  ],
+  "inertControls": 16,
+  "guardedPhase1CliTestPass": 1,
+  "broaderExistingSmokeSuite": {
+    "pass": 3,
+    "fail": 1,
+    "remainingFailure": "unchanged Memory operator document commands"
+  },
+  "nativeAcceptance": false,
+  "sourceDriftAfterReview": false
+}
