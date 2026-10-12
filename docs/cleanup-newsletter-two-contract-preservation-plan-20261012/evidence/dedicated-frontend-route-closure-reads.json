@@ -1,0 +1,40 @@
+[
+  {
+    "path": "apps/web/src/features/modules/ModuleScreen.tsx",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "content": "import type { ModuleSlug } from \"../../shared/shell/module-catalog\";\nimport { CalendarScreen } from \"./calendar/CalendarScreen\";\nimport { DirectoryScreen } from \"./directory/DirectoryScreen\";\nimport { EngagementScreen } from \"./engagement/EngagementScreen\";\nimport { IntelligenceScreen } from \"./intelligence/IntelligenceScreen\";\nimport { PlannerScreen } from \"./planner/PlannerScreen\";\nimport { ResearchPortfoliosScreen } from \"./research-portfolios/ResearchPortfoliosScreen\";\nimport { StrategiesScreen } from \"./strategies/StrategiesScreen\";\nimport { WorkspaceScreen } from \"./workspace/WorkspaceScreen\";\nimport { ObjectiveDestinationRoute } from \"./objective-destinations/ObjectiveDestinationRoute\";\n\n/** Public composition boundary; each module owns its screens and state. */\nexport function ModuleScreen({ module }: { module: ModuleSlug }) {\n  switch (module) {\n    case \"calendar\":\n      return <CalendarScreen />;\n    case \"directory\":\n      return <DirectoryScreen />;\n    case \"engagement\":\n      return <EngagementScreen />;\n    case \"intelligence\":\n      return <IntelligenceScreen />;\n    case \"planner\":\n      return (\n        <ObjectiveDestinationRoute kind=\"planner_task\">\n          <PlannerScreen />\n        </ObjectiveDestinationRoute>\n      );\n    case \"research-portfolios\":\n      return <ResearchPortfoliosScreen />;\n    case \"strategies\":\n      return (\n        <ObjectiveDestinationRoute kind=\"strategy\">\n          <StrategiesScreen />\n        </ObjectiveDestinationRoute>\n      );\n    case \"workspace\":\n      return (\n        <ObjectiveDestinationRoute kind=\"workspace_saved_revision\">\n          <WorkspaceScreen />\n        </ObjectiveDestinationRoute>\n      );\n  }\n}\n",
+        "encoding": "utf-8",
+        "sha": "bd12ac9c33300ef6dd86a9b926d1b4f2d932cbd1",
+        "display_url": "https://github.com/neo-capiro/capiro-frontend/blob/4a1614886fd98bb42d529f1ef59b3d01d7ff9173/apps/web/src/features/modules/ModuleScreen.tsx",
+        "display_title": "ModuleScreen.tsx"
+      },
+      "isError": false
+    }
+  },
+  {
+    "path": "apps/web/src/shared/shell/module-catalog.ts",
+    "result": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Action completed."
+        }
+      ],
+      "structuredContent": {
+        "content": "import type { ModuleAssetName } from \"./ModuleAsset\";\n\nexport type ModuleSlug =\n  | \"engagement\"\n  | \"planner\"\n  | \"calendar\"\n  | \"workspace\"\n  | \"strategies\"\n  | \"directory\"\n  | \"intelligence\"\n  | \"research-portfolios\";\nexport type ModuleDescriptor = {\n  slug: ModuleSlug;\n  label: string;\n  icon: ModuleAssetName;\n  cardIcon?: ModuleAssetName;\n  group?: \"work\" | \"landscape\";\n  description: string;\n  chips: readonly { label: string; view: string }[];\n  profile: string;\n  tone?: \"steel\" | \"plum\" | \"teal\";\n};\nexport const moduleCatalog: readonly ModuleDescriptor[] = [\n  {\n    slug: \"engagement\",\n    label: \"Engagement\",\n    icon: \"engagement\",\n    cardIcon: \"engagementCard\",\n    group: \"work\",\n    description:\n      \"Meetings, outreach, reports and the meeting library for every client.\",\n    chips: [\n      { label: \"Meetings\", view: \"meetings\" },\n      { label: \"Outreach\", view: \"outreach\" },\n      { label: \"Reports\", view: \"reports\" },\n      { label: \"Library\", view: \"library\" },\n    ],\n    profile: \"Engagement, one client\",\n    tone: \"steel\",\n  },\n  {\n    slug: \"planner\",\n    label: \"Planner\",\n    icon: \"planner\",\n    cardIcon: \"plannerCard\",\n    group: \"work\",\n    description: \"Tasks, projects and deadlines across the firm.\",\n    chips: [\n      { label: \"List\", view: \"list\" },\n      { label: \"Board\", view: \"board\" },\n      { label: \"Calendar\", view: \"calendar\" },\n      { label: \"Gantt\", view: \"gantt\" },\n    ],\n    profile: \"Planner, one client\",\n    tone: \"teal\",\n  },\n  {\n    slug: \"calendar\",\n    label: \"Calendar\",\n    icon: \"calendarNav\",\n    description: \"Meetings and deadlines across your authorized workspace.\",\n    chips: [],\n    profile: \"Calendar, one client\",\n  },\n  {\n    slug: \"workspace\",\n    label: \"Workspace\",\n    icon: \"workspace\",\n    cardIcon: \"workspaceCard\",\n    group: \"work\",\n    description: \"Hill Day packets, drafts and proposal templates.\",\n    chips: [\n      { label: \"Hill Day\", view: \"hillday\" },\n      { label: \"Drafts\", view: \"drafts\" },\n      { label: \"Template Studio\", view: \"templates\" },\n    ],\n    profile: \"Workspace, one client\",\n    tone: \"plum\",\n  },\n  {\n    slug: \"strategies\",\n    label: \"Strategies\",\n    icon: \"strategies\",\n    cardIcon: \"strategiesCard\",\n    group: \"work\",\n    description: \"Strategy and context libraries, agent review and runs.\",\n    chips: [\n      { label: \"Library\", view: \"library\" },\n      { label: \"Context\", view: \"context\" },\n      { label: \"Review\", view: \"review\" },\n      { label: \"Runs\", view: \"runs\" },\n    ],\n    profile: \"Objectives and Strategies\",\n    tone: \"plum\",\n  },\n  {\n    slug: \"directory\",\n    label: \"Directory\",\n    icon: \"directory\",\n    cardIcon: \"directoryCard\",\n    group: \"landscape\",\n    description: \"Members, staff, committees and Department of War officials.\",\n    chips: [\n      { label: \"Congress\", view: \"congressional-staff\" },\n      { label: \"Committees\", view: \"committee-staff\" },\n      { label: \"DoW\", view: \"department-of-war\" },\n      { label: \"States\", view: \"state-legislators\" },\n    ],\n    profile: \"Relationships, the offices that client touches\",\n    tone: \"teal\",\n  },\n  {\n    slug: \"intelligence\",\n    label: \"Intelligence\",\n    icon: \"intelligence\",\n    cardIcon: \"intelligenceCard\",\n    group: \"landscape\",\n    description:\n      \"Legislation, budgets, funding and geography, searchable across everything the platform tracks.\",\n    chips: [\n      { label: \"Data Explorer\", view: \"explorer\" },\n      { label: \"LegiWatch\", view: \"legiwatch\" },\n      { label: \"Defense Budget\", view: \"defense\" },\n      { label: \"Funding Opportunities\", view: \"funding\" },\n      { label: \"District Nexus\", view: \"district-nexus\" },\n    ],\n    profile: \"Intelligence and Opportunities, matched to that client\",\n    tone: \"steel\",\n  },\n  {\n    slug: \"research-portfolios\",\n    label: \"Research portfolios\",\n    icon: \"research\",\n    cardIcon: \"researchCard\",\n    group: \"landscape\",\n    description: \"Saved collections of companies and topics.\",\n    chips: [\n      { label: \"Snapshots\", view: \"snapshots\" },\n      { label: \"Subscriptions\", view: \"subscriptions\" },\n    ],\n    profile: \"Firm-wide only\",\n    tone: \"plum\",\n  },\n];\nexport function moduleHref(slug: ModuleSlug, view?: string) {\n  return `/modules/${slug}${view ? `?view=${encodeURIComponent(view)}` : \"\"}`;\n}\n",
+        "encoding": "utf-8",
+        "sha": "87387e0ae43d2cb50b634b73e5eeb46ccb5e5472",
+        "display_url": "https://github.com/neo-capiro/capiro-frontend/blob/4a1614886fd98bb42d529f1ef59b3d01d7ff9173/apps/web/src/shared/shell/module-catalog.ts",
+        "display_title": "module-catalog.ts"
+      },
+      "isError": false
+    }
+  }
+]

@@ -53,6 +53,10 @@ export const ENGAGEMENT_RUNTIME_ROUTE_POLICY = {
     sendSingleMail: { action: 'outreach_send' },
     rewriteEmail: { action: 'outreach_generate' },
   },
+  NewsletterOutreachController: {
+    send: { action: 'outreach_send' },
+    test: { action: 'outreach_test_send', testMode: true },
+  },
   OutreachV3GenerationController: {
     generateSamples: { action: 'outreach_v3_generate' },
     startFullGeneration: { action: 'outreach_v3_generate' },
