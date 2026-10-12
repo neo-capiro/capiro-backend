@@ -13,6 +13,7 @@ remain preserved. There are no capiro-frontend or meri-greenfield edits here.
 | Saved newsletter revision staging | [2401](https://github.com/neo-capiro/capirov2/pull/2401) | `3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16` | `188d94ee4cda563a6543468544fd7d1f9885b3f8` | 40 independent adversarial cases; Core/Workspace strict typing and Nest builds |
 | Objective-bound Outreach resolution | [2402](https://github.com/neo-capiro/capirov2/pull/2402) | `4a784b58a0d41251ae6d7dea75a9b4858abc8665` | `3e04cc68d00373632d4bc86c935d37e672b2d221` | 130 combined cases after independently reviewed immutable-revision privilege repair; Core strict typing |
 | Effective-date calendar | [2403](https://github.com/neo-capiro/capirov2/pull/2403) | `35abc148e301b5b0b0baa4f5b284757079d9d91d` | `38c8529eb308631922bee8d1c3f4d920bc4a0bf3` | 181 combined cases, including 109 independent after reviewed checkpoint correction; Core/script strict typing; original API Nest/WASM pass |
+| Objective-bound Strategy/Planner resolution | [2404](https://github.com/neo-capiro/capirov2/pull/2404) | `0716767e8b6ff323b2516d166b22edb4d2413e57` | `207657e1ae89de5790816e07b5fa149512381955` | 50 independent / 109 combined cases; full Core/Strategy typing and Nest builds |
 
 Calendar's immutable corrected runtime/source pin above is reachable from the
 updated PR2403 publication; its later test/evidence/docs head is recorded in the PR
@@ -80,6 +81,7 @@ PDF reference is not a claim of downloaded/interpreted PDF content.
 | Newsletter2401 | Prospect2400 `6c26ac2dad3756a61b6733329dea7ce3c9138ece` → Sender2393 `b1ac2649e134af560d41bee790cacbd61de01c9b` | Existing shared barrel, Workspace owner seam/version paths; separate Workspace immutability migration40000 |
 | Outreach destination2402 | Objective2362 `72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e` + refreshed main | With2401 preserve BOTH state controller routes and route-manifest entries; Core schema includes inherited Objective persistence |
 | Effective calendar2403 | Refreshed main; independent of other new slices | Core schema additions beside preserved Objective/activity/owner/prospect blocks; Cleanup2392 sync entry guard/main wrapper must survive composition; Core migration60000 |
+| Strategy/Planner destination2404 | Corrected Outreach2402 `4a784b58a0d41251ae6d7dea75a9b4858abc8665` → Objective2362 | Core delegates to canonical shared helper; preserve newsletter/prospect shared exports, Planner2395/Quicklog2396 existing controller/service behavior, Cleanup2392 shared dependency/package/lockfile decisions |
 
 The raw `current-published-source-matrix.json` records corrected current candidate
 heads and incremental intersections; the preserved `initial-published-source-matrix.json`
@@ -92,23 +94,34 @@ unpublished tree. No incompatible mixed-source runtime or release claim is made.
 
 ## Remaining source scope and excluded work
 
-Strategy/Planner source is preserved but unpublished: frozen review source
+Strategy/Planner source is now published and independently accepted. Preserved
+initial checkpoint:
 `b5e61175eff7cebe28a70a79da41e12d8f584b28`, tree
 `9f1885726d8f2ac02a12a3ee096b63f6330888c7`; author worktree subsequently holds
 `d198733d66ea6b6b29eaafbccb6a76b6a174b239`, tree
-`df1d72330029edbc0a250940a9adb98c14c8c87b`. These are not consumable published
-contracts. Their independent shared-helper reviewer and the Newsletter/Workspace
-owner returned an explicit usage-limit error observed at Neo's single resume attempt.
-Dependent publication and Workspace implementation are stopped. No model/environment
-switch, replacement session or quota bypass is attempted.
+`df1d72330029edbc0a250940a9adb98c14c8c87b`. The exact current published source
+contract is PR2404 above. Its independent shared-helper reviewer and the
+Newsletter/Workspace owner returned explicit usage-limit errors during the earlier resume attempt.
+Neo then authorized one retry in each same session. That retry produced independent
+acceptance of the exact `d198733d66ea6b6b29eaafbccb6a76b6a174b239` source:
+50 independent cases and 109 combined cases across seven suites passed. The
+evidence-only reviewer commit is `c42aa5a5ee9bf5f59d4ac15ff4c6f8223ef315ad`,
+tree `5baa9f01441dfbd8410c29d7176114b00c68aa5d`. The scalar-input RED and launcher
+failure remain retained. The actual PR2404 publication was independently verified
+draft, open, unmerged and mergeable at 08:26 UTC; all accepted runtime blobs are
+unchanged. Workspace may now consume only its exact helper bytes and additive
+export, with explicit original Objective migration/runtime prerequisites.
+No model/environment switch, replacement session or quota bypass occurred.
 
 The saved Workspace revision destination investigation is fully specified for
-PR2401's strict eligible subset, but no implementation was started. It waits for a
-reviewed published shared Objective helper. General free-text-only drafts are not
-made authoritative. Existing worktrees, authored source/check receipts and all
+PR2401's strict eligible subset. The same resumed Workspace owner is proceeding
+from exact PR2401 after the reviewed helper publication. It must prove byte
+identity to the PR2404 helper and obtain independent review before publication.
+General free-text-only drafts are not made authoritative. Existing worktrees, authored source/check receipts and all
 published candidates remain preserved; no loss is inferred from executor/model
 status. The executor itself recovered and was directly verified usable at
-2026-10-12T07:44:47Z and 07:53:43 UTC.
+2026-10-12T07:44:47Z, 07:53:43 UTC and 08:20:52 UTC. Main and all three existing
+draft heads were freshly verified unchanged at 08:21 UTC.
 General Workspace drafts lacking canonical current/saved client declarations,
 durable Objective-bound creation/associations, and comprehensive legal date/correction
 interpretation remain outside these bounded source contracts. Missing scope is

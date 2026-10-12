@@ -1,0 +1,120 @@
+{
+  "main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "currentSourceCandidates": [
+    {
+      "pr": 2401,
+      "head": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+      "tree": "188d94ee4cda563a6543468544fd7d1f9885b3f8",
+      "base": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+      "baseBranch": "codex/prospect-resource-origin-20261012",
+      "draft": true,
+      "merged": false,
+      "sourcePaths": [
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+        "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+        "apps/workspace/prisma/migrations/20281012040000_saved_version_immutability/migration.sql",
+        "apps/workspace/src/collaborators/role-policy.ts",
+        "apps/workspace/src/documents/meri-import-text.ts",
+        "apps/workspace/src/versions/versions.controller.ts",
+        "apps/workspace/src/versions/versions.service.ts",
+        "packages/shared/src/index.ts",
+        "packages/shared/src/workspace-saved-revision.ts"
+      ]
+    },
+    {
+      "pr": 2402,
+      "head": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+      "tree": "3e04cc68d00373632d4bc86c935d37e672b2d221",
+      "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "baseBranch": "main",
+      "draft": true,
+      "merged": false,
+      "sourcePaths": [
+        "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts",
+        "apps/api/src/clients/objectives/objective-destination.privileges.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.ts",
+        "apps/api/src/clients/objectives/objective-rules.spec.ts",
+        "apps/api/src/clients/objectives/objective-rules.ts",
+        "apps/api/src/clients/objectives/objective.dto.ts",
+        "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.ts",
+        "apps/api/src/clients/objectives/objectives.module.ts",
+        "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.ts",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts",
+        "apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts",
+        "apps/api/src/outreach-v3/services/outreach-session.service.ts"
+      ]
+    },
+    {
+      "pr": 2403,
+      "head": "87c6b01183e504987c6dba6c9f2413e86173de37",
+      "tree": "7000cc4aa3eef41fd6b824ee6a56faef2d2064ef",
+      "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "baseBranch": "main",
+      "draft": true,
+      "merged": false,
+      "sourcePaths": [
+        "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/scripts/sync-federal-register.ts",
+        "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+        "apps/api/src/federal-register/effective-date-evidence.spec.ts",
+        "apps/api/src/federal-register/effective-date-evidence.ts",
+        "apps/api/src/federal-register/effective-independent-review.spec.ts",
+        "apps/api/src/federal-register/effective-script-independent-review.spec.ts",
+        "apps/api/src/federal-register/federal-register-calendar.spec.ts",
+        "apps/api/src/federal-register/federal-register-observation.spec.ts",
+        "apps/api/src/federal-register/federal-register-observation.ts",
+        "apps/api/src/federal-register/federal-register.controller.ts",
+        "apps/api/src/federal-register/federal-register.service.ts",
+        "apps/api/src/ingestion/embed-watermark.ts",
+        "apps/api/src/ingestion/sync-run.helper.ts"
+      ]
+    }
+  ],
+  "pairs": [
+    {
+      "prs": [
+        2401,
+        2402
+      ],
+      "incrementalPathIntersection": [
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts"
+      ]
+    },
+    {
+      "prs": [
+        2401,
+        2403
+      ],
+      "incrementalPathIntersection": []
+    },
+    {
+      "prs": [
+        2402,
+        2403
+      ],
+      "incrementalPathIntersection": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    }
+  ],
+  "pausedUnpublishedHelper": {
+    "head": "d198733d66ea6b6b29eaafbccb6a76b6a174b239",
+    "tree": "df1d72330029edbc0a250940a9adb98c14c8c87b",
+    "consumable": false,
+    "blocker": "independent reviewer usage limit"
+  }
+}
