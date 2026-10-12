@@ -1,0 +1,33 @@
+{
+  "base": "62d057b4a17b2c038920f10b93e83e51e46239bc",
+  "sourcePaths": 13,
+  "otherNonDocsExact": 11762,
+  "schemaAndMigrationHistoryExact": 617,
+  "inheritedIndexedFilesExact": 960,
+  "componentIndices": [
+    {
+      "index": "docs/cleanup-memory-funding-static-fixture-adoption-20261012/SHA256-INDEX.json",
+      "entries": 39,
+      "allPass": true
+    },
+    {
+      "index": "docs/cleanup-memory-funding-fixtures-independent-review-20261012/SHA256-INDEX.json",
+      "entries": 37,
+      "allPass": true
+    },
+    {
+      "index": "docs/cleanup-retirement-http-client-independent-review-20261012/SHA256-INDEX.json",
+      "entries": 17,
+      "allPass": true
+    },
+    {
+      "index": "docs/cleanup-retirement-import-free-http-client-20261012/SHA256SUMS.json",
+      "entries": 11,
+      "allPass": true
+    }
+  ],
+  "sourceWhitespaceExit": 0,
+  "fullWhitespaceFloor": "OPEN: physical raw evidence retained",
+  "nativeApiIntegrationRun": false,
+  "retirementReportCopied": false
+}

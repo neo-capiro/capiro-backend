@@ -1,0 +1,84 @@
+{
+  "base": "62d057b4a17b2c038920f10b93e83e51e46239bc",
+  "publishedSource": "67fa9255b8a73f489d7a57c8fe270ed6d03fa016",
+  "paths": [
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+      "sha256": "5802bab1767ca1a7e8c4f3515b51a5340e1b3b79d86840429b18f0eaf7a86354",
+      "bytes": 6526,
+      "publishedBlob": "440c0d3ac329ef7bb78b2f5f52a8cc098e103d65"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryGovernanceCenterHost.tsx.txt",
+      "sha256": "668ebe3d28e1de7df8a104e234cd11096f846f722fb7baaa908b5d3a9e8822eb",
+      "bytes": 1769,
+      "publishedBlob": "ede8ad99e0ab594f94170809b0f6dc389131bf69"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryReviewInbox.tsx.txt",
+      "sha256": "3929c81c5e338866fc8fe61f005ecd9c7ff1e54763f3d16150c066842dc09e85",
+      "bytes": 28524,
+      "publishedBlob": "0fcd61209d25aa752a57b6d562dd0d13772725c8"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+      "sha256": "72f65313cf5b1cfa4d5f40788070a00737eae91e7e493f4f426cc33a37e9eb5c",
+      "bytes": 6279,
+      "publishedBlob": "d2f1a3db632d8a7043bebe1b93dcfd3b8295a439"
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/pages/settings/MemorySettingsPage.tsx.txt",
+      "sha256": "30236661d374f0018599ce3f74affa5ba4cddf2aa4641944aa06d052f3a0ccc3",
+      "bytes": 2412,
+      "publishedBlob": "ab070052dfb5560b1a71c5ddc5bc2477071ffbda"
+    },
+    {
+      "path": "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "sha256": "fe20d9a510d10b8f91310a3f32f1e24296e09e6b9c12aa6b8a41bde0b0fea215",
+      "bytes": 6028,
+      "publishedBlob": "e8dc531e5d4963e28e0ea42403fd881f435cb9e2"
+    },
+    {
+      "path": "apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts",
+      "sha256": "48f91990bad6dfb44c70af373594daa8dc0534ce32d18170a847845995fb4873",
+      "bytes": 6093,
+      "publishedBlob": "b4d9f8065274d65ef6e094beadc3740cb2ae11e8"
+    },
+    {
+      "path": "apps/api/scripts/lib/meri-durable-research-contract-client.ts",
+      "sha256": "f3f061fae8e4fbbad9f0703d1a597444beed9949793e629d5c36551d87901bc4",
+      "bytes": 14149,
+      "publishedBlob": "a1b644000df0aef365e4a12d393be1871b556245"
+    },
+    {
+      "path": "apps/api/scripts/meri-durable-controls.http.integration.spec.ts",
+      "sha256": "ad9b9ccaebf40e5a82f8b167202e783f306b1e8bd60817b64fdfdae95dd60fb4",
+      "bytes": 10625,
+      "publishedBlob": "e897b40d8a15472613930242cea3d8ee99178b71"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/FundingOpportunityV2ResultCard.tsx.txt",
+      "sha256": "6025d3bb34ad7ad28e014a2c711e3dcb66a909ad67283701fa50f865d8564101",
+      "bytes": 25244,
+      "publishedBlob": "05f846a57a7fbde54f8fb24605441a88b4e2156a"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/__fixtures__/legacy-ui-contracts/funding-opportunities-domain.ts.txt",
+      "sha256": "77688b0605cb23add15a670e141f4a80594ba46f3fb3fc4b0e96835ad8a8b80c",
+      "bytes": 6387,
+      "publishedBlob": "2bec9d5ec3976ed9847e16b98df8e2329a58392b"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/opportunity-explanation.spec.ts",
+      "sha256": "93cbcbdc1898e0749f4994baf957471200a96bc58cc33074e3da4f3703470f85",
+      "bytes": 11543,
+      "publishedBlob": "55d159fad4c478b806d4114cb9100c0a5c1401ff"
+    },
+    {
+      "path": "scripts/ci/meri-durable-http-client-contract.spec.mjs",
+      "sha256": "f8a3dd1d90d70a384ee47aae1f195b6a003fa1c26aecd9722b6117538d3b1430",
+      "bytes": 35621,
+      "publishedBlob": "2cadf834ec433d0a9bf1fb8a172016b35326284c"
+    }
+  ]
+}

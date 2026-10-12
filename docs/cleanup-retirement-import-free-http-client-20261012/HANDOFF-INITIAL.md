@@ -1,0 +1,13 @@
+# Destination-owned Meri HTTP test client
+
+The existing API durable-controls integration test imports its three public HTTP helpers from Web. This bounded adoption replaces that import with the published API-test-owned client from PR2423 at `d09429a509d5b3cc2501f3736e619723e4b2c4c0`. Exactly three source paths are adopted: the import-free test client, one integration import-line replacement, and its frozen original/candidate controls. The integration body,21 original case identities and assertions remain byte-exact after normalizing that import string.
+
+The helper exposes only snapshot, steer and cancel methods already used by this integration test. Its runtime preserves original URL encoding, request headers/body/signal, snapshot validation, retained event ordering/cap, error identity/status/body and transport/abort behavior. It preserves existing edge behavior, including no receipt echo-ID check and raw caller numeric serialization; this test adapter is not an authorization owner or a new application service. Display merging, terminal helpers and request-ID generation remain with their existing owners.
+
+Actual source-bound controls pass48/48 (21 original closure cases,21 candidate cases and six boundary/mutation controls), with zero skips. The reachable frozen original closure is embedded as an immutable oracle, without reading or importing Web during execution. Both implementations run in a VM supplied exclusively fake fetch; no app bootstrap or real transport occurs. Standalone strict TypeScript5.9.3 compilation with ES2022/DOM and no ambient types passes. Node24.19 is the local runtime; hosted Node22 is separate.
+
+This does not claim the native API integration fixture ran. PostgreSQL, migration/RLS, hosted CI, full coverage/visual/process floors and the main merge remain open. Original/newsletter/saved-version contracts, all617 schema/migration/history paths, protected unpublished reporting work, earlier20 scoped qualification paths and the nine accepted PR2426 source fixes are untouched. No frontend source is changed.
+
+Base: draft PR2426 at `d587441261fd356ee5144a8fc29cb2f771d062b8`, tree `0ef751228de0415c9a260c00bae3f8e7369b7755`. The broader PR2423 prototype/closeout/source-floor changes require destination-specific composition and are deliberately separate. Independent review is required before publication of this slice.
+
+Commands and outcomes are bound by [receipt](RECEIPT.json); [raw controls](original-candidate-controls.tap) and [strict compiler log](client-types.log) are retained. Source and packet bytes are bound by [index](SHA256SUMS.json).
