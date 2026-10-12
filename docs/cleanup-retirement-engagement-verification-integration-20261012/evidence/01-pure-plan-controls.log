@@ -1,0 +1,291 @@
+(node:429351) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/engagement-phase1-qualification-plan.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ full plans match the actual immutable current24-step oracle (141.784823ms)
+✔ current16target list and process/retry/heap/PNPM/scanner functions remain byte-exact (78.169696ms)
+✔ backend and frontend preserve every original step at the partition boundary (37.667675ms)
+✔ fake process failure stops the plan with the same current error/timing (58.565215ms)
+✔ plan forwards a supplied current target list without a stale internal catalog (0.324336ms)
+✔ explicit valid grammar --run (0.32618ms)
+✔ explicit valid grammar --run --backend-only (0.514186ms)
+✔ explicit valid grammar --frontend-only --run (0.338073ms)
+✔ refused grammar [] (1.460199ms)
+✔ refused grammar ["--backend-only"] (0.383743ms)
+✔ refused grammar ["--run","--run"] (0.182095ms)
+✔ refused grammar ["--run","--backend-only","--backend-only"] (0.123523ms)
+✔ refused grammar ["--run","--backend-only","--frontend-only"] (0.109682ms)
+✔ refused grammar ["--run","--help"] (0.099876ms)
+✔ refused grammar ["--run","unknown"] (0.204569ms)
+✔ refused grammar ["--run","--print-plan"] (2.22154ms)
+✔ distinct markers full (0.186867ms)
+✔ distinct markers backend-only (0.039959ms)
+✔ distinct markers frontend-only (0.030738ms)
+✔ unknown helper scope/result refused (0.148889ms)
+✔ actual full step array, whitespace resolver and scoped source context remain byte-exact (2.029512ms)
+✖ backend excludes exactly original direct Web steps and only browser control argv (2.083427ms)
+✔ frontend retains root scope/prototype controls and nested frontend aliases (0.443504ms)
+✖ fake executor preserves selected argv/options and failure stop order (1.264778ms)
+✔ strict Phase3 refusal [] (0.36684ms)
+✔ strict Phase3 refusal ["--backend-only"] (0.119ms)
+✔ strict Phase3 refusal ["--run","--run"] (0.090363ms)
+✔ strict Phase3 refusal ["--run","--backend-only","--backend-only"] (0.134786ms)
+✔ strict Phase3 refusal ["--run","--backend-only","--frontend-only"] (0.436543ms)
+✔ strict Phase3 refusal ["--run","--help"] (0.207699ms)
+✔ strict Phase3 refusal ["--run","unknown"] (0.090144ms)
+✔ strict full/scoped grammar accepts exactly declared explicit intent (0.122592ms)
+✔ full Windows baseline deliberately keeps substring/COMPLETE precedence/nonzero-exit weakness (0.157601ms)
+✔ new scoped Windows exact selected receipt backend-only (0.375931ms)
+✔ new scoped Windows exact selected receipt frontend-only (0.115638ms)
+✔ phase3 scope markers do not claim full completion; full failure protocol remains unchanged (0.136302ms)
+✔ default plan retains the complete Phase1 command, markers and frontend header gate (8.562083ms)
+✔ explicit backend plan selects the root backend command and distinct result protocol (7.928476ms)
+✔ explicit frontend plan contains only the original header scan and no Phase1 command (5.092094ms)
+▶ conflicting explicit scopes refuse before startup or artifact writes
+  ✔ --backend-only --frontend-only --print-plan (11.198773ms)
+  ✔ --frontend-only --backend-only (5.265178ms)
+✔ conflicting explicit scopes refuse before startup or artifact writes (19.564021ms)
+✔ legacy first-argument fast mode retains full scope and frontend qualification (8.055151ms)
+✔ legacy full ignored-argument and first-argument fast policy stays unchanged (5.326276ms)
+▶ backend mode supports an explicit fast flag in either supported order
+  ✔ --fast --backend-only (5.343794ms)
+  ✔ --backend-only --fast (3.910835ms)
+✔ backend mode supports an explicit fast flag in either supported order (9.925529ms)
+✖ plan exits before repository, log directory, timeout and qualification startup (2.018139ms)
+✔ full strict marker gate still accepts a successful complete full verifier (11.244876ms)
+✔ backend strict marker gate accepts its exact bracketed marker as literal text (10.472498ms)
+▶ full and backend gates reject the opposite qualification marker
+  ✔ full rejects backend receipt (8.66108ms)
+  ✔ backend rejects full receipt (8.405734ms)
+✔ full and backend gates reject the opposite qualification marker (17.600078ms)
+▶ both modes reject COMPLETE followed by FAILED even when the process exits zero
+  ✔ full (11.31735ms)
+  ✔ backend (18.163433ms)
+✔ both modes reject COMPLETE followed by FAILED even when the process exits zero (29.906382ms)
+▶ both modes reject a completion marker followed by a failing process exit
+  ✔ full (7.904455ms)
+  ✔ backend (6.674243ms)
+✔ both modes reject a completion marker followed by a failing process exit (15.100266ms)
+✔ backend strict marker matching rejects a decorated completion line (11.56051ms)
+✔ a failed evidence tee cannot become a passing completion receipt (7.234832ms)
+▶ only backend mode skips the frontend header scan; default retains its exact command
+  ✔ full (5.643645ms)
+  ✔ backend (3.564116ms)
+✔ only backend mode skips the frontend header scan; default retains its exact command (9.771339ms)
+▶ frontend-only qualification executes exactly the original scan through a stubbed node
+  ✔ success (4.959211ms)
+  ✔ scan failure (3.309885ms)
+✔ frontend-only qualification executes exactly the original scan through a stubbed node (8.95321ms)
+✔ scoped strict argv refuses before work ["--backend-only"] (3.813054ms)
+✔ scoped strict argv refuses before work ["--frontend-only"] (3.171101ms)
+✔ scoped strict argv refuses before work ["--run","--run","--backend-only"] (4.335326ms)
+✔ scoped strict argv refuses before work ["--run","--backend-only","--backend-only"] (3.539438ms)
+✔ scoped strict argv refuses before work ["--run","--backend-only","--frontend-only"] (4.740041ms)
+✔ scoped strict argv refuses before work ["--run","--backend-only","unknown"] (4.85156ms)
+✔ scoped strict argv refuses before work ["--run","--backend-only","--fast","--fast"] (4.133802ms)
+✔ scoped strict argv refuses before work ["--run","--frontend-only","--print-plan","--print-plan"] (4.731532ms)
+ℹ tests 75
+ℹ suites 0
+ℹ pass 72
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 914.733243
+
+✖ failing tests:
+
+test at scripts/engagement-phase3-qualification-plan.spec.mjs:26:1
+✖ backend excludes exactly original direct Web steps and only browser control argv (2.083427ms)
+  AssertionError [ERR_ASSERTION]: Values have same structure but are not reference-equal:
+  
+  [
+    'Phase 3 UI inventory',
+    'node',
+    [
+      'scripts/engagement-phase3-ui-inventory.spec.mjs'
+    ],
+    {
+      env: {
+        ENGAGEMENT_PHASE3_SCOPE_END: 'synthetic-head'
+      }
+    }
+  ]
+  
+      at TestContext.<anonymous> (file:///tmp/capirov2-cleanup-meri-local-dispatch-conversion/scripts/engagement-phase3-qualification-plan.spec.mjs:31:193)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'Phase 3 UI inventory', 'node', [ 'scripts/engagement-phase3-ui-inventory.spec.mjs' ], { env: [Object] } ],
+    expected: [ 'Phase 3 UI inventory', 'node', [ 'scripts/engagement-phase3-ui-inventory.spec.mjs' ], { env: [Object] } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/engagement-phase3-qualification-plan.spec.mjs:41:1
+✖ fake executor preserves selected argv/options and failure stop order (1.264778ms)
+  AssertionError [ERR_ASSERTION]: Values have same structure but are not reference-equal:
+  
+  ... Skipped lines
+  [
+    [
+      'Phase 0 prerequisite',
+      'pnpm',
+      [
+        'verify:engagement-phase-0'
+      ],
+      undefined
+    ],
+    [
+      'Phase 1 prerequisite',
+      'pnpm',
+      [
+        'verify:engagement-phase-1'
+      ],
+      undefined
+    ],
+    [
+      'Phase 2 prerequisite',
+      'pnpm',
+      [
+        'verify:engagement-phase-2'
+      ],
+      undefined
+    ],
+    [
+      'Phase 3 UI inventory',
+      'node',
+      [
+        'scripts/engagement-phase3-ui-inventory.spec.mjs'
+      ],
+      {
+        env: {
+          ENGAGEMENT_PHASE3_SCOPE_END: 'synthetic-head'
+        }
+      }
+    ],
+    [
+      'Phase 3 preview route generation drift',
+      'node',
+      [
+        'scripts/engagement-phase3-preview-route-patterns.mjs',
+        '--check'
+      ],
+      undefined
+    ],
+    [
+      'Phase 3 web preview-header containment',
+      'node',
+      [
+  ...}
+  
+      at TestContext.<anonymous> (file:///tmp/capirov2-cleanup-meri-local-dispatch-conversion/scripts/engagement-phase3-qualification-plan.spec.mjs:43:106)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ [ 'Phase 0 prerequisite', 'pnpm', [Array], undefined ], [ 'Phase 1 prerequisite', 'pnpm', [Array], undefined ], [ 'Phase 2 prerequisite', 'pnpm', [Array], undefined ], [ 'Phase 3 UI inventory', 'node', [Array], [Object] ], [ 'Phase 3 preview route generation drift', 'node', [Array], undefined ], [ 'Phase 3 web preview-header containment', 'node', [Array], undefined ], [ 'Phase 3 fixture/read/containment contracts', 'pnpm', [Array], [Object] ], [ 'Phase 3 fixture and acceptance-script typecheck', 'pnpm', [Array], undefined ], [ 'Phase 3 focused web contracts', 'pnpm', [Array], undefined ], [ 'Phase 3 harness/scope/resilience negative controls', 'node', [Array], undefined ], [ 'Phase 3 V3/prototype boundary', 'node', [Array], [Object] ], [ 'Phase 3 scope and findings', 'node', [Array], [Object] ], [ 'Phase 3 local runner syntax', 'node', [Array], undefined ], [ 'Phase 3 local proxy syntax', 'node', [Array], undefined ], [ 'Phase 3 resilience syntax', 'node', [Array], undefined ], [ 'Phase 3 resilience wrapper syntax', 'node', [Array], undefined ], [ 'Phase 3 browser harness syntax', 'node', [Array], undefined ], [ 'Phase 3 interaction harness syntax', 'node', [Array], undefined ], [ 'Phase 3 scenario catalog syntax', 'node', [Array], undefined ], [ 'Phase 3 bearer refresh syntax', 'node', [Array], undefined ], [ 'Phase 3 browser+replay wrapper syntax', 'node', [Array], undefined ], [ 'Phase 3 read replay syntax', 'node', [Array], undefined ], [ 'Web production typecheck', 'pnpm', [Array], undefined ], [ 'Web production build', 'pnpm', [Array], undefined ], [ 'Web complete regression suite', 'pnpm', [Array], undefined ], [ 'Phase 3 committed-range whitespace', 'git', [Array], undefined ] ],
+    expected: [ [ 'Phase 0 prerequisite', 'pnpm', [Array], undefined ], [ 'Phase 1 prerequisite', 'pnpm', [Array], undefined ], [ 'Phase 2 prerequisite', 'pnpm', [Array], undefined ], [ 'Phase 3 UI inventory', 'node', [Array], [Object] ], [ 'Phase 3 preview route generation drift', 'node', [Array], undefined ], [ 'Phase 3 web preview-header containment', 'node', [Array], undefined ], [ 'Phase 3 fixture/read/containment contracts', 'pnpm', [Array], [Object] ], [ 'Phase 3 fixture and acceptance-script typecheck', 'pnpm', [Array], undefined ], [ 'Phase 3 focused web contracts', 'pnpm', [Array], undefined ], [ 'Phase 3 harness/scope/resilience negative controls', 'node', [Array], undefined ], [ 'Phase 3 V3/prototype boundary', 'node', [Array], [Object] ], [ 'Phase 3 scope and findings', 'node', [Array], [Object] ], [ 'Phase 3 local runner syntax', 'node', [Array], undefined ], [ 'Phase 3 local proxy syntax', 'node', [Array], undefined ], [ 'Phase 3 resilience syntax', 'node', [Array], undefined ], [ 'Phase 3 resilience wrapper syntax', 'node', [Array], undefined ], [ 'Phase 3 browser harness syntax', 'node', [Array], undefined ], [ 'Phase 3 interaction harness syntax', 'node', [Array], undefined ], [ 'Phase 3 scenario catalog syntax', 'node', [Array], undefined ], [ 'Phase 3 bearer refresh syntax', 'node', [Array], undefined ], [ 'Phase 3 browser+replay wrapper syntax', 'node', [Array], undefined ], [ 'Phase 3 read replay syntax', 'node', [Array], undefined ], [ 'Web production typecheck', 'pnpm', [Array], undefined ], [ 'Web production build', 'pnpm', [Array], undefined ], [ 'Web complete regression suite', 'pnpm', [Array], undefined ], [ 'Phase 3 committed-range whitespace', 'git', [Array], undefined ] ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/verify-engagement-phase2-code.mode.spec.mjs:143:1
+✖ plan exits before repository, log directory, timeout and qualification startup (2.018139ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /\$\(|`/. Input:
+  
+  '# Keep mode selection and plan output free of filesystem/process operations so\n' +
+    '# callers can inspect the nested qualification contract without starting gates.\n' +
+    'FAST=0\n' +
+    '[ "${1:-}" = "--fast" ] && FAST=1\n' +
+    'REQUESTED_FAST=0\n' +
+    'BACKEND_ONLY=0\n' +
+    'FRONTEND_ONLY=0\n' +
+    'PRINT_PLAN=0\n' +
+    'RUN_COUNT=0\n' +
+    'SCOPE_COUNT=0\n' +
+    'FAST_COUNT=0\n' +
+    'PRINT_COUNT=0\n' +
+    'UNKNOWN_COUNT=0\n' +
+    'for option in "$@"; do\n' +
+    '  case "$option" in\n' +
+    '    --run) RUN_COUNT=$((RUN_COUNT + 1)) ;;\n' +
+    '    --fast) REQUESTED_FAST=1; FAST_COUNT=$((FAST_COUNT + 1)) ;;\n' +
+    '    --backend-only) BACKEND_ONLY=1; SCOPE_COUNT=$((SCOPE_COUNT + 1)) ;;\n' +
+    '    --frontend-only) FRONTEND_ONLY=1; SCOPE_COUNT=$((SCOPE_COUNT + 1)) ;;\n' +
+    '    --print-plan) PRINT_PLAN=1; PRINT_COUNT=$((PRINT_COUNT + 1)) ;;\n' +
+    '    *) UNKNOWN_COUNT=$((UNKNOWN_COUNT + 1)) ;; # Full legacy still ignores non-mode arguments.\n' +
+    '  esac\n' +
+    'done\n' +
+    'if [ "$SCOPE_COUNT" -gt 0 ] && {\n' +
+    '  [ "$SCOPE_COUNT" -ne 1 ] || [ "$RUN_COUNT" -ne 1 ] ||\n' +
+    '  [ "$FAST_COUNT" -gt 1 ] || [ "$PRINT_COUNT" -gt 1 ] || [ "$UNKNOWN_COUNT" -gt 0 ];\n' +
+    '}; then\n' +
+    "  printf 'Scoped Phase 2 requires exactly one --run and either --backend-only or --frontend-only; duplicate or unknown flags are refused.\\n' >&2\n" +
+    '  exit 2\n' +
+    'fi\n' +
+    'if [ "$PRINT_COUNT" -gt 1 ]; then\n' +
+    "  printf 'Duplicate --print-plan is refused.\\n' >&2\n" +
+    '  exit 2\n' +
+    'fi\n' +
+    '\n' +
+    'PHASE2_SCOPE="full"\n' +
+    'PHASE1_COMMAND="verify:engagement-phase-1"\n' +
+    'PHASE1_COMPLETE_MARKER="ENGAGEMENT_PHASE1_DB_FREE_COMPLETE"\n' +
+    'PHASE1_FAILED_MARKER="ENGAGEMENT_PHASE1_DB_FREE_FAILED"\n' +
+    'PHASE2_COMPLETE_MARKER="ENGAGEMENT_PHASE2_CODE_COMPLETE"\n' +
+    'PHASE2_SKIPS_MARKER="ENGAGEMENT_PHASE2_CODE_COMPLETE_WITH_SKIPS"\n' +
+    'PHASE2_FAILED_MARKER="ENGAGEMENT_PHASE2_CODE_INCOMPLETE"\n' +
+    'FRONTEND_HEADER_GUARD=1\n' +
+    'if [ "$BACKEND_ONLY" -eq 1 ]; then\n' +
+    '  FAST="$REQUESTED_FAST"\n' +
+    '  PHASE2_SCOPE="backend"\n' +
+    '  PHASE1_COMMAND="verify:engagement-phase-1:backend"\n' +
+    '  PHASE1_COMPLETE_MARKER="[engagement-phase1] BACKEND COMPLETE"\n' +
+    '  PHASE1_FAILED_MARKER="[engagement-phase1] BACKEND FAILED"\n' +
+    '  PHASE2_COMPLETE_MARKER="ENGAGEMENT_PHASE2_BACKEND_CODE_COMPLETE"\n' +
+    '  PHASE2_SKIPS_MARKER="ENGAGEMENT_PHASE2_BACKEND_CODE_COMPLETE_WITH_SKIPS"\n' +
+    '  PHASE2_FAILED_MARKER="ENGAGEMENT_PHASE2_BACKEND_CODE_INCOMPLETE"\n' +
+    '  FRONTEND_HEADER_GUARD=0\n' +
+    'fi\n' +
+    'if [ "$FRONTEND_ONLY" -eq 1 ]; then\n' +
+    '  PHASE2_SCOPE="frontend"\n' +
+    '  PHASE2_COMPLETE_MARKER="ENGAGEMENT_PHASE2_FRONTEND_CODE_COMPLETE"\n' +
+    '  PHASE2_FAILED_MARKER="ENGAGEMENT_PHASE2_FRONTEND_CODE_INCOMPLETE"\n' +
+    'fi\n' +
+    'if [ "$PRINT_PLAN" -eq 1 ]; then\n' +
+    '  if [ "$FRONTEND_ONLY" -eq 1 ]; then\n' +
+    `    printf '{"scope":"frontend","phase1Command":null,"frontendCommand":["node","scripts/verify-engagement-web-no-preview-header.mjs"],"frontendHeaderGuard":1,"completeMarker":"%s","failedMarker":"%s"}\\n' \\\n` +
+    '      "$PHASE2_COMPLETE_MARKER" "$PHASE2_FAILED_MARKER"\n' +
+    '    exit 0\n' +
+    '  fi\n' +
+    `  printf '{"scope":"%s","fast":%s,"phase1Command":["pnpm","%s"],"phase1CompleteMarker":"%s","phase1FailedMarker":"%s","frontendHeaderGuard":%s,"completeMarker":"%s","skipsMarker":"%s","failedMarker":"%s"}\\n' \\\n` +
+    '    "$PHASE2_SCOPE" "$FAST" "$PHASE1_COMMAND" "$PHASE1_COMPLETE_MARKER" \\\n' +
+    '    "$PHASE1_FAILED_MARKER" "$FRONTEND_HEADER_GUARD" "$PHASE2_COMPLETE_MARKER" \\\n' +
+    '    "$PHASE2_SKIPS_MARKER" "$PHASE2_FAILED_MARKER"\n' +
+    '  exit 0\n' +
+    'fi\n'
+  
+      at TestContext.<anonymous> (file:///tmp/capirov2-cleanup-meri-local-dispatch-conversion/scripts/verify-engagement-phase2-code.mode.spec.mjs:154:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '# Keep mode selection and plan output free of filesystem/process operations so\n# callers can inspect the nested qualification contract without starting gates.\nFAST=0\n[ "${1:-}" = "--fast" ] && FAST=1\nREQUESTED_FAST=0\nBACKEND_ONLY=0\nFRONTEND_ONLY=0\nPRINT_PLAN=0\nRUN_COUNT=0\nSCOPE_COUNT=0\nFAST_COUNT=0\nPRINT_COUNT=0\nUNKNOWN_COUNT=0\nfor option in "$@"; do\n  case "$option" in\n    --run) RUN_COUNT=$((RUN_COUNT + 1)) ;;\n    --fast) REQUESTED_FAST=1; FAST_COUNT=$((FAST_COUNT + 1)) ;;\n    --backend-only) BACKEND_ONLY=1; SCOPE_COUNT=$((SCOPE_COUNT + 1)) ;;\n    --frontend-only) FRONTEND_ONLY=1; SCOPE_COUNT=$((SCOPE_COUNT + 1)) ;;\n    --print-plan) PRINT_PLAN=1; PRINT_COUNT=$((PRINT_COUNT + 1)) ;;\n    *) UNKNOWN_COUNT=$((UNKNOWN_COUNT + 1)) ;; # Full legacy still ignores non-mode arguments.\n  esac\ndone\nif [ "$SCOPE_COUNT" -gt 0 ] && {\n  [ "$SCOPE_COUNT" -ne 1 ] || [ "$RUN_COUNT" -ne 1 ] ||\n  [ "$FAST_COUNT" -gt 1 ] || [ "$PRINT_COUNT" -gt 1 ] || [ "$UNKNOWN_COUNT" -gt 0 ];\n}; then\n  printf \'Scoped Phase 2 requires exactly one --run and either --backend-only or --frontend-only; duplicate or unknown flags are refused.\\n\' >&2\n  exit 2\nfi\nif [ "$PRINT_COUNT" -gt 1 ]; then\n  printf \'Duplicate --print-plan is refused.\\n\' >&2\n  exit 2\nfi\n\nPHASE2_SCOPE="full"\nPHASE1_COMMAND="verify:engagement-phase-1"\nPHASE1_COMPLETE_MARKER="ENGAGEMENT_PHASE1_DB_FREE_COMPLETE"\nPHASE1_FAILED_MARKER="ENGAGEMENT_PHASE1_DB_FREE_FAILED"\nPHASE2_COMPLETE_MARKER="ENGAGEMENT_PHASE2_CODE_COMPLETE"\nPHASE2_SKIPS_MARKER="ENGAGEMENT_PHASE2_CODE_COMPLETE_WITH_SKIPS"\nPHASE2_FAILED_MARKER="ENGAGEMENT_PHASE2_CODE_INCOMPLETE"\nFRONTEND_HEADER_GUARD=1\nif [ "$BACKEND_ONLY" -eq 1 ]; then\n  FAST="$REQUESTED_FAST"\n  PHASE2_SCOPE="backend"\n  PHASE1_COMMAND="verify:engagement-phase-1:backend"\n  PHASE1_COMPLETE_MARKER="[engagement-phase1] BACKEND COMPLETE"\n  PHASE1_FAILED_MARKER="[engagement-phase1] BACKEND FAILED"\n  PHASE2_COMPLETE_MARKER="ENGAGEMENT_PHASE2_BACKEND_CODE_COMPLETE"\n  PHASE2_SKIPS_MARKER="ENGAGEMENT_PHASE2_BACKEND_CODE_COMPLETE_WITH_SKIPS"\n  PHASE2_FAILED_MARKER="ENGAGEMENT_PHASE2_BACKEND_CODE_INCOMPLETE"\n  FRONTEND_HEADER_GUARD=0\nfi\nif [ "$FRONTEND_ONLY" -eq 1 ]; then\n  PHASE2_SCOPE="frontend"\n  PHASE2_COMPLETE_MARKER="ENGAGEMENT_PHASE2_FRONTEND_CODE_COMPLETE"\n  PHASE2_FAILED_MARKER="ENGAGEMENT_PHASE2_FRONTEND_CODE_INCOMPLETE"\nfi\nif [ "$PRINT_PLAN" -eq 1 ]; then\n  if [ "$FRONTEND_ONLY" -eq 1 ]; then\n    printf \'{"scope":"frontend","phase1Command":null,"frontendCommand":["node","scripts/verify-engagement-web-no-preview-header.mjs"],"frontendHeaderGuard":1,"completeMarker":"%s","failedMarker":"%s"}\\n\' \\\n      "$PHASE2_COMPLETE_MARKER" "$PHASE2_FAILED_MARKER"\n    exit 0\n  fi\n  printf \'{"scope":"%s","fast":%s,"phase1Command":["pnpm","%s"],"phase1CompleteMarker":"%s","phase1FailedMarker":"%s","frontendHeaderGuard":%s,"completeMarker":"%s","skipsMarker":"%s","failedMarker":"%s"}\\n\' \\\n    "$PHASE2_SCOPE" "$FAST" "$PHASE1_COMMAND" "$PHASE1_COMPLETE_MARKER" \\\n    "$PHASE1_FAILED_MARKER" "$FRONTEND_HEADER_GUARD" "$PHASE2_COMPLETE_MARKER" \\\n    "$PHASE2_SKIPS_MARKER" "$PHASE2_FAILED_MARKER"\n  exit 0\nfi\n',
+    expected: /\$\(|`/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }

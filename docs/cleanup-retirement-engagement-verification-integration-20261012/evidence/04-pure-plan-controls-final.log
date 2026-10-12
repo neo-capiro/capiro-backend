@@ -1,0 +1,97 @@
+(node:430596) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/scripts/engagement-phase1-qualification-plan.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/api/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ full plans match the actual immutable current24-step oracle (92.978056ms)
+✔ current16target list and process/retry/heap/PNPM/scanner functions remain byte-exact (47.838753ms)
+✔ backend and frontend preserve every original step at the partition boundary (43.074339ms)
+✔ fake process failure stops the plan with the same current error/timing (48.866466ms)
+✔ plan forwards a supplied current target list without a stale internal catalog (0.371499ms)
+✔ explicit valid grammar --run (0.615217ms)
+✔ explicit valid grammar --run --backend-only (0.179202ms)
+✔ explicit valid grammar --frontend-only --run (0.204221ms)
+✔ refused grammar [] (0.42971ms)
+✔ refused grammar ["--backend-only"] (0.317264ms)
+✔ refused grammar ["--run","--run"] (0.147187ms)
+✔ refused grammar ["--run","--backend-only","--backend-only"] (0.077956ms)
+✔ refused grammar ["--run","--backend-only","--frontend-only"] (0.093331ms)
+✔ refused grammar ["--run","--help"] (0.049681ms)
+✔ refused grammar ["--run","unknown"] (0.042354ms)
+✔ refused grammar ["--run","--print-plan"] (0.042287ms)
+✔ distinct markers full (0.121293ms)
+✔ distinct markers backend-only (0.034048ms)
+✔ distinct markers frontend-only (0.037382ms)
+✔ unknown helper scope/result refused (0.177657ms)
+✔ actual full step array, whitespace resolver and scoped source context remain byte-exact (1.547566ms)
+✔ backend excludes exactly original direct Web steps and only browser control argv (3.042269ms)
+✔ frontend retains root scope/prototype controls and nested frontend aliases (0.497379ms)
+✔ fake executor preserves selected argv/options and failure stop order (1.409893ms)
+✔ strict Phase3 refusal [] (0.293566ms)
+✔ strict Phase3 refusal ["--backend-only"] (0.144217ms)
+✔ strict Phase3 refusal ["--run","--run"] (0.094927ms)
+✔ strict Phase3 refusal ["--run","--backend-only","--backend-only"] (0.199947ms)
+✔ strict Phase3 refusal ["--run","--backend-only","--frontend-only"] (0.148381ms)
+✔ strict Phase3 refusal ["--run","--help"] (0.313549ms)
+✔ strict Phase3 refusal ["--run","unknown"] (0.103804ms)
+✔ strict full/scoped grammar accepts exactly declared explicit intent (0.138481ms)
+✔ full Windows baseline deliberately keeps substring/COMPLETE precedence/nonzero-exit weakness (0.272321ms)
+✔ new scoped Windows exact selected receipt backend-only (0.301579ms)
+✔ new scoped Windows exact selected receipt frontend-only (0.131753ms)
+✔ phase3 scope markers do not claim full completion; full failure protocol remains unchanged (0.197284ms)
+✔ actual full Windows wrapper preserves original marker/teardown policy including failure weakness (17.821689ms)
+✔ actual scoped Windows wrapper refuses bad receipts backend-only (5.59776ms)
+✔ actual scoped Windows wrapper refuses bad receipts frontend-only (5.549306ms)
+✔ default plan retains the complete Phase1 command, markers and frontend header gate (11.413902ms)
+✔ explicit backend plan selects the root backend command and distinct result protocol (7.624766ms)
+✔ explicit frontend plan contains only the original header scan and no Phase1 command (4.781255ms)
+▶ conflicting explicit scopes refuse before startup or artifact writes
+  ✔ --backend-only --frontend-only --print-plan (7.702289ms)
+  ✔ --frontend-only --backend-only (6.019785ms)
+✔ conflicting explicit scopes refuse before startup or artifact writes (14.481416ms)
+✔ legacy first-argument fast mode retains full scope and frontend qualification (7.154699ms)
+✔ legacy full ignored-argument and first-argument fast policy stays unchanged (6.084087ms)
+▶ backend mode supports an explicit fast flag in either supported order
+  ✔ --fast --backend-only (6.896069ms)
+  ✔ --backend-only --fast (4.470825ms)
+✔ backend mode supports an explicit fast flag in either supported order (12.04132ms)
+✔ plan exits before repository, log directory, timeout and qualification startup (0.605075ms)
+✔ full strict marker gate still accepts a successful complete full verifier (12.234173ms)
+✔ backend strict marker gate accepts its exact bracketed marker as literal text (9.829431ms)
+▶ full and backend gates reject the opposite qualification marker
+  ✔ full rejects backend receipt (8.565356ms)
+  ✔ backend rejects full receipt (7.782526ms)
+✔ full and backend gates reject the opposite qualification marker (16.684132ms)
+▶ both modes reject COMPLETE followed by FAILED even when the process exits zero
+  ✔ full (10.734591ms)
+  ✔ backend (13.664855ms)
+✔ both modes reject COMPLETE followed by FAILED even when the process exits zero (24.760364ms)
+▶ both modes reject a completion marker followed by a failing process exit
+  ✔ full (7.809431ms)
+  ✔ backend (5.534338ms)
+✔ both modes reject a completion marker followed by a failing process exit (13.705873ms)
+✔ backend strict marker matching rejects a decorated completion line (8.855481ms)
+✔ a failed evidence tee cannot become a passing completion receipt (6.968916ms)
+▶ only backend mode skips the frontend header scan; default retains its exact command
+  ✔ full (4.747292ms)
+  ✔ backend (4.424218ms)
+✔ only backend mode skips the frontend header scan; default retains its exact command (9.932613ms)
+▶ frontend-only qualification executes exactly the original scan through a stubbed node
+  ✔ success (4.488821ms)
+  ✔ scan failure (3.829406ms)
+✔ frontend-only qualification executes exactly the original scan through a stubbed node (8.802648ms)
+✔ scoped strict argv refuses before work ["--backend-only"] (3.381016ms)
+✔ scoped strict argv refuses before work ["--frontend-only"] (3.969648ms)
+✔ scoped strict argv refuses before work ["--run","--run","--backend-only"] (5.688676ms)
+✔ scoped strict argv refuses before work ["--run","--backend-only","--backend-only"] (3.447839ms)
+✔ scoped strict argv refuses before work ["--run","--backend-only","--frontend-only"] (5.076243ms)
+✔ scoped strict argv refuses before work ["--run","--backend-only","unknown"] (3.18155ms)
+✔ scoped strict argv refuses before work ["--run","--backend-only","--fast","--fast"] (3.555989ms)
+✔ scoped strict argv refuses before work ["--run","--frontend-only","--print-plan","--print-plan"] (3.30625ms)
+ℹ tests 78
+ℹ suites 0
+ℹ pass 78
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 692.593396
