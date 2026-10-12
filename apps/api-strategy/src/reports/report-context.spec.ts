@@ -600,3 +600,69 @@ describe("isClientSafeContextFrontmatter", () => {
     ).toBe(false);
   });
 });
+
+// Fixed expectations come from the original 802 metadata behavior, not from
+// the candidate registry. Existing report tests above remain unchanged.
+describe("canonical report template metadata compatibility", () => {
+  it.each([
+    "00_context_manifest",
+    "07_current_plan",
+    "11_agent_mission",
+    "12_execution_playbook",
+    "13_agent_permissions",
+  ])("keeps client document/fact exclusions and internal fact visibility for %s", (templateKey) => {
+    const document = contextDocument({
+      templateKey,
+      facts: [{ id: "metadata-fact", fact: "An established authored statement.", sourceRef: "heading:Overview", authority: null, asOf: null, confidence: 0.5 }],
+    });
+    const client = assembleReportContext([document], "client", AS_OF);
+    const internal = assembleReportContext([document], "internal", AS_OF);
+    expect(client.documents).toEqual([]);
+    expect(client.facts).toEqual([]);
+    expect(client.excludedDocuments).toBe(1);
+    expect(internal.documents[0]!.highlightCount).toBe(0);
+    expect(internal.facts).toHaveLength(1);
+  });
+
+  it.each([
+    ["decision evidence deadline ask goal", "decisions"],
+    ["stakeholder deadline evidence", "stakeholders"],
+    ["deadline evidence constraint", "timing"],
+    ["evidence approval ask", "evidence"],
+    ["approval option goal", "constraints"],
+    ["option goal intelligence", "ask"],
+    ["success intelligence", "outcomes"],
+    ["current position", "intelligence"],
+    ["Overview", "situation"],
+  ])("preserves heading precedence for %s", (heading, key) => {
+    const report = assembleReportContext([contextDocument({
+      content: `---\n---\n## ${heading}\n- One authored statement.`, facts: [],
+    })], "internal", AS_OF);
+    expect(report.sections.map((section) => section.key)).toEqual([key]);
+  });
+
+  it("preserves output order, independent of the title-record insertion order", () => {
+    const headings = ["Overview", "Success", "Ask", "Stakeholder", "Constraint", "Deadline", "Decision", "Intelligence", "Evidence"];
+    const documents = [
+      contextDocument({ content: `---\n---\n${headings.map((heading, i) => `## ${heading}\n- Statement number ${i}.`).join("\n")}`, facts: [] }),
+      contextDocument({ id: "governance", templateKey: "14_target_budget_line", content: "---\n---\n- A governance statement.", facts: [] }),
+    ];
+    const report = assembleReportContext(documents, "internal", AS_OF);
+    expect(report.sections.map((section) => section.key)).toEqual([
+      "situation", "outcomes", "ask", "stakeholders", "constraints", "timing",
+      "decisions", "intelligence", "evidence", "governance",
+    ]);
+  });
+
+  it("preserves unknown-key title whitespace and governance fallback", () => {
+    const report = assembleReportContext([contextDocument({
+      templateKey: "00_fake__report", content: "---\n---\n- One authored statement.", facts: [],
+    })], "internal", AS_OF);
+    expect(report.sections[0]!.key).toBe("governance");
+    expect(report.sections[0]!.items[0]!.label).toBe("Fake  Report");
+  });
+
+  it.each([null, undefined, 12, {}, ["01_custom"]])("retains invalid template-key TypeError for %p", (templateKey) => {
+    expect(() => assembleReportContext([contextDocument({ templateKey: templateKey as unknown as string })], "internal", AS_OF)).toThrow(TypeError);
+  });
+});

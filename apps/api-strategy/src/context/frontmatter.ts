@@ -15,6 +15,11 @@
  * extraction / conflict detection) reuses them.
  */
 
+import {
+  DOCUMENT_TYPES as REGISTRY_DOCUMENT_TYPES,
+  TEMPLATE_KEY_BY_TYPE as REGISTRY_TEMPLATE_KEY_BY_TYPE,
+} from './template-registry.js';
+
 export interface FieldError {
   field: string;
   message: string;
@@ -34,47 +39,12 @@ export interface ParseResult {
 // ---------------------------------------------------------------------------
 
 /** The 17 known document types, in template-pack order (00..16). */
-export const DOCUMENT_TYPES = [
-  'context_manifest',
-  'strategy_brief',
-  'client_constraints',
-  'ask_and_options',
-  'stakeholder_map',
-  'calendar_and_deadlines',
-  'decision_rules',
-  'current_plan',
-  'evidence_register',
-  'meeting_intelligence',
-  'decision_log',
-  'agent_mission',
-  'execution_playbook',
-  'agent_permissions',
-  'target_budget_line',
-  'vendor_reference_pull',
-  'route_and_vehicle_status',
-] as const;
+export const DOCUMENT_TYPES = REGISTRY_DOCUMENT_TYPES;
 export type DocumentTypeValue = (typeof DOCUMENT_TYPES)[number];
 
 /** document_type -> SpContextDocument.templateKey (the NN_name file stem). */
-export const TEMPLATE_KEY_BY_TYPE: Readonly<Record<DocumentTypeValue, string>> = {
-  context_manifest: '00_context_manifest',
-  strategy_brief: '01_strategy_brief',
-  client_constraints: '02_client_constraints',
-  ask_and_options: '03_ask_and_options',
-  stakeholder_map: '04_stakeholder_map',
-  calendar_and_deadlines: '05_calendar_and_deadlines',
-  decision_rules: '06_decision_rules',
-  current_plan: '07_current_plan',
-  evidence_register: '08_evidence_register',
-  meeting_intelligence: '09_meeting_intelligence',
-  decision_log: '10_decision_log',
-  agent_mission: '11_agent_mission',
-  execution_playbook: '12_execution_playbook',
-  agent_permissions: '13_agent_permissions',
-  target_budget_line: '14_target_budget_line',
-  vendor_reference_pull: '15_vendor_reference_pull',
-  route_and_vehicle_status: '16_route_and_vehicle_status',
-};
+export const TEMPLATE_KEY_BY_TYPE: Readonly<Record<DocumentTypeValue, string>> =
+  REGISTRY_TEMPLATE_KEY_BY_TYPE;
 
 /** SpContextDocState mirror. */
 export const CONTEXT_STATES = ['draft', 'active', 'superseded', 'archived'] as const;

@@ -357,3 +357,46 @@ describe('validateFrontmatter — one test per vocabulary/consistency rule', () 
     ]);
   });
 });
+
+import * as frontmatterCompatibility from './frontmatter.js';
+import {
+  DOCUMENT_TYPES as REGISTRY_DOCUMENT_TYPES,
+  TEMPLATE_KEY_BY_TYPE as REGISTRY_TEMPLATE_KEY_BY_TYPE,
+} from './template-registry.js';
+
+describe('canonical template vocabulary compatibility', () => {
+  it('exports the same mutable tuple and plain map as the canonical owner', () => {
+    expect(DOCUMENT_TYPES).toBe(REGISTRY_DOCUMENT_TYPES);
+    expect(TEMPLATE_KEY_BY_TYPE).toBe(REGISTRY_TEMPLATE_KEY_BY_TYPE);
+    for (const name of ['DOCUMENT_TYPES', 'TEMPLATE_KEY_BY_TYPE']) {
+      const descriptor = Object.getOwnPropertyDescriptor(frontmatterCompatibility, name)!;
+      expect(descriptor).toEqual(expect.objectContaining({ writable: true, enumerable: true }));
+      expect(descriptor.get).toBeUndefined();
+    }
+    expect(Object.isFrozen(DOCUMENT_TYPES)).toBe(false);
+    expect(Object.isFrozen(TEMPLATE_KEY_BY_TYPE)).toBe(false);
+    expect(Object.getPrototypeOf(TEMPLATE_KEY_BY_TYPE)).toBe(Object.prototype);
+  });
+
+  it('keeps validation bound to the original shared tuple instance', () => {
+    const types = REGISTRY_DOCUMENT_TYPES as unknown as string[];
+    types.push('synthetic_registry_type');
+    try {
+      expect(validateFrontmatter(validFm({ document_type: 'synthetic_registry_type' }))).toEqual([]);
+    } finally {
+      expect(types.pop()).toBe('synthetic_registry_type');
+    }
+    expect(DOCUMENT_TYPES).toHaveLength(17);
+  });
+
+  it('retains ordinary writable map entries across both import paths', () => {
+    const map = REGISTRY_TEMPLATE_KEY_BY_TYPE as Record<string, string>;
+    const before = map.strategy_brief;
+    try {
+      map.strategy_brief = '01_synthetic_shared_reference';
+      expect(TEMPLATE_KEY_BY_TYPE.strategy_brief).toBe('01_synthetic_shared_reference');
+    } finally {
+      map.strategy_brief = before!;
+    }
+  });
+});
