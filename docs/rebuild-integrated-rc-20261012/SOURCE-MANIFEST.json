@@ -1,0 +1,980 @@
+{
+  "repository": "neo-capiro/capirov2",
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "acceptedImplementationSource": "11903f32f6257a47e42f49c1abe92c0e0fb0e4fb",
+  "acceptedImplementationTree": "b10a7ed7e2e19d371ad46bfc2a6b57efdbaa997c",
+  "scope": "All changed non-docs Git blobs versus main, including tests/build sources/guard scripts. Documentation and evidence added later must not change these bytes.",
+  "files": [
+    {
+      "path": "apps/api-strategy/Dockerfile",
+      "gitBlob": "317fdeb1d486b1b835d8205b4830f10948d622d2",
+      "sha256": "c84f0f0d0c3f2b3d122cade5ead25ccdfb4450978c8b56dc30dfa27f13766b90"
+    },
+    {
+      "path": "apps/api-strategy/package.json",
+      "gitBlob": "c6d489d2ef1f19dde1f9b7c4a10832f5bd97d297",
+      "sha256": "fe69ac2da5d8c871ad73b927934a6f74d0a094428e486e855b4a61229fb4393c"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-command-scope.spec.ts",
+      "gitBlob": "e02a10c942c7f9ba45f3ba02f599084e0e7abde9",
+      "sha256": "7615c738f744a134843a6ce9adaea1a110d6e701d046c6f0e5ce94673d2c633f"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-command-scope.ts",
+      "gitBlob": "0b387a531e845e2e3953c5761841e8b29d0d5954",
+      "sha256": "c9cf6e9530803450d9584b8b161ebb66adce396956d3032c022fd24f827aeb42"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts",
+      "gitBlob": "0dac882286b987eca957f13900f510020ab9589b",
+      "sha256": "5119491b83419f80f228607437a61bf96d70e4342dcec4b594266e2bf992190c"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-task-create-command.spec.ts",
+      "gitBlob": "cf104878051fea4b5e177eb8172cca01f3a7bf2e",
+      "sha256": "26afa09477069efb0436c0f5fd37abb9f103db2e32295cbc7b83301cfc15c889"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-task-create-command.ts",
+      "gitBlob": "293ecddb044c27dc7c9d8de5eae78ee7e88960bd",
+      "sha256": "d67c2be5b167ac99669f9d4288aadd7f76f13facc2bdc0445200f74abd72d200"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.controller.ts",
+      "gitBlob": "182e6ccf4af1b70f7902cd5b812f6b2b06413bda",
+      "sha256": "306e9ad090fa3039cf3ae05fc64994ed8418e3c3b9fdb2b314e68a363f2b3c99"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.http.spec.ts",
+      "gitBlob": "c423faa8dd0e5482d60c8399bd0b32e3fdfb27f0",
+      "sha256": "5b0f6f951945d3efca0f09d91c6afd32a133a875453ebaab142035206ba56bf5"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.service.ts",
+      "gitBlob": "211a3bf1819180d7246179c73378f4c8a95d62b8",
+      "sha256": "42b0b2c9e08b01e73907248176117fa23d1cb26d219a30e2025be3750f8393bb"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/objective-destination.controller.spec.ts",
+      "gitBlob": "e2945aa814577bb4ffcb9bee888035ff42803563",
+      "sha256": "751594554fb8c3e98d25a0cc30f4ac773179331595d3271b94dcfc9f8cc1f2e9"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/objective-destination.service.spec.ts",
+      "gitBlob": "d74e8210194dd9e4c3463fe63c000755f4f9d38d",
+      "sha256": "0109022eb8b9d2c35bed3a1775c14f8dab8def4aebde4662d0bde989da313823"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/objective-destination.ts",
+      "gitBlob": "c6c0e635a868aa862e4097f2d15d945b18b16b1b",
+      "sha256": "d8cfc6a767e6d79563b581e57c8fb0806c7a3472f2d28a9421234589f8bda981"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/strategy.controller.ts",
+      "gitBlob": "c2d99378e71830d2a9c46a098e4bea004690212a",
+      "sha256": "f4291ce94b3ef1288f16ccb48b1281f9a25690dc040898f27976836b3087e8df"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/strategy.service.ts",
+      "gitBlob": "2993392d376ca298780b6dedfb5fc48664c1faea",
+      "sha256": "74023c6cd31305078dcad0798c7098368f912a83f56ced3d23332b373eea42b1"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+      "gitBlob": "3c3bb03b6a237d8d779307cb8737aa88bb490c97",
+      "sha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011020000_portfolio_prospect_stages/migration.sql",
+      "gitBlob": "7048874032f7a8ed079ab0aafee4804b1c97943b",
+      "sha256": "fc3aeb539b0e75f2c1024346eb9b745ee185474e5ba4ed8ea3ff9a02da932f78"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011030000_prospect_contacts/migration.sql",
+      "gitBlob": "bd6a4ad9b077afb0ef7cf96df30438e4cf49f02f",
+      "sha256": "473e30271d7f851582a5c74e201ce40b7b7dcb411ca5597fda9088b4c341d20d"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012010000_client_activity_commands/migration.sql",
+      "gitBlob": "4248a97787b6a6546f02b4e183141679338b7638",
+      "sha256": "4cd0fe0832a878c4c979ed6399037c3a32d29bde54929100bf7856916c656892"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
+      "gitBlob": "fc61f8599f8056ca9cc438bb36a5320d28b581e3",
+      "sha256": "ae7f4d3dd629854f450af63b006fbb173c0ff22b3f05f0add9e65df50393f8c4"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+      "gitBlob": "47c72925bc0b2b76a71e69f29bfafb2ad57830bc",
+      "sha256": "0441a93ecd2c33bc86100e80aa13fbddf9e842da07c7d1bfd54037ada35f8052"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+      "gitBlob": "a4b2b546398f50938f6f39f5c014ca5bf827c968",
+      "sha256": "8b6ca68bb4a7b56a553e3a4a7baf009eae05d58a70b2d1fd610c06fe318015f5"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "gitBlob": "ab07167f8f703c0dca17a43812ea7413a53610d4",
+      "sha256": "d79006f5a5d24a64ea605e7d04ab8b69d1ced0c42292b7406564d71feadc8afa"
+    },
+    {
+      "path": "apps/api/scripts/geocode-facilities.ts",
+      "gitBlob": "d28a8cc5062596469b34218749c12f5ff005a701",
+      "sha256": "07f8eb734dce8cc445768ce01f934eb60818d8f85320e9291c51b6425958ee23"
+    },
+    {
+      "path": "apps/api/scripts/sync-federal-register.ts",
+      "gitBlob": "697fea28df42abe0dfd9f2d088a5a9cea8631770",
+      "sha256": "a546bf27a5099371404e83b1797abbf9749df523ad04f0712e91312edf022afa"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.controller.roles.spec.ts",
+      "gitBlob": "0b1673328b77570c351405e9c3e7529c3a5ae91f",
+      "sha256": "7cc76e6e0eacfd58da55e5d2fa5c8da745b258a5004dea036ffa4d67b07b3908"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.controller.ts",
+      "gitBlob": "64c47c6c6bf75b05779c89bba0b6065c2ead684f",
+      "sha256": "cf49b8fa4f00dab39a04d4084d28152967177f2c1e548c989e747a052c94c787"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.dto.ts",
+      "gitBlob": "3e925c60401ceb6c4616359e642ef1fc389bec54",
+      "sha256": "ee097c345c2304fc99ccf57e0a33ffa8c0c526a5e9b2caae27c94f177212422c"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.module.ts",
+      "gitBlob": "5b96b2c5eabc64d4755107669f7889ba4f9dd379",
+      "sha256": "da067a87965c970c9c23b879b27609c0f6a9deb62184a734cf613426361b853c"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.service.spec.ts",
+      "gitBlob": "9b0e51aa82fff51138e0e34910a998a8073a37e6",
+      "sha256": "031298f772698eb4914250bd09438eb70510dd0231a922aa2e45681ca0b3496b"
+    },
+    {
+      "path": "apps/api/src/business-development/business-development.service.ts",
+      "gitBlob": "ac30a777bc2aa6b91f5d59b824fd2673817fadba",
+      "sha256": "937537b9995643a755ef0df6c8e57c7f0f259978fed71e7c5997f1a0aff07d97"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.controller.ts",
+      "gitBlob": "c7d4dbdb6c3023d4d6c176cda676225105033d19",
+      "sha256": "783443efe9ff1ebf464d016a9fe5149921896d8313f8a60d5a14af5021fed0cf"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.dto.ts",
+      "gitBlob": "fd5a1b106f5b6f99a96cab45f54fd0367ee558a1",
+      "sha256": "2617466483a85fca11f66a1a7453a37669343d45a4a629407a4151eebf76f941"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts",
+      "gitBlob": "abd3fd804b852be0ccafed34351d16604eedaebd",
+      "sha256": "a0913966dae7a5e8bc3da5f8d967de6d41e6c0e47cec0a68bbe5bbd2fb7514e5"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.module.ts",
+      "gitBlob": "1db1f11dc0eef2eb05782278a5715d9d1257e4da",
+      "sha256": "455db1507e0f0a0c23d84c69aa6b3b81472a09d884c6bd381936149de8146dcc"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.pg.spec.ts",
+      "gitBlob": "c72bb50b7604d390d2b46c17ced6e9f5e58609ca",
+      "sha256": "8b94bb7555ff7c11b05200b00e53fd4513837b624ee28ce37c6e62cb99331a2a"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.service.ts",
+      "gitBlob": "b90a37b8ce9fe83fb1a68a4f99aa14fdd9ac80e4",
+      "sha256": "477d44c09580daa1f9cda8db119552d7cfed59bd1bd6f2cfc2b6bb174f7a199b"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-contacts/prospect-contacts.store.ts",
+      "gitBlob": "af8b3b5d582a1825495adaf1a64b6ea58a83b782",
+      "sha256": "1558a591527fbabf61f21884668be1b5371e867661434747713851af5328bc94"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-stages.spec.ts",
+      "gitBlob": "972c5909816aa0a3f2bbd15da7193391854a74f5",
+      "sha256": "4b06f39374b4c53f6b4ed2b33c5872d404851ea74d76634202d9b12f63fc6d81"
+    },
+    {
+      "path": "apps/api/src/business-development/prospect-stages.ts",
+      "gitBlob": "bf427fe32dc4c9eba033fb2baff495fafe7865c3",
+      "sha256": "e2b34f552364c887480391d6ce0b4c9bf8ae82d468f376bb3214bffc386536a5"
+    },
+    {
+      "path": "apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts",
+      "gitBlob": "4b18cf85d4627b6b8068fbab5b62874674b08578",
+      "sha256": "3c272f718495a707d5ec9532bc768831371a935b084a8559a2609bf8ce6ec11f"
+    },
+    {
+      "path": "apps/api/src/capabilities/context/outreach-context-reference.service.ts",
+      "gitBlob": "cfad001a025ad081126f4c5fe7262bd5b4846209",
+      "sha256": "0d56ba1130545f7372c4cca294714962ec439e669c6d879f004e1f70989e17b4"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.access.ts",
+      "gitBlob": "e46d31e8f74bfd68b6a781ef4adf2af822b70633",
+      "sha256": "980128d812d15a0ba623d2d983c71ed8be61ddfd53cc7a90b124cb2e3e30161c"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.additional-review.spec.ts",
+      "gitBlob": "1f511035a985174c06ea3a0b0b6ea774a3848bf5",
+      "sha256": "5a020a86dc14dfe471b204968bda5f2708b019d25acdb9076173cf3b592fe359"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.controller.ts",
+      "gitBlob": "fa3846047b043c148253c115b55b253e118daec8",
+      "sha256": "af26d2175ebbe8da846ae3072e8e6addad2def441aa4e206d9503cb15584b07f"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.http.spec.ts",
+      "gitBlob": "d03acd4a980258a958fadfb74c4df075ffcefab6",
+      "sha256": "daf434c9911520a609690d0d8931569d93ee94bfd55d06e71b54517b2742e349"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.independent-review.spec.ts",
+      "gitBlob": "1d87cfb3e5055a764e0d4504c5347d7eccbaea18",
+      "sha256": "fa23d32aebdde7cb513922e0eac0194a4e0bebe7dbea6aa0beb2e612d1badd56"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.input.spec.ts",
+      "gitBlob": "19fb9ee1b391179c70e7b4a4c79a5cc77f216589",
+      "sha256": "a2e91339ad04c6b74ff9ba88e0795373fac6c8e7e2bed831dcef453a2f9b4a92"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.input.ts",
+      "gitBlob": "2be87c7018ec4b06a1a1038b4f12f9d834d73c8f",
+      "sha256": "d1b1c484e6a79383dbaa19a0c50422773886b5a3ab9e046921942bcf36de2db1"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.planner.spec.ts",
+      "gitBlob": "8c7686bfe88d48529d7c4412ecdb7becc1462310",
+      "sha256": "f5a9e42b249d1557d0bf3cc4452b13efa48d2fd00924c16bff8b084110bcdb29"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.planner.ts",
+      "gitBlob": "58235e55c1fa31604152f2d6d7f0f743d0742408",
+      "sha256": "dedeed02b27e93bf5935d5dda4e2ead0d2935bc5f5a80db48cd53e1ae25f12b7"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.service.spec.ts",
+      "gitBlob": "c3e7d3942c567971fb34af3c3daf303e55a1756e",
+      "sha256": "aa276b5935054297619334d39b6886fe78a62b197f4778174bb19890c9395c8b"
+    },
+    {
+      "path": "apps/api/src/clients/activity-commands/activity-command.service.ts",
+      "gitBlob": "e5f71b52f9e2cf4adfd55b8f6f5f21aa21bd4810",
+      "sha256": "04ae49271fb9b1749f112e92b57188a86e5f0a9f21c5b0f331a1a106989824c0"
+    },
+    {
+      "path": "apps/api/src/clients/client-account-owner.service.spec.ts",
+      "gitBlob": "3bfe744882231ce9f8680eb3d79ec9b9f7fafd6d",
+      "sha256": "6994fff71ec9d9e6207cbbe66d988bb9c1dd6efec390ca0bcf4abe47c3c8e0cb"
+    },
+    {
+      "path": "apps/api/src/clients/client-account-owner.service.ts",
+      "gitBlob": "80543c87f0a2426c55a854153fc07528a5f90312",
+      "sha256": "2e60c2fc12424f12b77f5d27fa7c6889a21ac62bc1c57f86601a228349d7da32"
+    },
+    {
+      "path": "apps/api/src/clients/client-activity.service.spec.ts",
+      "gitBlob": "4be6afb3a89a31c9ded52753f86df45f540543df",
+      "sha256": "01a4eae933d2f2ec8ef4c102a48fc422bb6ff1e0495c92945d60fb970bcc2138"
+    },
+    {
+      "path": "apps/api/src/clients/client-activity.service.ts",
+      "gitBlob": "84d0adc9786f4a63d1074c048319d54d5554031c",
+      "sha256": "799ba0cea21195d432789d6f86f079a38f2d1bfac27d34621848b32e173f788f"
+    },
+    {
+      "path": "apps/api/src/clients/client-activity.wall.spec.ts",
+      "gitBlob": "de5da41cb4e9ec98392318db1430530eb6527a43",
+      "sha256": "b89547152ebb31ec8509aa8a46d2307becf21f3d999b23fe59f53266d7abfe72"
+    },
+    {
+      "path": "apps/api/src/clients/client-facilities.controller.ts",
+      "gitBlob": "e2766f659ed6fb7121b95239475850f168977f85",
+      "sha256": "560bf11f25fcf8997b8ba34c91cb1785d3c19c9629fde4cce88d1fd5f5b8545d"
+    },
+    {
+      "path": "apps/api/src/clients/client-facilities.service.spec.ts",
+      "gitBlob": "d3ccc19fa07adce4d9bc65b98d978e2242709a73",
+      "sha256": "0604a87e71664ec2b6316b5dbe9307fa7b88bad68295945ce20bef72363893c6"
+    },
+    {
+      "path": "apps/api/src/clients/client-facilities.service.ts",
+      "gitBlob": "db96a02371ac4d55ca61639d96f77e6232613a7c",
+      "sha256": "1a5b457582feb16fa89c8b7ca13813aa80e7a418b484e165c3d7f5e609f07180"
+    },
+    {
+      "path": "apps/api/src/clients/client-files.controller.ts",
+      "gitBlob": "a4b499084ff6b6392d55cc24a893a253bd0647b5",
+      "sha256": "9b983bc5ecbf7810ebf054c3e55c6d6343220eb7f3832057469e0c21da8dcfa2"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.access.ts",
+      "gitBlob": "c4e7961441e946270f941213abd87b12c1a6db89",
+      "sha256": "bfb22b8cd059ac85fce15550e4eaed900ded23a03c670967420678c4da3b1bd3"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.controller.ts",
+      "gitBlob": "39ea1ca92655e14f0a53e8a7a9025003c0314863",
+      "sha256": "dbd9e3f21beb9939a122bc596d753ab3f81199353e70bd4cbf3ccbb33d8a571c"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.http.spec.ts",
+      "gitBlob": "accccdcc31d8a196ddaec6b3f06761076e2e23fc",
+      "sha256": "2cf533aed9126d88c58484ad4e83af390b8275133233e5391d605ec8907be23e"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.independent.spec.ts",
+      "gitBlob": "50ed560a83937c102e52932c5317bb34326b27dd",
+      "sha256": "86c4abf7213edd4979815aef04b69eb501859b7b18c4de2f0a27333a38b11514"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.spec.ts",
+      "gitBlob": "5b3820b97abee5dda53ea273a3ec6ada7002cbbb",
+      "sha256": "329bc12b3c02b43bdf76076310c47d7cd504ef1b02a4f15e0da0665b5aab4611"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.service.ts",
+      "gitBlob": "f61bb6a9ecc2b37a47d4e25196f63edda08aceac",
+      "sha256": "9c1e0a2c820c536ef0398b901474d7a406211649ab9c5e3e97eaf46892104431"
+    },
+    {
+      "path": "apps/api/src/clients/client-ordered-owner.test-support.ts",
+      "gitBlob": "fa6ef84aa8d1587d834cec72874dd1d013b7254b",
+      "sha256": "745a2dba5c5d471393ccac698f17cd751131004ea4145c5ccda6e1bb9eb95cd9"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-workflow.service.ts",
+      "gitBlob": "d6c8298abfa75c98315fa9647929f2efc768d272",
+      "sha256": "57556ca4f22eae6355a4b2a89047eaf28f30ee050d935791f17c24776fb902fa"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill.service.ts",
+      "gitBlob": "55d68b3224e2405876b6e7001222885ffcda03bc",
+      "sha256": "1568f114a70a9dfa30464ccb75c5f67a0b986325e9a4680e4641cea8f16950c5"
+    },
+    {
+      "path": "apps/api/src/clients/client-team.service.spec.ts",
+      "gitBlob": "65e3d57fe85dcb3c1645d74be0a468fe86c10c68",
+      "sha256": "1bdfe1134bd72d35ad358aab5ecbfc4899da15cbee555c6ba8e585e91ff34f45"
+    },
+    {
+      "path": "apps/api/src/clients/client-team.service.ts",
+      "gitBlob": "e2008d913887c3cfb0f4cc1ca1151fc65ed51b09",
+      "sha256": "05be820665bb2877c3f78d1d4276ff04ee77ec3a5c5b87b79e5d88584e799e2c"
+    },
+    {
+      "path": "apps/api/src/clients/clients.module.ts",
+      "gitBlob": "f34b141a8101cece76c3765ed5d7d340334c5d98",
+      "sha256": "c639d9761e25021321cbf963d0aa87968b4d4cada19c7c62814480a83e62b674"
+    },
+    {
+      "path": "apps/api/src/clients/facility-geocode-candidate-cas.spec.ts",
+      "gitBlob": "97c2eeae0aa5cf84e0a820a16695e7766ca098ef",
+      "sha256": "cffaf60f4741f1165207abffcd632e4233fa28af511cbae03f54b5e68695f19e"
+    },
+    {
+      "path": "apps/api/src/clients/facility-geocode-candidate-revision.ts",
+      "gitBlob": "0d70659f7f824596791901abfe1339584b55c40f",
+      "sha256": "2935b94bd28f57374337010fe51045f5aabf0096ba551f1dcce996b568c9abeb"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.privileges.spec.ts",
+      "gitBlob": "c01ee3cbf26986dd44c2b03dbfe4b80447c59b45",
+      "sha256": "01a6e4aaf88febb41367f2b14b9eb89501a1aec3e5d12baaf0cbda85206b28d1"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.shared.spec.ts",
+      "gitBlob": "6451534513cf1283942b925cde02a700b50c5715",
+      "sha256": "cc18b485740195529a87366b916a8e029eb70bddbdc7658ee504f1c0e20bc142"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.spec.ts",
+      "gitBlob": "bb1b59d9a5bb5104890a59dd060154f04c8a1724",
+      "sha256": "b0e6da10d4097afb97ffa8800240b954947475f1590152947ab07bdae5b4a4bd"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-destination.ts",
+      "gitBlob": "8fe1096621c7caa41bfc84284510e536b9957204",
+      "sha256": "98e7f4a62e0bf45fc2c5cb3a816bcde805d0140aa609910169d900db5f6bd2d0"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-rules.spec.ts",
+      "gitBlob": "2feac26b819b53fd908554788dbecdc5eb9f04b0",
+      "sha256": "9d3ae7664a810b0e0b69a9714e5eae8efbbe01ca80f553d90bca3f8a86e78f00"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective-rules.ts",
+      "gitBlob": "1bcf7f6e871bb90022ae4b60b90b9acaf9eaf82e",
+      "sha256": "f1607e7ac086c3d999c1ae27198ea4411730827470f82363968b2d99acaa8b8b"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objective.dto.ts",
+      "gitBlob": "7df26dd269f79b3f8c70077b4619610306f3450f",
+      "sha256": "1013352f964c133cd25adf1abb4828074e726aec46137ef757b442748ae4d9ce"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+      "gitBlob": "938f1c7cb64041f0f672d419a3b012a73da68df0",
+      "sha256": "6a63a9fea4121b5f76c547d11e39346c54e4f6053252b9e94fa1cc79b09f8fa2"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+      "gitBlob": "44d3a6cc40fab1e36cb930c92b8edeb8518adde9",
+      "sha256": "a1b99723c2e329066052732ede6f9e2d40593863db10e8c00f69c22a44465c6e"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.controller.ts",
+      "gitBlob": "164ed9499affe58530415f8dc37009329c7201f7",
+      "sha256": "fabadba336a195c6b99a8befcf2fa8635dd61ceb584e79f5fd93aa25c7da0fc9"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.module.ts",
+      "gitBlob": "cf2cd536c8d14958861416d51d2811bfe11d562a",
+      "sha256": "d8585db9ee0fff4fef840faaf5b0d3c5c72778781f8e333dbae89afa0404c2e5"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "gitBlob": "51f7da0274f308a5432140313f0ae4a5933337d0",
+      "sha256": "a914270fa8af83b255c11b2f1781c0db45429b2d37fdf4dc67eadeba3d5f4dd6"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.spec.ts",
+      "gitBlob": "9bf217e53d4928f92d6f37d202849f5b34777d5a",
+      "sha256": "034dab78634675d4c895318704ecbbd389894d2df45ea741371c6ca0e4060b04"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.service.ts",
+      "gitBlob": "cffc4601583c5a0889b0900352a7609635167dea",
+      "sha256": "8603d31c16d9c3e4a2641b2be4d2f98f013ae69762b5703abcb572e4851f3a57"
+    },
+    {
+      "path": "apps/api/src/common/tenant-flags.ts",
+      "gitBlob": "e94ebfb84f942d6b31118ce575d3a7ee89b44a1d",
+      "sha256": "9a78b70d147496aadd94dfd7e11eb87f4e9300553670297987bead550de337a9"
+    },
+    {
+      "path": "apps/api/src/embeddings/client-kb-access.spec.ts",
+      "gitBlob": "4ab774234695caaee3249dc3efabb7c950613f2a",
+      "sha256": "6e3dcc2717aa74b44f88f18e718a3d4537d617386b86db6e4057e035428a1987"
+    },
+    {
+      "path": "apps/api/src/embeddings/client-kb.service.ts",
+      "gitBlob": "50e96f82b3f7d57e120ad8c6b1b149c076be94f0",
+      "sha256": "a8db0033b3087ecdc1d7f232aaf58f8f2273b32890fac20c1ec4d2407c0308f2"
+    },
+    {
+      "path": "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+      "gitBlob": "40cddf3a635516074cb245093393edf2665e3391",
+      "sha256": "390f1f6819af5dc8e3059721ab961571be3815f48b75f69e6d46e51bcc0e1d74"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+      "gitBlob": "c54239b2816926b9ba50a059330867e1a044c246",
+      "sha256": "9d7a45ad7ac5a1060c239459ae9a89e38fea0bca05b1143f8df267226b9fae15"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+      "gitBlob": "a1fb911614e9b854b1625bd2be32027a01fca964",
+      "sha256": "ee10f7aa6f58309424eecced64cc0fb5fc2b7d8d15039dbab494cb57803c512f"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+      "gitBlob": "2a0f173fe510f3273fffb5f0de133f3a984e65c8",
+      "sha256": "806f61aca4e7e42d3f5579700493ba423df027e457ff9dfd5f49017530c67cd0"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts",
+      "gitBlob": "471eaedee9dbfb8b419bad36c465ce2e33f77643",
+      "sha256": "6d6683e0b367ce4d44c7033a8b5fb5bce6650d464365ba053bf9382c4e69aeed"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/prospect-attachment-access.ts",
+      "gitBlob": "3b6794388e94d165d685b8670514e20a18603c50",
+      "sha256": "1df9f4cdfdff45742a758f087c73f191b3ac7c687d15576e978d7c811c5f12ab"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/prospect-independent-review.spec.ts",
+      "gitBlob": "11d96f72986b2f7edbe06f270987fb69ca7b15f9",
+      "sha256": "78b99b0e68a9d9e9c15737c654f4d3965284a0f3048a1deddccaed8f13e888b6"
+    },
+    {
+      "path": "apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts",
+      "gitBlob": "317631c53b9f26f0d1592bd773bf649eee1d1761",
+      "sha256": "1b8fadda90b92832ec552fccf0f58e52f859cbc53c3d63d5aebf8b82c2b1b162"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-document-read.spec.ts",
+      "gitBlob": "ba8fa5298d1989b5d30858efad6e7cd757660af6",
+      "sha256": "c06485a9f3052217cf0abdecbcc859bae143c15b4eb450fdd15dcda78a6ad989"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+      "gitBlob": "61f8f1ccea720a4510729b32cba993baf9305073",
+      "sha256": "f368a7755e1c0dc7d9d01ecde0d9406bd7039349308ea4b1e851f90ba666bf0a"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement-send-thread-key.spec.ts",
+      "gitBlob": "5104b8623b0603c1350b3319305232ffee55943a",
+      "sha256": "bf861dded75acca68ee251e85fbaf3f8915712c93808237116258720f19ad97b"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.controller.ts",
+      "gitBlob": "7b1f1482687ed43fb1084c51b135a255a7d104af",
+      "sha256": "9e4cb0008290eb3afaac654dc0f15909f16c88e4db28149971f6790737dccdae"
+    },
+    {
+      "path": "apps/api/src/engagement/engagement.service.ts",
+      "gitBlob": "6eb8259f7eb77f64c6ab41d403480ac1ea3f1e82",
+      "sha256": "78770fac56ac51c3af48674d07ea6b735490785dd73684265e54e861958cd3f9"
+    },
+    {
+      "path": "apps/api/src/engagement/generation/evidence-source.service.ts",
+      "gitBlob": "02f909fbb7dfa399ba681292793ebfbc58b23bff",
+      "sha256": "780469219325881b8d112afedade22b1b09ba544c7e516f48a1d4a52d36c4c2c"
+    },
+    {
+      "path": "apps/api/src/engagement/independent-sender-review.spec.ts",
+      "gitBlob": "16253b0c1b313d41cd3dd5e3301cb93271e4f2e5",
+      "sha256": "22e76df24c014c0b3bf392a16c0f53ddc8d30dddfad4b678cf16b51cbc6d9c50"
+    },
+    {
+      "path": "apps/api/src/engagement/mailbox-selection.controller.spec.ts",
+      "gitBlob": "77ae04c5846e61a5c664dcc2cefdf39761035c1c",
+      "sha256": "2a0ff0ee13db5744985950cc9f124fe2ecdc127102b57abd7d7a5567d4c1344f"
+    },
+    {
+      "path": "apps/api/src/engagement/mailbox-selection.spec.ts",
+      "gitBlob": "f4eca9f0d762648f6ec4dcd4015b2a78c1f79cff",
+      "sha256": "89e58365fe090ff179d71b5fea9c46001b22ba131a13ae1456249201a396f566"
+    },
+    {
+      "path": "apps/api/src/engagement/mailbox-selection.ts",
+      "gitBlob": "d7973f991a95fc8acdb0563e2a9aaf011e671de4",
+      "sha256": "632108ad973ed811f0ff5bce59a71bd5fa26f7ffe90441cd635b42828d8534ca"
+    },
+    {
+      "path": "apps/api/src/engagement/outreach-send-intent.service.ts",
+      "gitBlob": "32ebbfec70419663b8dabb4a63eec8698680523e",
+      "sha256": "aaf1d5c04d0b03dc4a74c70946823d5a20bb8945c196ced13457deb58bfcf485"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-checkpoint-independent-review.spec.ts",
+      "gitBlob": "89340848dae27655a0436dff4eda64c276e4c5fb",
+      "sha256": "d1e29f03928029e562e6aefe6162d0a0819ed847efa8e09a7573cc37c610aa43"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-date-evidence.spec.ts",
+      "gitBlob": "f5ac05cceec6055b8a95b347e68c388be0021987",
+      "sha256": "6e67db33140de9ddfa2b5713eb9b29a2c5527f285bebd675844598a2f52c1e8c"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-date-evidence.ts",
+      "gitBlob": "47921754eddea52d351208bfbe3eb2628661e0c8",
+      "sha256": "a096290eb51c61949ebec5881444fe3cb905d08360d4ebc5ada7aeb23b2d51f2"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
+      "gitBlob": "169b92fe0a8b50e85762008574492c944b66b93b",
+      "sha256": "55ddcf413fa3e4008aaf1561a06b2941ae0d87ee3c5661e0bd3bef4b4c710b85"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-lifecycle-integration.spec.ts",
+      "gitBlob": "7998952f01a206f65e17a27b426687e7ad1c03f1",
+      "sha256": "5d535342fe7492ed96ad4702d3da8f8a8f8e85f0460500492126b61f52c4f30f"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-script-independent-review.spec.ts",
+      "gitBlob": "8f83740672d20398e4f8225a60c616f47a96a153",
+      "sha256": "e524b2d1183ff098ac0095a117e5dc3e7700b253e2f560dc94f1c7c7f85b24dc"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-calendar.spec.ts",
+      "gitBlob": "2e4dfe26024dafed7bde7c01c478b9a28da39d34",
+      "sha256": "c11cb3152df0bd98fb3e9dbaa9876135f7f98e83ca75e6dad050a30d79992aeb"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-observation.spec.ts",
+      "gitBlob": "38e2f35da148d1fe654d362cfb6388e895478baf",
+      "sha256": "b3fd6f8287df793d6bea83b45d683ab3d014cf6bc067c5bb1578ff1678cbeb45"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register-observation.ts",
+      "gitBlob": "162c9f7a101fba26994751b64a0ba6b26bcd4a89",
+      "sha256": "75693ec3a30fe4be73ebc864981553ad4d3724a53705921225ff2ee3bd563d34"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.controller.ts",
+      "gitBlob": "0eeaaa8a3fcd5521ff64bcba7f74c953db55cdf7",
+      "sha256": "20474e7e025decb888f841e3f69f65141145c8915b88157dde865353be6bbcbf"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.service.ts",
+      "gitBlob": "c8e0e71655b1069b06fd3dda52c417c4fc06f566",
+      "sha256": "162fd15142de696fe9036776077c48964089e695979311efa81a474b288cef92"
+    },
+    {
+      "path": "apps/api/src/ingestion/embed-watermark.ts",
+      "gitBlob": "ef7adbb17953f0df1be2a07a6d3e552320af5dc9",
+      "sha256": "80ee29afe9b4b478b570d206199992ebcc12f2be1d520d0114ec72d8d1e50c77"
+    },
+    {
+      "path": "apps/api/src/ingestion/sync-run.helper.ts",
+      "gitBlob": "7e29cb88b966755e5e3706f70540d1feed04efe3",
+      "sha256": "90bccac08a061a68f5b23503ce3f6867677ccc31b5552c20a90ab869ee63e7cd"
+    },
+    {
+      "path": "apps/api/src/memory/memory-candidate-rules.spec.ts",
+      "gitBlob": "9ff655906de35b20447790b0cdae4280028eb9cb",
+      "sha256": "43439d4f6935f0cc49f2fe074076baa3328f586b7d5a56c3ae259b57c7e0eb93"
+    },
+    {
+      "path": "apps/api/src/memory/memory-candidate-rules.ts",
+      "gitBlob": "f009e66c609046cd4fa26d1d839f9805524d8d85",
+      "sha256": "8d6905d7eec73a6a9ddc7e8967873b3bd4c4f06975140aa4385045f034cc7483"
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "gitBlob": "ebddafd1bd32a56c0c57326ce77f5db3b934d1cc",
+      "sha256": "1d743fa317405b17e6f0f5e96fdcb218466902536861fdc16cc7924c56025e2e"
+    },
+    {
+      "path": "apps/api/src/meri/meri-job-deliverables.service.ts",
+      "gitBlob": "4d72c2cca8b8f0305ceb7e27c40ab2f20f080a57",
+      "sha256": "fbc1550b4684bd3683a0f287f8fd27792c94e0eadb3d88a0d7aa932354969ec5"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.memory-approval-wording.spec.ts",
+      "gitBlob": "d2f254faf765f5e6661074ec2dea68c3ff26e896",
+      "sha256": "a3fa6193e6cf4a0f78ce0bf2a0d8eb9cb66bd575489dc7fcfb1bac6c6038d8ad"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "gitBlob": "c4cc8ee7623c94b733650e9031d8b8e29388a3a1",
+      "sha256": "ffba9eac10be1154eb52e3537689ad23b8b89a85614b7b28c9737f079a06b328"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+      "gitBlob": "dcc1a215744cf684e6a14ddb848c16c01ee1bc29",
+      "sha256": "47786180f38c8db253544d624f68b7a042f754d823e16f9c2d41e4d9c3ee9536"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts",
+      "gitBlob": "77fe877f2b32b4434e01f23727ffc01631b11b52",
+      "sha256": "8abdb077617c74c9257ebd76e29893c63fbda6678f36cd7c7336fdcf1913d5e1"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+      "gitBlob": "73723e049f3a9a23c174b4de3dd50ddc29fe4582",
+      "sha256": "ec969b1289d88aa5aa50ceb461277a9c7c37f780a3616fd135a4990720c54d3f"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts",
+      "gitBlob": "ac21e44dcff3daf622d814c853c6354bd59868d8",
+      "sha256": "98be0e09a21b151fbd92e3b70c7e163e56c95218a1a14628fc4a649b2bf30e4f"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/send/outreach-v3-send.service.ts",
+      "gitBlob": "d336a4396401e45fae01024fedcce83f6e792cff",
+      "sha256": "4d7e3813653842b503de47572e0e8d172dd315262c99792f58d5851af823c3f9"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+      "gitBlob": "70c009506c25183f38e0eaf16d12e1671e57fc3b",
+      "sha256": "12d0b335cfafac9a20d947ab88d9bf8badc618a6f106c6f07fd2515c6d667a82"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "gitBlob": "e5065cb153abb29cb1fe5a2971dfe8614cc4be5e",
+      "sha256": "f4fd0e3bce44183cfa3c8addd6b33c7a7936f4804b4d4595e3c331f931d92e5b"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts",
+      "gitBlob": "792552d03266e69d98b6752ffe617eb1b1bdb6b1",
+      "sha256": "1c3512f82e1e09d02b4823e9b75062ed2f54e1cf8fd31d898a6963179016971e"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-session.service.ts",
+      "gitBlob": "0f2f43d1841e0cbf8d6271fa47cdc3a26a1c5e88",
+      "sha256": "e7c8144ba2084f4ab41c90f42695a745e6cd9f005f3dff893386ca47c9b571e4"
+    },
+    {
+      "path": "apps/api/test/support/activity-command.fixture.ts",
+      "gitBlob": "2dd0f0ef3b2a8f8bced5bee972e4828e99cbb93e",
+      "sha256": "50944784a8e092cc7264d5a4308f4f66ecdc0a0927466a356c814cab26531a11"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261012030000_prospect_resource_origin/migration.sql",
+      "gitBlob": "e2bce04218c67151419d370777b7d22c8611c7b0",
+      "sha256": "2ea8c04127567b1d1a0aea936cc25f6c56714655b19655fa5faacb9420139788"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+      "gitBlob": "c500ac28dcb42dd51d8387603c19f21c7ed78f3b",
+      "sha256": "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4"
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "gitBlob": "2adbac98e73f8106046420acb802be30e59a367f",
+      "sha256": "09b8269440dfb1c5ad9b881a68f27207029290d5bcb297f5745392fadcc077db"
+    },
+    {
+      "path": "apps/workspace/src/checks/checks.controller.ts",
+      "gitBlob": "9e1a2fec5861447b6f8142e2c72290b6b66e73aa",
+      "sha256": "085a5b0f9b4529726d32e8e302e07a1552cef6f9a0f6a5f1058453317c9ef738"
+    },
+    {
+      "path": "apps/workspace/src/checks/checks.service.ts",
+      "gitBlob": "32ae1cfdccc20f906483d810dbcec804b486c475",
+      "sha256": "2013018c8a7bc3d9252ff7c6a6e8c661097d18adeecc404540366592e7f3ed47"
+    },
+    {
+      "path": "apps/workspace/src/collaborators/collaborators.controller.ts",
+      "gitBlob": "83a0aa30a01ca03abaef0331a05c124666ea2563",
+      "sha256": "e7eb6d1cb1eafae7a0c649171a2ccc68468b228e20c70950a1e3bbfe197e7273"
+    },
+    {
+      "path": "apps/workspace/src/collaborators/collaborators.service.ts",
+      "gitBlob": "baf7065138f374e03d0b09d191f31ff789b50826",
+      "sha256": "bdd763389c6d4ba327c3b665deb7d8bb8b98aa16398477605b8eacc04794ebcc"
+    },
+    {
+      "path": "apps/workspace/src/collaborators/role-policy.ts",
+      "gitBlob": "f1525b192107e90c1bf4007d987be0eeb047c49f",
+      "sha256": "c2eee776d7ac4bb84f5d394a65d48bfd1de6058b8997806197443c08448b73a6"
+    },
+    {
+      "path": "apps/workspace/src/comments/comments.controller.ts",
+      "gitBlob": "23df5555a0f69404054c1b9515205729d0b035d3",
+      "sha256": "705de03a6249f04e3b015adf255ef54a06f22a5d9212a82dc49daf008461b9fa"
+    },
+    {
+      "path": "apps/workspace/src/comments/comments.service.ts",
+      "gitBlob": "15b0916056cb920a478d2d2fcabcad14211a0ed0",
+      "sha256": "ca191b8b383dd366cc2ace49c6e8bba2b1ef560ae8474f7471b0e2a3f0f1283b"
+    },
+    {
+      "path": "apps/workspace/src/context/context.service.ts",
+      "gitBlob": "4bd7cfaadb20a65bb950cd4f5dd37e27d9432e5f",
+      "sha256": "e5ec549c9b9ee934d8a6a4b0dfa6311e8366fc3cfaae3c7d09cf16b941a24ff8"
+    },
+    {
+      "path": "apps/workspace/src/delivery/approval.service.ts",
+      "gitBlob": "0e8d5b9dac6bb73e1093887523609e585ff64b06",
+      "sha256": "f60526940335eb8d4bb0d34faed576e341b6470746c2c0f295e823f365f47d1d"
+    },
+    {
+      "path": "apps/workspace/src/delivery/delivery.spec.ts",
+      "gitBlob": "c253c5c32deb1952420332fa60889aa3db51a14e",
+      "sha256": "15e9ec9ff17ba871fca7393556264d616be98cdde95eb4154092e18e0601728f"
+    },
+    {
+      "path": "apps/workspace/src/delivery/share-link.service.ts",
+      "gitBlob": "4d68bdaac4a91e8bd27f792fbbc781e40969cf2f",
+      "sha256": "e1f587a4a8175746150f05becfa4722605f9e03adbf52f9e6af07a8fd6fd2522"
+    },
+    {
+      "path": "apps/workspace/src/document-agent/document-agent-quality.service.ts",
+      "gitBlob": "86cea29fa226482799e99019cbd18801efffed46",
+      "sha256": "a68d44f7fc84ede63a814ab9ba20ca9df1ddc868c44d65792e4e68690a94c38b"
+    },
+    {
+      "path": "apps/workspace/src/document-agent/document-agent-revision.service.ts",
+      "gitBlob": "7e5404314f6ca6e2ca1443f275f794ec99b00af9",
+      "sha256": "d47908fc4c8375b9ef2b6e1c3bc4adb2631bdcd821bf76e84409e2a82ece34a5"
+    },
+    {
+      "path": "apps/workspace/src/document-agent/document-agent.service.ts",
+      "gitBlob": "6fafaaba90448e57572f6cfcc0d224024164cc4d",
+      "sha256": "208ccedeaa6692dea0ed95843f4c021f7d64c93465ec3cd311a3cfef99bbe4ef"
+    },
+    {
+      "path": "apps/workspace/src/documents/documents.controller.ts",
+      "gitBlob": "3811cad5d6f56b215ebb8043e9d2480b3f44ef9b",
+      "sha256": "a903cdda3cd6386ceeebe84d49bebb64054e0f758a529867456425377a8ecdc9"
+    },
+    {
+      "path": "apps/workspace/src/documents/documents.service.ts",
+      "gitBlob": "16496a633dcf8341b6b33878de7899b90dafabaf",
+      "sha256": "73f7c6a9010cb31420eb9c675ee7a8015d0c8b95662c76c55ad70ddfe034a4b3"
+    },
+    {
+      "path": "apps/workspace/src/documents/meri-import-text.ts",
+      "gitBlob": "98ce06f6d1140b47f75a892dbd1d7f5166a2a829",
+      "sha256": "b06b9b8fe14173255f37a005e3d921bfd3b4512b969a7776c0763977f7578ec5"
+    },
+    {
+      "path": "apps/workspace/src/drafts/drafts.controller.ts",
+      "gitBlob": "f5bb125cea3b0ff3fb8f1cc64006901eff94b284",
+      "sha256": "8fea8dc5298a606fcffad4d10c0b8daacbd2bd420601f356415bba1eef803874"
+    },
+    {
+      "path": "apps/workspace/src/drafts/drafts.service.ts",
+      "gitBlob": "e4f2b5e90d0fe3c091164a7bcea2c3ea0cbf8622",
+      "sha256": "44028389c1e414c52962c56077e2759e43bf4328093b7be0e9dfb9e8c7b8ca44"
+    },
+    {
+      "path": "apps/workspace/src/drafts/dto/draft.dto.ts",
+      "gitBlob": "0989e9edcab2883998eed8224f02333621f53f90",
+      "sha256": "bfdad7ad95e8a40f25d36f599bc98a0678a46ff7460dcbcaa1a648aa8bec16df"
+    },
+    {
+      "path": "apps/workspace/src/edit-lock/edit-lock.service.ts",
+      "gitBlob": "3d93ed4aa312bff4bd98840a46fd404d3f554bf3",
+      "sha256": "7bc25d973c712fce70a08432b678bb55c6e985ca259e3a01c65f200400e4ccca"
+    },
+    {
+      "path": "apps/workspace/src/export/export.service.ts",
+      "gitBlob": "33ccff74bc0db56364789d6f679eeebf18f8ee95",
+      "sha256": "56a55dd2b387cc646b347b410c11e39efe56003b7600b0ec75de5725fe11bd3a"
+    },
+    {
+      "path": "apps/workspace/src/generation/generation.service.ts",
+      "gitBlob": "7833c1d02c6391a011843ef2fe2df7be487db0f7",
+      "sha256": "4104e274c0f781e2e6731d311fa5b482135b7b025e18d659a6de06cff16efb5f"
+    },
+    {
+      "path": "apps/workspace/src/generation/memory-promotion.service.ts",
+      "gitBlob": "1b17963dbfa474ce94285a0dfa8d3b4510620329",
+      "sha256": "79061beefd86f8952a925d31f6af57f37c2846e5bc692c851800aee10400431c"
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-document.service.ts",
+      "gitBlob": "cc2c9a382686a3cf4fc1293debfde494e00e0000",
+      "sha256": "a2e35611e6d3161da3d95b7d385ac1701396384d78104a98b9f09ca89ee0bcd2"
+    },
+    {
+      "path": "apps/workspace/src/hillday/hillday-library-access.spec.ts",
+      "gitBlob": "fef394387ab200c4e5c50a2053c870bb0aa6fb09",
+      "sha256": "c16999a1945ae515b638ca21d1e711c6abc54ccefd74837adb95f1e661c9cb83"
+    },
+    {
+      "path": "apps/workspace/src/notifications/notifications.service.ts",
+      "gitBlob": "1c9445dc1cbf3c756e8d7d49beda819638175bc8",
+      "sha256": "5f7e04e1f56befd65e9a2ca6896cd729a20a8c299731dd6737d8624ad32e5d06"
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+      "gitBlob": "decc4a3ce0de3b9d9d9b1842e7c966ccdb116899",
+      "sha256": "9e31d18440b4a946151073e4e2306ac5f61699d19ab87bd3eee68765d90ec7a6"
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-draft-access.ts",
+      "gitBlob": "60541a9bfebcd51033a5cdcdb1d3d21220c8d347",
+      "sha256": "8a53c51e9e3e325129b2b4a019f723c28b8b61a20c36acb5946824abf6bc8b80"
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-draft-create.ts",
+      "gitBlob": "ad0b3ad9016250656963cc52334c58b9288c4528",
+      "sha256": "326044b34519e0adfcbfc7866da9bbd1d7d717701c33d6986d07ad7f95569d76"
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts",
+      "gitBlob": "92c87c3c57acdbbabeb5ed8292edcbb28a7629bd",
+      "sha256": "0beefa6e1ec6af8e9ac196a6773854a1cb15aa897bf4ab0035930ad68c34af7a"
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-notification-access.ts",
+      "gitBlob": "692ad494ef80d966431724ba218d22ebee4cd35a",
+      "sha256": "6fd88612a1a0f2c793e909b95bb7e1f72462991957d326c6dca31396a76c734a"
+    },
+    {
+      "path": "apps/workspace/src/quick-draft/generation-run-worker.service.ts",
+      "gitBlob": "3214b9f3a682c06e6ca53584dcceb24dea6ef9c1",
+      "sha256": "33c74b1353c4aaf8b297709730243fd2783080c2ee19231327f80a72f3fd349e"
+    },
+    {
+      "path": "apps/workspace/src/quick-draft/quick-draft.service.ts",
+      "gitBlob": "3b91cbc570b21b50984f06d3be2782d9a11d9261",
+      "sha256": "6a5a36b7fc45d3863f6e20b98088d18d1e14b3473152714343f741c192dc9edc"
+    },
+    {
+      "path": "apps/workspace/src/quick-draft/source-resolver.service.ts",
+      "gitBlob": "96840defd38de43c985a2e77e911a0c384fca78d",
+      "sha256": "1b36925b2088a93b3bd532024e064d06a6902d2314de81b11a438def3b9e3832"
+    },
+    {
+      "path": "apps/workspace/src/template-studio/template-studio.service.ts",
+      "gitBlob": "fc3f58ac461beebab4d46a20d752c8b3bdd196cd",
+      "sha256": "233e8af47aeb424ebe7ac4d470bc6d41c88c3731e739fa3686c798b4364fa3c1"
+    },
+    {
+      "path": "apps/workspace/src/versions/dto/objective-destination.dto.ts",
+      "gitBlob": "ec6994391b02175a0b6d4e536dc6a22396473c6c",
+      "sha256": "87bf408f0d759c3c0617c4e2c4c521570f7521b6935d4e83658b85c3ac3a743e"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "gitBlob": "8cb4e78420216fe0045a7c0868c495623d0edfd0",
+      "sha256": "1ccb3a75ed2cf2809d161a5e9c290aa9b008b8f7b2b6660451c49fdbedd84260"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.controller.ts",
+      "gitBlob": "ee3b7b5ca6462ef29ad447e339dc30c4d1150ee1",
+      "sha256": "7a99f929d14d0fa13771d5436eeb1dd614fddf495938b5e334fc0d52d8686353"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.service.ts",
+      "gitBlob": "403fa2ab75555daad73a379a9ef7a7980ba7fe31",
+      "sha256": "bd7a9496a1f2099100f90e472fa75f8cad26eb3053fed9921bac8c21d77daafd"
+    },
+    {
+      "path": "packages/shared/src/client-memory-wall.ts",
+      "gitBlob": "42c72f392a32c34b4706e28126436d493fcd5cc8",
+      "sha256": "e50636f9199ea5cc1649e5f21a35f95c56358785b9c49faffe80910c3dc33ca7"
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "gitBlob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "gitBlob": "c9f3a056b94de58b5777f50bec1f9a2659954591",
+      "sha256": "54f5f522696eb619c974206ca12d91042b972355a790048a36ea9bb35c0a11f6"
+    },
+    {
+      "path": "packages/shared/src/prospect-resource-scope.ts",
+      "gitBlob": "08a2f40ccb97780dac520d0789b113bc316f8886",
+      "sha256": "0982e0a984cfded64c05cf726eb3d95a67d8700d4671ee651378646cb9d5d2f7"
+    },
+    {
+      "path": "packages/shared/src/tenant-feature.ts",
+      "gitBlob": "5ba86a9068029bbeebb23b4ac3e71783e43dce93",
+      "sha256": "0256d761d048fc28ad6f0c0753e99ed4a6559b4a001a0688f24e21f1d350fbb6"
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "gitBlob": "c388618b7d618c0b3314fcb6bea77a2e0c205076",
+      "sha256": "6fcb81da835a33908c0be9564e91a661f64394b592375114d9f82e6dbb231db8"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "gitBlob": "b5310cb18658d7ddddafd2eb9bdfff2f6eab9aa5",
+      "sha256": "c771f1fc68de904c014aaa3d6edf49f1e1d03bad008a1d1973620554bdd38568"
+    },
+    {
+      "path": "scripts/check-migration-integrity.mjs",
+      "gitBlob": "689ef736fd7f0f92465b3ba1a1a1779296ef6c51",
+      "sha256": "2ce4004baa4b739da0173a13727ba9ac4fb02f3ce0c3ca6e7e79d715afaef825"
+    },
+    {
+      "path": "scripts/check-migration-timestamps.mjs",
+      "gitBlob": "e1d14d893c384fc1882b920d8a2a2cabed12cdcd",
+      "sha256": "fa75ba582314d5c2ef2d11bcf531cd72533156184e80d6f331af03c0b88bab95"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/cli.mjs",
+      "gitBlob": "1a8b032dd615628c695d5d6b4af9ad5905313cec",
+      "sha256": "e348d54e831ca9c0644f23b0eedad573027dbfc1b45948ad611b80d5686de830"
+    }
+  ],
+  "deletedPaths": []
+}

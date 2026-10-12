@@ -1,0 +1,168 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-integrated-rc/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL apps/api/src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts
+  registered prospect Contacts authority integration
+    ✕ locks the existing prospect before canonical authority and contact data in one transaction (4 ms)
+    ✓ denies current tenant before any contact data (3 ms)
+    ✓ denies current feature before any contact data (1 ms)
+    ✓ denies current member before any contact data (1 ms)
+    ✓ denies current prospect before any contact data (1 ms)
+    ✓ rechecks actual role after a stale admin context (1 ms)
+    ✓ requires converted-client current client on reads and create replay (1 ms)
+    ✓ requires converted-client current grant on reads and create replay
+    ✓ requires converted-client current canonicalWall on reads and create replay (1 ms)
+    ✕ preserves authorized converted history and exact create recovery, while refusing new writes (1 ms)
+    ✕ requires fresh current authority on every repeated read
+    ✕ retains changed replay payload conflict after current authority succeeds (2 ms)
+    ✓ propagates infrastructure error at FROM business_development_prospects (1 ms)
+    ✓ propagates infrastructure error at FROM tenants
+    ✕ propagates infrastructure error at FROM tenant_memberships (1 ms)
+    ✕ propagates infrastructure error at FROM clients
+    ✕ propagates infrastructure error at FROM client_memory_access (1 ms)
+    ✕ propagates infrastructure error at business_development_prospect_contacts (1 ms)
+
+  ● registered prospect Contacts authority integration › locks the existing prospect before canonical authority and contact data in one transaction
+
+    NotFoundException: Prospect contact access is unavailable
+
+      36 |     const readOnly = await prospectScope(tx, ctx.tenantId, prospectId);
+      37 |     const scope = await prospectResourceScope(tx, ctx.tenantId, { userId: ctx.userId }, prospectId, 'read');
+    > 38 |     if (!scope) throw new NotFoundException('Prospect contact access is unavailable');
+         |                       ^
+      39 |     return readOnly;
+      40 |   }
+      41 |   async list(ctx: TenantContext, prospectId: string, after?: string) {
+
+      at ProspectContactsService.currentScope (src/business-development/prospect-contacts/prospect-contacts.service.ts:38:23)
+      at src/business-development/prospect-contacts/prospect-contacts.service.ts:44:24
+      at Object.<anonymous> (src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts:48:26)
+
+  ● registered prospect Contacts authority integration › preserves authorized converted history and exact create recovery, while refusing new writes
+
+    NotFoundException: Prospect contact access is unavailable
+
+      36 |     const readOnly = await prospectScope(tx, ctx.tenantId, prospectId);
+      37 |     const scope = await prospectResourceScope(tx, ctx.tenantId, { userId: ctx.userId }, prospectId, 'read');
+    > 38 |     if (!scope) throw new NotFoundException('Prospect contact access is unavailable');
+         |                       ^
+      39 |     return readOnly;
+      40 |   }
+      41 |   async list(ctx: TenantContext, prospectId: string, after?: string) {
+
+      at ProspectContactsService.currentScope (src/business-development/prospect-contacts/prospect-contacts.service.ts:38:23)
+      at src/business-development/prospect-contacts/prospect-contacts.service.ts:44:24
+      at Object.<anonymous> (src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts:73:13)
+
+  ● registered prospect Contacts authority integration › requires fresh current authority on every repeated read
+
+    NotFoundException: Prospect contact access is unavailable
+
+      36 |     const readOnly = await prospectScope(tx, ctx.tenantId, prospectId);
+      37 |     const scope = await prospectResourceScope(tx, ctx.tenantId, { userId: ctx.userId }, prospectId, 'read');
+    > 38 |     if (!scope) throw new NotFoundException('Prospect contact access is unavailable');
+         |                       ^
+      39 |     return readOnly;
+      40 |   }
+      41 |   async list(ctx: TenantContext, prospectId: string, after?: string) {
+
+      at ProspectContactsService.currentScope (src/business-development/prospect-contacts/prospect-contacts.service.ts:38:23)
+      at src/business-development/prospect-contacts/prospect-contacts.service.ts:44:24
+      at Object.<anonymous> (src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts:82:26)
+
+  ● registered prospect Contacts authority integration › retains changed replay payload conflict after current authority succeeds
+
+    expect(received).rejects.toBeInstanceOf(expected)
+
+    Expected constructor: ConflictException
+    Received constructor: NotFoundException
+
+      84 |   });
+      85 |   it('retains changed replay payload conflict after current authority succeeds', async () => {
+    > 86 |     const h = harness(); await expect(h.service.create(ctx, prospectId, { ...body, name: 'Changed' })).rejects.toBeInstanceOf(ConflictException);
+         |                                                                                                                ^
+      87 |   });
+      88 |   it.each(['FROM business_development_prospects', 'FROM tenants', 'FROM tenant_memberships', 'FROM clients', 'FROM client_memory_access', 'business_development_prospect_contacts'])('propagates infrastructure error at %s', async errorAt => {
+      89 |     const h = harness(); h.state.linkedClientId = clientId; h.state.errorAt = errorAt;
+
+      at Object.toBeInstanceOf (../../../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts:86:112)
+
+  ● registered prospect Contacts authority integration › propagates infrastructure error at FROM tenant_memberships
+
+    expect(received).rejects.toBe(expected) // Object.is equality
+
+    Expected: [Error: SOURCE_INFRASTRUCTURE]
+    Received: [NotFoundException: Prospect contact access is unavailable]
+
+      88 |   it.each(['FROM business_development_prospects', 'FROM tenants', 'FROM tenant_memberships', 'FROM clients', 'FROM client_memory_access', 'business_development_prospect_contacts'])('propagates infrastructure error at %s', async errorAt => {
+      89 |     const h = harness(); h.state.linkedClientId = clientId; h.state.errorAt = errorAt;
+    > 90 |     await expect(h.service.list(ctx, prospectId)).rejects.toBe(h.state.error);
+         |                                                           ^
+      91 |   });
+      92 | });
+      93 |
+
+      at Object.toBe (../../../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts:90:59
+
+  ● registered prospect Contacts authority integration › propagates infrastructure error at FROM clients
+
+    expect(received).rejects.toBe(expected) // Object.is equality
+
+    Expected: [Error: SOURCE_INFRASTRUCTURE]
+    Received: [NotFoundException: Prospect contact access is unavailable]
+
+      88 |   it.each(['FROM business_development_prospects', 'FROM tenants', 'FROM tenant_memberships', 'FROM clients', 'FROM client_memory_access', 'business_development_prospect_contacts'])('propagates infrastructure error at %s', async errorAt => {
+      89 |     const h = harness(); h.state.linkedClientId = clientId; h.state.errorAt = errorAt;
+    > 90 |     await expect(h.service.list(ctx, prospectId)).rejects.toBe(h.state.error);
+         |                                                           ^
+      91 |   });
+      92 | });
+      93 |
+
+      at Object.toBe (../../../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts:90:59
+
+  ● registered prospect Contacts authority integration › propagates infrastructure error at FROM client_memory_access
+
+    expect(received).rejects.toBe(expected) // Object.is equality
+
+    Expected: [Error: SOURCE_INFRASTRUCTURE]
+    Received: [NotFoundException: Prospect contact access is unavailable]
+
+      88 |   it.each(['FROM business_development_prospects', 'FROM tenants', 'FROM tenant_memberships', 'FROM clients', 'FROM client_memory_access', 'business_development_prospect_contacts'])('propagates infrastructure error at %s', async errorAt => {
+      89 |     const h = harness(); h.state.linkedClientId = clientId; h.state.errorAt = errorAt;
+    > 90 |     await expect(h.service.list(ctx, prospectId)).rejects.toBe(h.state.error);
+         |                                                           ^
+      91 |   });
+      92 | });
+      93 |
+
+      at Object.toBe (../../../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts:90:59
+
+  ● registered prospect Contacts authority integration › propagates infrastructure error at business_development_prospect_contacts
+
+    expect(received).rejects.toBe(expected) // Object.is equality
+
+    Expected: [Error: SOURCE_INFRASTRUCTURE]
+    Received: [NotFoundException: Prospect contact access is unavailable]
+
+      88 |   it.each(['FROM business_development_prospects', 'FROM tenants', 'FROM tenant_memberships', 'FROM clients', 'FROM client_memory_access', 'business_development_prospect_contacts'])('propagates infrastructure error at %s', async errorAt => {
+      89 |     const h = harness(); h.state.linkedClientId = clientId; h.state.errorAt = errorAt;
+    > 90 |     await expect(h.service.list(ctx, prospectId)).rejects.toBe(h.state.error);
+         |                                                           ^
+      91 |   });
+      92 | });
+      93 |
+
+      at Object.toBe (../../../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts:90:59
+
+Test Suites: 1 failed, 1 total
+Tests:       8 failed, 10 passed, 18 total
+Snapshots:   0 total
+Time:        2.205 s
+Ran all test suites.
+Test results written to: docs/rebuild-integrated-rc-20261012/evidence/contacts-integration-tests.json

@@ -1,0 +1,16 @@
+Migration timestamp guard FAILED:
+
+  apps/workspace/prisma/migrations/20281012030000_prospect_resource_origin
+    dirname timestamp is +730.9 days from the expected
+    value (commit date 2026-10-12 + yearOffset 0), tolerance is 7d.
+    Rename to something near 20261012010000, or, if the frontier genuinely
+    needs to move, raise yearOffset for this tree in scripts/migration-timestamp-offsets.json in this PR.
+
+  apps/workspace/prisma/migrations/20281012040000_saved_version_immutability
+    dirname timestamp is +730.9 days from the expected
+    value (commit date 2026-10-12 + yearOffset 0), tolerance is 7d.
+    Rename to something near 20261012010000, or, if the frontier genuinely
+    needs to move, raise yearOffset for this tree in scripts/migration-timestamp-offsets.json in this PR.
+
+Existing migrations are grandfathered — never rename a directory that has been applied.
+This check only applies to migrations added by this PR.

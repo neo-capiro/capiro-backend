@@ -1,0 +1,23 @@
+src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts(41,62): error TS2502: 'tx' is referenced directly or indirectly in its own type annotation.
+src/business-development/prospect-contacts/prospect-contacts.service.ts(9,21): error TS2305: Module '"@capiro/shared"' has no exported member 'prospectResourceScope'.
+src/common/tenant-flags.ts(19,10): error TS2305: Module '"@capiro/shared"' has no exported member 'tenantFeatureEnabled'.
+src/common/tenant-flags.ts(20,10): error TS2305: Module '"@capiro/shared"' has no exported member 'tenantFeatureEnabled'.
+src/engagement/attachments/prospect-attachment-access.ts(3,10): error TS2305: Module '"@capiro/shared"' has no exported member 'prospectResourceScope'.
+src/engagement/attachments/prospect-resource-scope.spec.ts(1,10): error TS2305: Module '"@capiro/shared"' has no exported member 'prospectResourceScope'.
+src/engagement/attachments/prospect-resource-scope.spec.ts(1,33): error TS2305: Module '"@capiro/shared"' has no exported member 'tenantFeatureEnabled'.
+src/engagement/attachments/prospect-resource-scope.spec.ts(1,55): error TS2305: Module '"@capiro/shared"' has no exported member 'clientMemoryAllowed'.
+src/engagement/generation/generation-gateway.service.ts(225,71): error TS2322: Type 'unknown' is not assignable to type 'boolean'.
+src/engagement/generation/generation-gateway.service.ts(235,21): error TS2322: Type 'unknown' is not assignable to type 'boolean'.
+src/memory/memory-wall.helpers.ts(109,10): error TS2305: Module '"@capiro/shared"' has no exported member 'clientMemoryAllowed'.
+src/meri/meri-research-producer-inputs.ts(561,31): error TS2345: Argument of type 'Promise<boolean> | undefined' is not assignable to parameter of type 'Promise<boolean>'.
+  Type 'undefined' is not assignable to type 'Promise<boolean>'.
+src/meri/meri-research-producer-inputs.ts(563,5): error TS2322: Type 'Promise<boolean> | undefined' is not assignable to type 'Promise<boolean>'.
+  Type 'undefined' is not assignable to type 'Promise<boolean>'.
+src/meri/meri.service.ts(4680,9): error TS2322: Type 'unknown' is not assignable to type 'boolean'.
+src/outreach-v3/services/outreach-command-engine.service.ts(3,10): error TS2305: Module '"@capiro/shared"' has no exported member 'workspaceSavedOutreachRevisionWithinTx'.
+src/outreach-v3/services/outreach-command-engine.service.ts(3,50): error TS2305: Module '"@capiro/shared"' has no exported member 'WorkspaceRevisionUnavailable'.
+src/outreach-v3/services/outreach-command-engine.service.ts(3,80): error TS2305: Module '"@capiro/shared"' has no exported member 'canonicalWorkspaceSnapshot'.
+src/outreach-v3/services/outreach-newsletter-staging.spec.ts(2,10): error TS2305: Module '"@capiro/shared"' has no exported member 'canonicalWorkspaceSnapshot'.
+src/outreach-v3/services/outreach-newsletter-staging.spec.ts(2,38): error TS2305: Module '"@capiro/shared"' has no exported member 'workspaceSavedOutreachRevisionWithinTx'.
+src/outreach-v3/services/outreach-newsletter-staging.spec.ts(2,78): error TS2305: Module '"@capiro/shared"' has no exported member 'workspaceCanRead'.
+src/outreach-v3/services/outreach-newsletter-staging.spec.ts(3,30): error TS2305: Module '"@capiro/shared"' has no exported member 'ResourceScopeTransaction'.

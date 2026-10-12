@@ -1,0 +1,108 @@
+{
+  "implementationSource": "11903f32f6257a47e42f49c1abe92c0e0fb0e4fb",
+  "implementationTree": "b10a7ed7e2e19d371ad46bfc2a6b57efdbaa997c",
+  "qualification": "source-only; native database/RLS acceptance false",
+  "checks": [
+    {
+      "name": "core-combined-regressions",
+      "tests": 798,
+      "suites": 48,
+      "evidence": "core-combined-regressions.json",
+      "pass": true
+    },
+    {
+      "name": "workspace-combined-regressions",
+      "tests": 90,
+      "suites": 4,
+      "evidence": "workspace-combined-regressions.json",
+      "pass": true
+    },
+    {
+      "name": "strategy-combined-regressions",
+      "tests": 101,
+      "suites": 9,
+      "evidence": "strategy-combined-regressions.json",
+      "pass": true
+    },
+    {
+      "name": "contacts-integration-tests",
+      "tests": 18,
+      "suites": 1,
+      "evidence": "contacts-integration-tests.json",
+      "pass": true
+    },
+    {
+      "name": "core-types",
+      "exitCode": 0,
+      "evidence": "core-types.log",
+      "exitSource": "recorded successful author tool process receipt; empty output is retained"
+    },
+    {
+      "name": "workspace-types",
+      "exitCode": 0,
+      "evidence": "workspace-types.log",
+      "exitSource": "recorded successful author tool process receipt; empty output is retained"
+    },
+    {
+      "name": "strategy-types",
+      "exitCode": 0,
+      "evidence": "strategy-types.log",
+      "exitSource": "recorded successful author tool process receipt; empty output is retained"
+    },
+    {
+      "name": "core-nest-build",
+      "exitCode": 0,
+      "evidence": "core-nest-build.log",
+      "exitSource": "recorded successful author tool process receipt; empty output is retained"
+    },
+    {
+      "name": "workspace-nest-build",
+      "exitCode": 0,
+      "evidence": "workspace-nest-build.log",
+      "exitSource": "recorded successful author tool process receipt; empty output is retained"
+    },
+    {
+      "name": "strategy-nest-build",
+      "exitCode": 0,
+      "evidence": "strategy-nest-build.log",
+      "exitSource": "recorded successful author tool process receipt; empty output is retained"
+    },
+    {
+      "name": "shared-build",
+      "exitCode": 0,
+      "evidence": "shared-build.log",
+      "exitSource": "recorded successful author tool process receipt; empty output is retained"
+    },
+    {
+      "name": "auth-source-build",
+      "exitCode": 0,
+      "evidence": "auth-source-build.log",
+      "exitSource": "recorded successful author tool process receipt; empty output is retained"
+    },
+    {
+      "name": "pure migration/release guard tests",
+      "tests": 44,
+      "evidence": "release-migration-guard-tests.log",
+      "pass": true
+    },
+    {
+      "name": "migration history integrity",
+      "existingFilesUnchanged": 568,
+      "incidentReplacements": 0,
+      "evidence": "migration-integrity-source.log",
+      "pass": true
+    },
+    {
+      "name": "migration timestamps",
+      "evidence": "migration-timestamps-source.log",
+      "pass": true
+    },
+    {
+      "name": "official5.22 WASM/no-engine generation",
+      "evidence": "schema-source-generation.log",
+      "noEngine": true,
+      "nativeAcceptance": false,
+      "pass": true
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+Auto-merging apps/api/prisma/schema.prisma
+CONFLICT (content): Merge conflict in apps/api/prisma/schema.prisma
+Auto-merging apps/api/src/clients/clients.module.ts
+Automatic merge failed; fix conflicts and then commit the result.

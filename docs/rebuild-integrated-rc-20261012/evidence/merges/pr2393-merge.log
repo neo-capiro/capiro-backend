@@ -1,0 +1,7 @@
+Auto-merging apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts
+CONFLICT (add/add): Merge conflict in apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts
+Auto-merging apps/api/src/engagement/engagement-send-authorization.spec.ts
+CONFLICT (add/add): Merge conflict in apps/api/src/engagement/engagement-send-authorization.spec.ts
+Auto-merging apps/api/src/engagement/engagement.service.ts
+CONFLICT (content): Merge conflict in apps/api/src/engagement/engagement.service.ts
+Automatic merge failed; fix conflicts and then commit the result.

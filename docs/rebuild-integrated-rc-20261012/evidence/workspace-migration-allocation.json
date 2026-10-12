@@ -1,0 +1,22 @@
+{
+  "offsetConfigurationUnchanged": true,
+  "mainMigrationsUnchanged": true,
+  "allocations": [
+    {
+      "originalHead": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+      "originalPath": "apps/workspace/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+      "allocatedPath": "apps/workspace/prisma/migrations/20261012030000_prospect_resource_origin/migration.sql",
+      "sqlByteIdentical": true,
+      "sha256": "2ea8c04127567b1d1a0aea936cc25f6c56714655b19655fa5faacb9420139788",
+      "execution": "unapplied/source-only"
+    },
+    {
+      "originalHead": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+      "originalPath": "apps/workspace/prisma/migrations/20281012040000_saved_version_immutability/migration.sql",
+      "allocatedPath": "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+      "sqlByteIdentical": true,
+      "sha256": "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4",
+      "execution": "unapplied/source-only"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+jest-haste-map: Haste module naming collision: prisma-client-09b8269440dfb1c5ad9b881a68f27207029290d5bcb297f5745392fadcc077db
+  The following files share their name; please adjust your hasteImpl:
+    * <rootDir>/.prisma/client/package.json
+    * <rootDir>/generated/prisma-client/package.json
+
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-integrated-rc/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/prospect-resources/prospect-draft-access.spec.ts
+PASS src/versions/objective-destination.spec.ts
+PASS src/prospect-resources/prospect-independent-review.spec.ts
+PASS src/documents/documents.service.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       90 passed, 90 total
+Snapshots:   0 total
+Time:        3.688 s
+Ran all test suites.
+Test results written to: ../../docs/rebuild-integrated-rc-20261012/evidence/workspace-combined-regressions.json

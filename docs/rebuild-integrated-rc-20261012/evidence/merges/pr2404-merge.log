@@ -1,0 +1,9 @@
+Auto-merging apps/api-strategy/src/planner/planner.controller.ts
+CONFLICT (content): Merge conflict in apps/api-strategy/src/planner/planner.controller.ts
+Auto-merging apps/api-strategy/src/planner/planner.service.ts
+Auto-merging apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json
+Auto-merging apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts
+CONFLICT (content): Merge conflict in apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts
+Auto-merging packages/shared/src/index.ts
+CONFLICT (content): Merge conflict in packages/shared/src/index.ts
+Automatic merge failed; fix conflicts and then commit the result.

@@ -1,0 +1,30 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-integrated-rc/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/business-development/prospect-contacts/prospect-contacts.integration.spec.ts
+  registered prospect Contacts authority integration
+    ✓ locks the existing prospect before canonical authority and contact data in one transaction (5 ms)
+    ✓ denies current tenant before any contact data (1 ms)
+    ✓ denies current feature before any contact data (1 ms)
+    ✓ denies current member before any contact data (1 ms)
+    ✓ denies current prospect before any contact data
+    ✓ rechecks actual role after a stale admin context (1 ms)
+    ✓ requires converted-client current client on reads and create replay (1 ms)
+    ✓ requires converted-client current grant on reads and create replay (1 ms)
+    ✓ requires converted-client current canonicalWall on reads and create replay (2 ms)
+    ✓ preserves authorized converted history and exact create recovery, while refusing new writes (3 ms)
+    ✓ requires fresh current authority on every repeated read
+    ✓ retains changed replay payload conflict after current authority succeeds
+    ✓ propagates infrastructure error at FROM business_development_prospects (1 ms)
+    ✓ propagates infrastructure error at FROM tenants
+    ✓ propagates infrastructure error at FROM tenant_memberships
+    ✓ propagates infrastructure error at FROM clients
+    ✓ propagates infrastructure error at FROM client_memory_access
+    ✓ propagates infrastructure error at business_development_prospect_contacts
+
+Test Suites: 1 passed, 1 total
+Tests:       18 passed, 18 total
+Snapshots:   0 total
+Time:        1.796 s
+Ran all test suites.
+Test results written to: docs/rebuild-integrated-rc-20261012/evidence/contacts-integration-tests.json

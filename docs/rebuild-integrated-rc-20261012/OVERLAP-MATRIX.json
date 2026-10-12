@@ -1,0 +1,2262 @@
+{
+  "comparison": "Each exact candidate versus refreshed main; PR2392 restricted to the three selected guard paths. Ancestor changes therefore appear in stacked candidates. Textual intersection does not establish semantic compatibility.",
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "candidateHeads": {
+    "2362": "72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e",
+    "2364": "4b3c672574ed3738e42b1c5e1f7483e32f358095",
+    "2365": "fd6ed6c017ae91ab774fd34f74475a746de13b68",
+    "2371": "6c6f88e9e5ba077452716f3a0db0dd3bbea2963f",
+    "2373": "6e5774a14c73ea04f0a77650a5bbd33173bcc9b3",
+    "2381": "171ec869ed3928c96172c8790a9aeb3b4de901ae",
+    "2392": "03d85a40e390f8f52614aab20427a3a9433786bb",
+    "2393": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+    "2394": "5d075af9b376cd3ed67256b5c38e4a2a2130a51d",
+    "2395": "c5e41e320af4b4d841d4b3136777d712116916ed",
+    "2396": "e2c2c110edd986e799d47d43b0db50b24fab0201",
+    "2397": "4915f3fa5c938182b2624377375674654baa5337",
+    "2398": "797e3a59158cff56b017ab7d01ee445bf624fced",
+    "2399": "0783423aeaaa8b65f289d0927d605142816d8cfe",
+    "2400": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+    "2401": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+    "2402": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+    "2403": "39b4ae45db578d121b18db9f95029a8c3ec293a2",
+    "2404": "0716767e8b6ff323b2516d166b22edb4d2413e57",
+    "2405": "c05b85a29a75cbaaa8538fd7f9a97e298a23913e"
+  },
+  "pairs": [
+    {
+      "a": 2362,
+      "b": 2364,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2365,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2371,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2373,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2381,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2392,
+      "paths": []
+    },
+    {
+      "a": 2362,
+      "b": 2393,
+      "paths": []
+    },
+    {
+      "a": 2362,
+      "b": 2394,
+      "paths": []
+    },
+    {
+      "a": 2362,
+      "b": 2395,
+      "paths": []
+    },
+    {
+      "a": 2362,
+      "b": 2396,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2397,
+      "paths": []
+    },
+    {
+      "a": 2362,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2362,
+      "b": 2399,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2400,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2401,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2402,
+      "paths": [
+        "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts",
+        "apps/api/src/clients/objectives/objective-rules.spec.ts",
+        "apps/api/src/clients/objectives/objective-rules.ts",
+        "apps/api/src/clients/objectives/objective.dto.ts",
+        "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.ts",
+        "apps/api/src/clients/objectives/objectives.module.ts",
+        "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.ts",
+        "docs/portfolio-31/objectives-authorization-checkpoint.md",
+        "docs/portfolio-31/objectives-contract.md"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2403,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2404,
+      "paths": [
+        "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts",
+        "apps/api/src/clients/objectives/objective-rules.spec.ts",
+        "apps/api/src/clients/objectives/objective-rules.ts",
+        "apps/api/src/clients/objectives/objective.dto.ts",
+        "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.ts",
+        "apps/api/src/clients/objectives/objectives.module.ts",
+        "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.ts",
+        "docs/portfolio-31/objectives-authorization-checkpoint.md",
+        "docs/portfolio-31/objectives-contract.md"
+      ]
+    },
+    {
+      "a": 2362,
+      "b": 2405,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2364,
+      "b": 2365,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2364,
+      "b": 2371,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2364,
+      "b": 2373,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2364,
+      "b": 2381,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2364,
+      "b": 2392,
+      "paths": []
+    },
+    {
+      "a": 2364,
+      "b": 2393,
+      "paths": [
+        "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+        "apps/api/src/engagement/engagement.service.ts"
+      ]
+    },
+    {
+      "a": 2364,
+      "b": 2394,
+      "paths": []
+    },
+    {
+      "a": 2364,
+      "b": 2395,
+      "paths": []
+    },
+    {
+      "a": 2364,
+      "b": 2396,
+      "paths": []
+    },
+    {
+      "a": 2364,
+      "b": 2397,
+      "paths": []
+    },
+    {
+      "a": 2364,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2364,
+      "b": 2399,
+      "paths": []
+    },
+    {
+      "a": 2364,
+      "b": 2400,
+      "paths": [
+        "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+        "apps/api/src/engagement/engagement.service.ts"
+      ]
+    },
+    {
+      "a": 2364,
+      "b": 2401,
+      "paths": [
+        "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+        "apps/api/src/engagement/engagement.service.ts"
+      ]
+    },
+    {
+      "a": 2364,
+      "b": 2402,
+      "paths": []
+    },
+    {
+      "a": 2364,
+      "b": 2403,
+      "paths": []
+    },
+    {
+      "a": 2364,
+      "b": 2404,
+      "paths": []
+    },
+    {
+      "a": 2364,
+      "b": 2405,
+      "paths": [
+        "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+        "apps/api/src/engagement/engagement.service.ts"
+      ]
+    },
+    {
+      "a": 2365,
+      "b": 2371,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2365,
+      "b": 2373,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2365,
+      "b": 2381,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2365,
+      "b": 2392,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2393,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2394,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2395,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2396,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2397,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2399,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2400,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2401,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2402,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2403,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2404,
+      "paths": []
+    },
+    {
+      "a": 2365,
+      "b": 2405,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2373,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2371,
+      "b": 2381,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2371,
+      "b": 2392,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2393,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2394,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2395,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2396,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2397,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2399,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2400,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2401,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2402,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2403,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2404,
+      "paths": []
+    },
+    {
+      "a": 2371,
+      "b": 2405,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2381,
+      "paths": [
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.spec.ts",
+        "apps/api/src/acquisition-personnel/acquisition-personnel-read.service.ts",
+        "apps/api/src/acquisition-personnel/dto/list-personnel.dto.ts",
+        "apps/api/src/acquisition-personnel/dto/person-detail.dto.ts",
+        "apps/web/src/pages/program-element/types.ts",
+        "apps/web/src/vnext/pages/directory/DowVNext.test.tsx",
+        "apps/web/src/vnext/pages/directory/DowVNext.tsx"
+      ]
+    },
+    {
+      "a": 2373,
+      "b": 2392,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2393,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2394,
+      "paths": [
+        "apps/api/scripts/geocode-facilities.ts",
+        "apps/api/src/clients/client-facilities.controller.ts",
+        "apps/api/src/clients/client-facilities.service.spec.ts",
+        "apps/api/src/clients/client-facilities.service.ts",
+        "apps/api/src/clients/facility-geocode-candidate-cas.spec.ts",
+        "apps/api/src/clients/facility-geocode-candidate-revision.ts",
+        "docs/portfolio-geocode-cas/CONTRACT-CANDIDATE.md",
+        "docs/portfolio-geocode-cas/revision-v1.fixture.json"
+      ]
+    },
+    {
+      "a": 2373,
+      "b": 2395,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2396,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2397,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2399,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2400,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2401,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2402,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2403,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2404,
+      "paths": []
+    },
+    {
+      "a": 2373,
+      "b": 2405,
+      "paths": []
+    },
+    {
+      "a": 2381,
+      "b": 2392,
+      "paths": []
+    },
+    {
+      "a": 2381,
+      "b": 2393,
+      "paths": [
+        "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "docs/portfolio-outbound-attachment-acl/CHECKPOINT.md"
+      ]
+    },
+    {
+      "a": 2381,
+      "b": 2394,
+      "paths": []
+    },
+    {
+      "a": 2381,
+      "b": 2395,
+      "paths": []
+    },
+    {
+      "a": 2381,
+      "b": 2396,
+      "paths": []
+    },
+    {
+      "a": 2381,
+      "b": 2397,
+      "paths": []
+    },
+    {
+      "a": 2381,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2381,
+      "b": 2399,
+      "paths": []
+    },
+    {
+      "a": 2381,
+      "b": 2400,
+      "paths": [
+        "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "docs/portfolio-outbound-attachment-acl/CHECKPOINT.md"
+      ]
+    },
+    {
+      "a": 2381,
+      "b": 2401,
+      "paths": [
+        "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "docs/portfolio-outbound-attachment-acl/CHECKPOINT.md"
+      ]
+    },
+    {
+      "a": 2381,
+      "b": 2402,
+      "paths": []
+    },
+    {
+      "a": 2381,
+      "b": 2403,
+      "paths": []
+    },
+    {
+      "a": 2381,
+      "b": 2404,
+      "paths": []
+    },
+    {
+      "a": 2381,
+      "b": 2405,
+      "paths": [
+        "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "docs/portfolio-outbound-attachment-acl/CHECKPOINT.md"
+      ]
+    },
+    {
+      "a": 2392,
+      "b": 2393,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2394,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2395,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2396,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2397,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2399,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2400,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2401,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2402,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2403,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2404,
+      "paths": []
+    },
+    {
+      "a": 2392,
+      "b": 2405,
+      "paths": []
+    },
+    {
+      "a": 2393,
+      "b": 2394,
+      "paths": []
+    },
+    {
+      "a": 2393,
+      "b": 2395,
+      "paths": []
+    },
+    {
+      "a": 2393,
+      "b": 2396,
+      "paths": []
+    },
+    {
+      "a": 2393,
+      "b": 2397,
+      "paths": []
+    },
+    {
+      "a": 2393,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2393,
+      "b": 2399,
+      "paths": []
+    },
+    {
+      "a": 2393,
+      "b": 2400,
+      "paths": [
+        "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+        "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+        "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+        "apps/api/src/engagement/engagement-send-thread-key.spec.ts",
+        "apps/api/src/engagement/engagement.controller.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "apps/api/src/engagement/independent-sender-review.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.controller.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.ts",
+        "docs/portfolio-backend-20261012/FRONTEND-HANDOFF.md",
+        "docs/portfolio-backend-20261012/LEDGER.md",
+        "docs/portfolio-backend-20261012/QUALIFICATION.md",
+        "docs/portfolio-backend-20261012/REMAINING-CONTRACTS.md",
+        "docs/portfolio-backend-20261012/SENDER-CONTRACT.md",
+        "docs/portfolio-backend-20261012/candidate-paths.json",
+        "docs/portfolio-backend-20261012/dependency-paths.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fix.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fixed.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/FINAL-RECEIPT.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/REVIEW.txt",
+        "docs/portfolio-backend-20261012/evidence/independent-review/SHA256SUMS.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/preservation-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-original-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.log",
+        "docs/portfolio-backend-20261012/evidence/qualification-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/sender-negative-tests.json",
+        "docs/portfolio-backend-20261012/evidence/sender-tests.json",
+        "docs/portfolio-outbound-attachment-acl/CHECKPOINT.md"
+      ]
+    },
+    {
+      "a": 2393,
+      "b": 2401,
+      "paths": [
+        "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+        "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+        "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+        "apps/api/src/engagement/engagement-send-thread-key.spec.ts",
+        "apps/api/src/engagement/engagement.controller.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "apps/api/src/engagement/independent-sender-review.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.controller.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.ts",
+        "docs/portfolio-backend-20261012/FRONTEND-HANDOFF.md",
+        "docs/portfolio-backend-20261012/LEDGER.md",
+        "docs/portfolio-backend-20261012/QUALIFICATION.md",
+        "docs/portfolio-backend-20261012/REMAINING-CONTRACTS.md",
+        "docs/portfolio-backend-20261012/SENDER-CONTRACT.md",
+        "docs/portfolio-backend-20261012/candidate-paths.json",
+        "docs/portfolio-backend-20261012/dependency-paths.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fix.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fixed.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/FINAL-RECEIPT.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/REVIEW.txt",
+        "docs/portfolio-backend-20261012/evidence/independent-review/SHA256SUMS.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/preservation-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-original-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.log",
+        "docs/portfolio-backend-20261012/evidence/qualification-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/sender-negative-tests.json",
+        "docs/portfolio-backend-20261012/evidence/sender-tests.json",
+        "docs/portfolio-outbound-attachment-acl/CHECKPOINT.md"
+      ]
+    },
+    {
+      "a": 2393,
+      "b": 2402,
+      "paths": []
+    },
+    {
+      "a": 2393,
+      "b": 2403,
+      "paths": []
+    },
+    {
+      "a": 2393,
+      "b": 2404,
+      "paths": []
+    },
+    {
+      "a": 2393,
+      "b": 2405,
+      "paths": [
+        "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+        "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+        "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+        "apps/api/src/engagement/engagement-send-thread-key.spec.ts",
+        "apps/api/src/engagement/engagement.controller.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "apps/api/src/engagement/independent-sender-review.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.controller.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.ts",
+        "docs/portfolio-backend-20261012/FRONTEND-HANDOFF.md",
+        "docs/portfolio-backend-20261012/LEDGER.md",
+        "docs/portfolio-backend-20261012/QUALIFICATION.md",
+        "docs/portfolio-backend-20261012/REMAINING-CONTRACTS.md",
+        "docs/portfolio-backend-20261012/SENDER-CONTRACT.md",
+        "docs/portfolio-backend-20261012/candidate-paths.json",
+        "docs/portfolio-backend-20261012/dependency-paths.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fix.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fixed.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/FINAL-RECEIPT.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/REVIEW.txt",
+        "docs/portfolio-backend-20261012/evidence/independent-review/SHA256SUMS.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/preservation-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-original-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.log",
+        "docs/portfolio-backend-20261012/evidence/qualification-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/sender-negative-tests.json",
+        "docs/portfolio-backend-20261012/evidence/sender-tests.json",
+        "docs/portfolio-outbound-attachment-acl/CHECKPOINT.md"
+      ]
+    },
+    {
+      "a": 2394,
+      "b": 2395,
+      "paths": []
+    },
+    {
+      "a": 2394,
+      "b": 2396,
+      "paths": []
+    },
+    {
+      "a": 2394,
+      "b": 2397,
+      "paths": []
+    },
+    {
+      "a": 2394,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2394,
+      "b": 2399,
+      "paths": []
+    },
+    {
+      "a": 2394,
+      "b": 2400,
+      "paths": []
+    },
+    {
+      "a": 2394,
+      "b": 2401,
+      "paths": []
+    },
+    {
+      "a": 2394,
+      "b": 2402,
+      "paths": []
+    },
+    {
+      "a": 2394,
+      "b": 2403,
+      "paths": []
+    },
+    {
+      "a": 2394,
+      "b": 2404,
+      "paths": []
+    },
+    {
+      "a": 2394,
+      "b": 2405,
+      "paths": []
+    },
+    {
+      "a": 2395,
+      "b": 2396,
+      "paths": [
+        "apps/api-strategy/src/planner/planner-task-create-command.independent-review.spec.ts",
+        "apps/api-strategy/src/planner/planner-task-create-command.spec.ts",
+        "apps/api-strategy/src/planner/planner-task-create-command.ts",
+        "apps/api-strategy/src/planner/planner.controller.ts",
+        "apps/api-strategy/src/planner/planner.http.spec.ts",
+        "apps/api-strategy/src/planner/planner.service.ts",
+        "docs/planner-create-receipt-20261012/CONTRACT.md",
+        "docs/planner-create-receipt-20261012/QUALIFICATION.md",
+        "docs/planner-create-receipt-20261012/SCOPE.md",
+        "docs/planner-create-receipt-20261012/candidate-paths.json",
+        "docs/planner-create-receipt-20261012/dependency-paths.json",
+        "docs/planner-create-receipt-20261012/evidence/SHA256SUMS.json",
+        "docs/planner-create-receipt-20261012/evidence/final.json",
+        "docs/planner-create-receipt-20261012/evidence/final.log",
+        "docs/planner-create-receipt-20261012/evidence/focused-pass.json",
+        "docs/planner-create-receipt-20261012/evidence/focused-pass.log",
+        "docs/planner-create-receipt-20261012/evidence/focused.json",
+        "docs/planner-create-receipt-20261012/evidence/focused.log",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/FINAL-RECEIPT.json",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/REVIEW.txt",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/SHA256SUMS.json",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/adversarial-red-corrected.json",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/adversarial-red-corrected.log",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/adversarial-red.json",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/adversarial-red.log",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/final-replay.json",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/final-replay.log",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/independent-tests-corrected.spec.ts",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/independent-tests-original.spec.ts",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/initial-review-receipt.json",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/reviewer-source-before-author-copy.spec.ts",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/tenant-guards.json",
+        "docs/planner-create-receipt-20261012/evidence/independent-review/tenant-guards.log",
+        "docs/planner-create-receipt-20261012/evidence/initial.json",
+        "docs/planner-create-receipt-20261012/evidence/initial.log",
+        "docs/planner-create-receipt-20261012/evidence/qualification-receipt.json"
+      ]
+    },
+    {
+      "a": 2395,
+      "b": 2397,
+      "paths": []
+    },
+    {
+      "a": 2395,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2395,
+      "b": 2399,
+      "paths": []
+    },
+    {
+      "a": 2395,
+      "b": 2400,
+      "paths": []
+    },
+    {
+      "a": 2395,
+      "b": 2401,
+      "paths": []
+    },
+    {
+      "a": 2395,
+      "b": 2402,
+      "paths": []
+    },
+    {
+      "a": 2395,
+      "b": 2403,
+      "paths": []
+    },
+    {
+      "a": 2395,
+      "b": 2404,
+      "paths": [
+        "apps/api-strategy/src/planner/planner.controller.ts",
+        "apps/api-strategy/src/planner/planner.service.ts"
+      ]
+    },
+    {
+      "a": 2395,
+      "b": 2405,
+      "paths": []
+    },
+    {
+      "a": 2396,
+      "b": 2397,
+      "paths": []
+    },
+    {
+      "a": 2396,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2396,
+      "b": 2399,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts"
+      ]
+    },
+    {
+      "a": 2396,
+      "b": 2400,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/client-activity.service.ts"
+      ]
+    },
+    {
+      "a": 2396,
+      "b": 2401,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/client-activity.service.ts"
+      ]
+    },
+    {
+      "a": 2396,
+      "b": 2402,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts"
+      ]
+    },
+    {
+      "a": 2396,
+      "b": 2403,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2396,
+      "b": 2404,
+      "paths": [
+        "apps/api-strategy/src/planner/planner.controller.ts",
+        "apps/api-strategy/src/planner/planner.service.ts",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts"
+      ]
+    },
+    {
+      "a": 2396,
+      "b": 2405,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/client-activity.service.ts"
+      ]
+    },
+    {
+      "a": 2397,
+      "b": 2398,
+      "paths": []
+    },
+    {
+      "a": 2397,
+      "b": 2399,
+      "paths": []
+    },
+    {
+      "a": 2397,
+      "b": 2400,
+      "paths": []
+    },
+    {
+      "a": 2397,
+      "b": 2401,
+      "paths": []
+    },
+    {
+      "a": 2397,
+      "b": 2402,
+      "paths": []
+    },
+    {
+      "a": 2397,
+      "b": 2403,
+      "paths": []
+    },
+    {
+      "a": 2397,
+      "b": 2404,
+      "paths": []
+    },
+    {
+      "a": 2397,
+      "b": 2405,
+      "paths": []
+    },
+    {
+      "a": 2398,
+      "b": 2399,
+      "paths": []
+    },
+    {
+      "a": 2398,
+      "b": 2400,
+      "paths": []
+    },
+    {
+      "a": 2398,
+      "b": 2401,
+      "paths": []
+    },
+    {
+      "a": 2398,
+      "b": 2402,
+      "paths": []
+    },
+    {
+      "a": 2398,
+      "b": 2403,
+      "paths": []
+    },
+    {
+      "a": 2398,
+      "b": 2404,
+      "paths": []
+    },
+    {
+      "a": 2398,
+      "b": 2405,
+      "paths": []
+    },
+    {
+      "a": 2399,
+      "b": 2400,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2399,
+      "b": 2401,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2399,
+      "b": 2402,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts"
+      ]
+    },
+    {
+      "a": 2399,
+      "b": 2403,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2399,
+      "b": 2404,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts"
+      ]
+    },
+    {
+      "a": 2399,
+      "b": 2405,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2400,
+      "b": 2401,
+      "paths": [
+        "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts",
+        "apps/api/src/capabilities/context/outreach-context-reference.service.ts",
+        "apps/api/src/clients/client-activity.service.ts",
+        "apps/api/src/clients/client-files.controller.ts",
+        "apps/api/src/clients/client-profile-fill-workflow.service.ts",
+        "apps/api/src/clients/client-profile-fill.service.ts",
+        "apps/api/src/common/tenant-flags.ts",
+        "apps/api/src/embeddings/client-kb-access.spec.ts",
+        "apps/api/src/embeddings/client-kb.service.ts",
+        "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+        "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+        "apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/prospect-attachment-access.ts",
+        "apps/api/src/engagement/attachments/prospect-independent-review.spec.ts",
+        "apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts",
+        "apps/api/src/engagement/engagement-document-read.spec.ts",
+        "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+        "apps/api/src/engagement/engagement-send-thread-key.spec.ts",
+        "apps/api/src/engagement/engagement.controller.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "apps/api/src/engagement/generation/evidence-source.service.ts",
+        "apps/api/src/engagement/independent-sender-review.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.controller.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.ts",
+        "apps/api/src/engagement/outreach-send-intent.service.ts",
+        "apps/api/src/memory/memory-wall.helpers.ts",
+        "apps/api/src/meri/meri-job-deliverables.service.ts",
+        "apps/api/src/outreach-v3/send/outreach-v3-send.service.ts",
+        "apps/workspace/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+        "apps/workspace/prisma/schema.prisma",
+        "apps/workspace/src/checks/checks.controller.ts",
+        "apps/workspace/src/checks/checks.service.ts",
+        "apps/workspace/src/collaborators/collaborators.controller.ts",
+        "apps/workspace/src/collaborators/collaborators.service.ts",
+        "apps/workspace/src/comments/comments.controller.ts",
+        "apps/workspace/src/comments/comments.service.ts",
+        "apps/workspace/src/context/context.service.ts",
+        "apps/workspace/src/delivery/approval.service.ts",
+        "apps/workspace/src/delivery/delivery.spec.ts",
+        "apps/workspace/src/delivery/share-link.service.ts",
+        "apps/workspace/src/document-agent/document-agent-quality.service.ts",
+        "apps/workspace/src/document-agent/document-agent-revision.service.ts",
+        "apps/workspace/src/document-agent/document-agent.service.ts",
+        "apps/workspace/src/documents/documents.controller.ts",
+        "apps/workspace/src/documents/documents.service.ts",
+        "apps/workspace/src/drafts/drafts.controller.ts",
+        "apps/workspace/src/drafts/drafts.service.ts",
+        "apps/workspace/src/drafts/dto/draft.dto.ts",
+        "apps/workspace/src/edit-lock/edit-lock.service.ts",
+        "apps/workspace/src/export/export.service.ts",
+        "apps/workspace/src/generation/generation.service.ts",
+        "apps/workspace/src/generation/memory-promotion.service.ts",
+        "apps/workspace/src/hillday/hillday-document.service.ts",
+        "apps/workspace/src/hillday/hillday-library-access.spec.ts",
+        "apps/workspace/src/notifications/notifications.service.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-access.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-create.ts",
+        "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts",
+        "apps/workspace/src/prospect-resources/prospect-notification-access.ts",
+        "apps/workspace/src/quick-draft/generation-run-worker.service.ts",
+        "apps/workspace/src/quick-draft/quick-draft.service.ts",
+        "apps/workspace/src/quick-draft/source-resolver.service.ts",
+        "apps/workspace/src/template-studio/template-studio.service.ts",
+        "apps/workspace/src/versions/versions.service.ts",
+        "docs/portfolio-backend-20261012/FRONTEND-HANDOFF.md",
+        "docs/portfolio-backend-20261012/LEDGER.md",
+        "docs/portfolio-backend-20261012/QUALIFICATION.md",
+        "docs/portfolio-backend-20261012/REMAINING-CONTRACTS.md",
+        "docs/portfolio-backend-20261012/SENDER-CONTRACT.md",
+        "docs/portfolio-backend-20261012/candidate-paths.json",
+        "docs/portfolio-backend-20261012/dependency-paths.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fix.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fixed.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/FINAL-RECEIPT.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/REVIEW.txt",
+        "docs/portfolio-backend-20261012/evidence/independent-review/SHA256SUMS.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/preservation-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-original-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.log",
+        "docs/portfolio-backend-20261012/evidence/qualification-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/sender-negative-tests.json",
+        "docs/portfolio-backend-20261012/evidence/sender-tests.json",
+        "docs/portfolio-outbound-attachment-acl/CHECKPOINT.md",
+        "docs/prospect-resources-20261012/ACCESS-COVERAGE.md",
+        "docs/prospect-resources-20261012/COMMITMENT-SCOPE-CLEANUP.md",
+        "docs/prospect-resources-20261012/CONTRACT.md",
+        "docs/prospect-resources-20261012/DEPENDENCIES.md",
+        "docs/prospect-resources-20261012/INTEGRATION.md",
+        "docs/prospect-resources-20261012/QUALIFICATION.md",
+        "docs/prospect-resources-20261012/evidence/FINAL-CANDIDATE.json",
+        "docs/prospect-resources-20261012/evidence/SHA256SUMS.json",
+        "docs/prospect-resources-20261012/evidence/SOURCE-SHA256SUMS.json",
+        "docs/prospect-resources-20261012/evidence/author/attachment-paths-final.txt",
+        "docs/prospect-resources-20261012/evidence/author/capiro-generate-prospect-core.cjs",
+        "docs/prospect-resources-20261012/evidence/author/capiro-generate-prospect-workspace.cjs",
+        "docs/prospect-resources-20261012/evidence/author/capiro-prospect-jest.cjs",
+        "docs/prospect-resources-20261012/evidence/author/capiro-prospect-workspace-jest.cjs",
+        "docs/prospect-resources-20261012/evidence/author/core-build-final.log",
+        "docs/prospect-resources-20261012/evidence/author/core-build-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/core-generate.log",
+        "docs/prospect-resources-20261012/evidence/author/core-lint.log",
+        "docs/prospect-resources-20261012/evidence/author/core-list-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/core-list-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/core-new-tests-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-command.json",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-final.json",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-final.log",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/core-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/core-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/core-reviewed-receipt.json",
+        "docs/prospect-resources-20261012/evidence/author/core-reviewed.json",
+        "docs/prospect-resources-20261012/evidence/author/core-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-final.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-repaired.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-retained-tests.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/hillday-final.json",
+        "docs/prospect-resources-20261012/evidence/author/hillday-final.log",
+        "docs/prospect-resources-20261012/evidence/author/independent-fixture-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/independent-fixture-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/install.log",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-core.json",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-core.log",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-workspace.json",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-workspace.log",
+        "docs/prospect-resources-20261012/evidence/author/packages.log",
+        "docs/prospect-resources-20261012/evidence/author/primary-reviewed.json",
+        "docs/prospect-resources-20261012/evidence/author/retained-tests-primary.json",
+        "docs/prospect-resources-20261012/evidence/author/runtime-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/author/sender-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/author/shared-build.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-build-final.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-fixture-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-fixture-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-fixture-typing-receipt.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-generate.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-new-tests-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-new-tests-second.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-paths-final.txt",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-command.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-final.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-final.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-reviewed-receipt.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-reviewed.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-tsc-final.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-tsc-fixture-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-tsc-retained-tests.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/FINAL-SOURCE-RECEIPT.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/RECEIPT.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/REVIEW.md",
+        "docs/prospect-resources-20261012/evidence/independent-review/SHA256SUMS",
+        "docs/prospect-resources-20261012/evidence/independent-review/SOURCE-REVIEW.md",
+        "docs/prospect-resources-20261012/evidence/independent-review/SOURCE-SHA256SUMS",
+        "docs/prospect-resources-20261012/evidence/independent-review/api-review.jest.cjs",
+        "docs/prospect-resources-20261012/evidence/independent-review/attachment-direct-readers.txt",
+        "docs/prospect-resources-20261012/evidence/independent-review/compare-preserved-methods.cjs",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-baseline.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-baseline.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-final-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-final.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-final.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-independent-initial.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-independent-initial.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-repair-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-repair.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-repair.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/final-fixture-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-core.spec.ts",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-path-intersections.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-workspace-final.spec.ts",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-workspace.spec.ts",
+        "docs/prospect-resources-20261012/evidence/independent-review/initial-core.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/migration-source-hashes.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/preserved-methods.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/retained-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-confirmed-red.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-confirmed-red.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-cross-app-readers.txt",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-direct-readers.txt",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-expanded-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-expanded.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-expanded.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final-fixture.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final-fixture.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-initial.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-initial.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-repair.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-repair.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-review.jest.cjs",
+        "docs/prospect-resources-20261012/evidence/remote-ref-refresh.json",
+        "docs/prospect-resources-20261012/path-intersections.json",
+        "packages/shared/src/client-memory-wall.ts",
+        "packages/shared/src/index.ts",
+        "packages/shared/src/prospect-resource-scope.ts",
+        "packages/shared/src/tenant-feature.ts"
+      ]
+    },
+    {
+      "a": 2400,
+      "b": 2402,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2400,
+      "b": 2403,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2400,
+      "b": 2404,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "packages/shared/src/index.ts"
+      ]
+    },
+    {
+      "a": 2400,
+      "b": 2405,
+      "paths": [
+        "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts",
+        "apps/api/src/capabilities/context/outreach-context-reference.service.ts",
+        "apps/api/src/clients/client-activity.service.ts",
+        "apps/api/src/clients/client-files.controller.ts",
+        "apps/api/src/clients/client-profile-fill-workflow.service.ts",
+        "apps/api/src/clients/client-profile-fill.service.ts",
+        "apps/api/src/common/tenant-flags.ts",
+        "apps/api/src/embeddings/client-kb-access.spec.ts",
+        "apps/api/src/embeddings/client-kb.service.ts",
+        "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+        "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+        "apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/prospect-attachment-access.ts",
+        "apps/api/src/engagement/attachments/prospect-independent-review.spec.ts",
+        "apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts",
+        "apps/api/src/engagement/engagement-document-read.spec.ts",
+        "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+        "apps/api/src/engagement/engagement-send-thread-key.spec.ts",
+        "apps/api/src/engagement/engagement.controller.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "apps/api/src/engagement/generation/evidence-source.service.ts",
+        "apps/api/src/engagement/independent-sender-review.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.controller.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.ts",
+        "apps/api/src/engagement/outreach-send-intent.service.ts",
+        "apps/api/src/memory/memory-wall.helpers.ts",
+        "apps/api/src/meri/meri-job-deliverables.service.ts",
+        "apps/api/src/outreach-v3/send/outreach-v3-send.service.ts",
+        "apps/workspace/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+        "apps/workspace/prisma/schema.prisma",
+        "apps/workspace/src/checks/checks.controller.ts",
+        "apps/workspace/src/checks/checks.service.ts",
+        "apps/workspace/src/collaborators/collaborators.controller.ts",
+        "apps/workspace/src/collaborators/collaborators.service.ts",
+        "apps/workspace/src/comments/comments.controller.ts",
+        "apps/workspace/src/comments/comments.service.ts",
+        "apps/workspace/src/context/context.service.ts",
+        "apps/workspace/src/delivery/approval.service.ts",
+        "apps/workspace/src/delivery/delivery.spec.ts",
+        "apps/workspace/src/delivery/share-link.service.ts",
+        "apps/workspace/src/document-agent/document-agent-quality.service.ts",
+        "apps/workspace/src/document-agent/document-agent-revision.service.ts",
+        "apps/workspace/src/document-agent/document-agent.service.ts",
+        "apps/workspace/src/documents/documents.controller.ts",
+        "apps/workspace/src/documents/documents.service.ts",
+        "apps/workspace/src/drafts/drafts.controller.ts",
+        "apps/workspace/src/drafts/drafts.service.ts",
+        "apps/workspace/src/drafts/dto/draft.dto.ts",
+        "apps/workspace/src/edit-lock/edit-lock.service.ts",
+        "apps/workspace/src/export/export.service.ts",
+        "apps/workspace/src/generation/generation.service.ts",
+        "apps/workspace/src/generation/memory-promotion.service.ts",
+        "apps/workspace/src/hillday/hillday-document.service.ts",
+        "apps/workspace/src/hillday/hillday-library-access.spec.ts",
+        "apps/workspace/src/notifications/notifications.service.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-access.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-create.ts",
+        "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts",
+        "apps/workspace/src/prospect-resources/prospect-notification-access.ts",
+        "apps/workspace/src/quick-draft/generation-run-worker.service.ts",
+        "apps/workspace/src/quick-draft/quick-draft.service.ts",
+        "apps/workspace/src/quick-draft/source-resolver.service.ts",
+        "apps/workspace/src/template-studio/template-studio.service.ts",
+        "apps/workspace/src/versions/versions.service.ts",
+        "docs/portfolio-backend-20261012/FRONTEND-HANDOFF.md",
+        "docs/portfolio-backend-20261012/LEDGER.md",
+        "docs/portfolio-backend-20261012/QUALIFICATION.md",
+        "docs/portfolio-backend-20261012/REMAINING-CONTRACTS.md",
+        "docs/portfolio-backend-20261012/SENDER-CONTRACT.md",
+        "docs/portfolio-backend-20261012/candidate-paths.json",
+        "docs/portfolio-backend-20261012/dependency-paths.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fix.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fixed.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/FINAL-RECEIPT.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/REVIEW.txt",
+        "docs/portfolio-backend-20261012/evidence/independent-review/SHA256SUMS.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/preservation-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-original-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.log",
+        "docs/portfolio-backend-20261012/evidence/qualification-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/sender-negative-tests.json",
+        "docs/portfolio-backend-20261012/evidence/sender-tests.json",
+        "docs/portfolio-outbound-attachment-acl/CHECKPOINT.md",
+        "docs/prospect-resources-20261012/ACCESS-COVERAGE.md",
+        "docs/prospect-resources-20261012/COMMITMENT-SCOPE-CLEANUP.md",
+        "docs/prospect-resources-20261012/CONTRACT.md",
+        "docs/prospect-resources-20261012/DEPENDENCIES.md",
+        "docs/prospect-resources-20261012/INTEGRATION.md",
+        "docs/prospect-resources-20261012/QUALIFICATION.md",
+        "docs/prospect-resources-20261012/evidence/FINAL-CANDIDATE.json",
+        "docs/prospect-resources-20261012/evidence/SHA256SUMS.json",
+        "docs/prospect-resources-20261012/evidence/SOURCE-SHA256SUMS.json",
+        "docs/prospect-resources-20261012/evidence/author/attachment-paths-final.txt",
+        "docs/prospect-resources-20261012/evidence/author/capiro-generate-prospect-core.cjs",
+        "docs/prospect-resources-20261012/evidence/author/capiro-generate-prospect-workspace.cjs",
+        "docs/prospect-resources-20261012/evidence/author/capiro-prospect-jest.cjs",
+        "docs/prospect-resources-20261012/evidence/author/capiro-prospect-workspace-jest.cjs",
+        "docs/prospect-resources-20261012/evidence/author/core-build-final.log",
+        "docs/prospect-resources-20261012/evidence/author/core-build-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/core-generate.log",
+        "docs/prospect-resources-20261012/evidence/author/core-lint.log",
+        "docs/prospect-resources-20261012/evidence/author/core-list-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/core-list-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/core-new-tests-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-command.json",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-final.json",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-final.log",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/core-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/core-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/core-reviewed-receipt.json",
+        "docs/prospect-resources-20261012/evidence/author/core-reviewed.json",
+        "docs/prospect-resources-20261012/evidence/author/core-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-final.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-repaired.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-retained-tests.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/hillday-final.json",
+        "docs/prospect-resources-20261012/evidence/author/hillday-final.log",
+        "docs/prospect-resources-20261012/evidence/author/independent-fixture-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/independent-fixture-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/install.log",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-core.json",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-core.log",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-workspace.json",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-workspace.log",
+        "docs/prospect-resources-20261012/evidence/author/packages.log",
+        "docs/prospect-resources-20261012/evidence/author/primary-reviewed.json",
+        "docs/prospect-resources-20261012/evidence/author/retained-tests-primary.json",
+        "docs/prospect-resources-20261012/evidence/author/runtime-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/author/sender-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/author/shared-build.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-build-final.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-fixture-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-fixture-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-fixture-typing-receipt.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-generate.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-new-tests-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-new-tests-second.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-paths-final.txt",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-command.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-final.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-final.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-reviewed-receipt.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-reviewed.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-tsc-final.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-tsc-fixture-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-tsc-retained-tests.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/FINAL-SOURCE-RECEIPT.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/RECEIPT.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/REVIEW.md",
+        "docs/prospect-resources-20261012/evidence/independent-review/SHA256SUMS",
+        "docs/prospect-resources-20261012/evidence/independent-review/SOURCE-REVIEW.md",
+        "docs/prospect-resources-20261012/evidence/independent-review/SOURCE-SHA256SUMS",
+        "docs/prospect-resources-20261012/evidence/independent-review/api-review.jest.cjs",
+        "docs/prospect-resources-20261012/evidence/independent-review/attachment-direct-readers.txt",
+        "docs/prospect-resources-20261012/evidence/independent-review/compare-preserved-methods.cjs",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-baseline.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-baseline.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-final-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-final.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-final.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-independent-initial.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-independent-initial.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-repair-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-repair.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-repair.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/final-fixture-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-core.spec.ts",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-path-intersections.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-workspace-final.spec.ts",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-workspace.spec.ts",
+        "docs/prospect-resources-20261012/evidence/independent-review/initial-core.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/migration-source-hashes.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/preserved-methods.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/retained-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-confirmed-red.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-confirmed-red.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-cross-app-readers.txt",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-direct-readers.txt",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-expanded-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-expanded.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-expanded.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final-fixture.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final-fixture.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-initial.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-initial.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-repair.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-repair.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-review.jest.cjs",
+        "docs/prospect-resources-20261012/evidence/remote-ref-refresh.json",
+        "docs/prospect-resources-20261012/path-intersections.json",
+        "packages/shared/src/client-memory-wall.ts",
+        "packages/shared/src/index.ts",
+        "packages/shared/src/prospect-resource-scope.ts",
+        "packages/shared/src/tenant-feature.ts"
+      ]
+    },
+    {
+      "a": 2401,
+      "b": 2402,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts"
+      ]
+    },
+    {
+      "a": 2401,
+      "b": 2403,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2401,
+      "b": 2404,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "packages/shared/src/index.ts"
+      ]
+    },
+    {
+      "a": 2401,
+      "b": 2405,
+      "paths": [
+        "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts",
+        "apps/api/src/capabilities/context/outreach-context-reference.service.ts",
+        "apps/api/src/clients/client-activity.service.ts",
+        "apps/api/src/clients/client-files.controller.ts",
+        "apps/api/src/clients/client-profile-fill-workflow.service.ts",
+        "apps/api/src/clients/client-profile-fill.service.ts",
+        "apps/api/src/common/tenant-flags.ts",
+        "apps/api/src/embeddings/client-kb-access.spec.ts",
+        "apps/api/src/embeddings/client-kb.service.ts",
+        "apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json",
+        "apps/api/src/engagement/attachments/attachment-viewer-access.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/outbound-attachment-access.ts",
+        "apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts",
+        "apps/api/src/engagement/attachments/prospect-attachment-access.ts",
+        "apps/api/src/engagement/attachments/prospect-independent-review.spec.ts",
+        "apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts",
+        "apps/api/src/engagement/engagement-document-read.spec.ts",
+        "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+        "apps/api/src/engagement/engagement-send-thread-key.spec.ts",
+        "apps/api/src/engagement/engagement.controller.ts",
+        "apps/api/src/engagement/engagement.service.ts",
+        "apps/api/src/engagement/generation/evidence-source.service.ts",
+        "apps/api/src/engagement/independent-sender-review.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.controller.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.spec.ts",
+        "apps/api/src/engagement/mailbox-selection.ts",
+        "apps/api/src/engagement/outreach-send-intent.service.ts",
+        "apps/api/src/memory/memory-wall.helpers.ts",
+        "apps/api/src/meri/meri-job-deliverables.service.ts",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "apps/api/src/outreach-v3/send/outreach-v3-send.service.ts",
+        "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+        "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+        "apps/workspace/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+        "apps/workspace/prisma/migrations/20281012040000_saved_version_immutability/migration.sql",
+        "apps/workspace/prisma/schema.prisma",
+        "apps/workspace/src/checks/checks.controller.ts",
+        "apps/workspace/src/checks/checks.service.ts",
+        "apps/workspace/src/collaborators/collaborators.controller.ts",
+        "apps/workspace/src/collaborators/collaborators.service.ts",
+        "apps/workspace/src/collaborators/role-policy.ts",
+        "apps/workspace/src/comments/comments.controller.ts",
+        "apps/workspace/src/comments/comments.service.ts",
+        "apps/workspace/src/context/context.service.ts",
+        "apps/workspace/src/delivery/approval.service.ts",
+        "apps/workspace/src/delivery/delivery.spec.ts",
+        "apps/workspace/src/delivery/share-link.service.ts",
+        "apps/workspace/src/document-agent/document-agent-quality.service.ts",
+        "apps/workspace/src/document-agent/document-agent-revision.service.ts",
+        "apps/workspace/src/document-agent/document-agent.service.ts",
+        "apps/workspace/src/documents/documents.controller.ts",
+        "apps/workspace/src/documents/documents.service.ts",
+        "apps/workspace/src/documents/meri-import-text.ts",
+        "apps/workspace/src/drafts/drafts.controller.ts",
+        "apps/workspace/src/drafts/drafts.service.ts",
+        "apps/workspace/src/drafts/dto/draft.dto.ts",
+        "apps/workspace/src/edit-lock/edit-lock.service.ts",
+        "apps/workspace/src/export/export.service.ts",
+        "apps/workspace/src/generation/generation.service.ts",
+        "apps/workspace/src/generation/memory-promotion.service.ts",
+        "apps/workspace/src/hillday/hillday-document.service.ts",
+        "apps/workspace/src/hillday/hillday-library-access.spec.ts",
+        "apps/workspace/src/notifications/notifications.service.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-access.ts",
+        "apps/workspace/src/prospect-resources/prospect-draft-create.ts",
+        "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts",
+        "apps/workspace/src/prospect-resources/prospect-notification-access.ts",
+        "apps/workspace/src/quick-draft/generation-run-worker.service.ts",
+        "apps/workspace/src/quick-draft/quick-draft.service.ts",
+        "apps/workspace/src/quick-draft/source-resolver.service.ts",
+        "apps/workspace/src/template-studio/template-studio.service.ts",
+        "apps/workspace/src/versions/versions.controller.ts",
+        "apps/workspace/src/versions/versions.service.ts",
+        "docs/newsletter-staging-20261012/CONTRACT.md",
+        "docs/newsletter-staging-20261012/INTEGRATION.md",
+        "docs/newsletter-staging-20261012/QUALIFICATION.md",
+        "docs/newsletter-staging-20261012/evidence/CHECKS.json",
+        "docs/newsletter-staging-20261012/evidence/SHA256SUMS.json",
+        "docs/newsletter-staging-20261012/evidence/author-api-nest-build.log",
+        "docs/newsletter-staging-20261012/evidence/author-api-typecheck-8gb.log",
+        "docs/newsletter-staging-20261012/evidence/author-api-typecheck-final.log",
+        "docs/newsletter-staging-20261012/evidence/author-api-typecheck-initial.log",
+        "docs/newsletter-staging-20261012/evidence/author-boundary-tests.log",
+        "docs/newsletter-staging-20261012/evidence/author-core-final.log",
+        "docs/newsletter-staging-20261012/evidence/author-core-initial.log",
+        "docs/newsletter-staging-20261012/evidence/author-core-post-review-second.log",
+        "docs/newsletter-staging-20261012/evidence/author-core-post-review.log",
+        "docs/newsletter-staging-20261012/evidence/author-core-rerun.log",
+        "docs/newsletter-staging-20261012/evidence/author-engine-initial.log",
+        "docs/newsletter-staging-20261012/evidence/author-shared-build-final.log",
+        "docs/newsletter-staging-20261012/evidence/author-shared-build-second-review.log",
+        "docs/newsletter-staging-20261012/evidence/author-shared-build.log",
+        "docs/newsletter-staging-20261012/evidence/author-workspace-nest-build.log",
+        "docs/newsletter-staging-20261012/evidence/author-workspace-tests-rerun.log",
+        "docs/newsletter-staging-20261012/evidence/author-workspace-tests.log",
+        "docs/newsletter-staging-20261012/evidence/author-workspace-typecheck.log",
+        "docs/newsletter-staging-20261012/evidence/generate-source-clients.cjs",
+        "docs/newsletter-staging-20261012/evidence/independent-review/77e832352-final-40.log",
+        "docs/newsletter-staging-20261012/evidence/independent-review/77e832352-initial-30-pass.log",
+        "docs/newsletter-staging-20261012/evidence/independent-review/77e832352-self-contained-40.log",
+        "docs/newsletter-staging-20261012/evidence/independent-review/77e832352-user-binding-40.log",
+        "docs/newsletter-staging-20261012/evidence/independent-review/REVIEW.md",
+        "docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts",
+        "docs/newsletter-staging-20261012/evidence/independent-review/evidence-sha256.json",
+        "docs/newsletter-staging-20261012/evidence/independent-review/fcea81c0f-regression.log",
+        "docs/newsletter-staging-20261012/evidence/independent-review/fixture-lock-selector-failure.log",
+        "docs/newsletter-staging-20261012/evidence/independent-review/fixture-sponsor-failure.log",
+        "docs/newsletter-staging-20261012/evidence/independent-review/fixture-target-field-failure.log",
+        "docs/newsletter-staging-20261012/evidence/independent-review/jest.config.cjs",
+        "docs/newsletter-staging-20261012/evidence/independent-review/reviewed-source.json",
+        "docs/newsletter-staging-20261012/evidence/independent-review/setup-resolution-failure.log",
+        "docs/newsletter-staging-20261012/evidence/pr2400-publication-base.json",
+        "docs/newsletter-staging-20261012/evidence/prisma-wasm-source-generation.log",
+        "docs/newsletter-staging-20261012/evidence/remote-main-reference.json",
+        "docs/newsletter-staging-20261012/path-intersections.json",
+        "docs/portfolio-backend-20261012/FRONTEND-HANDOFF.md",
+        "docs/portfolio-backend-20261012/LEDGER.md",
+        "docs/portfolio-backend-20261012/QUALIFICATION.md",
+        "docs/portfolio-backend-20261012/REMAINING-CONTRACTS.md",
+        "docs/portfolio-backend-20261012/SENDER-CONTRACT.md",
+        "docs/portfolio-backend-20261012/candidate-paths.json",
+        "docs/portfolio-backend-20261012/dependency-paths.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fix.json",
+        "docs/portfolio-backend-20261012/evidence/capiro-sender-review-fixed.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/FINAL-RECEIPT.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/REVIEW.txt",
+        "docs/portfolio-backend-20261012/evidence/independent-review/SHA256SUMS.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-cli.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-lifecycle.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/facility-replay.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/preservation-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-additional-red.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-independent-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-jest.cjs",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-original-review.spec.ts",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-repair-final.log",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.json",
+        "docs/portfolio-backend-20261012/evidence/independent-review/sender-replay.log",
+        "docs/portfolio-backend-20261012/evidence/qualification-receipt.json",
+        "docs/portfolio-backend-20261012/evidence/sender-negative-tests.json",
+        "docs/portfolio-backend-20261012/evidence/sender-tests.json",
+        "docs/portfolio-outbound-attachment-acl/CHECKPOINT.md",
+        "docs/prospect-resources-20261012/ACCESS-COVERAGE.md",
+        "docs/prospect-resources-20261012/COMMITMENT-SCOPE-CLEANUP.md",
+        "docs/prospect-resources-20261012/CONTRACT.md",
+        "docs/prospect-resources-20261012/DEPENDENCIES.md",
+        "docs/prospect-resources-20261012/INTEGRATION.md",
+        "docs/prospect-resources-20261012/QUALIFICATION.md",
+        "docs/prospect-resources-20261012/evidence/FINAL-CANDIDATE.json",
+        "docs/prospect-resources-20261012/evidence/SHA256SUMS.json",
+        "docs/prospect-resources-20261012/evidence/SOURCE-SHA256SUMS.json",
+        "docs/prospect-resources-20261012/evidence/author/attachment-paths-final.txt",
+        "docs/prospect-resources-20261012/evidence/author/capiro-generate-prospect-core.cjs",
+        "docs/prospect-resources-20261012/evidence/author/capiro-generate-prospect-workspace.cjs",
+        "docs/prospect-resources-20261012/evidence/author/capiro-prospect-jest.cjs",
+        "docs/prospect-resources-20261012/evidence/author/capiro-prospect-workspace-jest.cjs",
+        "docs/prospect-resources-20261012/evidence/author/core-build-final.log",
+        "docs/prospect-resources-20261012/evidence/author/core-build-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/core-generate.log",
+        "docs/prospect-resources-20261012/evidence/author/core-lint.log",
+        "docs/prospect-resources-20261012/evidence/author/core-list-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/core-list-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/core-new-tests-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-command.json",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-final.json",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-final.log",
+        "docs/prospect-resources-20261012/evidence/author/core-regressions-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/core-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/core-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/core-reviewed-receipt.json",
+        "docs/prospect-resources-20261012/evidence/author/core-reviewed.json",
+        "docs/prospect-resources-20261012/evidence/author/core-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-final.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-repaired.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-retained-tests.log",
+        "docs/prospect-resources-20261012/evidence/author/core-tsc-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/hillday-final.json",
+        "docs/prospect-resources-20261012/evidence/author/hillday-final.log",
+        "docs/prospect-resources-20261012/evidence/author/independent-fixture-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/independent-fixture-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/install.log",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-core.json",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-core.log",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-workspace.json",
+        "docs/prospect-resources-20261012/evidence/author/origin-repair-workspace.log",
+        "docs/prospect-resources-20261012/evidence/author/packages.log",
+        "docs/prospect-resources-20261012/evidence/author/primary-reviewed.json",
+        "docs/prospect-resources-20261012/evidence/author/retained-tests-primary.json",
+        "docs/prospect-resources-20261012/evidence/author/runtime-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/author/sender-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/author/shared-build.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-build-final.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-fixture-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-fixture-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-fixture-typing-receipt.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-generate.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-new-tests-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-new-tests-second.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-paths-final.txt",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-command.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-final.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-final.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-regressions-initial.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-repair.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-reviewed-receipt.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-reviewed.json",
+        "docs/prospect-resources-20261012/evidence/author/workspace-reviewed.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-tsc-final.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-tsc-fixture-repair.log",
+        "docs/prospect-resources-20261012/evidence/author/workspace-tsc-retained-tests.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/FINAL-SOURCE-RECEIPT.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/RECEIPT.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/REVIEW.md",
+        "docs/prospect-resources-20261012/evidence/independent-review/SHA256SUMS",
+        "docs/prospect-resources-20261012/evidence/independent-review/SOURCE-REVIEW.md",
+        "docs/prospect-resources-20261012/evidence/independent-review/SOURCE-SHA256SUMS",
+        "docs/prospect-resources-20261012/evidence/independent-review/api-review.jest.cjs",
+        "docs/prospect-resources-20261012/evidence/independent-review/attachment-direct-readers.txt",
+        "docs/prospect-resources-20261012/evidence/independent-review/compare-preserved-methods.cjs",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-baseline.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-baseline.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-final-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-final.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-final.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-independent-initial.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-independent-initial.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-repair-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-repair.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/core-repair.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/final-fixture-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-core.spec.ts",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-path-intersections.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-workspace-final.spec.ts",
+        "docs/prospect-resources-20261012/evidence/independent-review/independent-workspace.spec.ts",
+        "docs/prospect-resources-20261012/evidence/independent-review/initial-core.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/migration-source-hashes.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/preserved-methods.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/retained-equivalence.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-confirmed-red.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-confirmed-red.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-cross-app-readers.txt",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-direct-readers.txt",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-expanded-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-expanded.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-expanded.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final-command.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final-fixture.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final-fixture.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-final.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-initial.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-initial.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-repair.json",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-repair.log",
+        "docs/prospect-resources-20261012/evidence/independent-review/workspace-review.jest.cjs",
+        "docs/prospect-resources-20261012/evidence/remote-ref-refresh.json",
+        "docs/prospect-resources-20261012/path-intersections.json",
+        "packages/shared/src/client-memory-wall.ts",
+        "packages/shared/src/index.ts",
+        "packages/shared/src/prospect-resource-scope.ts",
+        "packages/shared/src/tenant-feature.ts",
+        "packages/shared/src/workspace-saved-revision.ts"
+      ]
+    },
+    {
+      "a": 2402,
+      "b": 2403,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2402,
+      "b": 2404,
+      "paths": [
+        "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/clients.module.ts",
+        "apps/api/src/clients/objectives/objective-destination.privileges.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.spec.ts",
+        "apps/api/src/clients/objectives/objective-destination.ts",
+        "apps/api/src/clients/objectives/objective-rules.spec.ts",
+        "apps/api/src/clients/objectives/objective-rules.ts",
+        "apps/api/src/clients/objectives/objective.dto.ts",
+        "apps/api/src/clients/objectives/objectives.authorization.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.spec.ts",
+        "apps/api/src/clients/objectives/objectives.controller.ts",
+        "apps/api/src/clients/objectives/objectives.module.ts",
+        "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.spec.ts",
+        "apps/api/src/clients/objectives/objectives.service.ts",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-objective-destination.controller.spec.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.module.ts",
+        "apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts",
+        "apps/api/src/outreach-v3/services/outreach-session.service.ts",
+        "docs/objective-destinations-20261012/CONTRACT.md",
+        "docs/objective-destinations-20261012/INTEGRATION.md",
+        "docs/objective-destinations-20261012/QUALIFICATION.md",
+        "docs/objective-destinations-20261012/evidence/author-frozen-tests.json",
+        "docs/objective-destinations-20261012/evidence/author-frozen-tests.log",
+        "docs/objective-destinations-20261012/evidence/author-repaired-tests.json",
+        "docs/objective-destinations-20261012/evidence/author-repaired-tests.log",
+        "docs/objective-destinations-20261012/evidence/author-source-receipt.json",
+        "docs/objective-destinations-20261012/evidence/core-nest-build.log",
+        "docs/objective-destinations-20261012/evidence/core-tsc-frozen.log",
+        "docs/objective-destinations-20261012/evidence/core-tsc-repaired.log",
+        "docs/objective-destinations-20261012/evidence/focused-tests-initial.log",
+        "docs/objective-destinations-20261012/evidence/focused-tests-retry.log",
+        "docs/objective-destinations-20261012/evidence/generate-objective-client.cjs",
+        "docs/objective-destinations-20261012/evidence/immutable-revision-repair/author-repair-receipt.json",
+        "docs/objective-destinations-20261012/evidence/immutable-revision-repair/core-tsc.log",
+        "docs/objective-destinations-20261012/evidence/immutable-revision-repair/privileges-red.log",
+        "docs/objective-destinations-20261012/evidence/immutable-revision-repair/repair-green.json",
+        "docs/objective-destinations-20261012/evidence/immutable-revision-repair/repair-green.log",
+        "docs/objective-destinations-20261012/evidence/immutable-revision-repair/repair-incomplete.json",
+        "docs/objective-destinations-20261012/evidence/immutable-revision-repair/repair-incomplete.log",
+        "docs/objective-destinations-20261012/evidence/immutable-revision-repair/retained-tooling-failures.txt",
+        "docs/objective-destinations-20261012/evidence/independent-review/RECEIPT.json",
+        "docs/objective-destinations-20261012/evidence/independent-review/REVIEW.md",
+        "docs/objective-destinations-20261012/evidence/independent-review/SHA256SUMS.json",
+        "docs/objective-destinations-20261012/evidence/independent-review/author-baseline-corrected.json",
+        "docs/objective-destinations-20261012/evidence/independent-review/author-baseline-corrected.log",
+        "docs/objective-destinations-20261012/evidence/independent-review/author-baseline.log",
+        "docs/objective-destinations-20261012/evidence/independent-review/combined-final.json",
+        "docs/objective-destinations-20261012/evidence/independent-review/combined-final.log",
+        "docs/objective-destinations-20261012/evidence/independent-review/independent-final.json",
+        "docs/objective-destinations-20261012/evidence/independent-review/independent-final.log",
+        "docs/objective-destinations-20261012/evidence/independent-review/independent-initial.log",
+        "docs/objective-destinations-20261012/evidence/independent-review/independent-transform-repaired.json",
+        "docs/objective-destinations-20261012/evidence/independent-review/independent-transform-repaired.log",
+        "docs/objective-destinations-20261012/evidence/independent-review/objective-independent-initial-fixture.ts",
+        "docs/objective-destinations-20261012/evidence/independent-review/objective-independent.jest.cjs",
+        "docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts",
+        "docs/objective-destinations-20261012/evidence/initial-tests.log",
+        "docs/objective-destinations-20261012/evidence/main-refresh.txt",
+        "docs/objective-destinations-20261012/evidence/objective.jest.cjs",
+        "docs/objective-destinations-20261012/evidence/path-intersections.json",
+        "docs/objective-destinations-20261012/evidence/pinned-internals-install-retry.log",
+        "docs/objective-destinations-20261012/evidence/pinned-internals-install.log",
+        "docs/objective-destinations-20261012/evidence/prisma-tools-package-lock.json",
+        "docs/objective-destinations-20261012/evidence/regressions-initial.log",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/RECEIPT.json",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/REVIEW.md",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/SHA256SUMS.json",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/mutable-lock-grant-source.txt",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/published-privilege-mismatch.txt",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/repair-combined-final.json",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/repair-combined-final.log",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/repair-independent-initial.json",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/repair-independent-initial.log",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/repair-source.diff",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/revision-repair-independent.jest.cjs",
+        "docs/objective-destinations-20261012/evidence/revision-repair-independent-review/revision-repair-independent.spec.ts",
+        "docs/objective-destinations-20261012/evidence/source-format.log",
+        "docs/objective-destinations-20261012/evidence/wasm-generate.log",
+        "docs/objective-destinations-20261012/evidence/wasm-source-receipt.json",
+        "docs/portfolio-31/objectives-authorization-checkpoint.md",
+        "docs/portfolio-31/objectives-contract.md"
+      ]
+    },
+    {
+      "a": 2402,
+      "b": 2405,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts"
+      ]
+    },
+    {
+      "a": 2403,
+      "b": 2404,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2403,
+      "b": 2405,
+      "paths": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "a": 2404,
+      "b": 2405,
+      "paths": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+        "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+        "packages/shared/src/client-objective-destination.ts",
+        "packages/shared/src/index.ts"
+      ]
+    }
+  ]
+}

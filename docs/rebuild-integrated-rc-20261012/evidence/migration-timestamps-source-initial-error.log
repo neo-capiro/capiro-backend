@@ -1,0 +1,2 @@
+error: unknown option: --run
+Usage: node scripts/check-migration-timestamps.mjs [--base <ref>] (default: origin/main)

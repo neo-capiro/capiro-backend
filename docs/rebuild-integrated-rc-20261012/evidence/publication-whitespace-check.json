@@ -1,0 +1,7 @@
+{
+  "fullStagedCheckExit": 2,
+  "rawLogBytesPreserved": true,
+  "rawLogWarnings": "Original ts-jest warning output contains trailing whitespace; retained exactly. No runtime or handoff whitespace error.",
+  "sourceAndHandoffCheckExit": 0,
+  "sourceAndHandoffCommand": "git diff --cached --check -- . :!docs/rebuild-integrated-rc-20261012/evidence"
+}

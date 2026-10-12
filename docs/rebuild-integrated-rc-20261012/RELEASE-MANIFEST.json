@@ -1,0 +1,511 @@
+{
+  "repository": "neo-capiro/capirov2",
+  "branch": "codex/rebuild-integrated-source-rc-20261012",
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "implementationSource": "11903f32f6257a47e42f49c1abe92c0e0fb0e4fb",
+  "implementationTree": "b10a7ed7e2e19d371ad46bfc2a6b57efdbaa997c",
+  "publicationIdentity": "Final draft PR head/tree is a later documentation/evidence commit; verify its runtime bytes against SOURCE-MANIFEST.json.",
+  "candidateRefs": [
+    {
+      "pr": 2362,
+      "head": "72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e",
+      "title": "Persist standalone client Objective drafts and four-field readiness",
+      "headBranch": "codex/portfolio-objectives-31-20261011",
+      "base": "main",
+      "baseHead": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2364,
+      "head": "4b3c672574ed3738e42b1c5e1f7483e32f358095",
+      "title": "fix(engagement): authorize reply threads before provider send",
+      "headBranch": "codex/portfolio-mail-guard-20261011",
+      "base": "main",
+      "baseHead": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2365,
+      "head": "fd6ed6c017ae91ab774fd34f74475a746de13b68",
+      "title": "Portfolio 3.1 prospect stages: additive contract candidate",
+      "headBranch": "codex/portfolio-prospect-stages-20261011",
+      "base": "main",
+      "baseHead": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2371,
+      "head": "6c6f88e9e5ba077452716f3a0db0dd3bbea2963f",
+      "title": "Portfolio: scoped prospect Contacts contract candidate",
+      "headBranch": "codex/portfolio-prospect-contacts-20261011",
+      "base": "main",
+      "baseHead": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2373,
+      "head": "6e5774a14c73ea04f0a77650a5bbd33173bcc9b3",
+      "title": "Portfolio: guard reviewed facility choices and geocode worker writes",
+      "headBranch": "codex/portfolio-geocode-cas-20261011",
+      "base": "main",
+      "baseHead": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2381,
+      "head": "171ec869ed3928c96172c8790a9aeb3b4de901ae",
+      "title": "fix(engagement): enforce outbound attachment viewer and parent access",
+      "headBranch": "codex/portfolio-outbound-attachment-acl-20261011",
+      "base": "main",
+      "baseHead": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2392,
+      "head": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "title": "CleanUp1 integration candidate and final gate evidence",
+      "headBranch": "codex/cleanup1-integration-main4be-20261011",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "exact selective guard blobs only"
+    },
+    {
+      "pr": 2393,
+      "head": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+      "title": "Portfolio: select exact single-mail mailbox and preserve sender provenance",
+      "headBranch": "codex/portfolio-backend-sender-20261012",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2394,
+      "head": "5d075af9b376cd3ed67256b5c38e4a2a2130a51d",
+      "title": "Portfolio: reconcile reviewed facility CAS with current Cleanup lifecycle",
+      "headBranch": "codex/portfolio-facility-reconcile-20261012",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2395,
+      "head": "c5e41e320af4b4d841d4b3136777d712116916ed",
+      "title": "Planner: add durable task-create command and receipt recovery",
+      "headBranch": "codex/planner-create-receipt-20261012",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2396,
+      "head": "e2c2c110edd986e799d47d43b0db50b24fab0201",
+      "title": "Compose Core activity logs with recoverable Planner follow-ups",
+      "headBranch": "codex/core-quick-log-20261012",
+      "base": "codex/planner-create-receipt-20261012",
+      "baseHead": "c5e41e320af4b4d841d4b3136777d712116916ed",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2397,
+      "head": "4915f3fa5c938182b2624377375674654baa5337",
+      "title": "Align memory messages with the existing administrator approval exception",
+      "headBranch": "codex/memory-admin-approval-wording-20261012",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2398,
+      "head": "797e3a59158cff56b017ab7d01ee445bf624fced",
+      "title": "docs: exact PR2396 frontend contract and backend dependency ledger",
+      "headBranch": "codex/backend-frontend-handoff-20261012",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2399,
+      "head": "0783423aeaaa8b65f289d0927d605142816d8cfe",
+      "title": "feat(clients): atomic versioned Primary\u2013Quaternary ownership",
+      "headBranch": "codex/client-ordered-owners-20261012",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2400,
+      "head": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+      "title": "Prospects: bind Files and Workspace drafts to canonical origins",
+      "headBranch": "codex/prospect-resource-origin-20261012",
+      "base": "codex/portfolio-backend-sender-20261012",
+      "baseHead": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2401,
+      "head": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+      "title": "Stage exact saved Workspace newsletter revisions into Outreach",
+      "headBranch": "codex/newsletter-revision-staging-20261012",
+      "base": "codex/prospect-resource-origin-20261012",
+      "baseHead": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2402,
+      "head": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+      "title": "Resolve exact Objective revisions through the canonical Outreach destination owner",
+      "headBranch": "codex/objective-bound-destinations-20261012",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2403,
+      "head": "39b4ae45db578d121b18db9f95029a8c3ec293a2",
+      "title": "Federal Register: qualify effective-date calendar with source evidence",
+      "headBranch": "codex/authoritative-effective-calendar-20261012",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2404,
+      "head": "0716767e8b6ff323b2516d166b22edb4d2413e57",
+      "title": "Resolve current Objective revisions through Strategy and Planner owners",
+      "headBranch": "codex/objective-strategy-planner-destinations-20261012",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    },
+    {
+      "pr": 2405,
+      "head": "c05b85a29a75cbaaa8538fd7f9a97e298a23913e",
+      "title": "Resolve Objective destinations for exact saved Workspace revisions",
+      "headBranch": "codex/workspace-objective-revision-destination-20261012",
+      "base": "codex/newsletter-revision-staging-20261012",
+      "baseHead": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "inclusion": "full original history retained as an ancestor"
+    }
+  ],
+  "services": [
+    {
+      "service": "Core",
+      "package": "apps/api",
+      "baseVariable": "CORE_API_BASE_URL",
+      "prefix": "/api",
+      "sourceDefaultPort": 4000,
+      "routes": [
+        "clients",
+        "client-account-owners",
+        "engagement",
+        "business-development",
+        "federal-register"
+      ],
+      "schema": {
+        "path": "apps/api/prisma/schema.prisma",
+        "gitBlob": "ab07167f8f703c0dca17a43812ea7413a53610d4",
+        "sha256": "d79006f5a5d24a64ea605e7d04ab8b69d1ced0c42292b7406564d71feadc8afa"
+      },
+      "bootstrap": "apps/api/src/bootstrap/configure-api-http-app.ts"
+    },
+    {
+      "service": "Strategy",
+      "package": "apps/api-strategy",
+      "baseVariable": "STRATEGY_API_BASE_URL",
+      "prefix": "/strategy-api",
+      "sourceDefaultPort": 4400,
+      "routes": [
+        "planner",
+        "strategies"
+      ],
+      "schema": {
+        "path": "apps/api-strategy/prisma/schema.prisma",
+        "gitBlob": "8bb37cbda7fbd77e49422fbc182cae0ca58e9d25",
+        "sha256": "77533d6831f853d5dd1dcb12916f3218ca80a7eda75d62ca53c02e40e22547d2"
+      },
+      "bootstrap": "apps/api-strategy/src/main.ts"
+    },
+    {
+      "service": "Workspace",
+      "package": "apps/workspace",
+      "baseVariable": "WORKSPACE_API_BASE_URL",
+      "prefix": "/workspace-api",
+      "sourceDefaultPort": 4200,
+      "routes": [
+        "drafts",
+        "documents",
+        "artifacts",
+        "templates"
+      ],
+      "schema": {
+        "path": "apps/workspace/prisma/schema.prisma",
+        "gitBlob": "2adbac98e73f8106046420acb802be30e59a367f",
+        "sha256": "09b8269440dfb1c5ad9b881a68f27207029290d5bcb297f5745392fadcc077db"
+      },
+      "bootstrap": "apps/workspace/src/main.ts"
+    }
+  ],
+  "routeOwners": [
+    {
+      "method": "GET",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/objective-destination",
+      "owner": "OutreachSessionService",
+      "contract": "docs/objective-destinations-20261012/CONTRACT.md"
+    },
+    {
+      "method": "GET",
+      "path": "/strategy-api/strategies/:id/objective-destination",
+      "owner": "StrategyService",
+      "contract": "docs/objective-strategy-planner-destinations-20261012/CONTRACT.md"
+    },
+    {
+      "method": "GET",
+      "path": "/strategy-api/planner/tasks/:id/objective-destination",
+      "owner": "PlannerService",
+      "contract": "docs/objective-strategy-planner-destinations-20261012/CONTRACT.md"
+    },
+    {
+      "method": "GET",
+      "path": "/workspace-api/drafts/:draftId/versions/:versionId/objective-destination",
+      "owner": "VersionsService",
+      "contract": "docs/workspace-objective-revisions-20261012/CONTRACT.md"
+    },
+    {
+      "method": "GET",
+      "path": "/workspace-api/drafts/:draftId/versions/:versionId/outreach-revision",
+      "owner": "VersionsService",
+      "contract": "docs/newsletter-staging-20261012/CONTRACT.md"
+    },
+    {
+      "method": "POST",
+      "path": "/api/engagement/outreach-v3/sessions/:sessionId/newsletter-staging",
+      "owner": "OutreachCommandEngineService",
+      "contract": "docs/newsletter-staging-20261012/CONTRACT.md"
+    },
+    {
+      "method": "GET",
+      "path": "/api/federal-register/effective-date-calendar",
+      "owner": "FederalRegisterService",
+      "contract": "docs/effective-date-calendar-20261012/CONTRACT.md"
+    },
+    {
+      "method": "GET/POST/PATCH/DELETE",
+      "path": "/api/business-development/prospects/:prospectId/contacts[/:contactId]",
+      "owner": "ProspectContactsService",
+      "contract": "docs/portfolio-prospect-contacts/CONTRACT.md; integration updates in HANDOFF.md"
+    }
+  ],
+  "frontendReadOnlyEvidence": {
+    "repository": "neo-capiro/capiro-frontend",
+    "observedHead": "02c02d95bdf3949662b9123f425271c6491ffdab",
+    "files": [
+      {
+        "path": "apps/portfolio-web/src/shared/config/config.ts",
+        "gitBlob": "28551f81aa072dc5904f76a8f3287ddb77017a33",
+        "sha256": "e37e67bbf2a8306358d8d5925975392e9dd334c1bc4dc6689047003102004ea0"
+      },
+      {
+        "path": "apps/portfolio-web/src/shared/api/proxy.ts",
+        "gitBlob": "8441dda134bc5f5b70f40157cca952c9365d7e6b",
+        "sha256": "c061ab974c61f645f84f2829a461a2568769145a4976a4931be60748a8d47df8"
+      },
+      {
+        "path": "apps/portfolio-web/.env.example",
+        "gitBlob": "cda1eb952a94c58874f479bc834856519960b8e4",
+        "sha256": "08d7012e1c8f6f98eb177d2c886cfca9c0ac7c67df23a873b070a522e659acf7"
+      }
+    ],
+    "modified": false
+  },
+  "configuration": {
+    "frontendServiceBases": "Full HTTPS service base INCLUDING prefix; loopback HTTP only is supported by existing frontend validator. No real endpoint/credential configured.",
+    "frontendAuth": "Existing designated Clerk configuration; no key values read or changed. Proxy sends authenticated Bearer token, JSON, no-store and same-origin mutation checks.",
+    "outreachStateFlag": "OUTREACH_V3_STATE_ENABLED remains existing fail-closed guard; no flag enabled.",
+    "prospectTenantFlag": "Existing clioFeatureFlags[\"businessDevelopment.enabled\"] remains required. No tenant settings changed.",
+    "genericPlannerBridge": "Existing QUICK_LOG_PLANNER_ORIGIN is HTTPS origin only, without prefix/path/query/credentials. Existing bridge appends /strategy-api/planner/task-create-commands and forwards bearer plus expected tenant/actor headers. No calls made.",
+    "unchangedOtherServices": [
+      "INTELLIGENCE_API_BASE_URL",
+      "MERI_API_BASE_URL",
+      "TRACKER_BACKEND",
+      "CAPIRO_MERI_URL",
+      "CAPIRO_MODULES_URL",
+      "CAPIRO_WORKSPACE_URL",
+      "CAPIRO_EXISTING_APP_URL"
+    ],
+    "infrastructure": "Existing DATABASE_URL and actual role/physical-catalog setup remain externally managed; no values inspected or changed."
+  },
+  "migrationSources": [
+    {
+      "path": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+      "gitBlob": "3c3bb03b6a237d8d779307cb8737aa88bb490c97",
+      "sha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2",
+      "ledger": "Core",
+      "sourcePR": 2362,
+      "state": "source-only/unapplied"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011020000_portfolio_prospect_stages/migration.sql",
+      "gitBlob": "7048874032f7a8ed079ab0aafee4804b1c97943b",
+      "sha256": "fc3aeb539b0e75f2c1024346eb9b745ee185474e5ba4ed8ea3ff9a02da932f78",
+      "ledger": "Core",
+      "sourcePR": 2365,
+      "state": "source-only/unapplied"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011030000_prospect_contacts/migration.sql",
+      "gitBlob": "bd6a4ad9b077afb0ef7cf96df30438e4cf49f02f",
+      "sha256": "473e30271d7f851582a5c74e201ce40b7b7dcb411ca5597fda9088b4c341d20d",
+      "ledger": "Core",
+      "sourcePR": 2371,
+      "state": "source-only/unapplied",
+      "integrationAllocation": "Existing UNALLOCATED-proposal.sql body with a source-only allocation header; original proposal is preserved."
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012010000_client_activity_commands/migration.sql",
+      "gitBlob": "4248a97787b6a6546f02b4e183141679338b7638",
+      "sha256": "4cd0fe0832a878c4c979ed6399037c3a32d29bde54929100bf7856916c656892",
+      "ledger": "Core",
+      "sourcePR": 2396,
+      "state": "source-only/unapplied"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql",
+      "gitBlob": "fc61f8599f8056ca9cc438bb36a5320d28b581e3",
+      "sha256": "ae7f4d3dd629854f450af63b006fbb173c0ff22b3f05f0add9e65df50393f8c4",
+      "ledger": "Core",
+      "sourcePR": 2399,
+      "state": "source-only/unapplied"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+      "gitBlob": "47c72925bc0b2b76a71e69f29bfafb2ad57830bc",
+      "sha256": "0441a93ecd2c33bc86100e80aa13fbddf9e842da07c7d1bfd54037ada35f8052",
+      "ledger": "Core",
+      "sourcePR": 2400,
+      "state": "source-only/unapplied"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+      "gitBlob": "a4b2b546398f50938f6f39f5c014ca5bf827c968",
+      "sha256": "8b6ca68bb4a7b56a553e3a4a7baf009eae05d58a70b2d1fd610c06fe318015f5",
+      "ledger": "Core",
+      "sourcePR": 2403,
+      "state": "source-only/unapplied"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261012030000_prospect_resource_origin/migration.sql",
+      "gitBlob": "e2bce04218c67151419d370777b7d22c8611c7b0",
+      "sha256": "2ea8c04127567b1d1a0aea936cc25f6c56714655b19655fa5faacb9420139788",
+      "ledger": "Workspace",
+      "sourcePR": 2400,
+      "state": "source-only/unapplied",
+      "allocation": {
+        "originalHead": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+        "originalPath": "apps/workspace/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+        "allocatedPath": "apps/workspace/prisma/migrations/20261012030000_prospect_resource_origin/migration.sql",
+        "sqlByteIdentical": true,
+        "sha256": "2ea8c04127567b1d1a0aea936cc25f6c56714655b19655fa5faacb9420139788",
+        "execution": "unapplied/source-only"
+      }
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+      "gitBlob": "c500ac28dcb42dd51d8387603c19f21c7ed78f3b",
+      "sha256": "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4",
+      "ledger": "Workspace",
+      "sourcePR": 2401,
+      "state": "source-only/unapplied",
+      "allocation": {
+        "originalHead": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+        "originalPath": "apps/workspace/prisma/migrations/20281012040000_saved_version_immutability/migration.sql",
+        "allocatedPath": "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+        "sqlByteIdentical": true,
+        "sha256": "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4",
+        "execution": "unapplied/source-only"
+      }
+    }
+  ],
+  "existingMigrationHistory": "568 pre-existing migration files unchanged. Year-offset configuration unchanged: Core2, Workspace0, Strategy0. No new Strategy migration.",
+  "sourcePreparationOrder": [
+    "Compile existing @capiro/shared and unchanged @capiro/auth before the three service builds.",
+    "Coordinate Core canonical tables and source migration ledger before dependent owner paths are enabled. Do not execute these steps in this task.",
+    "Workspace newsletter/Objective seams and Strategy Objective seam require actual shared physical catalog/Core tables and correctly qualified role SELECT/lock privileges; service-local Prisma schemas are insufficient. Core staging additionally requires Workspace owner tables in the same physical transaction.",
+    "Workspace ledger: prospect origin first, saved-version immutability next. Candidate-only allocated names supersede old standalone names, with identical SQL; original histories remain preserved.",
+    "All native migration/RLS/role/check/trigger/lock/MVCC/bridge interoperability and real provider qualification go through dot before activation."
+  ],
+  "sourceOnlyBoundaries": [
+    "No main merge or deployment.",
+    "No migration/SQL execution, native engine download or Prisma runtime acceptance. Initial PGlite fixture attempt aborted before SQL; preserved in QUALIFICATION.md.",
+    "No real provider/message/upload/model/customer mutation/credential/permission/AWS/security/network changes. Source migrations include their published SQL privileges but were not applied.",
+    "No new reporting implementation. Existing reportOverview remains exactly main; unpublished reporting owner task01a12dc9-21a3-7062-908e-b6fabc37c027 remains separate.",
+    "No full commitment/direction/counterparty UI or abandoned semantics. Existing generic activity and shared tasks remain.",
+    "No comprehensive legal Dates/all-rule/separate-correction completeness, durable Objective creation/association or Contacts conversion carryover inferred."
+  ],
+  "remainingGates": [
+    "Native PostgreSQL/RLS/CHECK/trigger/permissions/cascade/MVCC/concurrency acceptance remains unrun.",
+    "Inherited client SHARE then grant SHARE versus grant-delete then client-update writer availability deadlock remains a native qualification gate, with errors fail-closed.",
+    "Full Cleanup2392 retains separate unaccepted source/native/browser/exact-source gates; selective guards do not accept the full candidate.",
+    "Unpublished scoped EngagementService reporting must be published/composed/reviewed by its owner before new client/organization reporting can activate.",
+    "General Workspace Objective authority and durable creation/association, comprehensive effective Dates/correction review and Contacts ClientPerson carryover are separate contracts."
+  ]
+}

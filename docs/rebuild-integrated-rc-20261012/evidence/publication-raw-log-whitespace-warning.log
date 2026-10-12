@@ -1,0 +1,24 @@
+docs/rebuild-integrated-rc-20261012/evidence/contacts-integration-initial-fixture-error.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/contacts-integration-initial-fixture-error.log:3: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/contacts-integration-tests.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/contacts-integration-tests.log:3: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/core-combined-regressions-initial-error.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/core-combined-regressions-initial-error.log:3: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/core-combined-regressions.log:1: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/core-combined-regressions.log:3: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/strategy-combined-regressions.log:6: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/strategy-combined-regressions.log:8: trailing whitespace.
++  
+docs/rebuild-integrated-rc-20261012/evidence/workspace-combined-regressions.log:6: trailing whitespace.
++ts-jest[config] (WARN) 
+docs/rebuild-integrated-rc-20261012/evidence/workspace-combined-regressions.log:8: trailing whitespace.
++  
