@@ -29,7 +29,7 @@ and TODOs are reported explicitly. Counts across prior/author/reviewer runs over
 | CDK source fixtures |47 Jest and188 Node checks pass using local construct/template assertions. No deployment or cloud API. |
 | Changed shared formatter scope after repair |6/6 files pass. Whole formatter remains red on47 exact-main files. |
 | Independent repair review |TS/emitted-JS semantics equivalent; Core127/127 and Workspace172/172 pass. |
-| Web full source suite |6433 pass,2 fail across701 physical test files;1963 Vitest suite records include nested describes. No skips/TODOs or timeout. PE pathname failure reproduces on exact main; artifact cleanup failure is intermittent with unchanged Web source and remains under diagnosis. |
+| Web full source suite |6433 pass,2 fail across701 physical test files;1963 Vitest suite records include nested describes. No skips/TODOs or timeout. Main full6434 pass/1 fail, same6435 names. PE pathname reproduces; artifact failure is classified as environment-dependent inherited timer interference, with inference/limits recorded below. |
 | Defense source unit diagnostic |Prepared source run264 pass,8 original native skips,29 files/37 suite records; hardened IPC run repeats264/0/8 after inert adversarial finding; initial receipts retained. Direct source build passes. Initial failure retained: local TSX IPC refused and ignored dist missing. Canonical native generation remains unrun. |
 
 The full native-coupled Core/Workspace/Intel test commands and full turbo gate
@@ -56,7 +56,7 @@ No option/store/permission/native-download workaround was applied.
   already had baseline debt but was touched by composition. Only these two files
   were formatted, independently reviewed and committed. The remaining47 files
   are byte-identical to main; whole formatting remains red.
-- Existing Web baseline: lowercase PE pathname fails on both candidate and exact main. The artifact DOCX test saw a prior saved-PDF URL revocation in the full candidate run but passed two focused main runs. Its unchanged30-second revoke timer supplies a timing hypothesis; separate full main execution is pending. No test/cleanup/product edit was made.
+- Existing Web baseline: lowercase PE pathname fails on both candidate and exact main. The artifact DOCX test saw a prior saved-PDF URL revocation in the full candidate run but passed two focused main runs and the full main run. Exact unchanged baseline timer statement was extracted and probed inertly: deferred callback resolves the later URL.revokeObjectURL spy and passes blob:saved-pdf. Candidate file32.24s exceeds its30s delay; main full1.74s does not. Classification is environment-dependent inherited timer interference; causal attribution is an inference, not a reproduced original assertion on main. Original candidate failure stays red. No test/cleanup/product edit was made.
 - Existing baseline: Meri catalog expects138 while actual catalog has139. Exact
   unchanged catalog/spec source and a focused main reproduction retain the
   failure. No registry entry or assertion was changed.
@@ -75,6 +75,7 @@ No option/store/permission/native-download workaround was applied.
   declaration is retained alongside the explicit correction, with raw bytes unchanged.
 - Review receipt correction: the first independent source hash receipt trimmed
   final newlines. Failed and corrected full-Git-byte receipts remain together.
+- Evidence-reader environment: first verifier exceeded Node's default1MiB Git-output buffer on the full Web JSON receipt. Original failure is retained; only the read-only reader buffer increased to64MiB. All hash/source assertions remain unchanged and242-file published verification passed.
 - Whole staged whitespace may report formatting inside original raw test logs;
   raw output bytes are preserved. Authored source/docs are checked separately.
 

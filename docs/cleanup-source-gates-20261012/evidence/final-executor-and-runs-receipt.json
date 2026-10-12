@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-10-12T11:48:38.306539+00:00",
+  "executorRealCommand": "PASS",
+  "source": "b69cc02fc788f6f285a11d0fb4357174dc33018c",
+  "trackedNonDocsDiff": "",
+  "ownedCheckRunnersStillRunning": [],
+  "completedAuthorCommandReceipts": 63,
+  "timeouts": [],
+  "runsReplacedOrCombined": false,
+  "nativeAcceptance": false
+}

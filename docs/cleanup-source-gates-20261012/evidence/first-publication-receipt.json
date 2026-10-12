@@ -1,0 +1,16 @@
+{
+  "verifiedAt": "2026-10-12T11:42:24.641288+00:00",
+  "pr": 2407,
+  "url": "https://github.com/neo-capiro/capirov2/pull/2407",
+  "draft": true,
+  "head": "b69cc02fc788f6f285a11d0fb4357174dc33018c",
+  "tree": "4e22cacfd2c98504800ad277c1296b4bc0c1f14f",
+  "base": "codex/rebuild-integrated-source-rc-20261012",
+  "baseHead": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "verifiedQualificationFiles": 242,
+  "originalGateAcceptance": false,
+  "mainWebClassificationPending": true,
+  "ghCreateWarning": "19 uncommitted changes: local read-only node_modules/generated links; no tracked source edits or links staged/published",
+  "remoteGitHubTreeVerified": true
+}

@@ -1,0 +1,52 @@
+{
+  "candidateSource": "0ffffaf2bd494ce33e4ad98e49d0d08e07d19695",
+  "candidateRuntime": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "baselineSource": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "candidate": {
+    "numTotalTests": 6435,
+    "numPassedTests": 6433,
+    "numFailedTests": 2,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "main": {
+    "numTotalTests": 6435,
+    "numPassedTests": 6434,
+    "numFailedTests": 1,
+    "numPendingTests": 0,
+    "numTodoTests": 0
+  },
+  "physicalFiles": 701,
+  "caseNamesEqual": true,
+  "casesCompared": 6435,
+  "caseNameManifestSha256": "024893ed7104657b45849a136e42e11182b009fec3ee3907406042c8bdf914bc",
+  "statusDifferences": [
+    {
+      "file": "src/vnext/meri/MeriArtifactCanvas.test.tsx",
+      "case": "MeriArtifactCanvas Word preview downloads the authenticated canonical DOCX binary without replacing its persisted spec",
+      "candidate": "failed",
+      "main": "passed"
+    }
+  ],
+  "artifactFileMilliseconds": {
+    "candidate": 32241.81298828125,
+    "mainFull": 1736.512451171875,
+    "mainFocused": 1467.234130859375,
+    "mainRepeat": 2101.667236328125
+  },
+  "allWebSourceBytesUnchangedToMain": true,
+  "classifications": [
+    {
+      "case": "lowercase PE pathname",
+      "kind": "existing baseline",
+      "proof": "same failure on focused and full exact main"
+    },
+    {
+      "case": "artifact canonical DOCX preview",
+      "kind": "environment-dependent timing / inherited callback contamination",
+      "proof": "candidate raw failure preserved; baseline original tests pass focused/full. Inert exact-baseline30s callback hits replacement spy with blob:saved-pdf. Candidate file32.24s vs main1.74s crosses that timer.",
+      "limit": "Timing attribution is an inference from source mechanism/observed runtime; exact original failing assertion did not reproduce on main. No test or product repair; original failure remains red."
+    }
+  ],
+  "nativeOrFullCleanupAcceptance": false
+}

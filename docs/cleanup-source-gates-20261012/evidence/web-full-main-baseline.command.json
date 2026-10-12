@@ -1,0 +1,22 @@
+{
+  "name": "web-full-main-baseline",
+  "cwd": "/workspace/capirov2-cleanup-baseline/apps/web",
+  "argv": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--poolOptions.threads.singleThread",
+    "--testTimeout=20000",
+    "--hookTimeout=20000",
+    "--reporter=json",
+    "--outputFile",
+    "/workspace/capirov2-cleanup-source-gates/docs/cleanup-source-gates-20261012/evidence/web-full-main-baseline.json"
+  ],
+  "exitCode": 1,
+  "timedOut": false,
+  "seconds": 890.413,
+  "measuredSource": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "web-full-main-baseline.log"
+}

@@ -33,10 +33,14 @@ its gate was not imported, edited, invoked as native acceptance, or waived.
 unrun release evidence. Historical Cleanup fixtures do not accept the current RC.
 
 Useful results and limitations are in [QUALIFICATION.md](QUALIFICATION.md).
-The full candidate Web run remains red:6433 pass/2 fail. PE pathname reproduces
-on exact main; an artifact cleanup failure is not reproduced in two focused main
-runs. A separate full main run is pending, and no baseline/composition conclusion
-is claimed for that assertion until its receipt is available.
+The full candidate Web run remains red:6433 pass/2 fail. Full exact main has
+6434 pass/1 fail, with all6435 case names identical and no skips/TODOs. PE pathname
+reproduces on main. The artifact failure did not reproduce; an inert exact-baseline
+30-second deferred-revocation probe demonstrates the same stale-spy call observed
+in the candidate's32.24-second file run versus main's1.74 seconds. This supports
+an environment-dependent timing classification, with causation explicitly inferred
+and the original failure retained. No test/product cleanup change was made.
+
 [BLOCKERS.json](BLOCKERS.json) separates the finite inherited source gaps from
 external toolchain/native prerequisites. Whole-scope formatter and Meri catalog
 failures remain red with exact-main reproductions. No quarantine, test removal,

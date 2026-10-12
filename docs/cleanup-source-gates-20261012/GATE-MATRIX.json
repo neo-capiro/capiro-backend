@@ -72,7 +72,7 @@
       "id": "baselineFailures",
       "criterion": "Every baseline failure repaired and verified; no quarantine",
       "status": "EXISTING BASELINE FAILURES OPEN",
-      "detail": "47 unchanged formatting files and Meri catalog count failure remain red; baseline reproduction retained. No unrelated repair or quarantine.",
+      "detail": "47 unchanged formatter failures, Meri catalog count failure and PE pathname exact-main baseline failure remain red. Artifact candidate failure stays red with an environment-dependent timing classification and explicitly inferred causation; main original assertion passes. No unrelated repair or quarantine.",
       "releaseAccepted": false
     },
     {

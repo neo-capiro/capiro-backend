@@ -20,7 +20,7 @@
   "fullReleaseAcceptance": false,
   "noMainMergeOrDeployment": true,
   "publicationIdentity": "Resolve exact publication HEAD/tree from PR/remote readback; enclosing documentation commits are not runtime repair identities.",
-  "pendingClassification": "Separate full main Web run; do not claim exact artifact failing assertion baseline reproduction from focused passes.",
   "diagnosticHarnessAndDocumentReviewCommit": "0328913a52836d39417f5ad4ea52c7356c25ba14",
-  "diagnosticHarnessAndDocumentReviewTree": "31c53b61827bb1d60a76b89524005e130571e859"
+  "diagnosticHarnessAndDocumentReviewTree": "31c53b61827bb1d60a76b89524005e130571e859",
+  "webFailureClassification": "PE exact-main baseline failure; artifact environment-dependent timing from inert baseline timer mechanism and measured runtimes, inference explicitly qualified; original failed receipt preserved."
 }

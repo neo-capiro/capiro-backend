@@ -1,0 +1,17 @@
+{
+  "baselineSource": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "candidateRuntime": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "sourcePath": "apps/web/src/components/chat/meri-artifact-download.ts",
+  "sourceSha256": "0354b6af9b7b3f6c5ea906503a7db9067b1f4e192108e8dc21bb0e3da0be0b94",
+  "exactBaselineBytes": true,
+  "extractedStatement": "window.setTimeout(() => URL.revokeObjectURL(url), 30_000);",
+  "delay": 30000,
+  "staleCallbackHitsNextSpy": true,
+  "nextTestCalls": [
+    "blob:saved-pdf"
+  ],
+  "mechanism": "Unchanged deferred callback reads URL.revokeObjectURL when fired, after a later test replaces the spy.",
+  "limitation": "Mechanism proof only; not an original failing test rerun or proof of OS scheduling cause.",
+  "originalCandidateFailureRetained": true,
+  "actualTimersOrNetworkOrDownloads": false
+}

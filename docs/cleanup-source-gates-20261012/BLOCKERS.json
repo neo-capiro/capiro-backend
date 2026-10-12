@@ -104,11 +104,11 @@
   ],
   "excludedProductWork": "Abandoned Quick log Commitment/We owe/They owe/counterparty UI; shared existing task/activity/backend owners retained",
   "authorization": "Source-only work and draft publication authorized. No request for prohibited native/cloud/permission/customer actions was made.",
-  "pendingSourceClassification": {
-    "case": "MeriArtifactCanvas Word preview downloads the authenticated canonical DOCX binary without replacing its persisted spec",
+  "environmentDependentArtifactFailure": {
     "candidateFailureRetained": true,
-    "focusedMainPasses": 2,
-    "fullMainRun": "web-full-main-baseline",
-    "status": "pending; unchanged Web bytes alone do not prove exact failed assertion baseline reproduction"
+    "mainFocusedAndFullPass": true,
+    "inertBaselineTimerMechanismProven": true,
+    "causalAttributionInferred": true,
+    "releaseStatus": "red until independently qualified prerequisite repair; no source/test repair in this slice"
   }
 }
