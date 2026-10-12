@@ -104,6 +104,10 @@
     "sha256": "6e2e8d418066298f7b262648205bcaa45b8e2cfa30b504c43ad3199767be6fd0"
   },
   {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/evidence-sha256.json",
+    "sha256": "2d413d28012b66497817474470d5771729d473de792b8db45dad0cde4198d3ec"
+  },
+  {
     "path": "docs/newsletter-staging-20261012/evidence/independent-review/fcea81c0f-regression.log",
     "sha256": "9d4c336b605e86684fbfff9177a1e0d61428a4a623b5744724f0340857ce11ea"
   },
