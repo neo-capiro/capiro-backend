@@ -1,0 +1,26 @@
+{
+  "source": "d70bb9724cf06dfee4863037d295942a9624b7ac",
+  "tree": "825587efcaca9ef152eb90eb996c88b3e8b6a717",
+  "snapshotPaths": {
+    "scripts/entrypoint.sh": {
+      "rawSha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b",
+      "lfSha256": "14be0fc411f171ce5f372870172ec5c01cc48953c2126b134e43ecdd0666c42b",
+      "gitBlob": "4acf1252b390dafee65382a1f55aefe63d9879a1",
+      "bytes": 16437
+    },
+    "scripts/entrypoint-legacy.sh": {
+      "rawSha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a",
+      "lfSha256": "4f9213850b938f71f1a7955683792c6ded862c4453efe9234ddf40f892ce7d0a",
+      "gitBlob": "4f8fb3029be6229f277c61fe40daf88f4c691fac",
+      "bytes": 645
+    },
+    "scripts/entrypoint-dispatcher.inc": {
+      "rawSha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf",
+      "lfSha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf",
+      "gitBlob": "481a88ed5207030e5f73f2fbde2aaaea90ca07d4",
+      "bytes": 77254
+    }
+  },
+  "runtimeExecuted": false,
+  "purpose": "independent concept review, current supported trio raw source provenance only"
+}
