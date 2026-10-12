@@ -99,7 +99,7 @@ References:
   atomic rollback/retry, notes readiness, and unchanged Recall behavior.
 - UI tests: explicit opt-in, folder selection, disconnected state, ambiguous meeting
   selection, and existing managed OAuth interactions.
-- `pnpm --filter @capiro/api exec tsx scripts/verify-krisp-notetaker-db.ts` uses an
+- `pnpm --filter @capiro/api exec tsx scripts/verify-krisp-notetaker-db.ts --verify` uses an
   ephemeral embedded PostgreSQL database to verify the migration, flag scope,
   user/tenant RLS, duplicate uniqueness, and disconnect cascade behavior.
 - Headless desktop/mobile component preview with representative API responses: no

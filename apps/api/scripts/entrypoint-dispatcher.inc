@@ -184,7 +184,7 @@ case "${1:-serve}" in
   bootstrap-roles)
     shift
     echo "Running bootstrap-roles (rotate capiro_app password)"
-    exec ./node_modules/.bin/tsx scripts/bootstrap-roles.ts "$@"
+    exec ./node_modules/.bin/tsx scripts/bootstrap-roles.ts --run "$@"
     ;;
   emit-changes)
     echo "Running emit-changes (post-sync IntelligenceChange emitter)"
@@ -489,7 +489,7 @@ case "${1:-serve}" in
   diag-facility-districts) shift; exec ./node_modules/.bin/tsx scripts/diag-facility-districts.ts "$@" ;;
   # Task A step 3: prepopulation backfill (recompute lda_client_ids + issue codes
   # + ldaSignals from CONFIRMED mappings). Creates NO new associations; idempotent.
-  prepopulate-all) shift; exec ./node_modules/.bin/tsx scripts/prepopulate-all.ts "$@" ;;
+  prepopulate-all) shift; exec ./node_modules/.bin/tsx scripts/prepopulate-all.ts --run "$@" ;;
   # SAM gov-id backfill: fill clients.uei/cage_code/naics_codes/psc_codes from the
   # SAM Entity API by legal name (+state). Fill-if-empty, conservative single-match.
   # DRY RUN unless --commit; --tenant <uuid> / --delay <ms> supported.
@@ -858,13 +858,13 @@ case "${1:-serve}" in
   # Stanford DoW acquisition-personnel directory import (idempotent: pre-seeds its
   # dedup map from the DB by nameKey, re-runs add source mentions not duplicates).
   # Populates program_element + acquisition_personnel + person->PE links.
-  import-dow-directory) exec ./node_modules/.bin/tsx scripts/import-stanford-dow-directory.ts ;;
+  import-dow-directory) exec ./node_modules/.bin/tsx scripts/import-stanford-dow-directory.ts --import ;;
   # DoW Directory Rev 6 (June 2026) acquisition-personnel import. Reads the committed
   # parsed artifact (scripts/__data__/dow_directory_v6/dow_v6_people.json) and upserts
   # via the writer+dedup engine (idempotent: reloads nameKey map from DB each call, so
   # re-runs add source mentions, never duplicate rows). Source: dow_directory_rev6_2026_06.
   # Packs programs_mentioned + managing CPE into programOfRecord to feed the PE matcher.
-  import-dow-directory-v6) exec ./node_modules/.bin/tsx scripts/import-dow-directory-v6.ts ;;
+  import-dow-directory-v6) exec ./node_modules/.bin/tsx scripts/import-dow-directory-v6.ts --import ;;
   # Acquire official DoD headshots for acquisition-personnel whose publicProfileUrl is a
   # .mil bio page (metadata.linkType=mil_bio): Firecrawl-scrape the bio, pull the
   # media.defense.gov image, validate + upload to ASSETS_BUCKET/dow-headshots/{id}.{ext},
@@ -918,7 +918,7 @@ case "${1:-serve}" in
   load-defense-budget-package) shift; exec ./node_modules/.bin/tsx scripts/load-defense-budget-package.ts "$@" ;;
   # R3 Â§3.7: READ-ONLY invariant report over the loaded package data. Non-zero exit
   # on a hard failure, so it can gate a deploy.
-  verify-defense-budget-packages) shift; exec ./node_modules/.bin/tsx scripts/verify-defense-budget-packages.ts "$@" ;;
+  verify-defense-budget-packages) shift; exec ./node_modules/.bin/tsx scripts/verify-defense-budget-packages.ts --verify "$@" ;;
   # Deep P-40 enrichment: attach description / acatLevel / programOfRecord / status +
   # raw.pDocDetail (qty, unit cost, schedule, acquisition strategy, contractors,
   # milestones, risks) to EXISTING program elements. Enrich-only. Pass --artifact.

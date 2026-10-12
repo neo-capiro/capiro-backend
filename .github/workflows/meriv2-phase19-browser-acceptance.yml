@@ -170,7 +170,7 @@ jobs:
         run: pnpm --filter @capiro/api exec prisma migrate deploy
 
       - name: Seed application-valid Phase 19 fixtures
-        run: pnpm --filter @capiro/api exec tsx scripts/seed-meriv2-phase19-browser-fixtures.ts
+        run: pnpm --filter @capiro/api exec tsx scripts/seed-meriv2-phase19-browser-fixtures.ts --run
 
       - name: Start real API and web applications
         shell: bash

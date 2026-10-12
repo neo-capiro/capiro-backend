@@ -207,7 +207,7 @@ jobs:
         run: pnpm --filter @capiro/api exec tsx scripts/verify-phase5-db-backed-harness.ts
 
       - name: Canonical entity backfill checkpoint crash/resume verification
-        run: pnpm --filter @capiro/api exec tsx scripts/verify-canonical-backfill-checkpoint-resume.ts
+        run: pnpm --filter @capiro/api exec tsx scripts/verify-canonical-backfill-checkpoint-resume.ts --verify
 
       - name: Seed a data-bearing cohort for the replay verifier
         run: |
