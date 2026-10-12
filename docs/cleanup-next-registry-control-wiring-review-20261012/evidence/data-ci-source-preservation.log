@@ -1,0 +1,13 @@
+{
+  "acceptedDataWiringSource": "79cba71ca8359f9cac178ddc3314cb34c0d46da5",
+  "tree": "e6f7005592425b26b55ebf2e079f726c574f7443",
+  "baselineUnchangedOutsideSourcePaths": 21043,
+  "allBaselineAppPathsUnchanged": 10506,
+  "allSchemaMigrationPathsUnchanged": 603,
+  "allBaselineDocumentationPathsUnchanged": 9364,
+  "stepIndex": 23,
+  "dependencyStepIndices": [
+    9
+  ],
+  "noAppExtractionOrReportMetadataConversion": true
+}

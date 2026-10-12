@@ -1,0 +1,133 @@
+{
+  "source": "79cba71ca8359f9cac178ddc3314cb34c0d46da5",
+  "tree": "e6f7005592425b26b55ebf2e079f726c574f7443",
+  "profileId": "strategy-existing-template-vocabulary",
+  "status": "existing canonical vocabulary only; report metadata conversion remains pending",
+  "actualProductionFiles": 168,
+  "actualOwnedSymbols": [
+    {
+      "name": "DOCUMENT_TYPES",
+      "kind": "variable"
+    },
+    {
+      "name": "TEMPLATE_KEY_BY_TYPE",
+      "kind": "variable"
+    }
+  ],
+  "actualEdges": [
+    {
+      "file": "apps/api-strategy/src/context/context-documents.service.ts",
+      "module": "./frontmatter.js",
+      "imported": "TEMPLATE_KEY_BY_TYPE",
+      "local": "TEMPLATE_KEY_BY_TYPE",
+      "uses": 1,
+      "expressions": [
+        {
+          "expression": "TEMPLATE_KEY_BY_TYPE[documentType]",
+          "line": 75
+        }
+      ]
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-import.service.ts",
+      "module": "./frontmatter.js",
+      "imported": "DOCUMENT_TYPES",
+      "local": "DOCUMENT_TYPES",
+      "uses": 1,
+      "expressions": [
+        {
+          "expression": "DOCUMENT_TYPES.includes(doc.documentType)",
+          "line": 411
+        }
+      ]
+    },
+    {
+      "file": "apps/api-strategy/src/context/context-import.service.ts",
+      "module": "./frontmatter.js",
+      "imported": "TEMPLATE_KEY_BY_TYPE",
+      "local": "TEMPLATE_KEY_BY_TYPE",
+      "uses": 1,
+      "expressions": [
+        {
+          "expression": "TEMPLATE_KEY_BY_TYPE[draft.documentType]",
+          "line": 201
+        }
+      ]
+    },
+    {
+      "file": "apps/api-strategy/src/context/steward.service.ts",
+      "module": "./frontmatter.js",
+      "imported": "TEMPLATE_KEY_BY_TYPE",
+      "local": "TEMPLATE_KEY_BY_TYPE",
+      "uses": 1,
+      "expressions": [
+        {
+          "expression": "activeKeys.has(TEMPLATE_KEY_BY_TYPE[t as DocumentTypeValue])",
+          "line": 620
+        }
+      ]
+    }
+  ],
+  "carriers": [
+    {
+      "file": "apps/api-strategy/src/context/frontmatter.ts",
+      "name": "DOCUMENT_TYPES",
+      "kind": "variable",
+      "sha256": "d8b436439591a168fc5f2b744ccde4a2f3e233d45bfd9bde9d16d75ea4c1f74c",
+      "independentlyPrintedDeclaration": "DOCUMENT_TYPES = [\n    'context_manifest',\n    'strategy_brief',\n    'client_constraints',\n    'ask_and_options',\n    'stakeholder_map',\n    'calendar_and_deadlines',\n    'decision_rules',\n    'current_plan',\n    'evidence_register',\n    'meeting_intelligence',\n    'decision_log',\n    'agent_mission',\n    'execution_playbook',\n    'agent_permissions',\n    'target_budget_line',\n    'vendor_reference_pull',\n    'route_and_vehicle_status',\n] as const"
+    },
+    {
+      "file": "apps/api-strategy/src/context/frontmatter.ts",
+      "name": "TEMPLATE_KEY_BY_TYPE",
+      "kind": "variable",
+      "sha256": "f27cc5feabcb5bb83ba8867252c2143a126db57265db724ad9f06df1f62648cb",
+      "independentlyPrintedDeclaration": "TEMPLATE_KEY_BY_TYPE: Readonly<Record<DocumentTypeValue, string>> = {\n    context_manifest: '00_context_manifest',\n    strategy_brief: '01_strategy_brief',\n    client_constraints: '02_client_constraints',\n    ask_and_options: '03_ask_and_options',\n    stakeholder_map: '04_stakeholder_map',\n    calendar_and_deadlines: '05_calendar_and_deadlines',\n    decision_rules: '06_decision_rules',\n    current_plan: '07_current_plan',\n    evidence_register: '08_evidence_register',\n    meeting_intelligence: '09_meeting_intelligence',\n    decision_log: '10_decision_log',\n    agent_mission: '11_agent_mission',\n    execution_playbook: '12_execution_playbook',\n    agent_permissions: '13_agent_permissions',\n    target_budget_line: '14_target_budget_line',\n    vendor_reference_pull: '15_vendor_reference_pull',\n    route_and_vehicle_status: '16_route_and_vehicle_status',\n}"
+    }
+  ],
+  "dataClosureRefusals": [
+    {
+      "name": "wrong declared uses",
+      "errors": [
+        "strategy-existing-template-vocabulary: apps/api-strategy/src/context/context-import.service.ts/DOCUMENT_TYPES: expected 2 bound references, found 1"
+      ],
+      "profiles": 1,
+      "files": 168
+    },
+    {
+      "name": "wrong canonical module operand",
+      "errors": [
+        "strategy-existing-template-vocabulary: apps/api-strategy/src/context/context-import.service.ts/DOCUMENT_TYPES: module does not resolve to owner"
+      ],
+      "profiles": 1,
+      "files": 168
+    },
+    {
+      "name": "wrong declaration fingerprint",
+      "errors": [
+        "strategy-existing-template-vocabulary: carrier drift or missing declaration: apps/api-strategy/src/context/frontmatter.ts/DOCUMENT_TYPES"
+      ],
+      "profiles": 1,
+      "files": 168
+    },
+    {
+      "name": "changed actual document token",
+      "errors": [
+        "strategy-existing-template-vocabulary: carrier drift or missing declaration: apps/api-strategy/src/context/frontmatter.ts/DOCUMENT_TYPES"
+      ],
+      "profiles": 1,
+      "files": 168
+    },
+    {
+      "name": "missing current document consumer",
+      "errors": [
+        "strategy-existing-template-vocabulary: invalid or missing consumer edge"
+      ],
+      "profiles": 1,
+      "files": 167
+    }
+  ],
+  "scope": "Current existing owner data and registered actual callers only; generic grammar/bypass review is separate.",
+  "applicationSourcesExecuted": false,
+  "sourceMapsAreDataOnly": true,
+  "nativeAcceptance": false
+}

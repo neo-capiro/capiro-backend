@@ -1,0 +1,19 @@
+{
+  "source": "79cba71ca8359f9cac178ddc3314cb34c0d46da5",
+  "tree": "e6f7005592425b26b55ebf2e079f726c574f7443",
+  "scope": "Current data/caller and CI wiring preliminary readback only; generic guard acceptance withheld; superseded by721 full-statement carrier fingerprints.",
+  "profileFiles": 168,
+  "roles": 4,
+  "services": 3,
+  "carriers": 2,
+  "syntheticDataRefusals": 5,
+  "noArgs": 0,
+  "help": 0,
+  "shortHelp": 0,
+  "unknown": 1,
+  "helpUnknown": 1,
+  "baselineAppFilesUnchanged": 10506,
+  "baselineSchemaMigrationFilesUnchanged": 603,
+  "baselineDocFilesUnchanged": 9364,
+  "nativeAcceptance": false
+}
