@@ -1,0 +1,17 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-review-quicklog/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/clients/client-activity.wall.spec.ts
+FAIL src/prisma/tenant-scope.spec.ts
+  ● Test suite failed to run
+
+    ENOENT: no such file or directory, open '/workspace/capirov2-review-quicklog/apps/api/src/prisma/tenant-scope.spec.ts'
+
+      at runTestInternal (../../../capirov2-quicklog/node_modules/.pnpm/jest-runner@29.7.0/node_modules/jest-runner/build/runTest.js:170:27)
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       5 passed, 5 total
+Snapshots:   0 total
+Time:        2.52 s
+Ran all test suites within paths "src/clients/client-activity.wall.spec.ts", "src/prisma/tenant-scope.spec.ts".
+Test results written to: ../../../backend-qualification-20261012/independent-review/quicklog/canonical-wall-replay.json

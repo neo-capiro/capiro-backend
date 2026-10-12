@@ -1,0 +1,154 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-review-quicklog/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL src/clients/activity-commands/activity-command.independent-review.spec.ts
+  independent Quick log recovery and authorization review
+    ✕ recovers completed visibility after temporary assigneeActive revocation during remote acceptance (18 ms)
+    ✕ recovers completed visibility after temporary assigneeWall revocation during remote acceptance (5 ms)
+    ✓ survives a lost Core commit response without duplicating activity (8 ms)
+    ✓ keeps same browser request UUID independent across clients and remote keys (3 ms)
+    ✓ fences late old completion after another attempt owns and completes the command (3 ms)
+    ✓ withholds a cached task destination when remote recovery returns a different task ID (1 ms)
+    ✓ rechecks actor authority after a read-only remote lookup (5 ms)
+    ✓ does not POST after contact association changes while read-only remote lookup is pending (2 ms)
+  independent canonical activity ethical-wall review
+    ✕ denies legacy timeline access after the command creator loses the client wall (3 ms)
+    ✕ denies legacy create after the client wall is revoked (1 ms)
+    ✕ denies legacy editing of protected activity after the client wall is revoked (1 ms)
+    ✕ denies legacy deletion after the client wall is revoked
+    ✓ preserves authorized legacy deletion and the command tombstone without recreation (1 ms)
+
+  ● independent Quick log recovery and authorization review › recovers completed visibility after temporary assigneeActive revocation during remote acceptance
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+        "followUp": Object {
+          "state": "completed",
+          "taskId": "70000000-0000-4000-8000-000000000001",
+        },
+    -   "reason": null,
+    -   "status": "completed",
+    +   "reason": "assignee_unavailable",
+    +   "status": "needs_attention",
+      }
+
+      20 |       f.state[field] = true;
+      21 |       const restored = await f.service.get(ctx, IDs.client, IDs.request, bearer);
+    > 22 |       expect(restored).toMatchObject({ status: 'completed', reason: null, followUp: { state: 'completed', taskId: IDs.task } });
+         |                        ^
+      23 |       expect(f.planner.create).toHaveBeenCalledTimes(1);
+      24 |     },
+      25 |   );
+
+      at src/clients/activity-commands/activity-command.independent-review.spec.ts:22:24
+
+  ● independent Quick log recovery and authorization review › recovers completed visibility after temporary assigneeWall revocation during remote acceptance
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+        "followUp": Object {
+          "state": "completed",
+          "taskId": "70000000-0000-4000-8000-000000000001",
+        },
+    -   "reason": null,
+    -   "status": "completed",
+    +   "reason": "assignee_unavailable",
+    +   "status": "needs_attention",
+      }
+
+      20 |       f.state[field] = true;
+      21 |       const restored = await f.service.get(ctx, IDs.client, IDs.request, bearer);
+    > 22 |       expect(restored).toMatchObject({ status: 'completed', reason: null, followUp: { state: 'completed', taskId: IDs.task } });
+         |                        ^
+      23 |       expect(f.planner.create).toHaveBeenCalledTimes(1);
+      24 |     },
+      25 |   );
+
+      at src/clients/activity-commands/activity-command.independent-review.spec.ts:22:24
+
+  ● independent canonical activity ethical-wall review › denies legacy timeline access after the command creator loses the client wall
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: [{"body": "Private content", "createdAt": undefined, "dueAt": null, "id": "80000000-0000-4000-8000-000000000001", "kind": "note", "occurredAt": "2026-10-12T03:09:32.994Z", "origin": "recorded", "personId": "40000000-0000-4000-8000-000000000001", "pinned": false, "settledAt": null, "sourceId": "fb9a5d28-8c05-48a2-8c08-154dad9b6b1a", "sourceType": "activity_command", "title": "Private title"}]
+
+      139 |     await f.service.create(ctx, IDs.client, basicInput, bearer);
+      140 |     f.state.actorWall = false;
+    > 141 |     await expect(f.legacy.list(ctx, IDs.client)).rejects.toThrow('not found');
+          |           ^
+      142 |     expect((f.tx.clientActivity as any).findMany).not.toHaveBeenCalled();
+      143 |   });
+      144 |   it('denies legacy create after the client wall is revoked', async () => {
+
+      at expect (../../../capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (src/clients/activity-commands/activity-command.independent-review.spec.ts:141:11)
+
+  ● independent canonical activity ethical-wall review › denies legacy create after the client wall is revoked
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"actorUserId": "20000000-0000-4000-8000-000000000001", "body": null, "clientId": "30000000-0000-4000-8000-000000000001", "createdByUserId": "20000000-0000-4000-8000-000000000001", "dueAt": null, "id": "80000000-0000-4000-8000-000000000001", "kind": "note", "occurredAt": 2026-10-12T03:09:32.998Z, "personId": null, "pinned": false, "sourceId": null, "sourceType": null, "tenantId": "10000000-0000-4000-8000-000000000001", "title": "Forbidden"}
+
+      145 |     const f = legacyFixture();
+      146 |     f.state.actorWall = false;
+    > 147 |     await expect(f.legacy.create(ctx, IDs.client, { kind: 'note', title: 'Forbidden' })).rejects.toThrow('not found');
+          |           ^
+      148 |     expect(f.activities).toHaveLength(0);
+      149 |   });
+      150 |   it('denies legacy editing of protected activity after the client wall is revoked', async () => {
+
+      at expect (../../../capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (src/clients/activity-commands/activity-command.independent-review.spec.ts:147:11)
+
+  ● independent canonical activity ethical-wall review › denies legacy editing of protected activity after the client wall is revoked
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"actorUserId": "20000000-0000-4000-8000-000000000001", "body": "Private content", "clientId": "30000000-0000-4000-8000-000000000001", "createdByUserId": "20000000-0000-4000-8000-000000000001", "dueAt": null, "id": "80000000-0000-4000-8000-000000000001", "kind": "note", "occurredAt": 2026-10-12T03:09:33.000Z, "personId": "40000000-0000-4000-8000-000000000001", "pinned": false, "sourceId": "748ee764-ebbc-4d76-91a9-260b86cecf55", "sourceType": "activity_command", "tenantId": "10000000-0000-4000-8000-000000000001", "title": "Changed without permission"}
+
+      152 |     await f.service.create(ctx, IDs.client, basicInput, bearer);
+      153 |     f.state.actorWall = false;
+    > 154 |     await expect(f.legacy.update(ctx, IDs.client, IDs.activity, { title: 'Changed without permission' })).rejects.toThrow('not found');
+          |           ^
+      155 |     expect(f.activities[0].title).toBe(basicInput.activity.title);
+      156 |   });
+      157 |   it('denies legacy deletion after the client wall is revoked', async () => {
+
+      at expect (../../../capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (src/clients/activity-commands/activity-command.independent-review.spec.ts:154:11)
+
+  ● independent canonical activity ethical-wall review › denies legacy deletion after the client wall is revoked
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"ok": true}
+
+      159 |     await f.service.create(ctx, IDs.client, basicInput, bearer);
+      160 |     f.state.actorWall = false;
+    > 161 |     await expect(f.legacy.remove(ctx, IDs.client, IDs.activity)).rejects.toThrow('not found');
+          |           ^
+      162 |     expect(f.activities).toHaveLength(1);
+      163 |   });
+      164 |   it('preserves authorized legacy deletion and the command tombstone without recreation', async () => {
+
+      at expect (../../../capirov2-quicklog/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (src/clients/activity-commands/activity-command.independent-review.spec.ts:161:11)
+
+Test Suites: 1 failed, 1 total
+Tests:       6 failed, 7 passed, 13 total
+Snapshots:   0 total
+Time:        2.842 s
+Ran all test suites within paths "src/clients/activity-commands/activity-command.independent-review.spec.ts".
+Test results written to: ../../../backend-qualification-20261012/independent-review/quicklog/adversarial-red.json

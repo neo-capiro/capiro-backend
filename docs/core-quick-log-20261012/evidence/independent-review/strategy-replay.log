@@ -1,0 +1,11 @@
+PASS src/planner/planner.http.spec.ts (14.066 s)
+PASS src/planner/planner.spec.ts
+PASS src/planner/planner-task-create-command.spec.ts
+PASS src/planner/planner-command-scope.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       149 passed, 149 total
+Snapshots:   0 total
+Time:        16.613 s
+Ran all test suites within paths "src/planner/planner-command-scope.spec.ts", "src/planner/planner.http.spec.ts", "src/planner/planner-task-create-command.spec.ts", "src/planner/planner.spec.ts".
+Test results written to: ../../../backend-qualification-20261012/independent-review/quicklog/strategy-replay.json

@@ -1,0 +1,2 @@
+src/planner/planner-command-scope.ts(11,17): error TS2538: Type 'undefined' cannot be used as an index type.
+src/planner/planner-command-scope.ts(11,48): error TS2538: Type 'undefined' cannot be used as an index type.

@@ -1,0 +1,32 @@
+FAIL src/planner/planner.http.spec.ts
+  ● Test suite failed to run
+
+    [96msrc/planner/planner-command-scope.ts[0m:[93m11[0m:[93m17[0m - [91merror[0m[90m TS2538: [0mType 'undefined' cannot be used as an index type.
+
+    [7m11[0m     if (headers[name] !== undefined && headers[name] !== actual)
+    [7m  [0m [91m                ~~~~[0m
+    [96msrc/planner/planner-command-scope.ts[0m:[93m11[0m:[93m48[0m - [91merror[0m[90m TS2538: [0mType 'undefined' cannot be used as an index type.
+
+    [7m11[0m     if (headers[name] !== undefined && headers[name] !== actual)
+    [7m  [0m [91m                                               ~~~~[0m
+
+PASS src/planner/planner-task-create-command.spec.ts
+PASS src/planner/planner-task-create-command.independent-review.spec.ts
+FAIL src/planner/planner-command-scope.spec.ts
+  ● Test suite failed to run
+
+    [96msrc/planner/planner-command-scope.ts[0m:[93m11[0m:[93m17[0m - [91merror[0m[90m TS2538: [0mType 'undefined' cannot be used as an index type.
+
+    [7m11[0m     if (headers[name] !== undefined && headers[name] !== actual)
+    [7m  [0m [91m                ~~~~[0m
+    [96msrc/planner/planner-command-scope.ts[0m:[93m11[0m:[93m48[0m - [91merror[0m[90m TS2538: [0mType 'undefined' cannot be used as an index type.
+
+    [7m11[0m     if (headers[name] !== undefined && headers[name] !== actual)
+    [7m  [0m [91m                                               ~~~~[0m
+
+Test Suites: 2 failed, 2 passed, 4 total
+Tests:       40 passed, 40 total
+Snapshots:   0 total
+Time:        14.97 s
+Ran all test suites matching /src\/planner\/planner-command-scope.spec.ts|src\/planner\/planner.http.spec.ts|src\/planner\/planner-task-create-command.spec.ts|src\/planner\/planner-task-create-command.independent-review.spec.ts|src\/auth\/tenant.guard.spec.ts/i.
+Test results written to: ../../../backend-qualification-20261012/quicklog/planner-focused.json

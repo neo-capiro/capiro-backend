@@ -1,0 +1,6 @@
+
+> @capiro/api@0.0.0 lint /workspace/capirov2-quicklog/apps/api
+> eslint src --ext .ts
+
+sh: 1: eslint: not found
+ ELIFECYCLE  Command failed.

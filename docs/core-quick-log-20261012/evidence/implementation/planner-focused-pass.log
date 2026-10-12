@@ -1,0 +1,11 @@
+PASS src/planner/planner-task-create-command.spec.ts
+PASS src/planner/planner-task-create-command.independent-review.spec.ts
+PASS src/planner/planner.http.spec.ts
+PASS src/planner/planner-command-scope.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       125 passed, 125 total
+Snapshots:   0 total
+Time:        10.131 s
+Ran all test suites matching /src\/planner\/planner-command-scope.spec.ts|src\/planner\/planner.http.spec.ts|src\/planner\/planner-task-create-command.spec.ts|src\/planner\/planner-task-create-command.independent-review.spec.ts/i.
+Test results written to: ../../../backend-qualification-20261012/quicklog/planner-focused-pass.json
