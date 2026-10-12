@@ -1,0 +1,8 @@
+Initial final docs/evidence reconciliation command, exit 1.
+Scope: documentation verification reader only; no source mutation or runtime test failure.
+Preserved 66-, 98- and 105-file manifests and six source/two seam identities passed before this line.
+The reader incorrectly assumed Workspace's `files` field was a mapping; the published manifest is a list.
+
+Traceback (most recent call last):
+  File "<stdin>", line 29, in <module>
+AttributeError: 'list' object has no attribute 'items'

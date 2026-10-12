@@ -1,0 +1,56 @@
+{
+  "observedAt": "2026-10-12 09:01:33 UTC",
+  "scope": "Read-only PR refresh before final docs-only handoff publication. Calendar source/evidence pin is immutable; its final docs-only publication head is reported by PR metadata and completion receipt.",
+  "candidates": [
+    {
+      "pr": 2401,
+      "head": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+      "base": "codex/prospect-resource-origin-20261012",
+      "baseHead": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "mergeable": true
+    },
+    {
+      "pr": 2402,
+      "head": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "mergeable": true
+    },
+    {
+      "pr": 2403,
+      "head": "7b6fdae2b9ff1fa6d3fbe594ff1a5a0084f6fa5f",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "mergeable": true
+    },
+    {
+      "pr": 2404,
+      "head": "0716767e8b6ff323b2516d166b22edb4d2413e57",
+      "base": "main",
+      "baseHead": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "mergeable": true
+    },
+    {
+      "pr": 2405,
+      "head": "c05b85a29a75cbaaa8538fd7f9a97e298a23913e",
+      "base": "codex/newsletter-revision-staging-20261012",
+      "baseHead": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+      "draft": true,
+      "state": "open",
+      "merged": false,
+      "mergeable": true
+    }
+  ]
+}
