@@ -1,0 +1,37 @@
+✔ complete ten-artifact inventory accepts and recomputes schema equality (4.54311ms)
+✔ client and artifact ordering does not change finite set completeness (1.08477ms)
+✔ inventory refuses all clients omitted before artifact/source reads (2.864323ms)
+✔ inventory refuses Core client omitted before artifact/source reads (0.704732ms)
+✔ inventory refuses Workspace client omitted before artifact/source reads (0.42708ms)
+✔ inventory refuses all artifact inventories omitted before artifact/source reads (0.586796ms)
+✔ inventory refuses Core artifacts omitted before artifact/source reads (0.448686ms)
+✔ inventory refuses Workspace artifacts omitted before artifact/source reads (1.413716ms)
+✔ inventory refuses one artifact omitted before artifact/source reads (0.725333ms)
+✔ inventory refuses duplicated client root before artifact/source reads (0.638715ms)
+✔ inventory refuses extra client root before artifact/source reads (0.563932ms)
+✔ inventory refuses outside client root before artifact/source reads (0.487327ms)
+✔ inventory refuses wrong schema source before artifact/source reads (1.004237ms)
+✔ inventory refuses outside schema source before artifact/source reads (0.489855ms)
+✔ inventory refuses wrong version before artifact/source reads (0.431587ms)
+✔ inventory refuses duplicate artifact before artifact/source reads (0.936261ms)
+✔ inventory refuses extra artifact before artifact/source reads (0.629658ms)
+✔ inventory refuses outside artifact path before artifact/source reads (0.87914ms)
+✔ inventory refuses traversal artifact path before artifact/source reads (0.595248ms)
+✔ inventory refuses wrong artifact filename before artifact/source reads (0.611475ms)
+✔ inventory refuses missing client array before artifact/source reads (0.635205ms)
+✔ inventory refuses missing artifact array before artifact/source reads (0.455214ms)
+✔ inventory refuses invalid byte count before artifact/source reads (0.396576ms)
+✔ inventory refuses invalid hash before artifact/source reads (0.33207ms)
+✔ inventory refuses wrong source head before artifact/source reads (0.586592ms)
+✔ malformed second inventory refuses before first client files are read (0.735631ms)
+✔ cached schema versus bound source mismatch refuses despite claimed equality true (1.146661ms)
+✔ actual artifact content hash mismatch refuses (0.844747ms)
+✔ inventory validator itself has no file input dependency (0.476911ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 162.217849

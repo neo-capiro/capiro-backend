@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--test",
+    "docs/cleanup-native-prisma-owner-qualification-20261012/artifact-guard.spec.cjs"
+  ],
+  "exitCode": 0,
+  "sqlExecuted": false,
+  "nativeReplay": false,
+  "scope": "inert guard controls"
+}

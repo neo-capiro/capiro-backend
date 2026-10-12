@@ -1,0 +1,94 @@
+{
+  "source": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "artifacts": {
+    "schemaVersion": 1,
+    "productSourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+    "sourceNativePGParent": "3c28ed933722ce896d6ba421236219001bea9ae5",
+    "noConstructionOrQuery": true,
+    "clients": [
+      {
+        "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client",
+        "version": "5.22.0",
+        "schemaSource": "apps/api/prisma/schema.prisma",
+        "schemaByteEquality": true,
+        "relativeEnvPaths": "{\n    \"rootEnvPath\": null\n  }",
+        "artifacts": [
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/package.json",
+            "bytes": 2601,
+            "sha256": "dfa1538f40f2586171fa9657903a4e484b916839165fb1c0e2a667d5cde83f24"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index.js",
+            "bytes": 3815948,
+            "sha256": "fb6e22a71beb71c70dde87d3e637bec514ec4a174c89388537ef46016753e85a"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/library.js",
+            "bytes": 191178,
+            "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/schema.prisma",
+            "bytes": 979560,
+            "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/libquery_engine-debian-openssl-3.0.x.so.node",
+            "bytes": 16161048,
+            "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+          }
+        ]
+      },
+      {
+        "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client",
+        "version": "5.22.0",
+        "schemaSource": "apps/workspace/prisma/schema.prisma",
+        "schemaByteEquality": true,
+        "relativeEnvPaths": "{\n    \"rootEnvPath\": null\n  }",
+        "artifacts": [
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/package.json",
+            "bytes": 2601,
+            "sha256": "82d083de753d15630e7e2b194402b3b7270a6db3b90f0b93eef976cda7065ffe"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/index.js",
+            "bytes": 194518,
+            "sha256": "5d19d22aec43c8933b3ed22bc48d619b528fc9ae59709c02a49637043c00c8bf"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/library.js",
+            "bytes": 191178,
+            "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/schema.prisma",
+            "bytes": 41761,
+            "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/libquery_engine-debian-openssl-3.0.x.so.node",
+            "bytes": 16161048,
+            "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+          }
+        ]
+      }
+    ]
+  },
+  "target": {
+    "dataDirectory": "/tmp/capiro-native-pg-pr2429-20261012/data",
+    "socketDirectory": "/tmp/capiro-native-pg-socket-pr2429-20261012",
+    "port": 5432,
+    "user": "agent",
+    "database": "postgres",
+    "systemIdentifier": "7695922344929406966",
+    "listenAddresses": "",
+    "inetServerAddr": null
+  },
+  "coreUrl": "postgresql://agent@localhost:5432/postgres?host=%2Ftmp%2Fcapiro-native-pg-socket-pr2429-20261012&schema=capiro_native_prisma_owners_pr2429_20261012&connection_limit=2&connect_timeout=3&pool_timeout=3&socket_timeout=12&statement_cache_size=0&sslmode=disable&application_name=capiro-native-prisma-core",
+  "workspaceUrl": "postgresql://agent@localhost:5432/postgres?host=%2Ftmp%2Fcapiro-native-pg-socket-pr2429-20261012&schema=capiro_native_prisma_owners_pr2429_20261012&connection_limit=1&connect_timeout=3&pool_timeout=3&socket_timeout=12&statement_cache_size=0&sslmode=disable&application_name=capiro-native-prisma-workspace",
+  "databaseConnected": false,
+  "clientConstructed": false,
+  "nativeExecutionAuthorized": false
+}

@@ -1,0 +1,35 @@
+{
+  "source": "artifact guard correction from immutable ec6b; commit pending workspace disk",
+  "manifestHashBoundBySealedPacket": true,
+  "cases": [
+    {
+      "name": "canonical complete manifest",
+      "accepted": false,
+      "artifactReads": 6,
+      "driverLoaded": false,
+      "sqlExecuted": false
+    },
+    {
+      "name": "empty clients array",
+      "accepted": false,
+      "artifactReads": 0,
+      "driverLoaded": false,
+      "sqlExecuted": false
+    },
+    {
+      "name": "one client removed",
+      "accepted": false,
+      "artifactReads": 0,
+      "driverLoaded": false,
+      "sqlExecuted": false
+    },
+    {
+      "name": "all artifacts removed",
+      "accepted": false,
+      "artifactReads": 0,
+      "driverLoaded": false,
+      "sqlExecuted": false
+    }
+  ],
+  "qualification": "Same four-input corpus. Candidate guard recomputes source equality; non-manifest reads include10artifacts+2boundsource schemas. No driver/client/SQL. Onlyp/ROOT/outputmetadata adaptation from originalprobe."
+}
