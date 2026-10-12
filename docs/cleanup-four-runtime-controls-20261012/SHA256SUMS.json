@@ -1,5 +1,5 @@
 {
-  "docs/cleanup-four-runtime-controls-20261012/HANDOFF.md": "a4e8d4d08bffd895e7adef324ddcf6f2291c37c17c4e88ae755309dfc47349cc",
+  "docs/cleanup-four-runtime-controls-20261012/HANDOFF.md": "e9668655b26ecdc8270a353a935fedd1b6da539395b3aa0cd04b92de0a8cef77",
   "docs/cleanup-four-runtime-controls-20261012/SOURCE-MANIFEST.json": "896eecdf63404f2d85ecb87b9eef0a8553d6485ab8765ff022f4c3600ece44d3",
   "docs/cleanup-four-runtime-controls-20261012/evidence/alias-controls-initial.tap": "f69cf52d775264b232cd36303b74ece8d7c456ee7ebcd841fd53296981829e97",
   "docs/cleanup-four-runtime-controls-20261012/evidence/controls-before-independent-review.tap": "f6942a07dd850b629f44e2432c79a8374eec40ed93aa8c5a4826af679092efed",
@@ -19,6 +19,8 @@
   "docs/cleanup-four-runtime-controls-20261012/evidence/root-api-full-cached-typecheck-8gb.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "docs/cleanup-four-runtime-controls-20261012/evidence/root-api-full-cached-typecheck.log": "1d0c5bad075d103d5d979c61279898a68523ab89161e9c995f5c8d0092ec73d0",
   "docs/cleanup-four-runtime-controls-20261012/evidence/root-authored-format-check.log": "78bff622e7557a2029e969c8c0ff1de6a83ab29f55ff593edc2271c508226e99",
+  "docs/cleanup-four-runtime-controls-20261012/evidence/root-authored-format-corrected-check.log": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20",
+  "docs/cleanup-four-runtime-controls-20261012/evidence/root-authored-format-repair.log": "d42b69b566d7ab3bea359c6dbd43081d30170f52fdd7c757fcdacd856848824b",
   "docs/cleanup-four-runtime-controls-20261012/evidence/root-typecheck-command-receipt.json": "13a27b99cd0a401dedaa1b933d01637a461594bc747ecaa42b871e1d98d11483",
   "docs/cleanup-four-runtime-controls-20261012/evidence/tango-duplicate-profile-initial.json": "a0c0ee9d2551da3634dca187a194e4882b26bea40e6b84816c78b0ddea95354f",
   "docs/cleanup-four-runtime-controls-20261012/evidence/tango-profile-core-scope.json": "7e0d352d5d91698bb5ab9022639920acc9e19bcc43fa07f3ffe28ee54d222aba",
