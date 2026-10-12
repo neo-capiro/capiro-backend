@@ -168,7 +168,7 @@ describe('saved newsletter staging through canonical Workspace and Outreach owne
   });
   it('uses parameter-bound UUIDs and locks each current authority through command commit', async () => {
     const h = harness(); await h.stage();
-    expect(h.sql.filter((q) => q.text.includes('FROM ws_') || q.text.includes('FROM tenant_memberships') || q.text.includes('FROM tenants')).every((q) => q.text.includes('FOR SHARE'))).toBe(true);
+    expect(h.sql.filter((q) => (q.text.includes('FROM ws_') && !q.text.includes('FROM ws_source_action')) || q.text.includes('FROM tenant_memberships') || q.text.includes('FROM tenants')).every((q) => q.text.includes('FOR SHARE'))).toBe(true);
     expect(h.sql.every((q) => !q.text.includes(ctx.clerkUserId))).toBe(true);
   });
   it('canonicalizes snapshot object keys while retaining ordered arrays', () => {

@@ -50,10 +50,13 @@ export async function workspaceSavedOutreachRevisionWithinTx(
      WHERE tenant_id=$1::uuid AND id=$2::uuid FOR SHARE`, input.tenantId, input.draftId,
   );
   if (!draft || draft.prospectId) unavailable();
+  // Canonical source creation commits this immutable receipt with a NEW draft.
+  // The existing app role has SELECT/INSERT only here: a locking SELECT would
+  // require an unauthorized UPDATE privilege. No later attachment path exists.
   const sources = await tx.$queryRawUnsafe<Array<{ sourceType: string }>>(
     `SELECT source_type AS "sourceType" FROM ws_source_action
      WHERE tenant_id=$1::uuid AND draft_id=$2::uuid
-       AND source_type IN ('legiwatch_research','legiwatch_editorial') FOR SHARE`,
+       AND source_type IN ('legiwatch_research','legiwatch_editorial')`,
     input.tenantId, input.draftId,
   );
   if (sources.length) unavailable();
