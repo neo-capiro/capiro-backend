@@ -47,13 +47,13 @@
           "file": "apps/api-strategy/src/context/frontmatter.ts",
           "name": "DOCUMENT_TYPES",
           "kind": "variable",
-          "sha256": "d8b436439591a168fc5f2b744ccde4a2f3e233d45bfd9bde9d16d75ea4c1f74c"
+          "sha256": "acb6d11b65700793f099ac20f6196dee28eb8c44a24d40a1fba6f0856790f1c1"
         },
         {
           "file": "apps/api-strategy/src/context/frontmatter.ts",
           "name": "TEMPLATE_KEY_BY_TYPE",
           "kind": "variable",
-          "sha256": "f27cc5feabcb5bb83ba8867252c2143a126db57265db724ad9f06df1f62648cb"
+          "sha256": "99f60cff678bd1e17647714fc67dac0ba0ef4535c6b17618a6a4b72eff75f004"
         }
       ]
     }

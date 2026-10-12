@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
-import { declarationDigest, inspectRegistryOwnership } from './check-registry-ownership.mjs';
+import { declarationDigest, inspectRegistryOwnership, run } from './check-registry-ownership.mjs';
 
 const owner = 'apps/example/src/registry.ts';
 const consumer = 'apps/example/src/consumer.ts';
@@ -200,4 +203,236 @@ test('inert declaration aliases in unrelated scope do not satisfy a missing cano
     ),
   );
   assert.ok(result.errors.some((error) => error.includes('bound references')));
+});
+
+for (const [label, change] of [
+  ['local owner function', ({ files }) => files.set(owner, ownerSource.replace('export ', ''))],
+  [
+    'nested owner function',
+    ({ files }) =>
+      files.set(owner, `export function wrapper(){ ${ownerSource.replace('export ', '')} }`),
+  ],
+  [
+    'namespace owner function',
+    ({ files }) => files.set(owner, `export namespace Box { ${ownerSource} }`),
+  ],
+  [
+    'default-only owner function',
+    ({ files }) =>
+      files.set(owner, ownerSource.replace('export function', 'export default function')),
+  ],
+  [
+    'object destructured owned binding',
+    ({ files }) => files.set('apps/example/src/copy.ts', 'const {canonicalRoute} = value;'),
+  ],
+  [
+    'renamed object destructured owned binding',
+    ({ files }) => files.set('apps/example/src/copy.ts', 'const {other: canonicalRoute} = value;'),
+  ],
+  [
+    'array destructured owned binding',
+    ({ files }) => files.set('apps/example/src/copy.ts', 'const [canonicalRoute] = value;'),
+  ],
+  [
+    'parameter using reserved owned name',
+    ({ files }) =>
+      files.set('apps/example/src/copy.ts', 'function wrapper(canonicalRoute:unknown) {}'),
+  ],
+  [
+    'destructured parameter using reserved owned name',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/copy.ts',
+        'function wrapper({canonicalRoute}:{canonicalRoute:unknown}) {}',
+      ),
+  ],
+  [
+    'named function expression copy',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/copy.ts',
+        'const copy = function canonicalRoute(input:string){return input;};',
+      ),
+  ],
+  [
+    'object method copy',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/copy.ts',
+        'const copy={canonicalRoute(input:string){return input;}};',
+      ),
+  ],
+  [
+    'quoted object method copy',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/copy.ts',
+        'const copy={"canonicalRoute"(input:string){return input;}};',
+      ),
+  ],
+  [
+    'static computed object method copy',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/copy.ts',
+        'const copy={["canonicalRoute"](input:string){return input;}};',
+      ),
+  ],
+  [
+    'object property copy',
+    ({ files }) =>
+      files.set('apps/example/src/copy.ts', 'const copy={canonicalRoute:(input:string)=>input};'),
+  ],
+  [
+    'phantom imported export',
+    ({ files, config }) => {
+      files.set(consumer, consumerSource.replace('canonicalRoute as route', 'absent as route'));
+      config.profiles[0].edges[0].imported = 'absent';
+    },
+  ],
+  [
+    'out-of-scope consumer edge',
+    ({ files, config }) => {
+      const file = 'outside/consumer.ts';
+      files.set(file, consumerSource.replace('./registry.js', '../apps/example/src/registry.js'));
+      config.profiles[0].edges[0] = {
+        file,
+        module: '../apps/example/src/registry.js',
+        imported: 'canonicalRoute',
+        uses: 1,
+      };
+    },
+  ],
+  [
+    'out-of-scope carrier',
+    ({ files, config }) => {
+      const file = 'outside/carrier.ts';
+      files.set(file, consumerSource);
+      config.profiles[0].carriers[0].file = file;
+    },
+  ],
+  [
+    'duplicate owned symbol entry',
+    ({ config }) => config.profiles[0].symbols.push({ ...config.profiles[0].symbols[0] }),
+  ],
+  [
+    'duplicate consumer edge entry',
+    ({ config }) => config.profiles[0].edges.push({ ...config.profiles[0].edges[0] }),
+  ],
+  [
+    'duplicate carrier entry',
+    ({ config }) => config.profiles[0].carriers.push({ ...config.profiles[0].carriers[0] }),
+  ],
+  [
+    'unlisted owner import',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/extra.ts',
+        "import {canonicalRoute} from './registry.js'; canonicalRoute('extra');",
+      ),
+  ],
+  [
+    'unlisted alternate owner import path',
+    ({ files }) =>
+      files.set(
+        'apps/example/src/extra.ts',
+        "import {canonicalRoute} from './nested/../registry.js'; canonicalRoute('extra');",
+      ),
+  ],
+  [
+    'default owner import',
+    ({ files }) => files.set('apps/example/src/extra.ts', "import other from './registry.js';"),
+  ],
+  [
+    'static dynamic owner import',
+    ({ files }) => files.set('apps/example/src/extra.ts', "const other = import('./registry.js');"),
+  ],
+  [
+    'static require of owner',
+    ({ files }) =>
+      files.set('apps/example/src/extra.cts', "const other = require('./registry.js');"),
+  ],
+  [
+    'type reference spoofing runtime consumption',
+    ({ files, config }) => {
+      const text =
+        consumerSource.replace('return route(input)', 'return input') +
+        '\ntype Unused = typeof route;';
+      files.set(consumer, text);
+      config.profiles[0].carriers[0].sha256 = declarationDigest(text, 'dispatch', 'function');
+    },
+  ],
+])
+  test(`refuses ${label} after independent rejection`, () =>
+    assert.ok(check(change).errors.length > 0));
+
+test('variable carrier fingerprints include export visibility and const/let mutability', () => {
+  const before = 'export const vocabulary = ["one"] as const;';
+  for (const after of [
+    'const vocabulary = ["one"] as const;',
+    'export let vocabulary = ["one"] as const;',
+    'export const vocabulary = ["two"] as const;',
+  ])
+    assert.notEqual(
+      declarationDigest(before, 'vocabulary', 'variable'),
+      declarationDigest(after, 'vocabulary', 'variable'),
+    );
+  assert.equal(
+    declarationDigest(before, 'vocabulary', 'variable'),
+    declarationDigest(
+      'export const vocabulary= /* context */ ["one"] as const;',
+      'vocabulary',
+      'variable',
+    ),
+  );
+});
+
+function onDisk(change, inspect) {
+  const root = mkdtempSync(path.join(tmpdir(), 'capiro-registry-source-'));
+  try {
+    const value = fixture();
+    change?.(value);
+    for (const [file, source] of value.files) {
+      mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+      writeFileSync(path.join(root, file), source);
+    }
+    mkdirSync(path.join(root, 'scripts'), { recursive: true });
+    writeFileSync(path.join(root, 'scripts/registry-ownership.json'), JSON.stringify(value.config));
+    return inspect(root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+test('reads a complete synthetic source root without loading it', () => {
+  assert.deepEqual(
+    onDisk(undefined, (root) => run(root)),
+    { errors: [], profiles: 1, files: 2 },
+  );
+});
+for (const extension of ['ts', 'cts', 'mts', 'tsx'])
+  test(`scans owned declaration copies in .${extension}`, () => {
+    const result = onDisk(
+      ({ files }) => files.set(`apps/example/src/copy.${extension}`, ownerSource),
+      (root) => run(root),
+    );
+    assert.ok(result.errors.length > 0);
+  });
+test('does not follow source-file symlinks into an owner', () => {
+  onDisk(undefined, (root) => {
+    const file = path.join(root, owner);
+    const target = path.join(root, 'outside.ts');
+    writeFileSync(target, ownerSource);
+    rmSync(file);
+    symlinkSync(target, file);
+    assert.ok(run(root).errors.some((error) => error.includes('missing owner')));
+  });
+});
+test('refuses a symlink in the configured source root', () => {
+  onDisk(undefined, (root) => {
+    const target = path.join(root, 'linked');
+    mkdirSync(target);
+    rmSync(path.join(root, 'apps/example/src'), { recursive: true });
+    symlinkSync(target, path.join(root, 'apps/example/src'));
+    assert.throws(() => run(root), /real directories/);
+  });
 });

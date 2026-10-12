@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** @cleanup-smoke noArgsExit=0 helpExit=0 */
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync } from 'node:fs';
+import { lstatSync, readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -25,14 +25,28 @@ function declarations(sf) {
   const t = ts();
   const rows = [];
   const add = (node, name, kind) => {
-    if (!name || !t.isIdentifier(name)) return;
+    if (!name) return;
+    if (t.isObjectBindingPattern(name) || t.isArrayBindingPattern(name)) {
+      for (const element of name.elements)
+        if (!t.isOmittedExpression(element)) add(node, element.name, kind);
+      return;
+    }
+    if (t.isComputedPropertyName(name) && t.isStringLiteralLike(name.expression))
+      name = name.expression;
+    if (!t.isIdentifier(name) && !t.isStringLiteralLike(name)) return;
     rows.push({ node, name: name.text, kind });
   };
   function visit(node) {
     if (t.isVariableDeclaration(node)) add(node, node.name, 'variable');
-    else if (t.isFunctionDeclaration(node)) add(node, node.name, 'function');
+    else if (t.isParameter(node)) add(node, node.name, 'parameter');
+    else if (t.isFunctionDeclaration(node) || t.isFunctionExpression(node))
+      add(node, node.name, 'function');
     else if (t.isMethodDeclaration(node)) add(node, node.name, 'method');
-    else if (t.isClassDeclaration(node)) add(node, node.name, 'class');
+    else if (t.isPropertyDeclaration(node) || t.isPropertyAssignment(node))
+      add(node, node.name, 'property');
+    else if (t.isGetAccessorDeclaration(node) || t.isSetAccessorDeclaration(node))
+      add(node, node.name, 'accessor');
+    else if (t.isClassDeclaration(node) || t.isClassExpression(node)) add(node, node.name, 'class');
     else if (t.isInterfaceDeclaration(node)) add(node, node.name, 'interface');
     else if (t.isTypeAliasDeclaration(node)) add(node, node.name, 'type');
     else if (t.isEnumDeclaration(node)) add(node, node.name, 'enum');
@@ -42,15 +56,37 @@ function declarations(sf) {
   return rows;
 }
 
+function declarationEnvelope(node) {
+  const t = ts();
+  if (
+    t.isVariableDeclaration(node) &&
+    t.isVariableDeclarationList(node.parent) &&
+    t.isVariableStatement(node.parent.parent)
+  )
+    return node.parent.parent;
+  return node;
+}
+
+function isNamedModuleExport(node, sf) {
+  const t = ts();
+  node = declarationEnvelope(node);
+  return (
+    node.parent === sf &&
+    node.modifiers?.some((modifier) => modifier.kind === t.SyntaxKind.ExportKeyword) &&
+    !node.modifiers.some((modifier) => modifier.kind === t.SyntaxKind.DefaultKeyword)
+  );
+}
+
 // Printed declaration tokens make whitespace and comments irrelevant while
 // keeping literals, operands, modifiers and the surrounding function intact.
-export function declarationDigest(source, name, kind) {
+export function declarationDigest(source, name, kind, file = 'source.ts') {
   const t = ts();
-  const sf = t.createSourceFile('source.ts', source, t.ScriptTarget.Latest, true);
+  const sf = t.createSourceFile(file, source, t.ScriptTarget.Latest, true);
+  if (sf.parseDiagnostics.length) return null;
   const rows = declarations(sf).filter((row) => row.name === name && row.kind === kind);
   if (rows.length !== 1) return null;
   const printer = t.createPrinter({ removeComments: true, newLine: t.NewLineKind.LineFeed });
-  return digest(printer.printNode(t.EmitHint.Unspecified, rows[0].node, sf));
+  return digest(printer.printNode(t.EmitHint.Unspecified, declarationEnvelope(rows[0].node), sf));
 }
 
 function lexicalChecker(sf) {
@@ -106,6 +142,7 @@ function inspectEdge(sf, file, edge, owner) {
   const binding = checker.getSymbolAtLocation(matches[0].name);
   let uses = 0;
   function visit(node) {
+    if (t.isTypeNode(node)) return;
     if (
       t.isIdentifier(node) &&
       node !== matches[0].name &&
@@ -163,11 +200,11 @@ export function inspectRegistryOwnership(files, config) {
       continue;
     }
     ids.add(profile.id);
-    const scoped = [...parsed].filter(([file]) =>
-      profile.roots.some((root) => file.startsWith(`${root}/`)),
-    );
+    const inScope = (file) => profile.roots.some((root) => file.startsWith(`${root}/`));
+    const scoped = [...parsed].filter(([file]) => inScope(file));
     if (!scoped.some(([file]) => file === profile.owner))
       errors.push(`${profile.id}: missing owner`);
+    const symbolNames = new Set();
     for (const symbol of profile.symbols) {
       if (
         !symbol ||
@@ -177,29 +214,93 @@ export function inspectRegistryOwnership(files, config) {
         errors.push(`${profile.id}: invalid owned symbol`);
         continue;
       }
+      if (symbolNames.has(symbol.name)) errors.push(`${profile.id}: duplicate owned symbol`);
+      symbolNames.add(symbol.name);
       const hits = scoped.flatMap(([file, { rows }]) =>
         rows.filter((row) => row.name === symbol.name).map((row) => ({ file, ...row })),
       );
-      if (hits.length !== 1 || hits[0].file !== profile.owner || hits[0].kind !== symbol.kind)
+      if (
+        hits.length !== 1 ||
+        hits[0].file !== profile.owner ||
+        hits[0].kind !== symbol.kind ||
+        !isNamedModuleExport(hits[0].node, parsed.get(profile.owner)?.sf)
+      )
         errors.push(
-          `${profile.id}: ${symbol.name} must have one ${symbol.kind} declaration in ${profile.owner}`,
+          `${profile.id}: ${symbol.name} must have one named module export (${symbol.kind}) in ${profile.owner}`,
         );
     }
+    const edgeKeys = new Set();
     for (const edge of profile.edges) {
       if (
         !edge ||
         !safePath(edge.file) ||
         typeof edge.imported !== 'string' ||
+        !symbolNames.has(edge.imported) ||
+        !profile.symbols.some(
+          (symbol) => symbol.name === edge.imported && !['type', 'interface'].includes(symbol.kind),
+        ) ||
         !Number.isSafeInteger(edge.uses) ||
         edge.uses < 1 ||
-        !parsed.has(edge.file)
+        !parsed.has(edge.file) ||
+        !inScope(edge.file)
       ) {
         errors.push(`${profile.id}: invalid or missing consumer edge`);
         continue;
       }
+      const key = `${edge.file}|${edge.imported}`;
+      if (edgeKeys.has(key)) errors.push(`${profile.id}: duplicate consumer edge`);
+      edgeKeys.add(key);
       const failure = inspectEdge(parsed.get(edge.file).sf, edge.file, edge, profile.owner);
       if (failure) errors.push(`${profile.id}: ${edge.file}/${edge.imported}: ${failure}`);
     }
+    // Every named runtime import of an owned symbol has a data-owned edge.
+    // Namespace/default/static dynamic imports of the owner are outside this
+    // finite contract and fail instead of hiding an additional consumer.
+    for (const [file, { sf }] of scoped) {
+      function visit(node) {
+        if (
+          t.isImportDeclaration(node) &&
+          canonicalModule(file, node.moduleSpecifier.text) === profile.owner
+        ) {
+          const clause = node.importClause;
+          if (!clause?.isTypeOnly) {
+            if (
+              !clause ||
+              clause.name ||
+              (clause.namedBindings && !t.isNamedImports(clause.namedBindings))
+            )
+              errors.push(`${profile.id}: unsupported owner import in ${file}`);
+            if (clause?.namedBindings && t.isNamedImports(clause.namedBindings))
+              for (const item of clause.namedBindings.elements) {
+                const imported = (item.propertyName ?? item.name).text;
+                if (
+                  !item.isTypeOnly &&
+                  symbolNames.has(imported) &&
+                  !profile.edges.some(
+                    (edge) =>
+                      edge.file === file &&
+                      edge.imported === imported &&
+                      edge.module === node.moduleSpecifier.text,
+                  )
+                )
+                  errors.push(`${profile.id}: unlisted owner import ${file}/${imported}`);
+              }
+          }
+        }
+        if (
+          t.isCallExpression(node) &&
+          (node.expression.kind === t.SyntaxKind.ImportKeyword ||
+            (t.isIdentifier(node.expression) && node.expression.text === 'require')) &&
+          node.arguments[0] &&
+          t.isStringLiteralLike(node.arguments[0]) &&
+          canonicalModule(file, node.arguments[0].text) === profile.owner
+        )
+          errors.push(`${profile.id}: unsupported dynamic owner import in ${file}`);
+        t.forEachChild(node, visit);
+      }
+      visit(sf);
+    }
+    const carrierKeys = new Set();
     for (const carrier of profile.carriers) {
       if (
         !carrier ||
@@ -207,11 +308,16 @@ export function inspectRegistryOwnership(files, config) {
         typeof carrier.name !== 'string' ||
         !/^[0-9a-f]{64}$/.test(carrier.sha256) ||
         !parsed.has(carrier.file) ||
-        declarationDigest(files.get(carrier.file), carrier.name, carrier.kind) !== carrier.sha256
+        !inScope(carrier.file) ||
+        declarationDigest(files.get(carrier.file), carrier.name, carrier.kind, carrier.file) !==
+          carrier.sha256
       )
         errors.push(
           `${profile.id}: carrier drift or missing declaration: ${carrier?.file}/${carrier?.name}`,
         );
+      const key = `${carrier?.file}|${carrier?.name}|${carrier?.kind}`;
+      if (carrierKeys.has(key)) errors.push(`${profile.id}: duplicate carrier`);
+      carrierKeys.add(key);
     }
   }
   return { errors, profiles: config.profiles.length, files: parsed.size };
@@ -231,6 +337,12 @@ function readSources(root, roots) {
   }
   for (const relative of new Set(roots)) {
     if (!safePath(relative)) throw new Error('invalid source root');
+    let segment = root;
+    for (const part of relative.split('/')) {
+      segment = path.join(segment, part);
+      if (!lstatSync(segment).isDirectory() || lstatSync(segment).isSymbolicLink())
+        throw new Error('source root must contain real directories only');
+    }
     walk(relative);
   }
   return files;
