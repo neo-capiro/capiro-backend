@@ -1,0 +1,74 @@
+{
+  "source": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "tests": 16,
+  "passed": 16,
+  "results": [
+    {
+      "name": "valid environment exposes the exact supplied sanitizer object",
+      "passed": true
+    },
+    {
+      "name": "valid environment exposes the exact supplied SDK namespace",
+      "passed": true
+    },
+    {
+      "name": "sanitizer mapper returns exact function without loading a replacement",
+      "passed": true
+    },
+    {
+      "name": "SDK mapper returns exact namespace without constructing a client",
+      "passed": true
+    },
+    {
+      "name": "sanitizer mapper refuses a missing native export",
+      "passed": true
+    },
+    {
+      "name": "sanitizer mapper refuses wrong export type",
+      "passed": true
+    },
+    {
+      "name": "SDK mapper refuses absent namespace",
+      "passed": true
+    },
+    {
+      "name": "SDK mapper refuses namespace without real class",
+      "passed": true
+    },
+    {
+      "name": "missing installed sanitizer refuses environment initialization",
+      "passed": true
+    },
+    {
+      "name": "wrong sanitizer export refuses environment initialization",
+      "passed": true
+    },
+    {
+      "name": "missing installed Node environment refuses initialization",
+      "passed": true
+    },
+    {
+      "name": "missing SDK is a loud deferred bridge error",
+      "passed": true
+    },
+    {
+      "name": "wrong installed SDK is a loud deferred bridge error",
+      "passed": true
+    },
+    {
+      "name": "native bridges expose immutable non-enumerable sandbox slots",
+      "passed": true
+    },
+    {
+      "name": "canonical Core patterns/transforms/mappers retained except exact real-library bridges",
+      "passed": true
+    },
+    {
+      "name": "standard teardown retained; only own sandbox slots removed",
+      "passed": true
+    }
+  ],
+  "inertRequireStandIns": true,
+  "actualLibraryProviderDatabaseSocketExecution": false,
+  "nativeAcceptance": false
+}

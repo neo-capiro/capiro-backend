@@ -1,0 +1,9 @@
+{
+  "controls": 45,
+  "passed": 45,
+  "failed": 0,
+  "failures": [],
+  "sourceLevelEvidenceOnly": true,
+  "dockerGitSpawned": false,
+  "C1Acceptance": false
+}

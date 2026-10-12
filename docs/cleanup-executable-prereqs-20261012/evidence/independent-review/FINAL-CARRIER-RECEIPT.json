@@ -1,0 +1,63 @@
+{
+  "acceptedSource": "5db091dac54bc05f4a97a1495c8e6df238547c4d",
+  "acceptedTree": "725acfb0db38db8b62e79b9f3fba7823d5b88bff",
+  "acceptedScope": "Cleanup executable carrier/config/CI/coverage source; real-library bridge and opt-in worker controls; formatter semantics and baseline assertion source review",
+  "separateCLIBehaviorReviewOwner": "/root/effective_date_review",
+  "entireCLIBehaviorAcceptanceByThisReceipt": false,
+  "runtimeCodeFilesParsed": 646,
+  "literalRelativeImportEdges": 1334,
+  "missingGeneratedDistOperands": 14,
+  "missingSourceHelpers": 0,
+  "scopedCarrierSourceHashCount": 532,
+  "formatterSemanticFiles": 47,
+  "controls": {
+    "regression": {
+      "pass": 14,
+      "total": 14
+    },
+    "baselineFixtures": {
+      "pass": 10,
+      "total": 10
+    },
+    "guardConfig": {
+      "pass": 34,
+      "total": 34
+    },
+    "workerMapping": {
+      "pass": 45,
+      "total": 45
+    },
+    "bridgeInert": {
+      "pass": 16,
+      "total": 16
+    },
+    "contextExactImportForm": {
+      "pass": 6,
+      "total": 6
+    }
+  },
+  "newControlPasses": 125,
+  "earlier153PassesOverlapDoNotAdd": true,
+  "earlier11_14And7_10FailedReceiptsRetained": true,
+  "sourceControlConsumersExact980ToFinal": [
+    "apps/e2e/scripts/regression.mjs",
+    "scripts/cleanup-gates/verify-baseline.fixtures.mjs",
+    "scripts/cleanup-gates/verify-baseline.mjs",
+    "scripts/cleanup-gates/guard-config.test.mjs",
+    "scripts/cleanup-gates/gate-config.mjs",
+    "apps/api/jest.config.cjs",
+    "apps/api/jest.worker-database.cjs",
+    "apps/api/jest.worker-database-controls.cjs",
+    "apps/api/jest.native-runtime-environment.cjs",
+    "apps/api/jest.native-sanitize-html.cjs",
+    "apps/api/jest.native-tango.cjs",
+    "apps/defense-budget-parser/pyproject.toml",
+    "apps/defense-budget-parser/uv.lock",
+    "scripts/check-context-plane-new-bypasses.mjs"
+  ],
+  "allPriorPublishedQualificationPacketsUnchanged": true,
+  "fullWebRunByAuthorNotAcceptedHere": "pending result/readback at receipt time; no broader test run by reviewer",
+  "nativeDatabaseRLSMigrationProviderCloudSecurityInstallOrFullGateExecution": false,
+  "nativeOrFullCleanupAccepted": false,
+  "evidenceOnlyCommit": true
+}

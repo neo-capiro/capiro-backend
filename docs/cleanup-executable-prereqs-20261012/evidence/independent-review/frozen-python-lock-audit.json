@@ -1,0 +1,9 @@
+{
+  "source": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "allNonNumpyLockValuesPreserved": true,
+  "soleNumpyVersion": "2.4.6",
+  "original2_4_6WheelAndSourceHashesPreserved": true,
+  "devExtraDeclaredAndBound": true,
+  "python311And312WheelsPresent": true,
+  "frozenSyncAndPythonExecution": false
+}

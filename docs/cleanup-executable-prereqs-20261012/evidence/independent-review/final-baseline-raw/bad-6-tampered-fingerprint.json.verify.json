@@ -1,0 +1,14 @@
+{
+  "baseline": "/workspace/capirov2-cleanup-prereqs-frozen-review/.artifacts/cleanup1-verify-fixtures/bad-6-tampered-fingerprint.json",
+  "baselineFileSha256": "f2e00f710cd2b9624e2f62b68ec8238a283ae6e4730e3567150f8a0405dbc177",
+  "kind": "auto",
+  "head": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "expectSha": null,
+  "ok": false,
+  "problems": [
+    "measured-source fingerprint mismatch: recorded ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff but 980740f6c1260d349e31da711cb6faacc0334f88 re-derives ab58f70fb2d23d31b6b686e92284a9e0335d5680e22284c7d5aa9a87d8b4bd6c — the baseline is not anchored to this source"
+  ],
+  "runSha": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "kindResolved": "historical-floor",
+  "resultsSha256": "49d04e46e60b55777be76a2442cbf39bf2e5c0e360b55e0b694eeb312e05aee0"
+}

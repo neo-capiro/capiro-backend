@@ -1,0 +1,41 @@
+diff --git a/scripts/check-context-plane-new-bypasses.mjs b/scripts/check-context-plane-new-bypasses.mjs
+index ef5efeffc..ac3fef59c 100644
+--- a/scripts/check-context-plane-new-bypasses.mjs
++++ b/scripts/check-context-plane-new-bypasses.mjs
+@@ -1,10 +1,13 @@
+ #!/usr/bin/env node
++/** @cleanup-smoke noArgsExit=0 helpExit=0 */
+ 
+ import { execFileSync } from 'node:child_process';
+ import { readFileSync, readdirSync, statSync } from 'node:fs';
+ import { join } from 'node:path';
+ 
+-const base = process.argv[2] || 'origin/main';
++import { architectureGuardBase } from './cleanup-gates/lib/cli.mjs';
++
++const base = architectureGuardBase('check-context-plane-new-bypasses');
+ 
+ /**
+  * Files that ARE the shared Context Plane (or the shared Retrieval V2 it owns).
+@@ -60,6 +63,12 @@ const BANNED_ADDITION_PATTERNS = [
+  * allowlisted the moment it changes, so this cannot rot into a blanket waiver.
+  */
+ const APPROVED_ADAPTER_LINES = [
++  {
++    file: 'apps/api/scripts/meriv2-phase18-application-rehearsal.ts',
++    line: "const { ContextCompilerService } = await import('../src/context/context-compiler.service.js');",
++    reason:
++      'Existing offline Phase 18 database rehearsal harness import, deferred until its explicit CLI preflight succeeds. This script is not wired into a product module.',
++  },
+   {
+     file: 'apps/api/src/workspace-assistant/workspace-assistant.module.ts',
+     line: "import { ContextCompilerService } from '../context/context-compiler.service.js';",
+@@ -105,7 +114,7 @@ function isApproved(file, addedLine) {
+ const SHARED_PLANE_CONSUMER_CENSUS = [
+   {
+     file: 'apps/api/scripts/meriv2-phase18-application-rehearsal.ts',
+-    line: "import { ContextCompilerService } from '../src/context/context-compiler.service.js';",
++    line: "const { ContextCompilerService } = await import('../src/context/context-compiler.service.js');",
+     status: 'unmigrated',
+     reason:
+       'Offline Phase 18 database rehearsal harness. Not wired into any Nest module, so it is not a product runtime path.',

@@ -1,0 +1,14 @@
+{
+  "baseline": "/workspace/capirov2-cleanup-prereqs-frozen-review/.artifacts/cleanup1-verify-fixtures/bad-2-nonzero-native-exit.json",
+  "baselineFileSha256": "5bc0af13ec7b0c2e5474dca4c33caf60c69559d699f487ccde9f6422d2908680",
+  "kind": "auto",
+  "head": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "expectSha": null,
+  "ok": false,
+  "problems": [
+    "results[0] (@capiro/api).suiteExitCode must be the integer 0 (got 1) — a non-zero native exit is NOT green"
+  ],
+  "runSha": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "kindResolved": "historical-floor",
+  "resultsSha256": "e36d456b2b1a398c086fe9ee9fe1055fcde87e3d00e53e3bbcab63e7bd389c56"
+}

@@ -1,0 +1,207 @@
+{
+  "schema": "capiro.cleanup1-coverage-baseline",
+  "schemaVersion": 2,
+  "kind": "historical-floor",
+  "runSha": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "measuredSource": {
+    "sha": "980740f6c1260d349e31da711cb6faacc0334f88",
+    "fingerprintAlgorithm": "sha256-ls-tree-v2",
+    "fingerprint": "ab58f70fb2d23d31b6b686e92284a9e0335d5680e22284c7d5aa9a87d8b4bd6c",
+    "paths": [
+      "apps",
+      "packages",
+      "infra",
+      "package.json",
+      "pnpm-lock.yaml",
+      "pnpm-workspace.yaml",
+      "turbo.json",
+      "tsconfig.base.json",
+      "scripts/cleanup-gates",
+      "scripts/test-proof",
+      ".github/workflows"
+    ],
+    "entries": 11189
+  },
+  "generatedAt": "2026-10-12T12:50:55.667Z",
+  "enforcement": "none",
+  "green": true,
+  "resultsSha256": "0c3046b65de41ce995451c42b7c545a678448c26c01e77307848b79a6214411f",
+  "results": [
+    {
+      "package": "@capiro/api",
+      "packageDir": "apps/api",
+      "runner": "jest",
+      "command": "fixture: jest",
+      "suiteExitCode": 0,
+      "reportPath": ".artifacts/cleanup1-verify-fixtures/reports/apps_api.report.json",
+      "reportSha256": "cc0f884a89a9c8a3655b0debb4b7f201b537d3a3d16f441008c6df445ee1e591",
+      "metrics": {
+        "statements": {
+          "total": 1000,
+          "covered": 820,
+          "skipped": 0,
+          "pct": 82
+        },
+        "branches": {
+          "total": 200,
+          "covered": 120,
+          "skipped": 0,
+          "pct": 60
+        },
+        "functions": {
+          "total": 80,
+          "covered": 40,
+          "skipped": 0,
+          "pct": 50
+        },
+        "lines": {
+          "total": 1000,
+          "covered": 820,
+          "skipped": 0,
+          "pct": 82
+        }
+      },
+      "status": "measured-green"
+    },
+    {
+      "package": "@capiro/web",
+      "packageDir": "apps/web",
+      "runner": "vitest",
+      "command": "fixture: vitest",
+      "suiteExitCode": 0,
+      "reportPath": "apps/web/definitely-absent-coverage-report.json",
+      "reportSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "metrics": {
+        "statements": {
+          "total": 1000,
+          "covered": 740,
+          "skipped": 0,
+          "pct": 74
+        },
+        "branches": {
+          "total": 200,
+          "covered": 120,
+          "skipped": 0,
+          "pct": 60
+        },
+        "functions": {
+          "total": 80,
+          "covered": 40,
+          "skipped": 0,
+          "pct": 50
+        },
+        "lines": {
+          "total": 1000,
+          "covered": 740,
+          "skipped": 0,
+          "pct": 74
+        }
+      },
+      "status": "measured-green"
+    },
+    {
+      "package": "@capiro/workspace",
+      "packageDir": "apps/workspace",
+      "runner": "jest",
+      "command": "fixture: jest",
+      "suiteExitCode": 0,
+      "reportPath": ".artifacts/cleanup1-verify-fixtures/reports/apps_workspace.report.json",
+      "reportSha256": "cc0f884a89a9c8a3655b0debb4b7f201b537d3a3d16f441008c6df445ee1e591",
+      "metrics": {
+        "statements": {
+          "total": 1000,
+          "covered": 820,
+          "skipped": 0,
+          "pct": 82
+        },
+        "branches": {
+          "total": 200,
+          "covered": 120,
+          "skipped": 0,
+          "pct": 60
+        },
+        "functions": {
+          "total": 80,
+          "covered": 40,
+          "skipped": 0,
+          "pct": 50
+        },
+        "lines": {
+          "total": 1000,
+          "covered": 820,
+          "skipped": 0,
+          "pct": 82
+        }
+      },
+      "status": "measured-green"
+    },
+    {
+      "package": "@capiro/onboard-web",
+      "packageDir": "apps/onboard-web",
+      "runner": "vitest",
+      "command": "fixture: vitest",
+      "suiteExitCode": 0,
+      "reportPath": ".artifacts/cleanup1-verify-fixtures/reports/apps_onboard-web.report.json",
+      "reportSha256": "2db1e921c2e1a3feda6b2a8c0e409e59c773a5b7d524367f9fd887421d08144b",
+      "metrics": {
+        "statements": {
+          "total": 1000,
+          "covered": 740,
+          "skipped": 0,
+          "pct": 74
+        },
+        "branches": {
+          "total": 200,
+          "covered": 120,
+          "skipped": 0,
+          "pct": 60
+        },
+        "functions": {
+          "total": 80,
+          "covered": 40,
+          "skipped": 0,
+          "pct": 50
+        },
+        "lines": {
+          "total": 1000,
+          "covered": 740,
+          "skipped": 0,
+          "pct": 74
+        }
+      },
+      "status": "measured-green"
+    },
+    {
+      "package": "capiro-defense-budget-parser",
+      "packageDir": "apps/defense-budget-parser",
+      "runner": "pytest-cov",
+      "command": "fixture: pytest-cov",
+      "suiteExitCode": 0,
+      "reportPath": ".artifacts/cleanup1-verify-fixtures/reports/apps_defense-budget-parser.report.json",
+      "reportSha256": "ae2c24d9b71d26aeb121f43f21f7f3f708daf5bb490d9b01d97a696d35656ff7",
+      "metrics": {
+        "statements": {
+          "total": 3603,
+          "covered": 3030,
+          "skipped": null,
+          "pct": 84.1
+        },
+        "branches": {
+          "total": 1318,
+          "covered": 880,
+          "skipped": null,
+          "pct": 66.77
+        },
+        "functions": null,
+        "lines": {
+          "total": 3603,
+          "covered": 3030,
+          "skipped": null,
+          "pct": 84.1
+        },
+        "note": "coverage.py reports statement+line coverage (identical here); functions are not reported at summary level."
+      },
+      "status": "measured-green"
+    }
+  ]
+}

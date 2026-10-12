@@ -1,0 +1,21 @@
+{
+  "baseline": "/workspace/capirov2-cleanup-prereqs-frozen-review/.artifacts/cleanup1-verify-fixtures/bad-1-missing-required-scope.json",
+  "baselineFileSha256": "235b81322de19b5051c54868b00d8cd2b478324f786c1888b7496af191792d75",
+  "kind": "auto",
+  "head": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "expectSha": null,
+  "ok": false,
+  "problems": [
+    "unexpected result package \"only-one-package\" — not part of the resolved required coverage scope",
+    "missing required coverage result for @capiro/api (apps/api) — the required scope is incomplete",
+    "missing required coverage result for @capiro/web (apps/web) — the required scope is incomplete",
+    "missing required coverage result for @capiro/workspace (apps/workspace) — the required scope is incomplete",
+    "missing required coverage result for @capiro/onboard-web (apps/onboard-web) — the required scope is incomplete",
+    "missing required coverage result for capiro-defense-budget-parser (apps/defense-budget-parser) — the required scope is incomplete",
+    "results[0] (only-one-package).metrics is missing the complete metric block",
+    "results[0] (only-one-package).reportPath is required — the raw report must be available"
+  ],
+  "runSha": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "kindResolved": "historical-floor",
+  "resultsSha256": "e174dd5ad26fed06fd2a7b14f99400c4b1f81d8f2d8c804136c2f767b1c89d0b"
+}

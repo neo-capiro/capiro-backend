@@ -1,0 +1,12 @@
+{
+  "baseline": "/workspace/capirov2-cleanup-prereqs-frozen-review/.artifacts/cleanup1-verify-fixtures/good-complete.json",
+  "baselineFileSha256": "2794728f15898889e18134e0c242e713525443f5200bfeeb53d8f50c1e8263d4",
+  "kind": "auto",
+  "head": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "expectSha": null,
+  "ok": true,
+  "problems": [],
+  "runSha": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "kindResolved": "historical-floor",
+  "resultsSha256": "49d04e46e60b55777be76a2442cbf39bf2e5c0e360b55e0b694eeb312e05aee0"
+}

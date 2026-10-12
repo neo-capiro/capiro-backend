@@ -1,0 +1,14 @@
+{
+  "baseline": "/workspace/capirov2-cleanup-prereqs-frozen-review/.artifacts/cleanup1-verify-fixtures/bad-5-metrics-not-matching-report.json",
+  "baselineFileSha256": "6b03af9fe59a2dab7c2a797f6473cab0451b3fe4f6caa8704a294aa255895ac3",
+  "kind": "auto",
+  "head": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "expectSha": null,
+  "ok": false,
+  "problems": [
+    "results[2] (@capiro/workspace) recorded metrics do not match the raw report — the summary was not derived from this report"
+  ],
+  "runSha": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "kindResolved": "historical-floor",
+  "resultsSha256": "e77d0091a7fea1cef0162c008642569b8088e0ca864fe2593ce8d2635b4ec9d6"
+}

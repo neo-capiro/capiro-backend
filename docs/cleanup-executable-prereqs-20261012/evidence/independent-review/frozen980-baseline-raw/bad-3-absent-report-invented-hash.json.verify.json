@@ -1,0 +1,14 @@
+{
+  "baseline": "/workspace/capirov2-cleanup-prereqs-frozen-review/.artifacts/cleanup1-verify-fixtures/bad-3-absent-report-invented-hash.json",
+  "baselineFileSha256": "591bfa4f4df95e16652e31ff7691a6f68b80c65fabacec0495809c5462d91d3b",
+  "kind": "auto",
+  "head": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "expectSha": null,
+  "ok": false,
+  "problems": [
+    "results[1] (@capiro/web) raw report not found at apps/web/definitely-absent-coverage-report.json — absent reports cannot be accepted"
+  ],
+  "runSha": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "kindResolved": "historical-floor",
+  "resultsSha256": "0c3046b65de41ce995451c42b7c545a678448c26c01e77307848b79a6214411f"
+}

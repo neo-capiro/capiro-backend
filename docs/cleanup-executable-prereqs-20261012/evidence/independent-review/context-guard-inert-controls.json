@@ -1,0 +1,33 @@
+{
+  "source": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "controls": 6,
+  "passed": 6,
+  "results": [
+    {
+      "name": "all banned-addition patterns remain exact",
+      "passed": true
+    },
+    {
+      "name": "every original exact adapter entry remains",
+      "passed": true
+    },
+    {
+      "name": "sole new adapter entry binds same existing offline source owner",
+      "passed": true
+    },
+    {
+      "name": "new line approves only its exact existing caller",
+      "passed": true
+    },
+    {
+      "name": "changed module/symbol/extra executable text is refused",
+      "passed": true
+    },
+    {
+      "name": "all existing census rows/statuses preserved except exact same-owner import spelling",
+      "passed": true
+    }
+  ],
+  "scope": "existing offline consumer spelling only; no new consumer or broad exemption",
+  "actualRepositoryScanNativeProviderExecution": false
+}

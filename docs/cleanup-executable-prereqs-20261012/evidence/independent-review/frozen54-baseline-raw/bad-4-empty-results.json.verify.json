@@ -1,0 +1,14 @@
+{
+  "baseline": "/workspace/capirov2-cleanup-prereqs-frozen-review/.artifacts/cleanup1-verify-fixtures/bad-4-empty-results.json",
+  "baselineFileSha256": "5df8f04310771c3ee946baffc65261cf81722134f85ec66f367c718ebc234397",
+  "kind": "auto",
+  "head": "54c05b04c59e20a47bbdbaad20bc338643b92f8f",
+  "expectSha": null,
+  "ok": false,
+  "problems": [
+    "results must be a non-empty array"
+  ],
+  "runSha": "54c05b04c59e20a47bbdbaad20bc338643b92f8f",
+  "kindResolved": "historical-floor",
+  "resultsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+}

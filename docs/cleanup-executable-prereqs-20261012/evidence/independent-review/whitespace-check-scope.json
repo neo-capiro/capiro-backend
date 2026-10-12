@@ -1,0 +1,11 @@
+{
+  "fullStagedDiffCheckExit": 2,
+  "cause": "retained raw Git-diff context lines contain single-space blank-line markers; exact diff bytes are evidence",
+  "rawFailurePreserved": "raw-diff-whitespace-failure.log",
+  "authoredSourceMetadataAndReviewCheckExit": 0,
+  "scopedExclusions": [
+    "**/*.diff",
+    "**/*.log"
+  ],
+  "rawBytesNotTrimmed": true
+}

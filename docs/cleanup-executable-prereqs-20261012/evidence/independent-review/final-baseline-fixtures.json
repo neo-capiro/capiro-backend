@@ -1,0 +1,107 @@
+{
+  "generatedAt": "2026-10-12T12:50:57.711Z",
+  "verifier": "scripts/cleanup-gates/verify-baseline.mjs",
+  "scratch": ".artifacts/cleanup1-verify-fixtures",
+  "seedSha": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "allPass": true,
+  "checks": [
+    {
+      "name": "complete-valid-baseline-accepted",
+      "pass": true,
+      "detail": {
+        "exit": 0,
+        "problems": []
+      }
+    },
+    {
+      "name": "invented-scope-rejected",
+      "pass": true,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "unexpected result package \"only-one-package\" — not part of the resolved required coverage scope",
+          "missing required coverage result for @capiro/api (apps/api) — the required scope is incomplete",
+          "missing required coverage result for @capiro/web (apps/web) — the required scope is incomplete",
+          "missing required coverage result for @capiro/workspace (apps/workspace) — the required scope is incomplete",
+          "missing required coverage result for @capiro/onboard-web (apps/onboard-web) — the required scope is incomplete",
+          "missing required coverage result for capiro-defense-budget-parser (apps/defense-budget-parser) — the required scope is incomplete",
+          "results[0] (only-one-package).metrics is missing the complete metric block",
+          "results[0] (only-one-package).reportPath is required — the raw report must be available"
+        ]
+      }
+    },
+    {
+      "name": "nonzero-native-exit-rejected",
+      "pass": true,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "results[0] (@capiro/api).suiteExitCode must be the integer 0 (got 1) — a non-zero native exit is NOT green"
+        ]
+      }
+    },
+    {
+      "name": "absent-report-rejected",
+      "pass": true,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "results[1] (@capiro/web) raw report not found at apps/web/definitely-absent-coverage-report.json — absent reports cannot be accepted"
+        ]
+      }
+    },
+    {
+      "name": "empty-results-rejected",
+      "pass": true,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "results must be a non-empty array"
+        ]
+      }
+    },
+    {
+      "name": "metrics-must-re-derive-from-raw-report",
+      "pass": true,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "results[2] (@capiro/workspace) recorded metrics do not match the raw report — the summary was not derived from this report"
+        ]
+      }
+    },
+    {
+      "name": "tampered-fingerprint-rejected",
+      "pass": true,
+      "detail": {
+        "exit": 1,
+        "problems": [
+          "measured-source fingerprint mismatch: recorded ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff but 980740f6c1260d349e31da711cb6faacc0334f88 re-derives ab58f70fb2d23d31b6b686e92284a9e0335d5680e22284c7d5aa9a87d8b4bd6c — the baseline is not anchored to this source"
+        ]
+      }
+    },
+    {
+      "name": "fingerprint-re-derivable",
+      "pass": true,
+      "detail": {
+        "fingerprint": "ab58f70fb2d23d31b6b686e92284a9e0335d5680e22284c7d5aa9a87d8b4bd6c",
+        "entries": 11189
+      }
+    },
+    {
+      "name": "measured-source-commit-is-ancestor-of-head",
+      "pass": true,
+      "detail": {
+        "seed": "980740f6c1260d349e31da711cb6faacc0334f88",
+        "head": "980740f6c1260d349e31da711cb6faacc0334f88"
+      }
+    },
+    {
+      "name": "evidence-paths-excluded-from-fingerprint",
+      "pass": true,
+      "detail": {
+        "evidencePathsInFingerprint": []
+      }
+    }
+  ]
+}
