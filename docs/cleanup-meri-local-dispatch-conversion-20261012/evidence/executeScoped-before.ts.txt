@@ -1,0 +1,323 @@
+private async executeScoped(
+    ctx: TenantContext,
+    name: MeriToolName,
+    input: Record<string, unknown>,
+    execution?: { actionProposalId?: string },
+  ) {
+    assertMeriToolRequestActive();
+    switch (name) {
+      case 'manage_research_portfolio':
+      case 'get_research_portfolio':
+      case 'get_research_portfolio_analytics':
+      case 'get_research_portfolio_changes':
+      case 'create_research_portfolio_snapshot':
+      case 'request_research_portfolio_output':
+      case 'save_research_portfolio_output_to_client':
+      case 'watch_research_portfolio':
+      case 'update_research_portfolio_change_state':
+      case 'get_research_portfolio_bookmarks':
+      case 'create_research_portfolio_bookmark':
+      case 'get_research_portfolio_fit':
+      case 'get_research_portfolio_reviews':
+      case 'add_research_portfolio_review_note':
+      case 'get_research_portfolio_rules':
+      case 'get_research_portfolio_imports':
+      case 'get_research_portfolio_operations':
+      case 'prepare_research_portfolio_brief':
+      case 'prepare_research_portfolio_meeting':
+        return executeMeriResearchPortfolioToolAtCurrentUse({
+          prisma: this.prisma,
+          scopeService: this.researchPortfolioScope,
+          ctx,
+          name,
+          input,
+          execute: () => this.requireResearchPortfolioTools().execute(ctx, name, input),
+        });
+      case 'search_legiwatch_news':
+      case 'get_florida_budget_project':
+      case 'compare_florida_budget_amounts':
+      case 'prepare_legiwatch_briefing':
+      case 'get_legiwatch_review':
+      case 'search_legislative_research':
+      case 'get_legal_reference':
+      case 'compare_legislative_versions':
+      case 'save_legislative_research':
+      case 'preview_legiwatch_relevance':
+      case 'save_legiwatch_relevance':
+      case 'apply_legiwatch_suggestion':
+        return this.legiwatchTool(ctx, name, input);
+      case 'get_research_evidence':
+        return getResearchEvidence(ctx, input, this.prisma);
+      case 'read_chat_attachments':
+        return this.readChatAttachments(ctx, input);
+      case 'read_monday_client_boards':
+        return this.readMondayClientBoards(ctx, input);
+      case 'search_capiro_data':
+        return searchCapiroData(ctx, input, this.contextPlane);
+      case 'get_client_context':
+        return this.getClientContext(ctx, input);
+      case 'search_research_sources':
+        return this.searchResearchSources(ctx, input);
+      case 'search_client_knowledge':
+        return this.searchClientKnowledge(ctx, input);
+      case 'run_analysis':
+        return this.runAnalysis(ctx, input);
+      case 'query_intelligence':
+        return this.queryIntelligence(input);
+      case 'query_knowledge_graph':
+        return this.queryKnowledgeGraph(ctx, input);
+      case 'find_path_to':
+        return this.findPathTo(ctx, input);
+      case 'search_memory':
+        return this.searchMemory(ctx, input);
+      case 'list_memory_proposals':
+        return readOwnPendingMemoryProposals(ctx, input, this.governedMemoryCandidates);
+      case 'search_congress_bills':
+        return this.searchCongressBills(input);
+      case 'get_bill_status':
+        return this.getBillStatus(input);
+      case 'read_bill_text':
+        return this.readBillText(input);
+      case 'get_certification_status':
+        return this.getCertificationStatus(input);
+      case 'search_floor_votes':
+        return this.searchFloorVotes(input);
+      case 'search_cbo_cost_estimates':
+        return this.searchCboCostEstimates(input);
+      case 'resolve_entity':
+        return this.resolveEntity(input);
+      case 'search_lda_filings':
+        return this.searchLdaFilings(input);
+      case 'list_global_datasets':
+        return this.listGlobalDatasets();
+      case 'query_global_data':
+        return this.queryGlobalData(ctx, input);
+      case 'search_sec_filings':
+        return this.searchSecFilings(input);
+      case 'search_fara_registrations':
+        return this.searchFaraRegistrations(input);
+      case 'search_federal_grants':
+        return this.searchFederalGrants(ctx, input);
+      case 'search_federal_awards':
+        return this.searchFederalAwards(ctx, input);
+      case 'search_gao_reports':
+        return this.searchGaoReports(input);
+      case 'search_state_bills':
+        return this.searchStateBills(input);
+      case 'get_state_bill_status':
+        return this.getStateBillStatus(input);
+      case 'search_state_floor_votes':
+        return this.searchStateFloorVotes(input);
+      case 'get_state_legislator':
+        return this.getStateLegislator(input);
+      case 'get_committee_roster':
+        return this.getCommitteeRoster(input);
+      case 'get_representation':
+        return this.getRepresentation(ctx, input);
+      case 'list_members':
+        return this.listMembers(input);
+      case 'get_state_rule_status':
+        return this.getStateRuleStatus(input);
+      case 'search_intel_articles':
+        return this.searchIntelArticles(input);
+      case 'search_committee_hearings':
+        return this.searchCommitteeHearings(ctx, input);
+      case 'search_crs_reports':
+        return this.searchCrsReports(input);
+      case 'query_economic_data':
+        return this.queryEconomicData(input);
+      case 'get_district_nexus_context':
+        return (
+          this.districtTools?.getContext(ctx, input) ?? {
+            available: false,
+            reason: 'feature_disabled',
+          }
+        );
+      case 'get_district_nexus_changes':
+        return (
+          this.districtTools?.getChanges(ctx, input) ?? {
+            available: false,
+            reason: 'feature_disabled',
+          }
+        );
+      case 'search_public_web':
+        return this.searchPublicWeb(input);
+      case 'scrape_web_page':
+        return this.scrapeWebPage(input);
+      case 'create_meeting_brief':
+        return this.createMeetingBrief(ctx, input);
+      case 'draft_policy_memo':
+        return this.draftPolicyMemo(ctx, input);
+      case 'save_note':
+        return this.saveNote(ctx, input);
+      case 'save_chat_attachments':
+        return this.saveChatAttachments(ctx, input);
+      case 'send_email':
+        return this.sendEmail(ctx, input, execution?.actionProposalId);
+      case 'list_emails':
+        return this.listEmails(ctx, input);
+      case 'search_emails':
+        return this.searchEmails(ctx, input);
+      case 'get_email_thread':
+        return this.getEmailThread(ctx, input);
+      case 'list_upcoming_meetings':
+        return this.listUpcomingMeetings(ctx, input);
+      case 'reply_email':
+        return this.replyEmail(ctx, input);
+      case 'save_memory':
+        return this.saveMemory(ctx, input);
+      case 'confirm_memory':
+        return this.confirmMemoryTool(input);
+      case 'correct_memory':
+        return this.correctMemoryTool(input);
+      case 'forget_memory':
+        return this.forgetMemoryTool(input);
+      case 'search_program_elements':
+        return this.searchProgramElements(ctx, input);
+      case 'get_program_element':
+        return this.getProgramElementDetail(ctx, input);
+      case 'get_pe_budget_timeline':
+        return this.getPeBudgetTimeline(input, ctx);
+      case 'get_pe_buyer_workspace':
+        return this.getPeBuyerWorkspace(input);
+      case 'get_pe_contractors':
+        return this.getPeContractors(input);
+      case 'get_pe_bills':
+        return this.getPeBills(input);
+      case 'get_pe_report_language':
+        return this.getPeReportLanguage(input);
+      case 'search_acquisition_personnel':
+        return this.searchAcquisitionPersonnel(ctx, input);
+      case 'get_acquisition_person':
+        return this.getAcquisitionPerson(ctx, input);
+      case 'find_contacts':
+        return this.findContacts(ctx, input);
+      case 'create_word':
+        if (input.format !== undefined && input.format !== 'docx' && input.format !== 'pdf' && input.format !== 'txt') {
+          throw new BadRequestException('Document format must be docx, pdf or txt');
+        }
+        return this.createDocument(ctx, input, input.format === 'txt' ? 'txt' : input.format === 'pdf' ? 'pdf' : 'docx', execution?.actionProposalId);
+      case 'create_excel':
+        return this.createDocument(ctx, input, 'xlsx');
+      case 'create_powerpoint':
+        return this.createDocument(ctx, input, 'pptx');
+      case 'schedule_task':
+        return this.scheduleTask(ctx, input, execution?.actionProposalId);
+      case 'list_scheduled_tasks':
+        return this.listScheduledTasks(ctx);
+      case 'cancel_scheduled_task':
+        return this.cancelScheduledTask(ctx, input);
+      case 'update_scheduled_task':
+        return this.updateScheduledTask(ctx, input);
+      case 'query_tasks':
+        return this.queryTasks(ctx, input);
+      case 'query_action_items':
+        return this.queryActionItems(ctx, input);
+      case 'search_tracked_bills':
+        return this.searchTrackedBills(ctx, input);
+      case 'query_regulatory_dockets':
+        return this.queryRegulatoryDockets(input);
+      case 'search_sam_opportunities':
+        return this.searchSamOpportunities(ctx, input);
+      case 'query_debriefs':
+        return this.queryDebriefs(ctx, input);
+      case 'read_client_meetings':
+        return this.readClientMeetings(ctx, input);
+      case 'read_client_documents':
+        return this.readClientDocuments(ctx, input);
+      case 'query_outreach':
+        return this.queryOutreach(ctx, input);
+      case 'lookup_client_registry':
+        return this.lookupClientRegistry(ctx, input);
+      case 'create_client':
+        return this.createClient(ctx, input);
+      case 'create_task':
+        return this.createEngagementTask(ctx, input);
+      case 'update_task':
+        return this.updateEngagementTask(ctx, input);
+      case 'update_client_profile':
+        return this.updateClientProfile(ctx, input);
+      // ── Funding Opportunities (P37) ─────────────────────────────────────
+      // Every case delegates verbatim. No shaping, no defaulting, no wall check
+      // here: the adapter owns the flag read, the role bar and the ethical wall,
+      // in that order, so there is exactly ONE place those three can be wrong.
+      // A second copy in this file would be a second thing to keep in step.
+      case 'search_funding_opportunities':
+        return this.opportunityTools.searchFundingOpportunities(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: input.source as string | undefined,
+          query: input.query as string | undefined,
+          page: input.page as number | undefined,
+          pageSize: input.pageSize as number | undefined,
+          activeState: input.activeState as string | undefined,
+        });
+      case 'get_funding_opportunity_requirements':
+        return this.opportunityTools.getFundingOpportunityRequirements(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: String(input.source ?? ''),
+          sourceRecordId: String(input.sourceRecordId ?? ''),
+          offset: input.offset as number | undefined,
+          limit: input.limit as number | undefined,
+        });
+      case 'get_funding_opportunity':
+        return this.opportunityTools.getFundingOpportunity(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: String(input.source ?? ''),
+          sourceRecordId: String(input.sourceRecordId ?? ''),
+          summaryOffset: input.summaryOffset as number | undefined,
+          summaryLimit: input.summaryLimit as number | undefined,
+        });
+      case 'explain_opportunity_match':
+        return this.opportunityTools.explainOpportunityMatch(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: String(input.source ?? ''),
+          sourceRecordId: String(input.sourceRecordId ?? ''),
+        });
+      case 'get_opportunity_client_context':
+        return this.opportunityTools.getOpportunityClientContext(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+        });
+      case 'get_opportunity_government_landscape':
+        return this.opportunityTools.getOpportunityGovernmentLandscape(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: String(input.source ?? ''),
+          sourceRecordId: String(input.sourceRecordId ?? ''),
+        });
+      case 'compare_funding_opportunities':
+        return this.opportunityTools.compareFundingOpportunities(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          opportunities: Array.isArray(input.opportunities)
+            ? (input.opportunities as Array<Record<string, unknown>>).map((o) => ({
+                source: String(o?.source ?? ''),
+                sourceRecordId: String(o?.sourceRecordId ?? ''),
+              }))
+            : [],
+        });
+      case 'build_opportunity_action_plan':
+        return this.opportunityTools.buildOpportunityActionPlan(toolActor(ctx), {
+          clientId: String(input.clientId ?? ''),
+          source: String(input.source ?? ''),
+          sourceRecordId: String(input.sourceRecordId ?? ''),
+        });
+      // ── Business Development Phase 4 ───────────────────────────────────
+      // Pure delegation: every handler (including the fail-closed prospect
+      // scope gate) lives in MeriBizDevToolsService. The registry's
+      // readOnly:false on save_business_development_brief automatically
+      // places it in SIDE_EFFECTING_TOOLS and the existing
+      // proposal/approval flow; no handler logic is duplicated here.
+      case 'get_business_development_context':
+        return this.requireBizDevTools().getContext(ctx, input);
+      case 'get_business_development_evidence':
+        return this.requireBizDevTools().getEvidence(ctx, input);
+      case 'get_business_development_recent_changes':
+        return this.requireBizDevTools().getRecentChanges(ctx, input);
+      case 'get_business_development_brief':
+        return this.requireBizDevTools().getBrief(ctx, input);
+      case 'resolve_business_development_source':
+        return this.requireBizDevTools().resolveSource(ctx, input);
+      case 'save_business_development_brief':
+        return this.requireBizDevTools().saveBrief(ctx, input);
+      default:
+        assertNever(name);
+    }
+  }

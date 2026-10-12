@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS", "moduleResolution": "Node", "noEmit": true,
+    "incremental": false, "types": ["node", "jest"],
+    "typeRoots": ["/workspace/capirov2-cleanup-reviewed-source-composition/apps/api/node_modules/@types"],
+    "baseUrl": "../..", "paths": { "@capiro/shared": ["packages/shared/src/index.ts"] }
+  },
+  "files": ["../../apps/api/src/meri/meri-local-dispatch.ts", "../../apps/api/src/meri/meri-local-dispatch.equivalence.spec.ts"]
+}

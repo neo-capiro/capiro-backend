@@ -1,0 +1,207 @@
+{
+  "sourceCommit": "eef2ee4b92aa6a16ae10225c3414794d5fb52a93",
+  "sourceTree": "4927911d7bc178d1f8e80c69453c96c6a4d3eeb3",
+  "scope": "three frozen source files and complete curated packet; index excludes itself",
+  "entries": [
+    {
+      "path": "apps/api/src/meri/meri-local-dispatch.equivalence.spec.ts",
+      "bytes": 23400,
+      "sha256": "b88051b59c8d74328674350ce0b93e0e28c573955de0b93b2445556ed4016382"
+    },
+    {
+      "path": "apps/api/src/meri/meri-local-dispatch.ts",
+      "bytes": 1040,
+      "sha256": "4eb39bb943cfe8030860ab3c1d32cee2766a21d036bc37dbec1e1b72e53aa76b"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "bytes": 415221,
+      "sha256": "03052d70373c65f935c0885103a946123a621bd7898e023b45b9ddf10da5f267"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/CONTRACT.md",
+      "bytes": 2149,
+      "sha256": "196970b854e15c17932a6e1becf112cdbe83effe208e8243d436569934f6a7c2"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/INTEGRATION.md",
+      "bytes": 2556,
+      "sha256": "e18d8966908f69ff6ac1e57e955b7200aa5710f31535c21d3f19aa7b1f1f7b0a"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/RECEIPT.md",
+      "bytes": 1163,
+      "sha256": "057246b07a694d177f02182e661c1f9983daca2953ac0648403a04fd3298a29a"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/VALIDATION.md",
+      "bytes": 3365,
+      "sha256": "b433f2a4f9a6d236be57f1974d7ae7ec637e25943f5c596cfa5ca562a88ec13d"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/01-equivalence-initial.json",
+      "bytes": 408386,
+      "sha256": "5ce54ec12c034aaf246264a2967a3184aed64f9b2a2ddf939867074a534ac6ed"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/01-equivalence-initial.log",
+      "bytes": 78648,
+      "sha256": "d9c69b9b41d005d782651fc2375813401879de40a51f27870a7b9d2a08223072"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/02-new-files-format.log",
+      "bytes": 123,
+      "sha256": "8fc07a092b988aaab36af973e23923d46024c0ceddeba42cb17374fe93c40bcc"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/03-equivalence-repaired.json",
+      "bytes": 387666,
+      "sha256": "9cea6badab50eaf9fe87c2184e57c35b0c562f681dc106a2a5dea77f937970a4"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/03-equivalence-repaired.log",
+      "bytes": 71686,
+      "sha256": "951bb4c5e01c328421c0cb382f4bb5775a62f762f9cbba0a3c899d8bcc6427c2"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/04-focused-strict-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/05-expanded-spec-format.log",
+      "bytes": 64,
+      "sha256": "3b629c91aa8697651820c792c307e5401c1df79e0d3d9666a019fec6a390f5bc"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/06-equivalence-expanded.json",
+      "bytes": 390355,
+      "sha256": "1b02703832a20f329aec8ba3de864a105837414ee359bc5f761fd13360f39642"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/06-equivalence-expanded.log",
+      "bytes": 72157,
+      "sha256": "8bf0926b3258d44f38d951bbfed0403be6016251bfbb40f2ebdcadae8d553354"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/07-expanded-strict-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/08-api-full-cached-types.log",
+      "bytes": 488,
+      "sha256": "fb019af16142f50a264293d5724c1e42d16d6ea73bae62c59137a951a0ed1014"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/09-source-invariants.json",
+      "bytes": 6762,
+      "sha256": "27bd50368fa929a9327cb29ebb30f106d423ea674363391cfe3e2e16416e0ba0"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/09-source-invariants.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/10-final-spec-format.log",
+      "bytes": 64,
+      "sha256": "988fcb7c06cf08dd4af2e9682a8da2634a0657ec06d364d0e2d54ad05eec242f"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/11-equivalence-final.json",
+      "bytes": 394646,
+      "sha256": "da9f5ed97d7b854a98615ea4b218c908094700602488730bcb557c8cdf6588a8"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/11-equivalence-final.log",
+      "bytes": 73113,
+      "sha256": "dfd161b0144ad95f6202046f7715763f50583a01091ea87d07ccfa4f06dfe8f1"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/12-source-whitespace.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/13-final-strict-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/14-rp-narrowed-equivalence.json",
+      "bytes": 394496,
+      "sha256": "4f8e9bc00ae74e4f916b942ae41e652ce6833d76e3a3c03b2a4d62fc9179a2c6"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/14-rp-narrowed-equivalence.log",
+      "bytes": 72984,
+      "sha256": "646830f1856af6878297d7cb8788967f451696f82106c44d36b0c2a8943e1bdf"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/15-api-full-cached-types-repaired.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/16-final-source-invariants.json",
+      "bytes": 6762,
+      "sha256": "b110123674451f24d3106928740936e1ae235a8543433604667d1b890cb7498f"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/16-final-source-invariants.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/17-preserved-baseline-invariants.json",
+      "bytes": 7520,
+      "sha256": "7f56809cc010d21c89d7cf38a893080ae9e1c27dc2bcf732a0ac5c442c108878"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/17-preserved-baseline-invariants.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/before-dispatch-oracle.json",
+      "bytes": 37817,
+      "sha256": "202fe3b9ac9e78c634ea778118d4d4510c683afcf7dcb4fe0d724b4bbd8d6a2a"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/commands-and-outcomes.json",
+      "bytes": 5218,
+      "sha256": "be21ba3d6336290b6c48205d97fb2b4cdbe2ab52b593455e0c28b23d70846f63"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/conversion-source-map.json",
+      "bytes": 4615,
+      "sha256": "a27234ff2521341a849519affcc098c05787c9d47adb637e738a134c79a5f8e4"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/executeScoped-before.ts.txt",
+      "bytes": 14480,
+      "sha256": "7b47b0dcc67b5bf5fd8b2a27f4a29ee650209b0ae4e7087d56f9703fa0b6f34b"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/frozen-source.json",
+      "bytes": 906,
+      "sha256": "f39ca5b4d8b67f822bd35803a40e697f5c19a2b6f449a6f44acf0e3121f32b65"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/evidence/verify-source-invariants.cjs",
+      "bytes": 5397,
+      "sha256": "5572da0400da41b9be189162583b7ac4e7fcd32fbaeb95cd35d076b46081f9d5"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/jest.inert.config.cjs",
+      "bytes": 703,
+      "sha256": "b69a4b6898d154be15f8b649a55bad59cc393e10c22559838569b0b6619c44f5"
+    },
+    {
+      "path": "docs/cleanup-meri-local-dispatch-conversion-20261012/tsconfig.focused.json",
+      "bytes": 520,
+      "sha256": "55453299b48a9e5de0751ccb4997f4cca1ea9ea394f97f2a501da06c357acc28"
+    }
+  ]
+}
