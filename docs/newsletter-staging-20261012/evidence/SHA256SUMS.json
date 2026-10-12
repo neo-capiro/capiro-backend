@@ -1,0 +1,146 @@
+[
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/CHECKS.json",
+    "sha256": "eee5655043428047a7fe4a2aa0df95bc0b0111fb43f913068dc373fa535d9a64"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-api-nest-build.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-api-typecheck-8gb.log",
+    "sha256": "f01b3bcc9a2dab5b4f82ef6f76f6a526026062cafdf8fb42ebde1a0a8f1feb35"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-api-typecheck-final.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-api-typecheck-initial.log",
+    "sha256": "fcca9d4804caf07e8b33bc9912b82a773b2d29d4cb4f14f12b9c58f1fccba018"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-boundary-tests.log",
+    "sha256": "2b0e9c134b69156dcec4c7453f6de2e982ec0daff4b56a3744f681a4844632f5"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-core-final.log",
+    "sha256": "a70d94280273fde72cc84d7b56dce9c037e835e72691c12061e7bf86e0ed4222"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-core-initial.log",
+    "sha256": "e3d81b246ce3d1cee20c0da7d970c6378d24af6a319df6d6233e68c315d6a784"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-core-post-review-second.log",
+    "sha256": "9aad00b56a7fa9a33db061f86c1fa573005633acf3106d6549255f226d7d0024"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-core-post-review.log",
+    "sha256": "35c260dbb0ed1e63b54b78b3307a0f00e9ee956b7d4df88d0fed12542095f670"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-core-rerun.log",
+    "sha256": "430462b72652e651a96fc5c852e18634a56046957f40ea45ac71419aff66ae08"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-engine-initial.log",
+    "sha256": "30267c4a81f67fe5881e86e956050e9f48e3246073fe4d6a0cedbfe7d55d3833"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-shared-build-final.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-shared-build-second-review.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-shared-build.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-workspace-nest-build.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-workspace-tests-rerun.log",
+    "sha256": "db969e7bba441f24e617e47dd7d45d0a9c874245a0419c1704294fba6f91490a"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-workspace-tests.log",
+    "sha256": "52b10c9f0e641e9e3e539ddc5ef316273f7c8e91aeed229a6dca4b284d1d5c1d"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/author-workspace-typecheck.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/generate-source-clients.cjs",
+    "sha256": "e947d3063e388a5dd52f3fd5a08c90566841f067d4e1d62bc4e1798765a3b7f3"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/77e832352-final-40.log",
+    "sha256": "9e5e13f341a095b5436a1c8411a45a9859766b3fc8131da9659d1d079bafb4ba"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/77e832352-initial-30-pass.log",
+    "sha256": "0093721bc06d6113e51da7d5a1083b1eab33ec94f6b1b62ec0f19da43c0d7dd0"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/77e832352-self-contained-40.log",
+    "sha256": "174aae9f4e3151a17018b507251ffce4d94bd7c9cb64b1bd21bf644cf9dd7f28"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/77e832352-user-binding-40.log",
+    "sha256": "f60aeeca9287bdbd83f2497d1ad1d4178f43649fe9965bf09032c455b589dc32"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/REVIEW.md",
+    "sha256": "32d15d829da51484dbc4181ed5176266ecaa78021b30c3081b272d21e7d4a8ea"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts",
+    "sha256": "6e2e8d418066298f7b262648205bcaa45b8e2cfa30b504c43ad3199767be6fd0"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/fcea81c0f-regression.log",
+    "sha256": "9d4c336b605e86684fbfff9177a1e0d61428a4a623b5744724f0340857ce11ea"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/fixture-lock-selector-failure.log",
+    "sha256": "f057ac92a3f968a5979acc7dd60c4ceccadab46b5a1a4758e7d6438663aa215b"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/fixture-sponsor-failure.log",
+    "sha256": "2a2edd24a370b72ae5210d3dc600867c216bda4f7ba060551cbd1390bc724e06"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/fixture-target-field-failure.log",
+    "sha256": "5d443eac2c55bcdc3010f7194dda566eec18db5890c09880b0297bffdb4d190f"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/jest.config.cjs",
+    "sha256": "1c64c84ee5c069b9802e710c2fee869a42e6b709788ba7058c24b0995fd5d9e7"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/reviewed-source.json",
+    "sha256": "d298c7e9af524436abcdf9354757b955ffe097298b9ea23be74742ffd16b725d"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/independent-review/setup-resolution-failure.log",
+    "sha256": "d6d9a4b778a1ef446ada66c446bd77842b2f420fa7d8490a10b2147f5b5d1eba"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/pr2400-publication-base.json",
+    "sha256": "6e32b308716ce89ba79ffab1b7cbdb6556cd180992b6ca82ea3fec7b86f501f6"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/prisma-wasm-source-generation.log",
+    "sha256": "c60401c9df6cb0e2dbe3458dc50f49bef26bc46b7600fce296a379fcae949663"
+  },
+  {
+    "path": "docs/newsletter-staging-20261012/evidence/remote-main-reference.json",
+    "sha256": "baa8ad00c6571ed74281d3f40b5d9ddb60682191f6909a5edc2e8fad1e258db1"
+  }
+]

@@ -1,0 +1,12 @@
+const path = require('node:path');
+const root = path.resolve(__dirname, '../../../..');
+const api = path.join(root, 'apps/api');
+const c = require(path.join(api, 'jest.config.cjs'));
+c.rootDir = root;
+c.setupFiles = [path.join(api, 'jest.setup.ts')];
+c.testMatch = ['<rootDir>/docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts'];
+c.transform['^.+\\.ts$'] = ['ts-jest', { tsconfig: path.join(api, 'tsconfig.json'), diagnostics: false, isolatedModules: true }];
+for (const key of Object.keys(c.transform)) c.transform[key][0] = require.resolve('ts-jest', { paths: [api] });
+c.moduleDirectories = [path.join(api, 'node_modules'), path.join(root, 'node_modules'), 'node_modules'];
+if (process.env.NEWSLETTER_REVIEW_HELPER_SOURCE) c.moduleNameMapper['^\\.\\./\\.\\./\\.\\./\\.\\./packages/shared/src/workspace-saved-revision(?:\\.ts)?$'] = process.env.NEWSLETTER_REVIEW_HELPER_SOURCE;
+module.exports = c;
