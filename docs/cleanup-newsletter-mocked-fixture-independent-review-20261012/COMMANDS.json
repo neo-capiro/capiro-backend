@@ -1,0 +1,34 @@
+{
+  "source": "e2f04d1a0d0f035a4f2fbf6e502323915c4240ba",
+  "commands": [
+    {
+      "command": "node docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/source-proof.cjs",
+      "exit": 0,
+      "log": "evidence/source-proof.log"
+    },
+    {
+      "command": "env -i PATH=/usr/local/bin:/usr/bin:/bin node [cachedJest] --config [authorHost] [focused3]",
+      "exit": 127,
+      "log": "evidence/focused-independent.log",
+      "classification": "Node executable absent from sanitized PATH; prelaunch, no tests"
+    },
+    {
+      "command": "env -i PATH=/usr/local/bin:/usr/bin:/bin /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/jest.safe.cjs --modulePaths /workspace/capirov2/apps/api/node_modules /workspace/capirov2/apps/workspace/node_modules --no-cache --runInBand --runTestsByPath apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts apps/workspace/src/newsletters/newsletter-survey.spec.ts apps/workspace/src/newsletters/newsletter-stock-image.spec.ts --json --outputFile docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/focused-independent-final.json",
+      "exit": 0,
+      "log": "evidence/focused-independent-final.log",
+      "passed": 52
+    },
+    {
+      "command": "node evidence/verify-host-and-cases-initial.cjs",
+      "exit": 1,
+      "log": "evidence/host-and-cases-initial-red.log",
+      "classification": "Reviewer incorrectly deduplicated parameterized duplicate names; source unchanged"
+    },
+    {
+      "command": "node docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/evidence/verify-host-and-cases.cjs",
+      "exit": 0,
+      "log": "evidence/host-and-cases-proof.log",
+      "classification": "Preserves per-file full case multiplicity and verifies final host/runtime dependency identities"
+    }
+  ]
+}

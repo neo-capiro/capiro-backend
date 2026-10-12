@@ -1,0 +1,28 @@
+{
+  "accepted": true,
+  "source": "e2f04d1a0d0f035a4f2fbf6e502323915c4240ba",
+  "tree": "47c35bfbb15353e5b88c47d17199dd9f40860cad",
+  "authorEvidence": "8b08c4ac4a127bb083c9aa90ae028861bfb2aeeb",
+  "scope": "Exact3 existing specs/7 lines and known ordinary mocked test-host qualification",
+  "productionOwnerPackageLockSchemaMigrationEdits": false,
+  "allOtherBaselineEntriesExact": 22298,
+  "fullInverseOldBytesAndCaseIdentities": true,
+  "authorPacketHashesVerified": 52,
+  "originalCaseOccurrences": 291,
+  "finalAuthorPassed": 291,
+  "physicalAuthorSuites": 19,
+  "independentFocusedPassed": 52,
+  "independentSuites": 3,
+  "skippedOrPending": 0,
+  "actualParserVersions": {
+    "directWorkspace": "8.0.2",
+    "nativeNodeSanitizer": "12.0.0",
+    "sanitizer": "2.17.7"
+  },
+  "intermediateGlobalParserMapperPassNotQualified": true,
+  "allOriginalAndReviewHostFailuresRetained": true,
+  "localLoopbackMockHttpAndCachedSyntheticSharpPermitted": true,
+  "realProviderModelDbSqlAwsCustomerCredentialOrNativeDownloadCalls": 0,
+  "arbitraryJsOrSyscallContainmentClaim": false,
+  "publicationOwner": "/root"
+}

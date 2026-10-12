@@ -1,0 +1,8 @@
+8eba64702a39f09c724dbeb845ee8ad4
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CurrentTenant = void 0;
+// Auth-extraction Option N (DECISIONS D8): re-export seam over @capiro/auth.
+var auth_1 = require("@capiro/auth");
+Object.defineProperty(exports, "CurrentTenant", { enumerable: true, get: function () { return auth_1.CurrentTenant; } });
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiL3RtcC9jYXBpcm92Mi1jbGVhbnVwLW1lcmktbG9jYWwtZGlzcGF0Y2gtaW5kZXBlbmRlbnQtcmV2aWV3L2FwcHMvd29ya3NwYWNlL3NyYy9hdXRoL2N1cnJlbnQtdGVuYW50LmRlY29yYXRvci50cyIsIm1hcHBpbmdzIjoiOzs7QUFBQSw2RUFBNkU7QUFDN0UscUNBQTZDO0FBQXBDLHFHQUFBLGFBQWEsT0FBQSIsIm5hbWVzIjpbXSwic291cmNlcyI6WyIvdG1wL2NhcGlyb3YyLWNsZWFudXAtbWVyaS1sb2NhbC1kaXNwYXRjaC1pbmRlcGVuZGVudC1yZXZpZXcvYXBwcy93b3Jrc3BhY2Uvc3JjL2F1dGgvY3VycmVudC10ZW5hbnQuZGVjb3JhdG9yLnRzIl0sInNvdXJjZXNDb250ZW50IjpbIi8vIEF1dGgtZXh0cmFjdGlvbiBPcHRpb24gTiAoREVDSVNJT05TIEQ4KTogcmUtZXhwb3J0IHNlYW0gb3ZlciBAY2FwaXJvL2F1dGguXG5leHBvcnQgeyBDdXJyZW50VGVuYW50IH0gZnJvbSAnQGNhcGlyby9hdXRoJztcbiJdLCJ2ZXJzaW9uIjozfQ==

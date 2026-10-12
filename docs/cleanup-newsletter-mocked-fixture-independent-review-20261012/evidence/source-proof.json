@@ -1,0 +1,205 @@
+{
+  "source": "e2f04d1a0d0f035a4f2fbf6e502323915c4240ba",
+  "tree": "47c35bfbb15353e5b88c47d17199dd9f40860cad",
+  "base": "61e9b467295235829e7d8097368ce41b0434818a",
+  "sourcePaths": 3,
+  "changedLines": 7,
+  "bindings": [
+    {
+      "file": "apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts",
+      "originalSha256": "5fc4118e099f35a4df9cd1e6f509e96d663d6e55ac05edf9987f6b08611da9c4",
+      "candidateSha256": "ff63434570ead06988fbefe91a39bb6eea6c4c810a544191909af79d609dc05e",
+      "gitEntry": "100644 blob 5f12f8693983595576b3eb334731dd1af8505678",
+      "sourceCaseCalls": [
+        [
+          "describe",
+          "immutable newsletter image revisions"
+        ],
+        [
+          "it",
+          "keeps the selected parent when branching from an earlier version and serializes version allocation on the scoped root"
+        ],
+        [
+          "it",
+          "retains a browser-provided original for a previously unstored image and requires valid bytes for both images"
+        ],
+        [
+          "it",
+          "rejects missing, deleted, foreign or non-image sources before persistence or a paid request"
+        ],
+        [
+          "it",
+          "does not save an edit when the image moves folders while its root lock is pending"
+        ],
+        [
+          "it",
+          "returns paginated private metadata without loading file bytes or exposing separate tokens"
+        ]
+      ],
+      "completeInverseOriginalBytesExact": true
+    },
+    {
+      "file": "apps/workspace/src/newsletters/newsletter-survey.spec.ts",
+      "originalSha256": "b3cf26e0eb4a50a609239f8b396e1d245fc6d19cece31613ff15ec5c70dad0de",
+      "candidateSha256": "f1fe4fb7f22aacff1a5214dc42cfe1662f4b1108d9c9417c2e07e703ce69b6d9",
+      "gitEntry": "100644 blob 15b414085bff60936f356140b18636cf08ffcd06",
+      "sourceCaseCalls": [
+        [
+          "describe",
+          "Saved survey drafts and newsletter buttons"
+        ],
+        [
+          "it.each(['text', 'image', 'video', null] as const)",
+          "persists introduction selection %s without losing other media"
+        ],
+        [
+          "it",
+          "retains legacy combined introductions and rejects invalid or misplaced introduction choices"
+        ],
+        [
+          "it.each(NEWSLETTER_SURVEY_SECTION_TYPES)",
+          "persists the %s section type"
+        ],
+        [
+          "it",
+          "preserves branding, messages, choices, media and optional subscription configuration"
+        ],
+        [
+          "it",
+          "renders a styled Start Survey button and keeps a draft inactive"
+        ],
+        [
+          "it",
+          "does not turn previously saved inline polls into survey buttons"
+        ],
+        [
+          "it",
+          "includes nested saved survey client provenance in Workspace and Outreach source checks"
+        ],
+        [
+          "it",
+          "keeps global button defaults while allowing mobile size and alignment"
+        ],
+        [
+          "it",
+          "rejects staging of missing or selected draft surveys"
+        ],
+        [
+          "it.each(['javascript:alert(1)', 'mailto:policy@example.test', 'data:image/png;base64,AAAA'])",
+          "rejects unsafe survey media %s"
+        ],
+        [
+          "it.each(['duplicate', 'oversize', 'range', 'choices', 'color', 'type'])",
+          "rejects malformed %s survey data"
+        ],
+        [
+          "it",
+          "validates saved identity, revisions, source clients and button ownership"
+        ],
+        [
+          "describe",
+          "Private durable survey draft library"
+        ],
+        [
+          "it",
+          "creates a draft in the owned survey namespace with inherited source access"
+        ],
+        [
+          "it",
+          "rejects author access before reading or writing the catalog"
+        ],
+        [
+          "it",
+          "filters revoked client sources and always scopes by tenant, owner and kind"
+        ],
+        [
+          "it",
+          "uses an atomic JSON revision guard and preserves source provenance on update"
+        ],
+        [
+          "it",
+          "retains sources from both the original survey and a newsletter used for a later edit"
+        ],
+        [
+          "it",
+          "rejects an oversized retained source set before creating or updating a draft"
+        ],
+        [
+          "it",
+          "rejects stale revisions and a concurrent update between read and write"
+        ],
+        [
+          "it",
+          "rejects missing ownership and revoked client source access before updating"
+        ]
+      ],
+      "completeInverseOriginalBytesExact": true
+    },
+    {
+      "file": "apps/workspace/src/newsletters/newsletter-stock-image.spec.ts",
+      "originalSha256": "95cedd27f2dddaea01dabe633bc9f2fe5729bef6a162ab52df73e8c6c54d877a",
+      "candidateSha256": "b150934b6af76333b8d273833b4a15d3dfe8ea8d7595925ba94ac1fd6159da87",
+      "gitEntry": "100644 blob 5746c1bd922f082ac3868d5ebf806319c1ea85d7",
+      "sourceCaseCalls": [
+        [
+          "describe",
+          "newsletter Pexels adapter"
+        ],
+        [
+          "it",
+          "reports no connection without revealing credentials or making a provider call"
+        ],
+        [
+          "it",
+          "encodes user searches on the fixed host and returns credited metadata only"
+        ],
+        [
+          "it",
+          "loads curated photos for an empty query and resolves selection by numeric ID"
+        ],
+        [
+          "it",
+          "rejects invalid pages, oversized queries and IDs before contacting the provider"
+        ],
+        [
+          "it",
+          "handles quota, auth, network and unreadable responses without provider error disclosure"
+        ],
+        [
+          "it",
+          "bounds both declared and streamed response size"
+        ],
+        [
+          "it",
+          "rejects wrong photo IDs, untrusted media hosts and unsafe attribution URLs"
+        ],
+        [
+          "describe",
+          "newsletter stock-image HTTP boundary"
+        ],
+        [
+          "it",
+          "requires the tenant guard for status, search and import"
+        ],
+        [
+          "it",
+          "validates query fields before search and carries only normalized parameters"
+        ],
+        [
+          "it",
+          "uses the authoritative provider selection and scoped existing asset importer"
+        ]
+      ],
+      "completeInverseOriginalBytesExact": true
+    }
+  ],
+  "existingOutsideThreeEntriesExact": 22298,
+  "allProductionPackageLockSchemaMigrationOwnerEntriesExact": true,
+  "ownerFileEntry": "100644 blob 95be4d637e3cfbeaaaea6455f80aefdb21db9923",
+  "fullOriginalAssertionsAndCaseIdentitiesRetainedExceptExactSurveyDetail": true,
+  "mandatorySameOwnerRowsCorrectedNotAuthorityBypassed": true,
+  "surveyBlanketDisabledNoPublishedException": true,
+  "listener": "awaited 127.0.0.1 port0 in isolated mock HTTP test; teardown retained",
+  "originalPaidCallNoWriteTenantOwnerRaceAndHttpAssertionsRetained": true,
+  "reviewSourceOnlyNoApplicationSqlProviderExecution": true
+}

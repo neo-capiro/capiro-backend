@@ -1,0 +1,93 @@
+2b3f994474bfa823ddc8807423148775
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+var _a, _b;
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.NewsletterStockImageController = void 0;
+const common_1 = require("@nestjs/common");
+const class_transformer_1 = require("class-transformer");
+const class_validator_1 = require("class-validator");
+const tenant_guard_js_1 = require("../auth/tenant.guard.js");
+const current_tenant_decorator_js_1 = require("../auth/current-tenant.decorator.js");
+const newsletter_service_js_1 = require("./newsletter.service.js");
+const newsletter_stock_image_service_js_1 = require("./newsletter-stock-image.service.js");
+class StockQueryDto {
+    search;
+    page;
+}
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.MaxLength)(100),
+    __metadata("design:type", String)
+], StockQueryDto.prototype, "search", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    (0, class_validator_1.Max)(10_000),
+    __metadata("design:type", Number)
+], StockQueryDto.prototype, "page", void 0);
+class StockImportDto {
+}
+let NewsletterStockImageController = class NewsletterStockImageController {
+    stock;
+    newsletters;
+    constructor(stock, newsletters) {
+        this.stock = stock;
+        this.newsletters = newsletters;
+    }
+    status() {
+        return this.stock.status();
+    }
+    search(query) {
+        return this.stock.search(query.search, query.page);
+    }
+    async import(ctx, id, _body) {
+        // Resolve the ID again server-side; callers cannot choose a download URL.
+        const image = await this.stock.get(id);
+        const asset = await this.newsletters.importAsset(ctx, image.imageUrl);
+        return { ...asset, altText: image.title };
+    }
+};
+exports.NewsletterStockImageController = NewsletterStockImageController;
+__decorate([
+    (0, common_1.Get)('status'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], NewsletterStockImageController.prototype, "status", null);
+__decorate([
+    (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [StockQueryDto]),
+    __metadata("design:returntype", void 0)
+], NewsletterStockImageController.prototype, "search", null);
+__decorate([
+    (0, common_1.Post)(':id/import'),
+    __param(0, (0, current_tenant_decorator_js_1.CurrentTenant)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, StockImportDto]),
+    __metadata("design:returntype", Promise)
+], NewsletterStockImageController.prototype, "import", null);
+exports.NewsletterStockImageController = NewsletterStockImageController = __decorate([
+    (0, common_1.Controller)('newsletters/stock-images'),
+    (0, common_1.UseGuards)(tenant_guard_js_1.TenantGuard),
+    __metadata("design:paramtypes", [typeof (_a = typeof newsletter_stock_image_service_js_1.NewsletterStockImageService !== "undefined" && newsletter_stock_image_service_js_1.NewsletterStockImageService) === "function" ? _a : Object, typeof (_b = typeof newsletter_service_js_1.NewsletterService !== "undefined" && newsletter_service_js_1.NewsletterService) === "function" ? _b : Object])
+], NewsletterStockImageController);
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiL3RtcC9jYXBpcm92Mi1jbGVhbnVwLW1lcmktbG9jYWwtZGlzcGF0Y2gtaW5kZXBlbmRlbnQtcmV2aWV3L2FwcHMvd29ya3NwYWNlL3NyYy9uZXdzbGV0dGVycy9uZXdzbGV0dGVyLXN0b2NrLWltYWdlLmNvbnRyb2xsZXIudHMiLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7OztBQUFBLDJDQUFzRjtBQUN0Rix5REFBeUM7QUFDekMscURBQW1GO0FBQ25GLDZEQUFzRDtBQUN0RCxxRkFBb0U7QUFFcEUsbUVBQTREO0FBQzVELDJGQUFrRjtBQUVsRixNQUFNLGFBQWE7SUFDeUIsTUFBTSxDQUFVO0lBQ00sSUFBSSxDQUFVO0NBQy9FO0FBRjJDO0lBQXpDLElBQUEsNEJBQVUsR0FBRTtJQUFFLElBQUEsMEJBQVEsR0FBRTtJQUFFLElBQUEsMkJBQVMsRUFBQyxHQUFHLENBQUM7OzZDQUFpQjtBQUNNO0lBQS9ELElBQUEsNEJBQVUsR0FBRTtJQUFFLElBQUEsd0JBQUksRUFBQyxHQUFHLEVBQUUsQ0FBQyxNQUFNLENBQUM7SUFBRSxJQUFBLHVCQUFLLEdBQUU7SUFBRSxJQUFBLHFCQUFHLEVBQUMsQ0FBQyxDQUFDO0lBQUUsSUFBQSxxQkFBRyxFQUFDLE1BQU0sQ0FBQzs7MkNBQWU7QUFFaEYsTUFBTSxjQUFjO0NBQUc7QUFJaEIsSUFBTSw4QkFBOEIsR0FBcEMsTUFBTSw4QkFBOEI7SUFFdEI7SUFDQTtJQUZuQixZQUNtQixLQUFrQyxFQUNsQyxXQUE4QjtRQUQ5QixVQUFLLEdBQUwsS0FBSyxDQUE2QjtRQUNsQyxnQkFBVyxHQUFYLFdBQVcsQ0FBbUI7SUFDOUMsQ0FBQztJQUNXLE1BQU07UUFDbkIsT0FBTyxJQUFJLENBQUMsS0FBSyxDQUFDLE1BQU0sRUFBRSxDQUFDO0lBQzdCLENBQUM7SUFDTSxNQUFNLENBQVUsS0FBb0I7UUFDekMsT0FBTyxJQUFJLENBQUMsS0FBSyxDQUFDLE1BQU0sQ0FBQyxLQUFLLENBQUMsTUFBTSxFQUFFLEtBQUssQ0FBQyxJQUFJLENBQUMsQ0FBQztJQUNyRCxDQUFDO0lBQ3lCLEFBQU4sS0FBSyxDQUFDLE1BQU0sQ0FDYixHQUEyQixFQUMvQixFQUFVLEVBQ2YsS0FBcUI7UUFFN0IsMEVBQTBFO1FBQzFFLE1BQU0sS0FBSyxHQUFHLE1BQU0sSUFBSSxDQUFDLEtBQUssQ0FBQyxHQUFHLENBQUMsRUFBRSxDQUFDLENBQUM7UUFDdkMsTUFBTSxLQUFLLEdBQUcsTUFBTSxJQUFJLENBQUMsV0FBVyxDQUFDLFdBQVcsQ0FBQyxHQUFHLEVBQUUsS0FBSyxDQUFDLFFBQVEsQ0FBQyxDQUFDO1FBQ3RFLE9BQU8sRUFBRSxHQUFHLEtBQUssRUFBRSxPQUFPLEVBQUUsS0FBSyxDQUFDLEtBQUssRUFBRSxDQUFDO0lBQzVDLENBQUM7Q0FDRixDQUFBO0FBckJZLHdFQUE4QjtBQUsxQjtJQUFkLElBQUEsWUFBRyxFQUFDLFFBQVEsQ0FBQzs7Ozs0REFFYjtBQUNNO0lBQU4sSUFBQSxZQUFHLEdBQUU7SUFBUyxXQUFBLElBQUEsY0FBSyxHQUFFLENBQUE7O3FDQUFRLGFBQWE7OzREQUUxQztBQUN5QjtJQUF6QixJQUFBLGFBQUksRUFBQyxZQUFZLENBQUM7SUFDaEIsV0FBQSxJQUFBLDJDQUFhLEdBQUUsQ0FBQTtJQUNmLFdBQUEsSUFBQSxjQUFLLEVBQUMsSUFBSSxDQUFDLENBQUE7SUFDWCxXQUFBLElBQUEsYUFBSSxHQUFFLENBQUE7O3FEQUFRLGNBQWM7OzREQU05Qjt5Q0FwQlUsOEJBQThCO0lBRjFDLElBQUEsbUJBQVUsRUFBQywwQkFBMEIsQ0FBQztJQUN0QyxJQUFBLGtCQUFTLEVBQUMsNkJBQVcsQ0FBQzt5REFHSywrREFBMkIsb0JBQTNCLCtEQUEyQixvREFDckIseUNBQWlCLG9CQUFqQix5Q0FBaUI7R0FIdEMsOEJBQThCLENBcUIxQyIsIm5hbWVzIjpbXSwic291cmNlcyI6WyIvdG1wL2NhcGlyb3YyLWNsZWFudXAtbWVyaS1sb2NhbC1kaXNwYXRjaC1pbmRlcGVuZGVudC1yZXZpZXcvYXBwcy93b3Jrc3BhY2Uvc3JjL25ld3NsZXR0ZXJzL25ld3NsZXR0ZXItc3RvY2staW1hZ2UuY29udHJvbGxlci50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgeyBCb2R5LCBDb250cm9sbGVyLCBHZXQsIFBhcmFtLCBQb3N0LCBRdWVyeSwgVXNlR3VhcmRzIH0gZnJvbSAnQG5lc3Rqcy9jb21tb24nO1xuaW1wb3J0IHsgVHlwZSB9IGZyb20gJ2NsYXNzLXRyYW5zZm9ybWVyJztcbmltcG9ydCB7IElzSW50LCBJc09wdGlvbmFsLCBJc1N0cmluZywgTWF4LCBNYXhMZW5ndGgsIE1pbiB9IGZyb20gJ2NsYXNzLXZhbGlkYXRvcic7XG5pbXBvcnQgeyBUZW5hbnRHdWFyZCB9IGZyb20gJy4uL2F1dGgvdGVuYW50Lmd1YXJkLmpzJztcbmltcG9ydCB7IEN1cnJlbnRUZW5hbnQgfSBmcm9tICcuLi9hdXRoL2N1cnJlbnQtdGVuYW50LmRlY29yYXRvci5qcyc7XG5pbXBvcnQgdHlwZSB7IFdvcmtzcGFjZVRlbmFudENvbnRleHQgfSBmcm9tICcuLi9hdXRoL3RlbmFudC1jb250ZXh0LmpzJztcbmltcG9ydCB7IE5ld3NsZXR0ZXJTZXJ2aWNlIH0gZnJvbSAnLi9uZXdzbGV0dGVyLnNlcnZpY2UuanMnO1xuaW1wb3J0IHsgTmV3c2xldHRlclN0b2NrSW1hZ2VTZXJ2aWNlIH0gZnJvbSAnLi9uZXdzbGV0dGVyLXN0b2NrLWltYWdlLnNlcnZpY2UuanMnO1xuXG5jbGFzcyBTdG9ja1F1ZXJ5RHRvIHtcbiAgQElzT3B0aW9uYWwoKSBASXNTdHJpbmcoKSBATWF4TGVuZ3RoKDEwMCkgc2VhcmNoPzogc3RyaW5nO1xuICBASXNPcHRpb25hbCgpIEBUeXBlKCgpID0+IE51bWJlcikgQElzSW50KCkgQE1pbigxKSBATWF4KDEwXzAwMCkgcGFnZT86IG51bWJlcjtcbn1cbmNsYXNzIFN0b2NrSW1wb3J0RHRvIHt9XG5cbkBDb250cm9sbGVyKCduZXdzbGV0dGVycy9zdG9jay1pbWFnZXMnKVxuQFVzZUd1YXJkcyhUZW5hbnRHdWFyZClcbmV4cG9ydCBjbGFzcyBOZXdzbGV0dGVyU3RvY2tJbWFnZUNvbnRyb2xsZXIge1xuICBjb25zdHJ1Y3RvcihcbiAgICBwcml2YXRlIHJlYWRvbmx5IHN0b2NrOiBOZXdzbGV0dGVyU3RvY2tJbWFnZVNlcnZpY2UsXG4gICAgcHJpdmF0ZSByZWFkb25seSBuZXdzbGV0dGVyczogTmV3c2xldHRlclNlcnZpY2UsXG4gICkge31cbiAgQEdldCgnc3RhdHVzJykgc3RhdHVzKCkge1xuICAgIHJldHVybiB0aGlzLnN0b2NrLnN0YXR1cygpO1xuICB9XG4gIEBHZXQoKSBzZWFyY2goQFF1ZXJ5KCkgcXVlcnk6IFN0b2NrUXVlcnlEdG8pIHtcbiAgICByZXR1cm4gdGhpcy5zdG9jay5zZWFyY2gocXVlcnkuc2VhcmNoLCBxdWVyeS5wYWdlKTtcbiAgfVxuICBAUG9zdCgnOmlkL2ltcG9ydCcpIGFzeW5jIGltcG9ydChcbiAgICBAQ3VycmVudFRlbmFudCgpIGN0eDogV29ya3NwYWNlVGVuYW50Q29udGV4dCxcbiAgICBAUGFyYW0oJ2lkJykgaWQ6IHN0cmluZyxcbiAgICBAQm9keSgpIF9ib2R5OiBTdG9ja0ltcG9ydER0byxcbiAgKSB7XG4gICAgLy8gUmVzb2x2ZSB0aGUgSUQgYWdhaW4gc2VydmVyLXNpZGU7IGNhbGxlcnMgY2Fubm90IGNob29zZSBhIGRvd25sb2FkIFVSTC5cbiAgICBjb25zdCBpbWFnZSA9IGF3YWl0IHRoaXMuc3RvY2suZ2V0KGlkKTtcbiAgICBjb25zdCBhc3NldCA9IGF3YWl0IHRoaXMubmV3c2xldHRlcnMuaW1wb3J0QXNzZXQoY3R4LCBpbWFnZS5pbWFnZVVybCk7XG4gICAgcmV0dXJuIHsgLi4uYXNzZXQsIGFsdFRleHQ6IGltYWdlLnRpdGxlIH07XG4gIH1cbn1cbiJdLCJ2ZXJzaW9uIjozfQ==

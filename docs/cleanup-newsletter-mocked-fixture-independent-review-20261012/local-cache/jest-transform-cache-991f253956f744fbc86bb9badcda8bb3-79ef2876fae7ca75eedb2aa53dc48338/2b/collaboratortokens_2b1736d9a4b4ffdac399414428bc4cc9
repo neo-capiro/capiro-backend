@@ -1,0 +1,6 @@
+4dcfa6c1e02dd66a92fbf9c86304f882
+// Reflection tokens only; original specs inject fake collaborators. No bootstrap.
+const token=name=>({[name]:class{constructor(){throw Error(`Real ${name} construction refused in newsletter owner tests`);}}})[name];
+for(const name of ['PrismaService','EngagementService','OutreachDraftService','OutreachSendIntentService','EngagementRuntimePolicyService','ClerkService','TenantAdminService','AiCredentialService','NotificationsService','TenantGuard'])exports[name]=token(name);
+exports.HillDaySourceService=token('HillDaySourceService');
+exports.isUuid=value=>/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);

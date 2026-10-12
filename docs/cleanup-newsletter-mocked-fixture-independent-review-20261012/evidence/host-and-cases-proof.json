@@ -1,0 +1,20 @@
+{
+  "source": "e2f04d1a0d0f035a4f2fbf6e502323915c4240ba",
+  "authorEvidence": "8b08c4ac4a127bb083c9aa90ae028861bfb2aeeb",
+  "authorPacketHashCount": 52,
+  "originalCasesExact": 291,
+  "physicalSuitesRetained": 19,
+  "finalAuthor19SuitesPassed": 291,
+  "independentFocusedSuites": 3,
+  "independentFocusedTests": 52,
+  "directParser": "8.0.2",
+  "sanitizer": "2.17.7",
+  "sanitizerNativeNodeParser": "12.0.0",
+  "copiedFiveHostFilesByteExact": true,
+  "nativeSanitizerFunctionNotMocked": true,
+  "intermediate07GlobalParserMapperPassIsNotQualified": true,
+  "oldFailuresPreserved": true,
+  "noOriginalCaseOmittedSkippedOrRenamed": true,
+  "realProviderSqlDatabaseOrModelCalls": 0,
+  "hostContainmentScope": "Known synthetic mocked tests only; loopback HTTP and cached synthetic Sharp permitted; no arbitrary-JS/syscall containment claim"
+}
