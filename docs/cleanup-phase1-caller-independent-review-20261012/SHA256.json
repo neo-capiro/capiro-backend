@@ -1,0 +1,23 @@
+{
+  "ACCEPTANCE.json": "1679bf9248cbcb01fb7a2b505ace6ec38a13a9d317c682aee9892988a34417ca",
+  "REVIEW.md": "a267095465c3e38b4c5363bd28f4e8eb83b5106b6c6bcd3811b2ba337c804c1f",
+  "evidence/author-caller-contract-baseline.tap": "89e0cedb8113ce2ac573215f178e6c57d3b8b5052a89fb93a46e74caa7c8e092",
+  "evidence/author-guarded-cli-and-caller-cached-dependencies.tap": "62d47b1f1b263ca9591a0309dda4c643f3674c13b0d1e1f7cb6ec44d66ed9b99",
+  "evidence/author-guarded-cli-and-caller-repaired.tap": "5b440f25acea711fa7517d1a0ef92a841837a8df3515dbe7686eb2ebba851dd0",
+  "evidence/diff-check.command.json": "fdf8555d0947d81050a54f676d5a6ffc6a7b04ddfe20885e81f2e07a0dba2386",
+  "evidence/inert-preflight.command.json": "354f4fcc32954af97a0df7a39dbfe56a8ab4c9475bf26cfd7fbe68f67a58f31a",
+  "evidence/inert-preflight.json": "7c099fa1cdf4f547f1f4721590eb77607ee92d14443fe8cb0e8ba369ba457aba",
+  "evidence/inert-preflight.log": "7c099fa1cdf4f547f1f4721590eb77607ee92d14443fe8cb0e8ba369ba457aba",
+  "evidence/inert-preflight.mjs": "eca93a876a812ec48e376af30d1e32ae2f4234bea4d48041a521a5cd4cc4498c",
+  "evidence/phase1-guarded-cli.command.json": "f0e4f813750902ad432bd2fc4a4d0fa02f201e98bb4b3d60c4e9b8780bc171a4",
+  "evidence/phase1-guarded-cli.tap": "0ba6e32b280a38263e5a55707e828476170c4b2249a957d9e897d275cbcf4d04",
+  "evidence/prior-red-and-memory-baseline.json": "69048091afd8e516e19d79f037aa21e62ac9f0c8908e0ea6725ed55f78e5cf25",
+  "evidence/source-preservation.command.json": "a792a166a46fee1753ab742181a0ef96ff08136e3a1ab8f7bd75de720c9aee86",
+  "evidence/source-preservation.json": "1a657f48f27aa519920cd9278b378718a2263dfc1665191c5344b40786455169",
+  "evidence/source-preservation.log": "1a657f48f27aa519920cd9278b378718a2263dfc1665191c5344b40786455169",
+  "evidence/staged-authored-diff-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "evidence/staged-raw-diff-check.log": "62f0d2b04a15cd36f749005e38e34a50bb40019fe18f903f743cfa9c7c7ee15c",
+  "evidence/unchanged-memory-documentation-red.command.json": "13fb65e66f1ac3eca5d82d1df6092e4657975d78d7e2a5c5ba190da43c62c246",
+  "evidence/unchanged-memory-documentation-red.tap": "3414499fef11ee01e14e75ee2e110f73ed5d4d020485e52dc8b37993ace463f0",
+  "evidence/verify-source.py": "53a14256c0212082c4ea7522eaaddd1ed6f9765e259d02fe9fe4161e326414ca"
+}
