@@ -1,0 +1,12 @@
+{
+  "command": [
+    "node",
+    "/workspace/capirov2/node_modules/typescript/bin/tsc",
+    "-p",
+    "tsconfig-node-negative.json"
+  ],
+  "cwd": "/tmp/capiro-shared-newsletter-dist-fe50-20261012/consumer",
+  "exitCode": 2,
+  "signal": null,
+  "spawnError": null
+}

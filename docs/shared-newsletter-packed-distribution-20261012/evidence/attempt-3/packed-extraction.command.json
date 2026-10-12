@@ -1,0 +1,11 @@
+{
+  "command": [
+    "python3",
+    "-c",
+    "import pathlib,tarfile\np=pathlib.Path(\"/tmp/capirov2-four-runtime-controls-review/docs/shared-newsletter-packed-distribution-20261012/artifact/capiro-shared-0.0.0.tgz\")\nroot=pathlib.Path(\"/tmp/capiro-shared-newsletter-dist-fe50-20261012/consumer-attempt-3/node_modules/@capiro/shared\")\nwith tarfile.open(p,'r:gz') as t:\n for m in t.getmembers():\n  q=pathlib.PurePosixPath(m.name)\n  assert m.isfile() and q.parts[0]=='package' and '..' not in q.parts and not q.is_absolute()\n  out=root.joinpath(*q.parts[1:]); out.parent.mkdir(parents=True,exist_ok=True)\n  assert not out.exists()\n  out.write_bytes(t.extractfile(m).read())\nprint('All regular package entries extracted without symlink, path traversal, install or lifecycle.')"
+  ],
+  "cwd": "/tmp/capiro-shared-newsletter-dist-fe50-20261012/consumer-attempt-3",
+  "exitCode": 0,
+  "signal": null,
+  "spawnError": null
+}

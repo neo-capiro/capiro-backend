@@ -1,0 +1,94 @@
+{
+  "publicSubpaths": [
+    "@capiro/shared/newsletter",
+    "@capiro/shared/newsletter-render"
+  ],
+  "modules": [
+    {
+      "source": "packages/shared/src/newsletter.ts",
+      "sha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796",
+      "edges": [
+        {
+          "kind": "import",
+          "specifier": "./newsletter-fonts.js",
+          "typeOnly": false
+        },
+        {
+          "kind": "export",
+          "specifier": "./newsletter-fonts.js",
+          "typeOnly": false
+        }
+      ],
+      "dynamicImportsOrRequires": 0
+    },
+    {
+      "source": "packages/shared/src/newsletter-render.ts",
+      "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c",
+      "edges": [
+        {
+          "kind": "import",
+          "specifier": "./newsletter.js",
+          "typeOnly": false
+        },
+        {
+          "kind": "import",
+          "specifier": "./newsletter-fonts.js",
+          "typeOnly": false
+        },
+        {
+          "kind": "import",
+          "specifier": "./newsletter-social-share.js",
+          "typeOnly": false
+        },
+        {
+          "kind": "export",
+          "specifier": "./newsletter-social-share.js",
+          "typeOnly": false
+        }
+      ],
+      "dynamicImportsOrRequires": 0
+    },
+    {
+      "source": "packages/shared/src/newsletter-fonts.ts",
+      "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825",
+      "edges": [
+        {
+          "kind": "import",
+          "specifier": "./newsletter-fonts.catalog.js",
+          "typeOnly": false
+        },
+        {
+          "kind": "import",
+          "specifier": "./newsletter.js",
+          "typeOnly": true
+        }
+      ],
+      "dynamicImportsOrRequires": 0
+    },
+    {
+      "source": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f",
+      "edges": [],
+      "dynamicImportsOrRequires": 0
+    },
+    {
+      "source": "packages/shared/src/newsletter-social-share.ts",
+      "sha256": "ddaeebbda2901158ccd809a2ec2c7e7515d213af043bef9524e1f707cb3e57a0",
+      "edges": [
+        {
+          "kind": "import",
+          "specifier": "./newsletter.js",
+          "typeOnly": false
+        }
+      ],
+      "dynamicImportsOrRequires": 0
+    }
+  ],
+  "externalStaticImports": 0,
+  "esbuildNativeCachedBinary": {
+    "path": "/workspace/capirov2/node_modules/.pnpm/@esbuild+linux-x64@0.21.5/node_modules/@esbuild/linux-x64/bin/esbuild",
+    "bytes": 9707520,
+    "sha256": "b567f467fdac92c606717c86ea5cd1d6c30145c616776c0f2ff5429ad48586ba"
+  },
+  "noNativePrismaOrDownloader": true
+}

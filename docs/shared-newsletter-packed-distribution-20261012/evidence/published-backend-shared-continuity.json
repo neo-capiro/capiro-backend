@@ -1,0 +1,164 @@
+{
+  "artifactSourceHead": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "publishedBackendHead": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "publishedBackendTree": "0ef751228de0415c9a260c00bae3f8e7369b7755",
+  "allSharedFilesAndRootCompilerConfigExact": true,
+  "paths": [
+    {
+      "path": "packages/shared/package.json",
+      "blob": "1600eb5bc3ea85e6d41b563366e11b57d8aef2e6"
+    },
+    {
+      "path": "packages/shared/src/ai-model-policy.ts",
+      "blob": "cec5c7487c87c67b5c330ae867587ccabc146680"
+    },
+    {
+      "path": "packages/shared/src/client-memory-wall.ts",
+      "blob": "42c72f392a32c34b4706e28126436d493fcd5cc8"
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "blob": "767a11ddff2ff43a39cdf572029b40a4976facac"
+    },
+    {
+      "path": "packages/shared/src/client-registration-integrity.ts",
+      "blob": "5b82c59fd6e43ec22c067d376137ac6c69f73d4e"
+    },
+    {
+      "path": "packages/shared/src/defense-budget-line.ts",
+      "blob": "a88968b2f2891af495b2248a074990cb64d4728b"
+    },
+    {
+      "path": "packages/shared/src/defense-research.ts",
+      "blob": "5e87e803d3231d0fb93b507439b1bc95cff94873"
+    },
+    {
+      "path": "packages/shared/src/funding-claim.ts",
+      "blob": "834cfdc097ac170d4f96b79edc88fa669bb56039"
+    },
+    {
+      "path": "packages/shared/src/funding-opportunities-v2-detail.ts",
+      "blob": "0d2d19bf9696eddb7f9cf612d9c08e20ae51d43c"
+    },
+    {
+      "path": "packages/shared/src/funding-opportunities-v2-workflow.ts",
+      "blob": "afe21a295344cc4859fc7a790752eec3e746c2c7"
+    },
+    {
+      "path": "packages/shared/src/funding-opportunities-v2.ts",
+      "blob": "5bb5d2a100fe0e312092e0b69c65314abfe8ffa4"
+    },
+    {
+      "path": "packages/shared/src/funding-priorities.ts",
+      "blob": "6882fc4897fe805c2040a245c1022e3a78de9866"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "blob": "39ed5db53cf9599b72f9ddf1885568441b873217"
+    },
+    {
+      "path": "packages/shared/src/legislative-research.ts",
+      "blob": "ce3c93ae310885884a20f0a169062a9378dcdfb0"
+    },
+    {
+      "path": "packages/shared/src/legiwatch-phase8.ts",
+      "blob": "fac862c0a96fdc47d92800629b566c0caef78981"
+    },
+    {
+      "path": "packages/shared/src/legiwatch-query.ts",
+      "blob": "9eb7ee5feefa95c514d46c87f291c9b2c36190ba"
+    },
+    {
+      "path": "packages/shared/src/market-title.ts",
+      "blob": "ca940f9016e050f01bc8ede89f2a8b356d456e02"
+    },
+    {
+      "path": "packages/shared/src/meri-document-request.ts",
+      "blob": "c3dc6871832ddf2c06dffe14fdb0eff4be034a82"
+    },
+    {
+      "path": "packages/shared/src/meri-read-outcome.ts",
+      "blob": "e676a6389711555100e9a458bf0c95a61113f257"
+    },
+    {
+      "path": "packages/shared/src/meri-skills.ts",
+      "blob": "b1b1496177e7210214d14ce571036707e1305e63"
+    },
+    {
+      "path": "packages/shared/src/money.ts",
+      "blob": "3c8546da8378c1ab9e12f2c44dfe7906b335507a"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.catalog.ts",
+      "blob": "897e9519b35b2d1da0eafc6c0f4baffa1b868c32"
+    },
+    {
+      "path": "packages/shared/src/newsletter-fonts.ts",
+      "blob": "98286f542da05527fb124a16dd1e831ae40cf558"
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "blob": "75b44244e401b767a5a646d81da486279a2af9e0"
+    },
+    {
+      "path": "packages/shared/src/newsletter-social-share.ts",
+      "blob": "a6c3eaa591e9499ad800b8a934573ca678bd0fb8"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "blob": "c1b58fbc64883f6794a2928e9ee89613aea42742"
+    },
+    {
+      "path": "packages/shared/src/pe-source-coverage.ts",
+      "blob": "53dfa8b790afbeef53a6b40f833d373cd50c8133"
+    },
+    {
+      "path": "packages/shared/src/prospect-resource-scope.ts",
+      "blob": "08a2f40ccb97780dac520d0789b113bc316f8886"
+    },
+    {
+      "path": "packages/shared/src/research-portfolios.ts",
+      "blob": "ed70483bea476eaced8b1ae4e45ccc1f373a1341"
+    },
+    {
+      "path": "packages/shared/src/schedule/deadline.ts",
+      "blob": "f16e2aee4f71a5b0bd2b57b881a189e6e64a496f"
+    },
+    {
+      "path": "packages/shared/src/schedule/synthesis.ts",
+      "blob": "a84ae175d3b4ce5cceca8608a89de3a14b299f4f"
+    },
+    {
+      "path": "packages/shared/src/schedule/time-zone.ts",
+      "blob": "eba9e249d3c92d897c062f725f1c137fcc0fe132"
+    },
+    {
+      "path": "packages/shared/src/schedule/validate.ts",
+      "blob": "b7e7cdacfb7f3063871a13e7a517f4d5dddfbc94"
+    },
+    {
+      "path": "packages/shared/src/tenant-feature.ts",
+      "blob": "5ba86a9068029bbeebb23b4ac3e71783e43dce93"
+    },
+    {
+      "path": "packages/shared/src/time.ts",
+      "blob": "9224a10408f143c5192b34332f5de70b492af9c8"
+    },
+    {
+      "path": "packages/shared/src/us-states.ts",
+      "blob": "26911d2f758f7ea56347b12efcf596b7119ac574"
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "blob": "cd780f1d3505ce402004befd4266b0608f95a33a"
+    },
+    {
+      "path": "packages/shared/tsconfig.json",
+      "blob": "cff5b3a8506d1a290987883f0ed773b2118da169"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "blob": "c88275ccf4b1b0c62627076781ce0022af22f259"
+    }
+  ]
+}
