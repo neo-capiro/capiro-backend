@@ -224,7 +224,7 @@ describe('Canonical Strategy and Planner Objective destination owners (synthetic
 
   it('preserves project-granted viewer access and refuses a current grant removal despite task ownership', async () => {
     const f = fixture();
-    f.task.data.memberships = [{ projectId, sectionId: null }];
+    f.task.data.memberships = [{ projectId, sectionId: null, position: 0 }];
     f.task.projectIds = [projectId];
     await expect(f.taskRead()).resolves.toMatchObject({ task: { access: 'viewer' } });
     f.project.data.members = [];
