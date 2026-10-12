@@ -1,0 +1,266 @@
+run-construct-tests: 15 node:test spec(s) via `node --test`; 9 jest-style spec(s) are run separately by `test:jest`.
+  - test/defense-budget-annual-operations-stack.spec.ts
+  - test/defense-budget-operations-stack.spec.ts
+  - test/engagement-api-active-promotion.spec.ts
+  - test/engagement-api-config.spec.ts
+  - test/engagement-api-db-budget.spec.ts
+  - test/engagement-api-least-privilege.spec.ts
+  - test/engagement-api-network-stack.spec.ts
+  - test/engagement-api-observability.spec.ts
+  - test/engagement-api-outreach-v3-env.spec.ts
+  - test/engagement-api-promotion-token-lockstep.spec.ts
+  - test/engagement-api-registry-stack.spec.ts
+  - test/engagement-api-secret-minimization.spec.ts
+  - test/engagement-api-service-stack.spec.ts
+  - test/one-shot-defense-budget-ingestion-drain-worker.spec.ts
+  - test/web-vnext-stack.spec.ts
+✔ creates one digest-pinned ARM64 coordinator task and no service (7835.957994ms)
+✔ uses the defense-job login secret and fail-closed schedule settings (409.972904ms)
+✔ is dark by default and renders exactly one hourly rule when explicitly enabled (526.504547ms)
+✔ creates no ALB, DNS, database, or long-running runtime resource (282.645533ms)
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+lib/defense-budget-operations-stack.ts:115:22
+WARNING BucketEncryption.ServerSideEncryptionConfiguration.0.ServerSideEncryptionByDefault.KMSMasterKeyID: Value is not valid under any of the 3 anyOf schemas (0 branches matched; at least one is required). Branch failures: branch 1: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Arn'; branch 2: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Id'; branch 3: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Alias.AliasName'. (CloudFormation Validate)
+   Capiro-dev-DefenseBudgetOperations/ExtractionArtifactBucket/Resource (ExtractionArtifactBucket2A5400E0) aws-cdk-lib.aws_s3.CfnBucket
+   Acknowledge with 'CloudFormation-Validate::F3017'
+
+A copy of this report can be found in: /tmp/cdk.outZCfZWm/validation-report.json
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+lib/defense-budget-operations-stack.ts:115:22
+WARNING BucketEncryption.ServerSideEncryptionConfiguration.0.ServerSideEncryptionByDefault.KMSMasterKeyID: Value is not valid under any of the 3 anyOf schemas (0 branches matched; at least one is required). Branch failures: branch 1: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Arn'; branch 2: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Id'; branch 3: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Alias.AliasName'. (CloudFormation Validate)
+   Capiro-dev-DefenseBudgetOperations/ExtractionArtifactBucket/Resource (ExtractionArtifactBucket2A5400E0) aws-cdk-lib.aws_s3.CfnBucket
+   Acknowledge with 'CloudFormation-Validate::F3017'
+
+A copy of this report can be found in: /tmp/cdk.outgswvoq/validation-report.json
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+lib/defense-budget-operations-stack.ts:115:22
+WARNING BucketEncryption.ServerSideEncryptionConfiguration.0.ServerSideEncryptionByDefault.KMSMasterKeyID: Value is not valid under any of the 3 anyOf schemas (0 branches matched; at least one is required). Branch failures: branch 1: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Arn'; branch 2: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Id'; branch 3: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Alias.AliasName'. (CloudFormation Validate)
+   Capiro-dev-DefenseBudgetOperations/ExtractionArtifactBucket/Resource (ExtractionArtifactBucket2A5400E0) aws-cdk-lib.aws_s3.CfnBucket
+   Acknowledge with 'CloudFormation-Validate::F3017'
+
+A copy of this report can be found in: /tmp/cdk.outOlwWQp/validation-report.json
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+lib/defense-budget-operations-stack.ts:115:22
+WARNING BucketEncryption.ServerSideEncryptionConfiguration.0.ServerSideEncryptionByDefault.KMSMasterKeyID: Value is not valid under any of the 3 anyOf schemas (0 branches matched; at least one is required). Branch failures: branch 1: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Arn'; branch 2: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Id'; branch 3: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Alias.AliasName'. (CloudFormation Validate)
+   Capiro-dev-DefenseBudgetOperations/ExtractionArtifactBucket/Resource (ExtractionArtifactBucket2A5400E0) aws-cdk-lib.aws_s3.CfnBucket
+   Acknowledge with 'CloudFormation-Validate::F3017'
+
+A copy of this report can be found in: /tmp/cdk.outKW4nDC/validation-report.json
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+lib/defense-budget-operations-stack.ts:115:22
+WARNING BucketEncryption.ServerSideEncryptionConfiguration.0.ServerSideEncryptionByDefault.KMSMasterKeyID: Value is not valid under any of the 3 anyOf schemas (0 branches matched; at least one is required). Branch failures: branch 1: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Arn'; branch 2: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Id'; branch 3: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Alias.AliasName'. (CloudFormation Validate)
+   Capiro-dev-DefenseBudgetOperations/ExtractionArtifactBucket/Resource (ExtractionArtifactBucket2A5400E0) aws-cdk-lib.aws_s3.CfnBucket
+   Acknowledge with 'CloudFormation-Validate::F3017'
+
+A copy of this report can be found in: /tmp/cdk.outI1fM1d/validation-report.json
+[Warning] Template validation found issues in your templates (reported as warnings).
+Set feature flag "@aws-cdk/core:validateAgainstDefaultRules" to true to turn these into errors.
+
+lib/defense-budget-operations-stack.ts:115:22
+WARNING BucketEncryption.ServerSideEncryptionConfiguration.0.ServerSideEncryptionByDefault.KMSMasterKeyID: Value is not valid under any of the 3 anyOf schemas (0 branches matched; at least one is required). Branch failures: branch 1: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Arn'; branch 2: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Key.Id'; branch 3: 'arn:aws:kms:us-east-1:000000000000:key/data-key-id' does not match format 'AWS::KMS::Alias.AliasName'. (CloudFormation Validate)
+   Capiro-dev-DefenseBudgetOperations/ExtractionArtifactBucket/Resource (ExtractionArtifactBucket2A5400E0) aws-cdk-lib.aws_s3.CfnBucket
+   Acknowledge with 'CloudFormation-Validate::F3017'
+
+A copy of this report can be found in: /tmp/cdk.out7fFdE5/validation-report.json
+✔ synthesizes exactly one one-shot task definition with the exact drain command (7639.130313ms)
+✔ binds an immutable image digest, not a mutable tag (302.499937ms)
+✔ DB secret is wired correctly and no PROMOTER_DATABASE_URL appears anywhere in the template (277.966387ms)
+✔ extraction bucket env + exact artifact prefix + ephemeral parser scratch are set (288.383557ms)
+✔ GetObjectVersion is present for both the raw bucket and the extraction prefix (object-level statements) (58.649694ms)
+✔ s3:ListBucket is granted bucket-level (bare bucket ARN + s3:prefix condition) for both the raw and extraction buckets, never a wildcard resource (80.051589ms)
+✔ when no pre-verified bucket is supplied, this stack creates its OWN versioned+KMS+block-public extraction bucket (183.681471ms)
+✔ when a pre-verified bucket name IS supplied, no new S3 bucket is created (179.049493ms)
+✔ no ECS Service, no EventBridge Rule, no schedule of any kind (225.717653ms)
+✔ no ALB, no Route53, no Aurora resource is created by this stack (159.235394ms)
+✔ the operations app/stack imports nothing from compute-stack.ts (source-level guard, comment-blind) (1.158869ms)
+✔ absent activePromotion renders the exact same env as before this feature existed (10.164753ms)
+✔ activePromotion sets ASSETS_BUCKET to cfg.bucketNames.assets, matching the S3 write grant (0.422686ms)
+✔ activePromotion flips all five posture fields AND sets the promotion token (0.298712ms)
+✔ activePromotion points every OAuth callback/notification URL at callbackBaseUrl (0.201965ms)
+✔ Outreach V3 env vars are unaffected by promotion either way (0.314508ms)
+✔ a config with no activePromotion key validates exactly as before (5.893606ms)
+✔ activePromotion.acknowledgedRisk must be the EXACT string, not merely truthy (0.706728ms)
+✔ activePromotion.callbackBaseUrl must be a valid https URL (0.759706ms)
+✔ every one of the ten secretArns fields is validated as a real secretsmanager ARN (6.99739ms)
+✔ a fully valid activePromotion block passes with zero failures (0.426091ms)
+✔ buildEngagementApiIam independently rejects a wrong acknowledgedRisk even bypassing collectConfigFailures (299.9901ms)
+✔ shadow synth (no activePromotion) injects none of the ten active-only secrets (4692.045724ms)
+✔ promoted synth injects exactly the ten active-only secrets, each from its own configured ARN (697.089771ms)
+✔ shadow AND promoted synth both carry OPENAI_API_KEY and ANTHROPIC_API_KEY (unconditional, not promotion-gated) (954.852618ms)
+✔ promoted synth STILL omits SAM_GOV_API_KEY (824.845217ms)
+✔ promoted synth env carries the active posture end to end (full stack, not just the unit fn) (603.321005ms)
+✔ promoted synth: ASSETS_BUCKET env var and the S3 write IAM grant are never split (328.502254ms)
+✔ shadow synth grants NO s3:PutObject/DeleteObject allow, and denies both (unchanged baseline) (795.079906ms)
+✔ promoted synth grants s3:PutObject/DeleteObject scoped to assets+attachments only, and removes them from the deny list (212.082895ms)
+✔ promoted synth read-only bucket grants (GetObject/ListBucket) are unaffected — write is additive, not a replacement (300.80254ms)
+✔ the capiro:iam-posture tag reflects promotion (367.45498ms)
+✔ no plaintext secret value appears anywhere in the promoted template either (244.076682ms)
+✔ the committed synthetic fixture is valid (9.053967ms)
+✔ the fixture uses synthetic identifiers, never live ones (1.100872ms)
+✔ derived resource names follow the Phase 2 contract (1.423412ms)
+✔ the UI contract hash is derived deterministically and is short-taggable (1.34552ms)
+✔ the fixture UI contract pins the committed Phase 2.1 and 2.2 manifests (79.148205ms)
+✔ clerkJwtIssuer is required — its absence crash-loops the task at boot (4.46295ms)
+✔ clerkJwtIssuer must be a valid URL (2.297651ms)
+✔ a well-formed clerkJwtIssuer passes (0.65616ms)
+✔ account and region must be well formed (1.409167ms)
+✔ account and region must match the discovered environment exactly (0.931967ms)
+✔ at least two private subnets across two availability zones are required (1.741818ms)
+✔ subnet ids and availability zones must be the same length (1.022696ms)
+✔ malformed imported ARNs are rejected (1.714555ms)
+✔ the preview rule priority is fixed at 6 (0.535368ms)
+✔ the preview priority may not collide with the generic /api/* rule (0.490951ms)
+✔ the generic rule priority must match the discovered value (1.384921ms)
+✔ NC-2.3-B an occupied preview priority is rejected (0.7416ms)
+✔ the image repository name is derived from the environment (0.774729ms)
+✔ a mutable tag cannot masquerade as a digest (1.256987ms)
+✔ Phase 2 sizing is not tunable through config (1.164451ms)
+✔ no environment may enable a public IP or ECS Exec (1.100099ms)
+✔ an unsafe database connection budget is rejected (0.381494ms)
+✔ a budget leaving under 10% operational headroom is rejected (0.490688ms)
+✔ an alarm threshold that would fire constantly is rejected (0.645445ms)
+✔ a safe budget passes (0.800133ms)
+✔ UI contract hashes are required (0.878628ms)
+✔ NC-2.3-A a wrong prototype hash is rejected against the committed contract (3.188702ms)
+✔ there is no default config path — an unset variable is an error (42.990742ms)
+✔ loading the committed fixture by path succeeds (0.703576ms)
+✔ a missing file is an error, not an empty config (0.448088ms)
+✔ parse throws with every failure listed at once (0.395858ms)
+✔ a non-object config is rejected (0.15924ms)
+✔ the budget constant matches the ECS service rolling-deployment setting (3.435033ms)
+✔ maximumCount=2 budgets four concurrent tasks during replacement (3.834654ms)
+✔ a steady-state-safe but deployment-surge-unsafe budget is rejected (3.984357ms)
+✔ the committed synthetic fixture is safe under the surge formula (1.910369ms)
+✔ exactly the boot-required and safe-read fields are injected (8782.174144ms)
+✔ DB_HOST/DB_PORT and DB_USER/DB_PASSWORD resolve from two DIFFERENT secrets (565.93672ms)
+✔ the six whole-secret fields each resolve from a distinct secret, with no jsonKey (467.0592ms)
+✔ NC-2.7-B no provider or LLM key is injected (428.709961ms)
+✔ multi-field secrets (DB) are mapped field by field, never as a whole JSON document (444.271871ms)
+✔ no plaintext secret value appears anywhere in the template (311.941201ms)
+✔ prototype hashes stay nonsecret environment values, not secrets (219.474276ms)
+✔ NC-2.7-A no allow statement grants S3 write or a wildcard S3 action (263.303024ms)
+✔ no allow statement grants a send permission (245.55036ms)
+✔ NC-2.7-C no allow statement can mutate routing, the service, or IAM (276.730634ms)
+✔ an explicit deny covers mutation and send even if a later grant appears (272.882244ms)
+✔ no allow statement uses a bare wildcard resource on a data action (217.886355ms)
+✔ bucket access is read-only and scoped to the configured buckets (204.862835ms)
+✔ the execution role can pull the image and write logs (141.527851ms)
+✔ KMS decrypt is scoped to the configured keys, and encrypt is never allowed (207.216376ms)
+✔ application-enforced protections are not weakened by IAM (137.20893ms)
+✔ the task role and execution role are distinct (149.512856ms)
+✔ creates exactly one target group with the exact name (8601.482131ms)
+✔ the target group name stays inside the 32-character AWS limit (317.195442ms)
+✔ the target type is IP, as Fargate awsvpc tasks require (50.688544ms)
+✔ the port is 4500 over HTTP in the imported VPC (58.537689ms)
+✔ the health check matches the Phase 2 contract exactly (66.535516ms)
+✔ deregistration delay is 30 seconds (46.559072ms)
+✔ the target group registers no targets (72.737912ms)
+✔ the target group is retained so a rule can never outlive it (32.131067ms)
+✔ outputs expose the target group and the imported security group (70.316194ms)
+✔ the only resource in the stack is the target group (107.201602ms)
+✔ no listener rule is created in CDK (96.621596ms)
+✔ no security group is created or mutated (92.428432ms)
+✔ no VPC, subnet, ECS, database, DNS or certificate resource is created (97.667822ms)
+✔ the stack references no historical Compute stack export (49.673434ms)
+✔ the VPC is imported by attributes, never looked up (77.089576ms)
+✔ NC-2.5-A adding a listener rule to this stack is visible to the guard (425.173611ms)
+✔ NC-2.5-B the imported security group refuses an ingress mutation (97.213288ms)
+✔ NC-2.5-C a health path other than /health is detectable (97.79867ms)
+✔ ALB and target group full names are derived from ARNs (9.307306ms)
+✔ every required alarm exists (9431.421069ms)
+✔ NC-2.8-C removing the RDS connection alarm would be detectable (665.346776ms)
+✔ the healthy-host alarm breaches below one host over three periods (760.850947ms)
+✔ the 5xx and latency alarms treat missing data as not breaching (715.417663ms)
+✔ alarm dimensions are exact and reference the derived ALB names (569.194215ms)
+✔ posture alarms fire on a single event (347.913484ms)
+✔ every alarm notifies the configured topic (213.501903ms)
+✔ log metric filters exist for fatal boot and armed posture (190.189184ms)
+✔ deployment failure and unexpected task stop are routed (176.569792ms)
+✔ a planned scaling drain does not page (199.445344ms)
+✔ a compact dashboard exists (279.627241ms)
+✔ NC-2.8-A no alarm, filter or dashboard references a forbidden field (158.594625ms)
+✔ NC-2.8-B no dimension carries a recipient, target or client value (158.833946ms)
+✔ the log field contract carries only route family and status class (1.253949ms)
+✔ every capability-manifest observability family is a known route family (1.121059ms)
+✔ the ui contract hash appears only as nonsecret task metadata (295.918057ms)
+✔ Outreach V3 is explicitly enabled without opening the global shadow controls (6.822619ms)
+✔ the CDK-side and app-side promotion acknowledgement strings are byte-identical (2.383389ms)
+✔ the acknowledgement string is non-trivial (not empty, not a short guessable token) (0.307565ms)
+✔ creates exactly one ECR repository with the exact name (4617.56967ms)
+✔ the repository name tracks the environment (112.952137ms)
+✔ image tags are immutable (76.479405ms)
+✔ scan on push is enabled (36.419493ms)
+✔ the repository is KMS encrypted with the configured key (56.352701ms)
+✔ the repository is retained and never emptied on delete (48.548528ms)
+✔ lifecycle rules expire untagged builds and retain 30 releases (58.006616ms)
+✔ outputs expose the ARN, URI and name (86.482914ms)
+✔ the registry stack creates no compute, network, data or routing resource (51.651757ms)
+✔ the only resource in the stack is the repository (73.069069ms)
+✔ the KMS key is imported by ARN, never created (72.982423ms)
+✔ the stack references no historical Compute stack export (100.724664ms)
+✔ resources carry component, phase and ui-contract provenance tags (27.554862ms)
+✔ the ui-contract tag tracks the configured contract, not a constant (0.401585ms)
+✔ no tag carries user, target, client or campaign data (37.585753ms)
+✔ the release-sha tag appears only when a release SHA is configured (31.382165ms)
+✔ NC-2.4-A a mutable tag setting is detectable in the synthesized template (92.328513ms)
+✔ NC-2.4-B a Delete removal policy is detectable in the synthesized template (47.923683ms)
+✔ NC-2.4-C a malformed KMS ARN fails at synthesis (14.540394ms)
+✔ the dark task omits the unused Clerk webhook signing secret completely (9101.508241ms)
+✔ the execution role receives no permission to read the webhook signing secret (1520.093444ms)
+✔ private record read credential is exact and does not promote the shadow service (881.693571ms)
+✔ uninventoried and wildcard record read credentials fail synthesis (95.058835ms)
+✔ the shadow runtime posture is exact (9229.103782ms)
+✔ CLERK_JWT_ISSUER is present and matches the configured value (808.722173ms)
+✔ the shadow posture is literal and cannot be armed through config (0.671878ms)
+✔ the port and bind host match the container contract (2295.668405ms)
+✔ release provenance is present and nonsecret (663.209311ms)
+✔ no environment variable claims Outreach V3 is available (635.125334ms)
+✔ no plaintext secret appears in the environment (614.540475ms)
+✔ the task runs Linux ARM64 at the contracted size (529.358564ms)
+✔ NC-2.6-C x86 would be visible in the template (365.553888ms)
+✔ the image is pinned by digest, never by tag (459.552834ms)
+✔ NC-2.6-D a missing digest refuses to synthesize (12.472265ms)
+✔ the root filesystem is read-only with writable temp mounts (1521.180178ms)
+✔ the container health check asserts service identity (436.687919ms)
+✔ no migration or operational command overrides the serve-only entrypoint (434.738856ms)
+✔ the container is not privileged and adds no Linux capabilities (558.038ms)
+✔ the service is private with no public IP and no ECS Exec (235.523685ms)
+✔ NC-2.6-B enabling ECS Exec would be visible in the template (477.599304ms)
+✔ the deployment circuit breaker rolls back (314.423791ms)
+✔ the service attaches to the imported target group (390.49048ms)
+✔ autoscaling stays between one and two tasks (357.059275ms)
+✔ the log group is KMS encrypted by a stack-owned key and retained (296.65158ms)
+✔ the logs key policy grants CloudWatch Logs access scoped to this log group only (443.832744ms)
+✔ the service stack creates no routing, network, registry or data resource (404.360224ms)
+✔ the stack references no historical Compute stack export (233.102877ms)
+✔ secrets come from the least-privilege helper, field by field (296.19585ms)
+✔ DB_NAME is a literal environment variable, not a secret (507.683082ms)
+✔ NC-2.6-A an armed external-action value never reaches the template (495.347953ms)
+✔ NC-2.6-B a V3 enable flag would be caught by the forbidden pattern list (0.485376ms)
+✔ synthesizes exact one-shot command and no EventBridge schedule (7380.71588ms)
+✔ DB_* secrets are wired from the correct master/app credential fields, matching the entrypoint-dispatcher.inc DATABASE_URL contract (202.018309ms)
+✔ S3 object-level permissions are object-scoped to the named buckets and artifact prefix, with GetObjectVersion alongside GetObject/PutObject, never a wildcard resource (109.96562ms)
+✔ s3:ListBucket uses the bare bucket ARN (never bucket/*), carries an s3:prefix condition, and is never a wildcard resource (133.109589ms)
+✔ KMS grants are scoped to the exact named keys, never a wildcard resource (287.391358ms)
+✔ absent engagementApiFullOwnership omits the env var entirely (unchanged default) (7303.124254ms)
+✔ engagementApiFullOwnership: false renders identically to absent — omitted, not the string "false" (458.897399ms)
+✔ engagementApiFullOwnership: true renders exactly ENGAGEMENT_API_FULL_OWNERSHIP="true" (187.675383ms)
+✔ every other env var is unaffected by the new prop either way (454.75937ms)
+ℹ tests 188
+ℹ suites 0
+ℹ pass 188
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 58489.451263

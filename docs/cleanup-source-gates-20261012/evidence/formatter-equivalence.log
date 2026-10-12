@@ -1,0 +1,27 @@
+{
+  "before": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "typescriptVersion": "5.9.3",
+  "receipts": [
+    {
+      "path": "packages/shared/src/index.ts",
+      "beforeSha256": "54f5f522696eb619c974206ca12d91042b972355a790048a36ea9bb35c0a11f6",
+      "afterSha256": "0b9644efe0f8f0125cab5527e41d8f85c00f6f11dc83647b6741b1d0ef720357",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": true,
+      "canonicalAstSha256": "4606ea279386ef76e19d924d79a9142f7f8ca09b4294a0db6902fbe49e682de8"
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "beforeSha256": "6fcb81da835a33908c0be9564e91a661f64394b592375114d9f82e6dbb231db8",
+      "afterSha256": "f177cee24ac6a540ccc00d097caa69cd6cfc0d09ab3fe800395c6af6ae26b9b9",
+      "syntaxAndLiteralValuesEqual": true,
+      "emittedJavaScriptSemanticsEqual": true,
+      "emittedJavaScriptBytesEqual": false,
+      "canonicalAstSha256": "6ed101756384344c0986679fa0ae7cae886570355d82481b87b42be9a747e0a9"
+    }
+  ],
+  "preserved": "Every TS node and literal/SQL/template value; only formatting and redundant parentheses ignored.",
+  "pass": true,
+  "nativeAcceptance": false
+}

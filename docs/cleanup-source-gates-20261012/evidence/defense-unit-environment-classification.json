@@ -1,0 +1,43 @@
+{
+  "runtimeSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "measuredEvidenceCommit": "0ffffaf2bd494ce33e4ad98e49d0d08e07d19695",
+  "initialRunRetained": true,
+  "classification": "environment/harness; no product source regression",
+  "initialIPCRefusals": 30,
+  "initialMissingDistOccurrences": 6,
+  "preparedIgnoredSourceBuild": true,
+  "releaseGuardsUnchanged": true,
+  "originalNativeTestSkipsUnrun": 8,
+  "canonicalNativeBuildPrerequisiteExecuted": false,
+  "sourceDiagnosticOnly": true,
+  "summaries": {
+    "initial": {
+      "tests": 300,
+      "suites": 37,
+      "pass": 247,
+      "fail": 45,
+      "cancelled": 0,
+      "skipped": 8,
+      "todo": 0
+    },
+    "afterEnvironmentPreparation": {
+      "tests": 272,
+      "suites": 37,
+      "pass": 264,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 8,
+      "todo": 0
+    }
+  },
+  "initialIPCWhitelistInertReview": "red; mutable/getter path options could alter delegate choice without socket execution",
+  "initialWhitelistEvidenceRetained": true,
+  "hardenedResult": {
+    "pass": 264,
+    "fail": 0,
+    "skip": 8
+  },
+  "hardenedReceipt": "defense-api-source-unit-hardened-ipc.command.json",
+  "canonicalNativeAcceptance": false,
+  "preloadIsNotSyscallContainment": true
+}

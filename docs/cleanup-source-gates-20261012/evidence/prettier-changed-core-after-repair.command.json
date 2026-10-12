@@ -1,0 +1,22 @@
+{
+  "name": "prettier-changed-core-after-repair",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "node",
+    "node_modules/prettier/bin/prettier.cjs",
+    "--check",
+    "packages/shared/src/client-memory-wall.ts",
+    "packages/shared/src/client-objective-destination.ts",
+    "packages/shared/src/index.ts",
+    "packages/shared/src/prospect-resource-scope.ts",
+    "packages/shared/src/tenant-feature.ts",
+    "packages/shared/src/workspace-saved-revision.ts"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 4.566,
+  "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "prettier-changed-core-after-repair.log"
+}

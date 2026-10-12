@@ -1,0 +1,50 @@
+{
+  "candidateSource": "0ffffaf2bd494ce33e4ad98e49d0d08e07d19695",
+  "mainSource": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "candidateFailedNames": [
+    "MeriArtifactCanvas Word preview downloads the authenticated canonical DOCX binary without replacing its persisted spec",
+    "PeProfileVNext canonical pathname and explicit legacy override a lowercase pathname is not claimed and does not request a profile"
+  ],
+  "focusedMainFailedNames": [
+    "PeProfileVNext canonical pathname and explicit legacy override a lowercase pathname is not claimed and does not request a profile"
+  ],
+  "artifactFocusedMainRepeatFailedNames": [],
+  "physicalCandidateFiles": 701,
+  "sourceBytes": [
+    {
+      "path": "apps/web/src/vnext/meri/MeriArtifactCanvas.test.tsx",
+      "exactMainBytes": true,
+      "sha256": "8d436f8858f4fa37e41c37326e232dc67264d10acd169e37737be7d779c44d73"
+    },
+    {
+      "path": "apps/web/src/vnext/meri/MeriArtifactCanvas.tsx",
+      "exactMainBytes": true,
+      "sha256": "f632948a2d269479faa240c54cc6be5460c61c9e7803be03ee65e88f97a0a16f"
+    },
+    {
+      "path": "apps/web/src/components/chat/meri-artifact-download.ts",
+      "exactMainBytes": true,
+      "sha256": "0354b6af9b7b3f6c5ea906503a7db9067b1f4e192108e8dc21bb0e3da0be0b94"
+    },
+    {
+      "path": "apps/web/src/vnext/pages/program-elements/profile/PeProfileVNext.test.tsx",
+      "exactMainBytes": true,
+      "sha256": "5ece1a8a6af7304acaca9e9ed3f88d109f32ada1e3dde711b00192a7cdd78154"
+    },
+    {
+      "path": "apps/web/src/vnext/pages/program-elements/profile/PeProfileVNext.tsx",
+      "exactMainBytes": true,
+      "sha256": "96a08d9bb49be971ee21f1fee151ba244dc302c3c3a70790544de1f2af332cb4"
+    },
+    {
+      "path": "apps/web/vite.config.ts",
+      "exactMainBytes": true,
+      "sha256": "6a215413342bccbbd46e6985f5fc0af9ee683d8bce9b75f4f4cd8bc202830834"
+    }
+  ],
+  "allAppsWebSourceUnchanged": true,
+  "classification": "PE path existing baseline reproduced. Artifact failure not reproduced focused; unchanged delayed30s URL-revoke timer is a timing hypothesis. Separate full main run started to resolve it.",
+  "fullMainBaselinePending": true,
+  "noTestOrProductRepair": true,
+  "initialBaselineLauncherMissingDependencyRetained": true
+}

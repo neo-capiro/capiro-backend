@@ -1,0 +1,15 @@
+{
+  "name": "additional-source-clients",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "node",
+    "docs/cleanup-source-gates-20261012/evidence/generate-additional-source-clients.cjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 3.857,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "additional-source-clients.log"
+}

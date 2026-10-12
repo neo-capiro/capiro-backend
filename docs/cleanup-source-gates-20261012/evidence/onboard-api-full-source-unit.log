@@ -1,0 +1,28 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-cleanup-source-gates/apps/onboard-api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/it-admin/it-admin.service.spec.ts
+[Nest] 121871  - 10/12/2026, 11:19:23 AM    WARN [ItAdminService] IT-admin Google callback with bad state — rejecting
+[Nest] 121871  - 10/12/2026, 11:19:23 AM    WARN [ItAdminService] IT-admin Google verify declined/failed for invite invite-1: admin_policy_enforced 
+[Nest] 121871  - 10/12/2026, 11:19:23 AM    WARN [ItAdminService] IT-admin Google verify declined/failed for invite invite-1: access_denied 
+[Nest] 121871  - 10/12/2026, 11:19:23 AM    WARN [ItAdminService] IT-admin Google verify declined/failed for invite invite-1: no code 
+[Nest] 121871  - 10/12/2026, 11:19:23 AM    WARN [ItAdminService] IT-admin Google verify for invite invite-1 granted only [openid email profile https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.events.readonly]
+[Nest] 121871  - 10/12/2026, 11:19:23 AM    WARN [ItAdminService] IT-admin Google code exchange failed for invite invite-1: Google token exchange failed (400): invalid_grant
+[Nest] 121871  - 10/12/2026, 11:19:23 AM    WARN [ItAdminService] IT-admin Google verify for invite invite-1 used a non-matching account (invite domain keeldefense.co, auth domains [gmail.com])
+[Nest] 121871  - 10/12/2026, 11:19:23 AM    WARN [ItAdminService] IT-admin Google verify for invite invite-1 used a non-matching account (invite domain keeldefense.co, auth domains [othercorp.com,othercorp.com])
+[Nest] 121871  - 10/12/2026, 11:19:23 AM     LOG [ItAdminService] IT-admin Google verify granted for tenant tenant-1 (workspace keeldefense.co)
+[Nest] 121871  - 10/12/2026, 11:19:23 AM     LOG [ItAdminService] IT-admin Google verify granted for tenant tenant-1 (workspace consumer)
+[Nest] 121871  - 10/12/2026, 11:19:23 AM     LOG [ItAdminService] IT-admin Google verify skipped for tenant tenant-1 (invite invite-1)
+[Nest] 121871  - 10/12/2026, 11:19:23 AM     LOG [ItAdminService] IT-admin Google verify skipped for tenant tenant-1 (invite invite-1)
+PASS src/legal/legal.service.spec.ts
+PASS src/email/email-templates.spec.ts
+PASS src/funnel/funnel-state.spec.ts
+PASS src/legal/signed-pdf.service.spec.ts
+PASS src/email/email.service.spec.ts
+
+Test Suites: 6 passed, 6 total
+Tests:       60 passed, 60 total
+Snapshots:   0 total
+Time:        4.633 s
+Ran all test suites.
+Test results written to: ../../docs/cleanup-source-gates-20261012/evidence/onboard-api-full-source-unit.json

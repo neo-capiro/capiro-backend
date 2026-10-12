@@ -1,0 +1,638 @@
+{
+  "measuredHead": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "measuredTree": "d8f01afa7eca0e6571e7ed3669905fea3491bbdd",
+  "toolingHead": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "execution": "Pure discovery/source checks using unchanged published functions; no runner commands executed.",
+  "rootGateCommands": {},
+  "scope": {
+    "targets": [
+      {
+        "package": "@capiro/api",
+        "packageDir": "apps/api",
+        "runner": "jest",
+        "tier": "test",
+        "command": "jest --detectOpenHandles --forceExit",
+        "source": "package.json#scripts.test"
+      },
+      {
+        "package": "@capiro/api-strategy",
+        "packageDir": "apps/api-strategy",
+        "runner": "jest",
+        "tier": "test",
+        "command": "jest --detectOpenHandles --forceExit",
+        "source": "package.json#scripts.test"
+      },
+      {
+        "package": "@capiro/defense-api",
+        "packageDir": "apps/defense-api",
+        "runner": "node:test",
+        "tier": "test",
+        "command": "tsx --test src/**/*.spec.ts",
+        "source": "package.json#scripts.test"
+      },
+      {
+        "package": "capiro-defense-budget-parser",
+        "packageDir": "apps/defense-budget-parser",
+        "runner": "pytest",
+        "tier": "pytest-collect",
+        "command": "uv run pytest",
+        "source": "pyproject.toml"
+      },
+      {
+        "package": "@capiro/intel-api",
+        "packageDir": "apps/intel-api",
+        "runner": "jest",
+        "tier": "test",
+        "command": "jest --detectOpenHandles --forceExit",
+        "source": "package.json#scripts.test"
+      },
+      {
+        "package": "@capiro/meriv2-orchestrator",
+        "packageDir": "apps/meriv2-orchestrator",
+        "runner": "jest",
+        "tier": "test",
+        "command": "jest --detectOpenHandles --forceExit",
+        "source": "package.json#scripts.test"
+      },
+      {
+        "package": "@capiro/onboard-api",
+        "packageDir": "apps/onboard-api",
+        "runner": "jest",
+        "tier": "test",
+        "command": "jest --detectOpenHandles --forceExit",
+        "source": "package.json#scripts.test"
+      },
+      {
+        "package": "@capiro/onboard-web",
+        "packageDir": "apps/onboard-web",
+        "runner": "vitest",
+        "tier": "test",
+        "command": "vitest run",
+        "source": "package.json#scripts.test"
+      },
+      {
+        "package": "@capiro/web",
+        "packageDir": "apps/web",
+        "runner": "vitest",
+        "tier": "test",
+        "command": "vitest run --poolOptions.threads.singleThread --testTimeout=20000 --hookTimeout=20000",
+        "source": "package.json#scripts.test"
+      },
+      {
+        "package": "@capiro/workspace",
+        "packageDir": "apps/workspace",
+        "runner": "jest",
+        "tier": "test",
+        "command": "jest --detectOpenHandles --forceExit",
+        "source": "package.json#scripts.test"
+      },
+      {
+        "package": "@capiro/infra-cdk",
+        "packageDir": "infra/cdk",
+        "runner": "node:test",
+        "tier": "test:constructs",
+        "command": "node scripts/run-construct-tests.cjs",
+        "source": "package.json#scripts.test",
+        "adapter": "cdk-constructs",
+        "adapterNote": "Bespoke CommonJS driver that runs the node:test partition of infra/cdk/test via `node --require ts-node/register/transpile-only --test <spec>`. The specs are CommonJS with extensionless relative imports, so ts-node/register is required (plain --test misloads them as ESM). scripts/test-proof/run-cdk-constructs.mjs reuses the driver's own --list partition and the canonical node:test reporter, preserving the real spec classification and every test identity."
+      },
+      {
+        "package": "@capiro/infra-cdk",
+        "packageDir": "infra/cdk",
+        "runner": "jest",
+        "tier": "test:jest",
+        "command": "jest -c jest.jest-style.config.cjs",
+        "source": "package.json#scripts.test"
+      },
+      {
+        "package": "@capiro/auth",
+        "packageDir": "packages/auth",
+        "runner": "jest",
+        "tier": "test",
+        "command": "jest --detectOpenHandles --forceExit",
+        "source": "package.json#scripts.test"
+      },
+      {
+        "package": "@capiro/meriv2-core",
+        "packageDir": "packages/meriv2-core",
+        "runner": "jest",
+        "tier": "test",
+        "command": "jest --detectOpenHandles --forceExit",
+        "source": "package.json#scripts.test"
+      }
+    ],
+    "scope": {
+      "root": "/workspace/capirov2-cleanup-source-gates",
+      "discoveredPackages": [
+        "@capiro/api",
+        "@capiro/api-strategy",
+        "@capiro/clio-sandbox",
+        "@capiro/defense-api",
+        "@capiro/intel-api",
+        "@capiro/meriv2-orchestrator",
+        "@capiro/onboard-api",
+        "@capiro/onboard-web",
+        "@capiro/web",
+        "@capiro/workspace",
+        "@capiro/infra-cdk",
+        "@capiro/auth",
+        "@capiro/defense-client",
+        "@capiro/defense-contracts",
+        "@capiro/defense-domain",
+        "@capiro/meriv2-core",
+        "@capiro/shared",
+        "@capiro/strategy-verifier",
+        "capiro-defense-budget-parser"
+      ],
+      "aggregators": [
+        {
+          "package": "capiro",
+          "command": "turbo run test",
+          "reason": "delegates to turbo; not a leaf suite"
+        }
+      ],
+      "noTestScript": [
+        {
+          "package": "@capiro/clio-sandbox",
+          "packageDir": "apps/clio-sandbox"
+        },
+        {
+          "package": "@capiro/defense-client",
+          "packageDir": "packages/defense-client"
+        },
+        {
+          "package": "@capiro/defense-contracts",
+          "packageDir": "packages/defense-contracts"
+        },
+        {
+          "package": "@capiro/defense-domain",
+          "packageDir": "packages/defense-domain"
+        },
+        {
+          "package": "@capiro/shared",
+          "packageDir": "packages/shared"
+        },
+        {
+          "package": "@capiro/strategy-verifier",
+          "packageDir": "packages/strategy-verifier"
+        }
+      ],
+      "pythonApps": [
+        {
+          "package": "capiro-defense-budget-parser",
+          "packageDir": "apps/defense-budget-parser"
+        }
+      ],
+      "playwrightApps": [],
+      "unsupported": [],
+      "notes": []
+    },
+    "packages": [
+      {
+        "package": "@capiro/api",
+        "packageDir": "apps/api",
+        "runners": [
+          "jest"
+        ],
+        "tiers": [
+          "test"
+        ]
+      },
+      {
+        "package": "@capiro/api-strategy",
+        "packageDir": "apps/api-strategy",
+        "runners": [
+          "jest"
+        ],
+        "tiers": [
+          "test"
+        ]
+      },
+      {
+        "package": "@capiro/defense-api",
+        "packageDir": "apps/defense-api",
+        "runners": [
+          "node:test"
+        ],
+        "tiers": [
+          "test"
+        ]
+      },
+      {
+        "package": "capiro-defense-budget-parser",
+        "packageDir": "apps/defense-budget-parser",
+        "runners": [
+          "pytest"
+        ],
+        "tiers": [
+          "pytest-collect"
+        ]
+      },
+      {
+        "package": "@capiro/intel-api",
+        "packageDir": "apps/intel-api",
+        "runners": [
+          "jest"
+        ],
+        "tiers": [
+          "test"
+        ]
+      },
+      {
+        "package": "@capiro/meriv2-orchestrator",
+        "packageDir": "apps/meriv2-orchestrator",
+        "runners": [
+          "jest"
+        ],
+        "tiers": [
+          "test"
+        ]
+      },
+      {
+        "package": "@capiro/onboard-api",
+        "packageDir": "apps/onboard-api",
+        "runners": [
+          "jest"
+        ],
+        "tiers": [
+          "test"
+        ]
+      },
+      {
+        "package": "@capiro/onboard-web",
+        "packageDir": "apps/onboard-web",
+        "runners": [
+          "vitest"
+        ],
+        "tiers": [
+          "test"
+        ]
+      },
+      {
+        "package": "@capiro/web",
+        "packageDir": "apps/web",
+        "runners": [
+          "vitest"
+        ],
+        "tiers": [
+          "test"
+        ]
+      },
+      {
+        "package": "@capiro/workspace",
+        "packageDir": "apps/workspace",
+        "runners": [
+          "jest"
+        ],
+        "tiers": [
+          "test"
+        ]
+      },
+      {
+        "package": "@capiro/infra-cdk",
+        "packageDir": "infra/cdk",
+        "runners": [
+          "jest",
+          "node:test"
+        ],
+        "tiers": [
+          "test:constructs",
+          "test:jest"
+        ]
+      },
+      {
+        "package": "@capiro/auth",
+        "packageDir": "packages/auth",
+        "runners": [
+          "jest"
+        ],
+        "tiers": [
+          "test"
+        ]
+      },
+      {
+        "package": "@capiro/meriv2-core",
+        "packageDir": "packages/meriv2-core",
+        "runners": [
+          "jest"
+        ],
+        "tiers": [
+          "test"
+        ]
+      }
+    ],
+    "testBearingPackages": [
+      "@capiro/api",
+      "@capiro/api-strategy",
+      "@capiro/defense-api",
+      "capiro-defense-budget-parser",
+      "@capiro/intel-api",
+      "@capiro/meriv2-orchestrator",
+      "@capiro/onboard-api",
+      "@capiro/onboard-web",
+      "@capiro/web",
+      "@capiro/workspace",
+      "@capiro/infra-cdk",
+      "@capiro/auth",
+      "@capiro/meriv2-core"
+    ],
+    "unexplainedUnsupported": [],
+    "pythonApps": [
+      {
+        "package": "capiro-defense-budget-parser",
+        "packageDir": "apps/defense-budget-parser"
+      }
+    ],
+    "playwrightApps": [],
+    "ok": true,
+    "problems": []
+  },
+  "coverage": {
+    "required": [
+      {
+        "package": "@capiro/api",
+        "packageDir": "apps/api",
+        "runner": "jest",
+        "reportName": "coverage/coverage-summary.json"
+      },
+      {
+        "package": "@capiro/web",
+        "packageDir": "apps/web",
+        "runner": "vitest",
+        "reportName": "coverage/coverage-summary.json"
+      },
+      {
+        "package": "@capiro/workspace",
+        "packageDir": "apps/workspace",
+        "runner": "jest",
+        "reportName": "coverage/coverage-summary.json"
+      },
+      {
+        "package": "@capiro/onboard-web",
+        "packageDir": "apps/onboard-web",
+        "runner": "vitest",
+        "reportName": "coverage/coverage-summary.json"
+      },
+      {
+        "package": "capiro-defense-budget-parser",
+        "packageDir": "apps/defense-budget-parser",
+        "runner": "pytest-cov",
+        "reportName": "coverage.json"
+      }
+    ],
+    "extra": [],
+    "problems": [
+      "coverage target @capiro/api has no test:coverage script — it cannot produce the required measurement",
+      "coverage target @capiro/web has no test:coverage script — it cannot produce the required measurement",
+      "coverage target @capiro/workspace has no test:coverage script — it cannot produce the required measurement",
+      "coverage target @capiro/onboard-web has no test:coverage script — it cannot produce the required measurement"
+    ]
+  },
+  "standalone": {
+    "suites": [
+      {
+        "packageDir": "apps/defense-parser-orchestrator",
+        "files": [
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/aws-real-runtime.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/corpus-review.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/live-gold-gate.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/live-provider-identity.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/provider-decision.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/real-async.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/real-batch.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/session5.test.mjs"
+        ],
+        "argv": [
+          "--test",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/aws-real-runtime.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/corpus-review.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/live-gold-gate.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/live-provider-identity.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/provider-decision.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/real-async.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/real-batch.test.mjs",
+          "/workspace/capirov2-cleanup-source-gates/apps/defense-parser-orchestrator/test/session5.test.mjs"
+        ]
+      }
+    ],
+    "problems": []
+  },
+  "existence": [
+    {
+      "path": "scripts/cleanup-gates/gate.mjs",
+      "present": false
+    },
+    {
+      "path": "docs/plans/cleanup1-coverage-baseline.json",
+      "present": false
+    },
+    {
+      "path": "scripts/cleanup-gates/verify-baseline.mjs",
+      "present": false
+    },
+    {
+      "path": "scripts/test-proof/run-fixtures.mjs",
+      "present": false
+    },
+    {
+      "path": "scripts/cleanup-gates/pinned-visual-controls.mjs",
+      "present": false
+    },
+    {
+      "path": "apps/e2e/lib/render-context-controls.mjs",
+      "present": false
+    },
+    {
+      "path": "scripts/cleanup-gates/standalone-node.test.mjs",
+      "present": false
+    },
+    {
+      "path": "apps/e2e/package.json",
+      "present": false
+    },
+    {
+      "path": "apps/e2e/scripts/guard-route-coverage.mjs",
+      "present": false
+    },
+    {
+      "path": "apps/e2e/baselines/manifest.json",
+      "present": false
+    },
+    {
+      "path": "apps/e2e/reports/regression-evidence.json",
+      "present": false
+    },
+    {
+      "path": "docs/plans/cleanup1-script-smoke-evidence.json",
+      "present": false
+    },
+    {
+      "path": ".github/workflows/defense-budget-parser-ci.yml",
+      "present": false
+    }
+  ],
+  "guardCI": [
+    {
+      "guard": "scripts/check-context-plane-new-bypasses.mjs",
+      "workflows": [
+        "context-plane-architecture-guard.yml",
+        "knowledge-phase18-ci.yml"
+      ]
+    },
+    {
+      "guard": "scripts/check-evaluation-new-bypasses.mjs",
+      "workflows": []
+    },
+    {
+      "guard": "scripts/check-learning-signal-new-bypasses.mjs",
+      "workflows": []
+    },
+    {
+      "guard": "scripts/check-quality-telemetry-new-bypasses.mjs",
+      "workflows": []
+    }
+  ],
+  "ciScopes": {
+    "apiJest": false,
+    "webVitest": false,
+    "defenseNode": false
+  },
+  "ciRunBlocks": [
+    "python3 scripts/validate-meri-orchestrator-build-only.py",
+    "python3 scripts/validate-meri-build-isolation.py\npython3 scripts/validate-meri-build-isolation.py --self-test\nnode --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs\n",
+    "node scripts/check-migration-timestamps.mjs\n--base origin/${{ github.base_ref }}\n",
+    "python3 scripts/check-migration-entrypoints.test.py",
+    "node --test scripts/check-migration-integrity.test.mjs",
+    "node scripts/check-migration-integrity.mjs\n--base origin/${{ github.base_ref }}",
+    "node --test scripts/ci/bootstrap-disposable-postgres-roles.test.mjs\nscripts/ci/research-portfolio-migration-prerequisite.test.mjs\nscripts/ci/additional-disposable-bootstrap.test.mjs\nscripts/ci/remaining-rehearsal-bootstrap.test.mjs\nscripts/ci/disposable-postgres-invocation-guards.test.mjs\n",
+    "pnpm audit --audit-level=high || true",
+    "pnpm --filter @capiro/api exec prisma generate\npnpm --filter @capiro/workspace exec prisma generate\npnpm --filter @capiro/intel-api exec prisma generate\npnpm --filter @capiro/onboard-api exec prisma generate\npnpm --filter @capiro/api-strategy exec prisma generate\n",
+    "pnpm exec prettier --check\n\"packages/meriv2-core/**/*.ts\"\n\"apps/meriv2-orchestrator/**/*.ts\"\n\"packages/shared/**/*.ts\"\n",
+    "set -euo pipefail\n# pull_request.base.sha is not refreshed as main advances.\nbase=\"$(git merge-base \"origin/${{ github.base_ref }}\" HEAD)\"\nchanged_file_list=$(mktemp)\ntrap 'rm -f \"$changed_file_list\"' EXIT\ngit diff --name-only -z --diff-filter=ACMR \"$base...HEAD\" -- \\\n  'packages/meriv2-core/**' \\\n  'apps/meriv2-orchestrator/**' \\\n  'packages/shared/**' > \"$changed_file_list\"\nmapfile -d '' -t files < \"$changed_file_list\"\nif (( ${#files[@]} == 0 )); then\n  echo 'No changed files in the MeriV2/shared formatting scope.'\nelse\n  pnpm exec prettier --check \"${files[@]}\"\nfi\n",
+    "set -e\nviolations=$(grep -rn \"ANTHROPIC_API_KEY\" \\\n  packages/meriv2-core/src \\\n  apps/meriv2-orchestrator/src \\\n  --include='*.ts' \\\n  | grep -v \"apps/meriv2-orchestrator/src/meri/meri-registry.service.ts\" \\\n  | grep -v \"\\.spec\\.ts:\" \\\n  || true)\nif [ -n \"$violations\" ]; then\n  echo \"BYOK violation — direct ANTHROPIC_API_KEY reference outside the resolver:\"\n  echo \"$violations\"\n  exit 1\nfi\necho \"BYOK guard passed.\"\n",
+    "pnpm turbo run typecheck --concurrency=1",
+    "pnpm --filter @capiro/meriv2-core test",
+    "pnpm --filter @capiro/meriv2-orchestrator test",
+    "pnpm --filter @capiro/auth test",
+    "pnpm --filter @capiro/api-strategy test",
+    "pnpm --filter @capiro/infra-cdk test",
+    "pnpm verify:engagement-phase-1",
+    "pnpm --filter @capiro/shared build\npnpm --filter @capiro/defense-contracts build\npnpm --filter @capiro/defense-domain build\npnpm --filter @capiro/auth build\npnpm --filter @capiro/strategy-verifier build\npnpm --filter @capiro/meriv2-core build\n",
+    "pnpm --filter @capiro/api exec prisma generate",
+    "pnpm verify:engagement-phase-2"
+  ],
+  "ciCommands": [
+    "python3 scripts/validate-meri-orchestrator-build-only.py",
+    "python3 scripts/validate-meri-build-isolation.py",
+    "python3 scripts/validate-meri-build-isolation.py --self-test",
+    "node --test scripts/lib/meri-release-policy.test.mjs scripts/meri-release.test.mjs",
+    "node scripts/check-migration-timestamps.mjs",
+    "--base origin/${{ github.base_ref }}",
+    "python3 scripts/check-migration-entrypoints.test.py",
+    "node --test scripts/check-migration-integrity.test.mjs",
+    "node scripts/check-migration-integrity.mjs",
+    "--base origin/${{ github.base_ref }}",
+    "node --test scripts/ci/bootstrap-disposable-postgres-roles.test.mjs",
+    "scripts/ci/research-portfolio-migration-prerequisite.test.mjs",
+    "scripts/ci/additional-disposable-bootstrap.test.mjs",
+    "scripts/ci/remaining-rehearsal-bootstrap.test.mjs",
+    "scripts/ci/disposable-postgres-invocation-guards.test.mjs",
+    "pnpm audit --audit-level=high || true",
+    "pnpm --filter @capiro/api exec prisma generate",
+    "pnpm --filter @capiro/workspace exec prisma generate",
+    "pnpm --filter @capiro/intel-api exec prisma generate",
+    "pnpm --filter @capiro/onboard-api exec prisma generate",
+    "pnpm --filter @capiro/api-strategy exec prisma generate",
+    "pnpm exec prettier --check",
+    "\"packages/meriv2-core/**/*.ts\"",
+    "\"apps/meriv2-orchestrator/**/*.ts\"",
+    "\"packages/shared/**/*.ts\"",
+    "set -euo pipefail",
+    "base=\"$(git merge-base \"origin/${{ github.base_ref }}\" HEAD)\"",
+    "changed_file_list=$(mktemp)",
+    "trap 'rm -f \"$changed_file_list\"' EXIT",
+    "git diff --name-only -z --diff-filter=ACMR \"$base...HEAD\" -- \\",
+    "'packages/meriv2-core/**' \\",
+    "'apps/meriv2-orchestrator/**' \\",
+    "'packages/shared/**' > \"$changed_file_list\"",
+    "mapfile -d '' -t files < \"$changed_file_list\"",
+    "if (( ${#files[@]} == 0 )); then",
+    "echo 'No changed files in the MeriV2/shared formatting scope.'",
+    "else",
+    "pnpm exec prettier --check \"${files[@]}\"",
+    "fi",
+    "set -e",
+    "violations=$(grep -rn \"ANTHROPIC_API_KEY\" \\",
+    "packages/meriv2-core/src \\",
+    "apps/meriv2-orchestrator/src \\",
+    "--include='*.ts' \\",
+    "| grep -v \"apps/meriv2-orchestrator/src/meri/meri-registry.service.ts\" \\",
+    "| grep -v \"\\.spec\\.ts:\" \\",
+    "|| true)",
+    "if [ -n \"$violations\" ]; then",
+    "echo \"BYOK violation — direct ANTHROPIC_API_KEY reference outside the resolver:\"",
+    "echo \"$violations\"",
+    "exit 1",
+    "fi",
+    "echo \"BYOK guard passed.\"",
+    "pnpm turbo run typecheck --concurrency=1",
+    "pnpm --filter @capiro/meriv2-core test",
+    "pnpm --filter @capiro/meriv2-orchestrator test",
+    "pnpm --filter @capiro/auth test",
+    "pnpm --filter @capiro/api-strategy test",
+    "pnpm --filter @capiro/infra-cdk test",
+    "pnpm verify:engagement-phase-1",
+    "pnpm --filter @capiro/shared build",
+    "pnpm --filter @capiro/defense-contracts build",
+    "pnpm --filter @capiro/defense-domain build",
+    "pnpm --filter @capiro/auth build",
+    "pnpm --filter @capiro/strategy-verifier build",
+    "pnpm --filter @capiro/meriv2-core build",
+    "pnpm --filter @capiro/api exec prisma generate",
+    "pnpm verify:engagement-phase-2"
+  ],
+  "ciPredicateCorrection": "Original regex matched @capiro/api-strategy as API. Exact package/path boundaries on run scalars now refuse this false positive; original receipt retained.",
+  "planMapping": [
+    {
+      "plan": "§2 Step 0 / §9 `pnpm turbo run test`",
+      "gate": "core: `pnpm turbo run test --filter=!@capiro/e2e` (every test-bearing package except @capiro/e2e, which is excluded ONLY because it is run in its entirety through the pinned visual owner)"
+    },
+    {
+      "plan": "§9 `pnpm turbo run typecheck`",
+      "gate": "core: `pnpm turbo run typecheck`"
+    },
+    {
+      "plan": "§5.3.1 api jest step",
+      "gate": "turbo test + ci-pr.yml `Test apps/api` step"
+    },
+    {
+      "plan": "§5.3.2 web vitest step",
+      "gate": "turbo test + ci-pr.yml `Test apps/web` step"
+    },
+    {
+      "plan": "§5.3.3 defense-api tsx --test step",
+      "gate": "turbo test + ci-pr.yml `Test apps/defense-api` step"
+    },
+    {
+      "plan": "§5.3.4 four guards",
+      "gate": "core: guards phase (all four, diff-scoped vs base ref)"
+    },
+    {
+      "plan": "§7 python (ruff+mypy+pytest)",
+      "gate": "python phase"
+    },
+    {
+      "plan": "§8 e2e visual",
+      "gate": "e2e phase: the GATE builds a fresh immutable archive and runs the pinned portable Linux runner (apps/e2e/linux/run-linux-capture.sh regression) via the positional argv bridge, then re-validates the evidence against a ROOT-built context by scripts/cleanup-gates/lib/pinned-visual.mjs — bare-host pnpm visual is NOT pinned-image evidence"
+    },
+    {
+      "plan": "§9 mirror verifier",
+      "gate": "core: `node scripts/verify-phase8-session4.mjs`"
+    },
+    {
+      "plan": "§10 coverage baseline",
+      "gate": "per-package `test:coverage` scripts → docs/plans/cleanup1-coverage-baseline.json"
+    }
+  ],
+  "fullAcceptance": false
+}

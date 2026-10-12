@@ -1,0 +1,22 @@
+{
+  "name": "meri-catalog-baseline",
+  "cwd": "/workspace/capirov2-cleanup-baseline/apps/meriv2-orchestrator",
+  "argv": [
+    "node",
+    "/workspace/capirov2-cleanup-source-gates/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "jest.config.cjs",
+    "--runInBand",
+    "src/meri/full-chat-read-tools.catalog.spec.ts",
+    "--json",
+    "--outputFile",
+    "/workspace/capirov2-cleanup-source-gates/docs/cleanup-source-gates-20261012/evidence/meri-catalog-baseline.json"
+  ],
+  "exitCode": 1,
+  "timedOut": false,
+  "seconds": 23.48,
+  "measuredSource": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "meri-catalog-baseline.log"
+}

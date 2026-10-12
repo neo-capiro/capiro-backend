@@ -1,0 +1,19 @@
+{
+  "name": "prettier-whole-core-after-repair",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "node",
+    "node_modules/prettier/bin/prettier.cjs",
+    "--check",
+    "packages/meriv2-core/**/*.ts",
+    "apps/meriv2-orchestrator/**/*.ts",
+    "packages/shared/**/*.ts"
+  ],
+  "exitCode": 1,
+  "timedOut": false,
+  "seconds": 64.394,
+  "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "prettier-whole-core-after-repair.log"
+}

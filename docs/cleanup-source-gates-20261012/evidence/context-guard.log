@@ -1,0 +1,12 @@
+Context Plane architecture guard: no new direct bypass imports; all 10 adopted-product invariants hold.
+Repo-wide census: 18 reviewed shared-plane reference(s) outside the plane, 4 still unmigrated.
+
+Unmigrated direct shared-plane consumers (pinned, reviewed, not waived):
+- apps/api/scripts/meriv2-phase18-application-rehearsal.ts: import { ContextCompilerService } from '../src/context/context-compiler.service.js';
+    Offline Phase 18 database rehearsal harness. Not wired into any Nest module, so it is not a product runtime path.
+- apps/api/scripts/meriv2-phase18-application-rehearsal.ts: const packet = await new ContextCompilerService(prisma).compile({
+    Rehearsal harness compiles a packet directly to prove the DB contract. Offline script, never served to a product operation.
+- apps/api/src/meri/meri.module.ts: contextCompiler: ContextCompilerService,
+    FUNDING_OPPORTUNITY_ASSESSMENT_WIRING hands the REAL compiler to MeriOpportunityAssessmentService. Funding-opportunity assessment is not one of the ten registered operations and predates the Phase 19-26 sequence, so it reaches context without ContextPlaneGatewayService. Best-effort and non-authoritative, but a live direct consumer.
+- apps/api/src/meri/meri.module.ts: ContextCompilerService,
+    inject[] entry for the funding-opportunity assessment wiring above.

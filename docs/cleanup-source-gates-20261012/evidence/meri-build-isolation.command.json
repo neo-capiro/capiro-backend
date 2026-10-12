@@ -1,0 +1,14 @@
+{
+  "name": "meri-build-isolation",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "python",
+    "scripts/validate-meri-build-isolation.py"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 0.401,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "meri-build-isolation.log"
+}

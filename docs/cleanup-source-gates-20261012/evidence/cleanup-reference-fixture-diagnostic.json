@@ -1,0 +1,70 @@
+{
+  "argv": [
+    "node",
+    "/workspace/capirov2-cleanup-gate-reference/scripts/dump-test-names.mjs",
+    "--run",
+    "--root",
+    "/tmp/capiro-cleanup-fixture-diagnostic-fnwh16fh",
+    "--out",
+    "/tmp/capiro-cleanup-fixture-diagnostic-fnwh16fh/dump.json"
+  ],
+  "exitCode": 2,
+  "stdout": "",
+  "stderr": "dump-test-names: 1 target(s); 1 non-passing scope item(s)\n  - target @fix/fake-jest[jest] status=error (could not parse jest report: Unexpected token 'E', \"[ENOENT] EN\"... is not valid JSON)\nwrote /tmp/capiro-cleanup-fixture-diagnostic-fnwh16fh/dump.json\n",
+  "dump": {
+    "schema": "capiro.test-name-dump",
+    "schemaVersion": 1,
+    "runSha": null,
+    "root": "/tmp/capiro-cleanup-fixture-diagnostic-fnwh16fh",
+    "targets": [
+      {
+        "package": "@fix/fake-jest",
+        "packageDir": "apps/fake-jest",
+        "runner": "jest",
+        "tier": "test",
+        "command": "pnpm exec node scripts/fake-jest.mjs --json --json --outputFile=/tmp/tp-dump-7gy0cO/apps_fake-jest.test.report.json",
+        "reportFile": null,
+        "reportFormat": null,
+        "exitCode": 1,
+        "status": "error",
+        "statusDetail": "could not parse jest report: Unexpected token 'E', \"[ENOENT] EN\"... is not valid JSON",
+        "warnings": [],
+        "counts": {
+          "total": 0,
+          "passed": 0,
+          "failed": 0,
+          "skipped": 0,
+          "todo": 0,
+          "pending": 0,
+          "cancelled": 0,
+          "collected": 0,
+          "other": 0
+        },
+        "tests": []
+      }
+    ],
+    "scope": {
+      "discoveredPackages": [
+        "@fix/fake-jest"
+      ],
+      "aggregators": [],
+      "noTestScript": [],
+      "pythonApps": [],
+      "playwrightApps": [],
+      "unsupported": [],
+      "runnerFailures": [],
+      "zeroTestTargets": [],
+      "errors": [
+        {
+          "package": "@fix/fake-jest",
+          "runner": "jest",
+          "tier": "test",
+          "detail": "could not parse jest report: Unexpected token 'E', \"[ENOENT] EN\"... is not valid JSON"
+        }
+      ],
+      "acknowledgedScope": []
+    }
+  },
+  "fixture": "/tmp/capiro-cleanup-fixture-diagnostic-fnwh16fh",
+  "sourceHead": "03d85a40e390f8f52614aab20427a3a9433786bb"
+}

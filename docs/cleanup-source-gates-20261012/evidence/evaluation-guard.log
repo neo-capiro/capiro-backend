@@ -1,0 +1,18 @@
+OK: diff-scoped bypass/governed-write check passed
+OK: repo-wide evaluation_record table census: zero out-of-module consumers
+OK: repo-wide evaluation-implementation census: no governed-write reference, no LearningSignal creation, no banned content-shaped key
+OK: EvaluationRecord.tenantId present — auto-covered by PrismaService tenant-scope + tenant-scope-guard.spec.ts
+OK: EvaluationRecord model has no vector/embedding column
+OK: CHECK constraint for /surface(?!_)/ lists exactly the six frozen QualityTelemetrySurface values
+OK: CHECK constraint for /status/ lists exactly the frozen EvaluationStatus vocabulary
+OK: CHECK constraint for /skip_reason/ lists exactly the frozen EvaluationSkipReason vocabulary
+OK: CHECK constraint for /evaluation_type/ lists exactly the frozen EvaluationType vocabulary
+OK: recordDecision wraps validate()+write in one try/catch after the kill-switch check — never throws into its caller
+OK: markRunning wraps its body in try/catch — never throws into its caller
+OK: markCompleted wraps its body in try/catch — never throws into its caller
+OK: markFailed wraps its body in try/catch — never throws into its caller
+OK: EvaluationModule imports neither MemoryModule nor LearningModule
+OK: no sixth SteeringLayer literal found under the evaluation implementation directories
+OK: repo-wide: no evaluation-record-to-memory feedback loop found
+
+evaluation architecture guard passed.

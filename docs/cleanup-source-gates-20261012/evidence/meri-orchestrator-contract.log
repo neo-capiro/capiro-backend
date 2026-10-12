@@ -1,0 +1,12 @@
+=== Meri orchestrator build/deploy isolation contract ===
+
+PASS: meriv2-orchestrator-image.yml: exclusive SHA-tagged push
+PASS: meriv2-orchestrator-image.yml: no :latest tag
+PASS: meriv2-orchestrator-image.yml: no ECS commands
+PASS: deploy-all.yml: orchestrator excluded from service options
+PASS: deploy-all.yml: direct dispatch rejected before AWS access
+
+=== Results ===
+Passed: 5/5
+
+All checks passed. Meri orchestrator is build-only.

@@ -1,0 +1,300 @@
+{
+  "main": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "integrated": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "currentFailingFiles": 49,
+  "mainFailingFiles": 48,
+  "inheritedExactBytes": [
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.spec.ts",
+      "mainBlob": "dbd701a323558ca4727d9c79555dfc1e08b0260f",
+      "integratedBlob": "dbd701a323558ca4727d9c79555dfc1e08b0260f",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.spec.ts",
+      "mainBlob": "0a122d1aa29092c8d46f84803dd9bfab3632d7b1",
+      "integratedBlob": "0a122d1aa29092c8d46f84803dd9bfab3632d7b1",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-prompt.ts",
+      "mainBlob": "eee0ad150b828794e3374c1e079b955a56526103",
+      "integratedBlob": "eee0ad150b828794e3374c1e079b955a56526103",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat.controller.ts",
+      "mainBlob": "04ec9cddea343538ae32cccc6fabe5a07b7fcfa4",
+      "integratedBlob": "04ec9cddea343538ae32cccc6fabe5a07b7fcfa4",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "mainBlob": "99d9e42f17bdbc157dc8c2d5c421fa9121ec4a70",
+      "integratedBlob": "99d9e42f17bdbc157dc8c2d5c421fa9121ec4a70",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.spec.ts",
+      "mainBlob": "a322aee7a2e4567d91b9ed377969a3506a195ef4",
+      "integratedBlob": "a322aee7a2e4567d91b9ed377969a3506a195ef4",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.ts",
+      "mainBlob": "2e44a9326857d75b9e935862ec006c24b5e38665",
+      "integratedBlob": "2e44a9326857d75b9e935862ec006c24b5e38665",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-budget.spec.ts",
+      "mainBlob": "7c255c0d1774bb282ed81ab2abf9985b2309ab90",
+      "integratedBlob": "7c255c0d1774bb282ed81ab2abf9985b2309ab90",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-prompt.spec.ts",
+      "mainBlob": "634578a3fc2641b21373bcaa4f28494aaf8299d4",
+      "integratedBlob": "634578a3fc2641b21373bcaa4f28494aaf8299d4",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-prompt.ts",
+      "mainBlob": "254626b23203da32428f8e66b19a6c3653f8f0c4",
+      "integratedBlob": "254626b23203da32428f8e66b19a6c3653f8f0c4",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-governed-context.runtime.ts",
+      "mainBlob": "0b5562b25ac26e5fd96e408d5849a8a000a91c66",
+      "integratedBlob": "0b5562b25ac26e5fd96e408d5849a8a000a91c66",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/api-managed-mcp.repo.ts",
+      "mainBlob": "e5d384c672da812d8aa45836fca578dfc655a659",
+      "integratedBlob": "e5d384c672da812d8aa45836fca578dfc655a659",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-progressive-tool-discovery.spec.ts",
+      "mainBlob": "0065e704ded5f95a362e96015183a4460c5409f1",
+      "integratedBlob": "0065e704ded5f95a362e96015183a4460c5409f1",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.spec.ts",
+      "mainBlob": "e90a97b91ff7fdff4dd3bededd9c6e743b7fce71",
+      "integratedBlob": "e90a97b91ff7fdff4dd3bededd9c6e743b7fce71",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meri-semantic-tool-gateway.ts",
+      "mainBlob": "10a09d901a58c8e03c7aa414bb6383226205e313",
+      "integratedBlob": "10a09d901a58c8e03c7aa414bb6383226205e313",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-access.service.spec.ts",
+      "mainBlob": "317d4002fdfe21e90dc37ba0fe2398588646c7d0",
+      "integratedBlob": "317d4002fdfe21e90dc37ba0fe2398588646c7d0",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.spec.ts",
+      "mainBlob": "98e2480a7aa7d4f09056a1e48c980d573d949e51",
+      "integratedBlob": "98e2480a7aa7d4f09056a1e48c980d573d949e51",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-assistant.service.ts",
+      "mainBlob": "e55bf497eb10e400030a6afc3e78b38d94ebaf6f",
+      "integratedBlob": "e55bf497eb10e400030a6afc3e78b38d94ebaf6f",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-catalog-availability.spec.ts",
+      "mainBlob": "73c7196585cc424a15b7e3b604b309ffb4bcf4d0",
+      "integratedBlob": "73c7196585cc424a15b7e3b604b309ffb4bcf4d0",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-catalog-availability.ts",
+      "mainBlob": "9959bf3d7a586fd826705ec7a8e61b5d5f47ee61",
+      "integratedBlob": "9959bf3d7a586fd826705ec7a8e61b5d5f47ee61",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-document-request-scope.spec.ts",
+      "mainBlob": "2dbd5a17a50be7392d691f03540a895d7e7bd16b",
+      "integratedBlob": "2dbd5a17a50be7392d691f03540a895d7e7bd16b",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-managed-mcp-assistant.service.spec.ts",
+      "mainBlob": "4c371d20cb7da65bde0e4f936481340397d5b3ae",
+      "integratedBlob": "4c371d20cb7da65bde0e4f936481340397d5b3ae",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-managed-mcp-assistant.service.ts",
+      "mainBlob": "c1f3be20e9b3495720d9ec6914eb66a46a4a99ac",
+      "integratedBlob": "c1f3be20e9b3495720d9ec6914eb66a46a4a99ac",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-managed-mcp-request-path.spec.ts",
+      "mainBlob": "6b2e45d764ee42bfa5ff432bd5bde22cfda79e6f",
+      "integratedBlob": "6b2e45d764ee42bfa5ff432bd5bde22cfda79e6f",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-provider-settlement.spec.ts",
+      "mainBlob": "42d3fa18532754a7e6669627008e272b92ceccec",
+      "integratedBlob": "42d3fa18532754a7e6669627008e272b92ceccec",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-retrieval-assistant.service.spec.ts",
+      "mainBlob": "c1aa418768608273e21ef3e5c24564589054656e",
+      "integratedBlob": "c1aa418768608273e21ef3e5c24564589054656e",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-semantic-compatibility-tools.spec.ts",
+      "mainBlob": "49cb5af0d21ac066bde1c4f9ad842082fa4c3279",
+      "integratedBlob": "49cb5af0d21ac066bde1c4f9ad842082fa4c3279",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-semantic-compatibility-tools.ts",
+      "mainBlob": "dea9d9bc2ccfe2236d5256a2211144c82d34cad0",
+      "integratedBlob": "dea9d9bc2ccfe2236d5256a2211144c82d34cad0",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meriv3/meriv3-tool-evidence.spec.ts",
+      "mainBlob": "a37e3157170122d48bbf1b9b55c2f1622715f70c",
+      "integratedBlob": "a37e3157170122d48bbf1b9b55c2f1622715f70c",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/request-scoped-llm.client.ts",
+      "mainBlob": "13c2236984c0c03424a1e1632a7609ae0f86102b",
+      "integratedBlob": "13c2236984c0c03424a1e1632a7609ae0f86102b",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/structured-record-citations.spec.ts",
+      "mainBlob": "1900cb43d4fa640fa6be1e178dd6b9fea9bde739",
+      "integratedBlob": "1900cb43d4fa640fa6be1e178dd6b9fea9bde739",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-plan.spec.ts",
+      "mainBlob": "86c1fb73d8c173d6873b05df16526967db9ea4e6",
+      "integratedBlob": "86c1fb73d8c173d6873b05df16526967db9ea4e6",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/tool-ledger-adapter.spec.ts",
+      "mainBlob": "6a4d6347720ce9c78a4319148a5934d11ced0aa3",
+      "integratedBlob": "6a4d6347720ce9c78a4319148a5934d11ced0aa3",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "mainBlob": "c1fe8c4dc13dcead58cc8a6512328ec9e7a1e2cc",
+      "integratedBlob": "c1fe8c4dc13dcead58cc8a6512328ec9e7a1e2cc",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "mainBlob": "f755c86fbfee89ad5f8b17dda76f0748a7398846",
+      "integratedBlob": "f755c86fbfee89ad5f8b17dda76f0748a7398846",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/case12-setup-binding.spec.ts",
+      "mainBlob": "6fb8e51ea108005508012231a37146dc6f0a2d2c",
+      "integratedBlob": "6fb8e51ea108005508012231a37146dc6f0a2d2c",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/case12-setup-binding.ts",
+      "mainBlob": "1b26d00e4d728f5457a9a3bdb4a3083f4a52486e",
+      "integratedBlob": "1b26d00e4d728f5457a9a3bdb4a3083f4a52486e",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler-v2.spec.ts",
+      "mainBlob": "d7bf2e3b8b715cefc89ef9fc887e7ad270844b8d",
+      "integratedBlob": "d7bf2e3b8b715cefc89ef9fc887e7ad270844b8d",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-artifact-capture.spec.ts",
+      "mainBlob": "55834fe4e30e99f756c9c676bf1df879c2543be7",
+      "integratedBlob": "55834fe4e30e99f756c9c676bf1df879c2543be7",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-artifact-capture.ts",
+      "mainBlob": "d5f970cefee4859137d19c49f18ec637d060ba19",
+      "integratedBlob": "d5f970cefee4859137d19c49f18ec637d060ba19",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.spec.ts",
+      "mainBlob": "b3677fbf1b0ac7e989e2597281750d7becce62f3",
+      "integratedBlob": "b3677fbf1b0ac7e989e2597281750d7becce62f3",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.ts",
+      "mainBlob": "cb118c59dd4084b1919c435daacd7bd21895340e",
+      "integratedBlob": "cb118c59dd4084b1919c435daacd7bd21895340e",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "mainBlob": "4ba3bec10e419398084b274f7cd3bbd22c96dc66",
+      "integratedBlob": "4ba3bec10e419398084b274f7cd3bbd22c96dc66",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "mainBlob": "815cfa4ed4643b6a3514d7365f05f3f430c9943d",
+      "integratedBlob": "815cfa4ed4643b6a3514d7365f05f3f430c9943d",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/semantic-clock.spec.ts",
+      "mainBlob": "bf365ca2a1530d8084cc5b58f241ebabd75cde09",
+      "integratedBlob": "bf365ca2a1530d8084cc5b58f241ebabd75cde09",
+      "unchanged": true
+    },
+    {
+      "path": "packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "mainBlob": "eafe1066fd0770ed69b394e06337c75eb0fa4678",
+      "integratedBlob": "eafe1066fd0770ed69b394e06337c75eb0fa4678",
+      "unchanged": true
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "mainBlob": "62eb32931826f77abd985bc142f6a65adad6a23a",
+      "integratedBlob": "c9f3a056b94de58b5777f50bec1f9a2659954591",
+      "unchanged": false
+    },
+    {
+      "path": "packages/shared/src/meri-read-outcome.ts",
+      "mainBlob": "412541d5a529a0fb34248a7120cea0222a1d2987",
+      "integratedBlob": "412541d5a529a0fb34248a7120cea0222a1d2987",
+      "unchanged": true
+    }
+  ],
+  "newFailures": [
+    "packages/shared/src/workspace-saved-revision.ts"
+  ],
+  "resolvedMainFailures": []
+}

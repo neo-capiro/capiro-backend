@@ -1,0 +1,18 @@
+{
+  "name": "formatter-two-file-delta",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "node",
+    "node_modules/prettier/bin/prettier.cjs",
+    "--write",
+    "packages/shared/src/index.ts",
+    "packages/shared/src/workspace-saved-revision.ts"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 1.874,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "formatter-two-file-delta.log"
+}

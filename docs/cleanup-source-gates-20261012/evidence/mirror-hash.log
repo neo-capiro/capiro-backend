@@ -1,0 +1,7 @@
+Mirror A: /workspace/capirov2-cleanup-source-gates/apps/api/src/defense-budget
+Mirror B: /workspace/capirov2-cleanup-source-gates/apps/defense-api/runtime-source/defense-budget
+Total files in A: 723
+Total files in B: 723
+Common files: 723
+
+SUCCESS: both mirrors contain exactly 723 files with identical content.

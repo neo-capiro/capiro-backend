@@ -1,0 +1,14 @@
+{
+  "name": "meri-adjacent-boundary",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "node",
+    "scripts/verify-meriv3-adjacent-import-boundary.mjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 9.297,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "meri-adjacent-boundary.log"
+}

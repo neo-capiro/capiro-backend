@@ -1,0 +1,21 @@
+{
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "acceptedRepairSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "receiptMeasuredSource": "Helper records actual HEAD at command completion, not run start; evidence-only commits can change HEAD during a long command. Runtime delta remains only the independently equivalent two formatter files.",
+  "preRepairRuns": "Commands ending at243248 measure exact original candidate. CDK source unchanged across formatter transition; later diagnostics ending at0ffffaf2 measure accepted repair plus evidence only.",
+  "disconnectCheck": "2026-10-12T11:03:32.969394+00:00:50 complete,zero timeouts,no owned runners. New subsequent lanes have distinct names; runs never combined/replaced.",
+  "networkSafeguards": {
+    "web-full-source-unit": "frontend-source-network-refusal.cjs via NODE_OPTIONS; original Vitest command/config/tests retained",
+    "onboard-api-full-source-unit": "same frontend safeguard; real OAuth/email/database are mocked",
+    "defense-api-canonical-source-unit": "initial same safeguard over-refused local TSX IPC and dist missing; raw failure retained",
+    "defense-api-source-unit-after-environment-preparation": "Retained initial IPC allowance now saved as node-source-network-refusal-with-local-tsx-ipc-initial.cjs; inert review found getter/mutable options issue. Passing test run is diagnostic only, not acceptance.",
+    "defense-api-source-unit-hardened-ipc": "Current node-source-network-refusal-with-local-tsx-ipc.cjs binds immutable fresh path-only options; distinct264pass/8skip run after hardening."
+  },
+  "fullReleaseAcceptance": false,
+  "preloadHashes": {
+    "frontend-source-network-refusal.cjs": "feb60a85a6c5fdd671ccdc27fc49d513b442887340af9a7cf969977a7a1a95a4",
+    "node-source-network-refusal-with-local-tsx-ipc-initial.cjs": "12dece0a73e6d8752cd20b03f8225f1d1d0d0f6a97b5c84d17350a75d8d9828a",
+    "node-source-network-refusal-with-local-tsx-ipc.cjs": "68c98ff61bf1ccab82b089de0240f62aa9bfea671494d93700f1142e1e898906"
+  },
+  "preloadLimit": "Process API safeguard only; not syscall/OS isolation or arbitrary native/child/dgram containment."
+}

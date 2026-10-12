@@ -1,0 +1,17 @@
+{
+  "name": "meri-source-boundaries",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "node",
+    "--test",
+    "scripts/ci/verify-meri-visual-isolation.test.mjs",
+    "scripts/verify-meriv3-import-boundary.spec.mjs",
+    "scripts/verify-meriv3-adjacent-import-boundary.spec.mjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 10.936,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "meri-source-boundaries.log"
+}

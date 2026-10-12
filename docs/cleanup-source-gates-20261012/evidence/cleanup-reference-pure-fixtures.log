@@ -1,0 +1,105 @@
+✔ jest adapter: keeps duplicate fullName occurrences and normalises suite paths across worktrees (4.458507ms)
+✔ vitest adapter: parses the jest-shaped vitest JSON reporter (0.660729ms)
+✔ pytest adapter: node ids are COLLECTED, not passed; headers/warnings ignored (1.010409ms)
+✔ playwright adapter: nested suites, project multiplicity, cross-worktree path (1.484611ms)
+✔ buildRun: @capiro/e2e runs its own launcher, never the raw external CLI (55.597426ms)
+✔ node:test adapter: nested describe reconstructed from the event stream; duplicates kept; suite container excluded (3.361183ms)
+✔ buildRun preserves each package command/config tier and adds only the report flags (4.346703ms)
+✔ parse failure surfaces as a thrown error (target later recorded as non-passing scope) (0.424643ms)
+✔ pytest parser: an empty listing yields zero tests, not a pass (2.645681ms)
+✖ dump --run: simulated runner with a nonzero exit is reported as non-passing scope (exit 2) (1912.749197ms)
+✖ dump --run: a runner that discovers zero tests is non-passing scope (exit 2) (2304.195908ms)
+✔ dump --run: unclassifiable runner is explicit scope, not silent (exit 2) (76.745064ms)
+✔ dump --import: reads existing PASSING runner reports without re-running anything (exit 0) (49.7162ms)
+✔ dump --import: RETAINS report failure semantics — a report with failed tests is non-passing (exit 2) (97.61749ms)
+✔ dump --import: a malformed report is a non-passing error (exit 2), not a crash (79.551751ms)
+✔ dump: a missing manifest is a fatal error (exit 3) (73.266245ms)
+✔ diff CLI: no change exits 0; a removal exits 2 (163.003687ms)
+✔ diff CLI: malformed / noncanonical input is a fatal invalid-input exit (3) (180.502609ms)
+✔ diff CLI: non-passing evidence / status regression / tier change exit 2; tier ack exits 0 (336.838858ms)
+✔ diff CLI: missing --before/--after is a usage error (exit 1) (47.363743ms)
+✔ no change and pure additions pass (6.153661ms)
+✔ a removed occurrence blocks (1.090276ms)
+✔ multiset: removing one of two identical fullName occurrences is still a removal (0.497726ms)
+✔ an explicit 1:1 twin excuses a removal when the survivor really exists (0.637843ms)
+✔ twin double-use guard: one survivor cannot excuse two removals without manyToOne (0.591964ms)
+✔ twin with a survivor that is absent from after blocks (2.166969ms)
+✔ twin referencing a removed suite not in before blocks (0.284613ms)
+✔ an explicit valid rename passes and is reported as changed (0.359044ms)
+✔ no fuzzy rename heuristic: a changed name without a map blocks (0.228023ms)
+✔ rename pointing at a missing after occurrence blocks (0.625906ms)
+✔ cross-package rename must be declared and the vacated target acknowledged (1.028534ms)
+✔ gained package is permitted; lost package blocks unless acknowledged (0.519543ms)
+✔ runner change for a package blocks unless acknowledged (21.652051ms)
+✔ per-package before/after counts are reported (2.101451ms)
+✔ finding 1: malformed / noncanonical input is rejected; a validated zero-scope snapshot is accepted (0.730462ms)
+✔ finding 2: a runner-failed / zero-tests after target blocks acceptance but keeps the name diff (0.846107ms)
+✔ finding 2: pytest COLLECTED-only targets are reported as collection-only, not executed success (0.225983ms)
+✔ finding 3: a preserved name regressed from passed to skipped/todo/cancelled blocks; pre-existing skips remain (0.693735ms)
+✔ finding 3: a multiset regression (one of two executed -> skipped) blocks (0.38792ms)
+✔ finding 4: a target/config tier change blocks unless acknowledged with a concrete reason (2.328829ms)
+✔ finding 4: a zero-occurrence target that disappears is still scope loss (0.375944ms)
+✔ finding 4: a compound script tier loss (same package+runner, one tier gone) is not preserved by package/runner alone (0.334579ms)
+✔ discovery: picks up every package at run time, including infra/python/playwright (20.306753ms)
+✔ discovery: unclassifiable command is explicit non-passing scope, never skipped (4.314634ms)
+✔ discovery: a newly added package is discovered (no checked-in list) (6.389605ms)
+✔ splitSegment/resolveSegment/classifyRunner behave for real command shapes (1.819099ms)
+✔ normalizeSuitePath: strips the package prefix, foreign roots, and separators (0.498812ms)
+✔ native adapter: infra/cdk constructs driver is classified as node:test, never waived (30.528036ms)
+✔ native adapter: @capiro/e2e Playwright launcher is classified as playwright, never waived (3.615573ms)
+✔ native adapter match is source-bound: wrong package/path/command cannot match (0.276504ms)
+✔ node:test reporter: real Node run over nested describe preserves names and multiplicity (200.329223ms)
+ℹ tests 51
+ℹ suites 0
+ℹ pass 49
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5570.022042
+
+✖ failing tests:
+
+test at scripts/test-proof/cli.test.mjs:59:1
+✖ dump --run: simulated runner with a nonzero exit is reported as non-passing scope (exit 2) (1912.749197ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'error'
+  - 'runner-failed'
+  
+      at TestContext.<anonymous> (file:///workspace/capirov2-cleanup-gate-reference/scripts/test-proof/cli.test.mjs:67:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'error',
+    expected: 'runner-failed',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/test-proof/cli.test.mjs:75:1
+✖ dump --run: a runner that discovers zero tests is non-passing scope (exit 2) (2304.195908ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'error'
+  - 'zero-tests'
+  
+      at TestContext.<anonymous> (file:///workspace/capirov2-cleanup-gate-reference/scripts/test-proof/cli.test.mjs:82:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'error',
+    expected: 'zero-tests',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,14 @@
+{
+  "name": "migration-entrypoint-controls",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "python",
+    "scripts/check-migration-entrypoints.test.py"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 0.715,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "migration-entrypoint-controls.log"
+}

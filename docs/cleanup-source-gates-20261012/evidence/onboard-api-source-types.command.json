@@ -1,0 +1,16 @@
+{
+  "name": "onboard-api-source-types",
+  "cwd": "/workspace/capirov2-cleanup-source-gates/apps/onboard-api",
+  "argv": [
+    "node",
+    "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 12.955,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "onboard-api-source-types.log"
+}

@@ -1,0 +1,33 @@
+FAIL src/meri/full-chat-read-tools.catalog.spec.ts (22.026 s)
+  FULL_CHAT_READ_TOOLS catalog
+    ✓ exposes own proposal reads only in full chat and identifies their memory domain without exhaustive fact coverage (4 ms)
+    ✓ matches the intended full-chat read tool set (2 ms)
+    ✓ has unique names and non-empty descriptions (1 ms)
+  Combined delegated-tool coverage (in-editor + write + full-chat-read)
+    ✕ the three catalogs together cover apps/api's full tool surface exactly — no gap, no duplicate (3 ms)
+    ✓ W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed (1 ms)
+
+  ● Combined delegated-tool coverage (in-editor + write + full-chat-read) › the three catalogs together cover apps/api's full tool surface exactly — no gap, no duplicate
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 138
+    Received length: 139
+    Received array:  ["add_research_portfolio_review_note", "apply_legiwatch_suggestion", "build_opportunity_action_plan", "cancel_scheduled_task", "compare_florida_budget_amounts", "compare_funding_opportunities", "compare_legislative_versions", "confirm_memory", "correct_memory", "create_client", …]
+
+      128 |     expect(combined).toEqual(ALL_APPS_API_TOOLS);
+      129 |     expect(new Set(combined).size).toBe(combined.length); // no tool double-registered
+    > 130 |     expect(combined).toHaveLength(138);
+          |                      ^
+      131 |   });
+      132 |
+      133 |   it('W4.6 / D-13: the three catalogs match the canonical MERI_TOOL_MANIFEST VERBATIM (name AND description) — catches description drift the name-only check missed', () => {
+
+      at Object.<anonymous> (src/meri/full-chat-read-tools.catalog.spec.ts:130:22)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 4 passed, 5 total
+Snapshots:   0 total
+Time:        22.608 s
+Ran all test suites matching /src\/meri\/full-chat-read-tools.catalog.spec.ts/i.
+Test results written to: ../../../capirov2-cleanup-source-gates/docs/cleanup-source-gates-20261012/evidence/meri-catalog-baseline.json

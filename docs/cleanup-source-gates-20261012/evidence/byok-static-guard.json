@@ -1,0 +1,49 @@
+{
+  "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "exactCIStaticRule": true,
+  "violations": [],
+  "references": [
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-registry.service.ts",
+      "line": 35,
+      "text": " * (ANTHROPIC_API_KEY); without it the orchestrator still serves the other tools"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-registry.service.ts",
+      "line": 130,
+      "text": "    const apiKey = config.get<string>('ANTHROPIC_API_KEY');"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-registry.service.spec.ts",
+      "line": 18,
+      "text": "  it('registers hearing reasoning tools when ANTHROPIC_API_KEY is set', () => {"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/meri-registry.service.spec.ts",
+      "line": 20,
+      "text": "      get: (k: string) => (k === 'ANTHROPIC_API_KEY' ? 'sk-test' : undefined),"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/chat/chat-assistant.service.spec.ts",
+      "line": 33,
+      "text": "      : k === 'ANTHROPIC_API_KEY'"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.spec.ts",
+      "line": 27,
+      "text": "      : k === 'ANTHROPIC_API_KEY'"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.spec.ts",
+      "line": 260,
+      "text": "          : k === 'ANTHROPIC_API_KEY'"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.spec.ts",
+      "line": 321,
+      "text": "          : k === 'ANTHROPIC_API_KEY'"
+    }
+  ],
+  "pass": true,
+  "noCredentialValuesRead": true
+}

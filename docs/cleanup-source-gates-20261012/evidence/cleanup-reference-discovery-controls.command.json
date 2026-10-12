@@ -1,0 +1,18 @@
+{
+  "name": "cleanup-reference-discovery-controls",
+  "cwd": "/workspace/capirov2-cleanup-gate-reference",
+  "argv": [
+    "node",
+    "--test",
+    "scripts/cleanup-gates/standalone-node.test.mjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 0.536,
+  "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "nativeAcceptance": false,
+  "outputFile": "cleanup-reference-discovery-controls.log",
+  "initialRunnerDeclaredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "provenanceCorrection": "Initial runner metadata hardcoded target SHA; reference fixture commands actually ran on exact preserved Cleanup2392. These are tooling controls only, not integrated acceptance."
+}

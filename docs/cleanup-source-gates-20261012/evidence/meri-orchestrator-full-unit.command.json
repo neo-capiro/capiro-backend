@@ -1,0 +1,21 @@
+{
+  "name": "meri-orchestrator-full-unit",
+  "cwd": "/workspace/capirov2-cleanup-source-gates/apps/meriv2-orchestrator",
+  "argv": [
+    "node",
+    "/workspace/capirov2-cleanup-source-gates/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "jest.config.cjs",
+    "--runInBand",
+    "--json",
+    "--outputFile",
+    "/workspace/capirov2-cleanup-source-gates/docs/cleanup-source-gates-20261012/evidence/meri-orchestrator-full-unit.json"
+  ],
+  "exitCode": 1,
+  "timedOut": false,
+  "seconds": 101.093,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "meri-orchestrator-full-unit.log"
+}

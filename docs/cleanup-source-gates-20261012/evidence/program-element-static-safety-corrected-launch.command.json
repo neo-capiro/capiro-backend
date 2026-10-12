@@ -1,0 +1,16 @@
+{
+  "name": "program-element-static-safety-corrected-launch",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "node",
+    "apps/api/node_modules/tsx/dist/cli.mjs",
+    "apps/api/scripts/verify-pe-phase-a-safety.ts"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 0.805,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "program-element-static-safety-corrected-launch.log"
+}

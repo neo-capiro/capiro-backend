@@ -1,0 +1,1140 @@
+src/auth/org-tenant-resolver.service.ts(127,21): error TS18046: 'rows' is of type 'unknown'.
+src/auth/org-tenant-resolver.service.ts(159,14): error TS18046: 'rows' is of type 'unknown'.
+src/auth/org-tenant-resolver.service.ts(194,19): error TS18046: 'rows' is of type 'unknown'.
+src/bill-dossier/bill-dossier.service.ts(748,11): error TS2339: Property 'expectedMilestoneType' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(749,11): error TS2339: Property 'expectedWindowStart' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(750,11): error TS2339: Property 'expectedWindowEnd' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(751,11): error TS2339: Property 'expectedRationale' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(755,31): error TS2339: Property 'expectedMilestoneType' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(756,34): error TS2339: Property 'expectedWindowStart' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(757,32): error TS2339: Property 'expectedWindowEnd' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(758,28): error TS2339: Property 'expectedConfidence' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(759,26): error TS2339: Property 'expectedRationale' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(760,26): error TS2339: Property 'expectedUpdatedBy' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(761,32): error TS2339: Property 'expectedUpdatedAt' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(762,22): error TS2339: Property 'expectedWindowEnd' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(762,46): error TS2339: Property 'expectedWindowEnd' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(767,39): error TS2339: Property 'position' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(768,39): error TS2339: Property 'priority' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(770,24): error TS2339: Property 'analystNote' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(770,43): error TS2339: Property 'note' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(771,18): error TS2339: Property 'stage' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(772,28): error TS2339: Property 'trackedAt' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(824,17): error TS2339: Property 'matchedTags' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(825,16): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/bill-dossier/bill-dossier.service.ts(826,13): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/bill-dossier/bill-dossier.service.ts(828,25): error TS2339: Property 'fit' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(828,48): error TS2339: Property 'fit' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(829,27): error TS2339: Property 'jurisdiction' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(830,30): error TS2339: Property 'lastFitAt' does not exist on type '{}'.
+src/bill-dossier/bill-dossier.service.ts(865,40): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'AlertRow[]'.
+src/feature-flags/feature-flag.service.ts(105,25): error TS2339: Property 'enabled' does not exist on type '{}'.
+src/feature-flags/feature-flag.service.ts(141,21): error TS18046: 'rows' is of type 'unknown'.
+src/feed/action-item.service.ts(267,10): error TS18046: 'attachments' is of type 'unknown'.
+src/feed/action-item.service.ts(274,7): error TS2571: Object is of type 'unknown'.
+src/feed/action-item.service.ts(282,15): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/feed/action-item.service.ts(283,18): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/feed/action-item.service.ts(285,21): error TS18046: 'attachments' is of type 'unknown'.
+src/feed/action-item.service.ts(285,41): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/feed/action-item.service.ts(288,44): error TS18046: 'attachments' is of type 'unknown'.
+src/feed/action-item.service.ts(304,21): error TS18046: 'alerts' is of type 'unknown'.
+src/feed/action-item.service.ts(355,21): error TS18046: 'rows' is of type 'unknown'.
+src/feed/action-item.service.ts(384,25): error TS18046: 'reviews' is of type 'unknown'.
+src/feed/alert-packet.service.ts(62,25): error TS2339: Property 'sourceType' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(63,24): error TS2339: Property 'sourceRef' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(64,20): error TS2339: Property 'title' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(65,27): error TS2339: Property 'whyItMatters' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(66,21): error TS2339: Property 'termId' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(67,23): error TS2339: Property 'evidence' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(94,30): error TS2339: Property 'changeType' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(104,33): error TS2339: Property 'createdAt' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(191,21): error TS18046: 'topics' is of type 'unknown'.
+src/feed/alert-packet.service.ts(192,8): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/feed/alert-packet.service.ts(196,40): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/feed/alert-packet.service.ts(213,27): error TS2339: Property 'changeType' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(240,25): error TS2339: Property 'sourceType' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(241,23): error TS2339: Property 'severity' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(242,24): error TS2339: Property 'sourceRef' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(250,13): error TS2339: Property 'title' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(251,13): error TS2339: Property 'whyItMatters' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(252,13): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(256,13): error TS2339: Property 'sourceType' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(263,27): error TS2339: Property 'sourceType' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(264,28): error TS2339: Property 'title' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(272,19): error TS2339: Property 'createdAt' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(273,62): error TS2339: Property 'createdAt' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(289,25): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/feed/alert-packet.service.ts(312,26): error TS2339: Property 'score' does not exist on type '{}'.
+src/feed/alert-work-state.service.ts(168,27): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/feed/alert-work-state.service.ts(203,21): error TS18046: 'rows' is of type 'unknown'.
+src/feed/alert-work-state.service.ts(258,12): error TS18046: 'rows' is of type 'unknown'.
+src/feed/alert-work-state.service.ts(258,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/feed/alert-work-state.service.ts(308,30): error TS18046: 'owned' is of type 'unknown'.
+src/feed/alert-work-state.service.ts(308,41): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/feed/alert-work-state.service.ts(354,32): error TS18046: 'owned' is of type 'unknown'.
+src/feed/alert-work-state.service.ts(354,43): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/feed/alert-work-state.service.ts(369,71): error TS2322: Type '{}' is not assignable to type 'string'.
+src/feed/alert-work-state.service.ts(410,42): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/feed/feed-wave2-counts-pg.integration.spec.ts(40,26): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/feed/feed-wave2-counts-pg.integration.spec.ts(41,25): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/feed/feed-wave2-counts-pg.integration.spec.ts(44,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/feed/feed-wave2-counts-pg.integration.spec.ts(47,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/feed/feed-wave2-counts-pg.integration.spec.ts(52,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/feed/feed-wave2-counts-pg.integration.spec.ts(67,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/feed/feed-wave2-counts-pg.integration.spec.ts(155,31): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/feed/feed-wave2-counts-pg.integration.spec.ts(170,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/feed/feed-wave2-counts-pg.integration.spec.ts(175,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/feed/feed.service.ts(217,32): error TS18046: 'segs' is of type 'unknown'.
+src/feed/feed.service.ts(217,42): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/feed/feed.service.ts(227,17): error TS2339: Property 'textCiphertext' does not exist on type '{}'.
+src/feed/feed.service.ts(227,38): error TS2339: Property 'iv' does not exist on type '{}'.
+src/feed/feed.service.ts(227,47): error TS2339: Property 'authTag' does not exist on type '{}'.
+src/feed/feed.service.ts(230,31): error TS2339: Property 'textCiphertext' does not exist on type '{}'.
+src/feed/feed.service.ts(231,19): error TS2339: Property 'iv' does not exist on type '{}'.
+src/feed/feed.service.ts(232,24): error TS2339: Property 'authTag' does not exist on type '{}'.
+src/feed/feed.service.ts(263,21): error TS18046: 'rows' is of type 'unknown'.
+src/feed/feed.service.ts(416,21): error TS18046: 'rows' is of type 'unknown'.
+src/feed/feed.service.ts(417,29): error TS18046: 'rows' is of type 'unknown'.
+src/feed/feed.service.ts(464,21): error TS18046: 'grouped' is of type 'unknown'.
+src/feed/feed.service.ts(466,21): error TS18046: 'groupedSev' is of type 'unknown'.
+src/feed/feed.service.ts(481,18): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/feed/feed.service.ts(490,22): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/feed/feed.service.ts(499,44): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/feed/feed.service.ts(499,68): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/feed/feed.service.ts(502,11): error TS2571: Object is of type 'unknown'.
+src/feed/feed.service.ts(509,18): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/feed/feed.service.ts(519,24): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/feed/feed.service.ts(527,36): error TS7006: Parameter 'it' implicitly has an 'any' type.
+src/feed/feed.service.ts(538,34): error TS7006: Parameter 'it' implicitly has an 'any' type.
+src/feed/feed.service.ts(546,9): error TS2322: Type '{} | null' is not assignable to type 'string | null | undefined'.
+  Type '{}' is not assignable to type 'string'.
+src/feed/feed.service.ts(555,28): error TS2345: Argument of type 'Map<unknown, unknown>' is not assignable to parameter of type 'Map<string, string>'.
+  Type 'unknown' is not assignable to type 'string'.
+src/feed/feed.service.ts(655,23): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(63,18): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(116,20): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(154,31): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(158,39): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(268,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(325,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(355,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(369,22): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(377,32): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(398,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(415,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(419,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/blocked-source-recovery.postgres.spec.ts(425,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/capture-start-postgres.spec.ts(9,25): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/capture/capture-start-postgres.spec.ts(48,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/e2e-senate-smoke.spec.ts(22,26): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/hearing/capture/e2e-senate-smoke.spec.ts(23,25): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/capture/global-public-audio-policy.ts(1,24): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/capture/hearing-subscription-rls.integration.spec.ts(22,26): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/hearing/capture/hearing-subscription-rls.integration.spec.ts(23,25): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/capture/hearing-subscription-rls.integration.spec.ts(26,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/hearing-subscription-rls.integration.spec.ts(29,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/hearing-subscription-rls.integration.spec.ts(37,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/hearing-subscription-rls.integration.spec.ts(41,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/hearing-subscription-rls.integration.spec.ts(73,34): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/hearing-subscription-rls.integration.spec.ts(76,26): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/hearing/capture/hearing-subscription.repository.ts(15,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/hearing-subscription.repository.ts(24,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-automatic-resolver.adapter.ts(83,39): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-automatic-resolver.adapter.ts(138,39): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-automatic-resolver.adapter.ts(239,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-automatic-resolver.adapter.ts(257,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-automatic-resolver.adapter.ts(286,41): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-automatic-resolver.adapter.ts(328,42): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-automatic-resolver.adapter.ts(347,23): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-automatic-resolver.adapter.ts(388,23): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(28,26): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(29,25): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(32,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(44,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(78,31): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(92,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(117,31): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(120,35): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(123,31): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(126,37): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(141,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition-backfill.integration.spec.ts(159,33): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition.integration.spec.ts(34,26): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition.integration.spec.ts(35,25): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition.integration.spec.ts(38,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition.integration.spec.ts(47,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition.integration.spec.ts(70,31): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition.integration.spec.ts(73,35): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition.integration.spec.ts(100,38): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition.integration.spec.ts(117,31): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition.integration.spec.ts(120,35): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition.integration.spec.ts(123,37): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-disposition.integration.spec.ts(135,37): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-permission.ts(2,24): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/capture/public-capture-persistent-queue.adapter.ts(105,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-persistent-queue.adapter.ts(135,23): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-persistent-queue.adapter.ts(182,23): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-persistent-queue.adapter.ts(212,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-persistent-queue.adapter.ts(263,39): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-persistent-queue.adapter.ts(296,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-persistent-queue.adapter.ts(312,37): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-persistent-queue.adapter.ts(334,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-persistent-queue.adapter.ts(368,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(9,24): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(9,57): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(10,38): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(11,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(15,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(18,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(21,54): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(33,29): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(45,29): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(47,33): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(49,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(76,29): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(83,30): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(91,52): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-postgres.integration.spec.ts(93,29): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-runtime-control.ts(5,29): error TS2339: Property '$queryRaw' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-task-runner.ts(510,35): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-task-runner.ts(562,32): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-capture-task-runner.ts(694,18): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-audio-access.service.ts(45,21): error TS2571: Object is of type 'unknown'.
+src/hearing/capture/public-hearing-audio-access.service.ts(45,63): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/hearing/capture/public-hearing-audio-access.service.ts(67,15): error TS18046: 'epochs' is of type 'unknown'.
+src/hearing/capture/public-hearing-audio-access.service.ts(67,27): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hearing/capture/public-hearing-audio-access.service.ts(84,21): error TS2571: Object is of type 'unknown'.
+src/hearing/capture/public-hearing-audio-access.service.ts(84,63): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/hearing/capture/public-hearing-audio-access.service.ts(100,18): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/capture/public-hearing-audio.store.ts(5,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/capture/public-hearing-audio.store.ts(77,8): error TS7006: Parameter 'permission' implicitly has an 'any' type.
+src/hearing/capture/public-hearing-audio.store.ts(120,26): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/hearing/capture/public-hearing-audio.store.ts(205,25): error TS18046: 'expired' is of type 'unknown'.
+src/hearing/capture/public-hearing-audio.store.ts(212,33): error TS18046: 'expired' is of type 'unknown'.
+src/hearing/capture/public-hearing-capture-attempt.store.ts(14,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture-attempt.store.ts(28,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture-demand.spec.ts(259,18): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture-demand.spec.ts(336,32): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(124,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(140,39): error TS2339: Property '$queryRaw' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(154,32): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/capture/public-hearing-capture.store.ts(177,16): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/capture/public-hearing-capture.store.ts(222,12): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/capture/public-hearing-capture.store.ts(222,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/capture/public-hearing-capture.store.ts(246,12): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/capture/public-hearing-capture.store.ts(336,40): error TS2339: Property '$queryRaw' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(357,7): error TS18046: 'retained' is of type 'unknown'.
+src/hearing/capture/public-hearing-capture.store.ts(370,40): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(390,43): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(403,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(462,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(489,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(511,37): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(543,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(562,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-capture.store.ts(608,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-transcript.store.ts(2,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/capture/public-hearing-transcript.store.ts(48,37): error TS2339: Property '$transaction' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-transcript.store.ts(48,57): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/hearing/capture/public-hearing-transcript.store.ts(76,37): error TS2339: Property '$transaction' does not exist on type 'PrismaService'.
+src/hearing/capture/public-hearing-transcript.store.ts(76,57): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/hearing/capture/recovery.integration.spec.ts(29,26): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/hearing/capture/recovery.integration.spec.ts(30,25): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/capture/recovery.integration.spec.ts(33,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/recovery.integration.spec.ts(36,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/recovery.integration.spec.ts(57,39): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/recovery.integration.spec.ts(67,38): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/recovery.integration.spec.ts(71,29): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/hearing/capture/recovery.integration.spec.ts(72,39): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/recovery.integration.spec.ts(101,39): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/capture/run-phase9-public-capture.ts(53,16): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/hearing/capture/run-phase9-public-capture.ts(88,18): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/hearing-brief.service.ts(125,30): error TS2339: Property 'hearingId' does not exist on type '{}'.
+src/hearing/hearing-brief.service.ts(152,40): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/hearing/hearing-brief.service.ts(160,44): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/hearing/hearing-brief.service.ts(171,50): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/hearing/hearing-brief.service.ts(208,13): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/hearing/hearing-brief.service.ts(220,16): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/hearing/hearing-brief.service.ts(252,22): error TS2339: Property 'title' does not exist on type '{}'.
+src/hearing/hearing-brief.service.ts(254,42): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/hearing/hearing-brief.service.ts(298,22): error TS2339: Property 'title' does not exist on type '{}'.
+src/hearing/hearing-brief.service.ts(305,45): error TS7031: Binding element 'segmentId' implicitly has an 'any' type.
+src/hearing/hearing-brief.service.ts(305,56): error TS7031: Binding element 'timestampMs' implicitly has an 'any' type.
+src/hearing/hearing-brief.service.ts(305,69): error TS7031: Binding element 'speakerName' implicitly has an 'any' type.
+src/hearing/hearing-brief.service.ts(305,82): error TS7031: Binding element 'text' implicitly has an 'any' type.
+src/hearing/hearing-capture-hardening.spec.ts(2,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/hearing-publication.service.ts(18,8): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/hearing-publication.service.ts(95,17): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(97,17): error TS2339: Property 'publicCaptureId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(97,91): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ publicCaptureId: string | null; hearingId: string | null; createdBy: string; sourceUrl: string | null; }'.
+  Type '{}' is missing the following properties from type '{ publicCaptureId: string | null; hearingId: string | null; createdBy: string; sourceUrl: string | null; }': publicCaptureId, hearingId, createdBy, sourceUrl
+src/hearing/hearing-publication.service.ts(98,37): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ hearingId: string | null; sourceUrl: string | null; publicCaptureId?: string | null | undefined; }'.
+  Type '{}' is missing the following properties from type '{ hearingId: string | null; sourceUrl: string | null; publicCaptureId?: string | null | undefined; }': hearingId, sourceUrl
+src/hearing/hearing-publication.service.ts(194,24): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(224,17): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(224,61): error TS2339: Property 'createdBy' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(253,25): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(293,96): error TS7006: Parameter 'g' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(315,19): error TS2339: Property 'publicCaptureId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(316,42): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ publicCaptureId: string | null; hearingId: string | null; createdBy: string; sourceUrl: string | null; }'.
+  Type '{}' is missing the following properties from type '{ publicCaptureId: string | null; hearingId: string | null; createdBy: string; sourceUrl: string | null; }': publicCaptureId, hearingId, createdBy, sourceUrl
+src/hearing/hearing-publication.service.ts(317,66): error TS2339: Property 'publicCaptureId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(335,23): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(343,30): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(343,74): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(360,32): error TS7006: Parameter 'card' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(387,24): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(391,41): error TS7006: Parameter 'recipient' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(472,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(502,37): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ hearingId: string | null; sourceUrl: string | null; publicCaptureId?: string | null | undefined; }'.
+  Type '{}' is missing the following properties from type '{ hearingId: string | null; sourceUrl: string | null; publicCaptureId?: string | null | undefined; }': hearingId, sourceUrl
+src/hearing/hearing-publication.service.ts(504,78): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(519,27): error TS2339: Property 'hearingId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(520,43): error TS2339: Property '$queryRaw' does not exist on type 'PrismaService'.
+src/hearing/hearing-publication.service.ts(524,49): error TS2339: Property 'hearingId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(553,58): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(583,19): error TS2339: Property 'status' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(593,19): error TS2339: Property 'publicCaptureId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(594,58): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ publicCaptureId: string | null; hearingId: string | null; createdBy: string; sourceUrl: string | null; }'.
+  Type '{}' is missing the following properties from type '{ publicCaptureId: string | null; hearingId: string | null; createdBy: string; sourceUrl: string | null; }': publicCaptureId, hearingId, createdBy, sourceUrl
+src/hearing/hearing-publication.service.ts(622,29): error TS18046: 'epochs' is of type 'unknown'.
+src/hearing/hearing-publication.service.ts(627,24): error TS18046: 'epochs' is of type 'unknown'.
+src/hearing/hearing-publication.service.ts(629,13): error TS18046: 'epochs' is of type 'unknown'.
+src/hearing/hearing-publication.service.ts(629,27): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(631,15): error TS18046: 'epochs' is of type 'unknown'.
+src/hearing/hearing-publication.service.ts(631,29): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(635,11): error TS18046: 'epochs' is of type 'unknown'.
+src/hearing/hearing-publication.service.ts(636,11): error TS18046: 'epochs' is of type 'unknown'.
+src/hearing/hearing-publication.service.ts(636,25): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(664,28): error TS2339: Property 'hearingId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(722,37): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ hearingId: string | null; sourceUrl: string | null; publicCaptureId?: string | null | undefined; }'.
+  Type '{}' is missing the following properties from type '{ hearingId: string | null; sourceUrl: string | null; publicCaptureId?: string | null | undefined; }': hearingId, sourceUrl
+src/hearing/hearing-publication.service.ts(724,78): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(732,27): error TS2339: Property 'hearingId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(733,43): error TS2339: Property '$queryRaw' does not exist on type 'PrismaService'.
+src/hearing/hearing-publication.service.ts(736,140): error TS2339: Property 'hearingId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(746,21): error TS18046: 'profiles' is of type 'unknown'.
+src/hearing/hearing-publication.service.ts(751,30): error TS2339: Property 'hearingId' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(756,56): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(786,43): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(793,37): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(810,22): error TS2339: Property 'title' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(839,23): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(844,10): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(844,31): error TS7006: Parameter 'now' implicitly has an 'any' type.
+src/hearing/hearing-publication.service.ts(851,43): error TS2339: Property 'title' does not exist on type '{}'.
+src/hearing/hearing-publication.service.ts(933,31): error TS7006: Parameter 'now' implicitly has an 'any' type.
+src/hearing/hearing-record-delivery.service.ts(7,48): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/hearing-record-delivery.service.ts(111,23): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-record-delivery.service.ts(133,29): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-record-delivery.service.ts(184,14): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-record-delivery.service.ts(184,37): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/hearing/hearing-record-delivery.service.ts(196,13): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-record-delivery.service.ts(228,12): error TS18046: 'prior' is of type 'unknown'.
+src/hearing/hearing-record-delivery.service.ts(229,14): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/hearing/hearing-record-delivery.service.ts(257,20): error TS18046: 'prior' is of type 'unknown'.
+src/hearing/hearing-record-delivery.service.ts(259,12): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/hearing/hearing-record-delivery.service.ts(267,15): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/hearing/hearing-record-delivery.service.ts(398,14): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/hearing/hearing-record-delivery.service.ts(411,14): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/hearing/hearing-record-delivery.service.ts(452,10): error TS18046: 'prior' is of type 'unknown'.
+src/hearing/hearing-record-delivery.service.ts(453,12): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/hearing/hearing-record-maintenance.ts(20,23): error TS18046: 'scopes' is of type 'unknown'.
+src/hearing/hearing-record-retrieval.controller.ts(72,42): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-record-retrieval.controller.ts(74,28): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-record-retrieval.controller.ts(93,48): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/hearing/hearing-record-retrieval.controller.ts(95,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/hearing/hearing-record-workflow.service.ts(10,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/hearing-record-workflow.service.ts(182,23): error TS18046: 'jobs' is of type 'unknown'.
+src/hearing/hearing-record-workflow.service.ts(323,45): error TS2339: Property '$queryRaw' does not exist on type 'PrismaService'.
+src/hearing/hearing-record-workflow.service.ts(332,51): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hearing/hearing-record-workflow.service.ts(335,23): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-record-workflow.service.ts(355,40): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-record-workflow.service.ts(545,9): error TS18046: 'existing' is of type 'unknown'.
+src/hearing/hearing-record-workflow.service.ts(545,54): error TS18046: 'existing' is of type 'unknown'.
+src/hearing/hearing-record-workflow.service.ts(1145,26): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/hearing/hearing-record-workflow.service.ts(1154,48): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/hearing/hearing-record-workflow.service.ts(1239,20): error TS18046: 'assessments' is of type 'unknown'.
+src/hearing/hearing-record-workflow.service.ts(1239,37): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/hearing/hearing-record-workflow.service.ts(1242,18): error TS18046: 'reviews' is of type 'unknown'.
+src/hearing/hearing-record-workflow.service.ts(1243,20): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/hearing/hearing-record-workflow.service.ts(1244,17): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/hearing/hearing-record-workflow.service.ts(1266,42): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/hearing/hearing-record-workflow.service.ts(1308,67): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/hearing/hearing-session.service.ts(8,47): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/hearing-session.service.ts(148,9): error TS18046: 'state' is of type 'unknown'.
+src/hearing/hearing-session.service.ts(302,34): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/hearing-session.service.ts(324,53): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/hearing-session.service.ts(325,51): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/hearing-session.service.ts(326,29): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/hearing-session.service.ts(344,17): error TS2339: Property 'consentStatus' does not exist on type '{}'.
+src/hearing/hearing-session.service.ts(375,61): error TS2339: Property 'hearingId' does not exist on type '{}'.
+src/hearing/hearing-session.service.ts(375,80): error TS2339: Property 'sourceUrl' does not exist on type '{}'.
+src/hearing/hearing-session.service.ts(376,17): error TS2339: Property 'publicCaptureId' does not exist on type '{}'.
+src/hearing/hearing-session.service.ts(378,17): error TS2339: Property 'consentStatus' does not exist on type '{}'.
+src/hearing/hearing-session.service.ts(410,17): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-session.service.ts(433,12): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-session.service.ts(456,12): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-session.service.ts(495,12): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing-ws-ticket.service.ts(88,19): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/hearing.gateway.ts(158,32): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/hearing.gateway.ts(159,62): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ sourceType: string; clientId?: string | null | undefined; matterId?: string | null | undefined; issueIds?: string[] | null | undefined; billIds?: string[] | null | undefined; programElementIds?: string[] | ... 1 more ... | undefined; agencyIds?: string[] | ... 1 more ... | undefined; }'.
+  Property 'sourceType' is missing in type '{}' but required in type '{ sourceType: string; clientId?: string | null | undefined; matterId?: string | null | undefined; issueIds?: string[] | null | undefined; billIds?: string[] | null | undefined; programElementIds?: string[] | ... 1 more ... | undefined; agencyIds?: string[] | ... 1 more ... | undefined; }'.
+src/hearing/hearing.gateway.ts(164,27): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/hearing/hearing.gateway.ts(165,27): error TS2339: Property 'issueIds' does not exist on type '{}'.
+src/hearing/hearing.gateway.ts(166,26): error TS2339: Property 'billIds' does not exist on type '{}'.
+src/hearing/hearing.gateway.ts(167,36): error TS2339: Property 'programElementIds' does not exist on type '{}'.
+src/hearing/hearing.gateway.ts(168,28): error TS2339: Property 'agencyIds' does not exist on type '{}'.
+src/hearing/hearing.gateway.ts(169,30): error TS2339: Property 'committeeId' does not exist on type '{}'.
+src/hearing/hearing.gateway.ts(170,28): error TS2339: Property 'hearingId' does not exist on type '{}'.
+src/hearing/hearing.gateway.ts(308,43): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/intelligence/hearing-intelligence-job.store.ts(124,10): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/intelligence/hearing-intelligence-job.store.ts(125,12): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/intelligence/hearing-intelligence-job.store.ts(152,20): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/intelligence/hearing-intelligence-job.store.ts(294,20): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/intelligence/hearing-intelligence-job.store.ts(321,20): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/intelligence/hearing-intelligence-job.store.ts(351,12): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(17,26): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(18,25): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(21,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(38,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(46,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(56,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(66,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(73,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(85,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(97,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(108,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(119,33): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(134,35): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(144,26): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(152,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(161,28): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(162,28): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(164,34): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(169,26): error TS7006: Parameter 'column' implicitly has an 'any' type.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(173,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(185,33): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(191,18): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(199,32): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(203,24): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(205,41): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.integration.spec.ts(209,19): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/intelligence/hearing-intelligence.worker.ts(213,7): error TS2322: Type 'unknown[]' is not assignable to type 'readonly string[]'.
+  Type 'unknown' is not assignable to type 'string'.
+src/hearing/intelligence/hearing-intelligence.worker.ts(256,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.worker.ts(297,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/hearing-intelligence.worker.ts(345,51): error TS7006: Parameter 'name' implicitly has an 'any' type.
+src/hearing/intelligence/postgres-public-hearing-insight.store.ts(1,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/intelligence/postgres-public-hearing-insight.store.ts(161,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/postgres-public-hearing-insight.store.ts(191,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/intelligence/postgres-tenant-hearing-context.provider.ts(113,26): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/intelligence/postgres-tenant-hearing-context.provider.ts(210,75): error TS7006: Parameter 'client' implicitly has an 'any' type.
+src/hearing/intelligence/postgres-tenant-hearing-relevance.store.ts(1,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/intelligence/run-hearing-intelligence.ts(25,16): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/hearing/intelligence/run-hearing-intelligence.ts(65,18): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/intelligence/run-phase9-hearing-intelligence.ts(30,16): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/hearing/intelligence/run-phase9-hearing-intelligence.ts(80,18): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/intelligence/state-hearing-intelligence-access.ts(2,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/intelligence/state-hearing-intelligence-access.ts(19,32): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/phase9-runtime-heartbeat.ts(23,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/phase9-runtime-heartbeat.ts(39,23): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/phase9-runtime-heartbeat.ts(61,23): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/phase9-runtime-heartbeat.ts(79,23): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/phase9-runtime-heartbeat.ts(101,23): error TS2339: Property '$executeRawUnsafe' does not exist on type 'PrismaService'.
+src/hearing/post-hearing.service.ts(65,22): error TS2339: Property 'title' does not exist on type '{}'.
+src/hearing/post-hearing.service.ts(66,23): error TS2339: Property 'status' does not exist on type '{}'.
+src/hearing/post-hearing.service.ts(68,30): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/hearing/post-hearing.service.ts(81,37): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/hearing/post-hearing.service.ts(92,37): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/hearing/post-hearing.service.ts(102,25): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/hearing/post-hearing.service.ts(125,29): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/hearing/post-hearing.service.ts(157,21): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/post-hearing.service.ts(158,28): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/post-hearing.service.ts(160,24): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/hearing/post-hearing.service.ts(182,23): error TS18046: 'quotes' is of type 'unknown'.
+src/hearing/post-hearing.service.ts(182,35): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/hearing/post-hearing.service.ts(193,8): error TS7006: Parameter 'q' implicitly has an 'any' type.
+src/hearing/post-hearing.service.ts(195,27): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/hearing/public-hearing-review-source.ts(2,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/public-hearing-review-source.ts(63,12): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/hearing/public-hearing-review-source.ts(63,15): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/hearing/public-hearing-review-source.ts(64,11): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/hearing/recording/hearing-analysis.service.ts(58,29): error TS2339: Property '$queryRaw' does not exist on type 'PrismaService'.
+src/hearing/recording/recording-assembly.worker.ts(33,29): error TS18046: 'recordings' is of type 'unknown'.
+src/hearing/recording/recording-assembly.worker.ts(51,12): error TS18046: 'recordings' is of type 'unknown'.
+src/hearing/recording/recording-assembly.worker.ts(109,16): error TS18046: 'result' is of type 'unknown'.
+src/hearing/recording/recording-assembly.worker.ts(141,16): error TS18046: 'parts' is of type 'unknown'.
+src/hearing/recording/recording-assembly.worker.ts(142,30): error TS18046: 'parts' is of type 'unknown'.
+src/hearing/recording/recording-assembly.worker.ts(267,36): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hearing/recording/recording-assembly.worker.ts(269,26): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hearing/recording/recording-assembly.worker.ts(271,29): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/hearing/recording/recording-permission.service.ts(41,7): error TS18046: 'grants' is of type 'unknown'.
+src/hearing/recording/recording-permission.service.ts(41,20): error TS7006: Parameter 'grant' implicitly has an 'any' type.
+src/hearing/recording/recording.service.ts(7,24): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/recording/recording.service.ts(71,36): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/recording/recording.service.ts(80,15): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/recording/recording.service.ts(85,32): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/recording/recording.service.ts(96,17): error TS2339: Property 'createdBy' does not exist on type '{}'.
+src/hearing/recording/recording.service.ts(96,49): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/recording/recording.service.ts(106,9): error TS18046: 'result' is of type 'unknown'.
+src/hearing/recording/recording.service.ts(119,17): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/recording/recording.service.ts(414,17): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/recording/recording.service.ts(415,58): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/recording/recording.service.ts(422,62): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ hearingId: string | null; sourceUrl: string | null; }'.
+  Type '{}' is missing the following properties from type '{ hearingId: string | null; sourceUrl: string | null; }': hearingId, sourceUrl
+src/hearing/recording/recording.service.ts(426,66): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/recording/recording.service.ts(429,32): error TS2339: Property 'recordingPolicy' does not exist on type '{}'.
+src/hearing/recording/recording.service.ts(442,33): error TS7006: Parameter 'epoch' implicitly has an 'any' type.
+src/hearing/recording/recording.service.ts(495,9): error TS2345: Argument of type '{}' is not assignable to parameter of type '{ hearingId: string | null; sourceUrl: string | null; }'.
+  Type '{}' is missing the following properties from type '{ hearingId: string | null; sourceUrl: string | null; }': hearingId, sourceUrl
+src/hearing/recording/run-hearing-media.ts(39,18): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/hearing/recording/run-hearing-media.ts(46,33): error TS2339: Property '$queryRaw' does not exist on type 'PrismaService'.
+src/hearing/recording/run-hearing-media.ts(57,35): error TS2339: Property '$queryRaw' does not exist on type 'PrismaService'.
+src/hearing/recording/run-hearing-media.ts(65,33): error TS2339: Property '$queryRaw' does not exist on type 'PrismaService'.
+src/hearing/recording/run-hearing-media.ts(79,18): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/recording/transcription-recovery.worker.ts(8,24): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/recording/transcription-recovery.worker.ts(103,19): error TS2339: Property 'artifactKey' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(103,41): error TS2339: Property 'artifactHash' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(103,64): error TS2339: Property 'decodedDurationMs' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(105,29): error TS2339: Property 'recording' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(108,24): error TS2339: Property 'id' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(109,25): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(110,28): error TS2339: Property 'recordingId' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(115,29): error TS2339: Property 'recording' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(116,28): error TS2339: Property 'artifactKey' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(117,29): error TS2339: Property 'artifactHash' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(118,24): error TS2339: Property 'startMs' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(119,27): error TS2339: Property 'decodedDurationMs' does not exist on type '{}'.
+src/hearing/recording/transcription-recovery.worker.ts(139,17): error TS18046: 'rows' is of type 'unknown'.
+src/hearing/recording/transcription-recovery.worker.ts(436,26): error TS18046: 'parts' is of type 'unknown'.
+src/hearing/run-hearing-delivery.ts(46,25): error TS18046: 'scopes' is of type 'unknown'.
+src/hearing/run-hearing-delivery.ts(47,34): error TS2339: Property '$queryRaw' does not exist on type 'PrismaService'.
+src/hearing/run-hearing-delivery.ts(81,18): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/hearing/segment-commit.service.ts(2,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/hearing/segment-commit.service.ts(71,12): error TS18046: 'agg' is of type 'unknown'.
+src/hearing/segment-commit.service.ts(121,20): error TS18046: 'created' is of type 'unknown'.
+src/hearing/segment-commit.service.ts(127,66): error TS18046: 'err' is of type 'unknown'.
+src/hearing/segment-commit.service.ts(134,32): error TS2339: Property 'id' does not exist on type '{}'.
+src/hearing/segment-commit.service.ts(260,21): error TS2339: Property 'textCiphertext' does not exist on type '{}'.
+src/hearing/segment-commit.service.ts(260,43): error TS2339: Property 'textPlain' does not exist on type '{}'.
+src/hearing/segment-commit.service.ts(262,54): error TS2339: Property 'textPlain' does not exist on type '{}'.
+src/hearing/segment-commit.service.ts(265,69): error TS2339: Property 'textPlain' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(3,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/intel-alert/intel-alert.service.ts(140,20): error TS18046: 'row' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(241,44): error TS2537: Type 'unknown' has no matching index signature for type 'number'.
+src/intel-alert/intel-alert.service.ts(256,38): error TS18046: 'prefs' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(333,24): error TS18046: 'prefs' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(388,161): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/intel-alert/intel-alert.service.ts(462,21): error TS18046: 'rows' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(485,21): error TS18046: 'rows' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(650,22): error TS18046: 'rows' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(730,21): error TS18046: 'rows' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(733,11): error TS2339: Property 'push' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(740,23): error TS18046: 'group' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(740,37): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/intel-alert/intel-alert.service.ts(741,28): error TS18046: 'group' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(742,12): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/intel-alert/intel-alert.service.ts(780,20): error TS18046: 'r' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(852,10): error TS18046: 'claimed' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(879,21): error TS18046: 'claimed' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(888,19): error TS2345: Argument of type '{ queueId: any; alertId: any; }' is not assignable to parameter of type 'never'.
+src/intel-alert/intel-alert.service.ts(903,35): error TS18046: 'alerts' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(903,47): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/intel-alert/intel-alert.service.ts(938,25): error TS2339: Property 'evidence' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(943,29): error TS2339: Property 'changeType' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(943,45): error TS2339: Property 'kind' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(954,25): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(955,56): error TS2339: Property 'sourceRef' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(956,54): error TS2339: Property 'title' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(957,46): error TS2339: Property 'title' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(958,56): error TS2339: Property 'title' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(962,20): error TS2339: Property 'whyItMatters' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(970,43): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(971,56): error TS2339: Property 'sourceRef' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(972,54): error TS2339: Property 'title' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(973,46): error TS2339: Property 'title' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(974,25): error TS2339: Property 'severity' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(975,52): error TS2339: Property 'title' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(985,34): error TS2339: Property 'recommendedAction' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(986,20): error TS2339: Property 'whyItMatters' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(992,87): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(992,127): error TS2339: Property 'id' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(1026,21): error TS2339: Property 'emailEnabled' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(1026,42): error TS2339: Property 'emailAddress' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(1034,48): error TS2339: Property 'emailAddress' does not exist on type '{}'.
+src/intel-alert/intel-alert.service.ts(1083,27): error TS18046: 'after' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(1083,41): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/intel-alert/intel-alert.service.ts(1092,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/intel-alert/intel-alert.service.ts(1133,23): error TS18046: 'claimed' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(1177,24): error TS18046: 'candidates' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(1185,23): error TS18046: 'candidates' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(1186,19): error TS18046: 'candidates' is of type 'unknown'.
+src/intel-alert/intel-alert.service.ts(1186,35): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/intel-alert/intel-alert.service.ts(1196,26): error TS18046: 'candidates' is of type 'unknown'.
+src/linking/bill-hearing-linker.service.ts(109,21): error TS18046: 'sessions' is of type 'unknown'.
+src/linking/bill-hearing-linker.service.ts(114,24): error TS18046: 'sessions' is of type 'unknown'.
+src/linking/bill-hearing-linker.service.ts(195,41): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/linking/bill-hearing-linker.service.ts(258,47): error TS2339: Property 'textPlain' does not exist on type '{}'.
+src/linking/bill-hearing-linker.service.ts(261,37): error TS2339: Property 'startMs' does not exist on type '{}'.
+src/linking/bill-hearing-linker.service.ts(262,37): error TS2339: Property 'resolvedSpeakerName' does not exist on type '{}'.
+src/linking/bill-hearing-linker.service.ts(263,43): error TS2339: Property 'textPlain' does not exist on type '{}'.
+src/linking/bill-hearing-linker.service.ts(265,35): error TS2339: Property 'issueTags' does not exist on type '{}'.
+src/linking/bill-hearings.service.ts(128,9): error TS18046: 'rows' is of type 'unknown'.
+src/linking/bill-hearings.service.ts(129,17): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/linking/bill-hearings.service.ts(130,20): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/linking/bill-hearings.service.ts(134,27): error TS2339: Property 'liveHearingSession' does not exist on type 'PrismaService'.
+src/linking/bill-hearings.service.ts(140,24): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/linking/bill-hearings.service.ts(140,48): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/linking/bill-hearings.service.ts(143,40): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'AlertRow[]'.
+src/linking/watchlist-match-promoter.service.ts(57,21): error TS18046: 'groups' is of type 'unknown'.
+src/linking/watchlist-match-promoter.service.ts(62,24): error TS18046: 'groups' is of type 'unknown'.
+src/linking/watchlist-match-promoter.service.ts(107,41): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/linking/watchlist-match-promoter.service.ts(137,45): error TS2339: Property 'textPlain' does not exist on type '{}'.
+src/linking/watchlist-match-promoter.service.ts(141,35): error TS2339: Property 'resolvedSpeakerName' does not exist on type '{}'.
+src/linking/watchlist-match-promoter.service.ts(142,41): error TS2339: Property 'textPlain' does not exist on type '{}'.
+src/linking/watchlist-match-promoter.service.ts(144,33): error TS2339: Property 'issueTags' does not exist on type '{}'.
+src/prisma/prisma.service.ts(2,38): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/prisma/prisma.service.ts(65,16): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(65,37): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(66,13): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(70,16): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/prisma/prisma.service.ts(77,16): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/prisma/prisma.service.ts(87,17): error TS2339: Property '$extends' does not exist on type 'PrismaService'.
+src/prisma/prisma.service.ts(92,36): error TS7031: Binding element 'model' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(92,43): error TS7031: Binding element 'operation' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(92,54): error TS7031: Binding element 'args' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(92,60): error TS7031: Binding element 'query' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(122,14): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(169,14): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(185,62): error TS18046: 'err' is of type 'unknown'.
+src/sourcedata/folder-source-data.repository.ts(3,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/sourcedata/folder-source-data.repository.ts(103,12): error TS18046: 'rows' is of type 'unknown'.
+src/sourcedata/folder-source-data.repository.ts(112,19): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/folder-source-data.repository.ts(125,19): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/folder-source-data.repository.ts(141,19): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/folder-source-data.repository.ts(154,19): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/folder-source-data.repository.ts(171,22): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/sourcedata/folder-source-data.repository.ts(172,29): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/sourcedata/folder-source-data.repository.ts(176,18): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/sourcedata/folder-source-data.repository.ts(177,15): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/sourcedata/folder-source-data.repository.ts(206,37): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/sourcedata/folder-source-data.repository.ts(208,26): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/sourcedata/folder-source-data.repository.ts(209,23): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/sourcedata/folder-source-data.repository.ts(229,34): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/sourcedata/folder-source-data.repository.ts(237,14): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/sourcedata/folder-source-data.repository.ts(269,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/folder-source-data.repository.ts(278,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/folder-source-data.repository.ts(285,26): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/folder-source-data.repository.ts(288,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/folder-source-data.repository.ts(303,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/folder-source-data.repository.ts(323,27): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/sourcedata/folder-source-data.repository.ts(336,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/hearing-records.repository.ts(22,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/hearing-records.repository.ts(47,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/hearing-records.repository.ts(79,42): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/sourcedata/hearing-records.repository.ts(141,38): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/hearing-records.repository.ts(150,42): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/keyword-source.repository.ts(4,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/sourcedata/keyword-source.repository.ts(57,35): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/keyword-source.repository.ts(77,37): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/keyword-source.repository.ts(92,37): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/keyword-source.repository.ts(128,27): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/keyword-source.repository.ts(136,27): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/keyword-source.repository.ts(164,36): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/sourcedata/keyword-source.repository.ts(202,38): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/sourcedata/keyword-source.repository.ts(206,14): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/sourcedata/rule-source-data.repository.ts(33,19): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/rule-source-data.repository.ts(52,19): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/rule-source-data.repository.ts(74,23): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/sourcedata/rule-source-data.repository.ts(86,21): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/sourcedata/source-data.repository.ts(388,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(427,21): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(428,21): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(433,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(437,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/sourcedata/source-data.repository.ts(442,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(456,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(486,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(512,21): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(513,21): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(523,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(543,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(578,21): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(579,21): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(584,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(607,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(646,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(727,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(925,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(953,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1032,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1062,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1116,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1141,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1180,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1204,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1232,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1263,32): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1298,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1324,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1381,41): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1387,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1418,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1444,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1458,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/sourcedata/source-data.repository.ts(1474,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1493,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1540,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/source-data.repository.ts(1580,12): error TS18046: 'rows' is of type 'unknown'.
+src/sourcedata/source-data.repository.ts(1603,21): error TS18046: 'rows' is of type 'unknown'.
+src/sourcedata/source-data.repository.ts(1620,5): error TS2322: Type 'unknown[]' is not assignable to type 'string[]'.
+  Type 'unknown' is not assignable to type 'string'.
+src/sourcedata/source-data.repository.ts(1620,24): error TS18046: 'rows' is of type 'unknown'.
+src/sourcedata/source-data.repository.ts(1620,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/sourcedata/state-source-data.repository.ts(109,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(166,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(198,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(225,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(245,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(309,37): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(313,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(322,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(341,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(369,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(387,24): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(406,36): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/sourcedata/state-source-data.repository.ts(418,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tasks/task-runner.ts(428,14): error TS2339: Property 'enabled' does not exist on type '{}'.
+src/tasks/task-runner.ts(476,84): error TS18046: 'rewound' is of type 'unknown'.
+src/tasks/task-runner.ts(565,27): error TS2571: Object is of type 'unknown'.
+src/tasks/task-runner.ts(663,23): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/tasks/task-runner.ts(664,23): error TS2339: Property 'clientId' does not exist on type '{}'.
+src/tasks/task-runner.ts(673,51): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/tasks/task-runner.ts(681,38): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/tasks/task-runner.ts(761,23): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/tasks/task-runner.ts(763,44): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/tasks/task-runner.ts(786,23): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/tasks/task-runner.ts(788,41): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/tasks/task-runner.ts(858,18): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/tracker/bill-change-detector.service.ts(43,29): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/bill-change-detector.service.ts(137,44): error TS2571: Object is of type 'unknown'.
+src/tracker/bill-change-detector.service.ts(1258,51): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/bill-change-detector.service.ts(1268,29): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/bill-change-detector.service.ts(1288,24): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/bill-change-detector.service.ts(1289,21): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(91,33): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(92,58): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/tracker/calendar/agenda-rule.service.ts(101,16): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(111,59): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/tracker/calendar/agenda-rule.service.ts(116,16): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(118,35): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(122,13): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(146,18): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(147,15): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(164,24): error TS18046: 'rules' is of type 'unknown'.
+src/tracker/calendar/agenda-rule.service.ts(177,56): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/tracker/calendar/agenda-rule.service.ts(191,40): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(204,16): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(204,39): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(208,34): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(217,16): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(219,33): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(231,59): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(232,51): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(237,59): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(250,21): error TS18046: 'rules' is of type 'unknown'.
+src/tracker/calendar/agenda-rule.service.ts(264,59): error TS18046: 'ruleIds' is of type 'unknown'.
+src/tracker/calendar/agenda-rule.service.ts(264,72): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(269,25): error TS18046: 'matches' is of type 'unknown'.
+src/tracker/calendar/agenda-rule.service.ts(300,53): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(304,49): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(304,85): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/calendar/agenda-rule.service.ts(435,25): error TS18046: 'matches' is of type 'unknown'.
+src/tracker/calendar/calendar-preparation.controller.ts(27,40): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/calendar-preparation.service.ts(80,40): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/calendar/calendar-preparation.service.ts(88,63): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/calendar-preparation.service.ts(92,44): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/tracker/calendar/calendar-preparation.service.ts(115,37): error TS2339: Property '$queryRawUnsafe' does not exist on type 'PrismaService'.
+src/tracker/calendar/calendar-preparation.service.ts(125,24): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/calendar-preparation.service.ts(131,51): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/calendar-preparation.service.ts(132,52): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/calendar-preparation.service.ts(142,38): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/calendar/calendar-preparation.service.ts(143,39): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/calendar-preparation.service.ts(154,56): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/calendar/calendar-preparation.service.ts(234,8): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/calendar/calendar-preparation.service.ts(238,39): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/tracker/calendar/calendar-preparation.service.ts(242,32): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(105,18): error TS18046: 'all' is of type 'unknown'.
+src/tracker/data-parity.service.ts(105,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(106,38): error TS18046: 'all' is of type 'unknown'.
+src/tracker/data-parity.service.ts(136,51): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(140,55): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(146,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(147,19): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(218,40): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'IntelTrackedBillRow[]'.
+src/tracker/data-parity.service.ts(219,44): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'IntelAlertPrefRow[]'.
+src/tracker/data-parity.service.ts(317,18): error TS18046: 'rolledBack' is of type 'unknown'.
+src/tracker/data-parity.service.ts(351,12): error TS18046: 'owned' is of type 'unknown'.
+src/tracker/data-parity.service.ts(351,23): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(352,12): error TS18046: 'internalRows' is of type 'unknown'.
+src/tracker/data-parity.service.ts(352,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(371,24): error TS2571: Object is of type 'unknown'.
+src/tracker/data-parity.service.ts(378,8): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(383,24): error TS2571: Object is of type 'unknown'.
+src/tracker/data-parity.service.ts(390,8): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(395,22): error TS2571: Object is of type 'unknown'.
+src/tracker/data-parity.service.ts(403,8): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(420,74): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/data-parity.service.ts(425,48): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/editorial/editorial-access.ts(2,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/editorial/editorial-discovery.ts(27,23): error TS18046: 'owners' is of type 'unknown'.
+src/tracker/editorial/editorial-runtime.ts(106,405): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(111,26): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(118,28): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(119,31): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(120,30): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(195,221): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(198,16): error TS7006: Parameter 'pin' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(198,47): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(204,38): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(217,395): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(221,18): error TS7006: Parameter 'amount' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(295,21): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/editorial/editorial-runtime.ts(352,53): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/tracker/editorial/editorial.service.ts(21,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/editorial/evidence.service.ts(19,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/editorial/evidence.service.ts(139,29): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/editorial/evidence.service.ts(252,54): error TS7006: Parameter 'project' implicitly has an 'any' type.
+src/tracker/editorial/evidence.service.ts(274,47): error TS7006: Parameter 'project' implicitly has an 'any' type.
+src/tracker/editorial/evidence.service.ts(276,49): error TS7006: Parameter 'amount' implicitly has an 'any' type.
+src/tracker/editorial/evidence.service.ts(293,31): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/editorial/evidence.service.ts(294,28): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/editorial/evidence.service.ts(502,37): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/editorial/evidence.service.ts(614,14): error TS7006: Parameter 'domain' implicitly has an 'any' type.
+src/tracker/editorial/evidence.service.ts(614,41): error TS7006: Parameter 'run' implicitly has an 'any' type.
+src/tracker/editorial/evidence.service.ts(620,16): error TS7006: Parameter 'run' implicitly has an 'any' type.
+src/tracker/editorial/evidence.service.ts(638,41): error TS7006: Parameter 'run' implicitly has an 'any' type.
+src/tracker/folders/folder-decisions.ts(3,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/folders/folder-import.service.ts(8,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/folders/folder-import.service.ts(58,14): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/folders/folder-import.service.ts(89,9): error TS18046: 'run' is of type 'unknown'.
+src/tracker/folders/folder-import.service.ts(155,54): error TS18046: 'run' is of type 'unknown'.
+src/tracker/folders/folder-import.service.ts(187,32): error TS18046: 'run' is of type 'unknown'.
+src/tracker/folders/folder-report.service.ts(54,38): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/tracker/folders/folder-report.service.ts(63,19): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/tracker/folders/folder-report.service.ts(64,22): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/tracker/folders/folder-report.service.ts(67,53): error TS2345: Argument of type 'unknown[]' is not assignable to parameter of type 'string[]'.
+  Type 'unknown' is not assignable to type 'string'.
+src/tracker/folders/folder-report.service.ts(99,12): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/tracker/folders/folder-report.service.ts(108,19): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/tracker/folders/folder-report.service.ts(120,38): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/folders/folder-report.service.ts(145,26): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/folders/folder-report.service.ts(146,23): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/folders/folder-report.service.ts(153,12): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/folders/folder-report.service.ts(153,15): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/tracker/folders/folder-tracker.service.ts(10,46): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/folders/folder-tracker.service.ts(128,14): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/folders/folder-tracker.service.ts(268,33): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/folders/folder-tracker.service.ts(268,69): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/folders/folder-tracker.service.ts(338,42): error TS2339: Property 'legiWatchFolder' does not exist on type 'PrismaService'.
+src/tracker/folders/folder-tracker.service.ts(525,22): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/tracker/keywords/internal-workflow.service.ts(132,39): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/keywords/internal-workflow.service.ts(140,30): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/keywords/internal-workflow.service.ts(161,36): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/keywords/internal-workflow.service.ts(164,72): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/keywords/internal-workflow.service.ts(172,29): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/tracker/keywords/internal-workflow.service.ts(172,57): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/keywords/internal-workflow.service.ts(193,37): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/keywords/internal-workflow.service.ts(201,45): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/keywords/internal-workflow.service.ts(306,12): error TS18046: 'active' is of type 'unknown'.
+src/tracker/keywords/internal-workflow.service.ts(547,23): error TS18046: 'pending' is of type 'unknown'.
+src/tracker/keywords/keyword-delivery.service.ts(7,48): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/keywords/keyword-delivery.service.ts(46,39): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/tracker/keywords/keyword-delivery.service.ts(64,49): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/keywords/keyword-delivery.service.ts(294,25): error TS18046: 'owners' is of type 'unknown'.
+src/tracker/keywords/keyword-discovery.service.ts(10,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/keywords/keyword-discovery.service.ts(536,25): error TS18046: 'owners' is of type 'unknown'.
+src/tracker/keywords/keyword-discovery.service.ts(563,27): error TS18046: 'pending' is of type 'unknown'.
+src/tracker/keywords/keyword-meri.controller.ts(96,39): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/keywords/keyword-meri.controller.ts(153,12): error TS18046: 'found' is of type 'unknown'.
+src/tracker/keywords/keyword-rule.service.ts(9,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/keywords/keyword-rule.service.ts(198,12): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/tracker/keywords/keyword-rule.service.ts(267,18): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/keywords/keyword-rule.service.ts(268,15): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/keywords/keyword-rule.service.ts(281,10): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/keywords/keyword-rule.service.ts(284,84): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/keywords/keyword-rule.service.ts(293,27): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/keywords/keyword-rule.service.ts(296,39): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/keywords/keyword-rule.service.ts(298,31): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/keywords/keyword-rule.service.ts(299,32): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/keywords/keyword-rule.service.ts(338,27): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/keywords/keyword-rule.service.ts(374,44): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/tracker/keywords/workflow-trigger.service.ts(86,34): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/keywords/workflow-trigger.service.ts(147,23): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/keywords/workflow-trigger.service.ts(155,33): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/keywords/workflow-trigger.service.ts(179,39): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/new-match-detector.service.ts(62,22): error TS18046: 'wls' is of type 'unknown'.
+src/tracker/new-match-detector.service.ts(84,29): error TS18046: 'existing' is of type 'unknown'.
+src/tracker/new-match-detector.service.ts(84,43): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/tracker/parity.service.ts(83,37): error TS18046: 'intelRows' is of type 'unknown'.
+src/tracker/parity.service.ts(83,52): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/parity.service.ts(166,15): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/pe-change-detector.service.ts(178,21): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/reports/recipients.service.ts(8,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/reports/recipients.service.ts(257,29): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/reports/recipients.service.ts(258,29): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/reports/recipients.service.ts(260,28): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/tracker/reports/recipients.service.ts(285,16): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/tracker/reports/recipients.service.ts(290,16): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/tracker/reports/recipients.service.ts(292,20): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/reports/recipients.service.ts(296,31): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(125,42): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(161,41): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(176,10): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(203,36): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(276,29): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(287,28): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(289,28): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(315,42): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(323,18): error TS2339: Property 'emailEnabled' does not exist on type '{}'.
+src/tracker/reports/record-rule.service.ts(324,16): error TS2339: Property 'emailAddress' does not exist on type '{}'.
+src/tracker/reports/record-rule.service.ts(327,26): error TS2339: Property 'emailCadence' does not exist on type '{}'.
+src/tracker/reports/record-rule.service.ts(330,17): error TS2339: Property 'jurisdictions' does not exist on type '{}'.
+src/tracker/reports/record-rule.service.ts(332,14): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(332,53): error TS2339: Property 'jurisdictions' does not exist on type '{}'.
+src/tracker/reports/record-rule.service.ts(338,55): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(341,68): error TS2345: Argument of type 'unknown[]' is not assignable to parameter of type 'string[]'.
+  Type 'unknown' is not assignable to type 'string'.
+src/tracker/reports/record-rule.service.ts(411,24): error TS18046: 'rules' is of type 'unknown'.
+src/tracker/reports/record-rule.service.ts(420,58): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(423,70): error TS2345: Argument of type 'unknown[]' is not assignable to parameter of type 'string[]'.
+  Type 'unknown' is not assignable to type 'string'.
+src/tracker/reports/record-rule.service.ts(434,12): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(434,35): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(438,39): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(453,22): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(456,26): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(460,25): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(488,21): error TS18046: 'rules' is of type 'unknown'.
+src/tracker/reports/record-rule.service.ts(500,59): error TS18046: 'ruleIds' is of type 'unknown'.
+src/tracker/reports/record-rule.service.ts(500,72): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(505,25): error TS18046: 'matches' is of type 'unknown'.
+src/tracker/reports/record-rule.service.ts(534,56): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(539,26): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(540,23): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(577,23): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/tracker/reports/record-rule.service.ts(628,25): error TS18046: 'matches' is of type 'unknown'.
+src/tracker/reports/report-delivery.service.ts(16,48): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/reports/report-delivery.service.ts(318,10): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/tracker/reports/report-delivery.service.ts(490,16): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/reports/report-delivery.service.ts(502,40): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/tracker/reports/report-delivery.service.ts(610,32): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/reports/report-delivery.service.ts(611,70): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/reports/report-delivery.service.ts(613,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/reports/report-delivery.service.ts(614,46): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/reports/report-delivery.service.ts(648,51): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/reports/report-delivery.service.ts(733,29): error TS18046: 'candidates' is of type 'unknown'.
+src/tracker/reports/report-delivery.service.ts(757,12): error TS18046: 'claim' is of type 'unknown'.
+src/tracker/reports/report-delivery.service.ts(798,14): error TS18046: 'started' is of type 'unknown'.
+src/tracker/reports/report-runtime.ts(134,7): error TS18046: 'tenant' is of type 'unknown'.
+src/tracker/reports/report-runtime.ts(153,8): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/reports/report-runtime.ts(162,45): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/reports/report-runtime.ts(170,20): error TS2571: Object is of type 'unknown'.
+src/tracker/reports/report-runtime.ts(171,6): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/tracker/reports/report-subscription.service.ts(120,38): error TS2339: Property 'recordBriefs' does not exist on type '{}'.
+src/tracker/reports/report-subscription.service.ts(123,66): error TS2339: Property 'reportId' does not exist on type '{}'.
+src/tracker/reports/report-subscription.service.ts(123,82): error TS2339: Property 'recordBriefs' does not exist on type '{}'.
+src/tracker/reports/report-subscription.service.ts(125,17): error TS2339: Property 'mode' does not exist on type '{}'.
+src/tracker/reports/report-subscription.service.ts(135,17): error TS2339: Property 'reportId' does not exist on type '{}'.
+src/tracker/reports/report-subscription.service.ts(137,36): error TS2339: Property 'reportVersion' does not exist on type '{}'.
+src/tracker/reports/report-subscription.service.ts(138,42): error TS2339: Property 'timezone' does not exist on type '{}'.
+src/tracker/reports/report-subscription.service.ts(243,29): error TS18046: 'due' is of type 'unknown'.
+src/tracker/reports/report-subscription.service.ts(330,21): error TS18046: 'pending' is of type 'unknown'.
+src/tracker/reports/report-subscription.service.ts(331,34): error TS18046: 'pending' is of type 'unknown'.
+src/tracker/reports/report.service.ts(10,46): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/reports/report.service.ts(71,27): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(74,36): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(75,37): error TS7006: Parameter 'run' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(125,29): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(139,26): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(140,31): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(160,51): error TS2339: Property 'id' does not exist on type '{}'.
+src/tracker/reports/report.service.ts(318,64): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(331,15): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(332,18): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(333,15): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(334,18): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(335,48): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/reports/report.service.ts(338,53): error TS2339: Property 'split' does not exist on type '{}'.
+src/tracker/research/research-import.service.ts(105,14): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/tracker/research/research-import.service.ts(184,24): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/research/research-import.service.ts(208,52): error TS7006: Parameter 'o' implicitly has an 'any' type.
+src/tracker/research/research-import.service.ts(224,57): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/tracker/research/research-report-access.ts(2,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/research/research-report.service.ts(105,44): error TS2339: Property 'snapshot' does not exist on type '{}'.
+src/tracker/research/research-report.service.ts(108,61): error TS2339: Property 'id' does not exist on type '{}'.
+src/tracker/research/research-report.service.ts(109,31): error TS2339: Property 'id' does not exist on type '{}'.
+src/tracker/research/research.service.ts(22,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/research/research.service.ts(239,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/research/research.service.ts(341,48): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/research/research.service.ts(603,20): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/research/research.service.ts(604,17): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/research/research.service.ts(608,30): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/tracker/research/research.service.ts(612,20): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/research/research.service.ts(613,17): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/research/statute-monitor.service.ts(7,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/research/statute-monitor.service.ts(157,23): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/research/statute-monitor.service.ts(158,23): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/research/statute-monitor.service.ts(194,50): error TS7006: Parameter 'o' implicitly has an 'any' type.
+src/tracker/research/statute-monitor.service.ts(195,43): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/research/statute-monitor.service.ts(339,24): error TS18046: 'rules' is of type 'unknown'.
+src/tracker/rule-change-detector.service.ts(67,26): error TS18046: 'tenants' is of type 'unknown'.
+src/tracker/rule-change-detector.service.ts(81,12): error TS18046: 'clients' is of type 'unknown'.
+src/tracker/rule-change-detector.service.ts(83,28): error TS18046: 'clients' is of type 'unknown'.
+src/tracker/rule-change-detector.service.ts(206,51): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/rule-change-detector.service.ts(216,29): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/rule-change-detector.service.ts(219,24): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/rule-change-detector.service.ts(220,21): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/rule-change-detector.service.ts(222,24): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/rule-change-detector.service.ts(223,21): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/rule-change-detector.service.ts(225,24): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/rule-change-detector.service.ts(226,21): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/sms/sms-verification.service.ts(4,29): error TS2307: Cannot find module '../../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/tracker/sms/sms-verification.service.ts(87,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(577,22): error TS18046: 'trackedRows' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(577,39): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(578,55): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(579,58): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(581,41): error TS7006: Parameter 'id' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(711,23): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(712,25): error TS7006: Parameter 'd' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(865,28): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(865,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(896,21): error TS18046: 'tracked' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(897,28): error TS18046: 'tracked' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(903,34): error TS18046: 'total' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(904,71): error TS2322: Type 'unknown' is not assignable to type 'number'.
+src/tracker/tracker-board.service.ts(906,31): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(951,21): error TS18046: 'recentAlerts' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(963,21): error TS18046: 'hearingLinks' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(1026,44): error TS2322: Type 'unknown' is not assignable to type 'number'.
+src/tracker/tracker-board.service.ts(1071,28): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(1071,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(1108,21): error TS18046: 'tracked' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(1109,28): error TS18046: 'tracked' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(1119,34): error TS18046: 'total' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(1120,71): error TS2322: Type 'unknown' is not assignable to type 'number'.
+src/tracker/tracker-board.service.ts(1122,50): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(1123,52): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(1125,29): error TS2345: Argument of type 'unknown[]' is not assignable to parameter of type 'string[]'.
+  Type 'unknown' is not assignable to type 'string'.
+src/tracker/tracker-board.service.ts(1160,42): error TS2345: Argument of type 'unknown[]' is not assignable to parameter of type 'string[]'.
+  Type 'unknown' is not assignable to type 'string'.
+src/tracker/tracker-board.service.ts(1168,73): error TS2345: Argument of type 'unknown[]' is not assignable to parameter of type 'string[]'.
+  Type 'unknown' is not assignable to type 'string'.
+src/tracker/tracker-board.service.ts(1173,21): error TS18046: 'recentAlerts' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(1185,21): error TS18046: 'hearingLinks' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(1254,44): error TS2322: Type 'unknown' is not assignable to type 'number'.
+src/tracker/tracker-board.service.ts(1294,34): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(1313,56): error TS7006: Parameter 'w' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(1322,24): error TS18046: 'terms' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(1325,13): error TS2339: Property 'push' does not exist on type '{}'.
+src/tracker/tracker-board.service.ts(1329,13): error TS2339: Property 'push' does not exist on type '{}'.
+src/tracker/tracker-board.service.ts(1337,65): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(1344,67): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(1345,42): error TS2339: Property 'map' does not exist on type '{}'.
+src/tracker/tracker-board.service.ts(1345,47): error TS7006: Parameter 'term' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(1357,16): error TS2339: Property 'length' does not exist on type '{}'.
+src/tracker/tracker-board.service.ts(1358,41): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(1369,28): error TS2488: Type '{}' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/tracker/tracker-board.service.ts(1381,9): error TS2740: Type '{}' is missing the following properties from type 'string[]': length, pop, push, concat, and 29 more.
+src/tracker/tracker-board.service.ts(1399,9): error TS2740: Type '{}' is missing the following properties from type 'string[]': length, pop, push, concat, and 29 more.
+src/tracker/tracker-board.service.ts(1428,53): error TS2339: Property 'trackedAt' does not exist on type '{}'.
+src/tracker/tracker-board.service.ts(1452,31): error TS2345: Argument of type 'unknown' is not assignable to parameter of type '{ unread: boolean; }[]'.
+src/tracker/tracker-board.service.ts(1454,21): error TS2339: Property '_count' does not exist on type '{}'.
+src/tracker/tracker-board.service.ts(1454,61): error TS2339: Property 'issueAreas' does not exist on type '{}'.
+src/tracker/tracker-board.service.ts(1467,41): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(1467,51): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/tracker/tracker-board.service.ts(1626,33): error TS18046: 'res' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(1695,10): error TS18046: 'res' is of type 'unknown'.
+src/tracker/tracker-board.service.ts(1798,23): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-seed.service.ts(69,38): error TS18046: 'topics' is of type 'unknown'.
+src/tracker/tracker-seed.service.ts(69,50): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/tracker-seed.service.ts(75,16): error TS2339: Property 'issueAreas' does not exist on type '{}'.
+src/tracker/tracker-seed.service.ts(75,66): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/tracker/tracker-test-alert.service.ts(59,37): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/tracker/tracker-test-alert.service.ts(69,26): error TS2339: Property 'emailAddress' does not exist on type '{}'.
+src/tracker/tracker-test-alert.service.ts(70,20): error TS2339: Property 'emailEnabled' does not exist on type '{}'.
+src/tracker/tracker-test-alert.service.ts(74,28): error TS2339: Property 'emailEnabled' does not exist on type '{}'.
+src/tracker/tracker-test-alert.service.ts(93,20): error TS2339: Property 'smsEnabled' does not exist on type '{}'.
+src/tracker/tracker-test-alert.service.ts(93,40): error TS2339: Property 'smsPhoneVerified' does not exist on type '{}'.
+src/tracker/tracker-test-alert.service.ts(93,66): error TS2339: Property 'smsPhone' does not exist on type '{}'.
+src/tracker/tracker-test-alert.service.ts(97,28): error TS2339: Property 'smsEnabled' does not exist on type '{}'.
+src/tracker/tracker-test-alert.service.ts(99,23): error TS2339: Property 'smsPhoneVerified' does not exist on type '{}'.
+src/tracker/tracker-test-alert.service.ts(106,16): error TS2339: Property 'smsPhone' does not exist on type '{}'.
+src/tracker/tracker-watchlist.service.ts(254,22): error TS18046: 'topics' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(254,34): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/tracker-watchlist.service.ts(271,48): error TS18046: 'topics' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(271,60): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/tracker/tracker-watchlist.service.ts(280,14): error TS18046: 'terms' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(281,18): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/tracker-watchlist.service.ts(282,15): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/tracker-watchlist.service.ts(284,23): error TS18046: 'terms' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(284,37): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/tracker-watchlist.service.ts(286,35): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/tracker/tracker-watchlist.service.ts(310,27): error TS2339: Property 'jurisdictions' does not exist on type '{}'.
+src/tracker/tracker-watchlist.service.ts(315,22): error TS2339: Property 'issueAreas' does not exist on type '{}'.
+src/tracker/tracker-watchlist.service.ts(316,25): error TS2339: Property 'jurisdictions' does not exist on type '{}'.
+src/tracker/tracker-watchlist.service.ts(318,19): error TS2339: Property 'version' does not exist on type '{}'.
+src/tracker/tracker-watchlist.service.ts(319,73): error TS2339: Property 'updatedBy' does not exist on type '{}'.
+src/tracker/tracker-watchlist.service.ts(320,21): error TS2339: Property 'updatedAt' does not exist on type '{}'.
+src/tracker/tracker-watchlist.service.ts(340,37): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(734,18): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(782,21): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(782,41): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(807,12): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(807,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/tracker-watchlist.service.ts(821,20): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/tracker/tracker-watchlist.service.ts(862,9): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(907,9): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(926,30): error TS2339: Property 'tenantId' does not exist on type '{}'.
+src/tracker/tracker-watchlist.service.ts(1068,12): error TS18046: 'rows' is of type 'unknown'.
+src/tracker/tracker-watchlist.service.ts(1068,22): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/tracker/tracker-watchlist.service.ts(1068,45): error TS7006: Parameter 's' implicitly has an 'any' type.
+src/upcoming-hearings/upcoming-hearings.service.ts(2,47): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/upcoming-hearings/upcoming-hearings.service.ts(122,63): error TS2537: Type 'unknown' has no matching index signature for type 'number'.
+src/upcoming-hearings/upcoming-hearings.service.ts(123,27): error TS18046: 'sessions' is of type 'unknown'.
+src/upcoming-hearings/upcoming-hearings.service.ts(150,53): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/upcoming-hearings/upcoming-hearings.service.ts(151,50): error TS7006: Parameter 'row' implicitly has an 'any' type.
+src/upcoming-hearings/upcoming-hearings.service.ts(152,5): error TS2322: Type '{ sessionId: any; sessionStatus: any; watchlistMatchCount: {}; recapSaved: boolean; title: string; id: string; type?: string | null | undefined; location?: string | null | undefined; url?: string | null | undefined; ... 6 more ...; startsAt: string | null; }[]' is not assignable to type 'UpcomingHearing[]'.
+  Type '{ sessionId: any; sessionStatus: any; watchlistMatchCount: {}; recapSaved: boolean; title: string; id: string; type?: string | null | undefined; location?: string | null | undefined; url?: string | null | undefined; chamber: string; ... 5 more ...; startsAt: string | null; }' is not assignable to type 'UpcomingHearing'.
+    Types of property 'watchlistMatchCount' are incompatible.
+      Type '{}' is not assignable to type 'number'.
+src/watchlist/watchlist-sync.service.ts(77,20): error TS18046: 'rows' is of type 'unknown'.
+src/watchlist/watchlist-sync.service.ts(77,30): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/watchlist/watchlist-sync.service.ts(89,12): error TS18046: 'rows' is of type 'unknown'.
+src/watchlist/watchlist-sync.service.ts(125,18): error TS18046: 'allRows' is of type 'unknown'.
+src/watchlist/watchlist-sync.service.ts(125,34): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/watchlist/watchlist-sync.service.ts(126,26): error TS18046: 'allRows' is of type 'unknown'.
+src/watchlist/watchlist-sync.service.ts(130,47): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/watchlist/watchlist-sync.service.ts(157,58): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/watchlist/watchlist-sync.service.ts(161,73): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/watchlist/watchlist-sync.service.ts(167,24): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/watchlist/watchlist-sync.service.ts(168,21): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/watchlist/watchlist-sync.service.ts(236,21): error TS18046: 'trackerWls' is of type 'unknown'.
+src/watchlist/watchlist-sync.service.ts(269,18): error TS18046: 'allRows' is of type 'unknown'.
+src/watchlist/watchlist-sync.service.ts(269,34): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/watchlist/watchlist-sync.service.ts(270,26): error TS18046: 'allRows' is of type 'unknown'.
+src/watchlist/watchlist-sync.service.ts(330,21): error TS18046: 'allRows' is of type 'unknown'.
+src/watchlist/watchlist-sync.service.ts(330,37): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/watchlist/watchlist-sync.service.ts(331,26): error TS18046: 'allRows' is of type 'unknown'.
+src/watchlist/watchlist-sync.service.ts(332,34): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/watchlist/watchlist-sync.service.ts(376,21): error TS18046: 'tenants' is of type 'unknown'.
+src/watchlist/watchlist-sync.service.ts(386,32): error TS2322: Type 'unknown' is not assignable to type '{ id: string; slug: string; }[]'.
+src/watchlist/watchlist.service.ts(110,22): error TS18046: 'lists' is of type 'unknown'.

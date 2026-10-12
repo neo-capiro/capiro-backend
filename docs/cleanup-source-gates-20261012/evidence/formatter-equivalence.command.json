@@ -1,0 +1,15 @@
+{
+  "name": "formatter-equivalence",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "node",
+    "docs/cleanup-source-gates-20261012/evidence/formatter-source-equivalence.cjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 1.336,
+  "measuredSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "formatter-equivalence.log"
+}

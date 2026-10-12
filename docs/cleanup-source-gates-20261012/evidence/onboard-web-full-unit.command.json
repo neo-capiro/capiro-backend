@@ -1,0 +1,19 @@
+{
+  "name": "onboard-web-full-unit",
+  "cwd": "/workspace/capirov2-cleanup-source-gates/apps/onboard-web",
+  "argv": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--reporter=json",
+    "--outputFile",
+    "/workspace/capirov2-cleanup-source-gates/docs/cleanup-source-gates-20261012/evidence/onboard-web-full-unit.json"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 5.65,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "onboard-web-full-unit.log"
+}

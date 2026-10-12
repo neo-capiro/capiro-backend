@@ -1,0 +1,8 @@
+{
+  "action": "assert full candidate and focused main failed-name sets match",
+  "result": "AssertionError; candidate2 failures versus main focused1",
+  "sourceEditApplied": false,
+  "correction": "No blanket reproduction claim. Keep both raw receipts, one additional focused main artifact pass, separate full main run to resolve timing.",
+  "candidatePhysicalTestFiles": 701,
+  "transientDocumentFileCountCorrectedBeforeCommit": true
+}

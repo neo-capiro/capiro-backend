@@ -1,0 +1,324 @@
+{
+  "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "receipts": [
+    {
+      "package": "@capiro/api-strategy",
+      "path": "apps/api-strategy",
+      "declaredCommand": "tsc --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-apps-api-strategy-0.log",
+          "seconds": 13.426
+        }
+      ]
+    },
+    {
+      "package": "@capiro/clio-sandbox",
+      "path": "apps/clio-sandbox",
+      "declaredCommand": "tsc -p tsconfig.json --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-apps-clio-sandbox-0.log",
+          "seconds": 0.988
+        }
+      ]
+    },
+    {
+      "package": "@capiro/defense-api",
+      "path": "apps/defense-api",
+      "declaredCommand": "pnpm prisma:generate && tsc --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [],
+      "classification": "native/environment-dependent",
+      "blocked": "Canonical command first invokes Prisma generation; native engine gate is unavailable and must not be bypassed."
+    },
+    {
+      "package": "@capiro/intel-api",
+      "path": "apps/intel-api",
+      "declaredCommand": "tsc --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "exitCode": 2,
+          "log": "types-apps-intel-api-0.log",
+          "seconds": 7.47
+        }
+      ],
+      "firstFailure": 0
+    },
+    {
+      "package": "@capiro/meriv2-orchestrator",
+      "path": "apps/meriv2-orchestrator",
+      "declaredCommand": "tsc --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-apps-meriv2-orchestrator-0.log",
+          "seconds": 19.843
+        }
+      ]
+    },
+    {
+      "package": "@capiro/onboard-api",
+      "path": "apps/onboard-api",
+      "declaredCommand": "tsc --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "exitCode": 2,
+          "log": "types-apps-onboard-api-0.log",
+          "seconds": 4.062
+        }
+      ],
+      "firstFailure": 0
+    },
+    {
+      "package": "@capiro/onboard-web",
+      "path": "apps/onboard-web",
+      "declaredCommand": "tsc -p tsconfig.json --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-apps-onboard-web-0.log",
+          "seconds": 5.676
+        }
+      ]
+    },
+    {
+      "package": "@capiro/web",
+      "path": "apps/web",
+      "declaredCommand": "tsc -p tsconfig.json --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-apps-web-0.log",
+          "seconds": 139.17
+        }
+      ]
+    },
+    {
+      "package": "@capiro/workspace",
+      "path": "apps/workspace",
+      "declaredCommand": "tsc --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-apps-workspace-0.log",
+          "seconds": 8.237
+        }
+      ]
+    },
+    {
+      "package": "@capiro/auth",
+      "path": "packages/auth",
+      "declaredCommand": "tsc -p tsconfig.json --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-packages-auth-0.log",
+          "seconds": 1.9
+        }
+      ]
+    },
+    {
+      "package": "@capiro/defense-client",
+      "path": "packages/defense-client",
+      "declaredCommand": "tsc -p tsconfig.json --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-packages-defense-client-0.log",
+          "seconds": 0.976
+        }
+      ]
+    },
+    {
+      "package": "@capiro/defense-contracts",
+      "path": "packages/defense-contracts",
+      "declaredCommand": "tsc -p tsconfig.json --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-packages-defense-contracts-0.log",
+          "seconds": 1.065
+        }
+      ]
+    },
+    {
+      "package": "@capiro/defense-domain",
+      "path": "packages/defense-domain",
+      "declaredCommand": "tsc -p tsconfig.json --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-packages-defense-domain-0.log",
+          "seconds": 3.24
+        }
+      ]
+    },
+    {
+      "package": "@capiro/meriv2-core",
+      "path": "packages/meriv2-core",
+      "declaredCommand": "tsc -p tsconfig.json --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-packages-meriv2-core-0.log",
+          "seconds": 6.589
+        }
+      ]
+    },
+    {
+      "package": "@capiro/shared",
+      "path": "packages/shared",
+      "declaredCommand": "tsc -p tsconfig.json --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-packages-shared-0.log",
+          "seconds": 2.362
+        }
+      ]
+    },
+    {
+      "package": "@capiro/strategy-verifier",
+      "path": "packages/strategy-verifier",
+      "declaredCommand": "tsc -p tsconfig.json --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-packages-strategy-verifier-0.log",
+          "seconds": 1.174
+        }
+      ]
+    },
+    {
+      "package": "@capiro/infra-cdk",
+      "path": "infra/cdk",
+      "declaredCommand": "tsc --noEmit",
+      "source": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-gates/node_modules/typescript/bin/tsc",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "types-infra-cdk-0.log",
+          "seconds": 10.085
+        }
+      ]
+    }
+  ]
+}

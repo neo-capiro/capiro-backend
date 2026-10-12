@@ -1,0 +1,17 @@
+{
+  "name": "defense-api-canonical-source-unit",
+  "cwd": "/workspace/capirov2-cleanup-source-gates/apps/defense-api",
+  "argv": [
+    "node",
+    "/workspace/capirov2-cleanup-source-gates/apps/api/node_modules/tsx/dist/cli.mjs",
+    "--test",
+    "src/**/*.spec.ts"
+  ],
+  "exitCode": 1,
+  "timedOut": false,
+  "seconds": 16.715,
+  "measuredSource": "0ffffaf2bd494ce33e4ad98e49d0d08e07d19695",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "defense-api-canonical-source-unit.log"
+}

@@ -1,0 +1,457 @@
+▶ BudgetLifecycleQueryService
+  ✔ cycle health composes real domain aggregation over fetched rows, not a re-derived number (8.537044ms)
+  ✔ listExpectedSources filters by authorityTrack and expectedState independently (0.604332ms)
+  ✔ getExpectedSourceDetail returns full observation history and throws for an unknown id (3.090265ms)
+  ✔ listReviewQueue pairs each review_required expected source with its review_required observation (1.863792ms)
+  ✔ listSignals derives a pb_to_hasc signal read-time from two stored observations, with real content shas (1.764072ms)
+  ✔ getScheduleTickHealth delegates to the domain aggregator over stored ticks (4.78827ms)
+✔ BudgetLifecycleQueryService (26.312628ms)
+▶ Phase 10B-5 — CatalogSourceDiscoveryAdapter through the real watcher + InMemoryLifecycleStore
+  ✔ first discovery: resolves FY24 pb_r1 into one changed observation and one outbox row (12.990849ms)
+  ✔ replay: the same expected source, same URL, same bytes produces no new work (11.518627ms)
+  ✔ changed bytes: supersedes the prior observation without deleting it, queues exactly one more row (13.563481ms)
+  ✔ sanity: budget-lifecycle.module.ts does not reference CatalogSourceDiscoveryAdapter (0.41482ms)
+  ✔ Phase 10B-6: expectedSourceId selector through the REAL watcher pipeline discovers/queues only the selected source, leaving the other catalog row completely untouched (5.269633ms)
+✔ Phase 10B-5 — CatalogSourceDiscoveryAdapter through the real watcher + InMemoryLifecycleStore (48.052398ms)
+[Nest] 132717  - 10/12/2026, 11:29:23 AM    WARN [CatalogSourceDiscoveryAdapter] army-budget: 08b5796ae01f (pb_r1) -> no_match: no official document candidate available for pb_r1/ARMY
+▶ CatalogSourceDiscoveryAdapter
+  ✔ resolves the FY24 pb_r1 DW expected source into exactly one candidate, on the current preferred (successor) host (5.753896ms)
+  ✔ resolves procurement and O&M DW expected sources independently (2.280667ms)
+  ✔ does not emit a candidate for a non-DW expected source with no listing (1.71293ms)
+  ✔ never emits for an authorization/committee expected source (0.470989ms)
+  ✔ one expected-source selector cannot affect another source (0.691919ms)
+  ✔ replay with the same catalog is idempotent (same candidates, same dedup keys) (1.962114ms)
+  ✔ Phase 10B-6: without a selector, --adapter + --catalog-fiscal-years resolves ALL 5 DW families at once (the boundedness gap) (7.029161ms)
+  ✔ Phase 10B-6: expectedSourceId selector narrows the same 5-family catalog to EXACTLY the matching one, not all five (0.45668ms)
+  ✔ Phase 10B-6: an expectedSourceId selector matching nothing fails closed to zero candidates, never falls back to "all rows" (3.38633ms)
+✔ CatalogSourceDiscoveryAdapter (26.196877ms)
+▶ advanceCollectionCursor — Phase 10 in-progress checkpoint
+  ✔ a fresh cursor has no resume checkpoint (3.213026ms)
+  ✔ a budget-bounded run sets the checkpoint and leaves backfillPending true (0.569985ms)
+  ✔ a second bounded pass advances the checkpoint and fingerprint together, never backward (0.243151ms)
+  ✔ a pass that makes no further progress preserves the prior checkpoint AND fingerprint rather than clearing them (0.195863ms)
+  ✔ genuine exhaustion clears both the in-progress checkpoint and its fingerprint (0.63804ms)
+  ✔ a second, independent collection tracks its own checkpoint (PLAW does not leak into CRPT) (0.195338ms)
+✔ advanceCollectionCursor — Phase 10 in-progress checkpoint (6.4152ms)
+▶ parseDiscoveryCursor — backward compatibility with the existing production row
+  ✔ a persisted row with no resumeAfterPackageId key at all (the exact current production shape) parses safely (0.446476ms)
+  ✔ a persisted resumeAfterPackageId AND resumeListingFingerprint round-trip through serialise/parse unchanged (0.274562ms)
+  ✔ a malformed resumeAfterPackageId (non-string) is dropped rather than trusted (0.169051ms)
+  ✔ a malformed resumeListingFingerprint (non-string) is dropped rather than trusted (0.255344ms)
+✔ parseDiscoveryCursor — backward compatibility with the existing production row (1.463024ms)
+▶ computeListingFingerprint — the exact-universe guard behind resumeListingFingerprint
+  ✔ the same ordered (sitemap, packageId/loc, lastmod) sequence always produces the same fingerprint (0.344612ms)
+  ✔ an insertion before the tail changes the fingerprint even though the tail entry is unchanged (0.214159ms)
+  ✔ a lastmod change on any entry changes the fingerprint, even on an entry before the anchor (0.127776ms)
+  ✔ reordering the same entries changes the fingerprint — order is part of the identity (0.200135ms)
+  ✔ a genuinely empty listing has a well-defined, stable fingerprint (0.097282ms)
+✔ computeListingFingerprint — the exact-universe guard behind resumeListingFingerprint (1.23534ms)
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ103. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ102.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ106. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ105.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ101. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ100.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 3). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ102. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ101.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 3). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ103. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ102.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: the relevant listing changed since the persisted resume checkpoint PLAW-118publ102 was set (fingerprint mismatch). Failing safe and replaying the collection from the beginning rather than trusting a checkpoint whose universe no longer matches.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ103. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ102.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: https://www.govinfo.gov/sitemap/PLAW_2023_sitemap.xml could not be fetched this pass; the relevant listing is incomplete, so no new resume checkpoint will be minted.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ103. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ102.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: the relevant listing changed since the persisted resume checkpoint PLAW-118publ102 was set (fingerprint mismatch). Failing safe and replaying the collection from the beginning rather than trusting a checkpoint whose universe no longer matches.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ103. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ102.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132739  - 10/12/2026, 11:29:25 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: the relevant listing changed since the persisted resume checkpoint PLAW-118publ102 was set (fingerprint mismatch). Failing safe and replaying the collection from the beginning rather than trusting a checkpoint whose universe no longer matches.
+▶ Phase 10 — A. multi-run bounded progression
+  ✔ a backlog too large for one budget advances a durable in-progress checkpoint across passes, never restarting, until genuine exhaustion (45.078637ms)
+✔ Phase 10 — A. multi-run bounded progression (47.222956ms)
+▶ Phase 10 — B. budget exhaustion mid-package
+  ✔ the package that could not be afforded is never checkpointed, and the next run replays exactly it, not more (10.555877ms)
+✔ Phase 10 — B. budget exhaustion mid-package (11.143248ms)
+▶ Phase 10 — D. stale / missing resume anchor
+  ✔ a persisted checkpoint that cannot be found in a changed listing is never used to skip forward — the crawler fails safe (6.618828ms)
+✔ Phase 10 — D. stale / missing resume anchor (6.866513ms)
+▶ Phase 10 — E. collection completion
+  ✔ once the final package is processed, the durable watermark advances and both backfillPending and the resume checkpoint reflect completion (1.568216ms)
+✔ Phase 10 — E. collection completion (1.778695ms)
+▶ Phase 10 — backward compatibility with the current production cursor row
+  ✔ a real production-shaped cursor (schema v1, no resumeAfterPackageId key) resumes safely and starts the collection from the beginning (1.869836ms)
+✔ Phase 10 — backward compatibility with the current production cursor row (2.160874ms)
+▶ Phase 10 — F. earlier sitemap failure and recovery (no-skip correctness hole)
+  ✔ a failed early-year sitemap must not let a later-year pass establish a checkpoint that could skip it once it recovers (5.696937ms)
+✔ Phase 10 — F. earlier sitemap failure and recovery (no-skip correctness hole) (5.891465ms)
+▶ Phase 10 — G. insertion/change before an existing, still-present anchor (fingerprint mismatch)
+  ✔ a package inserted before the existing checkpoint forces a safe full replay rather than skipping it (4.374305ms)
+  ✔ a lastmod change on a package before the anchor also forces a safe replay, not a skip (6.173257ms)
+✔ Phase 10 — G. insertion/change before an existing, still-present anchor (fingerprint mismatch) (10.828395ms)
+✔ pacing stays bounded near intervalMs across many requests, even when the caller always passes the same frozen nowIso (18.350122ms)
+✔ pacing is still governed by the real registry interval, not disabled outright (1.473126ms)
+[Nest] 132785  - 10/12/2026, 11:29:27 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-committee-reports: backlog remains after this run (request budget 250). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132785  - 10/12/2026, 11:29:27 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-committee-reports: backlog remains after this run (request budget 250). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132785  - 10/12/2026, 11:29:27 AM    WARN [GovInfoSitemapCrawler] govinfo-committee-reports/CRPT: request budget exhausted while resolving CRPT-119hrpt402. Cursor left pending for the next run; the durable resume checkpoint stays at CRPT-119hrpt401.
+[Nest] 132785  - 10/12/2026, 11:29:27 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-committee-reports: backlog remains after this run (request budget 4). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 132785  - 10/12/2026, 11:29:27 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-committee-reports: no expected sources are registered for FY 2025/2026/2027; run the cycle controller before the watcher.
+✔ a live GovInfo crawl emits only candidates that resolve to a registered expected source (144.148142ms)
+✔ the two tracks resolve independently from the same crawl (2.865316ms)
+✔ a publisher refusal is recorded as a refusal, never as an absence of documents (2.375863ms)
+✔ an unreachable host is recorded with no status code at all (0.671688ms)
+✔ a bounded run stops early, leaves the cursor pending and does not advance past unexamined work (1.822418ms)
+✔ a second run with the stored cursor does not re-emit what it already emitted (3.169226ms)
+✔ discovery does not crawl at all when nothing is registered to resolve against (18.070025ms)
+✔ an off-host candidate is refused by the same rule the manifest adapter obeyed (3.038929ms)
+✔ an on-host committee mark is crawled, resolved and emitted (2.033982ms)
+✔ a committee press release is crawled, recorded and NOT emitted (1.14766ms)
+✔ pacing is reserved per HOST, so adapters sharing a host serialise (0.79057ms)
+✔ the audit store refuses to store a fabricated identity (0.958647ms)
+✔ a retried run does not duplicate the audit trail (2.056261ms)
+✔ discovery never emits a candidate carrying a funding amount (1.298631ms)
+✔ the GovInfo year window is bounded by the horizon, not the whole archive (1.558275ms)
+▶ resolveDiscoveryHorizon — Phase 10 explicit backfill scope
+  ✔ an explicit historical override is used exactly as given, ignoring the wall clock (0.529756ms)
+  ✔ an explicit future override reaches a year the rolling window would suppress (0.260177ms)
+  ✔ a multi-FY explicit override is used exactly as given, with no gap-filling (0.184259ms)
+  ✔ an explicit override is normalized: deduped and sorted, never reordered by caller intent (0.20087ms)
+  ✔ default behavior (no override) is byte-for-byte unchanged from the existing rolling horizon (0.386849ms)
+  ✔ an explicit invalid or empty override fails closed rather than silently using the wall clock (1.706835ms)
+✔ resolveDiscoveryHorizon — Phase 10 explicit backfill scope (4.06478ms)
+✔ an explicit FY2024 horizon override reaches a real FY2024 candidate, from a 2026 clock (2.950575ms)
+✔ SASC download aliases require explicit opt-in and retain HTTPS, host and path guards (4.396747ms)
+✔ SASC library aliases are audited and only registered in-horizon marks are emitted (40.629363ms)
+✔ other adapters do not accept extensionless download aliases (32.522292ms)
+[Nest] 132861  - 10/12/2026, 11:29:27 AM     LOG [AnnualDefenseBudgetCycleController] Bootstrapping FY2024 from first authoritative authorization discovery
+[Nest] 132861  - 10/12/2026, 11:29:27 AM    WARN [DefenseBudgetLifecycleWatcher] Skipping govinfo-committee-reports: adapter is leased by worker-a until 2024-06-15T12:10:00.000Z
+▶ Session 7 — cycle bootstrap
+  ✔ bootstraps an unseen fiscal year from templates with no bespoke manifest (9.062652ms)
+  ✔ lets multiple fiscal-year cycles coexist without colliding (7.829403ms)
+  ✔ is idempotent: re-running does not duplicate or reset expected sources (5.741314ms)
+  ✔ keeps authorization and appropriations as independent tracks (2.435259ms)
+  ✔ rolls the prior/current/upcoming horizon forward from the clock alone (9.426827ms)
+✔ Session 7 — cycle bootstrap (37.268187ms)
+▶ Session 7 — missing sources are never zero
+  ✔ marks an optional unfilled family not_filed and reports no known amount (4.380167ms)
+  ✔ sends a required unfilled family to review rather than defaulting it (4.2109ms)
+✔ Session 7 — missing sources are never zero (9.605415ms)
+▶ Session 7 — discovery, fingerprinting and versioning
+  ✔ bootstraps an unseen FY from first discovery and writes to its exact template identity (27.670515ms)
+  ✔ dry-run of an unseen FY classifies without bootstrapping or writing (1.883811ms)
+  ✔ replays official-source bytes across two coexisting prior-year cycles without identity collision (15.295817ms)
+  ✔ discovers, classifies and versions a first official source (30.967304ms)
+  ✔ treats an unchanged recheck as a no-op that creates no work (2.402123ms)
+  ✔ sends a conditional request on recheck and honours a 304 without re-hashing (4.956391ms)
+  ✔ treats identical bytes at a new URL as relocation, not new content (3.49033ms)
+  ✔ versions a changed source and supersedes the prior version without deleting it (4.758659ms)
+  ✔ recognises an official publisher version advance as supersession (2.927789ms)
+  ✔ records a withdrawn source as withdrawn, never as zero (1.693406ms)
+  ✔ records a failed download as blocked without inventing content (3.818957ms)
+  ✔ refuses a candidate URL that is not on the adapter own official host (4.018858ms)
+✔ Session 7 — discovery, fingerprinting and versioning (106.538897ms)
+▶ Session 7 — ambiguity stops in review
+  ✔ refuses to attribute an omnibus vehicle without proven defence division evidence (4.247004ms)
+  ✔ accepts the same omnibus once the law own division text is supplied (2.524365ms)
+✔ Session 7 — ambiguity stops in review (7.07917ms)
+▶ Session 7 — queueing, idempotency and concurrency
+  ✔ queues exactly one governed ingestion job for a changed source (2.235425ms)
+  ✔ derives one stable outbox identity per observation and job kind (0.270779ms)
+  ✔ stops a second live worker from running the same adapter (2.447837ms)
+  ✔ lets a second worker resume after a crashed worker lease expires (2.408847ms)
+  ✔ never queues more ingestion work than the changed sources it observed (3.245116ms)
+✔ Session 7 — queueing, idempotency and concurrency (11.083997ms)
+▶ Session 7 — GPU independence
+  ✔ runs the whole loop with NVIDIA routing disabled and zero GPU capacity (8.392652ms)
+  ✔ declares no GPU dependency on any registered official adapter (0.226798ms)
+  ✔ classifies a PDF-only publisher source with corroboration deferred, not failed (3.844187ms)
+✔ Session 7 — GPU independence (12.69395ms)
+▶ Session 7 — historical lifecycle replay (real FY2024 sources)
+  ✔ walks PB -> House committee -> Senate committee -> chamber action -> enacted (3.534572ms)
+  ✔ runs the appropriations track independently of the authorization track (2.514451ms)
+  ✔ recomputes only the affected lineage when a corrected source arrives (2.72165ms)
+  ✔ emits source-backed signals without any funding amount (2.850766ms)
+✔ Session 7 — historical lifecycle replay (real FY2024 sources) (11.961297ms)
+▶ Session 7 — alternative funding routes into the Session 6 domain
+  ✔ classifies a real supplemental and queues governed alternative-funding ingestion (4.068826ms)
+  ✔ keeps alternative funding off the annual authorization and appropriations tracks (2.263066ms)
+✔ Session 7 — alternative funding routes into the Session 6 domain (6.890321ms)
+✔ excludes a candidate that is not yet available (3.42982ms)
+✔ rejects malformed non-null availableFrom values during manifest load (0.869415ms)
+▶ Phase 9 identity — the accepted production identity
+  ✔ accepts capiro_defense_job_login with INHERITed membership (7.075429ms)
+  ✔ logs every forbidden attribute as false, so the proof is auditable (0.438135ms)
+  ✔ tolerates Postgres driver booleans arriving as t/true strings (1.371905ms)
+✔ Phase 9 identity — the accepted production identity (11.686879ms)
+▶ Phase 9 identity — refused identities
+  ✔ refuses an arbitrary login with no membership (1.54487ms)
+  ✔ refuses capiro_app (0.648106ms)
+  ✔ refuses capiro_defense_serve (the HTTP role, not the job role) (0.764539ms)
+  ✔ refuses a master/admin role even when it is technically a member (0.729286ms)
+  ✔ refuses a superuser login (1.098431ms)
+  ✔ refuses a login holding bypassrls or replication (0.483667ms)
+  ✔ refuses membership that is not inherited (NOINHERIT) (0.724446ms)
+  ✔ refuses if the capability role itself became LOGIN-capable (0.406845ms)
+  ✔ refuses when the proof returns no row at all (0.262801ms)
+  ✔ every refusal uses exit code 77 (unauthorised), never 0 (0.391376ms)
+✔ Phase 9 identity — refused identities (8.898909ms)
+▶ Phase 9 identity — a spoofed env var cannot bypass the DB proof
+  ✔ DEFENSE_JOB_DB_ROLE only selects WHICH capability is required (0.538421ms)
+  ✔ pointing DEFENSE_JOB_DB_ROLE at a role we are not a member of FAILS, never passes (1.066703ms)
+  ✔ a spoofed DB_USER string cannot satisfy the check, because it is not consulted (4.376882ms)
+  ✔ rejects a non-identifier DEFENSE_JOB_DB_ROLE instead of interpolating it (0.324399ms)
+[phase9-identity] current_user=capiro_defense_job_login
+[phase9-identity] session_user=capiro_defense_job_login
+[phase9-identity] database=capiro
+[phase9-identity] capabilityRole=capiro_defense_job
+[phase9-identity] pg_has_role(member)=true
+[phase9-identity] pg_has_role(usage/inherited)=true
+[phase9-identity] login.rolinherit=true
+[phase9-identity] capability.rolcanlogin=false
+[phase9-identity] login.superuser=false
+[phase9-identity] login.createrole=false
+[phase9-identity] login.createdb=false
+[phase9-identity] login.replication=false
+[phase9-identity] login.bypassrls=false
+[phase9-identity] CAPABILITY_PROOF_OK role=capiro_defense_job_login via=capiro_defense_job
+  ✔ the removed PHASE9_ALLOW_NON_JOB_ROLE bypass has no executable code path (30.319471ms)
+  ✔ a bypass env var set in the environment has no effect (0.443865ms)
+✔ Phase 9 identity — a spoofed env var cannot bypass the DB proof (37.62906ms)
+▶ Phase 9 identity — proof plumbing
+  ✔ a dry run performs no identity query at all (0.320933ms)
+  ✔ accepts the real production identity end to end (0.792452ms)
+  ✔ a failed identity query refuses rather than proceeding (0.320347ms)
+  ✔ the proof SQL asks Postgres the required questions (0.945172ms)
+✔ Phase 9 identity — proof plumbing (2.819514ms)
+▶ Package 1 scheduled-runtime bounds and distributed worker identity
+  ✔ caps each adapter crawl and rejects an unbounded scheduled request budget (16.943754ms)
+  ✔ keeps the lease beyond one hourly delivery and refuses excessive leases (0.407212ms)
+  ✔ does not collapse every ECS container into the repeating PID-1 owner (0.5835ms)
+  ✔ emits the alarm marker when a scheduled tick fails before the coordinator runs (331.709281ms)
+✔ Package 1 scheduled-runtime bounds and distributed worker identity (352.205221ms)
+▶ Phase 9 job runtime — property 1: dry-run performs zero DB writes
+  ✔ backfill-run without --commit composes in-memory stores and issues no SQL (487.869733ms)
+  ✔ a dry run stays side-effect-free even when live discovery is enabled in the env (342.099224ms)
+  ✔ the in-memory audit store used by dry runs cannot reach SQL at all (0.639254ms)
+  ✔ inventory is read-only and needs no database configuration (578.69369ms)
+✔ Phase 9 job runtime — property 1: dry-run performs zero DB writes (1410.107359ms)
+▶ Phase 9 job runtime — property 2: commit without a real store is refused
+  ✔ refuses --commit without the mode authorisation env var (510.039501ms)
+  ✔ refuses --commit when production database config is absent (564.850139ms)
+  ✔ refuses a commit it cannot prove is authorised in the database (457.872667ms)
+  ✔ never echoes the database password into stdout or stderr (485.709107ms)
+  ✔ never infers the fiscal-year set from the current date (443.43132ms)
+  ✔ rejects an unknown entrypoint mode instead of executing it (364.380415ms)
+✔ Phase 9 job runtime — property 2: commit without a real store is refused (2828.883592ms)
+▶ Phase 9 job runtime — property 3: commit with a real store persists a row
+  ✔ PrismaDiscoveryAuditStore issues a real INSERT and returns the persisted id (1.024787ms)
+  ✔ recordCandidates persists append-only rows and is idempotent by unique key (0.621216ms)
+  ✔ reserveHostSlot reserves atomically in a single statement (0.251231ms)
+✔ Phase 9 job runtime — property 3: commit with a real store persists a row (2.080898ms)
+▶ Phase 9 job runtime — property 4: failure never prints a false success marker
+  ✔ a store failure surfaces as a non-zero exit with no COMMITTED marker (0.576535ms)
+  ✔ recordCrawl refuses to report success when the insert returns no id (0.131887ms)
+  ✔ an unreachable database exits non-zero without a COMMITTED marker (292.829517ms)
+✔ Phase 9 job runtime — property 4: failure never prints a false success marker (293.725636ms)
+▶ Session 8 false-commit defect — run-live-discovery must never claim persistence
+  ✔ refuses commit mode instead of silently using an in-memory store (233.836597ms)
+  ✔ carries no code path that can emit a COMMITTED marker (34.052094ms)
+  ✔ --plan remains available and reaches no network (226.978221ms)
+  ✔ an unauthorised crawl still reports a clean dry run (254.567769ms)
+✔ Session 8 false-commit defect — run-live-discovery must never claim persistence (749.90156ms)
+▶ Phase 9 explicit fiscal-year support
+  ✔ reproduces the accepted FY2024-FY2028 inventory baseline (262.517025ms)
+  ✔ bootstraps expected sources through the frozen template, not hand-inserted rows (320.866533ms)
+  ✔ rejects malformed and out-of-range fiscal years (979.556243ms)
+  ✔ treats a fiscal year with no discoverable material as bootstrap-only (347.597263ms)
+✔ Phase 9 explicit fiscal-year support (1912.039104ms)
+▶ Phase 10 historical-discovery horizon fix — job composes discovery with the explicit scope
+  ✔ buildLiveDiscoveryOptions passes the job's parsed fiscal years through unchanged (4.462397ms)
+  ✔ job.mjs's live-discovery branch composes LiveSourceDiscoveryAdapter with the job's own fiscalYears, not a bare rolling default (14.28137ms)
+  ✔ the Canary 1 manifest/no-discovery branch is untouched by the fix — no options, no horizon override leaks in (7.607776ms)
+  ✔ a dry run (Canary 1 shape) still stays network-free and bootstrap-only with the fix in place (278.335463ms)
+✔ Phase 10 historical-discovery horizon fix — job composes discovery with the explicit scope (305.252713ms)
+[Nest] 132905  - 10/12/2026, 11:29:28 AM    WARN [DefenseBudgetLifecycleWatcher] Skipping hasc: adapter is leased by some-other-worker until 2099-01-01T00:00:00.000Z
+[Nest] 132905  - 10/12/2026, 11:29:28 AM   ERROR [ScheduleCoordinatorService] Adapter hasc threw during a scheduled run: simulated store failure loading state for hasc
+[Nest] 132905  - 10/12/2026, 11:29:28 AM   ERROR [ScheduleCoordinatorService] could not load adapter schedule state: simulated read outage
+▶ ScheduleCoordinatorService
+  ✔ skips an adapter whose next_check_at has not passed yet (9.793083ms)
+  ✔ runs an adapter with no prior state at all (cold start is due, not silently idle) (6.241858ms)
+  ✔ isolates a held lease on one adapter: skips it, still runs the others (16.765169ms)
+  ✔ isolates a throwing adapter from the others: the tick still completes and the rest still run (4.556928ms)
+  ✔ fails open (treats every adapter as due) when the schedule-state read itself throws (3.516752ms)
+  ✔ records exactly one audit row per committed tick, and none when not committed (17.921869ms)
+  ✔ a second tick right after a successful run does not re-run the same adapter (no duplicate work from repeated delivery) (42.556648ms)
+  ✔ an adapter overdue by months still runs at most once per tick (bounded catch-up) (16.641687ms)
+✔ ScheduleCoordinatorService (119.839756ms)
+▶ ScheduleCoordinatorService — lifecycle-effect independence across FY and track
+  ✔ one adapter's one tick advances two non-adjacent fiscal years independently — no single 'current FY' is chosen (12.440954ms)
+  ✔ authorization and appropriations advance independently in the same tick; a blocked appropriations document does not stop authorization (9.091289ms)
+✔ ScheduleCoordinatorService — lifecycle-effect independence across FY and track (21.803834ms)
+✔ registry: successor host comptroller.war.gov is accepted for dod-comptroller (2.134818ms)
+✔ registry: historical host comptroller.defense.gov remains accepted (provenance preserved) (0.559307ms)
+✔ registry: dod-comptroller officialHosts includes exactly the two approved hostnames, no wildcard (2.167706ms)
+✔ registry: unrelated .war.gov host is rejected for dod-comptroller (0.811331ms)
+✔ registry: arbitrary subdomain of the approved successor host is rejected (exact hostname only) (0.268137ms)
+✔ registry: plain HTTP on an otherwise-official host is rejected (6.006515ms)
+✔ registry: third-party mirror is rejected even with an identical path shape (0.760978ms)
+✔ registry: an official host belonging to a DIFFERENT adapter does not count for dod-comptroller (0.327432ms)
+✔ fetch boundary: the successor host candidate URL flows through HttpsPublisherHttpAdapter.get() to a 200 (17.76025ms)
+✔ fetch boundary: a candidate URL outside the adapter allowlist is refused BEFORE any network call (3.064798ms)
+✔ fetch boundary: a redirect from the successor host to a non-allowlisted host is refused, not followed (1.691096ms)
+▶ official source adapter accountability
+  ✔ assigns a business owner role and runtime owner to every adapter used by templates (2.433294ms)
+✔ official source adapter accountability (5.87895ms)
+✔ valid dark serve environment passes (5.487525ms)
+✔ pool budget is mandatory and bounded (1.257993ms)
+✔ serve task rejects parser and promoter credentials (1.706667ms)
+﹣ database-backed /readyz acceptance (1.089301ms) # SKIP
+✔ a login with only capability-role membership is safe (1.729651ms)
+✔ a login not a member of the capability role is unsafe (0.536832ms)
+✔ a superuser login is unsafe even if it is also a capability member (0.267391ms)
+✔ a BYPASSRLS login is unsafe (0.669696ms)
+✔ a CREATEDB login is unsafe (0.42394ms)
+✔ a CREATEROLE login is unsafe (0.333698ms)
+✔ a login with schema CREATE is unsafe (0.204073ms)
+✔ a login that is also a member of the promoter role is unsafe (0.223973ms)
+✔ a login that can mutate the active-snapshot pointer is unsafe (0.349285ms)
+✔ a login with an unexpected direct grant is unsafe (0.706015ms)
+✔ dark mode remains ready while honestly reporting domain unavailable (3.900525ms)
+✔ strict mode blocks without an active snapshot (0.255986ms)
+✔ unauthorized database role blocks both modes (0.329467ms)
+✔ strict mode is ready with a valid active pointer (0.268331ms)
+✔ invalid configuration blocks both modes even with a valid pointer (0.48604ms)
+✔ a failed database query blocks both modes even with a valid pointer (0.286807ms)
+✔ canonical payload is stable and newline-delimited (1.869804ms)
+✔ valid signature verifies (2.568508ms)
+✔ tamper and stale timestamp fail closed (0.429671ms)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] embedding port dark: no embedding provider configured; serving the documented empty capability-search result
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] client-relevance port dark: no client-relevance provider configured; needs-attention serves watch/capability relevance only
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] cross-domain providers bound: embedding=dark clientRelevance=dark
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] both cross-domain ports are dark; capability search and client relevance serve their documented empty results, exactly as before Session 9
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] embedding port dark: no embedding provider configured; serving the documented empty capability-search result
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] client-relevance port dark: no client-relevance provider configured; needs-attention serves watch/capability relevance only
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] cross-domain providers bound: embedding=dark clientRelevance=dark
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] both cross-domain ports are dark; capability search and client relevance serve their documented empty results, exactly as before Session 9
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [UnconfiguredEmbeddingPort] embedding port unconfigured (dark posture): free-text capability search serves an empty result
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [UnconfiguredClientRelevancePort] client-relevance port unconfigured (dark posture): needs-attention serves watch/capability relevance only
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] cross-domain providers bound: embedding=bedrock_embedding clientRelevance=internal_service_relevance
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] embedding port dark: no embedding provider configured; serving the documented empty capability-search result
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] client-relevance port dark: DEFENSE_MAIN_API_INTERNAL_SECRET is not configured
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] cross-domain providers bound: embedding=dark clientRelevance=dark
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [CrossDomainProviderFactory] both cross-domain ports are dark; capability search and client relevance serve their documented empty results, exactly as before Session 9
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 3 attempt(s): throttled — attempt budget exhausted after 3 of 3
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): unauthorized — unauthorized is terminal
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [ProviderInvocationRunner] bedrock at concurrency limit 1; degrading to the empty result
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [ProviderInvocationRunner] provider audit row not persisted (simulated audit write failure)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [InternalServiceClientRelevanceAdapter] client-relevance batch truncated from 5 to 3 PE codes; the remainder is unanswered, not answered negatively
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM    WARN [ProviderInvocationRunner] main_api_internal/relevant_pe_codes degraded after 3 attempt(s): unavailable — attempt budget exhausted after 3 of 3
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 133038  - 10/12/2026, 11:29:31 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+✔ an unconfigured environment binds BOTH ports dark, exactly as before Session 9 (11.672307ms)
+✔ the dark ports still serve their documented degraded results (2.266672ms)
+✔ a live environment binds real providers (1.866901ms)
+✔ a forbidden Session 3 credential class fails LOUD, not dark (1.184544ms)
+✔ a live selection that cannot construct degrades to dark instead of failing boot (0.927271ms)
+✔ constructing a live adapter from a dark selection is refused (0.666779ms)
+✔ a successful embedding returns the vector and audits the dimension only (5.311521ms)
+✔ the model id travels on every audit row, because vector reads filter on it (1.255978ms)
+✔ an empty query spends no attempt and is still audited (1.76633ms)
+✔ a throttled provider is retried and then degrades to null, never throws (4.106747ms)
+✔ an auth failure is NOT retried (0.826591ms)
+✔ a transient failure followed by success returns the vector (15.090697ms)
+✔ a 200 with an unusable body is a failure, not an empty success (3.277167ms)
+✔ a NaN vector component is rejected outright (0.417467ms)
+✔ concurrency is refused rather than queued, and audited as such (0.90513ms)
+✔ an audit write failure does not fail the read path (0.720587ms)
+✔ relevance is ONE batched call, not an N+1 fanout (1.496562ms)
+✔ the secret is on the wire but never on an audit row (0.677916ms)
+✔ an empty answer is a valid answer, not a failure (0.934111ms)
+✔ an unrequested code in the response is dropped, not trusted (0.803884ms)
+✔ the batch is bounded and the truncation is not silent (0.789446ms)
+✔ an empty candidate set makes no call and is audited (0.580722ms)
+✔ a failing relevance provider degrades to an empty set (0.946794ms)
+✔ a malformed relevance body is a failure, and an empty array is not (0.617606ms)
+✔ PE codes are normalised and deduped before the call (1.07368ms)
+✔ the same request produces the same idempotency key across calls (0.92396ms)
+✔ a different tenant produces a different idempotency key (1.447247ms)
+✔ no audit row anywhere carries a monetary field (1.210203ms)
+✔ the frozen port tokens are still the injection points (0.187275ms)
+✔ Retry-After is parsed in both legal forms (0.813189ms)
+✔ CreatePeDataIssueDto rejects an unknown issueType (matches apps/api @IsIn list) (24.315934ms)
+✔ CreatePeDataIssueDto accepts every apps/api-frozen issueType value (1.665775ms)
+✔ CreatePeDataIssueDto rejects a non-http(s) suggestedSourceUrl (4.446113ms)
+✔ SetPeAlertEmailPrefDto only accepts off|daily|daily_plus_critical (0.674625ms)
+✔ ResolveReconciliationDto only accepts the three frozen decisions (5.630281ms)
+✔ WatchProgramElementDto requires a boolean watching field (0.479105ms)
+✔ QueryProgramElementsDto rejects limit > 100 (matches apps/api @Max(100)) (1.816562ms)
+✔ QueryProgramElementsDto rejects an unknown line_type NOT in the registry-reserved list is still permitted (no @IsIn on line_type here; contract query type allows free string) (1.257116ms)
+﹣ GOVERNED ADMIN: a standard_user actor cannot effect a Program graph mutation (1.364216ms) # SKIP
+﹣ GOVERNED ADMIN: a capiro_admin actor succeeds and the audit row uses occurred_at (0.237191ms) # SKIP
+﹣ GOVERNED ADMIN: the serve role holds no direct DML on the global Program graph (0.673087ms) # SKIP
+﹣ GOVERNED ADMIN: alias CRUD and merge run through the functions with validation intact (0.154496ms) # SKIP
+﹣ mergePrograms dedupes colliding rows and retires (not deletes) the loser (regression) (0.6645ms) # SKIP
+﹣ findLatestForTarget scopes by fundingField, not just PE/FY (regression) (0.713808ms) # SKIP
+﹣ findById renormalizes a NUMERIC(24,9)-padded valueMillions back to canonical form (regression) (0.132786ms) # SKIP
+✔ isCanonicalDecimalStringV1 accepts exact decimals, rejects -0 and malformed input (3.625007ms)
+✔ isCanonicalDecimalStringV1 rejects unnecessary trailing fractional zeros (regression, matches apps/api) (0.550252ms)
+✔ normalizeCanonicalDecimalStringV1 strips NUMERIC(24,9) zero-padding back to canonical form (regression) (0.65444ms)
+✔ canonicalTargetForLegacyPeYearV1 maps (peCode, fy, fieldName) to a stable canonical target (0.672089ms)
+✔ proposeManualOverrideV1 refuses a fractional-float-tainted value (non-canonical decimal) (7.677945ms)
+✔ proposeManualOverrideV1 refuses a second open proposal on the same target (1.336127ms)
+✔ approveManualOverrideV1 refuses approval by the proposal author (author != approver invariant) (1.154971ms)
+✔ approveManualOverrideV1 refuses a non-admin approver (0.522357ms)
+✔ approveManualOverrideV1 succeeds for a different capiro_admin approver and puts the override in force (0.957096ms)
+✔ manualOverrideHashV1 is deterministic and order-independent on evidenceIds (0.718174ms)
+✔ all 49 frozen routes resolve to a live decorator with matching method/path/role (2.996325ms)
+✔ every capiro_admin frozen route has a @Roles('capiro_admin') decorator literal in source (0.478709ms)
+✔ no route path or id was invented or dropped relative to @capiro/defense-client (10.498502ms)
+✔ retained and moved adapters produce identical inspect lineages for FY27 fixtures (14.019384ms)
+✔ every FY27 fixture slice exists on both trees with identical bytes (0.507174ms)
+✔ adapters refuse a missing fixture root (0.662852ms)
+✔ runs the trusted phases in order and remains inspect-only (15.779387ms)
+✔ same inputs and artifacts produce the same lineage hash (1.218468ms)
+✔ fails closed on a malformed source digest (0.825173ms)
+✔ fails closed when a port returns the wrong stage (0.327618ms)
+ℹ tests 272
+ℹ suites 37
+ℹ pass 264
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 8
+ℹ todo 0
+ℹ duration_ms 13332.457766

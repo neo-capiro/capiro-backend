@@ -1,0 +1,15 @@
+{
+  "name": "quality-guard",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "node",
+    "scripts/check-quality-telemetry-new-bypasses.mjs",
+    "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 6.276,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "quality-guard.log"
+}

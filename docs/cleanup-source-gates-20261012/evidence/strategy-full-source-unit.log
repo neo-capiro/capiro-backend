@@ -1,0 +1,791 @@
+PASS src/meri/meri.service.spec.ts (21.569 s)
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] strategy draft: deterministic repair retimed 1 node(s), 0 error(s) remain
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 3 edits, 1 violation(s), grounding unknown) in 2ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] assistant failed for strategy S1: Meri selected an owner who is not an active team member
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] assistant failed for strategy S1: Meri selected an owner who is not an active team member
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] assistant failed for strategy S1: Meri selected an owner who is not an active team member
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 2 edits, 1 violation(s), grounding unknown) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] could not resolve owner names for strategy assistant: directory unavailable
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] assistant failed for strategy S1: Meri selected an owner who is not an active team member
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 4 edits, 1 violation(s), grounding unknown) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] assistant failed for strategy S1: Meri returned an invalid node status: not-a-status
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding degraded) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 2 violation(s), grounding unknown) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] assistant failed for strategy S1: This change would break the plan — "Node one" starts before the step it depends on ("Node three").
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] assistant failed for strategy S1: Meri returned an invalid edit op: duplicate
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (node scope, 0 edits, grounding unknown) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding unknown) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] assistant failed for strategy S1: The strategy changed while Meri was working. Review the current plan and try again.
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] assistant failed for strategy S1: anthropic 529 overloaded: model claude-x
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding unknown) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] assistant failed for strategy S1: Meri returned an invalid node status: not-a-status
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding unknown) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 2 edits, 1 violation(s), grounding unknown) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding unknown) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (node scope, 0 edits, grounding unknown) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] steward context unavailable; drafting without it: Steward temporarily unreachable
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding degraded) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding degraded) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 1 edits, 1 violation(s), grounding degraded) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding ok) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding degraded) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S9] assistant complete (strategy scope, 0 edits, grounding degraded) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM     LOG [MeriService] [strategy:S1] assistant complete (strategy scope, 0 edits, grounding unknown) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] steward context unavailable; drafting without it: The table `public.sp_context_fact` does not exist
+[Nest] 112701  - 10/12/2026, 11:11:22 AM    WARN [MeriService] execution document draft unavailable (workspace_draft); staging the deterministic placeholder: orchestrator unavailable
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-8 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-8 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-8 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-8 mission:M1] execution plan settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:24 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+PASS src/agents/execution.service.spec.ts
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check done (0 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-11] Watch revalidate complete (reason:post-accept): 0 unchanged, 0 updated, 0 dropped (0 deleted-target) in 2ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-11] Watch change applied (change-set cs-6, 1 op)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (2 finding(s), 2 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-17 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-17 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-14] Watch revalidate complete (reason:post-accept): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-14] Watch change applied (change-set cs-6, 1 op)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (4 finding(s), 3 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-20 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-20 mission:M1] watcher check done (2 finding(s), 2 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-17] Watch revalidate complete (reason:post-accept): 1 unchanged, 1 updated, 0 dropped (0 deleted-target) in 2ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-17] Watch change applied (change-set cs-6, 1 op)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (0 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch proposal dropped (overdue:N1): This is no longer an issue — the plan has already moved past it.
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v2] Watch revalidate complete (reason:manual): 0 unchanged, 0 updated, 1 dropped (0 deleted-target) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (0 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch proposal dropped (overdue:N1): The step this was about is no longer in the plan.
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v2] Watch revalidate complete (reason:manual): 0 unchanged, 0 updated, 1 dropped (1 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch revalidate no-op (reason:panel-open) — already fresh
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v1] Watch revalidate complete (reason:manual-check): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v1] Watch revalidate complete (reason:manual-check): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v1] Watch revalidate complete (reason:panel-open): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v1] Watch revalidate complete (reason:panel-open): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v1] Watch revalidate complete (reason:panel-open): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v1] Watch revalidate complete (reason:panel-open): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch revalidate no-op (reason:panel-open) — already fresh
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v2] Watch revalidate complete (reason:panel-open): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-23 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-23 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v2] Watch revalidate complete (reason:panel-open): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v1] Watch revalidate complete (reason:manual-check): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-18 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-18 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v1] Watch revalidate complete (reason:manual-check): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-18 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-18 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v1] Watch revalidate complete (reason:manual-check): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-27 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-27 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-18 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-18 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v1] Watch revalidate complete (reason:manual-check): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v2] Watch revalidate complete (reason:panel-open): 1 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch revalidate no-op (reason:panel-open) — no Watch mission
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (2 finding(s), 2 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-17 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-17 mission:M1] watcher check done (0 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-14] Watch revalidate complete (reason:post-accept-all): 0 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-14] Watch batch applied (2 proposals, 2 ops)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (4 finding(s), 3 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-20 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-20 mission:M1] watcher check done (2 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-17] Watch revalidate complete (reason:post-accept-all): 0 unchanged, 1 updated, 0 dropped (0 deleted-target) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-17] Watch batch applied (2 proposals, 2 ops)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM    WARN [WatchReviewService] [strategy:S1] Watch accept-all prevented on a stale head (expected v1, head v2, 1 proposals)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (2 finding(s), 2 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-11] Watch revalidate complete (reason:post-accept): 0 unchanged, 0 updated, 0 dropped (0 deleted-target) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-11] Watch change applied (change-set cs-6, 1 op)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (2 finding(s), 2 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-17 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-17 mission:M1] watcher check done (2 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-14] Watch revalidate complete (reason:post-accept): 0 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-14] Watch change applied (change-set cs-6, 1 op)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM    WARN [WatchReviewService] [strategy:S1] Watch revalidate check FAILED (reason:post-accept): orchestrator unavailable
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-11] Watch change applied (change-set cs-6, 1 op)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch proposal permanently dismissed (change-set cs-6)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch revalidate no-op (reason:manual) — already fresh
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch proposal permanently dismissed (change-set cs-6)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (2 finding(s), 2 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check done (0 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-11] Watch revalidate complete (reason:post-accept): 0 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-11] Watch change applied (change-set cs-6, 1 op)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (2 finding(s), 2 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-17 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-17 mission:M1] watcher check done (0 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-14] Watch revalidate complete (reason:post-accept-all): 0 unchanged, 0 updated, 0 dropped (0 deleted-target) in 0ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-14] Watch batch applied (2 proposals, 2 ops)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch revalidate no-op (reason:post-accept) — no Watch mission
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-2] Watch change applied (change-set cs-add, 1 op)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check done (0 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-11] Watch revalidate complete (reason:post-accept): 0 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM    WARN [WatchReviewService] [strategy:S1] could not record the Watch chat confirmation: conversation service unavailable
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-11] Watch change applied (change-set cs-6, 1 op)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch proposal permanently dismissed (change-set cs-6)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+PASS src/agents/watch-review.service.spec.ts
+  ● Console
+
+    console.log
+      [perf] 60-step check + full reconcile: 16ms (budget 2000ms)
+
+      at Object.<anonymous> (src/agents/watch-review.service.spec.ts:2096:13)
+
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-11] Watch revalidate complete (reason:post-accept): 0 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-11] Watch change applied (change-set cs-6, 1 op)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch proposal permanently dismissed (change-set cs-6)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch proposal dropped (overdue:N1): This is no longer an issue — the plan has already moved past it.
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v2] Watch revalidate complete (reason:panel-open): 0 unchanged, 0 updated, 1 dropped (0 deleted-target) in 2ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM    WARN [WatchReviewService] [strategy:S1] Watch revalidate check FAILED (reason:panel-open): unique
+[Nest] 112701  - 10/12/2026, 11:11:26 AM    WARN [WatchReviewService] [strategy:S1] Watch revalidate check FAILED (reason:panel-open): Run not found
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1] Watch revalidate no-op (reason:panel-open) — already fresh
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-14 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:version-11] Watch revalidate complete (reason:post-accept): 0 unchanged, 0 updated, 0 dropped (0 deleted-target) in 1ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 version:version-11] Watch change applied (change-set cs-6, 1 op)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (63 finding(s), 43 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-137 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-137 mission:M1] watcher check done (63 finding(s), 43 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatchReviewService] [strategy:S1 head:v2] Watch revalidate complete (reason:perf): 43 unchanged, 0 updated, 0 dropped (0 deleted-target) in 11ms
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:26 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+PASS src/context/steward.service.spec.ts
+PASS src/context/context-documents.service.spec.ts
+PASS src/agents/watcher.service.spec.ts
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (2 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (2 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (2 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (13 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (13 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-2 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-2 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-11 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-21 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-21 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (0 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (0 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (0 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-2 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-2 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-12 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-12 mission:M1] watcher check done (1 finding(s), 0 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-2 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-2 mission:M1] watcher check done (1 finding(s), 1 proposed)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check start (strategy:S1)
+[Nest] 112701  - 10/12/2026, 11:11:36 AM     LOG [WatcherService] [run:run-1 mission:M1] watcher check done (1 finding(s), 1 proposed)
+PASS src/agents/change-sets.service.spec.ts
+PASS src/agents/runs.service.spec.ts
+PASS src/agents/agent-safety.spec.ts
+[Nest] 112701  - 10/12/2026, 11:11:39 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:39 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:39 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:39 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:39 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:39 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:39 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:39 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:39 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:39 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:39 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> waiting_for_input
+PASS src/strategy/version.service.spec.ts
+[Nest] 112701  - 10/12/2026, 11:11:41 AM   ERROR [WatcherSchedulerService] scheduled watcher check failed (mission M1, tenant tenant-1): boom: poisoned mission
+[Nest] 112701  - 10/12/2026, 11:11:41 AM   ERROR [WatcherSchedulerService] scheduled watcher check failed (mission M1, tenant tenant-1): boom
+[Nest] 112701  - 10/12/2026, 11:11:41 AM   ERROR [WatcherSchedulerService] scheduled watcher check failed (mission M1, tenant tenant-1): refresh exploded
+[Nest] 112701  - 10/12/2026, 11:11:41 AM   ERROR [WatcherSchedulerService] scheduled watcher check failed (mission M1, tenant tenant-1): exploded before creating a run
+[Nest] 112701  - 10/12/2026, 11:11:41 AM   ERROR [WatcherSchedulerService] scheduled watcher check failed (mission M1, tenant tenant-1): exploded before creating a run
+[Nest] 112701  - 10/12/2026, 11:11:41 AM   ERROR [WatcherSchedulerService] could not mark scheduled run failed (tenant tenant-1, key sched:M1:2026-10-12): db down
+PASS src/agents/watcher-scheduler.service.spec.ts
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 2 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M2 tenant:t2] scheduled strategy check (key sched:M2:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 2 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-09)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M2 tenant:tenant-1] scheduled strategy check (key sched:M2:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 2 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M2 tenant:tenant-1] scheduled strategy check (key sched:M2:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 2 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:MF tenant:tenant-1] scheduled firm-calendar check (key sched:MF:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [run:R-firm mission:MF] firm-calendar placeholder (queued)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:MF tenant:tenant-1] scheduled firm-calendar check (key sched:MF:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [run:R-firm mission:MF] firm-calendar placeholder (queued)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:MF tenant:tenant-1] scheduled firm-calendar check (key sched:MF:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [run:R-firm mission:MF] firm-calendar placeholder (queued)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:MF tenant:tenant-1] scheduled firm-calendar check (key sched:MF:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [run:R-firm mission:MF] firm-calendar placeholder (queued)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:MF tenant:tenant-1] scheduled firm-calendar check (key sched:MF:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [run:R-firm mission:MF] firm-calendar placeholder (ready_for_review)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 2 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M2 tenant:tenant-1] scheduled strategy check (key sched:M2:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler tick claimed 1 due mission(s)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] [mission:M1 tenant:tenant-1] scheduled strategy check (key sched:M1:2026-10-12)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler armed (poll every 60000ms)
+[Nest] 112701  - 10/12/2026, 11:11:41 AM     LOG [WatcherSchedulerService] watcher scheduler armed (poll every 15000ms)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> waiting_for_input
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (outreach)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution plan settled -> ready_for_review
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute start (workspace)
+[Nest] 112701  - 10/12/2026, 11:11:42 AM     LOG [ExecutionService] [run:run-1 mission:M1] execution execute settled -> completed
+PASS src/agents/execution.approval.spec.ts
+PASS src/agents/watcher-checks.spec.ts
+PASS src/strategy/node.service.spec.ts
+PASS src/reports/report-amendment.spec.ts
+PASS src/planner/planner.http.spec.ts
+PASS src/reports/strategy-report.service.spec.ts
+PASS src/context/context-import.service.spec.ts
+[Nest] 112701  - 10/12/2026, 11:12:02 AM   ERROR [RunReconcilerService] reconcile run r1 failed: poisoned
+[Nest] 112701  - 10/12/2026, 11:12:02 AM   ERROR [RunReconcilerService] run reconciler sweep failed: boom
+PASS src/agents/run-reconciler.service.spec.ts
+[Nest] 112701  - 10/12/2026, 11:12:03 AM   ERROR [OutboxConsumerService] outbox mission bump failed (tenant tenant-1, strategy S-poison): bump exploded for S-poison
+[Nest] 112701  - 10/12/2026, 11:12:03 AM   ERROR [OutboxConsumerService] outbox node resolution failed (1 node id(s)): node lookup exploded
+[Nest] 112701  - 10/12/2026, 11:12:02 AM     LOG [RunReconcilerService] run reconciler sweep: scanned=1 repaired=1 escalated=0 clean=0
+[Nest] 112701  - 10/12/2026, 11:12:02 AM     LOG [RunReconcilerService] run reconciler sweep: scanned=1 repaired=0 escalated=0 clean=0
+[Nest] 112701  - 10/12/2026, 11:12:03 AM     LOG [OutboxConsumerService] outbox consumer armed (drain every 30000ms)
+[Nest] 112701  - 10/12/2026, 11:12:03 AM     LOG [OutboxConsumerService] outbox consumer armed (drain every 5000ms)
+PASS src/agents/outbox-consumer.service.spec.ts
+PASS src/reports/report-renderers.spec.ts
+PASS src/reports/report-context.spec.ts
+PASS test/p0-routes.e2e-spec.ts
+PASS src/reports/report-snapshot.service.spec.ts
+PASS src/strategy/verifier.spec.ts
+PASS src/planner/planner.spec.ts
+PASS src/agents/approval-binding.spec.ts
+PASS src/agents/run-state.spec.ts
+PASS src/agents/missions.service.spec.ts
+PASS src/reports/pdf-report.renderer.spec.ts
+PASS src/context/current-plan-export.spec.ts
+PASS src/agents/run-recovery.spec.ts (28.284 s)
+PASS src/context/frontmatter.spec.ts
+PASS src/planner/planner-task-create-command.spec.ts
+PASS src/meri/strategy-orchestrator.client.spec.ts
+PASS src/cross-stage-integration.spec.ts
+PASS src/reports/report-narrative-verifier.spec.ts
+PASS src/agents/execution-artifact.client.spec.ts
+[Nest] 112701  - 10/12/2026, 11:12:55 AM    WARN [ExecutionArtifactClient] workspace draft create non-2xx: HTTP 502
+[Nest] 112701  - 10/12/2026, 11:12:55 AM    WARN [ExecutionArtifactClient] workspace draft create timed out
+PASS src/reports/report-readiness.spec.ts
+PASS src/meri/draft-job-worker.service.spec.ts
+[Nest] 112701  - 10/12/2026, 11:12:57 AM    WARN [DraftJobWorkerService] draft job job-1 failed: This draft took too long and was stopped. Try again, or with a narrower goal or fewer attachments.
+[Nest] 112701  - 10/12/2026, 11:12:57 AM    WARN [DraftJobWorkerService] draft job job-1 failed: Meri strategy-draft-stream timed out
+[Nest] 112701  - 10/12/2026, 11:12:57 AM    WARN [DraftJobWorkerService] draft job job-1 failed: This draft took too long and was stopped. Try again, or with a narrower goal or fewer attachments.
+[Nest] 112701  - 10/12/2026, 11:12:57 AM     LOG [DraftJobWorkerService] draft job job-1 -> drafting
+[Nest] 112701  - 10/12/2026, 11:12:57 AM     LOG [DraftJobWorkerService] draft-job worker disabled: Meri orchestrator is not configured
+[Nest] 112701  - 10/12/2026, 11:12:57 AM     LOG [DraftJobWorkerService] draft-job worker started (instance=f1fd3374353e-112701-76f5e8ae, sweep every 2000ms, stale after 300000ms)
+PASS eval/steward/steward-fixtures.spec.ts
+PASS src/flags/strategy-flags.service.spec.ts
+[Nest] 112701  - 10/12/2026, 11:13:00 AM    WARN [StrategyFlagsService] strategyPlanner flag read failed: connection reset
+[Nest] 112701  - 10/12/2026, 11:13:00 AM    WARN [StrategyFlagsService] strategyPlannerMeri flag read failed: connection reset
+[Nest] 112701  - 10/12/2026, 11:13:00 AM    WARN [StrategyFlagsService] agentic flag executionAgentWorkspace.enabled read failed: connection reset
+PASS src/planner/planner-task-create-command.independent-review.spec.ts
+PASS src/context/context-documents-availability.spec.ts
+PASS src/reports/member-office.reader.spec.ts
+[Nest] 112701  - 10/12/2026, 11:13:02 AM    WARN [DirectoryMemberOfficeReader] Member office lookup unavailable during report export: Error
+[Nest] 112701  - 10/12/2026, 11:13:02 AM    WARN [DirectoryMemberOfficeReader] Member office lookup unavailable during report export: Error
+[Nest] 112701  - 10/12/2026, 11:13:02 AM    WARN [DirectoryMemberOfficeReader] Member office lookup unavailable during report export: Error
+[Nest] 112701  - 10/12/2026, 11:13:03 AM    WARN [GovernedStrategyMeri] Strategy document governed context unavailable; using deterministic placeholder: context_plane_unavailable
+[Nest] 112701  - 10/12/2026, 11:13:03 AM    WARN [GovernedStrategyMeri] Strategy document generation skipped: caller identity is unavailable
+PASS src/meri/governed-strategy-meri.factory.spec.ts
+PASS src/reports/report-image.spec.ts
+PASS src/strategy/objective-destination.service.spec.ts
+PASS src/meri/draft-job.service.spec.ts
+PASS src/planner/planner-form.spec.ts
+PASS src/strategy/restore-impact.spec.ts
+PASS src/reports/report-narrative-evidence.spec.ts
+PASS src/planner/planner-goals.spec.ts
+PASS src/agents/risk-router.spec.ts
+PASS src/strategy/versioning.service.spec.ts
+PASS src/agents/execution-eligibility.spec.ts
+PASS src/agents/watch-batch-order.spec.ts
+PASS src/agents/watch-monitoring.spec.ts
+PASS src/reports/report-policy.spec.ts
+PASS src/strategy/dto/node.dto.spec.ts
+PASS eval/run-l2.spec.ts
+PASS src/planner/planner-schedule.spec.ts
+PASS src/planner/planner-reporting.spec.ts
+PASS src/agents/execution-assurance.spec.ts
+PASS src/reports/report-timeline.spec.ts
+PASS src/planner/planner-resources.spec.ts
+PASS src/prisma/migration-safety.spec.ts
+PASS src/meri/strategy-context-plane.client.spec.ts
+PASS src/strategy/objective-destination.controller.spec.ts
+PASS src/planner/planner-attachments.spec.ts
+PASS eval/run-l1.spec.ts
+PASS src/context/markdown-locate.spec.ts
+[Nest] 112701  - 10/12/2026, 11:13:20 AM   ERROR [PlannerSchedulerService] Planner tenant discovery failed; next cycle will retry
+PASS src/planner/planner-scheduler.service.spec.ts
+[Nest] 112701  - 10/12/2026, 11:13:20 AM    WARN [PlannerSchedulerService] Planner tenant 10000000-0000-4000-8000-000000000001 scheduled work failed; next cycle will retry
+[Nest] 112701  - 10/12/2026, 11:13:20 AM    WARN [PlannerSchedulerService] Planner tenant 10000000-0000-4000-8000-000000000001 submission reminders failed; next cycle will retry
+[Nest] 112701  - 10/12/2026, 11:13:20 AM     LOG [PlannerSchedulerService] Planner configured date rules, goal, submission and budget reminders armed (60-second polling)
+[Nest] 112701  - 10/12/2026, 11:13:20 AM    WARN [PlannerSchedulerService] Planner tenant 10000000-0000-4000-8000-000000000001 budget reminders failed; next cycle will retry
+PASS src/planner/planner-goal-activity.spec.ts
+PASS src/agents/send-approval.spec.ts
+PASS src/planner/planner-budgets.spec.ts
+PASS src/planner/planner-form-upload.spec.ts
+PASS src/planner/planner-time-policy.spec.ts
+PASS src/planner/planner-date-rules.spec.ts
+PASS src/prisma/apply-tenant-scope.spec.ts
+PASS src/reports/report-health.spec.ts
+PASS src/agents/run-metrics.spec.ts
+PASS src/prisma/tenant-scope-guard.spec.ts
+PASS src/planner/planner-reporting-sharing.spec.ts
+PASS src/meri/meri.controller.spec.ts
+PASS src/planner/planner-capacity.http.spec.ts
+PASS src/planner/planner-capacity.spec.ts
+PASS src/strategy/versioning.spec.ts
+[Nest] 112701  - 10/12/2026, 11:13:31 AM    WARN [ContextLoad] firm-phases: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 112701  - 10/12/2026, 11:13:31 AM    WARN [ContextLoad] firm-phases: transient load failure (attempt 2/3), retrying — [object Object]
+[Nest] 112701  - 10/12/2026, 11:13:31 AM     LOG [ContextLoad] firm-phases: recovered after 2 retries
+[Nest] 112701  - 10/12/2026, 11:13:31 AM    WARN [ContextLoad] reference-calendars: transient load failure (attempt 1/3), retrying — [object Object]
+[Nest] 112701  - 10/12/2026, 11:13:32 AM    WARN [ContextLoad] reference-calendars: transient load failure (attempt 2/3), retrying — [object Object]
+PASS src/meri/context-load.spec.ts
+PASS src/agents/execution-blocker.spec.ts
+[Nest] 112701  - 10/12/2026, 11:13:33 AM   ERROR [PrismaOrgTenantResolver] resolveByTenantId(17b63099-bc0f-4ac5-b596-496161e9481e) failed: Timed out fetching a new connection from the connection pool.
+[Nest] 112701  - 10/12/2026, 11:13:33 AM   ERROR [PrismaOrgTenantResolver] resolveByClerkOrgId failed: Timed out fetching a new connection from the connection pool.
+PASS src/auth/org-tenant-resolver.provider.spec.ts
+[Nest] 112701  - 10/12/2026, 11:13:33 AM   DEBUG [PrismaOrgTenantResolver] resolveByTenantId(not-a-uuid): not a valid tenant id
+PASS src/planner/planner-time-review.spec.ts
+PASS src/agents/execution-assurance-tenant.interceptor.spec.ts
+PASS src/agents/watch-migration.spec.ts
+PASS src/reports/report-member-profiles.spec.ts
+PASS src/agents/agents.controller.spec.ts
+PASS src/planner/planner-reporting-data.spec.ts
+PASS src/planner/planner-timesheets.spec.ts
+PASS src/reference/baseline.spec.ts
+PASS src/planner/planner-timers.spec.ts
+PASS src/reference/reference.service.spec.ts
+PASS src/planner/planner-timesheet-work.spec.ts
+PASS src/planner/planner-links.spec.ts
+PASS src/flags/strategy-meri.guard.spec.ts
+PASS src/flags/agentic.guard.spec.ts
+PASS src/planner/planner-time-tree.spec.ts
+PASS src/meri/strategy-conversation.service.spec.ts
+[Nest] 112701  - 10/12/2026, 11:13:41 AM     LOG [StrategyConversationService] [strategy:strategy-1] conversation send replayed idempotently (message message-1)
+PASS src/firm-phases/firm-phases.service.spec.ts
+PASS src/fiscal/fiscal.spec.ts
+PASS src/reports/dto/report-export.dto.spec.ts
+PASS src/app.module.di-boot.spec.ts
+PASS src/agents/execution-assurance.switch.spec.ts
+PASS src/reports/report-capacity.spec.ts
+PASS src/strategy/strategy-summary.spec.ts
+PASS src/strategy/dto/artifact.dto.spec.ts
+PASS src/cors-origins.spec.ts
+PASS src/firm-phases/dto/firm-phases.dto.spec.ts
+PASS test/health.e2e-spec.ts
+PASS src/planner/planner-view-preferences.spec.ts
+PASS src/strategy/verifier.past-dates.spec.ts
+PASS src/planner/planner-command-scope.spec.ts
+PASS src/strategy/dates.spec.ts
+PASS src/strategy/dto/patch-strategy.dto.spec.ts
+
+Test Suites: 20 skipped, 123 passed, 123 of 143 total
+Tests:       195 skipped, 2026 passed, 2221 total
+Snapshots:   0 total
+Time:        174.37 s
+Ran all test suites.
+Test results written to: ../../docs/cleanup-source-gates-20261012/evidence/strategy-full-source-unit.json

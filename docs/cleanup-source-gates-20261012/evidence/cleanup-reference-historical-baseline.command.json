@@ -1,0 +1,20 @@
+{
+  "name": "cleanup-reference-historical-baseline",
+  "cwd": "/workspace/capirov2-cleanup-gate-reference",
+  "argv": [
+    "node",
+    "scripts/cleanup-gates/verify-baseline.mjs",
+    "--baseline",
+    "docs/plans/cleanup1-coverage-baseline.json",
+    "--kind",
+    "historical-floor",
+    "--require-tracked"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 0.665,
+  "measuredSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "targetIntegratedSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "cleanup-reference-historical-baseline.log"
+}

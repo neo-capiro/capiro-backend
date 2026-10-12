@@ -1,0 +1,17 @@
+{
+  "name": "migration-invocation-controls",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "node",
+    "--test",
+    "scripts/ci/bootstrap-disposable-postgres-roles.test.mjs",
+    "scripts/ci/remaining-rehearsal-bootstrap.test.mjs",
+    "scripts/ci/disposable-postgres-invocation-guards.test.mjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 1.536,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "migration-invocation-controls.log"
+}

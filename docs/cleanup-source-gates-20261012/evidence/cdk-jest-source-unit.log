@@ -1,0 +1,16 @@
+PASS test/compute-stack.tango.spec.ts (74.105 s)
+PASS test/ingestion-schedule.spec.ts
+PASS test/compute-stack.meriv3-env.spec.ts (5.41 s)
+PASS test/phase8-session5-nvidia-benchmark.spec.ts
+PASS test/assets-stack.client-logo.spec.ts
+PASS test/data-stack.engine-version.spec.ts
+PASS test/assets-stack.hearing-audio.spec.ts
+PASS test/assets-stack.planner.spec.ts
+PASS test/district-nexus-ingestion-monitoring.spec.ts
+
+Test Suites: 9 passed, 9 total
+Tests:       47 passed, 47 total
+Snapshots:   0 total
+Time:        93.221 s
+Ran all test suites.
+Test results written to: ../../docs/cleanup-source-gates-20261012/evidence/cdk-jest-source-unit.json

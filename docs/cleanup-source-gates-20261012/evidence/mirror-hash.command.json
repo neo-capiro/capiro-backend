@@ -1,0 +1,14 @@
+{
+  "name": "mirror-hash",
+  "cwd": "/workspace/capirov2-cleanup-source-gates",
+  "argv": [
+    "node",
+    "scripts/verify-defense-budget-mirror-parity.mjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 4.585,
+  "measuredSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "nativeAcceptance": false,
+  "outputFile": "mirror-hash.log"
+}

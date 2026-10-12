@@ -1,0 +1,41 @@
+✔ unchanged committed migration passes (134.683868ms)
+✔ new migration is allowed (111.392131ms)
+✔ SQL modification fails exact-byte integrity (144.7179ms)
+✔ trailing newline fails exact-byte integrity (122.091881ms)
+✔ leading whitespace fails exact-byte integrity (135.193284ms)
+✔ CRLF conversion fails exact-byte integrity (115.33237ms)
+✔ empty SQL modification fails exact-byte integrity (143.213669ms)
+✔ deleting migration SQL fails (119.966035ms)
+✔ renaming an existing migration fails (124.51786ms)
+✔ nonstandard migration path is checked: service with spaces/migrations/initial setup/migration.sql (124.313076ms)
+✔ nonstandard migration path is checked: apps/new/prisma/migrations/init_without_timestamp/migration.sql (124.075056ms)
+✔ uncommitted edits are outside committed-history comparison (138.269115ms)
+✔ migration mode changes fail (137.639706ms)
+✔ missing base fails closed (89.267702ms)
+✔ missing default origin/main fails closed (91.005869ms)
+✔ malformed arguments fail closed (240.614362ms)
+✔ unrelated base fails closed (118.977605ms)
+✔ running outside a Git checkout fails closed (65.36751ms)
+✔ exact incident replacement is recognized: apps/api/prisma/migrations/20281002010000_research_portfolios_phase10_watch_delivery/migration.sql (174.279987ms)
+✔ incident replacement with one extra newline fails: apps/api/prisma/migrations/20281002010000_research_portfolios_phase10_watch_delivery/migration.sql (168.981448ms)
+✔ incident replacement cannot match a different original: apps/api/prisma/migrations/20281002010000_research_portfolios_phase10_watch_delivery/migration.sql (127.349833ms)
+✔ future edits to the repaired migration fail: apps/api/prisma/migrations/20281002010000_research_portfolios_phase10_watch_delivery/migration.sql (202.489609ms)
+✔ exact incident replacement is recognized: apps/api/prisma/migrations/20281003010000_dedup_client_intel_mapping/migration.sql (169.398573ms)
+✔ incident replacement with one extra newline fails: apps/api/prisma/migrations/20281003010000_dedup_client_intel_mapping/migration.sql (184.758558ms)
+✔ incident replacement cannot match a different original: apps/api/prisma/migrations/20281003010000_dedup_client_intel_mapping/migration.sql (166.675568ms)
+✔ future edits to the repaired migration fail: apps/api/prisma/migrations/20281003010000_dedup_client_intel_mapping/migration.sql (201.753047ms)
+✔ incident SQL at another path has no exception (150.604413ms)
+✔ recognized incident edit does not hide unrelated changes (180.104067ms)
+✔ recognized incident bytes do not permit a file-mode change (176.072933ms)
+✔ the interim dedup repair is a recognized original for the replacement (133.139395ms)
+✔ the dedup replacement cannot be changed back to the interim repair (164.800987ms)
+✔ the interim repair plus one byte is not a recognized original (151.222336ms)
+✔ the interim dedup original is not recognized for the delivery migration (140.220444ms)
+ℹ tests 33
+ℹ suites 0
+ℹ pass 33
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4913.136834

@@ -1,0 +1,132 @@
+src/auth/org-tenant-resolver.provider.ts(56,41): error TS2339: Property 'id' does not exist on type '{}'.
+src/auth/org-tenant-resolver.provider.ts(56,55): error TS2339: Property 'slug' does not exist on type '{}'.
+src/auth/org-tenant-resolver.provider.ts(56,77): error TS2339: Property 'clerkOrgId' does not exist on type '{}'.
+src/auth/tenant-resolver.service.ts(30,32): error TS2339: Property 'id' does not exist on type '{}'.
+src/auth/tenant-resolver.service.ts(31,19): error TS2339: Property 'id' does not exist on type '{}'.
+src/billing/ai-usage-reader.service.ts(25,12): error TS18046: 'rows' is of type 'unknown'.
+src/billing/billing-overage.service.ts(74,21): error TS18046: 'tenants' is of type 'unknown'.
+src/billing/billing.service.ts(160,18): error TS2339: Property 'stripeCustomerId' does not exist on type '{}'.
+src/billing/billing.service.ts(164,24): error TS2339: Property 'stripeCustomerId' does not exist on type '{}'.
+src/billing/billing.service.ts(178,17): error TS2339: Property 'stripeCustomerId' does not exist on type '{}'.
+src/billing/billing.service.ts(178,49): error TS2339: Property 'stripeCustomerId' does not exist on type '{}'.
+src/billing/billing.service.ts(181,21): error TS2339: Property 'name' does not exist on type '{}'.
+src/billing/billing.service.ts(314,25): error TS2339: Property 'onboardBillingEvent' does not exist on type 'PrismaService'.
+src/email/email.service.ts(5,24): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/email/email.service.ts(68,40): error TS2339: Property 'onboardEmailLog' does not exist on type 'PrismaService'.
+src/email/email.service.ts(113,25): error TS2339: Property 'onboardEmailLog' does not exist on type 'PrismaService'.
+src/email/email.service.ts(125,66): error TS18046: 'err' is of type 'unknown'.
+src/funnel/funnel-state.ts(1,42): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/funnel/funnel.service.ts(18,8): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/funnel/funnel.service.ts(98,41): error TS2339: Property 'onboardPurchaser' does not exist on type 'PrismaService'.
+src/funnel/funnel.service.ts(121,40): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/funnel.service.ts(131,35): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/funnel.service.ts(167,25): error TS2339: Property 'onboardPurchaser' does not exist on type 'PrismaService'.
+src/funnel/funnel.service.ts(396,23): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/funnel.service.ts(449,25): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/funnel.service.ts(557,23): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/funnel.service.ts(689,24): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/funnel.service.ts(697,41): error TS2339: Property 'onboardPurchaser' does not exist on type 'PrismaService'.
+src/funnel/funnel.service.ts(703,26): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/funnel.service.ts(737,24): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/funnel.service.ts(793,23): error TS2339: Property 'onboardPurchaser' does not exist on type 'PrismaService'.
+src/funnel/provisioning.service.ts(5,55): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/funnel/provisioning.service.ts(69,39): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/provisioning.service.ts(74,39): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/provisioning.service.ts(180,27): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/provisioning.service.ts(185,19): error TS7006: Parameter 'err' implicitly has an 'any' type.
+src/funnel/provisioning.service.ts(217,23): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/funnel/provisioning.service.ts(221,23): error TS2339: Property 'onboardPurchaser' does not exist on type 'PrismaService'.
+src/funnel/provisioning.service.ts(255,27): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/funnel/provisioning.service.ts(282,23): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/funnel/provisioning.service.ts(366,23): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/it-admin/it-admin.service.ts(119,38): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/it-admin/it-admin.service.ts(144,24): error TS2339: Property 'name' does not exist on type '{}'.
+src/it-admin/it-admin.service.ts(223,23): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/it-admin/it-admin.service.ts(227,23): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/it-admin/it-admin.service.ts(278,38): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/it-admin/it-admin.service.ts(292,25): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/it-admin/it-admin.service.ts(299,23): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/it-admin/it-admin.service.ts(310,23): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/it-admin/it-admin.service.ts(342,38): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/it-admin/it-admin.service.ts(352,25): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/it-admin/it-admin.service.ts(411,23): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/it-admin/it-admin.service.ts(420,23): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/legal/legal.service.ts(7,54): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/legal/legal.service.ts(63,19): error TS2339: Property 'onboardLegalDoc' does not exist on type 'PrismaService'.
+src/legal/legal.service.ts(67,19): error TS2339: Property 'onboardLegalDoc' does not exist on type 'PrismaService'.
+src/legal/legal.service.ts(71,19): error TS2339: Property 'onboardLegalDoc' does not exist on type 'PrismaService'.
+src/legal/legal.service.ts(112,40): error TS2339: Property 'onboardConsent' does not exist on type 'PrismaService'.
+src/legal/legal.service.ts(116,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/legal/legal.service.ts(136,25): error TS2339: Property 'onboardConsent' does not exist on type 'PrismaService'.
+src/legal/legal.service.ts(146,24): error TS2339: Property 'onboardConsent' does not exist on type 'PrismaService'.
+src/legal/legal.service.ts(163,37): error TS2339: Property '$transaction' does not exist on type 'PrismaService'.
+src/legal/legal.service.ts(163,57): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/lifecycle/lifecycle.service.ts(97,26): error TS18046: 'due' is of type 'unknown'.
+src/lifecycle/lifecycle.service.ts(99,43): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/lifecycle/lifecycle.service.ts(132,27): error TS2339: Property 'onboardBillingEvent' does not exist on type 'PrismaService'.
+src/lifecycle/lifecycle.service.ts(169,26): error TS18046: 'trialing' is of type 'unknown'.
+src/lifecycle/lifecycle.service.ts(211,9): error TS18046: 'rows' is of type 'unknown'.
+src/lifecycle/lifecycle.service.ts(212,37): error TS2339: Property 'user' does not exist on type 'PrismaService'.
+src/lifecycle/lifecycle.service.ts(213,26): error TS18046: 'rows' is of type 'unknown'.
+src/lifecycle/lifecycle.service.ts(213,36): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/lifecycle/lifecycle.service.ts(216,23): error TS7006: Parameter 'u' implicitly has an 'any' type.
+src/lifecycle/lifecycle.service.ts(216,46): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/lifecycle/lifecycle.service.ts(232,26): error TS18046: 'stale' is of type 'unknown'.
+src/lifecycle/lifecycle.service.ts(234,41): error TS2339: Property 'onboardSession' does not exist on type 'PrismaService'.
+src/lifecycle/lifecycle.service.ts(249,27): error TS2339: Property 'onboardBillingEvent' does not exist on type 'PrismaService'.
+src/lifecycle/lifecycle.service.ts(295,26): error TS18046: 'pastDue' is of type 'unknown'.
+src/lifecycle/lifecycle.service.ts(297,41): error TS2339: Property 'onboardBillingEvent' does not exist on type 'PrismaService'.
+src/lifecycle/lifecycle.service.ts(302,29): error TS2339: Property 'onboardBillingEvent' does not exist on type 'PrismaService'.
+src/lifecycle/lifecycle.service.ts(311,27): error TS2339: Property 'onboardBillingEvent' does not exist on type 'PrismaService'.
+src/lifecycle/lifecycle.service.ts(321,27): error TS2339: Property 'onboardBillingEvent' does not exist on type 'PrismaService'.
+src/lifecycle/lifecycle.service.ts(352,26): error TS18046: 'locked' is of type 'unknown'.
+src/lifecycle/lifecycle.service.ts(356,25): error TS2339: Property 'onboardBillingEvent' does not exist on type 'PrismaService'.
+src/lifecycle/lifecycle.service.ts(381,26): error TS18046: 'canceled' is of type 'unknown'.
+src/prisma/prisma.service.ts(2,38): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/prisma/prisma.service.ts(69,16): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(69,37): error TS7006: Parameter 'f' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(70,13): error TS7006: Parameter 'm' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(74,16): error TS2339: Property '$connect' does not exist on type 'PrismaService'.
+src/prisma/prisma.service.ts(81,16): error TS2339: Property '$disconnect' does not exist on type 'PrismaService'.
+src/prisma/prisma.service.ts(91,17): error TS2339: Property '$extends' does not exist on type 'PrismaService'.
+src/prisma/prisma.service.ts(96,36): error TS7031: Binding element 'model' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(96,43): error TS7031: Binding element 'operation' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(96,54): error TS7031: Binding element 'args' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(96,60): error TS7031: Binding element 'query' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(118,14): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(160,14): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+src/prisma/prisma.service.ts(176,62): error TS18046: 'err' is of type 'unknown'.
+src/setup/setup.service.ts(13,56): error TS2307: Cannot find module '../../generated/prisma-client/index.js' or its corresponding type declarations.
+src/setup/setup.service.ts(108,17): error TS2339: Property 'onboardingFlowVersion' does not exist on type '{}'.
+src/setup/setup.service.ts(132,19): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(133,19): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(144,38): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/setup/setup.service.ts(167,31): error TS7006: Parameter 'i' implicitly has an 'any' type.
+src/setup/setup.service.ts(193,35): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(219,47): error TS2339: Property 'name' does not exist on type '{}'.
+src/setup/setup.service.ts(222,23): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(239,23): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(263,38): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(275,23): error TS2339: Property 'onboardItInvite' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(285,15): error TS2339: Property 'name' does not exist on type '{}'.
+src/setup/setup.service.ts(296,23): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(313,37): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(314,38): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/setup/setup.service.ts(330,23): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(342,9): error TS18046: 'stamped' is of type 'unknown'.
+src/setup/setup.service.ts(343,25): error TS2339: Property 'onboardBillingEvent' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(379,9): error TS18046: 'tenants' is of type 'unknown'.
+src/setup/setup.service.ts(380,17): error TS18046: 'tenants' is of type 'unknown'.
+src/setup/setup.service.ts(380,30): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/setup/setup.service.ts(382,19): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(394,50): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/setup/setup.service.ts(395,53): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/setup/setup.service.ts(396,12): error TS18046: 'tenants' is of type 'unknown'.
+src/setup/setup.service.ts(396,25): error TS7006: Parameter 't' implicitly has an 'any' type.
+src/setup/setup.service.ts(422,27): error TS2339: Property 'onboardingFlowVersion' does not exist on type '{}'.
+src/setup/setup.service.ts(425,16): error TS2339: Property 'importMode' does not exist on type '{}'.
+src/setup/setup.service.ts(428,35): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(435,42): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(439,27): error TS2339: Property 'onboardSetupTask' does not exist on type 'PrismaService'.
+src/setup/setup.service.ts(450,23): error TS2339: Property 'onboardBillingEvent' does not exist on type 'PrismaService'.
+src/tasks/task-runner.ts(91,21): error TS18046: 'rows' is of type 'unknown'.

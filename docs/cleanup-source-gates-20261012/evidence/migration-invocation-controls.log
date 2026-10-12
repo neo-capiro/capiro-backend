@@ -1,0 +1,47 @@
+✔ validation documents the fixed disposable target without contacting PostgreSQL (30.78926ms)
+✔ database URLs and target overrides fail closed (32.675791ms)
+✔ mutating mode is unavailable outside an explicitly marked GitHub Actions fixture (20.869489ms)
+✔ an unexpected connected database identity fails before role creation (23.953127ms)
+✔ an inherited PGHOSTADDR cannot redirect any psql command (102.25234ms)
+✔ inherited libpq service and option settings cannot influence any psql command (76.404962ms)
+✔ the helper creates only the migration-required least-privilege role (76.976195ms)
+✔ the append-only prerequisite is a CI input, not an application migration (0.302581ms)
+✔ the checked-in migration still requires the exact capiro_worker fixture role (7.639929ms)
+✔ Phase 11 workflow uses the fixed disposable identity, invokes guarded bootstrap, and orders it before migrate deploy (0.704268ms)
+✔ Funding rejects wrong host before any database command (43.631081ms)
+✔ Funding rejects wrong port before any database command (16.959063ms)
+✔ Funding rejects unowned database before any database command (19.99789ms)
+✔ Funding rejects missing GitHub Actions before any database command (30.36199ms)
+✔ Funding rejects missing CI before any database command (34.974267ms)
+✔ Funding rejects missing marker before any database command (23.418555ms)
+✔ Funding validation-only keeps the fixed databases and executes no database command (38.786986ms)
+✔ Phase8 external URL path makes no new container prerequisite calls (61.082984ms)
+✔ Phase8 external URL without a safe restricted worker stops before migration (38.652922ms)
+✔ Session 7 supplies the restricted prerequisite before its owned replay (146.610533ms)
+✔ Session 7 rejects an unsafe owned worker before replay (118.187323ms)
+✔ Session 7 checks an external worker without creating one or using Docker (73.24427ms)
+✔ Session 7 refuses an unsafe external worker before SQL writes (24.464776ms)
+✔ Session 7 shell syntax is valid (5.058032ms)
+✔ Session 8 supplies the restricted prerequisite before its owned replay (82.30445ms)
+✔ Session 8 rejects an unsafe owned worker before replay (60.716581ms)
+✔ Session 8 checks an external worker without creating one or using Docker (38.947783ms)
+✔ Session 8 refuses an unsafe external worker before SQL writes (16.464723ms)
+✔ Session 8 shell syntax is valid (4.169992ms)
+✔ Session 9 supplies the restricted prerequisite before its owned replay (56.340294ms)
+✔ Session 9 rejects an unsafe owned worker before replay (61.197093ms)
+✔ Session 9 checks an external worker without creating one or using Docker (39.733129ms)
+✔ Session 9 refuses an unsafe external worker before SQL writes (14.701727ms)
+✔ Session 9 shell syntax is valid (5.593405ms)
+✔ Session 10 supplies the restricted prerequisite before its owned replay (108.092997ms)
+✔ Session 10 rejects an unsafe owned worker before replay (47.280074ms)
+✔ Session 10 checks an external worker without creating one or using Docker (46.89937ms)
+✔ Session 10 refuses an unsafe external worker before SQL writes (14.325122ms)
+✔ Session 10 shell syntax is valid (4.14407ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1293.733364

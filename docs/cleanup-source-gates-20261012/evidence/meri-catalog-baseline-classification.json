@@ -1,0 +1,20 @@
+{
+  "classification": "existing baseline issue",
+  "failure": "Catalog count assertion expects138; actual canonical catalogs139. Same exact test failure reproduces on main. Name/set/manifest equality assertions pass in both. No registry/tool/assertion is changed.",
+  "sourceProof": [
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "mainBlob": "99d9e42f17bdbc157dc8c2d5c421fa9121ec4a70",
+      "integratedBlob": "99d9e42f17bdbc157dc8c2d5c421fa9121ec4a70",
+      "unchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.ts",
+      "mainBlob": "de6a0a41b4d82ef1672b895fd79e4682725bfed6",
+      "integratedBlob": "de6a0a41b4d82ef1672b895fd79e4682725bfed6",
+      "unchanged": true
+    }
+  ],
+  "mainFocusedReceipt": "meri-catalog-baseline.json",
+  "integratedFullReceipt": "meri-orchestrator-full-unit.json"
+}

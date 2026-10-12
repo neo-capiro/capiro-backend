@@ -1,0 +1,30 @@
+{
+  "referenceSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "nativeGateExecuted": false,
+  "files": {
+    "docs/plans/CleanUp1.md": {
+      "sha256": "de0a96429b5894aaeb72dadbd2963b0cca48941fae932b5e863ae17e5389e772",
+      "readOnlyReferenceBytesUnchanged": true
+    },
+    "scripts/cleanup-gates/gate.mjs": {
+      "sha256": "de1a7ee899658acc28397207ea3f765d41f0b35f90c39a55c0ad8cf16b08322d",
+      "readOnlyReferenceBytesUnchanged": true
+    },
+    "scripts/cleanup-gates/gate-config.mjs": {
+      "sha256": "b2f9d7766b4b4ed87825b624ff7fcf384121afdd310c133b393df3609e6b783c",
+      "readOnlyReferenceBytesUnchanged": true
+    },
+    "docs/plans/cleanup1-coverage-baseline.json": {
+      "sha256": "7e1bfadcdc07b0d368c73a9b543fcd50ad0cf7110c1ccad17a0efc03b66501a3",
+      "readOnlyReferenceBytesUnchanged": true
+    },
+    "scripts/cleanup-gates/verify-baseline.mjs": {
+      "sha256": "85db782d4bf6d1303083a30eb890663b5c3cfb3807620cb6cb617c7fca4185c5",
+      "readOnlyReferenceBytesUnchanged": true
+    },
+    "apps/e2e/lib/render-context-controls.mjs": {
+      "sha256": "34e7a3f92d6440fe82e3baeeadf7f93a02a330edf8d36181bb8a534f059da766",
+      "readOnlyReferenceBytesUnchanged": true
+    }
+  }
+}

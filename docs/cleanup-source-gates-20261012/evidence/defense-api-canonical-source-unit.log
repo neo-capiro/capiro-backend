@@ -1,0 +1,1148 @@
+▶ BudgetLifecycleQueryService
+  ✔ cycle health composes real domain aggregation over fetched rows, not a re-derived number (3.044805ms)
+  ✔ listExpectedSources filters by authorityTrack and expectedState independently (0.846744ms)
+  ✔ getExpectedSourceDetail returns full observation history and throws for an unknown id (2.255071ms)
+  ✔ listReviewQueue pairs each review_required expected source with its review_required observation (1.915631ms)
+  ✔ listSignals derives a pb_to_hasc signal read-time from two stored observations, with real content shas (1.408672ms)
+  ✔ getScheduleTickHealth delegates to the domain aggregator over stored ticks (0.759725ms)
+✔ BudgetLifecycleQueryService (12.787487ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle-product/budget-lifecycle-query.service.spec.ts (1817.744856ms)
+▶ Phase 10B-5 — CatalogSourceDiscoveryAdapter through the real watcher + InMemoryLifecycleStore
+  ✔ first discovery: resolves FY24 pb_r1 into one changed observation and one outbox row (46.043129ms)
+  ✔ replay: the same expected source, same URL, same bytes produces no new work (9.102886ms)
+  ✔ changed bytes: supersedes the prior observation without deleting it, queues exactly one more row (11.36161ms)
+  ✔ sanity: budget-lifecycle.module.ts does not reference CatalogSourceDiscoveryAdapter (0.700697ms)
+  ✔ Phase 10B-6: expectedSourceId selector through the REAL watcher pipeline discovers/queues only the selected source, leaving the other catalog row completely untouched (8.733173ms)
+✔ Phase 10B-5 — CatalogSourceDiscoveryAdapter through the real watcher + InMemoryLifecycleStore (81.536131ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/discovery/catalog-source-discovery-to-watcher.spec.ts (2170.568544ms)
+[Nest] 121944  - 10/12/2026, 11:19:24 AM    WARN [CatalogSourceDiscoveryAdapter] army-budget: 08b5796ae01f (pb_r1) -> no_match: no official document candidate available for pb_r1/ARMY
+▶ CatalogSourceDiscoveryAdapter
+  ✔ resolves the FY24 pb_r1 DW expected source into exactly one candidate, on the current preferred (successor) host (8.264333ms)
+  ✔ resolves procurement and O&M DW expected sources independently (7.40713ms)
+  ✔ does not emit a candidate for a non-DW expected source with no listing (5.732161ms)
+  ✔ never emits for an authorization/committee expected source (0.768493ms)
+  ✔ one expected-source selector cannot affect another source (1.035607ms)
+  ✔ replay with the same catalog is idempotent (same candidates, same dedup keys) (3.184564ms)
+  ✔ Phase 10B-6: without a selector, --adapter + --catalog-fiscal-years resolves ALL 5 DW families at once (the boundedness gap) (3.782924ms)
+  ✔ Phase 10B-6: expectedSourceId selector narrows the same 5-family catalog to EXACTLY the matching one, not all five (1.074252ms)
+  ✔ Phase 10B-6: an expectedSourceId selector matching nothing fails closed to zero candidates, never falls back to "all rows" (1.124476ms)
+✔ CatalogSourceDiscoveryAdapter (35.937528ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/discovery/catalog-source-discovery.adapter.spec.ts (1922.631383ms)
+▶ advanceCollectionCursor — Phase 10 in-progress checkpoint
+  ✔ a fresh cursor has no resume checkpoint (2.711821ms)
+  ✔ a budget-bounded run sets the checkpoint and leaves backfillPending true (0.537775ms)
+  ✔ a second bounded pass advances the checkpoint and fingerprint together, never backward (0.560905ms)
+  ✔ a pass that makes no further progress preserves the prior checkpoint AND fingerprint rather than clearing them (0.310067ms)
+  ✔ genuine exhaustion clears both the in-progress checkpoint and its fingerprint (0.835179ms)
+  ✔ a second, independent collection tracks its own checkpoint (PLAW does not leak into CRPT) (0.673825ms)
+✔ advanceCollectionCursor — Phase 10 in-progress checkpoint (11.627035ms)
+▶ parseDiscoveryCursor — backward compatibility with the existing production row
+  ✔ a persisted row with no resumeAfterPackageId key at all (the exact current production shape) parses safely (0.810849ms)
+  ✔ a persisted resumeAfterPackageId AND resumeListingFingerprint round-trip through serialise/parse unchanged (1.345739ms)
+  ✔ a malformed resumeAfterPackageId (non-string) is dropped rather than trusted (0.772874ms)
+  ✔ a malformed resumeListingFingerprint (non-string) is dropped rather than trusted (2.219611ms)
+✔ parseDiscoveryCursor — backward compatibility with the existing production row (5.871969ms)
+▶ computeListingFingerprint — the exact-universe guard behind resumeListingFingerprint
+  ✔ the same ordered (sitemap, packageId/loc, lastmod) sequence always produces the same fingerprint (4.022445ms)
+  ✔ an insertion before the tail changes the fingerprint even though the tail entry is unchanged (0.393644ms)
+  ✔ a lastmod change on any entry changes the fingerprint, even on an entry before the anchor (0.281316ms)
+  ✔ reordering the same entries changes the fingerprint — order is part of the identity (0.336659ms)
+  ✔ a genuinely empty listing has a well-defined, stable fingerprint (0.259735ms)
+✔ computeListingFingerprint — the exact-universe guard behind resumeListingFingerprint (5.669033ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/discovery/crawl-cursor.spec.ts (1204.534675ms)
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ103. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ102.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ106. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ105.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ101. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ100.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 3). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ102. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ101.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 3). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ103. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ102.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: the relevant listing changed since the persisted resume checkpoint PLAW-118publ102 was set (fingerprint mismatch). Failing safe and replaying the collection from the beginning rather than trusting a checkpoint whose universe no longer matches.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ103. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ102.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: https://www.govinfo.gov/sitemap/PLAW_2023_sitemap.xml could not be fetched this pass; the relevant listing is incomplete, so no new resume checkpoint will be minted.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ103. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ102.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: the relevant listing changed since the persisted resume checkpoint PLAW-118publ102 was set (fingerprint mismatch). Failing safe and replaying the collection from the beginning rather than trusting a checkpoint whose universe no longer matches.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: request budget exhausted while resolving PLAW-118publ103. Cursor left pending for the next run; the durable resume checkpoint stays at PLAW-118publ102.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-public-laws: backlog remains after this run (request budget 5). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122053  - 10/12/2026, 11:19:26 AM    WARN [GovInfoSitemapCrawler] govinfo-public-laws/PLAW: the relevant listing changed since the persisted resume checkpoint PLAW-118publ102 was set (fingerprint mismatch). Failing safe and replaying the collection from the beginning rather than trusting a checkpoint whose universe no longer matches.
+▶ Phase 10 — A. multi-run bounded progression
+  ✔ a backlog too large for one budget advances a durable in-progress checkpoint across passes, never restarting, until genuine exhaustion (47.267981ms)
+✔ Phase 10 — A. multi-run bounded progression (50.200303ms)
+▶ Phase 10 — B. budget exhaustion mid-package
+  ✔ the package that could not be afforded is never checkpointed, and the next run replays exactly it, not more (60.708149ms)
+✔ Phase 10 — B. budget exhaustion mid-package (61.474429ms)
+▶ Phase 10 — D. stale / missing resume anchor
+  ✔ a persisted checkpoint that cannot be found in a changed listing is never used to skip forward — the crawler fails safe (8.905367ms)
+✔ Phase 10 — D. stale / missing resume anchor (9.703601ms)
+▶ Phase 10 — E. collection completion
+  ✔ once the final package is processed, the durable watermark advances and both backfillPending and the resume checkpoint reflect completion (5.118338ms)
+✔ Phase 10 — E. collection completion (5.389157ms)
+▶ Phase 10 — backward compatibility with the current production cursor row
+  ✔ a real production-shaped cursor (schema v1, no resumeAfterPackageId key) resumes safely and starts the collection from the beginning (4.502222ms)
+✔ Phase 10 — backward compatibility with the current production cursor row (5.030268ms)
+▶ Phase 10 — F. earlier sitemap failure and recovery (no-skip correctness hole)
+  ✔ a failed early-year sitemap must not let a later-year pass establish a checkpoint that could skip it once it recovers (5.190495ms)
+✔ Phase 10 — F. earlier sitemap failure and recovery (no-skip correctness hole) (5.588977ms)
+▶ Phase 10 — G. insertion/change before an existing, still-present anchor (fingerprint mismatch)
+  ✔ a package inserted before the existing checkpoint forces a safe full replay rather than skipping it (8.65691ms)
+  ✔ a lastmod change on a package before the anchor also forces a safe replay, not a skip (27.797488ms)
+✔ Phase 10 — G. insertion/change before an existing, still-present anchor (fingerprint mismatch) (36.770705ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/discovery/govinfo-resumability.spec.ts (2149.761784ms)
+✔ pacing stays bounded near intervalMs across many requests, even when the caller always passes the same frozen nowIso (40.915359ms)
+✔ pacing is still governed by the real registry interval, not disabled outright (6.440551ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/discovery/https-publisher-pacing.spec.ts (1911.049564ms)
+[Nest] 122126  - 10/12/2026, 11:19:27 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-committee-reports: backlog remains after this run (request budget 250). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122126  - 10/12/2026, 11:19:27 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-committee-reports: backlog remains after this run (request budget 250). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122126  - 10/12/2026, 11:19:27 AM    WARN [GovInfoSitemapCrawler] govinfo-committee-reports/CRPT: request budget exhausted while resolving CRPT-119hrpt402. Cursor left pending for the next run; the durable resume checkpoint stays at CRPT-119hrpt401.
+[Nest] 122126  - 10/12/2026, 11:19:27 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-committee-reports: backlog remains after this run (request budget 4). The cursor was not advanced past unexamined work; the next run resumes there.
+[Nest] 122126  - 10/12/2026, 11:19:27 AM    WARN [LiveSourceDiscoveryAdapter] govinfo-committee-reports: no expected sources are registered for FY 2025/2026/2027; run the cycle controller before the watcher.
+✔ a live GovInfo crawl emits only candidates that resolve to a registered expected source (37.698257ms)
+✔ the two tracks resolve independently from the same crawl (5.850109ms)
+✔ a publisher refusal is recorded as a refusal, never as an absence of documents (4.348794ms)
+✔ an unreachable host is recorded with no status code at all (1.148693ms)
+✔ a bounded run stops early, leaves the cursor pending and does not advance past unexamined work (4.466693ms)
+✔ a second run with the stored cursor does not re-emit what it already emitted (2.603144ms)
+✔ discovery does not crawl at all when nothing is registered to resolve against (1.432355ms)
+✔ an off-host candidate is refused by the same rule the manifest adapter obeyed (3.885378ms)
+✔ an on-host committee mark is crawled, resolved and emitted (2.683528ms)
+✔ a committee press release is crawled, recorded and NOT emitted (1.15327ms)
+✔ pacing is reserved per HOST, so adapters sharing a host serialise (1.147955ms)
+✔ the audit store refuses to store a fabricated identity (2.302839ms)
+✔ a retried run does not duplicate the audit trail (2.298944ms)
+✔ discovery never emits a candidate carrying a funding amount (1.064119ms)
+✔ the GovInfo year window is bounded by the horizon, not the whole archive (1.96202ms)
+▶ resolveDiscoveryHorizon — Phase 10 explicit backfill scope
+  ✔ an explicit historical override is used exactly as given, ignoring the wall clock (0.361451ms)
+  ✔ an explicit future override reaches a year the rolling window would suppress (0.221051ms)
+  ✔ a multi-FY explicit override is used exactly as given, with no gap-filling (0.259069ms)
+  ✔ an explicit override is normalized: deduped and sorted, never reordered by caller intent (0.155124ms)
+  ✔ default behavior (no override) is byte-for-byte unchanged from the existing rolling horizon (0.350234ms)
+  ✔ an explicit invalid or empty override fails closed rather than silently using the wall clock (0.670596ms)
+✔ resolveDiscoveryHorizon — Phase 10 explicit backfill scope (3.097728ms)
+✔ an explicit FY2024 horizon override reaches a real FY2024 candidate, from a 2026 clock (7.264504ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/discovery/live-discovery.spec.ts (1993.863101ms)
+✔ SASC download aliases require explicit opt-in and retain HTTPS, host and path guards (2.45195ms)
+✔ SASC library aliases are audited and only registered in-horizon marks are emitted (14.835951ms)
+✔ other adapters do not accept extensionless download aliases (2.086227ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/discovery/sasc-downloads.spec.ts (1610.308452ms)
+[Nest] 122151  - 10/12/2026, 11:19:28 AM     LOG [AnnualDefenseBudgetCycleController] Bootstrapping FY2024 from first authoritative authorization discovery
+[Nest] 122151  - 10/12/2026, 11:19:28 AM    WARN [DefenseBudgetLifecycleWatcher] Skipping govinfo-committee-reports: adapter is leased by worker-a until 2024-06-15T12:10:00.000Z
+▶ Session 7 — cycle bootstrap
+  ✔ bootstraps an unseen fiscal year from templates with no bespoke manifest (28.328568ms)
+  ✔ lets multiple fiscal-year cycles coexist without colliding (9.220888ms)
+  ✔ is idempotent: re-running does not duplicate or reset expected sources (6.439693ms)
+  ✔ keeps authorization and appropriations as independent tracks (8.794096ms)
+  ✔ rolls the prior/current/upcoming horizon forward from the clock alone (28.92843ms)
+✔ Session 7 — cycle bootstrap (83.577914ms)
+▶ Session 7 — missing sources are never zero
+  ✔ marks an optional unfilled family not_filed and reports no known amount (14.665391ms)
+  ✔ sends a required unfilled family to review rather than defaulting it (2.693152ms)
+✔ Session 7 — missing sources are never zero (17.989907ms)
+▶ Session 7 — discovery, fingerprinting and versioning
+  ✔ bootstraps an unseen FY from first discovery and writes to its exact template identity (30.414776ms)
+  ✔ dry-run of an unseen FY classifies without bootstrapping or writing (1.628944ms)
+  ✔ replays official-source bytes across two coexisting prior-year cycles without identity collision (7.390467ms)
+  ✔ discovers, classifies and versions a first official source (2.485861ms)
+  ✔ treats an unchanged recheck as a no-op that creates no work (3.000282ms)
+  ✔ sends a conditional request on recheck and honours a 304 without re-hashing (3.140972ms)
+  ✔ treats identical bytes at a new URL as relocation, not new content (3.726928ms)
+  ✔ versions a changed source and supersedes the prior version without deleting it (3.79588ms)
+  ✔ recognises an official publisher version advance as supersession (3.878897ms)
+  ✔ records a withdrawn source as withdrawn, never as zero (3.281698ms)
+  ✔ records a failed download as blocked without inventing content (2.736712ms)
+  ✔ refuses a candidate URL that is not on the adapter own official host (2.181352ms)
+✔ Session 7 — discovery, fingerprinting and versioning (68.819702ms)
+▶ Session 7 — ambiguity stops in review
+  ✔ refuses to attribute an omnibus vehicle without proven defence division evidence (3.218492ms)
+  ✔ accepts the same omnibus once the law own division text is supplied (4.837768ms)
+✔ Session 7 — ambiguity stops in review (8.273974ms)
+▶ Session 7 — queueing, idempotency and concurrency
+  ✔ queues exactly one governed ingestion job for a changed source (2.499154ms)
+  ✔ derives one stable outbox identity per observation and job kind (0.424334ms)
+  ✔ stops a second live worker from running the same adapter (2.104963ms)
+  ✔ lets a second worker resume after a crashed worker lease expires (1.999192ms)
+  ✔ never queues more ingestion work than the changed sources it observed (4.049395ms)
+✔ Session 7 — queueing, idempotency and concurrency (11.555006ms)
+▶ Session 7 — GPU independence
+  ✔ runs the whole loop with NVIDIA routing disabled and zero GPU capacity (5.410796ms)
+  ✔ declares no GPU dependency on any registered official adapter (0.211517ms)
+  ✔ classifies a PDF-only publisher source with corroboration deferred, not failed (5.698138ms)
+✔ Session 7 — GPU independence (11.516135ms)
+▶ Session 7 — historical lifecycle replay (real FY2024 sources)
+  ✔ walks PB -> House committee -> Senate committee -> chamber action -> enacted (2.039442ms)
+  ✔ runs the appropriations track independently of the authorization track (1.220665ms)
+  ✔ recomputes only the affected lineage when a corrected source arrives (21.248862ms)
+  ✔ emits source-backed signals without any funding amount (3.707405ms)
+✔ Session 7 — historical lifecycle replay (real FY2024 sources) (28.496832ms)
+▶ Session 7 — alternative funding routes into the Session 6 domain
+  ✔ classifies a real supplemental and queues governed alternative-funding ingestion (3.387806ms)
+  ✔ keeps alternative funding off the annual authorization and appropriations tracks (2.653223ms)
+✔ Session 7 — alternative funding routes into the Session 6 domain (6.376448ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/lifecycle-watcher.spec.ts (1968.643766ms)
+✔ excludes a candidate that is not yet available (1.863641ms)
+✔ rejects malformed non-null availableFrom values during manifest load (0.43621ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/manifest-source-discovery.adapter.spec.ts (998.239198ms)
+▶ Phase 9 identity — the accepted production identity
+  ✔ accepts capiro_defense_job_login with INHERITed membership (1.392109ms)
+  ✔ logs every forbidden attribute as false, so the proof is auditable (4.524922ms)
+  ✔ tolerates Postgres driver booleans arriving as t/true strings (0.30128ms)
+✔ Phase 9 identity — the accepted production identity (8.513266ms)
+▶ Phase 9 identity — refused identities
+  ✔ refuses an arbitrary login with no membership (1.544817ms)
+  ✔ refuses capiro_app (0.316259ms)
+  ✔ refuses capiro_defense_serve (the HTTP role, not the job role) (0.180518ms)
+  ✔ refuses a master/admin role even when it is technically a member (4.387659ms)
+  ✔ refuses a superuser login (0.317364ms)
+  ✔ refuses a login holding bypassrls or replication (0.252576ms)
+  ✔ refuses membership that is not inherited (NOINHERIT) (0.354034ms)
+  ✔ refuses if the capability role itself became LOGIN-capable (0.902549ms)
+  ✔ refuses when the proof returns no row at all (0.230664ms)
+  ✔ every refusal uses exit code 77 (unauthorised), never 0 (0.659859ms)
+✔ Phase 9 identity — refused identities (9.950807ms)
+▶ Phase 9 identity — a spoofed env var cannot bypass the DB proof
+  ✔ DEFENSE_JOB_DB_ROLE only selects WHICH capability is required (2.949762ms)
+  ✔ pointing DEFENSE_JOB_DB_ROLE at a role we are not a member of FAILS, never passes (0.47705ms)
+  ✔ a spoofed DB_USER string cannot satisfy the check, because it is not consulted (0.212031ms)
+  ✔ rejects a non-identifier DEFENSE_JOB_DB_ROLE instead of interpolating it (0.161546ms)
+[phase9-identity] current_user=capiro_defense_job_login
+[phase9-identity] session_user=capiro_defense_job_login
+[phase9-identity] database=capiro
+[phase9-identity] capabilityRole=capiro_defense_job
+[phase9-identity] pg_has_role(member)=true
+[phase9-identity] pg_has_role(usage/inherited)=true
+[phase9-identity] login.rolinherit=true
+[phase9-identity] capability.rolcanlogin=false
+[phase9-identity] login.superuser=false
+[phase9-identity] login.createrole=false
+[phase9-identity] login.createdb=false
+[phase9-identity] login.replication=false
+[phase9-identity] login.bypassrls=false
+[phase9-identity] CAPABILITY_PROOF_OK role=capiro_defense_job_login via=capiro_defense_job
+  ✔ the removed PHASE9_ALLOW_NON_JOB_ROLE bypass has no executable code path (68.251408ms)
+  ✔ a bypass env var set in the environment has no effect (0.679032ms)
+✔ Phase 9 identity — a spoofed env var cannot bypass the DB proof (73.262261ms)
+▶ Phase 9 identity — proof plumbing
+  ✔ a dry run performs no identity query at all (0.234125ms)
+  ✔ accepts the real production identity end to end (0.723726ms)
+  ✔ a failed identity query refuses rather than proceeding (0.26288ms)
+  ✔ the proof SQL asks Postgres the required questions (0.225579ms)
+✔ Phase 9 identity — proof plumbing (1.674352ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/phase9-db-identity.spec.ts (822.214998ms)
+▶ Package 1 scheduled-runtime bounds and distributed worker identity
+  ✔ caps each adapter crawl and rejects an unbounded scheduled request budget (5.521994ms)
+  ✔ keeps the lease beyond one hourly delivery and refuses excessive leases (0.263727ms)
+  ✔ does not collapse every ECS container into the repeating PID-1 owner (0.408765ms)
+  ✖ emits the alarm marker when a scheduled tick fails before the coordinator runs (400.121253ms)
+✖ Package 1 scheduled-runtime bounds and distributed worker identity (409.153915ms)
+▶ Phase 9 job runtime — property 1: dry-run performs zero DB writes
+  ✖ backfill-run without --commit composes in-memory stores and issues no SQL (348.580421ms)
+  ✖ a dry run stays side-effect-free even when live discovery is enabled in the env (296.229197ms)
+  ✔ the in-memory audit store used by dry runs cannot reach SQL at all (0.447005ms)
+  ✖ inventory is read-only and needs no database configuration (116.377891ms)
+✖ Phase 9 job runtime — property 1: dry-run performs zero DB writes (762.195221ms)
+▶ Phase 9 job runtime — property 2: commit without a real store is refused
+  ✖ refuses --commit without the mode authorisation env var (141.542952ms)
+  ✖ refuses --commit when production database config is absent (273.671174ms)
+  ✖ refuses a commit it cannot prove is authorised in the database (222.581472ms)
+  ✖ never echoes the database password into stdout or stderr (276.480876ms)
+  ✖ never infers the fiscal-year set from the current date (196.796449ms)
+  ✖ rejects an unknown entrypoint mode instead of executing it (324.541109ms)
+✖ Phase 9 job runtime — property 2: commit without a real store is refused (1436.40866ms)
+▶ Phase 9 job runtime — property 3: commit with a real store persists a row
+  ✔ PrismaDiscoveryAuditStore issues a real INSERT and returns the persisted id (1.020237ms)
+  ✔ recordCandidates persists append-only rows and is idempotent by unique key (1.044106ms)
+  ✔ reserveHostSlot reserves atomically in a single statement (0.376351ms)
+✔ Phase 9 job runtime — property 3: commit with a real store persists a row (2.755095ms)
+▶ Phase 9 job runtime — property 4: failure never prints a false success marker
+  ✔ a store failure surfaces as a non-zero exit with no COMMITTED marker (4.577752ms)
+  ✔ recordCrawl refuses to report success when the insert returns no id (0.520973ms)
+  ✔ an unreachable database exits non-zero without a COMMITTED marker (429.907384ms)
+✔ Phase 9 job runtime — property 4: failure never prints a false success marker (435.245889ms)
+▶ Session 8 false-commit defect — run-live-discovery must never claim persistence
+  ✖ refuses commit mode instead of silently using an in-memory store (253.665608ms)
+  ✔ carries no code path that can emit a COMMITTED marker (85.206661ms)
+  ✖ --plan remains available and reaches no network (278.70504ms)
+  ✖ an unauthorised crawl still reports a clean dry run (227.475302ms)
+✖ Session 8 false-commit defect — run-live-discovery must never claim persistence (845.807558ms)
+▶ Phase 9 explicit fiscal-year support
+  ✖ reproduces the accepted FY2024-FY2028 inventory baseline (129.905181ms)
+  ✖ bootstraps expected sources through the frozen template, not hand-inserted rows (171.609909ms)
+  ✔ rejects malformed and out-of-range fiscal years (767.221165ms)
+  ✖ treats a fiscal year with no discoverable material as bootstrap-only (191.517704ms)
+✖ Phase 9 explicit fiscal-year support (1260.678449ms)
+▶ Phase 10 historical-discovery horizon fix — job composes discovery with the explicit scope
+  ✔ buildLiveDiscoveryOptions passes the job's parsed fiscal years through unchanged (1.757603ms)
+  ✔ job.mjs's live-discovery branch composes LiveSourceDiscoveryAdapter with the job's own fiscalYears, not a bare rolling default (25.845945ms)
+  ✔ the Canary 1 manifest/no-discovery branch is untouched by the fix — no options, no horizon override leaks in (14.592985ms)
+  ✖ a dry run (Canary 1 shape) still stays network-free and bootstrap-only with the fix in place (316.317367ms)
+✖ Phase 10 historical-discovery horizon fix — job composes discovery with the explicit scope (359.141764ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+[Nest] 122288  - 10/12/2026, 11:19:30 AM    WARN [DefenseBudgetLifecycleWatcher] Skipping hasc: adapter is leased by some-other-worker until 2099-01-01T00:00:00.000Z
+[Nest] 122288  - 10/12/2026, 11:19:30 AM   ERROR [ScheduleCoordinatorService] Adapter hasc threw during a scheduled run: simulated store failure loading state for hasc
+[Nest] 122288  - 10/12/2026, 11:19:30 AM   ERROR [ScheduleCoordinatorService] could not load adapter schedule state: simulated read outage
+▶ ScheduleCoordinatorService
+  ✔ skips an adapter whose next_check_at has not passed yet (72.672759ms)
+  ✔ runs an adapter with no prior state at all (cold start is due, not silently idle) (16.090331ms)
+  ✔ isolates a held lease on one adapter: skips it, still runs the others (19.314663ms)
+  ✔ isolates a throwing adapter from the others: the tick still completes and the rest still run (36.50805ms)
+  ✔ fails open (treats every adapter as due) when the schedule-state read itself throws (42.23272ms)
+  ✔ records exactly one audit row per committed tick, and none when not committed (48.880151ms)
+  ✔ a second tick right after a successful run does not re-run the same adapter (no duplicate work from repeated delivery) (27.256984ms)
+  ✔ an adapter overdue by months still runs at most once per tick (bounded catch-up) (10.003364ms)
+✔ ScheduleCoordinatorService (276.895327ms)
+▶ ScheduleCoordinatorService — lifecycle-effect independence across FY and track
+  ✔ one adapter's one tick advances two non-adjacent fiscal years independently — no single 'current FY' is chosen (59.637529ms)
+  ✔ authorization and appropriations advance independently in the same tick; a blocked appropriations document does not stop authorization (12.582118ms)
+✔ ScheduleCoordinatorService — lifecycle-effect independence across FY and track (72.58178ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/schedule/schedule-coordinator.spec.ts (1953.921735ms)
+✔ registry: successor host comptroller.war.gov is accepted for dod-comptroller (3.66243ms)
+✔ registry: historical host comptroller.defense.gov remains accepted (provenance preserved) (0.201146ms)
+✔ registry: dod-comptroller officialHosts includes exactly the two approved hostnames, no wildcard (22.45098ms)
+✔ registry: unrelated .war.gov host is rejected for dod-comptroller (0.708575ms)
+✔ registry: arbitrary subdomain of the approved successor host is rejected (exact hostname only) (0.467231ms)
+✔ registry: plain HTTP on an otherwise-official host is rejected (0.669172ms)
+✔ registry: third-party mirror is rejected even with an identical path shape (0.447699ms)
+✔ registry: an official host belonging to a DIFFERENT adapter does not count for dod-comptroller (0.611698ms)
+✔ fetch boundary: the successor host candidate URL flows through HttpsPublisherHttpAdapter.get() to a 200 (4.318883ms)
+✔ fetch boundary: a candidate URL outside the adapter allowlist is refused BEFORE any network call (1.499187ms)
+✔ fetch boundary: a redirect from the successor host to a non-allowlisted host is refused, not followed (2.178207ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/source-adapter-comptroller-host-migration.spec.ts (1371.528217ms)
+▶ official source adapter accountability
+  ✔ assigns a business owner role and runtime owner to every adapter used by templates (3.337155ms)
+✔ official source adapter accountability (5.024983ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/budget-lifecycle/source-adapter-ownership.spec.ts (1280.340033ms)
+✔ valid dark serve environment passes (7.587066ms)
+✔ pool budget is mandatory and bounded (5.009156ms)
+✔ serve task rejects parser and promoter credentials (0.218158ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/config/defense-config.validation.spec.ts (960.910411ms)
+﹣ database-backed /readyz acceptance (1.426911ms) # SKIP
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/health/health.service.integration.spec.ts (1597.72885ms)
+✔ a login with only capability-role membership is safe (1.969038ms)
+✔ a login not a member of the capability role is unsafe (0.23359ms)
+✔ a superuser login is unsafe even if it is also a capability member (0.223167ms)
+✔ a BYPASSRLS login is unsafe (0.148661ms)
+✔ a CREATEDB login is unsafe (0.153936ms)
+✔ a CREATEROLE login is unsafe (0.163051ms)
+✔ a login with schema CREATE is unsafe (0.360434ms)
+✔ a login that is also a member of the promoter role is unsafe (0.316012ms)
+✔ a login that can mutate the active-snapshot pointer is unsafe (0.746232ms)
+✔ a login with an unexpected direct grant is unsafe (1.199184ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/health/health.service.spec.ts (1455.54568ms)
+✔ dark mode remains ready while honestly reporting domain unavailable (3.030119ms)
+✔ strict mode blocks without an active snapshot (0.368801ms)
+✔ unauthorized database role blocks both modes (0.318335ms)
+✔ strict mode is ready with a valid active pointer (0.235798ms)
+✔ invalid configuration blocks both modes even with a valid pointer (0.281518ms)
+✔ a failed database query blocks both modes even with a valid pointer (0.555691ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/health/readiness-policy.spec.ts (533.297582ms)
+✔ canonical payload is stable and newline-delimited (1.939289ms)
+✔ valid signature verifies (2.624439ms)
+✔ tamper and stale timestamp fail closed (0.441466ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/internal-auth/internal-auth-core.spec.ts (747.435939ms)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] embedding port dark: no embedding provider configured; serving the documented empty capability-search result
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] client-relevance port dark: no client-relevance provider configured; needs-attention serves watch/capability relevance only
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] cross-domain providers bound: embedding=dark clientRelevance=dark
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] both cross-domain ports are dark; capability search and client relevance serve their documented empty results, exactly as before Session 9
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] embedding port dark: no embedding provider configured; serving the documented empty capability-search result
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] client-relevance port dark: no client-relevance provider configured; needs-attention serves watch/capability relevance only
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] cross-domain providers bound: embedding=dark clientRelevance=dark
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] both cross-domain ports are dark; capability search and client relevance serve their documented empty results, exactly as before Session 9
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [UnconfiguredEmbeddingPort] embedding port unconfigured (dark posture): free-text capability search serves an empty result
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [UnconfiguredClientRelevancePort] client-relevance port unconfigured (dark posture): needs-attention serves watch/capability relevance only
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] cross-domain providers bound: embedding=bedrock_embedding clientRelevance=internal_service_relevance
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] embedding port dark: no embedding provider configured; serving the documented empty capability-search result
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] client-relevance port dark: DEFENSE_MAIN_API_INTERNAL_SECRET is not configured
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] cross-domain providers bound: embedding=dark clientRelevance=dark
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [CrossDomainProviderFactory] both cross-domain ports are dark; capability search and client relevance serve their documented empty results, exactly as before Session 9
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 3 attempt(s): throttled — attempt budget exhausted after 3 of 3
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): unauthorized — unauthorized is terminal
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [ProviderInvocationRunner] bedrock/embed_query degraded after 1 attempt(s): malformed_response — malformed_response is terminal
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [ProviderInvocationRunner] bedrock at concurrency limit 1; degrading to the empty result
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [ProviderInvocationRunner] provider audit row not persisted (simulated audit write failure)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [InternalServiceClientRelevanceAdapter] client-relevance batch truncated from 5 to 3 PE codes; the remainder is unanswered, not answered negatively
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM    WARN [ProviderInvocationRunner] main_api_internal/relevant_pe_codes degraded after 3 attempt(s): unavailable — attempt budget exhausted after 3 of 3
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [BedrockEmbeddingAdapter] embedding provider live: amazon.titan-embed-text-v2:0 in us-east-1 (timeout 1000ms, up to 3 attempts)
+[Nest] 122638  - 10/12/2026, 11:19:35 AM     LOG [InternalServiceClientRelevanceAdapter] client-relevance provider live against https://api.capiro.ai (batch 3, timeout 1000ms, up to 3 attempts)
+✔ an unconfigured environment binds BOTH ports dark, exactly as before Session 9 (6.531272ms)
+✔ the dark ports still serve their documented degraded results (1.682563ms)
+✔ a live environment binds real providers (1.712661ms)
+✔ a forbidden Session 3 credential class fails LOUD, not dark (0.791191ms)
+✔ a live selection that cannot construct degrades to dark instead of failing boot (0.637779ms)
+✔ constructing a live adapter from a dark selection is refused (0.362563ms)
+✔ a successful embedding returns the vector and audits the dimension only (4.817785ms)
+✔ the model id travels on every audit row, because vector reads filter on it (0.666801ms)
+✔ an empty query spends no attempt and is still audited (1.730008ms)
+✔ a throttled provider is retried and then degrades to null, never throws (1.963925ms)
+✔ an auth failure is NOT retried (0.755979ms)
+✔ a transient failure followed by success returns the vector (2.032844ms)
+✔ a 200 with an unusable body is a failure, not an empty success (3.552675ms)
+✔ a NaN vector component is rejected outright (5.164864ms)
+✔ concurrency is refused rather than queued, and audited as such (1.064487ms)
+✔ an audit write failure does not fail the read path (0.709191ms)
+✔ relevance is ONE batched call, not an N+1 fanout (1.334162ms)
+✔ the secret is on the wire but never on an audit row (1.384155ms)
+✔ an empty answer is a valid answer, not a failure (0.565726ms)
+✔ an unrequested code in the response is dropped, not trusted (0.730491ms)
+✔ the batch is bounded and the truncation is not silent (1.088534ms)
+✔ an empty candidate set makes no call and is audited (0.90724ms)
+✔ a failing relevance provider degrades to an empty set (1.064151ms)
+✔ a malformed relevance body is a failure, and an empty array is not (0.259023ms)
+✔ PE codes are normalised and deduped before the call (20.056448ms)
+✔ the same request produces the same idempotency key across calls (0.891172ms)
+✔ a different tenant produces a different idempotency key (0.723582ms)
+✔ no audit row anywhere carries a monetary field (1.83302ms)
+✔ the frozen port tokens are still the injection points (0.224524ms)
+✔ Retry-After is parsed in both legal forms (0.304413ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/program-elements/cross-domain/provider-runtime.spec.ts (1581.948894ms)
+✔ CreatePeDataIssueDto rejects an unknown issueType (matches apps/api @IsIn list) (50.619178ms)
+✔ CreatePeDataIssueDto accepts every apps/api-frozen issueType value (9.555572ms)
+✔ CreatePeDataIssueDto rejects a non-http(s) suggestedSourceUrl (1.039238ms)
+✔ SetPeAlertEmailPrefDto only accepts off|daily|daily_plus_critical (0.839216ms)
+✔ ResolveReconciliationDto only accepts the three frozen decisions (0.504902ms)
+✔ WatchProgramElementDto requires a boolean watching field (0.281241ms)
+✔ QueryProgramElementsDto rejects limit > 100 (matches apps/api @Max(100)) (10.882835ms)
+✔ QueryProgramElementsDto rejects an unknown line_type NOT in the registry-reserved list is still permitted (no @IsIn on line_type here; contract query type allows free string) (0.255389ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/program-elements/dto-validation-parity.spec.ts (1661.885369ms)
+﹣ GOVERNED ADMIN: a standard_user actor cannot effect a Program graph mutation (2.786114ms) # SKIP
+﹣ GOVERNED ADMIN: a capiro_admin actor succeeds and the audit row uses occurred_at (0.424442ms) # SKIP
+﹣ GOVERNED ADMIN: the serve role holds no direct DML on the global Program graph (0.28845ms) # SKIP
+﹣ GOVERNED ADMIN: alias CRUD and merge run through the functions with validation intact (0.172498ms) # SKIP
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/program-elements/programs-admin-security.integration.spec.ts (2014.434727ms)
+﹣ mergePrograms dedupes colliding rows and retires (not deletes) the loser (regression) (1.018779ms) # SKIP
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/program-elements/programs.service.integration.spec.ts (2195.019829ms)
+﹣ findLatestForTarget scopes by fundingField, not just PE/FY (regression) (0.853254ms) # SKIP
+﹣ findById renormalizes a NUMERIC(24,9)-padded valueMillions back to canonical form (regression) (0.145936ms) # SKIP
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/program-elements/promotion/manual-override-repository.integration.spec.ts (1282.802773ms)
+✔ isCanonicalDecimalStringV1 accepts exact decimals, rejects -0 and malformed input (1.427376ms)
+✔ isCanonicalDecimalStringV1 rejects unnecessary trailing fractional zeros (regression, matches apps/api) (0.180961ms)
+✔ normalizeCanonicalDecimalStringV1 strips NUMERIC(24,9) zero-padding back to canonical form (regression) (0.454966ms)
+✔ canonicalTargetForLegacyPeYearV1 maps (peCode, fy, fieldName) to a stable canonical target (0.170913ms)
+✔ proposeManualOverrideV1 refuses a fractional-float-tainted value (non-canonical decimal) (1.361374ms)
+✔ proposeManualOverrideV1 refuses a second open proposal on the same target (0.86119ms)
+✔ approveManualOverrideV1 refuses approval by the proposal author (author != approver invariant) (0.383308ms)
+✔ approveManualOverrideV1 refuses a non-admin approver (0.26795ms)
+✔ approveManualOverrideV1 succeeds for a different capiro_admin approver and puts the override in force (0.278559ms)
+✔ manualOverrideHashV1 is deterministic and order-independent on evidenceIds (0.307514ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/program-elements/promotion/manual-override-service-v1.spec.ts (606.498404ms)
+✔ all 49 frozen routes resolve to a live decorator with matching method/path/role (1.854189ms)
+✔ every capiro_admin frozen route has a @Roles('capiro_admin') decorator literal in source (4.579169ms)
+✔ no route path or id was invented or dropped relative to @capiro/defense-client (18.040906ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/program-elements/route-contract-parity.spec.ts (1019.508387ms)
+✔ retained and moved adapters produce identical inspect lineages for FY27 fixtures (38.444175ms)
+✔ every FY27 fixture slice exists on both trees with identical bytes (0.5564ms)
+✔ adapters refuse a missing fixture root (0.747678ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/runtime/phase1-7-runtime.adapters.spec.ts (649.94776ms)
+✔ runs the trusted phases in order and remains inspect-only (13.332557ms)
+✔ same inputs and artifacts produce the same lineage hash (0.734617ms)
+✔ fails closed on a malformed source digest (1.008102ms)
+✔ fails closed when a port returns the wrong stage (0.337493ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+✖ src/runtime/phase1-7-runtime.contract.spec.ts (716.344137ms)
+ℹ Error: A resource generated asynchronous activity after the test ended. This activity created the error "Error: SOURCE_ONLY_CHECK_REFUSED_UNMOCKED_NETWORK" which triggered an unhandledRejection event, caught by the test runner.
+ℹ tests 300
+ℹ suites 37
+ℹ pass 247
+ℹ fail 45
+ℹ cancelled 0
+ℹ skipped 8
+ℹ todo 0
+ℹ duration_ms 16001.330307
+
+✖ failing tests:
+
+test at src/budget-lifecycle-product/budget-lifecycle-query.service.spec.ts:1:1
+✖ src/budget-lifecycle-product/budget-lifecycle-query.service.spec.ts (1817.744856ms)
+  'test failed'
+
+test at src/budget-lifecycle/discovery/catalog-source-discovery-to-watcher.spec.ts:1:1
+✖ src/budget-lifecycle/discovery/catalog-source-discovery-to-watcher.spec.ts (2170.568544ms)
+  'test failed'
+
+test at src/budget-lifecycle/discovery/catalog-source-discovery.adapter.spec.ts:1:1
+✖ src/budget-lifecycle/discovery/catalog-source-discovery.adapter.spec.ts (1922.631383ms)
+  'test failed'
+
+test at src/budget-lifecycle/discovery/crawl-cursor.spec.ts:1:1
+✖ src/budget-lifecycle/discovery/crawl-cursor.spec.ts (1204.534675ms)
+  'test failed'
+
+test at src/budget-lifecycle/discovery/govinfo-resumability.spec.ts:1:1
+✖ src/budget-lifecycle/discovery/govinfo-resumability.spec.ts (2149.761784ms)
+  'test failed'
+
+test at src/budget-lifecycle/discovery/https-publisher-pacing.spec.ts:1:1
+✖ src/budget-lifecycle/discovery/https-publisher-pacing.spec.ts (1911.049564ms)
+  'test failed'
+
+test at src/budget-lifecycle/discovery/live-discovery.spec.ts:1:1
+✖ src/budget-lifecycle/discovery/live-discovery.spec.ts (1993.863101ms)
+  'test failed'
+
+test at src/budget-lifecycle/discovery/sasc-downloads.spec.ts:1:1
+✖ src/budget-lifecycle/discovery/sasc-downloads.spec.ts (1610.308452ms)
+  'test failed'
+
+test at src/budget-lifecycle/lifecycle-watcher.spec.ts:1:1
+✖ src/budget-lifecycle/lifecycle-watcher.spec.ts (1968.643766ms)
+  'test failed'
+
+test at src/budget-lifecycle/manifest-source-discovery.adapter.spec.ts:1:1
+✖ src/budget-lifecycle/manifest-source-discovery.adapter.spec.ts (998.239198ms)
+  'test failed'
+
+test at src/budget-lifecycle/phase9-db-identity.spec.ts:1:1
+✖ src/budget-lifecycle/phase9-db-identity.spec.ts (822.214998ms)
+  'test failed'
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:133:3
+✖ emits the alarm marker when a scheduled tick fails before the coordinator runs (400.121253ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 77
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:135:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 77,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:142:3
+✖ backfill-run without --commit composes in-memory stores and issues no SQL (348.580421ms)
+  AssertionError [ERR_ASSERTION]: expected clean dry run, got 1: node:internal/modules/cjs/loader:1517
+    const err = new Error(message);
+                ^
+  
+  Error: Cannot find module '/workspace/capirov2-cleanup-source-gates/apps/defense-api/dist/budget-lifecycle/source-adapter.registry.js'
+  Require stack:
+  - /workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+      at Module._load (node:internal/modules/cjs/loader:1294:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+      at Module.require (node:internal/modules/cjs/loader:1617:12)
+      at require (node:internal/modules/helpers:153:16)
+      at dist (file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:66:28)
+      at file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:133:35 {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      '/workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs'
+    ]
+  }
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:153:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at node:internal/test_runner/test:1867:71
+      at node:internal/per_context/primordials:504:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:478:3)
+      at node:internal/per_context/primordials:504:9
+      at Array.map (<anonymous>) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:165:3
+✖ a dry run stays side-effect-free even when live discovery is enabled in the env (296.229197ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:171:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1869:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:184:3
+✖ inventory is read-only and needs no database configuration (116.377891ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/cjs/loader:1517
+    const err = new Error(message);
+                ^
+  
+  Error: Cannot find module '/workspace/capirov2-cleanup-source-gates/apps/defense-api/dist/budget-lifecycle/source-adapter.registry.js'
+  Require stack:
+  - /workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+      at Module._load (node:internal/modules/cjs/loader:1294:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+      at Module.require (node:internal/modules/cjs/loader:1617:12)
+      at require (node:internal/modules/helpers:153:16)
+      at dist (file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:66:28)
+      at file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:133:35 {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      '/workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs'
+    ]
+  }
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:192:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:199:3
+✖ refuses --commit without the mode authorisation env var (141.542952ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 77
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:201:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at node:internal/test_runner/test:1867:71
+      at node:internal/per_context/primordials:504:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:478:3)
+      at node:internal/per_context/primordials:504:9
+      at Array.map (<anonymous>) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 77,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:206:3
+✖ refuses --commit when production database config is absent (273.671174ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 78
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:215:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1869:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 78,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:220:3
+✖ refuses a commit it cannot prove is authorised in the database (222.581472ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 77
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:234:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 77,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:239:3
+✖ never echoes the database password into stdout or stderr (276.480876ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /db\.role=capiro_defense_job/. Input:
+  
+  ''
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:256:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: /db\.role=capiro_defense_job/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:260:3
+✖ never infers the fiscal-year set from the current date (196.796449ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 64
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:262:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 64,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:266:3
+✖ rejects an unknown entrypoint mode instead of executing it (324.541109ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 64
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:268:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 64,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:384:3
+✖ refuses commit mode instead of silently using an in-memory store (253.665608ms)
+  AssertionError [ERR_ASSERTION]: commit mode must be refused, not honoured
+  
+  1 !== 65
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:390:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at node:internal/test_runner/test:1867:71
+      at node:internal/per_context/primordials:504:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:478:3)
+      at node:internal/per_context/primordials:504:9
+      at Array.map (<anonymous>) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 65,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:415:3
+✖ --plan remains available and reaches no network (278.70504ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:417:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:421:3
+✖ an unauthorised crawl still reports a clean dry run (227.475302ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:423:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:429:3
+✖ reproduces the accepted FY2024-FY2028 inventory baseline (129.905181ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/cjs/loader:1517
+    const err = new Error(message);
+                ^
+  
+  Error: Cannot find module '/workspace/capirov2-cleanup-source-gates/apps/defense-api/dist/budget-lifecycle/source-adapter.registry.js'
+  Require stack:
+  - /workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+      at Module._load (node:internal/modules/cjs/loader:1294:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+      at Module.require (node:internal/modules/cjs/loader:1617:12)
+      at require (node:internal/modules/helpers:153:16)
+      at dist (file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:66:28)
+      at file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:133:35 {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      '/workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs'
+    ]
+  }
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:438:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at node:internal/test_runner/test:1867:71
+      at node:internal/per_context/primordials:504:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:478:3)
+      at node:internal/per_context/primordials:504:9
+      at Array.map (<anonymous>) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:447:3
+✖ bootstraps expected sources through the frozen template, not hand-inserted rows (171.609909ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/cjs/loader:1517
+    const err = new Error(message);
+                ^
+  
+  Error: Cannot find module '/workspace/capirov2-cleanup-source-gates/apps/defense-api/dist/budget-lifecycle/source-adapter.registry.js'
+  Require stack:
+  - /workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+      at Module._load (node:internal/modules/cjs/loader:1294:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+      at Module.require (node:internal/modules/cjs/loader:1617:12)
+      at require (node:internal/modules/helpers:153:16)
+      at dist (file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:66:28)
+      at file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:133:35 {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      '/workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs'
+    ]
+  }
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:458:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1869:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:472:3
+✖ treats a fiscal year with no discoverable material as bootstrap-only (191.517704ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/cjs/loader:1517
+    const err = new Error(message);
+                ^
+  
+  Error: Cannot find module '/workspace/capirov2-cleanup-source-gates/apps/defense-api/dist/budget-lifecycle/source-adapter.registry.js'
+  Require stack:
+  - /workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+      at Module._load (node:internal/modules/cjs/loader:1294:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+      at Module.require (node:internal/modules/cjs/loader:1617:12)
+      at require (node:internal/modules/helpers:153:16)
+      at dist (file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:66:28)
+      at file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:133:35 {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      '/workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs'
+    ]
+  }
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:480:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/phase9-job-runtime.spec.ts:555:3
+✖ a dry run (Canary 1 shape) still stays network-free and bootstrap-only with the fix in place (316.317367ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/cjs/loader:1517
+    const err = new Error(message);
+                ^
+  
+  Error: Cannot find module '/workspace/capirov2-cleanup-source-gates/apps/defense-api/dist/budget-lifecycle/source-adapter.registry.js'
+  Require stack:
+  - /workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+      at Module._load (node:internal/modules/cjs/loader:1294:5)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+      at Module.require (node:internal/modules/cjs/loader:1617:12)
+      at require (node:internal/modules/helpers:153:16)
+      at dist (file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:66:28)
+      at file:///workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs:133:35 {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: [
+      '/workspace/capirov2-cleanup-source-gates/apps/defense-api/scripts/job.mjs'
+    ]
+  }
+  
+  Node.js v24.19.0
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (/workspace/capirov2-cleanup-source-gates/apps/defense-api/src/budget-lifecycle/phase9-job-runtime.spec.ts:571:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at src/budget-lifecycle/schedule/schedule-coordinator.spec.ts:1:1
+✖ src/budget-lifecycle/schedule/schedule-coordinator.spec.ts (1953.921735ms)
+  'test failed'
+
+test at src/budget-lifecycle/source-adapter-comptroller-host-migration.spec.ts:1:1
+✖ src/budget-lifecycle/source-adapter-comptroller-host-migration.spec.ts (1371.528217ms)
+  'test failed'
+
+test at src/budget-lifecycle/source-adapter-ownership.spec.ts:1:1
+✖ src/budget-lifecycle/source-adapter-ownership.spec.ts (1280.340033ms)
+  'test failed'
+
+test at src/config/defense-config.validation.spec.ts:1:1
+✖ src/config/defense-config.validation.spec.ts (960.910411ms)
+  'test failed'
+
+test at src/health/health.service.integration.spec.ts:1:1
+✖ src/health/health.service.integration.spec.ts (1597.72885ms)
+  'test failed'
+
+test at src/health/health.service.spec.ts:1:1
+✖ src/health/health.service.spec.ts (1455.54568ms)
+  'test failed'
+
+test at src/health/readiness-policy.spec.ts:1:1
+✖ src/health/readiness-policy.spec.ts (533.297582ms)
+  'test failed'
+
+test at src/internal-auth/internal-auth-core.spec.ts:1:1
+✖ src/internal-auth/internal-auth-core.spec.ts (747.435939ms)
+  'test failed'
+
+test at src/program-elements/cross-domain/provider-runtime.spec.ts:1:1
+✖ src/program-elements/cross-domain/provider-runtime.spec.ts (1581.948894ms)
+  'test failed'
+
+test at src/program-elements/dto-validation-parity.spec.ts:1:1
+✖ src/program-elements/dto-validation-parity.spec.ts (1661.885369ms)
+  'test failed'
+
+test at src/program-elements/programs-admin-security.integration.spec.ts:1:1
+✖ src/program-elements/programs-admin-security.integration.spec.ts (2014.434727ms)
+  'test failed'
+
+test at src/program-elements/programs.service.integration.spec.ts:1:1
+✖ src/program-elements/programs.service.integration.spec.ts (2195.019829ms)
+  'test failed'
+
+test at src/program-elements/promotion/manual-override-repository.integration.spec.ts:1:1
+✖ src/program-elements/promotion/manual-override-repository.integration.spec.ts (1282.802773ms)
+  'test failed'
+
+test at src/program-elements/promotion/manual-override-service-v1.spec.ts:1:1
+✖ src/program-elements/promotion/manual-override-service-v1.spec.ts (606.498404ms)
+  'test failed'
+
+test at src/program-elements/route-contract-parity.spec.ts:1:1
+✖ src/program-elements/route-contract-parity.spec.ts (1019.508387ms)
+  'test failed'
+
+test at src/runtime/phase1-7-runtime.adapters.spec.ts:1:1
+✖ src/runtime/phase1-7-runtime.adapters.spec.ts (649.94776ms)
+  'test failed'
+
+test at src/runtime/phase1-7-runtime.contract.spec.ts:1:1
+✖ src/runtime/phase1-7-runtime.contract.spec.ts (716.344137ms)
+  'test failed'
