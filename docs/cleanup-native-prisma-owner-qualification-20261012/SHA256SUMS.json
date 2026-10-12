@@ -1,0 +1,100 @@
+{
+  "sourceHead": "ee9499c5771038f6abf5972ab13d3c20ca65b0cf",
+  "entries": [
+    {
+      "path": "ENGINE-CLIENT-IDENTITIES.json",
+      "bytes": 3216,
+      "sha256": "28ebb9fabfaa181c095f6a3fad604ae8dd0285f310a3089b2b474ec15478fa97"
+    },
+    {
+      "path": "PLAN.md",
+      "bytes": 3988,
+      "sha256": "dd06afc28d2962ee659f32fd230a9d4fff191a7b55aa61f072e1a81a52caba7b"
+    },
+    {
+      "path": "RESULT.md",
+      "bytes": 2014,
+      "sha256": "5c4832632f24bca91d19e68602bca00ceaa8c430cd21b956ca7748ac607cbffa"
+    },
+    {
+      "path": "canonical-native-loader.cjs",
+      "bytes": 5926,
+      "sha256": "4394c10642dd7ebaeda67872069fc73a26fc64f1e1a7bc7ec4894f3e7c22ac4d"
+    },
+    {
+      "path": "evidence/01-native-prisma-attempt-0.json",
+      "bytes": 1230,
+      "sha256": "836536f4e64a970aff34dfa8394baa9afdcb10132aabbfc3a32de616c86f4827"
+    },
+    {
+      "path": "evidence/01-native-prisma-attempt-0.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/01-native-prisma-attempt-0.stdout.log",
+      "bytes": 459,
+      "sha256": "fe3f4d7d1ae4d8077c66093fac1aea0871818b9b136841daa712c492a3c8baf4"
+    },
+    {
+      "path": "evidence/02-after-cleanup-probe.json",
+      "bytes": 551,
+      "sha256": "ee1359b5d231422b53f252259c9e99cfc8534a2f21e4c025e7ee6f98bb3e10de"
+    },
+    {
+      "path": "evidence/02-after-cleanup-probe.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/02-after-cleanup-probe.stdout.log",
+      "bytes": 583,
+      "sha256": "e459b01300ee532e866452816218c689d0bc14403552fdf36571e482eb37ce13"
+    },
+    {
+      "path": "evidence/ACCEPTANCE-RECEIPT.json",
+      "bytes": 8523,
+      "sha256": "f2029570e153aaddcecc189b4242dac031da2450af748ee9744cb969685f192c"
+    },
+    {
+      "path": "evidence/AFTER-CLEANUP-TARGET.json",
+      "bytes": 583,
+      "sha256": "e459b01300ee532e866452816218c689d0bc14403552fdf36571e482eb37ce13"
+    },
+    {
+      "path": "evidence/after-cleanup-probe.cjs",
+      "bytes": 2631,
+      "sha256": "fa1ac41970b32e394416803dc851a091744ab217123b71a7b85aa328f7811fb1"
+    },
+    {
+      "path": "evidence/native-prisma-attempt-0.json",
+      "bytes": 5377,
+      "sha256": "eead414c1e2aa9d2506ffe465af937cfe353ae44e7fae8eb3ab2bb867b7956c9"
+    },
+    {
+      "path": "evidence/run-native-command.py",
+      "bytes": 2081,
+      "sha256": "a6cfeccc7edd21a5e80ae74124b877aaa856396594bc21166876277401e02d83"
+    },
+    {
+      "path": "fixture-assembly.cjs",
+      "bytes": 4449,
+      "sha256": "5d9039c849ddd43dfce997302a8c970960828f7d5d4c70731d42649f93e795e9"
+    },
+    {
+      "path": "native-prisma-owner-harness.cjs",
+      "bytes": 16995,
+      "sha256": "c2ca702b4ab3ca6aacf33dd9ee72330cb039f9b53da02b2a0147e1c5750b1205"
+    },
+    {
+      "path": "parent-fixture.sql",
+      "bytes": 1435,
+      "sha256": "8e5f948fd0b3edff07c7e7f9c672e98f259e784b2f3017f7fe62f961ebc81d26"
+    },
+    {
+      "path": "source-bindings.json",
+      "bytes": 16017,
+      "sha256": "5ddce7c6af3127b8a4c3ecd80955501bc169cfa4eb9c304f61e0a4cd9e09966b"
+    }
+  ]
+}

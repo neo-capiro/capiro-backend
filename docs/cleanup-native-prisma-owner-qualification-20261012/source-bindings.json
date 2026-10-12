@@ -1,0 +1,367 @@
+{
+  "schemaVersion": 1,
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "sourceTree": "b7b33bfa38bccf69aa1a94dd2942add016bf19d3",
+  "entries": [
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "bytes": 4318,
+      "gitBlob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443"
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "bytes": 9740,
+      "gitBlob": "cd780f1d3505ce402004befd4266b0608f95a33a",
+      "sha256": "f177cee24ac6a540ccc00d097caa69cd6cfc0d09ab3fe800395c6af6ae26b9b9"
+    },
+    {
+      "path": "packages/shared/src/client-memory-wall.ts",
+      "bytes": 1137,
+      "gitBlob": "42c72f392a32c34b4706e28126436d493fcd5cc8",
+      "sha256": "e50636f9199ea5cc1649e5f21a35f95c56358785b9c49faffe80910c3dc33ca7"
+    },
+    {
+      "path": "apps/api/src/clients/objectives/objectives.pg.spec.ts",
+      "bytes": 8023,
+      "gitBlob": "51f7da0274f308a5432140313f0ae4a5933337d0",
+      "sha256": "a914270fa8af83b255c11b2f1781c0db45429b2d37fdf4dc67eadeba3d5f4dd6"
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "bytes": 12476,
+      "gitBlob": "677810b805210533034bf268a6c26014311cda1d",
+      "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e"
+    },
+    {
+      "path": "apps/api/test/memory-postgres-qualification/harness.ts",
+      "bytes": 22460,
+      "gitBlob": "0f4ea1993ae0efc5060890b52c1f537ee5c42188",
+      "sha256": "cdfd5dba262e382d7da810117af02385f37c322a70406969f99e568ddbc983d3"
+    },
+    {
+      "path": "apps/api/test/memory-postgres-qualification/README.md",
+      "bytes": 4269,
+      "gitBlob": "bb50fc510126d387c9b714856ac07141f99716a1",
+      "sha256": "a69cd6324ed74be43f27e0317c2bf5587615a594ea088acb013942b762dfe5de"
+    },
+    {
+      "path": "apps/api/scripts/pe-phase-c-rls-rehearsal.sh",
+      "bytes": 11578,
+      "gitBlob": "ee0275e18bf73da7f46d0b05e1be3bb8123a7a5b",
+      "sha256": "cc0fe1bd172e40a6c2f564ebfe66507d90027bbfc5b4c4c968b702e5cd9ba93f"
+    },
+    {
+      "path": "docker/postgres/init/01-extensions.sql",
+      "bytes": 924,
+      "gitBlob": "1f8ff67a4d9cee0f1406ae14da9d2a63fc0c169e",
+      "sha256": "3e72021d570013450d329f91d33e8fcd19d608a046f4d96104e09f61c38561e3"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+      "bytes": 20036,
+      "gitBlob": "70c009506c25183f38e0eaf16d12e1671e57fc3b",
+      "sha256": "12d0b335cfafac9a20d947ab88d9bf8badc618a6f106c6f07fd2515c6d667a82"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "bytes": 16506,
+      "gitBlob": "e5065cb153abb29cb1fe5a2971dfe8614cc4be5e",
+      "sha256": "f4fd0e3bce44183cfa3c8addd6b33c7a7936f4804b4d4595e3c331f931d92e5b"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/persistence/outreach-state.repository.ts",
+      "bytes": 25947,
+      "gitBlob": "44ed37514140f99bb777841b0ac81d83576f4dca",
+      "sha256": "5dc7f853d51e532871a8a1568cb871cb8ea82be302a113934650ed8c0323ecad"
+    },
+    {
+      "path": "apps/api/src/capabilities/capability-authorization.service.ts",
+      "bytes": 2682,
+      "gitBlob": "24e32041b861adb8407809c24975bfab88210f8d",
+      "sha256": "c168bf4022fbb81700fa2a4ed92eae18719c26454d8a6ad2dec6024a8cc9cf55"
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "bytes": 7222,
+      "gitBlob": "ebddafd1bd32a56c0c57326ce77f5db3b934d1cc",
+      "sha256": "1d743fa317405b17e6f0f5e96fdcb218466902536861fdc16cc7924c56025e2e"
+    },
+    {
+      "path": "apps/api/src/federal-register/effective-date-evidence.ts",
+      "bytes": 9785,
+      "gitBlob": "47921754eddea52d351208bfbe3eb2628661e0c8",
+      "sha256": "a096290eb51c61949ebec5881444fe3cb905d08360d4ebc5ada7aeb23b2d51f2"
+    },
+    {
+      "path": "apps/api/src/federal-register/federal-register.service.ts",
+      "bytes": 8482,
+      "gitBlob": "c8e0e71655b1069b06fd3dda52c417c4fc06f566",
+      "sha256": "162fd15142de696fe9036776077c48964089e695979311efa81a474b288cef92"
+    },
+    {
+      "path": "apps/api/scripts/sync-federal-register.ts",
+      "bytes": 14689,
+      "gitBlob": "697fea28df42abe0dfd9f2d088a5a9cea8631770",
+      "sha256": "a546bf27a5099371404e83b1797abbf9749df523ad04f0712e91312edf022afa"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20260501000000_init_identity_tenancy/migration.sql",
+      "bytes": 10004,
+      "gitBlob": "196a091fe9a561af95a6014eb57ef02c2e05f12e",
+      "sha256": "d7d178d03a5dcec7086f4515fa877e5c269f211195a7a48e8cb07ae07ab311e6"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20260502000000_user_admin_brand_clients/migration.sql",
+      "bytes": 3280,
+      "gitBlob": "50ec4777f512c0c62e1e2570a8f1c30c7117c376",
+      "sha256": "7cf65c125e45737add64e5a178b4375ae4d948614426b52834ad83edea105603"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20260719220000_client_memory_walls/migration.sql",
+      "bytes": 4236,
+      "gitBlob": "e8f9b0ab74eb8ee7324e34d00cae3c85ca837d4f",
+      "sha256": "4198b1fc80c801f0c2b0ff1a7ad8f72916e3d68502731abd78a0e0f0ee5db8c7"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20260719221000_memory_wall_rls/migration.sql",
+      "bytes": 5294,
+      "gitBlob": "993a5fa5555de5757a037a5c7d6f1843e34e9dc2",
+      "sha256": "f7d1613a7afcd2f54842e75de47033067cc6a9062afb4397aaf6939dc6d7f453"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20260908010000_outreach_v3_campaign_state/migration.sql",
+      "bytes": 13020,
+      "gitBlob": "82c07b69432b91b31cf58af97ddd05bd4cb3611d",
+      "sha256": "ef7b97c515abd2d8d82d90a7ee1d3e9e6b8c663af3bb8c22a32c1a8ea867f994"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+      "bytes": 3398,
+      "gitBlob": "3c3bb03b6a237d8d779307cb8737aa88bb490c97",
+      "sha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20260521030000_intel_optimization/migration.sql",
+      "bytes": 3620,
+      "gitBlob": "2a7130a898f398ab0b8bdc0e9ca6d4737c494798",
+      "sha256": "592e62ae8592a264ac277098fb7d288abb35ed1d63b5729046ab5f1ead6b6a8b"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20260523080000_sync_run_table/migration.sql",
+      "bytes": 568,
+      "gitBlob": "54de0f38f9bb755b4c043a160e787d8b126e969b",
+      "sha256": "8708165379b61bf25404393d82f2f6c034d7ba51bad320f26cdfbb8583b239a3"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20280921000100_federal_award_date_semantics/migration.sql",
+      "bytes": 391,
+      "gitBlob": "2668fc269b45cb6f486f0cbcd2106ce8261cbb03",
+      "sha256": "6430195bed8515a13c8f9f84e7afca234462425db06848f1384d90a6cd4870f0"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+      "bytes": 887,
+      "gitBlob": "a4b2b546398f50938f6f39f5c014ca5bf827c968",
+      "sha256": "8b6ca68bb4a7b56a553e3a4a7baf009eae05d58a70b2d1fd610c06fe318015f5"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/00000000000000_init_workspace/migration.sql",
+      "bytes": 4417,
+      "gitBlob": "87f4a2fb2ac25e3798120f4878b7f54f60f03272",
+      "sha256": "f788157c166866c14ec7bc1359eef535f781c236a46e98623e83aa5d15ecb139"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20260627185725_ws_doc_version/migration.sql",
+      "bytes": 971,
+      "gitBlob": "15774064844b7eec704c4de829a5c4ce86863175",
+      "sha256": "8f6d73fb571e11c89871804aa97ef7197677fe2037e3e5a7ef47bbbc3efb0b31"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20260627190000_ws_collaborator/migration.sql",
+      "bytes": 1180,
+      "gitBlob": "9be9e36dbcecc475fd999dd4d809de73c0c27f9d",
+      "sha256": "2aab4b1f5b0e3574e15d5a9131bbcadbdcff52c4524f079d1d76b4a9e52691cd"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20260913020000_legiwatch_preparation_actions/migration.sql",
+      "bytes": 895,
+      "gitBlob": "d9a9f2be924b210992583d06846a2ea08af525d9",
+      "sha256": "80dbc77755ba01033e9db4552c8aacacbc0a4d9cd59776c2afb9cc68f7c636e0"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261012030000_prospect_resource_origin/migration.sql",
+      "bytes": 2192,
+      "gitBlob": "e2bce04218c67151419d370777b7d22c8611c7b0",
+      "sha256": "2ea8c04127567b1d1a0aea936cc25f6c56714655b19655fa5faacb9420139788"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+      "bytes": 533,
+      "gitBlob": "c500ac28dcb42dd51d8387603c19f21c7ed78f3b",
+      "sha256": "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "bytes": 2048,
+      "gitBlob": "13c949e8d93891f773bd106a196ec70cd60d87e7",
+      "sha256": "20e1550263c32f39d49e5956c41e08af891aeb71b45c11b5d23e853074e51b07"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "bytes": 1421,
+      "gitBlob": "9ae731c1576f4c8a4fd1baafc0cebcd512421b0b",
+      "sha256": "0b1f4a2f560a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "bytes": 1289,
+      "gitBlob": "dc5192bb724734e0b8b70215c22772bb5a4323fc",
+      "sha256": "27242c9b201631547a48cf3d951b77355bc54a9a4b056a2bc5341f6cec18f066"
+    },
+    {
+      "path": "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "bytes": 1656,
+      "gitBlob": "719cceaae0ccaa62d8ae6da144a2a62c7f50d222",
+      "sha256": "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d07"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261006210000_workspace_newsletters/migration.sql",
+      "bytes": 3625,
+      "gitBlob": "91bea1bec0c64bbef5dbabe4c0b29022a0759662",
+      "sha256": "2b094e84eb8912c0001b07468307b156806f2f0cb2da5475d93b8ab95aa27f15"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007020000_newsletter_review/migration.sql",
+      "bytes": 1050,
+      "gitBlob": "8d164f80d057a04fee1fec2c99b6822d6d8f7d14",
+      "sha256": "668a11dcc44d064d00391b2eb0bcafe58439b24e881d81003006f8ae360b52d6"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007030000_newsletter_brand_kit/migration.sql",
+      "bytes": 435,
+      "gitBlob": "deacbeed51dfde4bec78b4df2de761f2db92fed1",
+      "sha256": "efa87b12853b5fc9da4142cbd7534c593b75a505b0c24c2be09aa541bc27e85c"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007040000_newsletter_asset_library_deletion/migration.sql",
+      "bytes": 235,
+      "gitBlob": "8a30956522af8ddcabac33f74cab80a63e71a75f",
+      "sha256": "256490ed5730926a529f8016f1cfdc9099790e520b8c0cc53b428e577fca7c50"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007050000_newsletter_asset_folders/migration.sql",
+      "bytes": 1135,
+      "gitBlob": "72a22f832b13ae3cbd5ec0160bcdde8383738eaf",
+      "sha256": "3c5c21d1678b4b2e33b073f1aeeba84ae1df4648bc7cdfd7c4749114d427b134"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007060000_newsletter_image_revisions/migration.sql",
+      "bytes": 1536,
+      "gitBlob": "8a132af2d73079082d089c611e450005d6a5e090",
+      "sha256": "0d7553bfed297caf6c80cb46add65ba1fe97af9c0c178c95a7d4178cebf0718c"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007070000_newsletter_thread_email/migration.sql",
+      "bytes": 2074,
+      "gitBlob": "c7bb43c76d31e77201f58a8176e5dd9d14ef9fee",
+      "sha256": "af4e0632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007080000_newsletter_author_access/migration.sql",
+      "bytes": 758,
+      "gitBlob": "1380ded8bccfac90fe05eb2101b6d57a0387b092",
+      "sha256": "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd6707f4439acb0ef2ea"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007090000_newsletter_email_invitations/migration.sql",
+      "bytes": 1495,
+      "gitBlob": "1fa3a7fb9a2d2eb0ba0b88888c46c4ece376dc1f",
+      "sha256": "f33ed9f54c464c53c0440be1e2025c67ec20872e5e1cfef2d77b1f9c2f58cedb"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20261007100000_newsletter_account_role/migration.sql",
+      "bytes": 139,
+      "gitBlob": "3cc3d59fe37b41a8a94c9fd65869970c122eb129",
+      "sha256": "02e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/state/outreach-campaign-spec.v1.ts",
+      "bytes": 30660,
+      "gitBlob": "52542fec40ab60b289788ecb685958e8e36b3c4c",
+      "sha256": "a28ebfc3f48f93fec93e4acf47924d8311bf8b2af83a1fa70194c3e1bde63bf6"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/state/outreach-command.contract.ts",
+      "bytes": 13981,
+      "gitBlob": "1b8de81f7bf8e3d00f18bbd543e7dc710c28d6c7",
+      "sha256": "db8b8815ba0ee2df7c76bb34597f4d1cc7330ddc361291e581d3195928bf4571"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/state/outreach-command-normalization.ts",
+      "bytes": 9714,
+      "gitBlob": "3d443a5461f950edaa717e9739c5d1c48843a831",
+      "sha256": "7b80b327f9e8cd5604acc371b7af8a1ac990175f147a4810a16d1a5d5675a115"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/state/outreach-command-reducer.ts",
+      "bytes": 20127,
+      "gitBlob": "20cc306866d5a7f52dcca3811b7344a9a05dcd42",
+      "sha256": "ed5e1bdbdd1429d8f7be8f245557888bbcbe9bbfc93ecd02897b39f1a1a0cc35"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/state/outreach-command-errors.ts",
+      "bytes": 1888,
+      "gitBlob": "c7f0a31d746307e553647e01e18f4d4cc0f5b3f6",
+      "sha256": "459095530091292c664e0b1a9e61ed58d19c7ea9628def1e6ee8f3b8f7bfb9ca"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/state/outreach-style-sample.contract.ts",
+      "bytes": 5711,
+      "gitBlob": "145af907f9ac17eeff1198a0376f947de5659b1e",
+      "sha256": "dddc4ed6379b4ac25843eecd46f373eabda5cce96f8b7289a96140b33058f11d"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/context/outreach-context-sponsor-policy.ts",
+      "bytes": 1404,
+      "gitBlob": "1dd53939dd13d14f8d04450dd02e0d9e76117d41",
+      "sha256": "d7088f7f07fac1e1d4540cf5f24492e55501370ada9a185e218f8171efd3facb"
+    },
+    {
+      "path": "apps/api/src/capabilities/targets/outreach-target.contract.ts",
+      "bytes": 15365,
+      "gitBlob": "f7a9684b9816634c7bcfb0576c8a7bd2f09d5da3",
+      "sha256": "25e6a8fec59284085c23caddbfae3fdd8e0cd258857a9331ae588217dc40ebf6"
+    },
+    {
+      "path": "apps/api/src/capabilities/context/outreach-context.contract.ts",
+      "bytes": 15058,
+      "gitBlob": "6954c39ba000d529cb1ccc5c36099ea37f224e21",
+      "sha256": "3b35b4f869406657139c274a4b7dd7bdd8a9fc17af506a8701170d533ccff453"
+    },
+    {
+      "path": "apps/api/src/capabilities/capability-errors.ts",
+      "bytes": 1053,
+      "gitBlob": "9672987c0e92bd4438eb55ad8eef5b6e6d1b7d46",
+      "sha256": "966563d563748d13f80b6229bda89b292ff27dd08b5818b06be75da7a1ae2c1f"
+    },
+    {
+      "path": "apps/api/src/capabilities/targets/outreach-target-reference.service.ts",
+      "bytes": 18340,
+      "gitBlob": "445c69b039d9791cb9445726278c6ee00f0e7948",
+      "sha256": "39a78bbeffbf271a5f88ca824b27763a3b90c060024b7dcb4e42c40a474536b2"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "bytes": 979560,
+      "gitBlob": "42065a1749144afec30b1aa56ea5d865dac847bf",
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "bytes": 41761,
+      "gitBlob": "7367184b71dda07e33e1577179768840a9a998e1",
+      "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02"
+    }
+  ]
+}

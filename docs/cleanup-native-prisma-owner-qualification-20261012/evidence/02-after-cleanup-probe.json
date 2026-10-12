@@ -1,0 +1,17 @@
+{
+  "startedAt": "2026-10-12T23:36:39.941023+00:00",
+  "finishedAt": "2026-10-12T23:36:40.136837+00:00",
+  "command": [
+    "/usr/bin/env",
+    "-i",
+    "PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "LANG=C.UTF-8",
+    "TZ=UTC",
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "docs/cleanup-native-prisma-owner-qualification-20261012/evidence/after-cleanup-probe.cjs"
+  ],
+  "exitCode": 0,
+  "readOnlySqlStatements": 5,
+  "mutationQueries": 0,
+  "databaseConnected": true
+}

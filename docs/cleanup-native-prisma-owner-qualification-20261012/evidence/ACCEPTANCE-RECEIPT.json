@@ -1,0 +1,207 @@
+{
+  "sourceProductHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "target": {
+    "dataDirectory": "/tmp/capiro-native-pg-pr2429-20261012/data",
+    "socketDirectory": "/tmp/capiro-native-pg-socket-pr2429-20261012",
+    "port": 5432,
+    "user": "agent",
+    "database": "postgres",
+    "systemIdentifier": "7695922344929406966",
+    "listenAddresses": "",
+    "inetServerAddr": null
+  },
+  "schema": "capiro_native_prisma_owners_pr2429_20261012",
+  "nativePrisma": true,
+  "corePrismaServiceActual": true,
+  "workspacePrismaServiceBootstrap": false,
+  "fullMigrationReplay": false,
+  "productionHardening": false,
+  "engine": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/libquery_engine-debian-openssl-3.0.x.so.node",
+  "artifacts": {
+    "schemaVersion": 1,
+    "productSourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+    "sourceNativePGParent": "3c28ed933722ce896d6ba421236219001bea9ae5",
+    "noConstructionOrQuery": true,
+    "clients": [
+      {
+        "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client",
+        "version": "5.22.0",
+        "schemaSource": "apps/api/prisma/schema.prisma",
+        "schemaByteEquality": true,
+        "relativeEnvPaths": "{\n    \"rootEnvPath\": null\n  }",
+        "artifacts": [
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/package.json",
+            "bytes": 2601,
+            "sha256": "dfa1538f40f2586171fa9657903a4e484b916839165fb1c0e2a667d5cde83f24"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index.js",
+            "bytes": 3815948,
+            "sha256": "fb6e22a71beb71c70dde87d3e637bec514ec4a174c89388537ef46016753e85a"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/library.js",
+            "bytes": 191178,
+            "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/schema.prisma",
+            "bytes": 979560,
+            "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/libquery_engine-debian-openssl-3.0.x.so.node",
+            "bytes": 16161048,
+            "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+          }
+        ]
+      },
+      {
+        "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client",
+        "version": "5.22.0",
+        "schemaSource": "apps/workspace/prisma/schema.prisma",
+        "schemaByteEquality": true,
+        "relativeEnvPaths": "{\n    \"rootEnvPath\": null\n  }",
+        "artifacts": [
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/package.json",
+            "bytes": 2601,
+            "sha256": "82d083de753d15630e7e2b194402b3b7270a6db3b90f0b93eef976cda7065ffe"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/index.js",
+            "bytes": 194518,
+            "sha256": "5d19d22aec43c8933b3ed22bc48d619b528fc9ae59709c02a49637043c00c8bf"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/library.js",
+            "bytes": 191178,
+            "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/schema.prisma",
+            "bytes": 41761,
+            "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02"
+          },
+          {
+            "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/libquery_engine-debian-openssl-3.0.x.so.node",
+            "bytes": 16161048,
+            "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+          }
+        ]
+      }
+    ]
+  },
+  "results": [
+    {
+      "name": "actual PrismaService withTenantUser, scoped ORM and strict role",
+      "status": "PASS",
+      "details": {
+        "queryExtensionObserved": true,
+        "trustedBypassTransactionLocal": true
+      }
+    },
+    {
+      "name": "native Prisma actual Objective helper and immutable revision privilege",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "name": "native Core and Workspace clients execute exact saved revision owner",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "name": "actual native Prisma V3 engine/repository duplicate staging and durable receipt",
+      "status": "PASS",
+      "details": {
+        "receiptId": "c24d97a4-f664-482c-b9c3-725f1d58a265",
+        "stateVersion": 2
+      }
+    },
+    {
+      "name": "native Prisma staging hash/id errors and committed revocation before replay",
+      "status": "PASS",
+      "details": null
+    },
+    {
+      "name": "actual calendar native Prisma RepeatableRead and ORM SyncRun receipt",
+      "status": "PASS",
+      "details": {
+        "dateKind": "effective",
+        "complete": false,
+        "latestRefreshSource": "sync-federal-register-effective-dates"
+      }
+    }
+  ],
+  "passed": 6,
+  "failed": 0,
+  "sourceHarnessHead": "ee9499c5771038f6abf5972ab13d3c20ca65b0cf",
+  "sourceHarnessTree": "f0530159db532171beba479da52615c759822086",
+  "originalNativePgReceiptHead": "3c28ed933722ce896d6ba421236219001bea9ae5",
+  "commandReceipt": {
+    "sourceHead": "ee9499c5771038f6abf5972ab13d3c20ca65b0cf",
+    "sourceTree": "f0530159db532171beba479da52615c759822086",
+    "startedAt": "2026-10-12T23:35:31.417714+00:00",
+    "finishedAt": "2026-10-12T23:35:34.145252+00:00",
+    "command": [
+      "/usr/bin/env",
+      "-i",
+      "PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+      "LANG=C.UTF-8",
+      "TZ=UTC",
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "docs/cleanup-native-prisma-owner-qualification-20261012/native-prisma-owner-harness.cjs",
+      "--run",
+      "--verified-target",
+      "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/native-acceptance-pr2429-20261012/evidence/verified-isolated-target.json",
+      "--output",
+      "docs/cleanup-native-prisma-owner-qualification-20261012/evidence/native-prisma-attempt-0.json"
+    ],
+    "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+    "exitCode": 0,
+    "launcherEnvKeys": [
+      "PATH",
+      "LANG",
+      "TZ"
+    ],
+    "childAddedControlledEnv": [
+      "PRISMA_QUERY_ENGINE_LIBRARY"
+    ],
+    "stdout": "evidence/01-native-prisma-attempt-0.stdout.log",
+    "stderr": "evidence/01-native-prisma-attempt-0.stderr.log",
+    "databaseExecuted": true
+  },
+  "cleanupVerified": true,
+  "sourceErrorsRewritten": false,
+  "sqlStateAssertions": [
+    {
+      "prismaCode": "P2010",
+      "sqlstate": "42501",
+      "operation": "old immutable Objective revision SELECT FOR SHARE"
+    },
+    {
+      "prismaCode": "P2010",
+      "sqlstate": "23514",
+      "operation": "saved WsDocVersion UPDATE"
+    },
+    {
+      "prismaCode": "P2010",
+      "sqlstate": "23514",
+      "operation": "global rule evidence dateKind NULL"
+    }
+  ],
+  "expectedErrorQualification": "Passing predicates asserted actual P2010+meta.code; caught expected error objects were not separately serialized. Physical stdout/stderr and all failing errors, if any, are retained.",
+  "independentReview": "pending",
+  "qualificationLimits": [
+    "Actual CorePrismaService transaction/queryextension and both cachednative5.22 clients, not whole application bootstrap.",
+    "Workspace generated client/shared canonical savedowner; WorkspaceService onModuleInit persistence middleware not called.",
+    "Minimal source-bound parent fixture plus exact/extracted migration parts, not full migration replay or all model columns.",
+    "Six named native groups only; original pg11 groups remain separately bound to3c28 source.",
+    "Strict isolated NOLOGINrole proof is not production role hardening.",
+    "Native calendar actual RepeatableRead+SyncRunORM; concurrent MVCC writer proof is separate originalpg lane.",
+    "No rich newsletter reviewGET/provider/accountworker/send/assets/UUIDbridge/nativefullwriterORM acceptance.",
+    "Full committed whitespace floor remains OPEN; rawphysicalbytes retained."
+  ]
+}
