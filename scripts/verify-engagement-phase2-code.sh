@@ -137,7 +137,15 @@ phase1_gate() {
   # Output is evidence, never a substitute for the real process exit status.
   [ "${statuses[0]}" -eq 0 ] && [ "${statuses[1]}" -eq 0 ] &&
     grep -Fxq -- "$PHASE1_COMPLETE_MARKER" "$log" &&
-    ! grep -Fq -- "$PHASE1_FAILED_MARKER" "$log"
+    ! grep -Fq -- "$PHASE1_FAILED_MARKER" "$log" && {
+      # Scoped evidence must not combine receipts from another Phase1 scope.
+      # The default-full protocol intentionally retains its existing policy.
+      [ "$BACKEND_ONLY" -ne 1 ] || ! grep -Fxq \
+        -e 'ENGAGEMENT_PHASE1_DB_FREE_COMPLETE' \
+        -e 'ENGAGEMENT_PHASE1_DB_FREE_FAILED' \
+        -e '[engagement-phase1] FRONTEND COMPLETE' \
+        -e '[engagement-phase1] FRONTEND FAILED' "$log"
+    }
 }
 
 gate() {
