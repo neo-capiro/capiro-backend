@@ -1,0 +1,105 @@
+node:assert:152
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+... Skipped lines
+
+  '\n' +
+    '  frontend:\n' +
+    '    # Retain all former frontend typecheck/test/route/header inputs in a sibling\n' +
+    '    # job. A failing backend step cannot silently suppress these checks.\n' +
+    '    runs-on: ubuntu-latest\n' +
+...
+    '        run: pnpm typecheck:frontend\n' +
++   '      # CleanUp1 §5.3.2 — apps/web vitest so the ~6.4k web tests no longer\n' +
++   '      # depend on one unrelated workflow.\n' +
++   '      - name: Test apps/web\n' +
++   '        run: pnpm --filter @capiro/web test\n' +
++   '\n' +
+    '      - name: Engagement Phase1 retained frontend regression and routing contract\n' +
+    '        run: pnpm verify:engagement-phase-1:frontend\n' +
+    '      - name: Engagement Phase2 retained frontend header contract\n' +
+    '        run: pnpm verify:engagement-phase-2:frontend\n'
+
+    at Object.<anonymous> (/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-retirement-verification-independent-review-20261012/evidence/composition-proof.cjs:102:8)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: '\n' +
+    '  frontend:\n' +
+    '    # Retain all former frontend typecheck/test/route/header inputs in a sibling\n' +
+    '    # job. A failing backend step cannot silently suppress these checks.\n' +
+    '    runs-on: ubuntu-latest\n' +
+    '    env:\n' +
+    '      NODE_OPTIONS: --max-old-space-size=6144\n' +
+    '    timeout-minutes: 90\n' +
+    '    steps:\n' +
+    '      - uses: actions/checkout@v4\n' +
+    '      - uses: pnpm/action-setup@v4\n' +
+    '      - uses: actions/setup-node@v7\n' +
+    '        with:\n' +
+    '          node-version: 22\n' +
+    '          cache: pnpm\n' +
+    '      - run: pnpm install --frozen-lockfile\n' +
+    '      - name: Build retained frontend shared prerequisites\n' +
+    '        run: |\n' +
+    '          pnpm --filter @capiro/shared build\n' +
+    '          pnpm --filter @capiro/defense-contracts build\n' +
+    '          pnpm --filter @capiro/defense-domain build\n' +
+    '          pnpm --filter @capiro/auth build\n' +
+    '          pnpm --filter @capiro/strategy-verifier build\n' +
+    '          pnpm --filter @capiro/meriv2-core build\n' +
+    '      - name: Typecheck retained frontend workspaces (turbo)\n' +
+    '        run: pnpm typecheck:frontend\n' +
+    '      # CleanUp1 §5.3.2 — apps/web vitest so the ~6.4k web tests no longer\n' +
+    '      # depend on one unrelated workflow.\n' +
+    '      - name: Test apps/web\n' +
+    '        run: pnpm --filter @capiro/web test\n' +
+    '\n' +
+    '      - name: Engagement Phase1 retained frontend regression and routing contract\n' +
+    '        run: pnpm verify:engagement-phase-1:frontend\n' +
+    '      - name: Engagement Phase2 retained frontend header contract\n' +
+    '        run: pnpm verify:engagement-phase-2:frontend\n',
+  expected: '\n' +
+    '  frontend:\n' +
+    '    # Retain all former frontend typecheck/test/route/header inputs in a sibling\n' +
+    '    # job. A failing backend step cannot silently suppress these checks.\n' +
+    '    runs-on: ubuntu-latest\n' +
+    '    env:\n' +
+    '      NODE_OPTIONS: --max-old-space-size=6144\n' +
+    '    timeout-minutes: 90\n' +
+    '    steps:\n' +
+    '      - uses: actions/checkout@v4\n' +
+    '      - uses: pnpm/action-setup@v4\n' +
+    '      - uses: actions/setup-node@v7\n' +
+    '        with:\n' +
+    '          node-version: 22\n' +
+    '          cache: pnpm\n' +
+    '      - run: pnpm install --frozen-lockfile\n' +
+    '      - name: Build retained frontend shared prerequisites\n' +
+    '        run: |\n' +
+    '          pnpm --filter @capiro/shared build\n' +
+    '          pnpm --filter @capiro/defense-contracts build\n' +
+    '          pnpm --filter @capiro/defense-domain build\n' +
+    '          pnpm --filter @capiro/auth build\n' +
+    '          pnpm --filter @capiro/strategy-verifier build\n' +
+    '          pnpm --filter @capiro/meriv2-core build\n' +
+    '      - name: Typecheck retained frontend workspaces (turbo)\n' +
+    '        run: pnpm typecheck:frontend\n' +
+    '      - name: Engagement Phase1 retained frontend regression and routing contract\n' +
+    '        run: pnpm verify:engagement-phase-1:frontend\n' +
+    '      - name: Engagement Phase2 retained frontend header contract\n' +
+    '        run: pnpm verify:engagement-phase-2:frontend\n',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

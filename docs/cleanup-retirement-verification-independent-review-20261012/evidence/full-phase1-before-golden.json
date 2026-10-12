@@ -1,0 +1,334 @@
+{
+  "source": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "file": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+  "originalMainSha256": "f014f81c5cb97aa0b8b3e3a6b6de4bdf274528d0d3d67971650ac76bff2d23a4",
+  "statements": [
+    {
+      "kind": "run",
+      "label": "Locked dependency install",
+      "command": "pnpm",
+      "args": [
+        "install",
+        "--frozen-lockfile"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Generate Prisma client: @capiro/api",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "prisma",
+        "generate"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Generate Prisma client: @capiro/intel-api",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/intel-api",
+        "exec",
+        "prisma",
+        "generate"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Generate Prisma client: @capiro/workspace",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/workspace",
+        "exec",
+        "prisma",
+        "generate"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Generate Prisma client: @capiro/onboard-api",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/onboard-api",
+        "exec",
+        "prisma",
+        "generate"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Generate Prisma client: @capiro/api-strategy",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/api-strategy",
+        "exec",
+        "prisma",
+        "generate"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Build workspace package: @capiro/shared",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/shared",
+        "run",
+        "build"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Build workspace package: @capiro/defense-contracts",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/defense-contracts",
+        "run",
+        "build"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Build workspace package: @capiro/defense-domain",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/defense-domain",
+        "run",
+        "build"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Build workspace package: @capiro/auth",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/auth",
+        "run",
+        "build"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Build workspace package: @capiro/strategy-verifier",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/strategy-verifier",
+        "run",
+        "build"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Build workspace package: @capiro/meriv2-core",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/meriv2-core",
+        "run",
+        "build"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Phase 0 contract prerequisite",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/api",
+        "run",
+        "verify:engagement-phase-0"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Phase 1 manifests, runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "jest",
+        "--runInBand",
+        "--forceExit",
+        "scripts/lib/engagement-verifier-process.spec.ts",
+        "src/bootstrap/configure-api-http-app.spec.ts",
+        "src/engagement-api.app.module.spec.ts",
+        "src/engagement-api/engagement-api-health.controller.spec.ts",
+        "src/engagement/engagement-route-manifest.spec.ts",
+        "src/engagement/engagement-dependency-manifest.spec.ts",
+        "src/engagement/engagement-side-effect-registry.spec.ts",
+        "src/engagement/runtime",
+        "src/engagement/ai-credential-resolver.service.spec.ts",
+        "src/engagement/governed-engagement.factory.spec.ts",
+        "src/engagement/engagement-sync-scheduler.service.spec.ts",
+        "src/engagement/outreach-job.spec.ts",
+        "src/engagement/outreach-send-intent.service.spec.ts",
+        "src/engagement/notetaker/notetaker.service.spec.ts",
+        "src/engagement/mail-sender.service.spec.ts",
+        "src/engagement/llm-completion.service.spec.ts"
+      ],
+      "cwd": "/repo",
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=6144"
+      }
+    },
+    {
+      "kind": "run",
+      "label": "Build API entrypoints",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/api",
+        "run",
+        "build"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "assertFile",
+      "path": "apps/api/dist/main.js"
+    },
+    {
+      "kind": "assertFile",
+      "path": "apps/api/dist/engagement-main.js"
+    },
+    {
+      "kind": "assertFile",
+      "path": "apps/engagement-api/Dockerfile"
+    },
+    {
+      "kind": "assertFile",
+      "path": "apps/engagement-api/scripts/entrypoint.sh"
+    },
+    {
+      "kind": "run",
+      "label": "API production typecheck",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/api",
+        "exec",
+        "tsc",
+        "-p",
+        "tsconfig.build.json",
+        "--noEmit"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Web typecheck",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/web",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "run",
+      "label": "Web regression suite",
+      "command": "pnpm",
+      "args": [
+        "--filter",
+        "@capiro/web",
+        "test"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    },
+    {
+      "kind": "assertNoWebPreviewRouting"
+    },
+    {
+      "kind": "run",
+      "label": "Committed diff whitespace validation",
+      "command": "git",
+      "args": [
+        "diff",
+        "--check",
+        "origin/main...HEAD",
+        "--",
+        ".",
+        ":(exclude)docs/plans/**/*.md"
+      ],
+      "cwd": "/repo",
+      "env": {}
+    }
+  ],
+  "ports": [
+    {
+      "port": "fakeGitHead",
+      "command": "git",
+      "args": [
+        "rev-parse",
+        "HEAD"
+      ],
+      "options": {
+        "cwd": "/repo",
+        "encoding": "utf8",
+        "shell": false
+      }
+    },
+    {
+      "port": "fakeLog",
+      "args": [
+        "Engagement Phase 1 DB-free closeout: 5470c6df029c9553dd49e531229c3c91b26275ef"
+      ]
+    },
+    {
+      "port": "fakeWrite",
+      "fd": 1,
+      "bytes": "\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n"
+    },
+    {
+      "port": "fakeExit",
+      "code": 0
+    }
+  ],
+  "actualSpawnInstallBuildNativeAppSqlProviderCalls": 0,
+  "applicationGraphImported": false,
+  "scope": "Trusted immutable main fragment with all child/assertion/stdout/exit ports synthetic; qualification commands are recorded only",
+  "candidateAcceptance": false
+}

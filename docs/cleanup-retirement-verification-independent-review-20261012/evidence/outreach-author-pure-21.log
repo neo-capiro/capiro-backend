@@ -1,0 +1,29 @@
+✔ scope requires exactly one explicit run and at most one known scope (3.734464ms)
+✔ full plans preserve current caller arrays and arbitrary newer steps (0.605564ms)
+✔ backend scopes retain every current step/options/order and scope only the inherited prerequisite (1.091155ms)
+✔ frontend scopes retain matching inherited qualification and whitespace, with no local API command (0.33947ms)
+✔ nested scope selection refuses duplicate/missing run or pre-scoped and wrong aliases before callback (0.352772ms)
+✔ all nine completion values are distinct and scoped failures cannot emit a full completion (0.396396ms)
+✔ invalid plan identities fail before injected runner, callback errors stop immediately (0.92595ms)
+✔ phase1 noargs/help/invalid flags stop before every fake file/command/env effect (20.738297ms)
+✔ phase1 current full command/read/env/exit trace equals the frozen original under both platforms (8.404211ms)
+✔ phase1 scoped actual wrapper selects matching nested alias/argv and marks only that scope (3.147312ms)
+✔ phase1 full and scoped subprocess failures retain original actual-exit policy and stop (8.097955ms)
+✔ phase3 noargs/help/invalid flags stop before every fake file/command/env effect (15.752262ms)
+✔ phase3 current full command/read/env/exit trace equals the frozen original under both platforms (5.07513ms)
+✔ phase3 scoped actual wrapper selects matching nested alias/argv and marks only that scope (2.704209ms)
+✔ phase3 full and scoped subprocess failures retain original actual-exit policy and stop (5.109475ms)
+✔ phase4 noargs/help/invalid flags stop before every fake file/command/env effect (16.255987ms)
+✔ phase4 current full command/read/env/exit trace equals the frozen original under both platforms (11.347319ms)
+✔ phase4 scoped actual wrapper selects matching nested alias/argv and marks only that scope (6.096899ms)
+✔ phase4 full and scoped subprocess failures retain original actual-exit policy and stop (7.370033ms)
+✔ Phase1/3 full source arrays retain every current operand/environment expression byte-exact (2.996534ms)
+✔ Phase4 all original source/catalog/route/scope predicates remain, frontend alone skips the backend envelope (5.462617ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 303.877222

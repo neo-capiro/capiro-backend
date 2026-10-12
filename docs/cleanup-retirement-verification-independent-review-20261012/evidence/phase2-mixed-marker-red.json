@@ -1,0 +1,120 @@
+{
+  "source": "ec7261b0689bef2bcec1be3beb9af7754c12dc30",
+  "results": [
+    {
+      "label": "selected only",
+      "childStatus": 0,
+      "teeStatus": 0,
+      "expectedGateStatus": 0,
+      "actualGateStatus": 0,
+      "correct": true,
+      "stdout": "[engagement-phase1] BACKEND COMPLETE\n\nGATE_STATUS=0\n",
+      "stderr": ""
+    },
+    {
+      "label": "foreign only",
+      "childStatus": 0,
+      "teeStatus": 0,
+      "expectedGateStatus": 1,
+      "actualGateStatus": 1,
+      "correct": true,
+      "stdout": "ENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n\nGATE_STATUS=1\n",
+      "stderr": ""
+    },
+    {
+      "label": "both full and selected",
+      "childStatus": 0,
+      "teeStatus": 0,
+      "expectedGateStatus": 1,
+      "actualGateStatus": 0,
+      "correct": false,
+      "stdout": "[engagement-phase1] BACKEND COMPLETE\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n\nGATE_STATUS=0\n",
+      "stderr": ""
+    },
+    {
+      "label": "both sibling and selected",
+      "childStatus": 0,
+      "teeStatus": 0,
+      "expectedGateStatus": 1,
+      "actualGateStatus": 0,
+      "correct": false,
+      "stdout": "[engagement-phase1] BACKEND COMPLETE\n[engagement-phase1] FRONTEND COMPLETE\n\nGATE_STATUS=0\n",
+      "stderr": ""
+    },
+    {
+      "label": "foreign failed plus selected",
+      "childStatus": 0,
+      "teeStatus": 0,
+      "expectedGateStatus": 1,
+      "actualGateStatus": 0,
+      "correct": false,
+      "stdout": "[engagement-phase1] BACKEND COMPLETE\nENGAGEMENT_PHASE1_DB_FREE_FAILED\n\nGATE_STATUS=0\n",
+      "stderr": ""
+    },
+    {
+      "label": "selected failure plus complete",
+      "childStatus": 0,
+      "teeStatus": 0,
+      "expectedGateStatus": 1,
+      "actualGateStatus": 1,
+      "correct": true,
+      "stdout": "[engagement-phase1] BACKEND COMPLETE\n[engagement-phase1] BACKEND FAILED\n\nGATE_STATUS=1\n",
+      "stderr": ""
+    },
+    {
+      "label": "child exit1",
+      "childStatus": 1,
+      "teeStatus": 0,
+      "expectedGateStatus": 1,
+      "actualGateStatus": 1,
+      "correct": true,
+      "stdout": "[engagement-phase1] BACKEND COMPLETE\n\nGATE_STATUS=1\n",
+      "stderr": ""
+    },
+    {
+      "label": "tee exit1",
+      "childStatus": 0,
+      "teeStatus": 1,
+      "expectedGateStatus": 1,
+      "actualGateStatus": 1,
+      "correct": true,
+      "stdout": "[engagement-phase1] BACKEND COMPLETE\n\nGATE_STATUS=1\n",
+      "stderr": ""
+    }
+  ],
+  "failures": [
+    {
+      "label": "both full and selected",
+      "childStatus": 0,
+      "teeStatus": 0,
+      "expectedGateStatus": 1,
+      "actualGateStatus": 0,
+      "correct": false,
+      "stdout": "[engagement-phase1] BACKEND COMPLETE\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n\nGATE_STATUS=0\n",
+      "stderr": ""
+    },
+    {
+      "label": "both sibling and selected",
+      "childStatus": 0,
+      "teeStatus": 0,
+      "expectedGateStatus": 1,
+      "actualGateStatus": 0,
+      "correct": false,
+      "stdout": "[engagement-phase1] BACKEND COMPLETE\n[engagement-phase1] FRONTEND COMPLETE\n\nGATE_STATUS=0\n",
+      "stderr": ""
+    },
+    {
+      "label": "foreign failed plus selected",
+      "childStatus": 0,
+      "teeStatus": 0,
+      "expectedGateStatus": 1,
+      "actualGateStatus": 0,
+      "correct": false,
+      "stdout": "[engagement-phase1] BACKEND COMPLETE\nENGAGEMENT_PHASE1_DB_FREE_FAILED\n\nGATE_STATUS=0\n",
+      "stderr": ""
+    }
+  ],
+  "actualQualificationVerifierProviderNativeEngineCalls": 0,
+  "extractedShellModeAndGateOnly": true,
+  "acceptance": false
+}
