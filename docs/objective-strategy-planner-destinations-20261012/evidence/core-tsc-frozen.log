@@ -1,0 +1,10 @@
+src/meri/meri-research-coordinator.service.spec.ts(246,18): error TS7006: Parameter 'batch' implicitly has an 'any' type.
+src/meri/meri-research-coordinator.service.spec.ts(246,25): error TS7006: Parameter 'done' implicitly has an 'any' type.
+src/meri/meri-research-telemetry.spec.ts(29,18): error TS7006: Parameter 'batch' implicitly has an 'any' type.
+src/meri/meri-research-telemetry.spec.ts(29,25): error TS7006: Parameter 'done' implicitly has an 'any' type.
+src/meri/meri-research.service.spec.ts(690,18): error TS7006: Parameter 'batch' implicitly has an 'any' type.
+src/meri/meri-research.service.spec.ts(690,25): error TS7006: Parameter 'done' implicitly has an 'any' type.
+src/meri/meri-telemetry.runtime.spec.ts(113,18): error TS7006: Parameter 'batch' implicitly has an 'any' type.
+src/meri/meri-telemetry.runtime.spec.ts(113,25): error TS7006: Parameter 'done' implicitly has an 'any' type.
+src/meri/meriv3-chat.client.spec.ts(174,16): error TS7006: Parameter 'batch' implicitly has an 'any' type.
+src/meri/meriv3-chat.client.spec.ts(174,23): error TS7006: Parameter 'done' implicitly has an 'any' type.

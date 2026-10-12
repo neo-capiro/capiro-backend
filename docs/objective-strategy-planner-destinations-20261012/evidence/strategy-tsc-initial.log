@@ -1,0 +1,1 @@
+src/strategy/objective-destination.service.spec.ts(227,32): error TS2741: Property 'position' is missing in type '{ projectId: string; sectionId: null; }' but required in type '{ projectId: string; sectionId: string | null; position: number; }'.

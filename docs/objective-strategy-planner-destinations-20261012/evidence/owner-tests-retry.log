@@ -1,0 +1,25 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-objective-strategy-planner/apps/api-strategy/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/strategy/objective-destination.service.spec.ts
+  Canonical Strategy and Planner Objective destination owners (synthetic tx)
+    ✓ Strategy returns its canonical same-client live plan with the existing exact Objective revision (9 ms)
+    ✓ Planner returns an explicit same-client task under its canonical task viewer ACL and tenant lock (3 ms)
+    ✓ both owners fail closed for removed scope (1 ms)
+    ✓ both owners fail closed for removed grant (1 ms)
+    ✓ both owners fail closed for removed objective (1 ms)
+    ✓ both owners fail closed for removed revision (1 ms)
+    ✓ strategyRead conflicts on stale revision and rechecks exact retry (1 ms)
+    ✓ taskRead conflicts on stale revision and rechecks exact retry
+    ✓ refuses an unavailable/mismatched/archived Strategy before reading Objective content
+    ✓ refuses missing/archived Planner tasks (1 ms)
+    ✓ refuses foreign explicit client and absent task client even when its project has the right client
+    ✓ preserves project-granted viewer access and refuses a current grant removal despite task ownership (1 ms)
+    ✓ permits an addressed task collaborator through the existing owner ACL without a project inference (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       13 passed, 13 total
+Snapshots:   0 total
+Time:        2.151 s
+Ran all test suites matching /src\/strategy\/objective-destination.service.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

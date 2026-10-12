@@ -1,0 +1,32 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-objective-strategy-planner/apps/api-strategy/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL src/strategy/objective-destination.service.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '@capiro/shared' from 'src/strategy/objective-destination.ts'
+
+    Require stack:
+      src/strategy/objective-destination.ts
+      src/strategy/strategy.service.ts
+      src/strategy/objective-destination.service.spec.ts
+
+      2 | import { IsInt, IsUUID, Max, Min } from 'class-validator';
+      3 | import { Type } from 'class-transformer';
+    > 4 | import {
+        | ^
+      5 |   ClientObjectiveDestinationError,
+      6 |   normalizeClientObjectiveDestination,
+      7 |   requireClientObjectiveDestinationRevision,
+
+      at Resolver._throwModNotFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.<anonymous> (src/strategy/objective-destination.ts:4:1)
+      at Object.<anonymous> (src/strategy/strategy.service.ts:18:1)
+      at Object.<anonymous> (src/strategy/objective-destination.service.spec.ts:6:1)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        1.245 s
+Ran all test suites matching /src\/strategy\/objective-destination.service.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -1,0 +1,34 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-objective-strategy-planner/apps/api-strategy/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL src/strategy/objective-destination.controller.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '@nestjs/common' from '../../packages/auth/dist/auth.module.js'
+
+    Require stack:
+      /workspace/capirov2-objective-strategy-planner/packages/auth/dist/auth.module.js
+      /workspace/capirov2-objective-strategy-planner/packages/auth/dist/index.js
+      src/auth/tenant.guard.ts
+      src/strategy/objective-destination.controller.spec.ts
+
+    > 1 | import { Global, Module } from '@nestjs/common';
+        | ^
+      2 | import { ClerkService } from './clerk.service';
+      3 | import { TenantGuard } from './tenant.guard';
+      4 |
+
+      at Resolver._throwModNotFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.<anonymous> (../../packages/auth/src/auth.module.ts:1:1)
+      at Object.<anonymous> (../../packages/auth/src/index.ts:8:1)
+      at Object.<anonymous> (src/auth/tenant.guard.ts:3:1)
+      at Object.<anonymous> (src/strategy/objective-destination.controller.spec.ts:7:1)
+
+PASS src/strategy/objective-destination.service.spec.ts
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       13 passed, 13 total
+Snapshots:   0 total
+Time:        2.458 s
+Ran all test suites matching /src\/strategy\/objective-destination.service.spec.ts|src\/strategy\/objective-destination.controller.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

@@ -1,0 +1,23 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-objective-strategy-planner/apps/api-strategy/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/strategy/version.service.spec.ts
+PASS src/strategy/node.service.spec.ts
+PASS src/strategy/versioning.service.spec.ts
+[Nest] 31078  - 10/12/2026, 7:47:13 AM   ERROR [PlannerSchedulerService] Planner tenant discovery failed; next cycle will retry
+PASS src/planner/planner-scheduler.service.spec.ts
+[Nest] 31078  - 10/12/2026, 7:47:13 AM    WARN [PlannerSchedulerService] Planner tenant 10000000-0000-4000-8000-000000000001 scheduled work failed; next cycle will retry
+[Nest] 31078  - 10/12/2026, 7:47:13 AM    WARN [PlannerSchedulerService] Planner tenant 10000000-0000-4000-8000-000000000001 submission reminders failed; next cycle will retry
+[Nest] 31078  - 10/12/2026, 7:47:13 AM     LOG [PlannerSchedulerService] Planner configured date rules, goal, submission and budget reminders armed (60-second polling)
+[Nest] 31078  - 10/12/2026, 7:47:13 AM    WARN [PlannerSchedulerService] Planner tenant 10000000-0000-4000-8000-000000000001 budget reminders failed; next cycle will retry
+PASS src/strategy/strategy-summary.spec.ts
+PASS src/strategy/objective-destination.controller.spec.ts
+PASS src/strategy/objective-destination.service.spec.ts
+
+Test Suites: 7 passed, 7 total
+Tests:       96 passed, 96 total
+Snapshots:   0 total
+Time:        6.821 s
+Ran all test suites matching /src\/strategy\/objective-destination.service.spec.ts|src\/strategy\/objective-destination.controller.spec.ts|src\/strategy\/strategy-summary.spec.ts|src\/strategy\/node.service.spec.ts|src\/strategy\/versioning.service.spec.ts|src\/strategy\/version.service.spec.ts|src\/planner\/planner-scheduler.service.spec.ts/i.
+Test results written to: ../../docs/objective-strategy-planner-destinations-20261012/evidence/strategy-author-frozen.json
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
