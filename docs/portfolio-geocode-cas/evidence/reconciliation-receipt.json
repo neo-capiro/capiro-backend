@@ -1,0 +1,46 @@
+{
+  "sourceCommit": "bf4f5d940007fc24a36e325d8498857e46806f5e",
+  "sourceTree": "684f39b48a771508b961735154c68c8c455de046",
+  "testResult": {
+    "passed": 96,
+    "failed": 0,
+    "pending": 0,
+    "suites": 4
+  },
+  "suites": [
+    {
+      "path": "src/clients/client-facilities.service.spec.ts",
+      "status": "passed",
+      "cases": 54
+    },
+    {
+      "path": "src/clients/facility-geocode-candidate-cas.spec.ts",
+      "status": "passed",
+      "cases": 20
+    },
+    {
+      "path": "src/clients/facility-geocode.util.spec.ts",
+      "status": "passed",
+      "cases": 16
+    },
+    {
+      "path": "src/clients/geocode-retry.spec.ts",
+      "status": "passed",
+      "cases": 6
+    }
+  ],
+  "rawResultSha256": "e247a5aafcb76b6760adcdd561ff00f950ca281bd004ccbf1a80ec236e714be8",
+  "cli": {
+    "command": "env -i PATH=\"$PATH\" <installed-tsx> <candidate>/apps/api/scripts/geocode-facilities.ts (empty cwd)",
+    "expectedExit": 2,
+    "actualExit": 2
+  },
+  "nativeConcurrency": "NOT RUN",
+  "migration": "NONE",
+  "primaryApiTypecheck": {
+    "command": "NODE_OPTIONS=--max-old-space-size=8192 node_modules/.bin/tsc --noEmit --rootDir .",
+    "cwd": "apps/api",
+    "exitCode": 0
+  },
+  "rawResultPath": "reconciliation-tests.json"
+}
