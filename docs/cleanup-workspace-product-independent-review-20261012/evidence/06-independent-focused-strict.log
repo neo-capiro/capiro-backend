@@ -1,0 +1,1 @@
+apps/workspace/test/product-registry-characterization.spec.ts(1,40): error TS2307: Cannot find module '@jest/globals' or its corresponding type declarations.

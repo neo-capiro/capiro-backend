@@ -1,0 +1,9 @@
+PASS apps/api/src/external/tango/tango-sbir.client.spec.ts
+PASS apps/api/src/external/tango/tango-rest-page.spec.ts
+PASS apps/api/src/external/tango/tango-subaward.client.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       237 passed, 237 total
+Snapshots:   0 total
+Time:        2.687 s
+Ran all test suites matching /apps\/api\/src\/external\/tango\/tango-rest-page.spec.ts|apps\/api\/src\/external\/tango\/tango-sbir.client.spec.ts|apps\/api\/src\/external\/tango\/tango-subaward.client.spec.ts/i.

@@ -1,0 +1,16 @@
+{
+  "failedReadOnlyAction": {
+    "cmd": "git status --short",
+    "cwd": "/tmp/capirov2-four-runtime-controls-review",
+    "result": "exec_command failed: CreateProcess { message: \"Rejected(\\\"Failed to create unified exec process: exec-server transport disconnected\\\")\" }"
+  },
+  "successfulReadOnlyRecheck": {
+    "utc": "2026-10-12 19:55:45 UTC",
+    "cmd": "git rev-parse HEAD",
+    "cwd": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion",
+    "exitCode": 0,
+    "head": "cb2af6234ba826e5ee8baa6722acaa16ca7ed40d"
+  },
+  "mutationAttemptedDuringDisconnect": false,
+  "remainingTransportBlocker": false
+}

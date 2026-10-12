@@ -1,0 +1,838 @@
+{
+  "source": "74d04937d4453813d15ec957a76337c73b712899",
+  "tree": "6ecdbf3af3c2c35df83a8a2bf28958fafe8c94f6",
+  "scope": "actual Workspace sourceMap strings; pure guard only; no application source evaluation",
+  "sourceFiles": 150,
+  "profiles": [
+    {
+      "id": "workspace-product-descriptors",
+      "symbols": 7,
+      "edges": 7,
+      "carriers": 11
+    },
+    {
+      "id": "workspace-existing-product-facade",
+      "symbols": 12,
+      "edges": 5,
+      "carriers": 12
+    }
+  ],
+  "checks": 102,
+  "results": [
+    {
+      "label": "actual complete Workspace sourceMap baseline",
+      "expected": "PASS",
+      "result": "PASS",
+      "errors": []
+    },
+    {
+      "label": "exact full carrier WORKSPACE_PRODUCT_REGISTRY",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier WORKSPACE_PRODUCT_METADATA",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier WORKSPACE_PRODUCT_SECTIONS",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier WORKSPACE_PRODUCT_PAGES",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier WORKSPACE_PRODUCT_CANONICAL",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier WORKSPACE_PRODUCT_UNIVERSAL",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier WORKSPACE_PRODUCT_FUNDING",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier workspaceProductsInOrder",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier WorkspaceProductProjection",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier WorkspaceProductKey",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier WorkspaceProductDescriptor",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier CASCADE",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier UNIVERSAL_PRODUCTS",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier CANONICAL_PRODUCTS",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier FUNDING_PRODUCTS",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier PRODUCT_META",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier SUGGESTED_SECTIONS",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier SUGGESTED_PAGES",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier INDUSTRY_DATA",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier SECTION_LIBRARY",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier WSC",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier sectionSpecFor",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "exact full carrier ProductMeta",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "descriptor export visibility WORKSPACE_PRODUCT_REGISTRY",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_REGISTRY must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_REGISTRY"
+      ]
+    },
+    {
+      "label": "descriptor const/let envelope WORKSPACE_PRODUCT_REGISTRY",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_REGISTRY"
+      ]
+    },
+    {
+      "label": "descriptor export visibility WORKSPACE_PRODUCT_METADATA",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_METADATA must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_METADATA"
+      ]
+    },
+    {
+      "label": "descriptor const/let envelope WORKSPACE_PRODUCT_METADATA",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_METADATA"
+      ]
+    },
+    {
+      "label": "descriptor export visibility WORKSPACE_PRODUCT_SECTIONS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_SECTIONS must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_SECTIONS"
+      ]
+    },
+    {
+      "label": "descriptor const/let envelope WORKSPACE_PRODUCT_SECTIONS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_SECTIONS"
+      ]
+    },
+    {
+      "label": "descriptor export visibility WORKSPACE_PRODUCT_PAGES",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_PAGES must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_PAGES"
+      ]
+    },
+    {
+      "label": "descriptor const/let envelope WORKSPACE_PRODUCT_PAGES",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_PAGES"
+      ]
+    },
+    {
+      "label": "descriptor export visibility WORKSPACE_PRODUCT_CANONICAL",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_CANONICAL must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_CANONICAL"
+      ]
+    },
+    {
+      "label": "descriptor const/let envelope WORKSPACE_PRODUCT_CANONICAL",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_CANONICAL"
+      ]
+    },
+    {
+      "label": "descriptor export visibility WORKSPACE_PRODUCT_UNIVERSAL",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_UNIVERSAL must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_UNIVERSAL"
+      ]
+    },
+    {
+      "label": "descriptor const/let envelope WORKSPACE_PRODUCT_UNIVERSAL",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_UNIVERSAL"
+      ]
+    },
+    {
+      "label": "descriptor export visibility WORKSPACE_PRODUCT_FUNDING",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_FUNDING must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_FUNDING"
+      ]
+    },
+    {
+      "label": "descriptor const/let envelope WORKSPACE_PRODUCT_FUNDING",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_FUNDING"
+      ]
+    },
+    {
+      "label": "facade export visibility UNIVERSAL_PRODUCTS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: UNIVERSAL_PRODUCTS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/UNIVERSAL_PRODUCTS"
+      ]
+    },
+    {
+      "label": "facade const/let envelope UNIVERSAL_PRODUCTS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/UNIVERSAL_PRODUCTS"
+      ]
+    },
+    {
+      "label": "facade frozen/copy alias UNIVERSAL_PRODUCTS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/UNIVERSAL_PRODUCTS"
+      ]
+    },
+    {
+      "label": "facade export visibility CANONICAL_PRODUCTS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: CANONICAL_PRODUCTS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/CANONICAL_PRODUCTS"
+      ]
+    },
+    {
+      "label": "facade const/let envelope CANONICAL_PRODUCTS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/CANONICAL_PRODUCTS"
+      ]
+    },
+    {
+      "label": "facade frozen/copy alias CANONICAL_PRODUCTS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/CANONICAL_PRODUCTS"
+      ]
+    },
+    {
+      "label": "facade export visibility FUNDING_PRODUCTS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: FUNDING_PRODUCTS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/FUNDING_PRODUCTS"
+      ]
+    },
+    {
+      "label": "facade const/let envelope FUNDING_PRODUCTS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/FUNDING_PRODUCTS"
+      ]
+    },
+    {
+      "label": "facade frozen/copy alias FUNDING_PRODUCTS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/FUNDING_PRODUCTS"
+      ]
+    },
+    {
+      "label": "facade export visibility PRODUCT_META",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: PRODUCT_META must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/PRODUCT_META"
+      ]
+    },
+    {
+      "label": "facade const/let envelope PRODUCT_META",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/PRODUCT_META"
+      ]
+    },
+    {
+      "label": "facade frozen/copy alias PRODUCT_META",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/PRODUCT_META"
+      ]
+    },
+    {
+      "label": "facade export visibility SUGGESTED_SECTIONS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: SUGGESTED_SECTIONS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/SUGGESTED_SECTIONS"
+      ]
+    },
+    {
+      "label": "facade const/let envelope SUGGESTED_SECTIONS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/SUGGESTED_SECTIONS"
+      ]
+    },
+    {
+      "label": "facade frozen/copy alias SUGGESTED_SECTIONS",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/SUGGESTED_SECTIONS"
+      ]
+    },
+    {
+      "label": "facade export visibility SUGGESTED_PAGES",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: SUGGESTED_PAGES must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/SUGGESTED_PAGES"
+      ]
+    },
+    {
+      "label": "facade const/let envelope SUGGESTED_PAGES",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/SUGGESTED_PAGES"
+      ]
+    },
+    {
+      "label": "facade frozen/copy alias SUGGESTED_PAGES",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/SUGGESTED_PAGES"
+      ]
+    },
+    {
+      "label": "descriptor label",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_REGISTRY"
+      ]
+    },
+    {
+      "label": "descriptor pages",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_REGISTRY"
+      ]
+    },
+    {
+      "label": "descriptor independent rank",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_REGISTRY"
+      ]
+    },
+    {
+      "label": "descriptor metadata",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_REGISTRY"
+      ]
+    },
+    {
+      "label": "descriptor sections",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_REGISTRY"
+      ]
+    },
+    {
+      "label": "private ordering helper",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/workspaceProductsInOrder"
+      ]
+    },
+    {
+      "label": "projection type",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WorkspaceProductProjection"
+      ]
+    },
+    {
+      "label": "product key type",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WorkspaceProductKey"
+      ]
+    },
+    {
+      "label": "descriptor interface",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WorkspaceProductDescriptor"
+      ]
+    },
+    {
+      "label": "CASCADE exact nineteen arguments",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/CASCADE"
+      ]
+    },
+    {
+      "label": "CASCADE pathway",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/CASCADE"
+      ]
+    },
+    {
+      "label": "Industry data",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/INDUSTRY_DATA"
+      ]
+    },
+    {
+      "label": "section library",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/SECTION_LIBRARY"
+      ]
+    },
+    {
+      "label": "WSC fallback",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/WSC"
+      ]
+    },
+    {
+      "label": "WSC fresh sections behavior",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/WSC"
+      ]
+    },
+    {
+      "label": "ordered section spec rule",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/sectionSpecFor"
+      ]
+    },
+    {
+      "label": "ProductMeta type",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/ProductMeta"
+      ]
+    },
+    {
+      "label": "all full-statement carrier comments/whitespace harmless",
+      "expected": "PASS",
+      "result": "PASS",
+      "errors": []
+    },
+    {
+      "label": "legacy before entire config duplicate copy refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: CASCADE must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: UNIVERSAL_PRODUCTS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: CANONICAL_PRODUCTS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: FUNDING_PRODUCTS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: PRODUCT_META must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: SUGGESTED_SECTIONS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: SUGGESTED_PAGES must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: INDUSTRY_DATA must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: SECTION_LIBRARY must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: WSC must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: sectionSpecFor must have one named module export (function) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: ProductMeta must have one named module export (interface) in apps/workspace/src/cascade/cascade.config.ts"
+      ]
+    },
+    {
+      "label": "legacy metadata old-name duplicate refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: PRODUCT_META must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts"
+      ]
+    },
+    {
+      "label": "legacy suggested pages old-name duplicate refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: SUGGESTED_PAGES must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts"
+      ]
+    },
+    {
+      "label": "legacy section rule old-name duplicate refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: sectionSpecFor must have one named module export (function) in apps/workspace/src/cascade/cascade.config.ts"
+      ]
+    },
+    {
+      "label": "descriptor owner namespace copy refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_REGISTRY must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts"
+      ]
+    },
+    {
+      "label": "consumer parameter shadow refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: WSC must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts"
+      ]
+    },
+    {
+      "label": "consumer destructured binding shadow refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: PRODUCT_META must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts"
+      ]
+    },
+    {
+      "label": "consumer property/method reserved binding refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: WSC must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts"
+      ]
+    },
+    {
+      "label": "descriptor owner ambient declaration refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_REGISTRY must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_REGISTRY"
+      ]
+    },
+    {
+      "label": "extra canonical facade runtime import refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: unlisted owner import apps/workspace/src/cascade/independent-inert-copy.ts/WSC"
+      ]
+    },
+    {
+      "label": "extra unknown barrel runtime import refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: unlisted owner import apps/workspace/src/cascade/independent-inert-copy.ts/WSC"
+      ]
+    },
+    {
+      "label": "namespace owner import refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: unsupported owner import in apps/workspace/src/cascade/independent-inert-copy.ts"
+      ]
+    },
+    {
+      "label": "default owner import refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: unsupported owner import in apps/workspace/src/cascade/independent-inert-copy.ts"
+      ]
+    },
+    {
+      "label": "static dynamic owner import refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: unsupported dynamic owner import in apps/workspace/src/cascade/independent-inert-copy.ts"
+      ]
+    },
+    {
+      "label": "static require owner import refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: unsupported dynamic owner import in apps/workspace/src/cascade/independent-inert-copy.ts"
+      ]
+    },
+    {
+      "label": "owner star reexport refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: unsupported owner re-export in apps/workspace/src/cascade/independent-inert-copy.ts"
+      ]
+    },
+    {
+      "label": "owner named reexport refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: unsupported owner re-export in apps/workspace/src/cascade/independent-inert-copy.ts"
+      ]
+    },
+    {
+      "label": "type-only imports and lexical typeof are harmless",
+      "expected": "PASS",
+      "result": "PASS",
+      "errors": []
+    },
+    {
+      "label": "type-only alias cannot replace actual runtime edge",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: apps/workspace/src/cascade/cascade.service.ts/WSC: expected one runtime named import, found 0"
+      ]
+    },
+    {
+      "label": "runtime use cannot be replaced by type query count",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: apps/workspace/src/cascade/cascade.service.ts/WSC: expected 10 bound references, found 9"
+      ]
+    },
+    {
+      "label": "missing descriptor owner refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: missing owner",
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_REGISTRY must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_METADATA must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_SECTIONS must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_PAGES must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_CANONICAL must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_UNIVERSAL must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: WORKSPACE_PRODUCT_FUNDING must have one named module export (variable) in apps/workspace/src/cascade/workspace-product.registry.ts",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_REGISTRY",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_METADATA",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_SECTIONS",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_PAGES",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_CANONICAL",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_UNIVERSAL",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WORKSPACE_PRODUCT_FUNDING",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/workspaceProductsInOrder",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WorkspaceProductProjection",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WorkspaceProductKey",
+        "workspace-product-descriptors: carrier drift or missing declaration: apps/workspace/src/cascade/workspace-product.registry.ts/WorkspaceProductDescriptor"
+      ]
+    },
+    {
+      "label": "missing facade owner refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-product-descriptors: invalid or missing consumer edge",
+        "workspace-product-descriptors: invalid or missing consumer edge",
+        "workspace-product-descriptors: invalid or missing consumer edge",
+        "workspace-product-descriptors: invalid or missing consumer edge",
+        "workspace-product-descriptors: invalid or missing consumer edge",
+        "workspace-product-descriptors: invalid or missing consumer edge",
+        "workspace-product-descriptors: invalid or missing consumer edge",
+        "workspace-existing-product-facade: missing owner",
+        "workspace-existing-product-facade: CASCADE must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: UNIVERSAL_PRODUCTS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: CANONICAL_PRODUCTS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: FUNDING_PRODUCTS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: PRODUCT_META must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: SUGGESTED_SECTIONS must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: SUGGESTED_PAGES must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: INDUSTRY_DATA must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: SECTION_LIBRARY must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: WSC must have one named module export (variable) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: sectionSpecFor must have one named module export (function) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: ProductMeta must have one named module export (interface) in apps/workspace/src/cascade/cascade.config.ts",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/CASCADE",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/UNIVERSAL_PRODUCTS",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/CANONICAL_PRODUCTS",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/FUNDING_PRODUCTS",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/PRODUCT_META",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/SUGGESTED_SECTIONS",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/SUGGESTED_PAGES",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/INDUSTRY_DATA",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/SECTION_LIBRARY",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/WSC",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/sectionSpecFor",
+        "workspace-existing-product-facade: carrier drift or missing declaration: apps/workspace/src/cascade/cascade.config.ts/ProductMeta"
+      ]
+    },
+    {
+      "label": "missing consumer refused",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "workspace-existing-product-facade: invalid or missing consumer edge",
+        "workspace-existing-product-facade: invalid or missing consumer edge"
+      ]
+    },
+    {
+      "label": "real six-helper inventory with preserved sectionSpecFor owner",
+      "expected": "PASS",
+      "result": "PASS"
+    },
+    {
+      "label": "missing existing helper row",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "missing helper inventory row: workspace-existing-product-facade\tsectionSpecFor"
+      ]
+    },
+    {
+      "label": "duplicate existing helper row",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "duplicate helper inventory row: workspace-existing-product-facade\tsectionSpecFor"
+      ]
+    },
+    {
+      "label": "existing helper mislabeled as descriptor helper",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "unowned helper inventory row: workspace-product-descriptors\tsectionSpecFor",
+        "missing helper inventory row: workspace-existing-product-facade\tsectionSpecFor"
+      ]
+    },
+    {
+      "label": "private ordering incorrectly inventoried",
+      "expected": "REFUSE",
+      "result": "PASS",
+      "errors": [
+        "unowned helper inventory row: workspace-product-descriptors\tworkspaceProductsInOrder"
+      ]
+    }
+  ],
+  "sourceMapSha256": "e1bc8cb4fbefd027fcf0d6bd4d430d5894dc2b03f67f156530a481b32af1bf77"
+}

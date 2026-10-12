@@ -1,0 +1,18 @@
+file:///tmp/capirov2-cleanup-strategy-reviewed-runtime-conversion/[eval1]:1
+import fs from'node:fs';import{execFileSync}from'node:child_process';import{createHash}from'node:crypto';const base='09c5fdfb6bbea268195d3fbe15c9070c9efd3fbc';function tree(r){return new Map(execFileSync('git',['ls-tree','-r','-z',r],{maxBuffer:20*1024*1024}).toString().split('\0').filter(Boolean).map(row=>{const [m,f]=row.split('\t');return[f,m];}));}const a=tree(base),b=tree('HEAD');const changed=[...new Set([...a.keys(),...b.keys()])].filter(f=>a.get(f)!==b.get(f)&&!f.startsWith('docs/')).sort();if(changed.length!==10)throw Error('unexpectedDelta '+changed.length);for(const f of a.keys())if(!changed.includes(f)&&a.get(f)!==b.get(f))throw Error('outsideScope '+f);const source='docs/cleanup-strategy-runtime-controls-20261012/SOURCE-MANIFEST.json';fs.writeFileSync(source,JSON.stringify({base,acceptedApplication:'8834c1d76659b343fb37c60733fa1dd618a06db9',acceptedApplicationAndAdoption:'ffb6660b517f554aa8702eb23b16c2b0389399e8',independentReview:'c51e57613fe7c3545acfc227e44aa0a1d2e95a78',independentlyAcceptedInheritedGuard:'8f48604aa1cefdb3e420026633ce8e1f2ca95953',files:changed.map(file=>({file,git:a.get(file)===b.get(file)?null:b.get(file),sha256:createHash('sha256').update(fs.readFileSync(file)).digest('hex')})),allOutsideBasePathsExact:a.size-changed.filter(f=>a.has(f)).length,allSchemaMigrationPathsExact:[...a.keys()].filter(f=>f.endsWith('.prisma')||f.includes('/migrations/')).length,allPriorDocumentsExact:[...a.keys()].filter(f=>f.startsWith('docs/')).length,sourceOnly:true},null,2)+'\n');}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+
+SyntaxError: Unexpected token '}'
+    at compileSourceTextModule (node:internal/modules/esm/utils:318:16)
+    at ModuleLoader.createModuleWrap (node:internal/modules/esm/loader:210:12)
+    at ModuleLoader.eval (node:internal/modules/esm/loader:248:23)
+    at node:internal/process/execution:77:24
+    at asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:11)
+    at Object.runEntryPointWithESMLoader (node:internal/modules/run_main:123:19)
+    at evalModuleEntryPoint (node:internal/process/execution:76:47)
+    at node:internal/main/eval_stdin:34:5
+    at Socket.<anonymous> (node:internal/process/execution:205:5)
+    at Socket.emit (node:events:521:24)
+
+Node.js v24.19.0
+

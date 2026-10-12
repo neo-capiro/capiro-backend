@@ -1,0 +1,105 @@
+{
+  "source": "8f48604aa1cefdb3e420026633ce8e1f2ca95953",
+  "cliCases": 8,
+  "additionalRefusalCases": 3,
+  "digestBudgetAndSyntaxReturnsNull": true,
+  "results": [
+    {
+      "file": "scripts/check-registry-ownership.mjs",
+      "argv": [
+        "--help"
+      ],
+      "status": 0,
+      "stdout": "Usage: node scripts/check-registry-ownership.mjs\nInspect bounded canonical registry owners and reviewed source carriers.\n",
+      "stderr": ""
+    },
+    {
+      "file": "scripts/check-registry-ownership.mjs",
+      "argv": [
+        "-h"
+      ],
+      "status": 0,
+      "stdout": "Usage: node scripts/check-registry-ownership.mjs\nInspect bounded canonical registry owners and reviewed source carriers.\n",
+      "stderr": ""
+    },
+    {
+      "file": "scripts/check-registry-ownership.mjs",
+      "argv": [
+        "--unknown"
+      ],
+      "status": 1,
+      "stdout": "",
+      "stderr": "Unsupported registry ownership arguments\n"
+    },
+    {
+      "file": "scripts/check-registry-ownership.mjs",
+      "argv": [
+        "--help",
+        "--unknown"
+      ],
+      "status": 1,
+      "stdout": "",
+      "stderr": "Unsupported registry ownership arguments\n"
+    },
+    {
+      "file": "scripts/check-duplicate-helpers.mjs",
+      "argv": [
+        "--help"
+      ],
+      "status": 0,
+      "stdout": "Usage: node scripts/check-duplicate-helpers.mjs\nInspect the finite reviewed helper inventory and canonical source ownership.\n",
+      "stderr": ""
+    },
+    {
+      "file": "scripts/check-duplicate-helpers.mjs",
+      "argv": [
+        "-h"
+      ],
+      "status": 0,
+      "stdout": "Usage: node scripts/check-duplicate-helpers.mjs\nInspect the finite reviewed helper inventory and canonical source ownership.\n",
+      "stderr": ""
+    },
+    {
+      "file": "scripts/check-duplicate-helpers.mjs",
+      "argv": [
+        "--unknown"
+      ],
+      "status": 1,
+      "stdout": "",
+      "stderr": "Unsupported duplicate helper arguments\n"
+    },
+    {
+      "file": "scripts/check-duplicate-helpers.mjs",
+      "argv": [
+        "--help",
+        "--unknown"
+      ],
+      "status": 1,
+      "stdout": "",
+      "stderr": "Unsupported duplicate helper arguments\n"
+    },
+    {
+      "label": "erased wrappers along every callee chain",
+      "rejected": true,
+      "errors": [
+        "review: unsupported dynamic owner import in apps/example/src/extra.ts"
+      ]
+    },
+    {
+      "label": "deep callee budget",
+      "rejected": true,
+      "errors": [
+        "review: apps/example/src/extra.ts: bounded owner import inspection failed"
+      ]
+    },
+    {
+      "label": "malformed source is refusal",
+      "rejected": true,
+      "errors": [
+        "apps/example/src/extra.ts: source syntax error"
+      ]
+    }
+  ],
+  "subprocessScope": "Only cached Node executing the two source guards with help/invalid flags; no app source, PM, provider, database or module graph executes.",
+  "mutantsExecuted": false
+}

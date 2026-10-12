@@ -1,0 +1,63 @@
+{
+  "base": "09c5fdfb6bbea268195d3fbe15c9070c9efd3fbc",
+  "acceptedApplication": "8834c1d76659b343fb37c60733fa1dd618a06db9",
+  "acceptedApplicationAndAdoption": "ffb6660b517f554aa8702eb23b16c2b0389399e8",
+  "independentReview": "c51e57613fe7c3545acfc227e44aa0a1d2e95a78",
+  "independentlyAcceptedInheritedGuard": "8f48604aa1cefdb3e420026633ce8e1f2ca95953",
+  "files": [
+    {
+      "file": ".github/workflows/ci-pr.yml",
+      "git": "100644 blob bfccc32952abd0e7cdc46869aa4e6956ca79e113",
+      "sha256": "bd2433ca93887ae924c8150e30dfb5fd73cbf66a1cf50b99ab7a024788565f35"
+    },
+    {
+      "file": "apps/api-strategy/src/context/frontmatter.spec.ts",
+      "git": "100644 blob 64d6548c55217a666c9e99a2d6caf1a7a0151929",
+      "sha256": "c9562788190a020eb51ac3d9f12b5dc7f59d54a995e9759016864f4e45553727"
+    },
+    {
+      "file": "apps/api-strategy/src/context/frontmatter.ts",
+      "git": "100644 blob 2ed31f132a24dc1425c23c3ccf0ea36c36397f70",
+      "sha256": "09c1451c74d01742a2348dce9bd88c12babd06c98a673e899b0b96f30d8684e9"
+    },
+    {
+      "file": "apps/api-strategy/src/context/template-registry.spec.ts",
+      "git": "100644 blob dc3f84f2ab7010e96eddec1d269c95859afc06ec",
+      "sha256": "5657253f8f40128398e3f0bad3d8e444803b2dcdaf6ccffbf3d24e2fc7ade83c"
+    },
+    {
+      "file": "apps/api-strategy/src/context/template-registry.ts",
+      "git": "100644 blob 94c10925d1d04b58e7f18b4f8263816f64b6ce76",
+      "sha256": "088255d598e7c0319f05d6209f73c830bd2c59e3ab01ecd05c94596129d49ead"
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-context.spec.ts",
+      "git": "100644 blob 4e24a2bb06692a92be975a8c58a3b3c4bcf3cfc5",
+      "sha256": "1d3a066d359926ad92148cd402c3b212f8ed3ed369e71f752443e9e9ea811885"
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-context.ts",
+      "git": "100644 blob 76656bc1cf823a98c38f39ad6e6c2a51a5a28c02",
+      "sha256": "65619375d58a6689ee5ac633cf4c40cdfcac47baf8d748bdd0a21e05af23f8a9"
+    },
+    {
+      "file": "package.json",
+      "git": "100644 blob 6196a5a212cdb288491869ff308e326f95a7215d",
+      "sha256": "e71312072b8613612fcdba46d6fac8d064ff746535292b0ee6e0b6bd4d74e3c8"
+    },
+    {
+      "file": "scripts/duplicate-helper-names.txt",
+      "git": "100644 blob 0685306cd22dbacd95deb92ea6d86943a207eb21",
+      "sha256": "3f466e610d282983ae6b4fbf9b7361dd2ba476a8aca8aab727f43b48cc4881cc"
+    },
+    {
+      "file": "scripts/registry-ownership.json",
+      "git": "100644 blob 9ea78346337c7bbfb1fea4c4c5397dcd3f1da141",
+      "sha256": "2a049a657c433a67975c7678d4c89d054cfe9f20d977c501dc6fe2535d59b6f6"
+    }
+  ],
+  "allOutsideBasePathsExact": 21506,
+  "allSchemaMigrationPathsExact": 603,
+  "allPriorDocumentsExact": 9824,
+  "sourceOnly": true
+}

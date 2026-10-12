@@ -1,0 +1,91 @@
+{
+  "decision": "ACCEPT independent four-runtime source composition only",
+  "source": "cb2af6234ba826e5ee8baa6722acaa16ca7ed40d",
+  "tree": "3f8a39aba38b4eb29fba9f0e1b32b04d519d7218",
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "scope": {
+    "applicationBodiesInspected": false,
+    "excludedUnpublishedReportingBranchesInspected": false,
+    "applicationSemanticsReReviewed": false,
+    "applicationOrCloseoutCliExecuted": false,
+    "nativeProviderDatabaseMigrationOperations": false,
+    "pendingRootMeriMasterNotAcceptancePrerequisite": true
+  },
+  "productionDelta": 27,
+  "applicationPaths": 18,
+  "rootPaths": 9,
+  "finalMeriDelta": 7,
+  "profiles": 5,
+  "runtimeSourceUnion": 2199,
+  "publicHelpers": 7,
+  "sourceEvidenceChecksPassed": 59,
+  "rootDraftChecksPassed": 44,
+  "checksumManifestCount": 16,
+  "indexedEntriesVerified": 713,
+  "masterIndexCounts": [
+    126,
+    96,
+    103
+  ],
+  "originalSchemaSelectorPaths": 603,
+  "broadNonDocSqlPrismaPaths": 612,
+  "initialUnchangedGitPathsIncludingDocuments": 21367,
+  "initialUnchangedDocuments": 9697,
+  "strategyRuntimeFiles": 169,
+  "extraCanonicalClockFiles": 1,
+  "timeGuardFiles": 170,
+  "sourceBlockers": [],
+  "retainedReviewerHarnessFailures": 3,
+  "rootDraftSnapshots": [
+    {
+      "rootDraftPath": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/cleanup-meri-runtime-controls-20261012/HANDOFF.md",
+      "snapshotPath": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/HANDOFF.md",
+      "sha256": "915c3b816eee96cb9554a1ab6106492781465e88e80409453f9c746fa86b1148",
+      "bytes": 14466
+    },
+    {
+      "rootDraftPath": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/cleanup-meri-runtime-controls-20261012/ROOT-RECEIPT.json",
+      "snapshotPath": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/ROOT-RECEIPT.json",
+      "sha256": "057cb31a5b79370684f79ad2410aaecdeffe648e308aa3de691acc06c2d2854c",
+      "bytes": 1897
+    },
+    {
+      "rootDraftPath": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/cleanup-meri-runtime-controls-20261012/SOURCE-MANIFEST.json",
+      "snapshotPath": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/SOURCE-MANIFEST.json",
+      "sha256": "1c2d72dbf880f303703d866ac636b052708f447b8ab3cf3c27d6b73bea14ce69",
+      "bytes": 8439
+    },
+    {
+      "rootDraftPath": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/cleanup-meri-runtime-controls-20261012/evidence/final-composed-root-controls.tap",
+      "snapshotPath": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/evidence/final-composed-root-controls.tap",
+      "sha256": "a221456a02a41b41f2e527b06e86777d27c879d3f9157fc89d81e9845e809c79",
+      "bytes": 10444
+    },
+    {
+      "rootDraftPath": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/cleanup-meri-runtime-controls-20261012/evidence/final-reviewed-registry-profile.json",
+      "snapshotPath": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/evidence/final-reviewed-registry-profile.json",
+      "sha256": "5121504b7c6bb6435512217fc87c41bed0ae7c7d5406940575baf54f6942830e",
+      "bytes": 53
+    },
+    {
+      "rootDraftPath": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/cleanup-meri-runtime-controls-20261012/evidence/final-reviewed-duplicate-profile.json",
+      "snapshotPath": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/evidence/final-reviewed-duplicate-profile.json",
+      "sha256": "f32004da811c167dad15b90182339bd771bec4d3c02ade7d2e67d764e2f5fc4c",
+      "bytes": 69
+    },
+    {
+      "rootDraftPath": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/cleanup-meri-runtime-controls-20261012/evidence/final-composed-strategy-time-guard.json",
+      "snapshotPath": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/evidence/final-composed-strategy-time-guard.json",
+      "sha256": "a05a81ce3dad75af41e448ddc4526f048ddafc2d70b78844e640058e388a983b",
+      "bytes": 96
+    },
+    {
+      "rootDraftPath": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/cleanup-meri-runtime-controls-20261012/evidence/final-composed-core-cached-typecheck.log",
+      "snapshotPath": "docs/cleanup-four-runtime-composition-independent-review-20261012/evidence/root-draft-final/evidence/final-composed-core-cached-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ],
+  "qualification": "Individual application semantics remain independently reviewed elsewhere. No Tango semantic self-review. Root full Core compiler exit0 is root-reported/cache-qualified, not rerun by this reviewer; raw compiler log is empty. Native/full/wider gates remain open.",
+  "packaging": "Only unique reviewer docs authored. Root final master/publication may be verified append-only after it is committed."
+}

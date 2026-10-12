@@ -1,0 +1,162 @@
+{
+  "acceptedSource": "77e936d2a695203819b7d46277bf63ab6a659539",
+  "acceptedTree": "d5763734ebf1ad79a0257e973090e6a417817e54",
+  "scope": "four unchanged author application files and complete independent packet; index excludes itself",
+  "entries": [
+    {
+      "path": "apps/workspace/src/cascade/cascade.config.ts",
+      "bytes": 11636,
+      "sha256": "411597caae641c0e70fc3c6bf25eb0c7813ca1e5ac4a9c52ec8b26431f378620"
+    },
+    {
+      "path": "apps/workspace/src/cascade/workspace-product.registry.ts",
+      "bytes": 8338,
+      "sha256": "8584e4d816647ee0a3861a14728485c4c9ddb43ec0ffd38088e643fa25b4a732"
+    },
+    {
+      "path": "apps/workspace/test/fixtures/product-registry-before.json",
+      "bytes": 106607,
+      "sha256": "5b9e9a08b8ede106fa19ed8ff7f1341a1ff65729e8296c45ae2b328c37a01d9c"
+    },
+    {
+      "path": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "bytes": 11659,
+      "sha256": "dc7ae9e34e26c5e3d3f9c56a5a8802865b3b3ce2d3d8cac504664b6af08c35d8"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/ACCEPTANCE.json",
+      "bytes": 3326,
+      "sha256": "229108f4347a7f782d477977fdde4b6913e1f83174d56d3a3d428158833eb7bf"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/REVIEW.md",
+      "bytes": 3737,
+      "sha256": "6d2053095238c95bcca6b9f10e98cbd8e2f7ca8b8221933d9b3715db33f4ad71"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/ROOT-ADOPTION-GATES.md",
+      "bytes": 2939,
+      "sha256": "dbb10def34fa967b5866ed1d8960ba26477296c1a4a9c8a81d16c753978bd31f"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/01-independent-differential.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/01-independent-differential.log",
+      "bytes": 1527,
+      "sha256": "3d06ee0a055f901575851554e64dcc7a352010bacd8f94a9e48af09da4054f66"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/02-independent-differential.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/02-independent-differential.log",
+      "bytes": 1293,
+      "sha256": "e70312b3d0d8a5567c95569ed5280a682d2a27134c7d8a09cb995bab7642025d"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/03-author-and-existing-candidate.json",
+      "bytes": 55262,
+      "sha256": "d7690f59b12071859fa928b16609ad281700821f34296fdf0d5c2a5d9e880471"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/03-author-and-existing-candidate.log",
+      "bytes": 1254,
+      "sha256": "fac7ef5feea10e35f4689701e7196cef1da13ca36f14ab13111feb29bd2ef569"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/04-original-cascade-baseline.json",
+      "bytes": 6566,
+      "sha256": "a289cb43db57554abd35cd6331465c749b49eacfc0832f42332e10ff4857cfa7"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/04-original-cascade-baseline.log",
+      "bytes": 1755,
+      "sha256": "9563c53541ce6e5e2397023124782c5a56e688b78adf7a6b069fe4254361a840"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/05-independent-differential-final.json",
+      "bytes": 80770,
+      "sha256": "d4dee93e656794538a2ceb534ca17353c536311932a13e48de0af3bc01856ecf"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/05-independent-differential-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/06-independent-focused-strict.log",
+      "bytes": 158,
+      "sha256": "0678895c0a8dcccb60b16ef2083f06f4c0e6d7b410e8cfd4c5fcb42aa0dd6d56"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/07-independent-focused-strict-repaired.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/actual802-cascade.config.ts",
+      "bytes": 15684,
+      "sha256": "3a32a9d94d87ffd08448a6259d1b81214ac28d6ef918e0487ae608c412428341"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/actual802-cascade.service.ts",
+      "bytes": 1967,
+      "sha256": "d6b684beea01c875de10fa88c8700a841db457e6d4ade0ba23d2dbd6e4a7ba21"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/actual802-cascade.spec.ts",
+      "bytes": 2205,
+      "sha256": "3f5a444f632021bca7a5a8e3ac60b560c118289597403f78dd7921b2efd05ebd"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/inert-nest.cjs",
+      "bytes": 57,
+      "sha256": "ea2f4e37150d5e6c24e82b3fd8dad50f0c87f89fdeab59cd0b77b63e245a3a7e"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/review-workspace-products.cjs",
+      "bytes": 15998,
+      "sha256": "eae1c239e9ce7e9e41e00129bb1e637f536ff1842ed91be5bd3faefdd4a85106"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/review-workspace-products.initial.cjs",
+      "bytes": 15564,
+      "sha256": "1e3fc2b3cf4e94cd07065916d5cd8bda677bde0b0d0bfa5795eb422063d18a9a"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/review-workspace-products.label-repaired.cjs",
+      "bytes": 15615,
+      "sha256": "3e8dd1c3d70ddaf5ddd5a458b190745c712e373e508633e8b91cf280f17d1d05"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/source-and-baseline-bindings.json",
+      "bytes": 3213,
+      "sha256": "3fb77a6457308005145d4ea345bfaaecfd2ce67295455d40af2ba2c053795c19"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/evidence/tsconfig.focused.initial.json",
+      "bytes": 634,
+      "sha256": "1ec16f06187db0dce47a858b92b1e47c3e1ad5b54612fd247e87af7b86f20e65"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/jest.candidate-inert.cjs",
+      "bytes": 903,
+      "sha256": "290d0482e47bd55c40f56b770e42631351786c59db50886f6fc36a39a6e7d91e"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/jest.original-inert.cjs",
+      "bytes": 552,
+      "sha256": "6b9d65e0082612e3985a5e21c19c85c1e0b0881bd5423eba218342c91b2aaa12"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-independent-review-20261012/tsconfig.focused.json",
+      "bytes": 897,
+      "sha256": "1f26cae2807768cc9ff3d69f4e132f2fcafc7fb47531d9e27e92458870582594"
+    }
+  ]
+}

@@ -1,0 +1,1362 @@
+{
+  "source": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "cases": 18,
+  "clients": 3,
+  "beforeExecutions": 54,
+  "afterExecutions": 54,
+  "results": [
+    {
+      "client": "dibbs",
+      "label": "null",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "array root",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "string root",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "number root",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "boolean root",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "missing results",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "null results",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "nonarray results",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "object results",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsEnvelopeError",
+            "message": "Tango DIBBS fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "empty valid page",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "mixed rows",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [
+              {},
+              {}
+            ],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [
+              {},
+              {}
+            ],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "wrong count string",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "null count coerces to zero",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "inherited page fields",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [
+              {
+                "key": "row"
+              }
+            ],
+            "totalCount": 3,
+            "nextPage": 2,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [
+              {
+                "key": "row"
+              }
+            ],
+            "totalCount": 3,
+            "nextPage": 2,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "getters read in original order",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 2,
+            "nextPage": 3,
+            "rate": null
+          }
+        },
+        "getterReads": [
+          "results",
+          "results",
+          "count",
+          "next"
+        ]
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 2,
+            "nextPage": 3,
+            "rate": null
+          }
+        },
+        "getterReads": [
+          "results",
+          "results",
+          "count",
+          "next"
+        ]
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "changing results getter",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsHttpError",
+            "status": 0,
+            "message": "parsed.results.filter is not a function",
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsHttpError",
+            "status": 0,
+            "message": "parsed.results.filter is not a function",
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "throwing count getter",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsHttpError",
+            "status": 0,
+            "message": "synthetic count getter",
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsHttpError",
+            "status": 0,
+            "message": "synthetic count getter",
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "dibbs",
+      "label": "symbol count",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsHttpError",
+            "status": 0,
+            "message": "Cannot convert a Symbol value to a number",
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsHttpError",
+            "status": 0,
+            "message": "Cannot convert a Symbol value to a number",
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "null",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "array root",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "string root",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "number root",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "boolean root",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response was not a JSON object — the pagination envelope is not what the contract describes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "missing results",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "null results",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "nonarray results",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "object results",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirEnvelopeError",
+            "message": "Tango SBIR fixture response had no `results` array — the pagination envelope is not what the contract describes. Update dibbs-sbir-rest-contract.md and capture a fixture; do not widen this client to accept both shapes."
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "empty valid page",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "mixed rows",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [
+              {},
+              {}
+            ],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [
+              {},
+              {}
+            ],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "wrong count string",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "null count coerces to zero",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "inherited page fields",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [
+              {
+                "key": "row"
+              }
+            ],
+            "totalCount": 3,
+            "nextPage": 2,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [
+              {
+                "key": "row"
+              }
+            ],
+            "totalCount": 3,
+            "nextPage": 2,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "getters read in original order",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 2,
+            "nextPage": 3,
+            "rate": null
+          }
+        },
+        "getterReads": [
+          "results",
+          "results",
+          "count",
+          "next"
+        ]
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 2,
+            "nextPage": 3,
+            "rate": null
+          }
+        },
+        "getterReads": [
+          "results",
+          "results",
+          "count",
+          "next"
+        ]
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "changing results getter",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirHttpError",
+            "status": 0,
+            "message": "parsed.results.filter is not a function",
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirHttpError",
+            "status": 0,
+            "message": "parsed.results.filter is not a function",
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "throwing count getter",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirHttpError",
+            "status": 0,
+            "message": "synthetic count getter",
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirHttpError",
+            "status": 0,
+            "message": "synthetic count getter",
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "sbir",
+      "label": "symbol count",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirHttpError",
+            "status": 0,
+            "message": "Cannot convert a Symbol value to a number",
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirHttpError",
+            "status": 0,
+            "message": "Cannot convert a Symbol value to a number",
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "null",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "Cannot read properties of null (reading 'results')"
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "Cannot read properties of null (reading 'results')"
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "array root",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "string root",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "number root",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "boolean root",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "missing results",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "null results",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "nonarray results",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "object results",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "empty valid page",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "mixed rows",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [
+              {},
+              {}
+            ],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [
+              {},
+              {}
+            ],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "wrong count string",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": null,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "null count coerces to zero",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 0,
+            "nextPage": null,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "inherited page fields",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [
+              {
+                "key": "row"
+              }
+            ],
+            "totalCount": 3,
+            "nextPage": 2,
+            "rate": null
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [
+              {
+                "key": "row"
+              }
+            ],
+            "totalCount": 3,
+            "nextPage": 2,
+            "rate": null
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "getters read in original order",
+      "before": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 2,
+            "nextPage": 3,
+            "rate": null
+          }
+        },
+        "getterReads": [
+          "results",
+          "results",
+          "count",
+          "next"
+        ]
+      },
+      "after": {
+        "result": {
+          "returned": {
+            "items": [],
+            "totalCount": 2,
+            "nextPage": 3,
+            "rate": null
+          }
+        },
+        "getterReads": [
+          "results",
+          "results",
+          "count",
+          "next"
+        ]
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "changing results getter",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "parsed.results.filter is not a function"
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "parsed.results.filter is not a function"
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "throwing count getter",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "synthetic count getter"
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "synthetic count getter"
+          }
+        }
+      },
+      "equal": true
+    },
+    {
+      "client": "subaward",
+      "label": "symbol count",
+      "before": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "Cannot convert a Symbol value to a number"
+          }
+        }
+      },
+      "after": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "Cannot convert a Symbol value to a number"
+          }
+        }
+      },
+      "equal": true
+    }
+  ],
+  "coherentHostErrorRealm": true,
+  "errorMessagesNormalized": false,
+  "all54ReviewedGoldenResultsExact": true,
+  "priorFourVmMessageDifferencesRemainQualified": true,
+  "scope": "Only actual original/candidate success-parser and catch fragments with frozen factory literals; no constructor/fetch/timer/module/provider/database execution"
+}

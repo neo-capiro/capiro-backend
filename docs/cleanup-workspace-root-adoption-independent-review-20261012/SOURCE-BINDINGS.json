@@ -1,0 +1,71 @@
+{
+  "source": "74d04937d4453813d15ec957a76337c73b712899",
+  "tree": "6ecdbf3af3c2c35df83a8a2bf28958fafe8c94f6",
+  "bindings": [
+    {
+      "path": "scripts/registry-ownership.json",
+      "blob": "1ac3dcbb829e24a6c9e3952fc04c772cefc5d30d",
+      "sha256": "f2dcc0da283ca9599316af13eb75dd03556a3aea087ee0ad18d09d1e6056198b"
+    },
+    {
+      "path": "scripts/duplicate-helper-names.txt",
+      "blob": "5403a7cebfa7b9ced561eb58030b24ad1969b846",
+      "sha256": "4cc9a091df48ec0abc30e6788051aecd64e7b5708190367521074bbb835ba936"
+    },
+    {
+      "path": "package.json",
+      "blob": "3c6a3080ec904c6575aa146f2606bdfab6509fc8",
+      "sha256": "fd49ad6f0b2585d74b22551e68dddee0a9def8e473b0f4cad8aecdf3dbcf349a"
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "blob": "171e17f7cdf2f7458ffe3564ce9972045d8584c6",
+      "sha256": "3f9e5246053da066f1fc48272d80a3fc72046feb2b5b047b4785e119609dae5c"
+    },
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "blob": "41c3a36027814df988fc208e79beecd351b59b07",
+      "sha256": "c48c499d6dbb79d67e20bdd57526cfe4900ef09a4321fbc5004cff79581a637f"
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "blob": "618e55535da5f9a56ba470dd8195ded9135f275c",
+      "sha256": "2bc2b995d25640708353f4317e43fab6202403f1a24ac9d15855d74dd6a66619"
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.mjs",
+      "blob": "24ffb4c6e0a58fe3cc0f118eb600613ae2f91872",
+      "sha256": "eeaf236aade7bf9576f76e183f11a51eb9e8aa8203139eeb070ea0f2a6dcd5a6"
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.test.mjs",
+      "blob": "fc802086ed11b731acf90ee97e5d3c8786cdc3ad",
+      "sha256": "9b939dae53b0117c6fb67753d51d053fcc3c9201dabc396b70531751fbfc761b"
+    },
+    {
+      "path": "scripts/cleanup-runtime-equivalence.jest.cjs",
+      "blob": "80c16954796a00453a595700d9a2ebe64cb2f930",
+      "sha256": "16bb7322aee00089c7ff17393fc1cbb125b345f5f66da7aa6a2399ee4708ad67"
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.config.ts",
+      "blob": "e9ab30fd797f80cc874be3371e6c8f02c2dcaf03",
+      "sha256": "411597caae641c0e70fc3c6bf25eb0c7813ca1e5ac4a9c52ec8b26431f378620"
+    },
+    {
+      "path": "apps/workspace/src/cascade/workspace-product.registry.ts",
+      "blob": "2b1bb8c8ad41fbac5005d8e71e3ece66a507a23f",
+      "sha256": "8584e4d816647ee0a3861a14728485c4c9ddb43ec0ffd38088e643fa25b4a732"
+    },
+    {
+      "path": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "blob": "65da08cddfc67bb1336980b8dc9ced040c61f39c",
+      "sha256": "dc7ae9e34e26c5e3d3f9c56a5a8802865b3b3ce2d3d8cac504664b6af08c35d8"
+    },
+    {
+      "path": "apps/workspace/test/fixtures/product-registry-before.json",
+      "blob": "8fa1d49748e6fdf22da39b21d55ad9ec0223cc45",
+      "sha256": "5b9e9a08b8ede106fa19ed8ff7f1341a1ff65729e8296c45ae2b328c37a01d9c"
+    }
+  ]
+}
