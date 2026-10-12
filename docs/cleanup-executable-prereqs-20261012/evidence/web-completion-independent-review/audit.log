@@ -1,0 +1,12 @@
+{
+  "accepted": true,
+  "correctedCases": 6437,
+  "priorCasesRetained": 6435,
+  "explicitRenames": 1,
+  "newNegativeCases": 2,
+  "physicalTestFiles": 701,
+  "nestedSuiteRecords": 1963,
+  "sourceInputEquivalence": true,
+  "checks": 33,
+  "failedChecks": 0
+}

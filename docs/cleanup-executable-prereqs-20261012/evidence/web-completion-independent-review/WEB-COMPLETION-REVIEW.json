@@ -1,0 +1,400 @@
+{
+  "accepted": true,
+  "scope": "Read-only completed Web report, case identity and tracked source/dependency input audit",
+  "sourcePins": {
+    "authorStartInputPin": {
+      "commit": "07d0e0b9ab62513a83e665aa67efcc54283a2382",
+      "tree": "e55315b9245f178cdcf00ac27017110a3cd3d5a7"
+    },
+    "reviewedSourceAndSuccessfulReceiptPin": {
+      "commit": "ed1cb70cad206949ee27657d5748e2832952a0f1",
+      "tree": "8988b19a56da936adb82f12173f3c2dfbd589833"
+    },
+    "completionDocumentationPin": {
+      "commit": "b2b7f2f5d50b894d895325d50b833776cea33390",
+      "tree": "87c5d18b4aacfa70704699e4175892bcd2e523bc"
+    }
+  },
+  "trackedInputGitObjects": {
+    "apps/web": {
+      "authorStartInputPin": "daa82f961315427aa7906b40211071b4e5817f69",
+      "reviewedSourceAndSuccessfulReceiptPin": "daa82f961315427aa7906b40211071b4e5817f69",
+      "completionDocumentationPin": "daa82f961315427aa7906b40211071b4e5817f69"
+    },
+    "packages/shared": {
+      "authorStartInputPin": "85a3b5262f364ac8be8e54f4f297eeb5932a6c33",
+      "reviewedSourceAndSuccessfulReceiptPin": "85a3b5262f364ac8be8e54f4f297eeb5932a6c33",
+      "completionDocumentationPin": "85a3b5262f364ac8be8e54f4f297eeb5932a6c33"
+    },
+    "packages/meriv2-core": {
+      "authorStartInputPin": "d168a44c1cfebe036542de615ffdc8109996549f",
+      "reviewedSourceAndSuccessfulReceiptPin": "d168a44c1cfebe036542de615ffdc8109996549f",
+      "completionDocumentationPin": "d168a44c1cfebe036542de615ffdc8109996549f"
+    },
+    "pnpm-lock.yaml": {
+      "authorStartInputPin": "23f47e92d6045164a0919f3141824918ca1b5acd",
+      "reviewedSourceAndSuccessfulReceiptPin": "23f47e92d6045164a0919f3141824918ca1b5acd",
+      "completionDocumentationPin": "23f47e92d6045164a0919f3141824918ca1b5acd"
+    },
+    "package.json": {
+      "authorStartInputPin": "809606b04f752aa8c21b2b1711fb815dbde65139",
+      "reviewedSourceAndSuccessfulReceiptPin": "809606b04f752aa8c21b2b1711fb815dbde65139",
+      "completionDocumentationPin": "809606b04f752aa8c21b2b1711fb815dbde65139"
+    },
+    "pnpm-workspace.yaml": {
+      "authorStartInputPin": "a04e37e5fb1774c83b3d8007b60f69cf44d769d5",
+      "reviewedSourceAndSuccessfulReceiptPin": "a04e37e5fb1774c83b3d8007b60f69cf44d769d5",
+      "completionDocumentationPin": "a04e37e5fb1774c83b3d8007b60f69cf44d769d5"
+    }
+  },
+  "inputSha256": {
+    "docs/cleanup-executable-prereqs-20261012/evidence/web-full-corrected-runner-long-budget.json": {
+      "sha256": "3774119b9438393ed3782ecf35d66f6b08ac71a198b420c8a07b145b82e4d16d",
+      "bytes": 2299942
+    },
+    "docs/cleanup-source-gates-20261012/evidence/web-full-main-baseline.json": {
+      "sha256": "939c0b199e6ebf81a02fd10337b8f95df2e84a2c166db173364367777f4f2be9",
+      "bytes": 2304412
+    },
+    "docs/cleanup-source-gates-20261012/evidence/web-full-source-unit.json": {
+      "sha256": "ca115e0972fde97e70839360c8ee112db9f45870242471261442e2f5a94c66f6",
+      "bytes": 2308769
+    },
+    "docs/cleanup-executable-prereqs-20261012/evidence/web-full-corrected-runner-long-budget.command.json": {
+      "sha256": "bac508ee5b7740851cc6639f928c6db1feb8ec69068a5095786666328023ec6f",
+      "bytes": 840
+    },
+    "docs/cleanup-source-gates-20261012/evidence/web-full-main-baseline.command.json": {
+      "sha256": "ab150ed3d76a6223a232eab0aa28c658970a7fb4f822fc0be5e02ea51cbc918a",
+      "bytes": 704
+    },
+    "docs/cleanup-source-gates-20261012/evidence/web-full-source-unit.command.json": {
+      "sha256": "d836dfc2cc2fd3d1a2c58496dd8d5b5883e4b53cb202a8639146407961e2afce",
+      "bytes": 702
+    },
+    "docs/cleanup-executable-prereqs-20261012/evidence/web-full-corrected-runner.command.json": {
+      "sha256": "d33f4018552b453dfef6fa5436d3c6195461afe9caee82a584a990e2751b1046",
+      "bytes": 739
+    },
+    "docs/cleanup-executable-prereqs-20261012/evidence/web-run-budget-reconciliation.json": {
+      "sha256": "d86f3400a40a20397ee0cc5cab51a4957c1b38fa10e4cb53ec891a7de6f5edf8",
+      "bytes": 601
+    },
+    "docs/cleanup-executable-prereqs-20261012/evidence/web-long-run-source-family-protection.json": {
+      "sha256": "61b2b780a41b47c08dbf71432e9af5db30468bb3545eb1c8b515e890bfbdc2e8",
+      "bytes": 290
+    },
+    "docs/cleanup-executable-prereqs-20261012/evidence/web-full-corrected-runner-long-budget.log": {
+      "sha256": "34460e82308ee1b38ccf26893e4ceaa068e71d34682cca39576e8e9ef1cf68e6",
+      "bytes": 159
+    },
+    "docs/cleanup-executable-prereqs-20261012/evidence/web-full-corrected-runner.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  },
+  "reports": {
+    "corrected": {
+      "aggregate": {
+        "numTotalTests": 6437,
+        "numPassedTests": 6437,
+        "numFailedTests": 0,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "numTotalTestSuites": 1963,
+        "numPassedTestSuites": 1963,
+        "numFailedTestSuites": 0,
+        "numPendingTestSuites": 0,
+        "success": true
+      },
+      "physicalTestFiles": 701,
+      "physicalFileRecords": 701,
+      "leafStatuses": {
+        "passed": 6437
+      },
+      "failureMessageCount": 0,
+      "nonPassingCases": []
+    },
+    "originalMain": {
+      "aggregate": {
+        "numTotalTests": 6435,
+        "numPassedTests": 6434,
+        "numFailedTests": 1,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "numTotalTestSuites": 1963,
+        "numPassedTestSuites": 1961,
+        "numFailedTestSuites": 2,
+        "numPendingTestSuites": 0,
+        "success": false
+      },
+      "physicalTestFiles": 701,
+      "physicalFileRecords": 701,
+      "leafStatuses": {
+        "passed": 6434,
+        "failed": 1
+      },
+      "failureMessageCount": 1,
+      "nonPassingCases": [
+        {
+          "file": "src/vnext/pages/program-elements/profile/PeProfileVNext.test.tsx",
+          "fullName": "PeProfileVNext canonical pathname and explicit legacy override a lowercase pathname is not claimed and does not request a profile",
+          "status": "failed"
+        }
+      ]
+    },
+    "originalCandidate": {
+      "aggregate": {
+        "numTotalTests": 6435,
+        "numPassedTests": 6433,
+        "numFailedTests": 2,
+        "numPendingTests": 0,
+        "numTodoTests": 0,
+        "numTotalTestSuites": 1963,
+        "numPassedTestSuites": 1959,
+        "numFailedTestSuites": 4,
+        "numPendingTestSuites": 0,
+        "success": false
+      },
+      "physicalTestFiles": 701,
+      "physicalFileRecords": 701,
+      "leafStatuses": {
+        "passed": 6433,
+        "failed": 2
+      },
+      "failureMessageCount": 2,
+      "nonPassingCases": [
+        {
+          "file": "src/vnext/meri/MeriArtifactCanvas.test.tsx",
+          "fullName": "MeriArtifactCanvas Word preview downloads the authenticated canonical DOCX binary without replacing its persisted spec",
+          "status": "failed"
+        },
+        {
+          "file": "src/vnext/pages/program-elements/profile/PeProfileVNext.test.tsx",
+          "fullName": "PeProfileVNext canonical pathname and explicit legacy override a lowercase pathname is not claimed and does not request a profile",
+          "status": "failed"
+        }
+      ]
+    }
+  },
+  "caseIdentity": {
+    "comparison": "Counter over normalized physical file path and fullName, retaining multiplicity",
+    "allOriginalCasesRetainedAfterExplicitRename": true,
+    "rename": {
+      "file": "src/vnext/pages/program-elements/profile/PeProfileVNext.test.tsx",
+      "from": "PeProfileVNext canonical pathname and explicit legacy override a lowercase pathname is not claimed and does not request a profile",
+      "to": "PeProfileVNext canonical pathname and explicit legacy override an ASCII-lowercase pathname is claimed, requests the canonical uppercase id and keeps the original URL"
+    },
+    "newNegativeCases": [
+      "PeProfileVNext canonical pathname and explicit legacy override a static-segment or malformed pathname (reconciliation) is not claimed as a line profile",
+      "PeProfileVNext canonical pathname and explicit legacy override a static-segment or malformed pathname (whatever) is not claimed as a line profile"
+    ],
+    "newCaseCount": 2,
+    "physicalFiles": 701,
+    "nestedSuiteRecords": 1963
+  },
+  "successfulCommand": {
+    "name": "web-full-corrected-runner-long-budget",
+    "cwd": "/workspace/capirov2-cleanup-source-prereqs/apps/web",
+    "argv": [
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "--pool=threads",
+      "--no-file-parallelism",
+      "--testTimeout=20000",
+      "--hookTimeout=20000",
+      "--reporter=json",
+      "--outputFile",
+      "/workspace/capirov2-cleanup-source-prereqs/docs/cleanup-executable-prereqs-20261012/evidence/web-full-corrected-runner-long-budget.json"
+    ],
+    "exitCode": 0,
+    "timedOut": false,
+    "seconds": 2173.6,
+    "measuredSource": "ed1cb70cad206949ee27657d5748e2832952a0f1",
+    "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+    "nativeAcceptance": false,
+    "commandBudgetSeconds": 3600,
+    "caseHookTimeoutsUnchanged": true,
+    "outputFile": "web-full-corrected-runner-long-budget.log"
+  },
+  "priorTimeout": {
+    "name": "web-full-corrected-runner",
+    "cwd": "/workspace/capirov2-cleanup-source-prereqs/apps/web",
+    "argv": [
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "--pool=threads",
+      "--no-file-parallelism",
+      "--testTimeout=20000",
+      "--hookTimeout=20000",
+      "--reporter=json",
+      "--outputFile",
+      "/workspace/capirov2-cleanup-source-prereqs/docs/cleanup-executable-prereqs-20261012/evidence/web-full-corrected-runner.json"
+    ],
+    "exitCode": null,
+    "timedOut": true,
+    "seconds": 1800.252,
+    "measuredSource": "07d0e0b9ab62513a83e665aa67efcc54283a2382",
+    "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+    "nativeAcceptance": false,
+    "outputFile": "web-full-corrected-runner.log"
+  },
+  "budgetReconciliation": {
+    "firstName": "web-full-corrected-runner",
+    "firstWholeCommandSeconds": 1800,
+    "firstResult": "timed out; no final aggregate JSON, no passing count inferred",
+    "secondName": "web-full-corrected-runner-long-budget",
+    "secondWholeCommandSeconds": 3600,
+    "reason": "canonical serial file runner exceeded diagnostic command budget; unresolved complete-suite check warrants a separately named run",
+    "sourceRunnerUnchanged": true,
+    "caseTimeoutMs": 20000,
+    "hookTimeoutMs": 20000,
+    "casesSkipsThresholdsOrSelectionChanged": false,
+    "priorFailurePreserved": true,
+    "nativeAcceptance": false
+  },
+  "checks": [
+    {
+      "check": "every report file normalizes beneath apps/web without collisions",
+      "passed": true
+    },
+    {
+      "check": "leaf aggregate equals physical report cases",
+      "passed": true
+    },
+    {
+      "check": "every report file normalizes beneath apps/web without collisions",
+      "passed": true
+    },
+    {
+      "check": "leaf aggregate equals physical report cases",
+      "passed": true
+    },
+    {
+      "check": "every report file normalizes beneath apps/web without collisions",
+      "passed": true
+    },
+    {
+      "check": "leaf aggregate equals physical report cases",
+      "passed": true
+    },
+    {
+      "check": "both original 6435-case multisets are identical",
+      "passed": true
+    },
+    {
+      "check": "all 701 physical file records retained without additions or deletions",
+      "passed": true
+    },
+    {
+      "check": "701 distinct physical test files",
+      "passed": true
+    },
+    {
+      "check": "original 6435 and corrected 6437 leaf cases",
+      "passed": true
+    },
+    {
+      "check": "single explicit PE lowercase test rename",
+      "passed": true
+    },
+    {
+      "check": "6435 prior cases retained under exactly one rename plus two specified negatives",
+      "passed": true
+    },
+    {
+      "check": "every corrected leaf passed with no skips, pending, todo, failures or failure messages",
+      "passed": true
+    },
+    {
+      "check": "all 701 physical file statuses passed",
+      "passed": true
+    },
+    {
+      "check": "successful complete aggregate including 1963 nested suite records",
+      "passed": true
+    },
+    {
+      "check": "exact serial source runner argv has no case selectors or skip flags",
+      "passed": true
+    },
+    {
+      "check": "completed source command exit zero, not timeout, not native acceptance",
+      "passed": true
+    },
+    {
+      "check": "2173.6-second completion within separate 3600-second whole-command budget",
+      "passed": true
+    },
+    {
+      "check": "corrected retains 20-second case and hook timeouts",
+      "passed": true
+    },
+    {
+      "check": "originalMain retains 20-second case and hook timeouts",
+      "passed": true
+    },
+    {
+      "check": "originalCandidate retains 20-second case and hook timeouts",
+      "passed": true
+    },
+    {
+      "check": "prior 1800-second timeout remains a distinct failed receipt",
+      "passed": true
+    },
+    {
+      "check": "completion receipt and author source-lineage receipt use exact reviewed/start pins",
+      "passed": true
+    },
+    {
+      "check": "identical tracked tree/blob across start/review/completion: apps/web",
+      "passed": true
+    },
+    {
+      "check": "identical tracked tree/blob across start/review/completion: packages/shared",
+      "passed": true
+    },
+    {
+      "check": "identical tracked tree/blob across start/review/completion: packages/meriv2-core",
+      "passed": true
+    },
+    {
+      "check": "identical tracked tree/blob across start/review/completion: pnpm-lock.yaml",
+      "passed": true
+    },
+    {
+      "check": "identical tracked tree/blob across start/review/completion: package.json",
+      "passed": true
+    },
+    {
+      "check": "identical tracked tree/blob across start/review/completion: pnpm-workspace.yaml",
+      "passed": true
+    },
+    {
+      "check": "no tracked source/dependency input deltas during protected interval",
+      "passed": true
+    },
+    {
+      "check": "start input pin is reviewed-source ancestor",
+      "passed": true
+    },
+    {
+      "check": "reviewed-source pin is completion-docs ancestor",
+      "passed": true
+    },
+    {
+      "check": "receipt runner flags match canonical reviewed Web test script",
+      "passed": true
+    }
+  ],
+  "limitations": [
+    "No suite, CI, package manager, native engine, database, browser, provider or full gate invoked by reviewer.",
+    "6437 is the completed source-unit report; 1963 nested suite records are not 1963 physical files.",
+    "Both original red full reports and the first 1800-second timeout retain their original bytes and statuses.",
+    "07d is the author's source-lineage start pin and the earlier timeout receipt pin; the successful receipt labels ed1. Identical tracked inputs prove source continuity, not an independently observed process launch timestamp.",
+    "Git equality covers tracked source and dependency bindings; it does not independently attest ignored node_modules/generated files, mutable process state or OS containment.",
+    "No native/Postgres/RLS/full-Cleanup acceptance or proof of the earlier artifact timing cause is inferred."
+  ]
+}
