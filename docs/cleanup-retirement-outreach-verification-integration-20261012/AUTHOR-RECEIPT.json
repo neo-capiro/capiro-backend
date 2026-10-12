@@ -1,0 +1,69 @@
+{
+  "sourceHead": "4060915ebfa55db4a8fb805c1e25281359c46a5d",
+  "sourceTree": "1fee6de079b59ecc3947109bb897f31d963a235b",
+  "baselineHead": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "baselineTree": "613e54b654bc30dcebd09c955c58a2e8940abf30",
+  "goldenFixtureHead": "c0313c67d73c3191b6c275f853c26a418c9c45dc",
+  "referencedPR2423Head": "8ac4c42cc49876ec19808369c0683956e0f2f474",
+  "ownedSourcePaths": [
+    {
+      "path": "scripts/verify-outreach-v3-phase1-code.mjs",
+      "sha256": "e8e3d548417572c8a49857bbd1039c7a4282bc71608a6a99502188cb769204bd",
+      "frozenBlob": "7fcdaf9356629488248e42a59ff31f7bbaec77a9"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase3-code.mjs",
+      "sha256": "13d6c4987261fda7aaa506e53137a19641a73403fcf19693cd5f9913eb893bc3",
+      "frozenBlob": "252dcec68c240df3ccadaadb54d6e8ab4f315337"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "sha256": "ceabc0b16c7bfeb0e8087c625ee9b33591732880b783296196de4cfc1bfb4ce5",
+      "frozenBlob": "0871e0c5f4f2df3b500e014f7e58cb5fc18a77b4"
+    },
+    {
+      "path": "scripts/outreach-v3-qualification-plan.mjs",
+      "sha256": "bdb9ba82c78b05a26e7aeef9eec013d2e562b0318ee44b7ed3725e3bfd0e546a",
+      "frozenBlob": "a25921c87ac1ba5d52bae7844ac97bf75106b67b"
+    },
+    {
+      "path": "scripts/outreach-v3-qualification-plan.spec.mjs",
+      "sha256": "e49066994c994f39c91fdfdf096084e6faded1e684423fbafb299fa3a034ccfb",
+      "frozenBlob": "b081dd08a3d38538ee2f367e3f6e1f7d2e29d190"
+    }
+  ],
+  "checks": {
+    "pureFakeTests": {
+      "pass": 21,
+      "total": 21
+    },
+    "structuralChecks": {
+      "pass": 24,
+      "total": 24
+    },
+    "inertBeforeNewScopePairs": 6,
+    "sourceSyntaxChecks": 5
+  },
+  "argvPolicy": "standalone help0; explicitone run+zerooronescope; noargs/duplicates/conflicts/unknown/missingrun2 beforework",
+  "fullTargetListsReplaced": false,
+  "originalProcessExitPolicyPreserved": true,
+  "scopeCompletionMarkersDistinct": true,
+  "childStdoutMarkerAcceptanceAdded": false,
+  "unusedMatcher": false,
+  "callerDependencies": [
+    "root six Outreach scopedaliases one--run each",
+    "otherowner matching EngagementPhase3 scopedaliases and existingmarkerconsumers"
+  ],
+  "productionExecution": false,
+  "pnpmOrBuildOrInstall": false,
+  "providerNativeSQLDBAWS": false,
+  "appSchemaRuntimeNewsletterFrontendEdits": 0,
+  "rootPackageCIEdit": 0,
+  "independentReviewAccepted": false,
+  "rootPublicationOwner": true,
+  "qualification": "Source/pure/fake only; independent review +rootunion/native/full/CI gates unclaimed",
+  "retainedFailures": [
+    "tracecapture initial unexpecteduncaughtmeta error",
+    "tracecapture diagnostic confirms import.meta literal replacement error; correctedscriptPASS withoutsourcechanges"
+  ]
+}
