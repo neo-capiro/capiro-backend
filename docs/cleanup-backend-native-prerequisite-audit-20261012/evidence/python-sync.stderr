@@ -1,0 +1,48 @@
+   Building capiro-defense-budget-parser @ file:///tmp/capirov2-cleanup-strategy-template-independent-review/apps/defense-budget-parser
+Downloading numpy (15.9MiB)
+Downloading cryptography (4.5MiB)
+Downloading ruff (10.9MiB)
+Downloading pypdfium2 (3.5MiB)
+Downloading mypy (11.8MiB)
+Downloading pillow (6.6MiB)
+Downloading pydantic-core (2.0MiB)
+Downloading pygments (1.2MiB)
+Downloading pdfminer-six (6.3MiB)
+ Downloaded pypdfium2
+ Downloaded pygments
+ Downloaded pydantic-core
+ Downloaded cryptography
+ Downloaded pillow
+ Downloaded pdfminer-six
+ Downloaded mypy
+ Downloaded ruff
+ Downloaded numpy
+      Built capiro-defense-budget-parser @ file:///tmp/capirov2-cleanup-strategy-template-independent-review/apps/defense-budget-parser
+Prepared 26 packages in 1.87s
+Installed 26 packages in 12ms
+ + annotated-types==0.8.0
+ + capiro-defense-budget-parser==0.1.0 (from file:///tmp/capirov2-cleanup-strategy-template-independent-review/apps/defense-budget-parser)
+ + cffi==2.1.0
+ + charset-normalizer==3.4.9
+ + coverage==7.15.3
+ + cryptography==50.0.0
+ + iniconfig==2.3.0
+ + mypy==1.15.0
+ + mypy-extensions==1.1.0
+ + numpy==2.4.6
+ + packaging==26.2
+ + pdfminer-six==20260107
+ + pdfplumber==0.11.10
+ + pillow==12.3.0
+ + pluggy==1.6.0
+ + pycparser==3.0
+ + pydantic==2.13.4
+ + pydantic-core==2.46.4
+ + pygments==2.20.0
+ + pypdf==5.9.0
+ + pypdfium2==5.12.1
+ + pytest==8.4.2
+ + pytest-cov==5.0.0
+ + ruff==0.16.1
+ + typing-extensions==4.16.0
+ + typing-inspection==0.4.2

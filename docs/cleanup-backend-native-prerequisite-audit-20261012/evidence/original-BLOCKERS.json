@@ -1,0 +1,114 @@
+{
+  "parentSource": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "acceptedRepair": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "releaseAccepted": false,
+  "remainingInheritedSourceGaps": {
+    "missingCarrierAndConfigPaths": [
+      "scripts/cleanup-gates/gate.mjs",
+      "docs/plans/cleanup1-coverage-baseline.json",
+      "scripts/cleanup-gates/verify-baseline.mjs",
+      "scripts/test-proof/run-fixtures.mjs",
+      "scripts/cleanup-gates/pinned-visual-controls.mjs",
+      "apps/e2e/lib/render-context-controls.mjs",
+      "scripts/cleanup-gates/standalone-node.test.mjs",
+      "apps/e2e/package.json",
+      "apps/e2e/scripts/guard-route-coverage.mjs",
+      "apps/e2e/baselines/manifest.json",
+      ".github/workflows/defense-budget-parser-ci.yml"
+    ],
+    "missingCoverageScripts": [
+      "coverage target @capiro/api has no test:coverage script \u2014 it cannot produce the required measurement",
+      "coverage target @capiro/web has no test:coverage script \u2014 it cannot produce the required measurement",
+      "coverage target @capiro/workspace has no test:coverage script \u2014 it cannot produce the required measurement",
+      "coverage target @capiro/onboard-web has no test:coverage script \u2014 it cannot produce the required measurement"
+    ],
+    "unwiredArchitectureGuards": [
+      "scripts/check-evaluation-new-bypasses.mjs",
+      "scripts/check-learning-signal-new-bypasses.mjs",
+      "scripts/check-quality-telemetry-new-bypasses.mjs"
+    ],
+    "absentDirectCiPrPackageTests": [
+      "@capiro/api",
+      "@capiro/web",
+      "@capiro/defense-api"
+    ],
+    "missingRootCommands": [
+      "gate:cleanup1",
+      "gate:cleanup1:python"
+    ],
+    "cliMissingDeclaredSourcePaths": [
+      "apps/api/scripts/comp-existing-tenants.ts",
+      "apps/api/scripts/report-llm-overage.ts",
+      "apps/api/scripts/setup-stripe.ts",
+      "apps/api/scripts/sync-committee-reports.ts",
+      "apps/api/scripts/sync-govinfo-reports.ts",
+      "apps/api/scripts/test-funding-opportunity-action-concurrency.ts"
+    ],
+    "cliNoArgsContractsNotDerivable": 450,
+    "wholeFormatterUnchangedFailures": 47,
+    "meriCatalogExpected138Actual139": true,
+    "webPathnameFailureReproducedOnMain": true
+  },
+  "externalPrerequisites": [
+    {
+      "id": "pinned-toolchain",
+      "required": "Provision the source-pinned pnpm9.12.0/frozen dependencies and the parser frozen Python dev tools, without substituting global pnpm11.25.0. Canonical Defense native Prisma generation must succeed in an approved environment.",
+      "status": "not performed; native binaries previous HTTPS CONNECT blocked; no bypass"
+    },
+    {
+      "id": "database-acceptance",
+      "required": "Approved disposable native PostgreSQL with actual canonical schemas/migrations, restricted roles/grants, RLS, constraints/triggers/cascades, shared physical catalog, transaction/replay/MVCC/lock/concurrency proofs; include current-member/client revocation and inherited client/grant lock-order qualification.",
+      "status": "all SQL/database/migration execution prohibited here; synthetic/WASM evidence does not qualify"
+    },
+    {
+      "id": "contained-cli-smoke",
+      "required": "Original current-source contained v5 entrypoint/help/noargs contexts, syscall classifications and streamed raw-audit bytes for the complete dynamic inventory, then original acceptance validation.",
+      "status": "static contracts only; no mass CLI/operational commands executed"
+    },
+    {
+      "id": "pinned-visual",
+      "required": "Current immutable source archive, pinned portable image, actual current route guard and baseline manifest/PNG hashes, root-derived render context and raw list/run proof for both stages; three zero-diff runs on identical source.",
+      "status": "runtime unrun; E2E source carrier absent separately"
+    },
+    {
+      "id": "full-clean-release-gate",
+      "required": "After separately reviewed source prerequisites are supplied, clean final-source frozen install and original full --phase all gate, every dynamically discovered runner, name/status/failure and coverage proof, actual CI wiring/execution with fresh main readback.",
+      "status": "unrun; source gaps and baseline failures remain red; reference fixture diagnostics are not current acceptance"
+    },
+    {
+      "id": "designated-account-activation",
+      "required": "Actual authoritative calendar/provider refresh, approved native owner bridges and designated frontend/account acceptance after source composition; no staging send/generation.",
+      "status": "prohibited provider/customer operations here"
+    }
+  ],
+  "separateOwnerPrerequisites": [
+    {
+      "owner": "task01a12dc9-21a3-7062-908e-b6fabc37c027",
+      "required": "Publish independently owned reviewed scoped EngagementService reporting, then separately review composition and acceptance.",
+      "status": "unpublished work preserved, untouched, not reconstructed"
+    },
+    {
+      "owner": "original Cleanup source carrier",
+      "required": "Coherently review/integrate its exact source prerequisite set before claiming all \u00a710 gates available.",
+      "status": "full2392 candidate deliberately excluded; this delta does not accept its1379-path carrier"
+    }
+  ],
+  "unrunOwnedRuntimeEvidence": [
+    "apps/e2e/reports/regression-evidence.json",
+    "docs/plans/cleanup1-script-smoke-evidence.json"
+  ],
+  "productContractGapsRetained": [
+    "general Workspace Objective creation/association is not supplied by saved-version resolution",
+    "authoritative effective_on evidence is bounded; comprehensive legalDates and correction interpretation remains unimplemented",
+    "Contacts conversion does not infer ClientPerson copy/carryover"
+  ],
+  "excludedProductWork": "Abandoned Quick log Commitment/We owe/They owe/counterparty UI; shared existing task/activity/backend owners retained",
+  "authorization": "Source-only work and draft publication authorized. No request for prohibited native/cloud/permission/customer actions was made.",
+  "environmentDependentArtifactFailure": {
+    "candidateFailureRetained": true,
+    "mainFocusedAndFullPass": true,
+    "inertBaselineTimerMechanismProven": true,
+    "causalAttributionInferred": true,
+    "releaseStatus": "red until independently qualified prerequisite repair; no source/test repair in this slice"
+  }
+}

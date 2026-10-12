@@ -1,0 +1,892 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "lockSha256": "21e36df15b96910bb3682b0cb5e64a6d4273a08bf3d35612a0eb30b0cec22a20",
+  "pyprojectSha256": "b7aa158f7a6fbaef9e5f71097bb90e2c51b2e312304304b25fb4923551b4f5ef",
+  "selectedExtra": [
+    "dev"
+  ],
+  "unselectedExtras": [
+    "ocr",
+    "camelot",
+    "docling"
+  ],
+  "files": [
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/__init__.py",
+      "sha256": "a17b836a318c04da2821d6c0f774d6c341ed44e689b61c9ae8c1e316ad128baa",
+      "imports": [],
+      "reviewLeads": [
+        {
+          "line": 4,
+          "text": "Docling, and PaddleOCR. It must never:"
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/camelot_engine.py",
+      "sha256": "16494a19c16c0cb7009d6aaaf8a12d409c5b702b158d70f3d5b24b8202c945a4",
+      "imports": [
+        "__future__",
+        "camelot",
+        "contracts",
+        "json",
+        "pathlib",
+        "pdf_profile",
+        "pdfplumber",
+        "time",
+        "typing"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/canonical_json.py",
+      "sha256": "c0fb83db366e4b2cdc8c24deccaf83d25d198329ddaab348966e897d70ad9e0c",
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "math",
+        "typing"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/cli.py",
+      "sha256": "9be4d81c4ea1f250ac5ec186f2af701746510b16824f816a816220f3f2046498",
+      "imports": [
+        "",
+        "__future__",
+        "argparse",
+        "camelot_engine",
+        "contracts",
+        "docling_engine",
+        "engine_versions",
+        "json",
+        "paddleocr_engine",
+        "pathlib",
+        "pdf_profile",
+        "pdfplumber_engine",
+        "profile_contract",
+        "pydantic",
+        "sys",
+        "typing"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/contracts.py",
+      "sha256": "5c4b61dc044e3204750ee1c843371c669e5955891e9bebd4837f41749029c226",
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "pydantic",
+        "typing"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/docling_engine.py",
+      "sha256": "73e35a8505d4655e68f6d29dc0a48482c73055cc52f59456094731599e6fda0b",
+      "imports": [
+        "__future__",
+        "contextlib",
+        "contracts",
+        "copy",
+        "docling",
+        "docling.document_converter",
+        "fitz",
+        "pathlib",
+        "pdf_profile",
+        "pypdf",
+        "tempfile",
+        "time",
+        "typing"
+      ],
+      "reviewLeads": [
+        {
+          "line": 65,
+          "text": "# name unbound on ImportError is what turned `_create_docling_converter`'s own"
+        },
+        {
+          "line": 219,
+          "text": "def _create_docling_converter(config: dict[str, Any]) -> Any:"
+        },
+        {
+          "line": 599,
+          "text": "        converter = _create_docling_converter(cfg)"
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/engine_versions.py",
+      "sha256": "5c13fcef904791e8140d6533d0725362ac227ba69b096f66a2f699988d5320b0",
+      "imports": [
+        "importlib.metadata"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/__init__.py",
+      "sha256": "3caa2d8e5ac2f7ee2349887a21942229f1a4e50c1902c2b7f26223672b00b2d0",
+      "imports": [],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/__init__.py",
+      "sha256": "0014f2a37fca1a6b46465409996093c18570241c6cd0d168ed66d43c7ca5b8b9",
+      "imports": [],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/common/__init__.py",
+      "sha256": "f0679659e9fa3c3ad06501062d4af9557269c0a9ff9161833735501976424136",
+      "imports": [
+        "congressional_table"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/common/congressional_table.py",
+      "sha256": "8354f8b17f5e5711863f9596c4cde0c835e19d045b76544b4619abf11ea69a02",
+      "imports": [
+        "__future__",
+        "pydantic",
+        "re",
+        "typing"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/__init__.py",
+      "sha256": "109a44b0be4c08a86b570f0f7a304a1a35d6484dce0916834d4d27da4cee21cd",
+      "imports": [
+        "extractor"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/extractor.py",
+      "sha256": "204dd0840764cbdfc7636c169fee7868b9a095422e9247264a77e585d4a374ee",
+      "imports": [
+        "__future__",
+        "common.congressional_table",
+        "contracts",
+        "semantics"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/semantics.py",
+      "sha256": "0e5a5bc8c1d5612d492b916f7c0301d0233632aff5917e988a86799e2f0293a3",
+      "imports": [
+        "__future__",
+        "common.congressional_table",
+        "contracts",
+        "decimal",
+        "re"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/__init__.py",
+      "sha256": "ff47bd18f63be4dafdd62f3c9e648eb5f103416b39cbbdf91b55157f1301740d",
+      "imports": [
+        "extractor"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/extractor.py",
+      "sha256": "e61121e241e36cd5c65a9b5ac799560a7b970ff848f380fd826c16488796e35b",
+      "imports": [
+        "__future__",
+        "common.congressional_table",
+        "contracts",
+        "semantics"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/semantics.py",
+      "sha256": "b0ccbd1561f47e444a3ade2f3a9c2273127fe02131fbb3e0c4296ba0ad91aac7",
+      "imports": [
+        "__future__",
+        "common.congressional_table",
+        "contracts",
+        "decimal",
+        "re"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/__init__.py",
+      "sha256": "c2a6ce27fc9ecd51b0015115971ab36120558c731a9ff126e77f8fecd6af2643",
+      "imports": [
+        "extractor",
+        "language"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/contracts.py",
+      "sha256": "7e6e9c86648bd7ca84c6b92b9104d239be128cf4c0fc17942aae97d5a9478fcd",
+      "imports": [
+        "__future__",
+        "common.congressional_table",
+        "provisions.contracts",
+        "pydantic",
+        "re",
+        "typing"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/extractor.py",
+      "sha256": "e3a5daedb7c1c7458ec73234dbe51a9665141fa13e7cb14839711564daf94b09",
+      "imports": [
+        "__future__",
+        "common.congressional_table",
+        "contracts",
+        "semantics"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/language.py",
+      "sha256": "bb83877df14cee2f0c6d237510de4584e5a174fa053f914ed124f395b71ad1b0",
+      "imports": [
+        "__future__",
+        "contracts",
+        "dataclasses",
+        "hashlib",
+        "json",
+        "provisions.contracts",
+        "provisions.semantics",
+        "semantics"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/semantics.py",
+      "sha256": "37c5712079b13ed1b7a0ceb5fc0eae8d68fd71f67222eb01ec5312e63f41890f",
+      "imports": [
+        "__future__",
+        "common.congressional_table",
+        "contracts",
+        "decimal",
+        "re"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/__init__.py",
+      "sha256": "0a114bf2efa91d6c1f42f17a313b0f6d86c07d86dc28f81a8025e080a377e7a1",
+      "imports": [
+        "extractor"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/contracts.py",
+      "sha256": "1fd0503f25019e99ae1ec72edf65e8b4a34878949400a67d28ef06ecd16ec63d",
+      "imports": [
+        "__future__",
+        "pydantic",
+        "re",
+        "typing"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/extractor.py",
+      "sha256": "126e934e3134b5a2766909eb2c22e98eb235a56b4a96729d0206288358719ddd",
+      "imports": [
+        "__future__",
+        "contracts",
+        "dataclasses",
+        "hashlib",
+        "json",
+        "semantics"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/semantics.py",
+      "sha256": "6df210d051f2ac46eaae8984ea7e37fb1fdc0eddcb5db07fd94c5f6a0afce5b8",
+      "imports": [
+        "__future__",
+        "contracts",
+        "datetime",
+        "re"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/__init__.py",
+      "sha256": "928671af8a8e04e1dafd2fa971856840e41ad299d020595b4175ef1881062e0a",
+      "imports": [
+        "extractor"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/extractor.py",
+      "sha256": "844e10b8e11e6666009c47175abf8661f7f061cdaccf5175d7a7782de01c5c68",
+      "imports": [
+        "__future__",
+        "common.congressional_table",
+        "contracts",
+        "dataclasses",
+        "semantics"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/semantics.py",
+      "sha256": "7593959a7c5ccf50a56c292673091b0dc550242d186411baa02d181f0ccf6935",
+      "imports": [
+        "__future__",
+        "common.congressional_table",
+        "contracts",
+        "decimal",
+        "re"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/__init__.py",
+      "sha256": "b3faf535ce4f4b970aee0b7847ad8d599a24ae3ad32eeed007287c90b2b83964",
+      "imports": [
+        "extractor"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/extractor.py",
+      "sha256": "e41ba5b696d3ee9a3c122693e56760b3dbda05c9b79b0b0ed3e2d0a83ded46a4",
+      "imports": [
+        "__future__",
+        "common.congressional_table",
+        "contracts",
+        "dataclasses",
+        "semantics"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/semantics.py",
+      "sha256": "0e0f720fde0dcf47d09c8e489f3bad9ea8652e1d8552a6a4e9ab43497f75edbe",
+      "imports": [
+        "__future__",
+        "common.congressional_table",
+        "contracts",
+        "decimal",
+        "re"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/normalize.py",
+      "sha256": "9c1bca0e0ac3ec61c7e445666407c13586eda2bd20fa14bff965b0b9ae73d3d2",
+      "imports": [
+        "__future__",
+        "contracts",
+        "typing"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/paddleocr_engine.py",
+      "sha256": "1f5fd2238a26b56446e3a360e156e3e4b3b0436a6333825306fad7dcde46ee7f",
+      "imports": [
+        "__future__",
+        "contracts",
+        "json",
+        "numpy",
+        "paddleocr",
+        "pathlib",
+        "pdf_profile",
+        "pdfplumber",
+        "pypdfium2",
+        "re",
+        "sys",
+        "time",
+        "typing"
+      ],
+      "reviewLeads": [
+        {
+          "line": 1,
+          "text": "\"\"\"capiro_defense_budget_parser.paddleocr_engine \u2014 plain PaddleOCR (detection +"
+        },
+        {
+          "line": 5,
+          "text": "Parse only pages that require OCR/layout recovery. Uses PaddleOCR's ordinary"
+        },
+        {
+          "line": 104,
+          "text": "    \"\"\"Return a copy of the default PaddleOCR config.\"\"\""
+        },
+        {
+          "line": 119,
+          "text": "    \"\"\"Validate the PaddleOCR config and return a list of warnings (empty if OK).\"\"\""
+        },
+        {
+          "line": 163,
+          "text": "    dual-licensed, an unfavorable fit alongside PaddleOCR/PaddlePaddle's own"
+        },
+        {
+          "line": 185,
+          "text": "# PaddleOCR (plain detection + recognition) invocation"
+        },
+        {
+          "line": 190,
+          "text": "    \"\"\"Create a plain `PaddleOCR` (detection + recognition) instance."
+        },
+        {
+          "line": 194,
+          "text": "    without PaddleOCR installed (e.g. for config/validation tests)."
+        },
+        {
+          "line": 197,
+          "text": "        from paddleocr import PaddleOCR"
+        },
+        {
+          "line": 200,
+          "text": "            'PaddleOCR is not installed. Install with: pip install paddleocr paddlepaddle'"
+        },
+        {
+          "line": 218,
+          "text": "    return PaddleOCR(**engine_kwargs)"
+        },
+        {
+          "line": 245,
+          "text": "    \"\"\"Normalize `PaddleOCR.ocr()` output into a flat token list."
+        },
+        {
+          "line": 524,
+          "text": "    \"\"\"Process a single rendered page image with plain PaddleOCR det+rec,"
+        },
+        {
+          "line": 535,
+          "text": "        warnings.append(f'PaddleOCR processing error: {e}')"
+        },
+        {
+          "line": 604,
+          "text": "    \"\"\"Run the PaddleOCR engine on the requested pages."
+        },
+        {
+          "line": 660,
+          "text": "    # Initialize PaddleOCR engine (lazy). Any failure to construct the"
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/pdf_profile.py",
+      "sha256": "d1e3c1453a4c8ab62b7d0f88c0f7a9529ce71a867b007f1e13848c59a2661667",
+      "imports": [
+        "__future__",
+        "contracts",
+        "hashlib",
+        "pathlib",
+        "pdfplumber",
+        "typing"
+      ],
+      "reviewLeads": [
+        {
+          "line": 4,
+          "text": "extracting canonical budget assertions. No OCR, Docling, PaddleOCR, or"
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/pdfplumber_engine.py",
+      "sha256": "ea54e1cc0747122a6aa2fc56122df00dc475cc8981d5b531c9cec4887de077fe",
+      "imports": [
+        "__future__",
+        "collections",
+        "contracts",
+        "pathlib",
+        "pdf_profile",
+        "pdfplumber",
+        "time",
+        "typing"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/profile_contract.py",
+      "sha256": "35746b1ade54af8dd0de82cc56ba63f4833645a7d3155c8be8c1ff4f4e1bfd43",
+      "imports": [
+        "__future__",
+        "pydantic",
+        "typing"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_authorization_provision_extractor.py",
+      "sha256": "05436cd310f0a7b39236a6ed79cb2496871a28223ee38aa192b9420b165029ea",
+      "imports": [
+        "__future__",
+        "capiro_defense_budget_parser.contracts",
+        "capiro_defense_budget_parser.extractors.stages.provisions",
+        "pathlib"
+      ],
+      "reviewLeads": [
+        {
+          "line": 249,
+          "text": "    for prohibited in ('llamaparse', 'boto3', 'requests', 'httpx', 'prisma', 'sqlalchemy'):"
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_camelot_engine.py",
+      "sha256": "108fe9a4c427df0c99ca5f5982015de37d0e683a142d7f1b34c813529b05c0a3",
+      "imports": [
+        "__future__",
+        "capiro_defense_budget_parser.camelot_engine",
+        "capiro_defense_budget_parser.contracts",
+        "fitz",
+        "hashlib",
+        "pathlib",
+        "pytest",
+        "unittest.mock"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_cli.py",
+      "sha256": "cb3d279b9312fc2bd24bcc20baefe28451fb37ddb5f8f639a4b714269e487765",
+      "imports": [
+        "__future__",
+        "capiro_defense_budget_parser",
+        "capiro_defense_budget_parser.cli",
+        "capiro_defense_budget_parser.contracts",
+        "capiro_defense_budget_parser.pdf_profile",
+        "hashlib",
+        "json",
+        "pathlib",
+        "pytest",
+        "sys",
+        "types"
+      ],
+      "reviewLeads": [
+        {
+          "line": 101,
+          "text": "        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch"
+        },
+        {
+          "line": 126,
+          "text": "        monkeypatch.setattr(profile_module, 'profile_document', profile_document)"
+        },
+        {
+          "line": 127,
+          "text": "        monkeypatch.setattr(profile_module, 'profile_pages', profile_pages)"
+        },
+        {
+          "line": 133,
+          "text": "        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch"
+        },
+        {
+          "line": 158,
+          "text": "        monkeypatch.setattr(profile_module, 'profile_document', profile_document)"
+        },
+        {
+          "line": 159,
+          "text": "        monkeypatch.setattr(profile_module, 'profile_pages', profile_pages)"
+        },
+        {
+          "line": 182,
+          "text": "        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch"
+        },
+        {
+          "line": 215,
+          "text": "        monkeypatch.setitem(sys.modules, 'capiro_defense_budget_parser.docling_engine', fake_module)"
+        },
+        {
+          "line": 216,
+          "text": "        monkeypatch.setattr("
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_contracts.py",
+      "sha256": "acfb544e7c0adf3fac23101621ad6cee72410d795a7cc5aa34a507a02c29106f",
+      "imports": [
+        "capiro_defense_budget_parser.canonical_json",
+        "capiro_defense_budget_parser.contracts",
+        "hashlib",
+        "json",
+        "pathlib",
+        "pydantic",
+        "pytest"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_docling_engine.py",
+      "sha256": "837d93944822e0d3d9258fc749cb9f1019661a609042865404a6eb5b4fb4cf7f",
+      "imports": [
+        "__future__",
+        "capiro_defense_budget_parser.contracts",
+        "capiro_defense_budget_parser.docling_engine",
+        "fitz",
+        "hashlib",
+        "pathlib",
+        "pypdf",
+        "pytest",
+        "unittest.mock"
+      ],
+      "reviewLeads": [
+        {
+          "line": 30,
+          "text": "    _create_docling_converter,"
+        },
+        {
+          "line": 208,
+          "text": "    @patch('capiro_defense_budget_parser.docling_engine._create_docling_converter')"
+        },
+        {
+          "line": 305,
+          "text": "    @patch('capiro_defense_budget_parser.docling_engine._create_docling_converter')"
+        },
+        {
+          "line": 347,
+          "text": "    @patch('capiro_defense_budget_parser.docling_engine._create_docling_converter')"
+        },
+        {
+          "line": 432,
+          "text": "        never bound `docling` itself, so `_create_docling_converter`'s own"
+        },
+        {
+          "line": 439,
+          "text": "            _create_docling_converter(get_default_config())"
+        },
+        {
+          "line": 459,
+          "text": "    @patch('capiro_defense_budget_parser.docling_engine._create_docling_converter')"
+        },
+        {
+          "line": 494,
+          "text": "    @patch('capiro_defense_budget_parser.docling_engine._create_docling_converter')"
+        },
+        {
+          "line": 514,
+          "text": "    @patch('capiro_defense_budget_parser.docling_engine._create_docling_converter')"
+        },
+        {
+          "line": 531,
+          "text": "    @patch('capiro_defense_budget_parser.docling_engine._create_docling_converter')"
+        },
+        {
+          "line": 574,
+          "text": "    @patch("
+        },
+        {
+          "line": 575,
+          "text": "        'capiro_defense_budget_parser.docling_engine._create_docling_converter',"
+        },
+        {
+          "line": 604,
+          "text": "            'capiro_defense_budget_parser.docling_engine._create_docling_converter',"
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_hacd_stage_extractor.py",
+      "sha256": "366cce93a6e340d8299d8bbf1a49d796844c08d6aa73837552b1f28bf2d7df11",
+      "imports": [
+        "__future__",
+        "capiro_defense_budget_parser.contracts",
+        "capiro_defense_budget_parser.extractors.stages.hacd",
+        "json",
+        "pathlib"
+      ],
+      "reviewLeads": [
+        {
+          "line": 129,
+          "text": "    for token in ('llamaparse', 'boto3', 'requests', 'httpx', 'prisma', 'sqlalchemy'):"
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_hasc_stage_extractor.py",
+      "sha256": "64ad70dbf36d84c164647af201cee9e7443d90dbd90ce5eb0c729d725509d0b3",
+      "imports": [
+        "__future__",
+        "capiro_defense_budget_parser.contracts",
+        "capiro_defense_budget_parser.extractors.stages.hasc",
+        "json",
+        "pathlib",
+        "pydantic",
+        "pytest"
+      ],
+      "reviewLeads": [
+        {
+          "line": 136,
+          "text": "    assert 'requests' not in source"
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_ndaa_conference_stage_extractor.py",
+      "sha256": "646c5c29d6a5a2f0209b3cc03bf5bbb79599896512c1f63b0ce0227d9a6d73b3",
+      "imports": [
+        "__future__",
+        "capiro_defense_budget_parser.contracts",
+        "capiro_defense_budget_parser.extractors.stages.ndaa_conference",
+        "pathlib"
+      ],
+      "reviewLeads": [
+        {
+          "line": 254,
+          "text": "    for prohibited in ('llamaparse', 'boto3', 'requests', 'httpx', 'prisma', 'sqlalchemy'):"
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_paddleocr_engine.py",
+      "sha256": "2c73080fd7ce1a9907af107a06eaa964b84c3fc10a5b63ee2af88af1511d6bc6",
+      "imports": [
+        "PIL",
+        "__future__",
+        "capiro_defense_budget_parser.contracts",
+        "capiro_defense_budget_parser.paddleocr_engine",
+        "hashlib",
+        "io",
+        "json",
+        "numpy",
+        "pathlib",
+        "pytest",
+        "re",
+        "shutil",
+        "subprocess",
+        "tarfile",
+        "unittest.mock"
+      ],
+      "reviewLeads": [
+        {
+          "line": 1,
+          "text": "\"\"\"Tests for the plain PaddleOCR (detection + recognition) targeted OCR"
+        },
+        {
+          "line": 9,
+          "text": "- Raw `PaddleOCR.ocr()` output (in either observed return shape) normalizes"
+        },
+        {
+          "line": 25,
+          "text": "PaddleOCR itself is not installed in the test environment \u2014 tests that"
+        },
+        {
+          "line": 26,
+          "text": "require the actual PaddleOCR engine use mock objects."
+        },
+        {
+          "line": 69,
+          "text": "class TestPaddleOCRConfig:"
+        },
+        {
+          "line": 196,
+          "text": "# Token extraction: normalize raw PaddleOCR.ocr() output"
+        },
+        {
+          "line": 511,
+          "text": "class TestProcessPageWithPaddleOCR:"
+        },
+        {
+          "line": 547,
+          "text": "        assert any('PaddleOCR processing error' in w for w in result.warnings)"
+        },
+        {
+          "line": 602,
+          "text": "class TestRunPaddleOCREngine:"
+        },
+        {
+          "line": 635,
+          "text": "            side_effect=RuntimeError('PaddleOCR is not installed'),"
+        },
+        {
+          "line": 838,
+          "text": "        PaddleOCR 2.x's `PaddleOCR.__init__` calls `maybe_download()` for the"
+        },
+        {
+          "line": 871,
+          "text": "            # downloaded by PaddleOCR's constructor unconditionally)."
+        },
+        {
+          "line": 918,
+          "text": "        import subprocess"
+        },
+        {
+          "line": 941,
+          "text": "        result = subprocess.run("
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_pdf_profile.py",
+      "sha256": "164063bb4ce74feba9d3b4e38b31410408307bbbc21317aa07bdb9aaea0a4302",
+      "imports": [
+        "__future__",
+        "capiro_defense_budget_parser.pdf_profile",
+        "hashlib",
+        "pathlib",
+        "pytest",
+        "typing"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_pdfplumber_engine.py",
+      "sha256": "d7564f2c8da2d616306c0ecf35ba9c9102b6e414cea4635b697224d91fdb3d94",
+      "imports": [
+        "__future__",
+        "capiro_defense_budget_parser.contracts",
+        "capiro_defense_budget_parser.pdfplumber_engine",
+        "fitz",
+        "hashlib",
+        "pathlib",
+        "pytest",
+        "unittest.mock"
+      ],
+      "reviewLeads": []
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_sacd_stage_extractor.py",
+      "sha256": "cd6a0967d6dd4f23ad123e97015f563d860a7f7147d4bee1a61f039bfdc1679c",
+      "imports": [
+        "__future__",
+        "capiro_defense_budget_parser.contracts",
+        "capiro_defense_budget_parser.extractors.stages.sacd",
+        "json",
+        "pathlib"
+      ],
+      "reviewLeads": [
+        {
+          "line": 140,
+          "text": "    for token in ('llamaparse', 'boto3', 'requests', 'httpx', 'prisma', 'sqlalchemy'):"
+        }
+      ]
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_sasc_stage_extractor.py",
+      "sha256": "9c1ff7f882603b04a5e629d33c8eac0ae1ea9242dbb9119a615cffdd03e177da",
+      "imports": [
+        "__future__",
+        "capiro_defense_budget_parser.contracts",
+        "capiro_defense_budget_parser.extractors.stages.sasc",
+        "json",
+        "pathlib",
+        "pydantic",
+        "pytest"
+      ],
+      "reviewLeads": [
+        {
+          "line": 121,
+          "text": "    assert 'requests' not in source"
+        }
+      ]
+    }
+  ]
+}

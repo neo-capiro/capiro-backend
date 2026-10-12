@@ -1,0 +1,13 @@
+{
+  "executorSession": 97006,
+  "executorExit": 1,
+  "reason": "reviewer expected raw native target; official getConfig already resolves native to DebianOpenSSL3 host",
+  "priorSourceUntouched": true,
+  "probes": [
+    {
+      "pid": 448812,
+      "generatorChild": false,
+      "probes": []
+    }
+  ]
+}

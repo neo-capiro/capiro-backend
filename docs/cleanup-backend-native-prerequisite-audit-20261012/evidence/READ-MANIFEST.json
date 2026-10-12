@@ -1,0 +1,702 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "tree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "records": [
+    {
+      "path": "docs/plans/CleanUp1.md",
+      "gitBlob": "88928d6b4d93c48c668be648f0e9b5b79daa50ff",
+      "bytes": 25161,
+      "sha256": "dded1ec8bd8f1727aa229ab4fbf04756c622c44731e8a2fb7b74fef7c31c754f"
+    },
+    {
+      "path": "docs/cleanup-source-gates-20261012/GATE-MATRIX.json",
+      "gitBlob": "61b17811922be2e68e8070cd55206c2549f60106",
+      "bytes": 6148,
+      "sha256": "d4703f86854f61ed4eef794531600a7dee122991b3272b0f5ed012952121ceba"
+    },
+    {
+      "path": "docs/cleanup-source-gates-20261012/BLOCKERS.json",
+      "gitBlob": "9dd823e6cef8d7b7d455782c86872226da591888",
+      "bytes": 6356,
+      "sha256": "41e07bbb8a2d1fdf1ed904606876c209f64a2663bce19c78daec7cdb72236f65"
+    },
+    {
+      "path": "docs/cleanup-executable-prereqs-20261012/HANDOFF.md",
+      "gitBlob": "53988dd06f434caef7f5358567a9acb27853c216",
+      "bytes": 12223,
+      "sha256": "64628e24b3b9b79c391a7a11085a6f29f6c140cbe0a1e9427de101ed556e8c33"
+    },
+    {
+      "path": "docs/cleanup-retirement-bounded-verification-integration-20261012/HANDOFF.md",
+      "gitBlob": "84b80bc3998f517de3ad3b95aadd5e8fe616c502",
+      "bytes": 11702,
+      "sha256": "03b83d099668526a5e741b052b76998522fe39a9b8237695e6737cb4246f0316"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-reviewed-source-20261012/HANDOFF.md",
+      "gitBlob": "eb8b04d49b167e704268c3ba153ee837ec9f437e",
+      "bytes": 17323,
+      "sha256": "5f428d03b503a8f18ac3f6293f64ac5cf64081cb2b1276b6969ee3ac47749713"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-reviewed-source-20261012/COMPOSITION-ACCEPTANCE.md",
+      "gitBlob": "2b7a7d36fa52c5004d743736eb97dab125052a95",
+      "bytes": 1516,
+      "sha256": "569e18b27bdbb011f43ccb5a515f6a55aa879cd7b5372a331f760c3fc8b18acb"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/enginefree-generation-receipt.json",
+      "gitBlob": "a4571af4f34d75e05b82b59b49963afc8874a9da",
+      "bytes": 9496,
+      "sha256": "ebdc01c10f3bcdb1b3c1a1e901b2471ecdd5d409acf49818daad121a2873c0bf"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/validate-and-generate-enginefree.cjs",
+      "gitBlob": "04dd62412f5efdcb934831f777bb9ce60656c685",
+      "bytes": 3911,
+      "sha256": "323f70fea1af159c9b35c2e07d389ac851b265ca0ed00781795cba473be586a4"
+    },
+    {
+      "path": "package.json",
+      "gitBlob": "564a9b83c0e92a0aa27998565cf6c3e1543aa160",
+      "bytes": 13793,
+      "sha256": "cdf66b87a4aee12a9363a5e2a8ee7438e652257e5d8213518f23fbd3c965e7c7"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "gitBlob": "08d78e3dbca937f82ada2eb344b961477e9dfc58",
+      "bytes": 728135,
+      "sha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "gitBlob": "a04e37e5fb1774c83b3d8007b60f69cf44d769d5",
+      "bytes": 54,
+      "sha256": "d60a0f353c3a1ad1909e928324a367b956c573178eba98e8004342d43517ab4d"
+    },
+    {
+      "path": "turbo.json",
+      "gitBlob": "d27fafa866b273697a299ab4a9c03b9b18ae56bf",
+      "bytes": 406,
+      "sha256": "f6ce78011df24f37454e56fbcb2af9082f71902be0366d5382e711c5881b2c8b"
+    },
+    {
+      "path": "scripts/cleanup-gates/gate.mjs",
+      "gitBlob": "86f5a927815c18b297282acbd1392b32e21c9d81",
+      "bytes": 35979,
+      "sha256": "de1a7ee899658acc28397207ea3f765d41f0b35f90c39a55c0ad8cf16b08322d"
+    },
+    {
+      "path": "scripts/cleanup-gates/gate-config.mjs",
+      "gitBlob": "2a25c7847aebf1fbb928510edc9967be90dd34e8",
+      "bytes": 17633,
+      "sha256": "b2f9d7766b4b4ed87825b624ff7fcf384121afdd310c133b393df3609e6b783c"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/scope.mjs",
+      "gitBlob": "3df4d92d4ea2563ed525686eb1ea9c4c87f002a8",
+      "bytes": 3562,
+      "sha256": "5557dfaf0043657d094d50cd8582cc8449e1f64ce6cc5c22a7ea035cc07d7dae"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/quirks.mjs",
+      "gitBlob": "be9913e67cff239c09a00906c1aa32575fdfb795",
+      "bytes": 2823,
+      "sha256": "96e115c721f3074ae0fcccc68d4f91404e0205753414dcdea5696c3781ed78da"
+    },
+    {
+      "path": "scripts/test-proof/lib/discovery.mjs",
+      "gitBlob": "34c4725d49d0a5659f7175a5f67d85a1934a5b11",
+      "bytes": 11414,
+      "sha256": "3be47dffbc809e5576960a0f38bd807ebb34d1fdc0632b02891512c9562abad9"
+    },
+    {
+      "path": ".github/workflows/cleanup1-gate.yml",
+      "gitBlob": "257206a891b0ccf4a9d9fa5c32c9d283609c757b",
+      "bytes": 14395,
+      "sha256": "d147dffe5145bfa5573c06f48661c9ea86640a3ff01d5f0463088618ba26fc4d"
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "gitBlob": "2890d40278d4987b8cced7333397d435a3902da4",
+      "bytes": 17465,
+      "sha256": "1b3302488e86ab3fae0e5f4a04443aa1c0c9dcaaad17adea40fc4af87d009128"
+    },
+    {
+      "path": ".github/workflows/defense-budget-parser-ci.yml",
+      "gitBlob": "152f0076e1051a7196f5115378e4bf128edec317",
+      "bytes": 2193,
+      "sha256": "44a217e3403a191b57dd3a054cc20618654776b797e35cbe4089bad9978b665f"
+    },
+    {
+      "path": "apps/defense-budget-parser/pyproject.toml",
+      "gitBlob": "5a2ce3cd1508223bdec6db70066812a2a244326f",
+      "bytes": 2654,
+      "sha256": "b7aa158f7a6fbaef9e5f71097bb90e2c51b2e312304304b25fb4923551b4f5ef"
+    },
+    {
+      "path": "apps/defense-budget-parser/uv.lock",
+      "gitBlob": "8ab7e9c130cbdcacc38376962f521ddf6e09fd36",
+      "bytes": 408561,
+      "sha256": "21e36df15b96910bb3682b0cb5e64a6d4273a08bf3d35612a0eb30b0cec22a20"
+    },
+    {
+      "path": "apps/api/package.json",
+      "gitBlob": "982391287e8ff83cef048a7d2e98ae169bdbb133",
+      "bytes": 28581,
+      "sha256": "cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff"
+    },
+    {
+      "path": "apps/workspace/package.json",
+      "gitBlob": "c4ef8a3c3a39f2877e759141c987929ff785ca51",
+      "bytes": 1818,
+      "sha256": "2dea1a1dc1f42f6af253637a4c400cdd91af5fcf6ae23d9fa5ce569df0315417"
+    },
+    {
+      "path": "apps/defense-api/package.json",
+      "gitBlob": "79c0157b7c5c08e096dff3bfec9c93d8a603bc95",
+      "bytes": 2886,
+      "sha256": "97832181e0f5b660fa2fe535d191fdc443afaa69386f006d3a7f771129e89a8c"
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "gitBlob": "42065a1749144afec30b1aa56ea5d865dac847bf",
+      "bytes": 979560,
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "gitBlob": "7367184b71dda07e33e1577179768840a9a998e1",
+      "bytes": 41761,
+      "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02"
+    },
+    {
+      "path": "apps/api/jest.config.cjs",
+      "gitBlob": "00998e78899becc7dc52818f3f81c2cb88f46f39",
+      "bytes": 6357,
+      "sha256": "94f1692af740ef12a085d86b7d19ece1bed2fbaa84709ad4a1fbd6f0d8ff7d95"
+    },
+    {
+      "path": "apps/api/jest.worker-database.cjs",
+      "gitBlob": "63a7e587aab3ddec30f0a01a06f5f7e5b70be9cd",
+      "bytes": 12850,
+      "sha256": "3da640a20f09c14764dbb33eeda2b15bb65ddf21ffbdef048e220bf0ec6ae5f7"
+    },
+    {
+      "path": "apps/api/jest.worker-database-controls.cjs",
+      "gitBlob": "eaa7d98748f833e9bd06de28804b999c82d2150e",
+      "bytes": 13431,
+      "sha256": "e3b3e982437e90bf6ac88d062cb91305e11fe43a3a66bfe8668c092009d2dff6"
+    },
+    {
+      "path": "apps/api/jest.setup.ts",
+      "gitBlob": "75f042fb3b96b7d4fbbcbc10f2d131198319d789",
+      "bytes": 2580,
+      "sha256": "0ecbfb2a53e9154e3d5677b68467e0e8b82563dec4fa1b71fa98c14d230c6475"
+    },
+    {
+      "path": "apps/api/jest.e2e.config.cjs",
+      "gitBlob": "dc30ffe69eaebc91473183e13e8f846f6f7af3f9",
+      "bytes": 836,
+      "sha256": "22a0b5135916ad922bfb272ebe54d1b069c5dd0193596712b2bd0ed2aaf0691d"
+    },
+    {
+      "path": "scripts/cleanup-runtime-equivalence.jest.cjs",
+      "gitBlob": "80c16954796a00453a595700d9a2ebe64cb2f930",
+      "bytes": 768,
+      "sha256": "16bb7322aee00089c7ff17393fc1cbb125b345f5f66da7aa6a2399ee4708ad67"
+    },
+    {
+      "path": "scripts/ci/bootstrap-disposable-postgres-roles.sh",
+      "gitBlob": "12fa7d90c4e07422aa63ac72a37a8b184be33c0a",
+      "bytes": 3679,
+      "sha256": "a4ca312ee4b0d940b03c855546b9506b6a9e0777b0051c1934fe56883a16ed68"
+    },
+    {
+      "path": "scripts/ci/bootstrap-disposable-databases.sh",
+      "gitBlob": "01e0e516f7ad8ad4ab9ec64eaa5e075194b3947d",
+      "bytes": 15627,
+      "sha256": "b8430c9756ccb08a6a126833766d21e806ddb2b57ca64c329095322c067c0a5d"
+    },
+    {
+      "path": "scripts/ci/disposable-capiro-worker-prerequisite.sql",
+      "gitBlob": "12eabcd622f4958cd6049f652e1ea7da68d0719e",
+      "bytes": 972,
+      "sha256": "3a41c019f98cf79d460bf4568ffcd70672b6a961998cbd2f15cb7f0febe4be36"
+    },
+    {
+      "path": "scripts/ci/research-portfolio-append-only-prerequisite.sql",
+      "gitBlob": "08756b1d18e9e8c5cf807c3edcac9a3ab06de4a5",
+      "bytes": 1768,
+      "sha256": "cd47f004f0b6255648797bfa972a57192d34c59adc7eb7bf6e0de49bc82f78ac"
+    },
+    {
+      "path": "scripts/ci/bootstrap-funding-opportunities-test-dbs.sh",
+      "gitBlob": "ba65ce18065d4f2c376aa4a2ffab45dfa5e33b21",
+      "bytes": 9167,
+      "sha256": "ca02640d33a479c6e7d09436cbf6f96b13ff150aceb65eea8e859396c042acaa"
+    },
+    {
+      "path": "scripts/ci/additional-disposable-bootstrap.test.mjs",
+      "gitBlob": "99a743f7dbc2e397eeb994578561055470bcaf35",
+      "bytes": 6546,
+      "sha256": "23d9c65dc48ff877a0aa1310fcb5d4fb58e241c54bb6a692a9bfb0fe8502de2d"
+    },
+    {
+      "path": "scripts/ci/remaining-rehearsal-bootstrap.test.mjs",
+      "gitBlob": "3cc7d2f6023d470aff6162d085b37a1ce7f0fb24",
+      "bytes": 4612,
+      "sha256": "319f32299c31f3d1291eb0631a6dd14f313b60d7721c4b83f1ca21f252839b7d"
+    },
+    {
+      "path": "scripts/verify-phase8-session2-db.sh",
+      "gitBlob": "714f775f2dda0733820a98319be30a405ec406c8",
+      "bytes": 20999,
+      "sha256": "fc3e0c297bd1c773381c237cee297aee3d6188ea328216c5fe4b80203fcab59a"
+    },
+    {
+      "path": "scripts/verify-phase8-session4.mjs",
+      "gitBlob": "d2b68bb1364bd454d1a41b8b5cfb2385c21d9d40",
+      "bytes": 8146,
+      "sha256": "6eacfcd7328737700091757381094bea3ab6b3f9996e38d7e15d2112070eba08"
+    },
+    {
+      "path": "apps/e2e/linux/run-linux-capture.sh",
+      "gitBlob": "d12052b81162d46dc4d73886479134af756e23ef",
+      "bytes": 14808,
+      "sha256": "aec36f0c50b4b912dcace9b8644f9fbc599c2680c7334d26337e0cc68ee13bb0"
+    },
+    {
+      "path": "apps/e2e/linux/Dockerfile",
+      "gitBlob": "a5f1fcc30f2b0f7ec244a3560ff2cdffbab08a70",
+      "bytes": 1238,
+      "sha256": "75ea6f78d68d17b3bfce8b1cbf88a552b51d5069fbc4fd138fdf7fabbd0c549f"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/README.md",
+      "gitBlob": "200a6c9c75ecc878f22b9c08f5d61193f27bcfdf",
+      "bytes": 12443,
+      "sha256": "3deef4bdf22b70cffb02f75f8282462d84806a64ce384c6037c47e63000af342"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/Dockerfile.audit",
+      "gitBlob": "0457bdaf01ee64fefd069fa06e6f6bc04f5d6657",
+      "bytes": 1103,
+      "sha256": "f63df5590636e9552df8ebd964dbce2ab3bba3aeaaf8f922c56b8db252586fac"
+    },
+    {
+      "path": "apps/workspace/test/engine-api.int-spec.ts",
+      "gitBlob": "fc7cb5d80e177d3a4438df8fad8d0d3287ff1414",
+      "bytes": 7457,
+      "sha256": "39afae85f41198700fb49a68485619675e01ee41a41e937256671d71af8843c6"
+    },
+    {
+      "path": "apps/intel-api/test/rls.spec.ts",
+      "gitBlob": "a4667f2c01c991a4d3798b3eaf56dc51fad7b658",
+      "bytes": 2214,
+      "sha256": "a8a8c5a8db0110a212e276802f3ec20de936c7f7cf2cd90325271de3a43f270c"
+    },
+    {
+      "path": "apps/api/src/clients/client-people-delete-manager.integration.spec.ts",
+      "gitBlob": "fd518bb6f476acccdfa72ba7b2e6a25785d604f4",
+      "bytes": 3956,
+      "sha256": "9a1c1b4aed90d0e2a0e2ed0868922dc16348b678a7e27b190138bcbaaec011fe"
+    },
+    {
+      "path": "apps/api/src/prisma/migration-policy-pack-lifecycle-concurrency.spec.ts",
+      "gitBlob": "8923c5bef6aa01d988b75c090e978d3338f3671a",
+      "bytes": 1462,
+      "sha256": "fd8b530819b80b8975e8dd2dc8207694820c0750e95f1acada2348f68e55fb2a"
+    },
+    {
+      "path": "apps/api/src/memory/memory-embedding-lifecycle.postgres.spec.ts",
+      "gitBlob": "9de6356e6967b77e80942fa4e0e11d3c8f8dd09e",
+      "bytes": 24968,
+      "sha256": "7126af04da64f8adb5e05e19523636033372a8ee74fb5a7f5994e63a7b806597"
+    },
+    {
+      "path": "apps/api/src/meri/meri-research-provider-budget.pg.spec.ts",
+      "gitBlob": "18ec216a4b9b4b8d64135d99d770ff8e5fd7fc36",
+      "bytes": 11993,
+      "sha256": "561106753dc45a298a065601793860b69543b2e6bd0ea5ff546fe448a50f6ba6"
+    },
+    {
+      "path": "apps/api/test/e2e/defense-budget-intelligence.e2e.spec.ts",
+      "gitBlob": "160227caacb92f4ec4cafe22a57dbd02be0e9836",
+      "bytes": 41914,
+      "sha256": "8fdfb97768082ab2d8e21440ccc8b135d7dff40dbbc39ccdca08e2252acbf38c"
+    },
+    {
+      "path": "scripts/outreach-v3-qualification-plan.spec.mjs",
+      "gitBlob": "b081dd08a3d38538ee2f367e3f6e1f7d2e29d190",
+      "bytes": 15230,
+      "sha256": "e49066994c994f39c91fdfdf096084e6faded1e684423fbafb299fa3a034ccfb"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs",
+      "gitBlob": "3c4e8cdd725cadd471535ff6f7e63d9bba6b5ec4",
+      "bytes": 5055,
+      "sha256": "6695debdfa92b490f6faf02ce55fb1e8291ad4eeaeb19bf5556934958d8d3e1a"
+    },
+    {
+      "path": "scripts/verify-engagement-phase1-code.mjs",
+      "exists": false
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-code.mjs",
+      "gitBlob": "8e006ea5a7da244ee957180a9b89d68d407512ee",
+      "bytes": 9581,
+      "sha256": "2029f17a3ad869a1448f8fd7aa68c565f9ab501884c776bc356bada7c98d1188"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase1-code.mjs",
+      "gitBlob": "7fcdaf9356629488248e42a59ff31f7bbaec77a9",
+      "bytes": 5060,
+      "sha256": "e8e3d548417572c8a49857bbd1039c7a4282bc71608a6a99502188cb769204bd"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase3-code.mjs",
+      "gitBlob": "252dcec68c240df3ccadaadb54d6e8ab4f315337",
+      "bytes": 5782,
+      "sha256": "13d6c4987261fda7aaa506e53137a19641a73403fcf19693cd5f9913eb893bc3"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "gitBlob": "0871e0c5f4f2df3b500e014f7e58cb5fc18a77b4",
+      "bytes": 7252,
+      "sha256": "ceabc0b16c7bfeb0e8087c625ee9b33591732880b783296196de4cfc1bfb4ce5"
+    },
+    {
+      "path": "apps/workspace/test/cascade.spec.ts",
+      "gitBlob": "2b9b82ca7c4e2c50c60bfdbf450984b0c08fe207",
+      "bytes": 2205,
+      "sha256": "3f5a444f632021bca7a5a8e3ac60b560c118289597403f78dd7921b2efd05ebd"
+    },
+    {
+      "path": "apps/workspace/src/cascade/workspace-product.registry.ts",
+      "gitBlob": "2b1bb8c8ad41fbac5005d8e71e3ece66a507a23f",
+      "bytes": 8338,
+      "sha256": "8584e4d816647ee0a3861a14728485c4c9ddb43ec0ffd38088e643fa25b4a732"
+    },
+    {
+      "path": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "gitBlob": "9dff1de2265bea2b1646c43050d54b3d8c34d172",
+      "bytes": 7905,
+      "sha256": "385b31449f270d1c0fe386cea98f1c76a6afae46fbb78ac0fc1b32b50c74ad8c"
+    },
+    {
+      "path": "scripts/engagement-phase3-qualification-plan.mjs",
+      "gitBlob": "347f03d8b21a9d61f3cf534303473b1afb84752c",
+      "bytes": 5730,
+      "sha256": "d204addc0fa4db86ce9acbeb0049a41ec76f978e4906b2b6e8211b783f3339dd"
+    },
+    {
+      "path": "apps/e2e/baselines/manifest.json",
+      "gitBlob": "2a6138ac5a4ce05ab9da67fac8228c91e9cd6c99",
+      "bytes": 159204,
+      "sha256": "c3484aa64fe4374d7cb3954265b82b9f6ba9cc1c53130e32465b202faface5fd"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/__init__.py",
+      "sha256": "a17b836a318c04da2821d6c0f774d6c341ed44e689b61c9ae8c1e316ad128baa",
+      "bytes": 412,
+      "gitBlob": "81245cf324cf3336ad9e86aa14fd77c9e3aad9e9"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/camelot_engine.py",
+      "sha256": "16494a19c16c0cb7009d6aaaf8a12d409c5b702b158d70f3d5b24b8202c945a4",
+      "bytes": 15376,
+      "gitBlob": "b7de5f37aa6337bcceef6241f8da1c8a8b8981c4"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/canonical_json.py",
+      "sha256": "c0fb83db366e4b2cdc8c24deccaf83d25d198329ddaab348966e897d70ad9e0c",
+      "bytes": 1785,
+      "gitBlob": "fc912f6372311838326ae8bf83a949ec2f16b261"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/cli.py",
+      "sha256": "9be4d81c4ea1f250ac5ec186f2af701746510b16824f816a816220f3f2046498",
+      "bytes": 7036,
+      "gitBlob": "563abc1f263c281f76fed1b83b5d35cae3b54f7d"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/contracts.py",
+      "sha256": "5c4b61dc044e3204750ee1c843371c669e5955891e9bebd4837f41749029c226",
+      "bytes": 15890,
+      "gitBlob": "c60cf16421c7457eb6d1ac9a81142879f22bdc63"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/docling_engine.py",
+      "sha256": "73e35a8505d4655e68f6d29dc0a48482c73055cc52f59456094731599e6fda0b",
+      "bytes": 25784,
+      "gitBlob": "630ac23f691c7bca6042ac3377e9a725700ebe57"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/engine_versions.py",
+      "sha256": "5c13fcef904791e8140d6533d0725362ac227ba69b096f66a2f699988d5320b0",
+      "bytes": 1749,
+      "gitBlob": "cfd8179af488f8d927727338e5f91b8b88978fcc"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/__init__.py",
+      "sha256": "3caa2d8e5ac2f7ee2349887a21942229f1a4e50c1902c2b7f26223672b00b2d0",
+      "bytes": 67,
+      "gitBlob": "58dc4a8febdfd0d647a4ea085e00da6d2c6af27d"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/__init__.py",
+      "sha256": "0014f2a37fca1a6b46465409996093c18570241c6cd0d168ed66d43c7ca5b8b9",
+      "bytes": 73,
+      "gitBlob": "e305f01fd744061135b247fb024364266b21d6c7"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/common/__init__.py",
+      "sha256": "f0679659e9fa3c3ad06501062d4af9557269c0a9ff9161833735501976424136",
+      "bytes": 335,
+      "gitBlob": "cef7f877c5b66b94f7eda869287995e0caf06816"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/common/congressional_table.py",
+      "sha256": "8354f8b17f5e5711863f9596c4cde0c835e19d045b76544b4619abf11ea69a02",
+      "bytes": 5619,
+      "gitBlob": "08f71c0cf0500dfad3c6bb7943ef25eed5730639"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/__init__.py",
+      "sha256": "109a44b0be4c08a86b570f0f7a304a1a35d6484dce0916834d4d27da4cee21cd",
+      "bytes": 132,
+      "gitBlob": "d2d12128856a87998ed9aa14fb9c60b5b1e1a884"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/extractor.py",
+      "sha256": "204dd0840764cbdfc7636c169fee7868b9a095422e9247264a77e585d4a374ee",
+      "bytes": 7259,
+      "gitBlob": "ef53cf607677de5073c4a3dfc8e8de8b1491cf4b"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/semantics.py",
+      "sha256": "0e5a5bc8c1d5612d492b916f7c0301d0233632aff5917e988a86799e2f0293a3",
+      "bytes": 12882,
+      "gitBlob": "9b5f762306e9ecb0c8e620f2407801c6e0290b94"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/__init__.py",
+      "sha256": "ff47bd18f63be4dafdd62f3c9e648eb5f103416b39cbbdf91b55157f1301740d",
+      "bytes": 129,
+      "gitBlob": "5ab7482517580644875907756a4cadbbabeab855"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/extractor.py",
+      "sha256": "e61121e241e36cd5c65a9b5ac799560a7b970ff848f380fd826c16488796e35b",
+      "bytes": 7391,
+      "gitBlob": "19e9edf0d93a5eacf9d4b6274b76cca619dd6889"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/semantics.py",
+      "sha256": "b0ccbd1561f47e444a3ade2f3a9c2273127fe02131fbb3e0c4296ba0ad91aac7",
+      "bytes": 10632,
+      "gitBlob": "800ff9dccdb5549ff2f1ea681b286e586c7abe22"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/__init__.py",
+      "sha256": "c2a6ce27fc9ecd51b0015115971ab36120558c731a9ff126e77f8fecd6af2643",
+      "bytes": 240,
+      "gitBlob": "45ec503c68e598af0aff39acac1390889b743232"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/contracts.py",
+      "sha256": "7e6e9c86648bd7ca84c6b92b9104d239be128cf4c0fc17942aae97d5a9478fcd",
+      "bytes": 7217,
+      "gitBlob": "6df934323bbaa48896522c62950e1134e9d314da"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/extractor.py",
+      "sha256": "e3a5daedb7c1c7458ec73234dbe51a9665141fa13e7cb14839711564daf94b09",
+      "bytes": 7727,
+      "gitBlob": "355c473e9846ed59280efa46dc7d60426b1c4bf1"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/language.py",
+      "sha256": "bb83877df14cee2f0c6d237510de4584e5a174fa053f914ed124f395b71ad1b0",
+      "bytes": 7057,
+      "gitBlob": "4179bb70a723b26a85617cb5fbfd5420a5704cc7"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/semantics.py",
+      "sha256": "37c5712079b13ed1b7a0ceb5fc0eae8d68fd71f67222eb01ec5312e63f41890f",
+      "bytes": 12915,
+      "gitBlob": "0c259df8c2dc0aa3d72da4c7e56ede70d6a86c9d"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/__init__.py",
+      "sha256": "0a114bf2efa91d6c1f42f17a313b0f6d86c07d86dc28f81a8025e080a377e7a1",
+      "bytes": 163,
+      "gitBlob": "554389ac92cea2b06ec9cd0a65a9584bf8c6c1bd"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/contracts.py",
+      "sha256": "1fd0503f25019e99ae1ec72edf65e8b4a34878949400a67d28ef06ecd16ec63d",
+      "bytes": 8463,
+      "gitBlob": "4c5c7cdb454d6775a1ce11e84b6ba0ea17120e4d"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/extractor.py",
+      "sha256": "126e934e3134b5a2766909eb2c22e98eb235a56b4a96729d0206288358719ddd",
+      "bytes": 8532,
+      "gitBlob": "fbfbad4d030adcfbad89dc6d29d4546b1ef4a20b"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/semantics.py",
+      "sha256": "6df210d051f2ac46eaae8984ea7e37fb1fdc0eddcb5db07fd94c5f6a0afce5b8",
+      "bytes": 9873,
+      "gitBlob": "76273182b4b2cce4037be4a8c75ae9b663003226"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/__init__.py",
+      "sha256": "928671af8a8e04e1dafd2fa971856840e41ad299d020595b4175ef1881062e0a",
+      "bytes": 148,
+      "gitBlob": "3de8689df2d5c7833522e7580fcdced7de88a2a1"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/extractor.py",
+      "sha256": "844e10b8e11e6666009c47175abf8661f7f061cdaccf5175d7a7782de01c5c68",
+      "bytes": 11906,
+      "gitBlob": "78d7290b6b76ae8995f4eea244312c42bbe59fff"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/semantics.py",
+      "sha256": "7593959a7c5ccf50a56c292673091b0dc550242d186411baa02d181f0ccf6935",
+      "bytes": 14167,
+      "gitBlob": "2d0dc060cf24304bc28051e823728afbe91a7e68"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/__init__.py",
+      "sha256": "b3faf535ce4f4b970aee0b7847ad8d599a24ae3ad32eeed007287c90b2b83964",
+      "bytes": 129,
+      "gitBlob": "fdc57ef9fb8dbe5369ba4f1805808c4a970c1f4b"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/extractor.py",
+      "sha256": "e41ba5b696d3ee9a3c122693e56760b3dbda05c9b79b0b0ed3e2d0a83ded46a4",
+      "bytes": 9758,
+      "gitBlob": "c58b4f712456f2e7516be69f13c227e7818812a2"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/semantics.py",
+      "sha256": "0e0f720fde0dcf47d09c8e489f3bad9ea8652e1d8552a6a4e9ab43497f75edbe",
+      "bytes": 11320,
+      "gitBlob": "092ebe0cd2574e104d4d5c7c2a169cd0b9a0253b"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/normalize.py",
+      "sha256": "9c1bca0e0ac3ec61c7e445666407c13586eda2bd20fa14bff965b0b9ae73d3d2",
+      "bytes": 3051,
+      "gitBlob": "819ef68f6da556a5ec78a9b9c119fb512aac9484"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/paddleocr_engine.py",
+      "sha256": "1f5fd2238a26b56446e3a360e156e3e4b3b0436a6333825306fad7dcde46ee7f",
+      "bytes": 30575,
+      "gitBlob": "35bd1c9c13e2d57c0181bd3fc459ca61d2b937c0"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/pdf_profile.py",
+      "sha256": "d1e3c1453a4c8ab62b7d0f88c0f7a9529ce71a867b007f1e13848c59a2661667",
+      "bytes": 10692,
+      "gitBlob": "0d3a9619ec6112e4c125d171826a5791c29d56a7"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/pdfplumber_engine.py",
+      "sha256": "ea54e1cc0747122a6aa2fc56122df00dc475cc8981d5b531c9cec4887de077fe",
+      "bytes": 16906,
+      "gitBlob": "85d797bbd45a243a9ec49b24b989f5feaa68ef1c"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/profile_contract.py",
+      "sha256": "35746b1ade54af8dd0de82cc56ba63f4833645a7d3155c8be8c1ff4f4e1bfd43",
+      "bytes": 2087,
+      "gitBlob": "8531bd4213e573c39874a7a4dbb457b92b6d33d4"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_authorization_provision_extractor.py",
+      "sha256": "05436cd310f0a7b39236a6ed79cb2496871a28223ee38aa192b9420b165029ea",
+      "bytes": 8356,
+      "gitBlob": "cd2eea2fd3dff789e563797318f8b43632a2fed8"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_camelot_engine.py",
+      "sha256": "108fe9a4c427df0c99ca5f5982015de37d0e683a142d7f1b34c813529b05c0a3",
+      "bytes": 12001,
+      "gitBlob": "6fd5a915f9c5e201b774db05756fa3bddd6133a1"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_cli.py",
+      "sha256": "cb3d279b9312fc2bd24bcc20baefe28451fb37ddb5f8f639a4b714269e487765",
+      "bytes": 9434,
+      "gitBlob": "47d73c4bc8c30d83d6c10db400c08bded41fa042"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_contracts.py",
+      "sha256": "acfb544e7c0adf3fac23101621ad6cee72410d795a7cc5aa34a507a02c29106f",
+      "bytes": 11995,
+      "gitBlob": "8914f68098c23ecff1a661bf4bbf6d42cb90c74e"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_docling_engine.py",
+      "sha256": "837d93944822e0d3d9258fc749cb9f1019661a609042865404a6eb5b4fb4cf7f",
+      "bytes": 22441,
+      "gitBlob": "346c4547534f60cf4b1c51794c103ae5a61b1875"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_hacd_stage_extractor.py",
+      "sha256": "366cce93a6e340d8299d8bbf1a49d796844c08d6aa73837552b1f28bf2d7df11",
+      "bytes": 5130,
+      "gitBlob": "5a75ab401ab47ea5a2783ec2464eee8f2e078bf6"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_hasc_stage_extractor.py",
+      "sha256": "64ad70dbf36d84c164647af201cee9e7443d90dbd90ce5eb0c729d725509d0b3",
+      "bytes": 5053,
+      "gitBlob": "e349fa6fcf3ec8f6ba46d60b317efcb85372afcc"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_ndaa_conference_stage_extractor.py",
+      "sha256": "646c5c29d6a5a2f0209b3cc03bf5bbb79599896512c1f63b0ce0227d9a6d73b3",
+      "bytes": 7990,
+      "gitBlob": "00f95d94e376e419f28adf3467249728571593ec"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_paddleocr_engine.py",
+      "sha256": "2c73080fd7ce1a9907af107a06eaa964b84c3fc10a5b63ee2af88af1511d6bc6",
+      "bytes": 40491,
+      "gitBlob": "574bc2b3f69fad62c7b498342de6acd1f57c0f45"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_pdf_profile.py",
+      "sha256": "164063bb4ce74feba9d3b4e38b31410408307bbbc21317aa07bdb9aaea0a4302",
+      "bytes": 7210,
+      "gitBlob": "774665d2cba95a4736e471d04c8e3d9400cd3612"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_pdfplumber_engine.py",
+      "sha256": "d7564f2c8da2d616306c0ecf35ba9c9102b6e414cea4635b697224d91fdb3d94",
+      "bytes": 22922,
+      "gitBlob": "513b488f21ac26387c12d43cf18280371c581fb0"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_sacd_stage_extractor.py",
+      "sha256": "cd6a0967d6dd4f23ad123e97015f563d860a7f7147d4bee1a61f039bfdc1679c",
+      "bytes": 5297,
+      "gitBlob": "eb887409d3e0b17e28f43ab04178720cb6cdbb1c"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_sasc_stage_extractor.py",
+      "sha256": "9c1ff7f882603b04a5e629d33c8eac0ae1ea9242dbb9119a615cffdd03e177da",
+      "bytes": 4372,
+      "gitBlob": "a73f1ca63dd1654db8431c8324076a68ca699ab4"
+    }
+  ],
+  "AGENTS": "No AGENTS.md in exact Git tree; no /workspace/AGENTS.md, /tmp/AGENTS.md or worktree AGENTS.md found",
+  "protectedReportingImplementationRead": false
+}

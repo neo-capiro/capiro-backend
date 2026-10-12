@@ -1,0 +1,154 @@
+E501 Line too long (107 > 100)
+  --> src/capiro_defense_budget_parser/docling_engine.py:77:101
+   |
+76 | ENGINE_VERSION = (
+77 |     f'docling-{DOCLING_PACKAGE_VERSION}-cpu' if DOCLING_PACKAGE_VERSION is not None else ENGINE_UNAVAILABLE
+   |                                                                                                     ^^^^^^^
+78 | )
+   |
+
+SIM103 Return the negated condition directly
+   --> src/capiro_defense_budget_parser/paddleocr_engine.py:404:5
+    |
+402 |       # thousands-of-dollars amounts; comma-grouped or decimal amounts
+403 |       # always qualify regardless of magnitude.
+404 | /     if ',' not in stripped and '.' not in stripped and len(digits) <= 3:
+405 | |         return False
+406 | |     return True
+    | |_______________^
+help: Inline condition
+
+E501 Line too long (111 > 100)
+   --> tests/test_docling_engine.py:437:101
+    |
+435 |         of a clean, catchable refusal."""
+436 |         if DOCLING_PACKAGE_VERSION is not None:
+437 |             pytest.skip('docling is installed in this environment; NameError regression not reproducible here')
+    |                                                                                                     ^^^^^^^^^^^
+438 |         with pytest.raises(RuntimeError, match='Docling is not installed'):
+439 |             _create_docling_converter(get_default_config())
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+  --> tests/test_paddleocr_engine.py:29:1
+   |
+27 |   """
+28 |
+29 | / from __future__ import annotations
+30 | |
+31 | | import json
+32 | | import re
+33 | | import shutil
+34 | | from pathlib import Path
+35 | | from unittest.mock import MagicMock, patch
+36 | |
+37 | | import pytest
+38 | |
+39 | | from capiro_defense_budget_parser.contracts import (
+40 | |     ParserRuntimeResultV1,
+41 | |     compute_result_content_sha256,
+42 | | )
+43 | | from capiro_defense_budget_parser.paddleocr_engine import (
+44 | |     DEFAULT_PADDLEOCR_CONFIG,
+45 | |     ENGINE_NAME,
+46 | |     ENGINE_VERSION,
+47 | |     ResourceGuardrails,
+48 | |     _cluster_columns,
+49 | |     _cluster_rows,
+50 | |     _extract_tokens,
+51 | |     _nearest_column_index,
+52 | |     compute_config_sha256,
+53 | |     get_default_config,
+54 | |     process_page_with_paddleocr,
+55 | |     reconstruct_page_structure,
+56 | |     find_pe_funding_association,
+57 | |     is_funding_value_text,
+58 | |     run_paddleocr_engine,
+59 | |     validate_config,
+60 | | )
+   | |_^
+61 |
+62 |   FIXTURES_DIR = Path(__file__).parent / 'fixtures'
+   |
+help: Organize imports
+   |
+52 |     compute_config_sha256,
+53 +     find_pe_funding_association,
+54 |     get_default_config,
+55 +     is_funding_value_text,
+56 |     process_page_with_paddleocr,
+57 |     reconstruct_page_structure,
+   -     find_pe_funding_association,
+   -     is_funding_value_text,
+58 |     run_paddleocr_engine,
+   |
+
+W605 [*] Invalid escape sequence: `\.`
+   --> tests/test_paddleocr_engine.py:912:17
+    |
+910 |         assert '-ne 1' in body  # candidate-count gate
+911 |         # Traversal / absolute-path rejection
+912 |         assert '\.\.' in body
+    |                 ^^
+913 |
+914 |     def test_bake_model_script_rejects_traversal_archive(self, tmp_path: Path):
+    |
+help: Use a raw string literal
+    |
+911 |         # Traversal / absolute-path rejection
+    -         assert '\.\.' in body
+912 +         assert r'\.\.' in body
+913 |
+    |
+
+W605 [*] Invalid escape sequence: `\.`
+   --> tests/test_paddleocr_engine.py:912:19
+    |
+910 |         assert '-ne 1' in body  # candidate-count gate
+911 |         # Traversal / absolute-path rejection
+912 |         assert '\.\.' in body
+    |                   ^^
+913 |
+914 |     def test_bake_model_script_rejects_traversal_archive(self, tmp_path: Path):
+    |
+help: Use a raw string literal
+    |
+911 |         # Traversal / absolute-path rejection
+    -         assert '\.\.' in body
+912 +         assert r'\.\.' in body
+913 |
+    |
+
+I001 [*] Import block is un-sorted or un-formatted
+   --> tests/test_paddleocr_engine.py:917:9
+    |
+915 |           """Live negative control: an archive containing a `../` member must
+916 |           make bake_model.sh exit non-zero without writing model files."""
+917 | /         import tarfile
+918 | |         import subprocess
+    | |_________________________^
+919 |
+920 |           script = (
+    |
+help: Organize imports
+    |
+916 |         make bake_model.sh exit non-zero without writing model files."""
+917 +         import subprocess
+918 |         import tarfile
+    -         import subprocess
+919 |
+    |
+
+E501 Line too long (102 > 100)
+   --> tests/test_pdfplumber_engine.py:466:101
+    |
+464 |             self._word('Ordinary body text line two at the normal size.', 340.0, 350.0, 36.0, 300.0,
+465 |                         size=10.0, fontname='ArialMT'),
+466 |             self._word('Ordinary body text line three at the normal size.', 360.0, 370.0, 36.0, 300.0,
+    |                                                                                                     ^^
+467 |                         size=10.0, fontname='ArialMT'),
+468 |         ]
+    |
+
+Found 8 errors.
+[*] 4 fixable with the `--fix` option (1 hidden fix can be enabled with the `--unsafe-fixes` option).

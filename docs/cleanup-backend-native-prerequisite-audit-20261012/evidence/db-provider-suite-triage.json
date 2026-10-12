@@ -1,0 +1,1922 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "method": "spec/test files only, static substring hints, never implementation/reporting branches or test execution; explicit Workspace int-spec supplement repairs filename-pattern omission, historical117-row result retained",
+  "rows": [
+    {
+      "path": "apps/api/src/app.module.spec.ts",
+      "sha256": "44a7b4ebd9b9d30e81969c4fe3e592078ea7c1eed620823dbdd68573986c80bc",
+      "environmentVariableNames": [
+        "CLERK_SECRET_KEY",
+        "CLERK_WEBHOOK_SIGNING_SECRET",
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/scripts/verify-memory-version-kind-migration.test.mjs",
+      "sha256": "706d2a0cc238bbeb7e7134bde4b81672b583d6aa6f288d6e8cfcb0fbd00dbbd9",
+      "environmentVariableNames": [
+        "MERI_APPROVED_MEMORY_PG_CONFIG"
+      ],
+      "databaseEnvironmentNames": [
+        "MERI_APPROVED_MEMORY_PG_CONFIG"
+      ],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/scripts/seed-engagement-phase3-parity-fixtures.spec.ts",
+      "sha256": "ae03ad93877b34e49813757b06eb61918a59609403f4d8ebaa5f596b03f3a8ec",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "ENGAGEMENT_PHASE3_ALLOW_REMOTE_DB"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/scripts/run-clio-scheduled-tasks.postgres.spec.ts",
+      "sha256": "7ce401ebd8fa15fd874ba62d5de349f242ad5fa3645db764e3be0dea00eb6fe8",
+      "environmentVariableNames": [],
+      "databaseEnvironmentNames": [],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/scripts/replace-defense-budget-candidate-approvals-v1.integration.spec.ts",
+      "sha256": "bb1ada4e8e6627a5dbbb3b2f256c5bbff852f934bfcb4a0f9371f8bd587d28e7",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/scripts/qualify-defense-budget-drain-image-v1.integration.spec.ts",
+      "sha256": "8fd6c5bcfa16cbbbfe8b440ae234e3874d9862bee61432e70bee88f90cc228dc",
+      "environmentVariableNames": [
+        "BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT",
+        "DATABASE_URL",
+        "DEFENSE_BUDGET_PARSER_PROJECT_DIR"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/scripts/district-economic-source.integration.spec.ts",
+      "sha256": "1657ed614e248c053fd63c9350b9c02041350d8d8187888453afb01963c5443f",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/scripts/approval-replacement-upgrade.integration.spec.ts",
+      "sha256": "9772c016c30a3048db580494574f7156cb3f0f46e23f44324330f860126928ef",
+      "environmentVariableNames": [
+        "APPROVAL_REPLACEMENT_UPGRADE_REHEARSAL"
+      ],
+      "databaseEnvironmentNames": [],
+      "staticHints": [
+        "prismaClientConstructor",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.scheduler-postgres.spec.ts",
+      "sha256": "17c2c3322fb4ca18a0cd0d3e51898b5f813f225dab6d9065646de37fb279ff6e",
+      "environmentVariableNames": [],
+      "databaseEnvironmentNames": [],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/meri/meri-research-tool-budget.pg.spec.ts",
+      "sha256": "7119c2820a716a96f46935fb7cfcd88b567c23440174e15e3c8c389802cf2ea4",
+      "environmentVariableNames": [
+        "MERI_RESEARCH_BUDGET_POSTGRES_CONFIG"
+      ],
+      "databaseEnvironmentNames": [
+        "MERI_RESEARCH_BUDGET_POSTGRES_CONFIG"
+      ],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/meri/meri-research-provider-budget.pg.spec.ts",
+      "sha256": "561106753dc45a298a065601793860b69543b2e6bd0ea5ff546fe448a50f6ba6",
+      "environmentVariableNames": [
+        "MERI_RESEARCH_BUDGET_POSTGRES_CONFIG"
+      ],
+      "databaseEnvironmentNames": [
+        "MERI_RESEARCH_BUDGET_POSTGRES_CONFIG"
+      ],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/meri/meri-research-child-task.pg.spec.ts",
+      "sha256": "9bfc0e5284596d36f232036601c5142db2e36e1ec4f289dd2b11d3856722ba90",
+      "environmentVariableNames": [
+        "MERI_RESEARCH_CHILD_POSTGRES_CONFIG"
+      ],
+      "databaseEnvironmentNames": [
+        "MERI_RESEARCH_CHILD_POSTGRES_CONFIG"
+      ],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/meri/meri-action-proposal.service.spec.ts",
+      "sha256": "523098773b6496d5a7466fba7f25b895f41cd15326ca476d0ecb45711baa922d",
+      "environmentVariableNames": [
+        "RP_PROPOSAL_CLAIM_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "RP_PROPOSAL_CLAIM_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/memory/memory-embedding-lifecycle.postgres.spec.ts",
+      "sha256": "7126af04da64f8adb5e05e19523636033372a8ee74fb5a7f5994e63a7b806597",
+      "environmentVariableNames": [
+        "MEMORY_GOVERNANCE_LIFECYCLE",
+        "MERI_APPROVED_MEMORY_PG_CONFIG"
+      ],
+      "databaseEnvironmentNames": [
+        "MERI_APPROVED_MEMORY_PG_CONFIG"
+      ],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/memory/governed-memory-ingest.postgres.spec.ts",
+      "sha256": "d274f86ade7e0cc199f1bd52b4a7e29cf0bb58d7012405e79f1e09faf1a66db1",
+      "environmentVariableNames": [
+        "MERI_APPROVED_MEMORY_PG_CONFIG"
+      ],
+      "databaseEnvironmentNames": [
+        "MERI_APPROVED_MEMORY_PG_CONFIG"
+      ],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/state-committee-referral-pagination-postgres.spec.ts",
+      "sha256": "d198679139229e6980fc193fe41073e9afed4060c4a53ca98f25d86503ad69db",
+      "environmentVariableNames": [
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/live-hearings-phase7.integration.spec.ts",
+      "sha256": "69239ad0aa993e535ebb2b93d92d6e7dbae839b65b5a9c9dff4119d4ae0791e4",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/live-hearings-phase7-server-sessions.integration.spec.ts",
+      "sha256": "229d6460a36a6d530dc9b70eef1caa36e28c6c5858e75e0bcb9b8b7cdbf5d557",
+      "environmentVariableNames": [
+        "ALLOW_DISPOSABLE_PG",
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "ALLOW_DISPOSABLE_PG",
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/live-hearings-detail-pg.integration.spec.ts",
+      "sha256": "1acd156bb6e3ec8902b62818a881686bc5bc73a87e32779743a84f52e8a6e206",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/legiwatch-wave3-pg.integration.spec.ts",
+      "sha256": "21a754239de5c69e8765308ee0713b186935f8f731b790eced98662f995e2b68",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/legiwatch-wave2-pg.integration.spec.ts",
+      "sha256": "a250c34c8d3e04ae024bc7a3798d297db77ae5737a2520f68bae9168c1da50b4",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/legiwatch-wave1-pg.integration.spec.ts",
+      "sha256": "d75541c68fa5200b7618b29fde30994461714408f462a6b4c1c8735b4cd87a2e",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/legiwatch-saved-sessions-pg.integration.spec.ts",
+      "sha256": "05062f45c131d142c3506c7225b59a7e17032417db84bd4cf2d8e7bca3c3c88e",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/legiwatch-committee-alerts-pg.integration.spec.ts",
+      "sha256": "743ffffc85a3186b90cd580e67363776bcb4920d28837ca3db511b15dc203034",
+      "environmentVariableNames": [
+        "LEGIWATCH_COMMITTEE_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "LEGIWATCH_COMMITTEE_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/legiwatch-calendar-query-postgres.spec.ts",
+      "sha256": "985d9763cbaf1af1cd5670f8141ead5f16d88d05a14db8ab8c94a7ddc75fb924",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/hearing-publication-inbox-postgres.spec.ts",
+      "sha256": "32c23b1ba7efdaa51c4b4b4509aacc10b96a9e19d656b55a6af0c28aeeb59ce8",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_KEYWORD_DELIVERY_ENABLED",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/ingestion/research-document-inventory-postgres.spec.ts",
+      "sha256": "299f48d72a11c14a60fea8b854f6be126f441aff2879403ba4d6472dd8f4932a",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGISCAN_API_KEY",
+        "LEGISCAN_DOCUMENT_EVIDENCE_ENABLED",
+        "LEGIWATCH_PHASE7_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE7_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/ingestion/legiscan-vote-revisions-postgres.spec.ts",
+      "sha256": "c4865c67f28be430709ff3731ac951bcbdf55762c1262641067a832095cac482",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE5_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE5_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/ingestion/legiscan-published-records-postgres.spec.ts",
+      "sha256": "880524dbf1429d94da9c1390f26bfc5ec91c312dd7f83a1b3416e4bc77046b26",
+      "environmentVariableNames": [
+        "CI",
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/ingestion/legiscan-historical-research-postgres.spec.ts",
+      "sha256": "1c29d72070441ad3187448bfd4193643c49537de9f635c4b31590599d30aa3d2",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE7_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE7_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/ingestion/legiscan-documents-postgres.spec.ts",
+      "sha256": "1d6cfb5bfde1e9b1b58a585ead01ae992bbb56e2a856ef7ea1e661b4fa76099f",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/ingestion/legiscan-document-evidence-postgres.spec.ts",
+      "sha256": "d24001346af8e0f8cae5580258bb9db5e08c48418cbf8de6358fbd47da7290c9",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE5_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE5_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/ingestion/legal-chapter-checkpoint-postgres.spec.ts",
+      "sha256": "8731e3eb07e389a69d033974cb88f81712b570a18e936f2db3a58bd4521aa495",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE7_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE7_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/ingestion/govinfo-hearing-records-postgres.spec.ts",
+      "sha256": "525b8a7db81423a7c45fc4b4d00c64ce09ec14b56059c1fc88367e59683d992a",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE5_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE5_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/hearing-discovery/legislative-calendar-postgres.spec.ts",
+      "sha256": "65fa59b5fa2a6615f9a6ef86e537c957073c44c39b403447a2a4a8d91d134162",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/hearing-discovery/florida-archive-discovery.spec.ts",
+      "sha256": "0219a6f1e90166d21310d41b082c0b206ff3faf61f035b2cdfafd3b2e00f34fd",
+      "environmentVariableNames": [
+        "ALLOW_DISPOSABLE_PG",
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "ALLOW_DISPOSABLE_PG",
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/hearing-discovery/federal-calendar-postgres.spec.ts",
+      "sha256": "d489275ca84d60e39e7bf3356f5b0948be3288a36275e1e20a5aa92879524a8a",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_CALENDAR_TRANSITIONS_ENABLED"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-workflow.http.integration.spec.ts",
+      "sha256": "411b89cd98fd03fc7335b4c758f867aa20123597588e8cfcac7b4cffbbec3391",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-search.sql.spec.ts",
+      "sha256": "b1d0ad330af42234623603dd88c812deb678daff17ae48765208c4ed70476460",
+      "environmentVariableNames": [
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-search.integration.spec.ts",
+      "sha256": "f292c75a9878235ea5d11ec0acca897bf8f3a9bd4ba4b951ddacd5a7eb0db0f6",
+      "environmentVariableNames": [
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-search.http.integration.spec.ts",
+      "sha256": "7bb75e56f8bbca18315cc0ca1e9228ba40895ca9fc5a2bf80382dca0c64113d5",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-v2-detail.http.spec.ts",
+      "sha256": "99a56242ae7e931c0ab79d950cbbb2d51021be0f7f11033d3ade0ef5d7e4b611",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-saved-search.http.integration.spec.ts",
+      "sha256": "a32584dba88b56c7eeea7459abb6db2398bba34cb9fade01783b8686f6e408bd",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-pipeline.http.integration.spec.ts",
+      "sha256": "5cf9ff8cd2b457021263b86620d8dc370f08a75e1eb1a4eb589dec1d86cd163e",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/funding-opportunities/funding-opportunity-pipeline-source-access.integration.spec.ts",
+      "sha256": "1dc9f00d53459802481707aee3d7813c31ca6fbf24697bb4a1d9a6ad0898d375",
+      "environmentVariableNames": [
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "FUNDING_OPPORTUNITIES_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/federal-spending/federal-market.identity.integration.spec.ts",
+      "sha256": "1d83f53c84c88fd83229ffb2045bad3bde0a842de9e730a2abfbd310b899d25a",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/federal-spending/federal-market-fiscal-year.postgres.spec.ts",
+      "sha256": "f214be64ef60dccf9f3ca5ba80ef4cf9d17aadf14362ad09fb8cd48e3223dfbe",
+      "environmentVariableNames": [
+        "MERI_FEDERAL_MARKET_PG_CONFIG"
+      ],
+      "databaseEnvironmentNames": [
+        "MERI_FEDERAL_MARKET_PG_CONFIG"
+      ],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/federal-spending/federal-market-canary.integration.spec.ts",
+      "sha256": "367fc18dbeb3da28847d00c3d9f42458e4f4f93b83c0972bef7587607fe54cbd",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/engagement/meeting-prep-jobs-postgres.spec.ts",
+      "sha256": "25cf15f5997d0bd7e1f13c6a07b99a1af6e4a9cd04e5bca25af90766887d19ec",
+      "environmentVariableNames": [
+        "MEETING_PREP_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "MEETING_PREP_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/engagement/mail-query-deadline.postgres.spec.ts",
+      "sha256": "8b986eb4a803f99af837157a9a26794d579aeff95aff57325171f08dba84949f",
+      "environmentVariableNames": [
+        "MERI_APPROVED_MEMORY_PG_CONFIG"
+      ],
+      "databaseEnvironmentNames": [
+        "MERI_APPROVED_MEMORY_PG_CONFIG"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/clients/client-profile-fill-retry.integration.spec.ts",
+      "sha256": "74a8ce9208f3c0ef8e86afa807a9dcf8655ed832d316bcd9f20ad7080b1cb95f",
+      "environmentVariableNames": [
+        "FILL_RETRY_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "FILL_RETRY_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/clients/client-people-delete-manager.integration.spec.ts",
+      "sha256": "9a1c1b4aed90d0e2a0e2ed0868922dc16348b678a7e27b190138bcbaaec011fe",
+      "environmentVariableNames": [
+        "PEOPLE_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "PEOPLE_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/clients/client-advocacy-matter-merge.integration.spec.ts",
+      "sha256": "7264da4d2ca83476ebd103e1c0cf9760047c0aedcf82d6f7ac5a913c250bfd69",
+      "environmentVariableNames": [
+        "MERGE_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "MERGE_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/california-grants/california-grants-ingestion.db.spec.ts",
+      "sha256": "babb78128e914a9920b28e2b3159a697fde2245f6bcf472def6737a059a46393",
+      "environmentVariableNames": [
+        "CALIFORNIA_CATALOG_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "CALIFORNIA_CATALOG_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/bill-impact/bill-impact.postgres.spec.ts",
+      "sha256": "96923f90798bed12b34bf4b50098b4e9da5535576dd2934f4d045d502b9a001a",
+      "environmentVariableNames": [
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/retrieval/adapters/institutional-knowledge-retrieval.adapter.postgres.spec.ts",
+      "sha256": "85ac2466bd1bc24bde184655455847ce8bfd5e54c9fdb535104e6845381ea530",
+      "environmentVariableNames": [
+        "MEMORY_POSTGRES_REQUIRE_VECTOR"
+      ],
+      "databaseEnvironmentNames": [
+        "MEMORY_POSTGRES_REQUIRE_VECTOR"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/meri/analytics/analytics-db.service.spec.ts",
+      "sha256": "7dd0016ce62898028c43c9e61c300981eec98cb8993234f99aac99a3058de278",
+      "environmentVariableNames": [
+        "ANALYTICS_DB_HOST",
+        "ANALYTICS_DB_NAME",
+        "ANALYTICS_DB_PASSWORD",
+        "ANALYTICS_DB_PORT",
+        "ANALYTICS_DB_USER",
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/phase9/legiwatch-phase9.integration.spec.ts",
+      "sha256": "b8ac716851fdec1c8d65b9fd4e686b6766405aeaa57ccec9ac9223cd194a9f85",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/phase9/legiwatch-phase9-provenance-disposition.db.spec.ts",
+      "sha256": "d2fdf0abf6327159a0f07e651a0c573f26dfae30262f0d5b69c9e3680b7a3e5a",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/phase9/legiwatch-phase9-provenance-backfill.db.spec.ts",
+      "sha256": "7327a29458e12205908c205e6530bb17a0ad9cc708216fdcd6a0f8cdec97b4ed",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/live-hearings/phase9/legiwatch-phase9-preflight-demand.integration.spec.ts",
+      "sha256": "01f3e8e4b2ddc93ae665b29f33c68d6a9a5275128a3a120099fb34b8e864d50a",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "pgConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/intelligence/alert-memo/hearing-recap-postgres.spec.ts",
+      "sha256": "88ee9704ca2e138f043195ae0aa2a590e127901682592472aae8d76af9831401",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/government-data/community-funding/community-funding.cross-source-dedup.spec.ts",
+      "sha256": "d4bfcc90162cb14387cfeda089c42112b1d644c9979ec8efc5d5d99f6a4a5f2e",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/engagement/notetaker/client-notetaker.postgres.spec.ts",
+      "sha256": "701d9a92e6f248e8ff607f346b05fb56e23040c5d80eef4bc6e94ddd47c47b9b",
+      "environmentVariableNames": [
+        "CLIENT_NOTETAKER_TEST_DATABASE_URL",
+        "NOTETAKER_ENABLED"
+      ],
+      "databaseEnvironmentNames": [
+        "CLIENT_NOTETAKER_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/district-nexus/priority-intelligence/priority-intelligence-change-read.integration.spec.ts",
+      "sha256": "288b0093fe2fe19913109a4dba92d0a1e6dd7154d230c3c66cfadbc5229ccd6a",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/district-nexus/priority-intelligence/priority-intelligence-change-ledger.integration.spec.ts",
+      "sha256": "4fa766c425a9fdb8088fab9f9671b55b88b9feab6d3ddf15535947f92efa7b13",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/defense-budget/promotion/phase7-closeout-gates-v1.spec.ts",
+      "sha256": "0b97385c8c588f13ee86b49776aee5067ffa99659de40213beef1205634b05c3",
+      "environmentVariableNames": [
+        "PROMOTER_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "PROMOTER_DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/defense-budget/governed-reextraction/reextraction-db.integration.spec.ts",
+      "sha256": "8de888d66ff4517006be82ea4041a5f65a90f36ea0c31d39d985e04a3ec0a12e",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "REEXTRACTION_INTEGRATION"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/defense-budget/governed-ingestion-manifest/ingestion-manifest-db.integration.spec.ts",
+      "sha256": "1d5a121b04cb39d9755303a911a251637f6139c1657a3aed68c459ec3d18ecdc",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "INGESTION_MANIFEST_INTEGRATION"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/defense-budget/verification/persistence/lifecycle-bridge-source-metadata-agreement.integration.spec.ts",
+      "sha256": "69eb8bd37e8b4185d458aa2e6bc4f1a5fdac95500be3b497db6b06a5c81b54f0",
+      "environmentVariableNames": [
+        "BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT",
+        "DATABASE_URL",
+        "DEFENSE_BUDGET_PARSER_PROJECT_DIR"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/defense-budget/verification/persistence/lifecycle-bridge-candidate-cycle-identity.integration.spec.ts",
+      "sha256": "41c81eecd081ed3e39c44447ec3d2fd47fd67e48a1c1c56c405a817e828cf61d",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/defense-budget/promotion/readiness/cycle-family-readiness-orchestrator-v1.spec.ts",
+      "sha256": "843effdd8beebc48d703f4204a6e4e187c3620e6e170e1359e9ddec1a4728d2e",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-s3-artifact-loader.integration.spec.ts",
+      "sha256": "beafaa66ffbd2f8c0455a2cb52a887d0b231c204d4c63bc34ada09e7bbc1b232",
+      "environmentVariableNames": [
+        "AWS_REGION",
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "providerConstructorMention",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/defense-budget/governed-acceptance/scoped-fact-review/phase10b35-scoped-review-e2e.integration.spec.ts",
+      "sha256": "2a740a23e838714de32cf47f7a1616675b2376fe6a6957382e7d350773cee38d",
+      "environmentVariableNames": [
+        "BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT",
+        "DATABASE_URL",
+        "DEFENSE_BUDGET_PARSER_PROJECT_DIR"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/defense-budget/governed-acceptance/candidate-correction/phase10b41-hardening.integration.spec.ts",
+      "sha256": "08002717c8501a5e01f704a9039a0a745c70e1900c2d3d0c489658afb6687c95",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/src/defense-budget/governed-acceptance/candidate-correction/phase10b35c-candidate-correction-e2e.integration.spec.ts",
+      "sha256": "0c85f4d76ba0baa240ce268c8180138e0cecb62a30816cac48a545af1ce0547b",
+      "environmentVariableNames": [
+        "BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT",
+        "DATABASE_URL",
+        "DEFENSE_BUDGET_PARSER_PROJECT_DIR"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-phase-a-safety.spec.ts",
+      "sha256": "0f0d7fb4a6097f30c1680decaf74314d468573846edea55e143827371a59d538",
+      "environmentVariableNames": [],
+      "databaseEnvironmentNames": [],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/rls.spec.ts",
+      "sha256": "a8a8c5a8db0110a212e276802f3ec20de936c7f7cf2cd90325271de3a43f270c",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/research-postgres.spec.ts",
+      "sha256": "30b1b268a8a5e86f4333ba4a297b598585753e030d460b9f1965552158462fa3",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "INTEL_API_BASE_URL",
+        "INTERNAL_SERVICE_SECRET",
+        "LEGIWATCH_INTERNAL_WORKFLOWS_ENABLED",
+        "LEGIWATCH_PHASE7_TEST_DATABASE",
+        "WORKSPACE_BASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE7_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/phase8-postgres.spec.ts",
+      "sha256": "8060ede35a7eb334f0fca87b3e42e62af957020ba344480ab97b042f39342324",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_EDITORIAL_PREPARE_ENABLED",
+        "LEGIWATCH_EDITORIAL_SEND_ENABLED",
+        "LEGIWATCH_PHASE8_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE8_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/legiwatch-reports-postgres.spec.ts",
+      "sha256": "2a7847d09aaf54a32a0e5125da23e3b3115858f832d1a184da79d77820dd2b74",
+      "environmentVariableNames": [
+        "CI",
+        "DATABASE_URL",
+        "LEGIWATCH_RECORD_ALERT_SOURCE_TYPES",
+        "TRACKER_ALERTS_ENABLED"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/legiwatch-calendar-postgres.spec.ts",
+      "sha256": "0004f7fd501af37fa3a7807e2d8263d7ef2f80faa6499785052a44b516a38167",
+      "environmentVariableNames": [
+        "CI",
+        "DATABASE_URL",
+        "LEGIWATCH_AGENDA_ALERTS_ENABLED",
+        "TRACKER_ALERTS_ENABLED"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/keyword-workflows-postgres.spec.ts",
+      "sha256": "956f2fc09fe1de7230e8853c7e9fcb6287be9c1637212575b5d37854571b86ab",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "INTERNAL_SERVICE_SECRET",
+        "LEGIWATCH_INTERNAL_WORKFLOWS_ENABLED",
+        "LEGIWATCH_KEYWORD_AUTO_ADD_ENABLED",
+        "LEGIWATCH_KEYWORD_DELIVERY_ENABLED",
+        "LEGIWATCH_PHASE6_TEST_DATABASE",
+        "WORKSPACE_BASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE6_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/keyword-discovery-postgres.spec.ts",
+      "sha256": "3622b083f215a63ef0c16693cfed8e5965165f2e29a4e8b7626f89279e742244",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE6_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE6_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/keyword-delivery-postgres.spec.ts",
+      "sha256": "fc1e6ee9a1d27cab3201af1c3eec1140fcfbd890764d04c9284854ac18b69aac",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "INTERNAL_SERVICE_SECRET",
+        "LEGIWATCH_KEYWORD_DELIVERY_ENABLED",
+        "LEGIWATCH_PHASE6_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE6_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/historical-recommendation-postgres.spec.ts",
+      "sha256": "9da4e9e31fd5f1604f03452824c99c8250f354c9517996463b275e6548756c7e",
+      "environmentVariableNames": [
+        "LEGIWATCH_PHASE7_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "LEGIWATCH_PHASE7_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/hearing-state-audio-postgres.spec.ts",
+      "sha256": "aa8ae8387f580daab038704bb11ce46590b8dc1b6b51bf8f07da15103c27e2b6",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_RECORDING_TEST_DATABASE",
+        "LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/hearing-runtime-privileges-postgres.spec.ts",
+      "sha256": "ec68549ac90414f9e9e1e14334533e393d9660cfd42c616a8763b2b9599c7207",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/hearing-records-postgres.spec.ts",
+      "sha256": "d92805f12a03db0fb658d52a51f1390ac45e50778521b4b691293a0e20eb233b",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE5_TEST_DATABASE",
+        "LEGIWATCH_RECORD_EMAIL_ENABLED"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_PHASE5_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/hearing-recording-postgres.spec.ts",
+      "sha256": "22e1954f7bf5cde2742d42a81684b55fc0e553e627dcde1b1a8a2c70e898b643",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "HEARING_TRANSCRIPTION_RECOVERY_ENABLED",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/hearing-publication-postgres.spec.ts",
+      "sha256": "07647e03407e9a154a3a9c2d69a1b7f2e19c23b4207ff6ff256fb75fe0cd48bd",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/hearing-public-review-postgres.spec.ts",
+      "sha256": "235eec9d256a76873438854a9e778765f40d1c0ce86a16f529f4ee1b3bee6de7",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "HEARING_PUBLIC_AUDIO_STORAGE_ENABLED",
+        "LEGIWATCH_RECORDING_TEST_DATABASE",
+        "LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED",
+        "PHASE4_DOCX_SOURCE_OUTPUT"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_RECORDING_TEST_DATABASE"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/folder-tracker-postgres.spec.ts",
+      "sha256": "34d346314d04dfc34a484752303466946e41697d410466f5ecab6252be1a003d",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/folder-parity-postgres.spec.ts",
+      "sha256": "615d8efea3b825a2fe03c640b8a6b48d6ac685ae32d9b832dd6694845b0d5829",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/folder-import-postgres.spec.ts",
+      "sha256": "5bc74bbaf6bef60ebedaf05559ce001d5faf1b37863efcdd0759462f0779ccd7",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/test/folder-corpus-search-postgres.spec.ts",
+      "sha256": "11b63fcb2deb34f977de96936bcd6208d37e769d0eb0e53e8d21252550cd445f",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/scripts/entrypoint-migrate.spec.mjs",
+      "sha256": "08942e716e57d0a1ecf235ec941043ee250892a27ff7968fc6b72c5fd123dfb9",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/src/feed/feed-wave2-counts-pg.integration.spec.ts",
+      "sha256": "5000e236ba7d10246c4bd925ac6e0fbc150f2493ff4680678ff0c6f5728bd0e0",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/src/hearing/intelligence/hearing-intelligence.integration.spec.ts",
+      "sha256": "7682bb545554fc5a660a06e9a7f51404f760c7b94c90774636c281f83917d597",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/src/hearing/capture/public-hearing-capture-demand.spec.ts",
+      "sha256": "483e293dc772e729c75c83e5348495eedadddec84d09de4c5a03545d49436ab7",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "LEGIWATCH_CAPTURE_ALL_PUBLIC_EVENTS"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/src/hearing/capture/capture-start-postgres.spec.ts",
+      "sha256": "47acb723083120a8c2338394fa83fe2337080ef0d4ae8f154cfd877fab9b0fc6",
+      "environmentVariableNames": [
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/intel-api/src/hearing/capture/blocked-source-recovery.postgres.spec.ts",
+      "sha256": "93b6d3048c8cb4e0dc3e72b5efed781017a2f01f67b4c1d857bc5683c4b44e49",
+      "environmentVariableNames": [
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL",
+        "LEGIWATCH_CAPTURE_ALL_PUBLIC_EVENTS",
+        "LEGIWATCH_STATE_SERVER_CAPTURE_ENABLED"
+      ],
+      "databaseEnvironmentNames": [
+        "CAPIRO_DISPOSABLE_PG",
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls",
+        "jestMocks",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/src/program-elements/programs.service.integration.spec.ts",
+      "sha256": "313c2412b018c575e2c2316c42e26ab633d5a767071f57bb6047c24391c9d04f",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "REHEARSAL_DATABASE_URL",
+        "REHEARSAL_SERVE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "REHEARSAL_DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/src/program-elements/programs-admin-security.integration.spec.ts",
+      "sha256": "894e4f96afc74cf8c050271fdb8f02fd5e2c767a87959b35c312f1b30cea4514",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "REHEARSAL_DATABASE_URL",
+        "REHEARSAL_SERVE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "REHEARSAL_DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/src/health/health.service.integration.spec.ts",
+      "sha256": "fc4377505721459c4a32e841f38d76ecf882f744a0f6889adae19ef1aa9c8228",
+      "environmentVariableNames": [
+        "CLERK_SECRET_KEY",
+        "DATABASE_URL",
+        "PE_SNAPSHOT_ENVIRONMENT",
+        "REHEARSAL_DATABASE_URL",
+        "REHEARSAL_SERVE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "REHEARSAL_DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/src/program-elements/promotion/manual-override-repository.integration.spec.ts",
+      "sha256": "154a725523f1168399c25eac077334b8957cd3563544359e125f3693aa3cabdc",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "REHEARSAL_SERVE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/defense-budget/promotion/phase7-closeout-gates-v1.spec.ts",
+      "sha256": "0b97385c8c588f13ee86b49776aee5067ffa99659de40213beef1205634b05c3",
+      "environmentVariableNames": [
+        "PROMOTER_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "PROMOTER_DATABASE_URL"
+      ],
+      "staticHints": [
+        "SQLCalls"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/defense-budget/governed-reextraction/reextraction-db.integration.spec.ts",
+      "sha256": "8de888d66ff4517006be82ea4041a5f65a90f36ea0c31d39d985e04a3ec0a12e",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "REEXTRACTION_INTEGRATION"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/defense-budget/governed-ingestion-manifest/ingestion-manifest-db.integration.spec.ts",
+      "sha256": "1d5a121b04cb39d9755303a911a251637f6139c1657a3aed68c459ec3d18ecdc",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "INGESTION_MANIFEST_INTEGRATION"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/defense-budget/verification/persistence/lifecycle-bridge-source-metadata-agreement.integration.spec.ts",
+      "sha256": "69eb8bd37e8b4185d458aa2e6bc4f1a5fdac95500be3b497db6b06a5c81b54f0",
+      "environmentVariableNames": [
+        "BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT",
+        "DATABASE_URL",
+        "DEFENSE_BUDGET_PARSER_PROJECT_DIR"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/defense-budget/verification/persistence/lifecycle-bridge-candidate-cycle-identity.integration.spec.ts",
+      "sha256": "41c81eecd081ed3e39c44447ec3d2fd47fd67e48a1c1c56c405a817e828cf61d",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/defense-budget/promotion/readiness/cycle-family-readiness-orchestrator-v1.spec.ts",
+      "sha256": "843effdd8beebc48d703f4204a6e4e187c3620e6e170e1359e9ddec1a4728d2e",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/defense-budget/governed-acceptance/scoped-fact-review/scoped-fact-review-s3-artifact-loader.integration.spec.ts",
+      "sha256": "beafaa66ffbd2f8c0455a2cb52a887d0b231c204d4c63bc34ada09e7bbc1b232",
+      "environmentVariableNames": [
+        "AWS_REGION",
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "providerConstructorMention",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/defense-budget/governed-acceptance/scoped-fact-review/phase10b35-scoped-review-e2e.integration.spec.ts",
+      "sha256": "2a740a23e838714de32cf47f7a1616675b2376fe6a6957382e7d350773cee38d",
+      "environmentVariableNames": [
+        "BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT",
+        "DATABASE_URL",
+        "DEFENSE_BUDGET_PARSER_PROJECT_DIR"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/defense-budget/governed-acceptance/candidate-correction/phase10b41-hardening.integration.spec.ts",
+      "sha256": "08002717c8501a5e01f704a9039a0a745c70e1900c2d3d0c489658afb6687c95",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "SQLCalls",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/defense-api/runtime-source/defense-budget/governed-acceptance/candidate-correction/phase10b35c-candidate-correction-e2e.integration.spec.ts",
+      "sha256": "0c85f4d76ba0baa240ce268c8180138e0cecb62a30816cac48a545af1ce0547b",
+      "environmentVariableNames": [
+        "BUDGET_VERIFICATION_PARSER_ARTIFACT_ROOT",
+        "DATABASE_URL",
+        "DEFENSE_BUDGET_PARSER_PROJECT_DIR"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [
+        "prismaClientConstructor",
+        "literalSkipGuard"
+      ],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/api-strategy/src/app.module.di-boot.spec.ts",
+      "sha256": "935b9f033b84771f9f85e79d42b736345c65ff61b7e70634bc47be6c7a341ba4",
+      "environmentVariableNames": [
+        "DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL"
+      ],
+      "staticHints": [],
+      "classification": "source triage only; constructors/SQL may be mocks, inspect setup and transitive calls before execution"
+    },
+    {
+      "path": "apps/workspace/test/engine-api.int-spec.ts",
+      "sha256": "39afae85f41198700fb49a68485619675e01ee41a41e937256671d71af8843c6",
+      "environmentVariableNames": [
+        "DATABASE_URL",
+        "WS_TEST_DATABASE_URL"
+      ],
+      "databaseEnvironmentNames": [
+        "DATABASE_URL",
+        "WS_TEST_DATABASE_URL"
+      ],
+      "staticHints": [
+        "explicitMigrateDeploy",
+        "seed",
+        "PrismaServiceConstructor",
+        "connect",
+        "literalSkipGuard"
+      ],
+      "classification": "inspected native-mutating setup; never execute in this audit"
+    }
+  ]
+}

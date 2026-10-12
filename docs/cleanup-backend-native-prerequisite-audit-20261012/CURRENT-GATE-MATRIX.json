@@ -1,0 +1,249 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "tree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "originalGapIdsPreserved": [
+    "step0",
+    "cleanFullGate",
+    "pythonCI",
+    "architectureCI",
+    "directCI",
+    "routeBaselines",
+    "baselineManifest",
+    "visualThreeRepeats",
+    "coverage",
+    "baselineFailures",
+    "casePreservation"
+  ],
+  "criteria": [
+    {
+      "id": "step0",
+      "criterion": "\u00a72 Step0 fresh discovery",
+      "historicalEntryUnmodified": {
+        "id": "step0",
+        "criterion": "\u00a72 Step0 fresh discovery",
+        "status": "SOURCE PASS / RELEASE OPEN",
+        "detail": "13 discovered test-bearing packages, zero unsupported runners. Parsed YAML/coverage/CLI divergence receipts attached; native name dumps and complete clean source run pending.",
+        "releaseAccepted": false
+      },
+      "currentSourceQualification": "Current pure discovery passes:14 test-bearing packages, zero unexplained runners. Old13-count record retained.",
+      "requiredCapabilitiesOrEvidence": [
+        "Current-source test name/status dumps for every runner, reconcile all divergences and frozen source/archive identity."
+      ],
+      "fullReleaseAccepted": false
+    },
+    {
+      "id": "cleanFullGate",
+      "criterion": "Frozen install and full gate from clean checkout",
+      "historicalEntryUnmodified": {
+        "id": "cleanFullGate",
+        "criterion": "Frozen install and full gate from clean checkout",
+        "status": "BLOCKED: SOURCE + ENVIRONMENT + NATIVE",
+        "detail": "Root gate carrier/commands absent; pnpm11.25.0 differs from pinned9.12.0; full database, pinned visual and Python gate unavailable in source-only scope.",
+        "releaseAccepted": false
+      },
+      "currentSourceQualification": "Gate carrier/CI wiring exists; exact ownedpnpm9.12 available; offline currentCore/WS native-bearing generation succeeds. No frozen whole install or fullgate executed.",
+      "requiredCapabilitiesOrEvidence": [
+        "Clean isolated source-matched frozen dependency install; all five CI Prisma client schemas plus Defense build/projection contexts generated offline or separately approved; approved disposablePG/roles/fixtures; pinned visual runtime; authentic currentcoveragefloor; every unchangedrunner/gate with real exit receipts."
+      ],
+      "fullReleaseAccepted": false
+    },
+    {
+      "id": "pythonCI",
+      "criterion": "Python gate and ruff/mypy/pytest CI",
+      "historicalEntryUnmodified": {
+        "id": "pythonCI",
+        "criterion": "Python gate and ruff/mypy/pytest CI",
+        "status": "BLOCKED: SOURCE + ENVIRONMENT",
+        "detail": "Parser CI workflow absent. Python3.12.14 exists; frozen dev tools pytest/pytest_cov/ruff/mypy absent; no sync/install performed.",
+        "releaseAccepted": false
+      },
+      "currentSourceQualification": "Frozen official base+dev install succeeds with 26 exact distributions. Complete unchanged pytest-cov passes 283/283 with zero skips and 79% line/branch combined coverage. Ruff has eight failures and mypy three; exact raw REDs retained. Hosted supported-version CI remains unexecuted.",
+      "requiredCapabilitiesOrEvidence": [
+        "Independently reviewed, narrow corrections to the eight Ruff/three mypy diagnostics; rerun all unchanged checks/case names. Exact Python3.11 and3.12 frozen base+dev CI evidence remains separate. No heavy OCR/docling/camelot or paid-model installation required."
+      ],
+      "fullReleaseAccepted": false
+    },
+    {
+      "id": "architectureCI",
+      "criterion": "Four architecture guards run and pass in CI",
+      "historicalEntryUnmodified": {
+        "id": "architectureCI",
+        "criterion": "Four architecture guards run and pass in CI",
+        "status": "SOURCE CHECKS PASS / CI SOURCE GAP",
+        "detail": "All four guards pass locally; only context guard has actual YAML run wiring. Three other guards unwired.",
+        "releaseAccepted": false
+      },
+      "currentSourceQualification": "All four guard paths exist and are wired through current gate. Source wiring and historicguardcontrols are not hostedCI completion.",
+      "requiredCapabilitiesOrEvidence": [
+        "Current diffbase/origin ref and reviewed source; actual safe local fourguard checks plus hostedCI execution with retained output/status."
+      ],
+      "fullReleaseAccepted": false
+    },
+    {
+      "id": "directCI",
+      "criterion": "Direct Core/Web/Defense test CI steps",
+      "historicalEntryUnmodified": {
+        "id": "directCI",
+        "criterion": "Direct Core/Web/Defense test CI steps",
+        "status": "INHERITED SOURCE GAP",
+        "detail": "No direct package test step in current ci-pr.yml for these three; Strategy direct step exists.",
+        "releaseAccepted": false
+      },
+      "currentSourceQualification": "Currentci-pr source has directCore/Defense tests; exact oldWeb test now in independentfrontendjob. No execution claimed here.",
+      "requiredCapabilitiesOrEvidence": [
+        "Native/generated/build dependencies for Core/Defense mixedsuites; heldfrontendowner dependencies for Web; same-source hostedCI execution and authentic reports; no silentselectionloss."
+      ],
+      "fullReleaseAccepted": false
+    },
+    {
+      "id": "routeBaselines",
+      "criterion": "Every current route has enforced committed baseline",
+      "historicalEntryUnmodified": {
+        "id": "routeBaselines",
+        "criterion": "Every current route has enforced committed baseline",
+        "status": "BLOCKED: SOURCE + RUNTIME",
+        "detail": "E2E package, route guard and baseline manifest absent in RC; no current pinned capture executed.",
+        "releaseAccepted": false
+      },
+      "currentSourceQualification": "E2E package/routeguard/committedmanifest present; manifest is historicalc180165 capture.",
+      "requiredCapabilitiesOrEvidence": [
+        "Current-source immutable archive, current Web routeinventory, pinned externalPlaywright1.63 runtime and exactcontainer image/browser/font/localeidentity; genuine renderer-bound routecoverage run and accepted committedbaseline relationships."
+      ],
+      "fullReleaseAccepted": false
+    },
+    {
+      "id": "baselineManifest",
+      "criterion": "Capture hash/SHA/purpose manifest",
+      "historicalEntryUnmodified": {
+        "id": "baselineManifest",
+        "criterion": "Capture hash/SHA/purpose manifest",
+        "status": "INHERITED SOURCE GAP",
+        "detail": "Manifest absent; historical original Cleanup baseline and controls remain reference evidence only.",
+        "releaseAccepted": false
+      },
+      "currentSourceQualification": "Currentbaseline manifest exists purpose regression-not-parity withsha/capturingSHAhistoricalc180165, notmissing.",
+      "requiredCapabilitiesOrEvidence": [
+        "Validate everyPNG/hash/capturingSHA/renderfingerprint against actual current declaredcomparisons and authentic sourceprovenance; historicalmanifest existence cannot claim currentvisualacceptance."
+      ],
+      "fullReleaseAccepted": false
+    },
+    {
+      "id": "visualThreeRepeats",
+      "criterion": "Three identical-source zero-diff visual runs",
+      "historicalEntryUnmodified": {
+        "id": "visualThreeRepeats",
+        "criterion": "Three identical-source zero-diff visual runs",
+        "status": "UNRUN RUNTIME",
+        "detail": "No current pinned image/source archive capture, host-derived context or three repeats. No baseline updated.",
+        "releaseAccepted": false
+      },
+      "currentSourceQualification": "PinnedportableDocker carrier exists; dockerCLI/socket/process availability observed only; no image/daemon/render readiness proof.",
+      "requiredCapabilitiesOrEvidence": [
+        "Pinnedimage bc6ab0d6... and externalPlaywright1.63 Linuxdeps; task-owned container/volume lifecycle with no-network capture; identicalsource3real zero-diff repeats/rawroute/list/run receipts."
+      ],
+      "fullReleaseAccepted": false
+    },
+    {
+      "id": "coverage",
+      "criterion": "Immutable coverage baseline without thresholds",
+      "historicalEntryUnmodified": {
+        "id": "coverage",
+        "criterion": "Immutable coverage baseline without thresholds",
+        "status": "INHERITED SOURCE GAP",
+        "detail": "Baseline absent plus four missing test:coverage scripts. Original historical verifier passes on2392; it does not accept RC.",
+        "releaseAccepted": false
+      },
+      "currentSourceQualification": "Fourcoverage aliases and failclosedmeasure/verify carriers exist, but docs/plans/cleanup1-coverage-baseline.json remainsabsent.",
+      "requiredCapabilitiesOrEvidence": [
+        "Actual completeCore/Web/Workspace/Onboard coverage plus Pythonreport frompassingruns; immutablehistoricalfloor/rawreports/sourcefingerprint/ancestorprovenance committed undercanonicalowner, no thresholds/failing-run baseline manufacture."
+      ],
+      "fullReleaseAccepted": false
+    },
+    {
+      "id": "baselineFailures",
+      "criterion": "Every baseline failure repaired and verified; no quarantine",
+      "historicalEntryUnmodified": {
+        "id": "baselineFailures",
+        "criterion": "Every baseline failure repaired and verified; no quarantine",
+        "status": "EXISTING BASELINE FAILURES OPEN",
+        "detail": "47 unchanged formatter failures, Meri catalog count failure and PE pathname exact-main baseline failure remain red. Artifact candidate failure stays red with an environment-dependent timing classification and explicitly inferred causation; main original assertion passes. No unrelated repair or quarantine.",
+        "releaseAccepted": false
+      },
+      "currentSourceQualification": "Oldformatter/Meri/pathname historicalREDs retained as historical, notalldeclaredcurrent. Current originalWorkspacecascade test stillexpects10 vs preserved11registry; fullfloor raw-evidence38whitespace warnings retained in currenthandoff.",
+      "requiredCapabilitiesOrEvidence": [
+        "Fresh full-suite/formatter/current-floor resultclassification and ownerreviewedcorrections with no test/quarantine/skip/evidence erasure. PreserveMemory3manual-command andoperator-manifest gaps; productdecisions remain root-owned."
+      ],
+      "fullReleaseAccepted": false
+    },
+    {
+      "id": "casePreservation",
+      "criterion": "Cross-runner case/status proof; no removed cases/new skips",
+      "historicalEntryUnmodified": {
+        "id": "casePreservation",
+        "criterion": "Cross-runner case/status proof; no removed cases/new skips",
+        "status": "SOURCE DELTA PASS / FULL PROOF OPEN",
+        "detail": "This delta edits no tests, skip/only, snapshots or assertions. Full original cross-runner case-name/status/failure proof remains unrun; source/partial counts do not substitute.",
+        "releaseAccepted": false
+      },
+      "currentSourceQualification": "Source audit modifiesonlyunique evidence docs; freshlocal45worker+25fake/source controls pass, notwhole-caseproof.",
+      "requiredCapabilitiesOrEvidence": [
+        "Exact current crossrunner fullname/status/error multiset and comparison against original/source floors, preserve every baselinefailed/skipped/todo case and all attemptedrun logs; no newskip/only or passingbaseline fromredrun."
+      ],
+      "fullReleaseAccepted": false
+    }
+  ],
+  "historicalMissingSourceCarrierCurrentPresence": [
+    {
+      "path": "scripts/cleanup-gates/gate.mjs",
+      "present": true
+    },
+    {
+      "path": "docs/plans/cleanup1-coverage-baseline.json",
+      "present": false
+    },
+    {
+      "path": "scripts/cleanup-gates/verify-baseline.mjs",
+      "present": true
+    },
+    {
+      "path": "scripts/test-proof/run-fixtures.mjs",
+      "present": true
+    },
+    {
+      "path": "scripts/cleanup-gates/pinned-visual-controls.mjs",
+      "present": true
+    },
+    {
+      "path": "apps/e2e/lib/render-context-controls.mjs",
+      "present": true
+    },
+    {
+      "path": "scripts/cleanup-gates/standalone-node.test.mjs",
+      "present": true
+    },
+    {
+      "path": "apps/e2e/package.json",
+      "present": true
+    },
+    {
+      "path": "apps/e2e/scripts/guard-route-coverage.mjs",
+      "present": true
+    },
+    {
+      "path": "apps/e2e/baselines/manifest.json",
+      "present": true
+    },
+    {
+      "path": ".github/workflows/defense-budget-parser-ci.yml",
+      "present": true
+    }
+  ],
+  "overlap": {
+    "root": "parser8.0.2/Core+Workspace typing/othergates/integration/publication",
+    "newsletterAgent": "originalnewsletterfake/nativeSharplocalCPUsuites",
+    "thisAudit": "sourcecapability/fixturematrix; harmlessversions; isolatedofflineschema/clientcopy; pure45+25controls; isolatedlockedPythonbase+devchecks",
+    "protectedReporting": "unpublishedEngagementServicereportingbranches/bodiesnotreadormodified",
+    "frontend": "heldfrontendassets/consumermodel coordination unchanged"
+  },
+  "fullReleaseAcceptance": false
+}

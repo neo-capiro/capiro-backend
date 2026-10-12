@@ -1,0 +1,348 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "cachedPackages": [
+    {
+      "name": "prisma",
+      "version": "5.22.0",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/prisma/package.json",
+      "sha256": "01c1aa746e5b0aebf01b38ec1aaffaebc098bacfe93b2f413fd4112de9251ae3"
+    },
+    {
+      "name": "@prisma/client",
+      "version": "5.22.0",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/package.json",
+      "sha256": "2efa3f7c0f05cf2bd4b681b71dd0e7a197006a3c29f2acdb5f88d5e7bc9bb2e3"
+    },
+    {
+      "name": "prisma",
+      "version": "5.22.0",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/package.json",
+      "sha256": "01c1aa746e5b0aebf01b38ec1aaffaebc098bacfe93b2f413fd4112de9251ae3"
+    },
+    {
+      "name": "@prisma/engines",
+      "version": "5.22.0",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/@prisma/engines/package.json",
+      "sha256": "eaa81442c1a545b8fb22720a6b50fb4d7e354608590ef0c9384f18755fdfc465"
+    },
+    {
+      "name": "@prisma/engines",
+      "version": "5.22.0",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/package.json",
+      "sha256": "eaa81442c1a545b8fb22720a6b50fb4d7e354608590ef0c9384f18755fdfc465"
+    },
+    {
+      "name": "@prisma/engines-version",
+      "version": "5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines-version/package.json",
+      "sha256": "c7832d50ed2791a2fa203ea331897f339a05a7004e17eed69ea9a22dca21455d"
+    },
+    {
+      "name": "@prisma/engines-version",
+      "version": "5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines-version@5.22.0-44.605197351a3c8bdd595af2d2a9bc3025bca48ea2/node_modules/@prisma/engines-version/package.json",
+      "sha256": "c7832d50ed2791a2fa203ea331897f339a05a7004e17eed69ea9a22dca21455d"
+    },
+    {
+      "name": "pg",
+      "version": "8.23.0",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/pg@8.23.0/node_modules/pg/package.json",
+      "sha256": "e42dd36cba6e9dd8dbb6f773a2f7be8a8c3c273e18b155e42e75961a4cb8bc28"
+    },
+    {
+      "name": "jest",
+      "version": "29.7.0",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest/package.json",
+      "sha256": "679fd6f49e8dcb1fd82b7d610c5d555b70204ad2e5e5092e284e9bc10eb9f353"
+    },
+    {
+      "name": "jest",
+      "version": "29.7.0",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/jest/package.json",
+      "sha256": "679fd6f49e8dcb1fd82b7d610c5d555b70204ad2e5e5092e284e9bc10eb9f353"
+    },
+    {
+      "name": "ts-jest",
+      "version": "29.4.14",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest/package.json",
+      "sha256": "a1e0c2406857ad720d0f69ce4b27e5343969504f244c0094ce8b56d6ed19fb15"
+    },
+    {
+      "name": "vitest",
+      "version": "2.1.9",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/vitest@2.1.9_@types+node@26.6.3_jsdom@29.1.1_@noble+hashes@1.8.0__lightningcss@1.32.0_terser@5.46.2/node_modules/vitest/package.json",
+      "sha256": "6ea35e567829660d9832744086c18526b9ddebd5358c4a0cadfb0a355925f917"
+    },
+    {
+      "name": "sharp",
+      "version": "0.35.5",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/package.json",
+      "sha256": "ad4a2535d72eb638053a38867b1abf43c328cd1c1dbae5cf4172d498365a8b97"
+    },
+    {
+      "name": "htmlparser2",
+      "version": "10.1.0",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/htmlparser2@10.1.0/node_modules/htmlparser2/package.json",
+      "sha256": "8aa0d39ff4c9df2d53b02a0fe434d03a6348353cb1d23ea2b448692687b8c8ab"
+    },
+    {
+      "name": "htmlparser2",
+      "version": "12.0.0",
+      "manifest": "/workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/package.json",
+      "sha256": "2056f738ff8f63a73ebf931b7d220b2d1b93b0884454f94447cb4c3f54a603b1"
+    }
+  ],
+  "enginePackageArtifacts": [
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/libquery_engine-debian-openssl-3.0.x.so.node",
+      "size": 16161048,
+      "binaryOrWasmInvoked": false
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+      "size": 14149792,
+      "binaryOrWasmInvoked": false
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/query_engine_bg.mysql.wasm",
+      "size": 2091810,
+      "binaryOrWasmInvoked": false
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/query_engine_bg.postgresql.wasm",
+      "size": 2130325,
+      "binaryOrWasmInvoked": false
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/runtime/query_engine_bg.sqlite.wasm",
+      "size": 1986352,
+      "binaryOrWasmInvoked": false
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/libquery_engine-debian-openssl-3.0.x.so.node",
+      "size": 16161048,
+      "binaryOrWasmInvoked": false
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+      "size": 14149792,
+      "binaryOrWasmInvoked": false
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/prisma@5.22.0/node_modules/prisma/build/prisma_schema_build_bg.wasm",
+      "size": 2893316,
+      "binaryOrWasmInvoked": false
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/libquery_engine-debian-openssl-3.0.x.so.node",
+      "size": 16161048,
+      "binaryOrWasmInvoked": false
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/schema-engine-debian-openssl-3.0.x",
+      "size": 18802864,
+      "binaryOrWasmInvoked": false
+    }
+  ],
+  "generatedClientDirectories": [
+    {
+      "path": "/workspace/capirov2/node_modules/.prisma/client",
+      "exists": false,
+      "instantiated": false
+    },
+    {
+      "path": "/workspace/capirov2/apps/api/node_modules/.prisma/client",
+      "exists": false,
+      "instantiated": false
+    },
+    {
+      "path": "/workspace/capirov2/apps/workspace/generated/prisma-client",
+      "exists": true,
+      "instantiated": false,
+      "topLevelFiles": [
+        {
+          "name": "default.d.ts",
+          "bytes": 23
+        },
+        {
+          "name": "default.js",
+          "bytes": 36
+        },
+        {
+          "name": "edge.d.ts",
+          "bytes": 25
+        },
+        {
+          "name": "edge.js",
+          "bytes": 141347
+        },
+        {
+          "name": "index-browser.js",
+          "bytes": 17060
+        },
+        {
+          "name": "index.d.ts",
+          "bytes": 1678238
+        },
+        {
+          "name": "index.js",
+          "bytes": 142260
+        },
+        {
+          "name": "libquery_engine-debian-openssl-3.0.x.so.node",
+          "bytes": 16161048
+        },
+        {
+          "name": "libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+          "bytes": 14149792
+        },
+        {
+          "name": "package.json",
+          "bytes": 2601
+        },
+        {
+          "name": "schema.prisma",
+          "bytes": 32762
+        },
+        {
+          "name": "wasm.d.ts",
+          "bytes": 23
+        },
+        {
+          "name": "wasm.js",
+          "bytes": 17060
+        }
+      ],
+      "nativeOrWasmBinaryArtifactPaths": [
+        "libquery_engine-debian-openssl-3.0.x.so.node",
+        "libquery_engine-linux-arm64-openssl-3.0.x.so.node"
+      ]
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/.enginefree/core-client",
+      "exists": true,
+      "instantiated": false,
+      "topLevelFiles": [
+        {
+          "name": "default.d.ts",
+          "bytes": 23
+        },
+        {
+          "name": "default.js",
+          "bytes": 36
+        },
+        {
+          "name": "edge.d.ts",
+          "bytes": 25
+        },
+        {
+          "name": "edge.js",
+          "bytes": 3814816
+        },
+        {
+          "name": "index-browser.js",
+          "bytes": 256888
+        },
+        {
+          "name": "index.d.ts",
+          "bytes": 54570016
+        },
+        {
+          "name": "index.js",
+          "bytes": 3815091
+        },
+        {
+          "name": "package.json",
+          "bytes": 2601
+        },
+        {
+          "name": "schema.prisma",
+          "bytes": 979560
+        },
+        {
+          "name": "wasm.d.ts",
+          "bytes": 23
+        },
+        {
+          "name": "wasm.js",
+          "bytes": 256888
+        }
+      ],
+      "nativeOrWasmBinaryArtifactPaths": []
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/generated/prisma-client",
+      "exists": true,
+      "instantiated": false,
+      "topLevelFiles": [
+        {
+          "name": "default.d.ts",
+          "bytes": 23
+        },
+        {
+          "name": "default.js",
+          "bytes": 36
+        },
+        {
+          "name": "edge.d.ts",
+          "bytes": 25
+        },
+        {
+          "name": "edge.js",
+          "bytes": 193377
+        },
+        {
+          "name": "index-browser.js",
+          "bytes": 21004
+        },
+        {
+          "name": "index.d.ts",
+          "bytes": 2456926
+        },
+        {
+          "name": "index.js",
+          "bytes": 193689
+        },
+        {
+          "name": "package.json",
+          "bytes": 2601
+        },
+        {
+          "name": "schema.prisma",
+          "bytes": 41761
+        },
+        {
+          "name": "wasm.d.ts",
+          "bytes": 23
+        },
+        {
+          "name": "wasm.js",
+          "bytes": 21004
+        }
+      ],
+      "nativeOrWasmBinaryArtifactPaths": []
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client",
+      "exists": true,
+      "topLevelNames": [
+        "default.d.ts",
+        "default.js",
+        "deno",
+        "edge.d.ts",
+        "edge.js",
+        "index-browser.js",
+        "index.d.ts",
+        "index.js",
+        "libquery_engine-debian-openssl-3.0.x.so.node",
+        "libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+        "package.json",
+        "schema.prisma",
+        "wasm.d.ts",
+        "wasm.js"
+      ],
+      "instantiated": false
+    }
+  ],
+  "qualification": "File/package availability only. Wasm schema/parser bytes and engine-free JS/declarations are not a native PostgreSQL engine/client acceptance; no module/client/engine loaded or generated, no version bypass/download."
+}

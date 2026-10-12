@@ -1,0 +1,1164 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "checks": [
+    {
+      "name": "all original eleven IDs and exact names retained",
+      "ok": true
+    },
+    {
+      "name": "historical original matrix byte-exact",
+      "ok": true
+    },
+    {
+      "name": "original blockers byte-exact",
+      "ok": true
+    },
+    {
+      "name": "base exact",
+      "ok": true
+    },
+    {
+      "name": "no tracked source or original evidence changed",
+      "ok": true
+    },
+    {
+      "name": "exact original source docs/plans/CleanUp1.md",
+      "ok": true
+    },
+    {
+      "name": "Git original source docs/plans/CleanUp1.md",
+      "ok": true
+    },
+    {
+      "name": "exact original source docs/cleanup-source-gates-20261012/GATE-MATRIX.json",
+      "ok": true
+    },
+    {
+      "name": "Git original source docs/cleanup-source-gates-20261012/GATE-MATRIX.json",
+      "ok": true
+    },
+    {
+      "name": "exact original source docs/cleanup-source-gates-20261012/BLOCKERS.json",
+      "ok": true
+    },
+    {
+      "name": "Git original source docs/cleanup-source-gates-20261012/BLOCKERS.json",
+      "ok": true
+    },
+    {
+      "name": "exact original source docs/cleanup-executable-prereqs-20261012/HANDOFF.md",
+      "ok": true
+    },
+    {
+      "name": "Git original source docs/cleanup-executable-prereqs-20261012/HANDOFF.md",
+      "ok": true
+    },
+    {
+      "name": "exact original source docs/cleanup-retirement-bounded-verification-integration-20261012/HANDOFF.md",
+      "ok": true
+    },
+    {
+      "name": "Git original source docs/cleanup-retirement-bounded-verification-integration-20261012/HANDOFF.md",
+      "ok": true
+    },
+    {
+      "name": "exact original source docs/cleanup-newsletter-two-contract-reviewed-source-20261012/HANDOFF.md",
+      "ok": true
+    },
+    {
+      "name": "Git original source docs/cleanup-newsletter-two-contract-reviewed-source-20261012/HANDOFF.md",
+      "ok": true
+    },
+    {
+      "name": "exact original source docs/cleanup-newsletter-two-contract-reviewed-source-20261012/COMPOSITION-ACCEPTANCE.md",
+      "ok": true
+    },
+    {
+      "name": "Git original source docs/cleanup-newsletter-two-contract-reviewed-source-20261012/COMPOSITION-ACCEPTANCE.md",
+      "ok": true
+    },
+    {
+      "name": "exact original source docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/enginefree-generation-receipt.json",
+      "ok": true
+    },
+    {
+      "name": "Git original source docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/enginefree-generation-receipt.json",
+      "ok": true
+    },
+    {
+      "name": "exact original source docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/validate-and-generate-enginefree.cjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source docs/cleanup-newsletter-two-contract-source-preservation-20261012/evidence/validate-and-generate-enginefree.cjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source package.json",
+      "ok": true
+    },
+    {
+      "name": "Git original source package.json",
+      "ok": true
+    },
+    {
+      "name": "exact original source pnpm-lock.yaml",
+      "ok": true
+    },
+    {
+      "name": "Git original source pnpm-lock.yaml",
+      "ok": true
+    },
+    {
+      "name": "exact original source pnpm-workspace.yaml",
+      "ok": true
+    },
+    {
+      "name": "Git original source pnpm-workspace.yaml",
+      "ok": true
+    },
+    {
+      "name": "exact original source turbo.json",
+      "ok": true
+    },
+    {
+      "name": "Git original source turbo.json",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/cleanup-gates/gate.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/cleanup-gates/gate.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/cleanup-gates/gate-config.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/cleanup-gates/gate-config.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/cleanup-gates/lib/scope.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/cleanup-gates/lib/scope.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/cleanup-gates/lib/quirks.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/cleanup-gates/lib/quirks.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/test-proof/lib/discovery.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/test-proof/lib/discovery.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source .github/workflows/cleanup1-gate.yml",
+      "ok": true
+    },
+    {
+      "name": "Git original source .github/workflows/cleanup1-gate.yml",
+      "ok": true
+    },
+    {
+      "name": "exact original source .github/workflows/ci-pr.yml",
+      "ok": true
+    },
+    {
+      "name": "Git original source .github/workflows/ci-pr.yml",
+      "ok": true
+    },
+    {
+      "name": "exact original source .github/workflows/defense-budget-parser-ci.yml",
+      "ok": true
+    },
+    {
+      "name": "Git original source .github/workflows/defense-budget-parser-ci.yml",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/pyproject.toml",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/pyproject.toml",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/uv.lock",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/uv.lock",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/package.json",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/package.json",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/workspace/package.json",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/workspace/package.json",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-api/package.json",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-api/package.json",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/prisma/schema.prisma",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/prisma/schema.prisma",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/workspace/prisma/schema.prisma",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/workspace/prisma/schema.prisma",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/jest.config.cjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/jest.config.cjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/jest.worker-database.cjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/jest.worker-database.cjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/jest.worker-database-controls.cjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/jest.worker-database-controls.cjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/jest.setup.ts",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/jest.setup.ts",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/jest.e2e.config.cjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/jest.e2e.config.cjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/cleanup-runtime-equivalence.jest.cjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/cleanup-runtime-equivalence.jest.cjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/ci/bootstrap-disposable-postgres-roles.sh",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/ci/bootstrap-disposable-postgres-roles.sh",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/ci/bootstrap-disposable-databases.sh",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/ci/bootstrap-disposable-databases.sh",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/ci/disposable-capiro-worker-prerequisite.sql",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/ci/disposable-capiro-worker-prerequisite.sql",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/ci/research-portfolio-append-only-prerequisite.sql",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/ci/research-portfolio-append-only-prerequisite.sql",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/ci/bootstrap-funding-opportunities-test-dbs.sh",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/ci/bootstrap-funding-opportunities-test-dbs.sh",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/ci/additional-disposable-bootstrap.test.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/ci/additional-disposable-bootstrap.test.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/ci/remaining-rehearsal-bootstrap.test.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/ci/remaining-rehearsal-bootstrap.test.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/verify-phase8-session2-db.sh",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/verify-phase8-session2-db.sh",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/verify-phase8-session4.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/verify-phase8-session4.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/e2e/linux/run-linux-capture.sh",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/e2e/linux/run-linux-capture.sh",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/e2e/linux/Dockerfile",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/e2e/linux/Dockerfile",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/cleanup-script-smoke/README.md",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/cleanup-script-smoke/README.md",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/cleanup-script-smoke/Dockerfile.audit",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/cleanup-script-smoke/Dockerfile.audit",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/workspace/test/engine-api.int-spec.ts",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/workspace/test/engine-api.int-spec.ts",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/intel-api/test/rls.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/intel-api/test/rls.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/src/clients/client-people-delete-manager.integration.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/src/clients/client-people-delete-manager.integration.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/src/prisma/migration-policy-pack-lifecycle-concurrency.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/src/prisma/migration-policy-pack-lifecycle-concurrency.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/src/memory/memory-embedding-lifecycle.postgres.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/src/memory/memory-embedding-lifecycle.postgres.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/src/meri/meri-research-provider-budget.pg.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/src/meri/meri-research-provider-budget.pg.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/test/e2e/defense-budget-intelligence.e2e.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/test/e2e/defense-budget-intelligence.e2e.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/outreach-v3-qualification-plan.spec.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/outreach-v3-qualification-plan.spec.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/verify-engagement-phase3-code.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/verify-engagement-phase3-code.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/verify-outreach-v3-phase1-code.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/verify-outreach-v3-phase1-code.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/verify-outreach-v3-phase3-code.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/verify-outreach-v3-phase3-code.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/verify-outreach-v3-phase4-code.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/verify-outreach-v3-phase4-code.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/workspace/test/cascade.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/workspace/test/cascade.spec.ts",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/workspace/src/cascade/workspace-product.registry.ts",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/workspace/src/cascade/workspace-product.registry.ts",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "ok": true
+    },
+    {
+      "name": "exact original source scripts/engagement-phase3-qualification-plan.mjs",
+      "ok": true
+    },
+    {
+      "name": "Git original source scripts/engagement-phase3-qualification-plan.mjs",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/e2e/baselines/manifest.json",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/e2e/baselines/manifest.json",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/camelot_engine.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/camelot_engine.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/canonical_json.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/canonical_json.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/cli.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/cli.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/contracts.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/contracts.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/docling_engine.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/docling_engine.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/engine_versions.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/engine_versions.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/common/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/common/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/common/congressional_table.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/common/congressional_table.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hacd/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/hasc/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/contracts.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/contracts.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/language.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/language.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/contracts.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/contracts.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/provisions/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sacd/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/__init__.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/extractor.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/extractors/stages/sasc/semantics.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/normalize.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/normalize.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/paddleocr_engine.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/paddleocr_engine.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/pdf_profile.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/pdf_profile.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/pdfplumber_engine.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/pdfplumber_engine.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/src/capiro_defense_budget_parser/profile_contract.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/src/capiro_defense_budget_parser/profile_contract.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_authorization_provision_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_authorization_provision_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_camelot_engine.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_camelot_engine.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_cli.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_cli.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_contracts.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_contracts.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_docling_engine.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_docling_engine.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_hacd_stage_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_hacd_stage_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_hasc_stage_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_hasc_stage_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_ndaa_conference_stage_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_ndaa_conference_stage_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_paddleocr_engine.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_paddleocr_engine.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_pdf_profile.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_pdf_profile.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_pdfplumber_engine.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_pdfplumber_engine.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_sacd_stage_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_sacd_stage_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "exact original source apps/defense-budget-parser/tests/test_sasc_stage_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "Git original source apps/defense-budget-parser/tests/test_sasc_stage_extractor.py",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/default.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/default.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/edge.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/edge.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/index-browser.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/index.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/index.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/libquery_engine-debian-openssl-3.0.x.so.node",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/package.json",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/edge-esm.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/edge.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/index-browser.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/index-browser.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/library.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/library.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/react-native.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/wasm.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/schema.prisma",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/wasm.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/core-client/wasm.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/default.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/default.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/edge.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/edge.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/index-browser.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/index.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/index.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/libquery_engine-debian-openssl-3.0.x.so.node",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/package.json",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/edge-esm.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/edge.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/index-browser.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/index-browser.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/library.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/library.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/react-native.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/wasm.js",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/schema.prisma",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/wasm.d.ts",
+      "ok": true
+    },
+    {
+      "name": "isolated generated output /tmp/capirov2-local-native-prerequisite-20261012/workspace-client/wasm.js",
+      "ok": true
+    },
+    {
+      "name": "283 preserved real Python cases all pass zero skips",
+      "ok": true
+    },
+    {
+      "name": "Python8Ruff3mypy RED explicit",
+      "ok": true
+    },
+    {
+      "name": "selected base/dev only26",
+      "ok": true
+    },
+    {
+      "name": "heavy extra not installed paddleocr",
+      "ok": true
+    },
+    {
+      "name": "heavy extra not installed paddlepaddle",
+      "ok": true
+    },
+    {
+      "name": "heavy extra not installed docling",
+      "ok": true
+    },
+    {
+      "name": "heavy extra not installed camelot-py",
+      "ok": true
+    },
+    {
+      "name": "no full Python or full release green",
+      "ok": true
+    },
+    {
+      "name": "coverage canonical artifact remains absent",
+      "ok": true
+    },
+    {
+      "name": "native standalone library version exact",
+      "ok": true
+    },
+    {
+      "name": "native generation probe/trace no Inet",
+      "ok": true
+    },
+    {
+      "name": "nativeversion probe/trace no Inet",
+      "ok": true
+    }
+  ],
+  "passed": 289,
+  "failed": 0,
+  "qualification": "packet/source identity checks only; no nativePG/fullgate acceptance"
+}

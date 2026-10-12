@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/tmp/capirov2-local-native-prerequisite-20261012/python-env/bin/mypy",
+    "src",
+    "--cache-dir",
+    "/tmp/capirov2-local-native-prerequisite-20261012/mypy-cache"
+  ],
+  "environmentKeys": [
+    "COVERAGE_FILE",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/defense-budget-parser",
+  "qualification": "unchangedchecks;onlycache/artifactlocationsandno-cachechanged;networkinstallnotinvoked"
+}

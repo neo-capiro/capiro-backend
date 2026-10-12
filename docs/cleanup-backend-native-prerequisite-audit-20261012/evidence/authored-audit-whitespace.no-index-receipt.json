@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--no-index",
+    "--check",
+    "/dev/null",
+    "docs/cleanup-backend-native-prerequisite-audit-20261012/AUDIT.md"
+  ],
+  "exit": 1,
+  "stdout": "",
+  "stderr": "",
+  "rawLogsNotAlteredOrBlanketAccepted": true
+}

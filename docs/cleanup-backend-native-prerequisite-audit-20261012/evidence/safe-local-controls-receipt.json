@@ -1,0 +1,14 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "workerControlExecutorExit": 0,
+  "workerControls": 45,
+  "nodeTestExecutorExit": 0,
+  "outreachAndOwnedFixtureTests": 25,
+  "passed": 70,
+  "failed": 0,
+  "commands": [
+    "node apps/api/jest.worker-database-controls.cjs",
+    "node --test scripts/outreach-v3-qualification-plan.spec.mjs apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs"
+  ],
+  "databaseProviderPnPMActionsPerformed": false
+}

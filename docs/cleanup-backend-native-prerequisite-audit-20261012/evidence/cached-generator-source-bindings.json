@@ -1,0 +1,59 @@
+{
+  "sources": [
+    {
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/internals/dist/chunk-PVHNT4K2.js",
+      "bytes": 576248,
+      "sha256": "e2bf95c9d7374912608d3523a4455257b06d2ce109c3f00ed4b79770f6f42109",
+      "inspectedPurpose": "factory contains downloads/env discovery; not invoked"
+    },
+    {
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/internals/dist/chunk-D4MCOTL5.js",
+      "bytes": 5774,
+      "sha256": "e0fdd7e2d0c1a3cf8af6001f7d7d4234945af7215ab6e081a97bfc1378da770a",
+      "inspectedPurpose": "download selection; not invoked"
+    },
+    {
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/internals/dist/chunk-635TMBAP.js",
+      "bytes": 2488,
+      "sha256": "eb5c04cabe3b0b06a62833a160787c9076470f1db6f69cb403b7efa8e14d837c",
+      "inspectedPurpose": "direct Generator only RPC init/generate/stop"
+    },
+    {
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/internals/dist/chunk-EIPWZ4J5.js",
+      "bytes": 8228,
+      "sha256": "1d52aff56f74ce990c8473c7b9cd75a4cee56182b1e1d8f27a4bf3044ef0bbf0",
+      "inspectedPurpose": "getDMMF uses official schema WASM"
+    },
+    {
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/internals/dist/chunk-PI3AAZEE.js",
+      "bytes": 8300,
+      "sha256": "48cb232d424bf35d4d4633b98b872858c5c18dba017389fd51d0682ef3abf3bc",
+      "inspectedPurpose": "getConfig uses official schema WASM/ignoreEnvVarErrors"
+    },
+    {
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/internals/dist/chunk-JNP5TBS7.js",
+      "bytes": 5133,
+      "sha256": "96e728c11c08ebd7e1ac8b6ec4244d4f64088f0efb85b967d2adf48183768a9c",
+      "inspectedPurpose": "validate uses official schema WASM"
+    },
+    {
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/internals/dist/chunk-G7LL2H2O.js",
+      "bytes": 2500,
+      "sha256": "0637cb36822a012945d16d2ef84cf8ff428545016ee9a7aa234d38052d3209d0",
+      "inspectedPurpose": "library version() independent of QueryEngine construction; complete resolver not invoked"
+    },
+    {
+      "path": "/tmp/capiro-prisma-objective-tools/node_modules/@prisma/generator-helper/dist/chunk-XSSRFZR7.js",
+      "bytes": 25450,
+      "sha256": "2992e13aafbc827fc15100c7a3adde2435331ae4a70c07a8543440a245c5e173",
+      "inspectedPurpose": "official Node generator fork adds controlled marker/IPC, no other child operation"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/generator-build/index.js",
+      "bytes": 349605,
+      "sha256": "1697ccccd6b9ef9bfe00277ab8347d656080854d12680568940546e1ef4602ee",
+      "inspectedPurpose": "custom output; copyEngine=!noEngine; copies supplied binaryPaths; no CLI resolver/install invoked"
+    }
+  ],
+  "qualification": "Local cache hashes, package5.22 identity and declared lock SRI/source options; this audit did not re-download or independently derive native binary registry SRI. No factory/resolveBinary/CLI/installed-client operations."
+}

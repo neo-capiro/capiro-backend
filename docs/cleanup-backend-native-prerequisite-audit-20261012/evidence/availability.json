@@ -1,0 +1,200 @@
+{
+  "schema": "cleanup.native-prerequisite-availability",
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "sourceTree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "commands": [
+    {
+      "name": "node",
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "presentOnPath": true,
+      "exit": 0,
+      "stdout": "v24.19.0\n",
+      "stderr": ""
+    },
+    {
+      "name": "pnpm",
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/bin/fallback/pnpm",
+      "presentOnPath": true,
+      "exit": 0,
+      "stdout": "11.25.0\n",
+      "stderr": "[WARN] The \"pnpm\" field in package.json is no longer read by pnpm. The following keys were ignored: \"pnpm.neverBuiltDependencies\". See https://pnpm.io/settings for the new home of each setting.\n"
+    },
+    {
+      "name": "corepack",
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/corepack",
+      "presentOnPath": true
+    },
+    {
+      "name": "python",
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python",
+      "presentOnPath": true,
+      "exit": 0,
+      "stdout": "Python 3.12.14\n",
+      "stderr": ""
+    },
+    {
+      "name": "python3",
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3",
+      "presentOnPath": true,
+      "exit": 0,
+      "stdout": "Python 3.12.14\n",
+      "stderr": ""
+    },
+    {
+      "name": "uv",
+      "path": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/uv",
+      "presentOnPath": true,
+      "exit": 0,
+      "stdout": "uv 0.12.23 (x86_64-unknown-linux-gnu)\n",
+      "stderr": ""
+    },
+    {
+      "name": "psql",
+      "path": null,
+      "presentOnPath": false
+    },
+    {
+      "name": "postgres",
+      "path": null,
+      "presentOnPath": false
+    },
+    {
+      "name": "initdb",
+      "path": null,
+      "presentOnPath": false
+    },
+    {
+      "name": "pg_ctl",
+      "path": null,
+      "presentOnPath": false
+    },
+    {
+      "name": "docker",
+      "path": "/usr/local/bin/docker",
+      "presentOnPath": true,
+      "exit": 0,
+      "stdout": "Docker version 28.4.0, build d8eb465\n",
+      "stderr": ""
+    },
+    {
+      "name": "strace",
+      "path": "/usr/bin/strace",
+      "presentOnPath": true,
+      "exit": 0,
+      "stdout": "strace -- version 6.13\nCopyright (c) 1991-2025 The strace developers <https://strace.io>.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\nOptional features enabled: stack-trace=libunwind stack-demangle m32-mpers mx32-mpers\n",
+      "stderr": ""
+    },
+    {
+      "name": "unshare",
+      "path": "/usr/bin/unshare",
+      "presentOnPath": true
+    },
+    {
+      "name": "bwrap",
+      "path": "/usr/bin/bwrap",
+      "presentOnPath": true
+    },
+    {
+      "name": "timeout",
+      "path": "/usr/bin/timeout",
+      "presentOnPath": true,
+      "exit": 0,
+      "stdout": "timeout (GNU coreutils) 9.7\nPackaged by Debian (9.7-3)\nCopyright (C) 2025 Free Software Foundation, Inc.\nLicense GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.\nThis is free software: you are free to change and redistribute it.\nThere is NO WARRANTY, to the extent permitted by law.\n\nWritten by P\u00e1draig Brady.\n",
+      "stderr": ""
+    },
+    {
+      "name": "openssl",
+      "path": "/usr/bin/openssl",
+      "presentOnPath": true,
+      "exit": 0,
+      "stdout": "OpenSSL 3.5.7 9 Jun 2026 (Library: OpenSSL 3.5.7 9 Jun 2026)\n",
+      "stderr": ""
+    }
+  ],
+  "coarseServicePresence": {
+    "processCommOnly": [
+      {
+        "pid": 209,
+        "comm": "dockerd"
+      },
+      {
+        "pid": 261,
+        "comm": "containerd"
+      },
+      {
+        "pid": 572,
+        "comm": "postgres"
+      },
+      {
+        "pid": 415993,
+        "comm": "postgres"
+      },
+      {
+        "pid": 415994,
+        "comm": "postgres"
+      },
+      {
+        "pid": 416095,
+        "comm": "postgres"
+      },
+      {
+        "pid": 416096,
+        "comm": "postgres"
+      },
+      {
+        "pid": 416097,
+        "comm": "postgres"
+      }
+    ],
+    "pathsOnly": [
+      {
+        "path": "/var/run/docker.sock",
+        "exists": true,
+        "kind": "socket"
+      },
+      {
+        "path": "/run/docker.sock",
+        "exists": true,
+        "kind": "socket"
+      },
+      {
+        "path": "/var/run/postgresql",
+        "exists": false
+      },
+      {
+        "path": "/run/postgresql",
+        "exists": false
+      }
+    ],
+    "readinessOrConnectionTested": false
+  },
+  "pythonModulesWithoutImport": [
+    {
+      "name": "pytest",
+      "discoverableInCurrentPython": false,
+      "origin": null
+    },
+    {
+      "name": "pytest_cov",
+      "discoverableInCurrentPython": false,
+      "origin": null
+    },
+    {
+      "name": "ruff",
+      "discoverableInCurrentPython": false,
+      "origin": null
+    },
+    {
+      "name": "mypy",
+      "discoverableInCurrentPython": false,
+      "origin": null
+    },
+    {
+      "name": "numpy",
+      "discoverableInCurrentPython": true,
+      "origin": "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/site-packages/numpy/__init__.py"
+    }
+  ],
+  "prohibitedOperationsPerformed": false,
+  "caveat": "PATH/sockets/process names/package files do not prove daemon, DB, engine compatibility or role/fixture readiness; no process arguments, environment values or credential files read."
+}

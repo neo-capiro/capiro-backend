@@ -1,0 +1,290 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "sourceTree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "engineVersion": "605197351a3c8bdd595af2d2a9bc3025bca48ea2",
+  "generatorPath": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client/generator-build/index.js",
+  "generatorSha256": "1697ccccd6b9ef9bfe00277ab8347d656080854d12680568940546e1ef4602ee",
+  "binaries": [
+    {
+      "target": "debian-openssl-3.0.x",
+      "filename": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/libquery_engine-debian-openssl-3.0.x.so.node",
+      "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+    },
+    {
+      "target": "linux-arm64-openssl-3.0.x",
+      "filename": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+      "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f"
+    }
+  ],
+  "parentEnvironment": [
+    "PATH",
+    "XDG_CACHE_HOME"
+  ],
+  "childAdditionalEnvironment": [
+    "PRISMA_GENERATOR_INVOCATION"
+  ],
+  "downloaderFactoryInvoked": false,
+  "prismaCLIInvoked": false,
+  "clientInstantiated": false,
+  "databaseConnected": false,
+  "queryEngineLoaded": false,
+  "results": [
+    {
+      "scope": "core",
+      "sourcePath": "apps/api/prisma/schema.prisma",
+      "schemaSha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+      "modelCount": 464,
+      "schemaValidation": "official5.22WASM",
+      "negativeSchemaRejected": true,
+      "binaryTargets": [
+        {
+          "fromEnvVar": null,
+          "value": "debian-openssl-3.0.x",
+          "native": true
+        },
+        {
+          "fromEnvVar": null,
+          "value": "linux-arm64-openssl-3.0.x"
+        }
+      ],
+      "nativeLibraryExecution": false,
+      "output": "/tmp/capirov2-local-native-prerequisite-20261012/core-client",
+      "emitted": [
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/default.d.ts",
+          "bytes": 23,
+          "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/default.js",
+          "bytes": 36,
+          "sha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/edge.d.ts",
+          "bytes": 25,
+          "sha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/edge.js",
+          "bytes": 3814853,
+          "sha256": "9a0e1ec2921b766ed73b69cadb29e02d5918c887fadf499f8abdd311391991a8"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index-browser.js",
+          "bytes": 256888,
+          "sha256": "038c3c18b62060814345c7a25a0de3e9b6036a73364b961c68ace09eb48d74ff"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index.d.ts",
+          "bytes": 54570016,
+          "sha256": "a5c83b56519dbcef9e39a85480d05245eee4c96b13e8438a2124432982b1d3b6"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/index.js",
+          "bytes": 3815948,
+          "sha256": "fb6e22a71beb71c70dde87d3e637bec514ec4a174c89388537ef46016753e85a"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/libquery_engine-debian-openssl-3.0.x.so.node",
+          "bytes": 16161048,
+          "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+          "bytes": 14149792,
+          "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/package.json",
+          "bytes": 2601,
+          "sha256": "dfa1538f40f2586171fa9657903a4e484b916839165fb1c0e2a667d5cde83f24"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/edge-esm.js",
+          "bytes": 166095,
+          "sha256": "bad30b145b6994c8c862fbe42a5e7fc0b85c7b655b245fdfe5df9e635ab72fe8"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/edge.js",
+          "bytes": 166370,
+          "sha256": "c43b46015a75a52e283616ce63927baa0299a22166cbfbcc9b86ac03a50c42b2"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/index-browser.d.ts",
+          "bytes": 11850,
+          "sha256": "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/index-browser.js",
+          "bytes": 34709,
+          "sha256": "b8e7ecc96d6a1824365eea35c638da6746ef1d17db54cf0d276e31f576cf1120"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/library.d.ts",
+          "bytes": 117585,
+          "sha256": "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/library.js",
+          "bytes": 191178,
+          "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/react-native.js",
+          "bytes": 174707,
+          "sha256": "f95142fd9db2606a061e1361603f1832a674152a71571f5c4526302e08ffe611"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/runtime/wasm.js",
+          "bytes": 124187,
+          "sha256": "5bbb124f65b744d8a5fa910ad83750aa848e2a7ca10be5e4e29bf3eab0a0a9ab"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/schema.prisma",
+          "bytes": 979560,
+          "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/wasm.d.ts",
+          "bytes": 23,
+          "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/core-client/wasm.js",
+          "bytes": 256888,
+          "sha256": "038c3c18b62060814345c7a25a0de3e9b6036a73364b961c68ace09eb48d74ff"
+        }
+      ]
+    },
+    {
+      "scope": "workspace",
+      "sourcePath": "apps/workspace/prisma/schema.prisma",
+      "schemaSha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02",
+      "modelCount": 37,
+      "schemaValidation": "official5.22WASM",
+      "negativeSchemaRejected": true,
+      "binaryTargets": [
+        {
+          "fromEnvVar": null,
+          "value": "debian-openssl-3.0.x",
+          "native": true
+        },
+        {
+          "fromEnvVar": null,
+          "value": "linux-arm64-openssl-3.0.x"
+        }
+      ],
+      "nativeLibraryExecution": false,
+      "output": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client",
+      "emitted": [
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/default.d.ts",
+          "bytes": 23,
+          "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/default.js",
+          "bytes": 36,
+          "sha256": "61419abcd0ff0f9127dd52fee7bd236d49917050317e1cc87067c1f18f86e412"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/edge.d.ts",
+          "bytes": 25,
+          "sha256": "7378dd41401ba1acff435b9c317a5b919a3d38479ed3dbd4a25c8b4fd623a224"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/edge.js",
+          "bytes": 193398,
+          "sha256": "140c6d9333d0fe71a71142d27d20156d376b6605b9304d4bdc1a7cea54dc1dd9"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/index-browser.js",
+          "bytes": 21004,
+          "sha256": "477ba30ddf58e8260fdbadab0c92d3506090512094662f863b3cd6750605b4b2"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/index.d.ts",
+          "bytes": 2456926,
+          "sha256": "8016082cb2d0597de4d65c5b5b289c0b3b5a022cfd8fef85be5ea1dedf5888f9"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/index.js",
+          "bytes": 194518,
+          "sha256": "5d19d22aec43c8933b3ed22bc48d619b528fc9ae59709c02a49637043c00c8bf"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/libquery_engine-debian-openssl-3.0.x.so.node",
+          "bytes": 16161048,
+          "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/libquery_engine-linux-arm64-openssl-3.0.x.so.node",
+          "bytes": 14149792,
+          "sha256": "78f117413e51c2f9ec32bfd70e6afbd07f511ed63310fe61984f759f6f320c4f"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/package.json",
+          "bytes": 2601,
+          "sha256": "82d083de753d15630e7e2b194402b3b7270a6db3b90f0b93eef976cda7065ffe"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/edge-esm.js",
+          "bytes": 166095,
+          "sha256": "bad30b145b6994c8c862fbe42a5e7fc0b85c7b655b245fdfe5df9e635ab72fe8"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/edge.js",
+          "bytes": 166370,
+          "sha256": "c43b46015a75a52e283616ce63927baa0299a22166cbfbcc9b86ac03a50c42b2"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/index-browser.d.ts",
+          "bytes": 11850,
+          "sha256": "0def2ed9fde3a822fccc92f6b2d42cd933b2fba5f421140cc0076d1661b2d862"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/index-browser.js",
+          "bytes": 34709,
+          "sha256": "b8e7ecc96d6a1824365eea35c638da6746ef1d17db54cf0d276e31f576cf1120"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/library.d.ts",
+          "bytes": 117585,
+          "sha256": "21247c958d397091ec30e63b27294baa1d1434c333da4fda697743190311dc62"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/library.js",
+          "bytes": 191178,
+          "sha256": "9ab29d2d4f29cfc3bef4d09eb4008edc80dac07266ca81d1e21a602a8e039050"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/react-native.js",
+          "bytes": 174707,
+          "sha256": "f95142fd9db2606a061e1361603f1832a674152a71571f5c4526302e08ffe611"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/runtime/wasm.js",
+          "bytes": 124187,
+          "sha256": "5bbb124f65b744d8a5fa910ad83750aa848e2a7ca10be5e4e29bf3eab0a0a9ab"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/schema.prisma",
+          "bytes": 41761,
+          "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/wasm.d.ts",
+          "bytes": 23,
+          "sha256": "d5eb5865d4cbaa9985cc3cfb920b230cdcf3363f1e70903a08dc4baab80b0ce1"
+        },
+        {
+          "path": "/tmp/capirov2-local-native-prerequisite-20261012/workspace-client/wasm.js",
+          "bytes": 21004,
+          "sha256": "477ba30ddf58e8260fdbadab0c92d3506090512094662f863b3cd6750605b4b2"
+        }
+      ]
+    }
+  ],
+  "qualification": "Offline exact-schema WASM validation and local native-library copy generation only; native schema-engine --version separately qualified. ARM64 library copied/identified but not executed. No native PostgreSQL, RLS, SQL, migrations, runtime client query or full production build acceptance."
+}

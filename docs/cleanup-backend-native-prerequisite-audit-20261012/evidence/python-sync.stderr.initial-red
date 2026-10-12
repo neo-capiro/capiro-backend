@@ -1,0 +1,13 @@
+warning: The `--native-tls` flag is deprecated and will be removed in a future release. Use `--system-certs` instead.
+Using CPython 3.12.14 interpreter at: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python
+Creating virtual environment at: /tmp/capirov2-local-native-prerequisite-20261012/python-env
+   Building capiro-defense-budget-parser @ file:///tmp/capirov2-cleanup-strategy-template-independent-review/apps/defense-budget-parser
+error: Failed to download `coverage==7.15.3`
+  cause: Request failed after 3 retries in 37.7s
+  cause: Failed to fetch: https://files.pythonhosted.org/packages/66/64/43e72500ed6815cef189f9193f29d7af4b078830337c95ea976cd0c0d427/coverage-7.15.3-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
+  cause: error sending request for url (https://files.pythonhosted.org/packages/66/64/43e72500ed6815cef189f9193f29d7af4b078830337c95ea976cd0c0d427/coverage-7.15.3-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl)
+  cause: client error (Connect)
+  cause: tcp connect error
+  cause: deadline has elapsed
+
+hint: `coverage` (v7.15.3) was included because `capiro-defense-budget-parser[dev]` (v0.1.0) depends on `pytest-cov` (v5.0.0) which depends on `coverage`

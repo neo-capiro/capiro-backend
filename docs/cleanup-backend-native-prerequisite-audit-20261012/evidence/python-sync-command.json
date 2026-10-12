@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "uv",
+    "sync",
+    "--frozen",
+    "--extra",
+    "dev",
+    "--no-cache",
+    "--system-certs",
+    "--python",
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/defense-budget-parser",
+  "environmentKeysOnly": [
+    "HTTPS_PROXY",
+    "HTTP_PROXY",
+    "NO_PROXY",
+    "PATH",
+    "SSL_CERT_FILE",
+    "UV_CACHE_DIR",
+    "UV_PROJECT_ENVIRONMENT",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy"
+  ],
+  "transport": "onlyexistingprovidedproxy/certificatevaluesforwardedunchanged; valuesnotrecorded/noalternateindex/mirror/insecureTLSoption",
+  "globalEnvironmentModified": false
+}

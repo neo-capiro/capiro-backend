@@ -1,0 +1,22 @@
+{
+  "argv": [
+    "/tmp/capirov2-local-native-prerequisite-20261012/python-env/bin/python",
+    "-m",
+    "pytest",
+    "--cov=capiro_defense_budget_parser",
+    "--cov-branch",
+    "--cov-report=json:/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/evidence/python-coverage.json",
+    "--cov-report=term",
+    "--junitxml=/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/evidence/python-junit.xml",
+    "--basetemp=/tmp/capirov2-local-native-prerequisite-20261012/pytest-temp",
+    "-o",
+    "cache_dir=/tmp/capirov2-local-native-prerequisite-20261012/pytest-cache"
+  ],
+  "environmentKeys": [
+    "COVERAGE_FILE",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/defense-budget-parser",
+  "qualification": "unchangedchecks;onlycache/artifactlocationsandno-cachechanged;networkinstallnotinvoked"
+}
