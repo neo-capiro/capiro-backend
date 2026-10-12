@@ -164,6 +164,18 @@
           "name": "categoryFor",
           "kind": "function",
           "sha256": "bcd76e33e5da8f396b6c805452ed247980cf9dc1e621b8ee0c8571825ec35fa2"
+        },
+        {
+          "file": "apps/api-strategy/src/context/template-registry.ts",
+          "name": "DocumentTypeValue",
+          "kind": "type",
+          "sha256": "81bc16123e5db7ef61f00c068e3c53322f11bcc0fef799fc0403ab719f848421"
+        },
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "name": "DocumentTypeValue",
+          "kind": "type",
+          "sha256": "81bc16123e5db7ef61f00c068e3c53322f11bcc0fef799fc0403ab719f848421"
         }
       ],
       "aliases": [
