@@ -91,5 +91,10 @@ describe('Shared canonical Objective authority seam (synthetic tagged SQL only)'
         normalizeClientObjectiveDestination({ ...input, objectiveVersion } as never),
       ).toThrow(ClientObjectiveDestinationError);
     }
+    for (const clientId of [null, [input.clientId], { toString: () => input.clientId }]) {
+      expect(() => normalizeClientObjectiveDestination({ ...input, clientId } as never)).toThrow(
+        ClientObjectiveDestinationError,
+      );
+    }
   });
 });
