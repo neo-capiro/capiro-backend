@@ -434,7 +434,10 @@ class TestModelConfigIdentity:
         RuntimeError it was written to raise -- an unguarded crash instead
         of a clean, catchable refusal."""
         if DOCLING_PACKAGE_VERSION is not None:
-            pytest.skip('docling is installed in this environment; NameError regression not reproducible here')
+            pytest.skip(
+                'docling is installed in this environment; '
+                'NameError regression not reproducible here'
+            )
         with pytest.raises(RuntimeError, match='Docling is not installed'):
             _create_docling_converter(get_default_config())
 

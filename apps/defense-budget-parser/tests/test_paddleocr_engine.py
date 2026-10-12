@@ -50,11 +50,11 @@ from capiro_defense_budget_parser.paddleocr_engine import (
     _extract_tokens,
     _nearest_column_index,
     compute_config_sha256,
+    find_pe_funding_association,
     get_default_config,
+    is_funding_value_text,
     process_page_with_paddleocr,
     reconstruct_page_structure,
-    find_pe_funding_association,
-    is_funding_value_text,
     run_paddleocr_engine,
     validate_config,
 )
@@ -909,13 +909,13 @@ class TestEngineIdentity:
         assert "-name '._*'" in body
         assert '-ne 1' in body  # candidate-count gate
         # Traversal / absolute-path rejection
-        assert '\.\.' in body
+        assert r'\.\.' in body
 
     def test_bake_model_script_rejects_traversal_archive(self, tmp_path: Path):
         """Live negative control: an archive containing a `../` member must
         make bake_model.sh exit non-zero without writing model files."""
-        import tarfile
         import subprocess
+        import tarfile
 
         script = (
             Path(__file__).resolve().parents[2]

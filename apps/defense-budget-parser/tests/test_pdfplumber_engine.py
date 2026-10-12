@@ -463,8 +463,10 @@ class TestRunPdfplumberEngine:
                         size=10.0, fontname='ArialMT'),
             self._word('Ordinary body text line two at the normal size.', 340.0, 350.0, 36.0, 300.0,
                         size=10.0, fontname='ArialMT'),
-            self._word('Ordinary body text line three at the normal size.', 360.0, 370.0, 36.0, 300.0,
-                        size=10.0, fontname='ArialMT'),
+            self._word(
+                'Ordinary body text line three at the normal size.',
+                360.0, 370.0, 36.0, 300.0, size=10.0, fontname='ArialMT',
+            ),
         ]
         result = self._run_with_words(tmp_path, words)
         blocks_by_text = {b.text: b.blockType for b in result.pages[0].blocks}

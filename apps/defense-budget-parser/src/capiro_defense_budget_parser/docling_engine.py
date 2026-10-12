@@ -70,11 +70,13 @@ try:
 
     DOCLING_PACKAGE_VERSION: str | None = getattr(docling, '__version__', 'unknown')
 except ImportError:
-    docling = None  # type: ignore[assignment]
+    docling = None
     DOCLING_PACKAGE_VERSION = None
 
 ENGINE_VERSION = (
-    f'docling-{DOCLING_PACKAGE_VERSION}-cpu' if DOCLING_PACKAGE_VERSION is not None else ENGINE_UNAVAILABLE
+    f'docling-{DOCLING_PACKAGE_VERSION}-cpu'
+    if DOCLING_PACKAGE_VERSION is not None
+    else ENGINE_UNAVAILABLE
 )
 
 # ------------------------------------------------------------------ #

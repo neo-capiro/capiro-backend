@@ -164,7 +164,7 @@ def render_page_to_image(
     Apache-2.0 posture. `pypdfium2` needs no external system binary (unlike
     `pdf2image`, which shells out to poppler-utils).
     """
-    import pypdfium2 as pdfium
+    import pypdfium2 as pdfium  # type: ignore[import-untyped]
 
     pdf = pdfium.PdfDocument(str(pdf_path))
     try:
@@ -194,7 +194,7 @@ def _create_paddle_ocr(config: dict[str, Any]) -> Any:
     without PaddleOCR installed (e.g. for config/validation tests).
     """
     try:
-        from paddleocr import PaddleOCR
+        from paddleocr import PaddleOCR  # type: ignore[import-not-found]
     except ImportError as e:
         raise RuntimeError(
             'PaddleOCR is not installed. Install with: pip install paddleocr paddlepaddle'
@@ -401,9 +401,7 @@ def is_funding_value_text(text: str) -> bool:
     # Bare integers of 1-3 digits are codes/line numbers here, not
     # thousands-of-dollars amounts; comma-grouped or decimal amounts
     # always qualify regardless of magnitude.
-    if ',' not in stripped and '.' not in stripped and len(digits) <= 3:
-        return False
-    return True
+    return not (',' not in stripped and '.' not in stripped and len(digits) <= 3)
 
 
 def find_pe_funding_association(
