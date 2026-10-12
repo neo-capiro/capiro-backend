@@ -1,0 +1,51 @@
+{
+  "decision": "ACCEPT independent metadata/composition-only two-contract newsletter source union",
+  "source": "52b58cbe363895cfc85220cbe53e8c50a40bd659",
+  "tree": "1fd341896130d85be7996dc21753862d782e1a3b",
+  "frozenSource": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "publishedBase": "bcad60272fa300383f117f3a08a554e9e070e85b",
+  "checksPassed": 64,
+  "sourceRows": 76,
+  "restoredCwFiles": 58,
+  "existingOwnerIntegrations": 18,
+  "baselineOutsideOverlayPathsIncludingDocs": 21862,
+  "baselineDocuments": 10183,
+  "baselineSchemaMigrationPaths": 603,
+  "unchangedBaselineSchemaMigrationPaths": 601,
+  "declaredChangedSchemaOwners": 2,
+  "addedOriginalHistoricalSqlSources": 14,
+  "finalRootMasterHashes": 263,
+  "inheritedPR2422MasterHashes": 157,
+  "priorIndexCount": 16,
+  "priorIndexedBindings": 713,
+  "priorRuntimeMasterCounts": [
+    126,
+    96,
+    103
+  ],
+  "finalAuthorBindings": 131,
+  "schemaDependencyReviewBindings": 75,
+  "authorizationReplayReviewBindings": 46,
+  "totalOverlappingIndexBindings": 1385,
+  "totalIndexManifests": 21,
+  "sourceBlockers": [],
+  "fullWorkspaceParserTypingQualified": false,
+  "workspaceRemainingDiagnostics": 6,
+  "missingExactParser": "htmlparser2@8.0.2",
+  "nativeAcceptance": false,
+  "frontendPort": false,
+  "applicationOrSqlBodiesReviewed": false,
+  "unpublishedReportingBranchesInspected": false,
+  "accepted263FileBytesModified": false,
+  "publishedBranchesModified": false,
+  "commands": [
+    {
+      "command": "python3 docs/cleanup-newsletter-two-contract-composition-review-20261012/evidence/newsletter-composition-proof.py",
+      "exitCode": 0,
+      "execSession": 62211,
+      "stdout": "evidence/newsletter-composition-proof.json",
+      "stderr": "evidence/newsletter-composition-proof.log"
+    }
+  ],
+  "scope": "Metadata/composition only; no semantic or additive-schema-body re-review. Accepted additive classification delegates to independent schema/dependency receipt."
+}

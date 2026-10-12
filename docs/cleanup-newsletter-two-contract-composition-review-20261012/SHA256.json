@@ -1,0 +1,33 @@
+{
+  "acceptedSource": "52b58cbe363895cfc85220cbe53e8c50a40bd659",
+  "acceptedTree": "1fd341896130d85be7996dc21753862d782e1a3b",
+  "frozenApplicationSource": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "excludesItselfOnly": true,
+  "entries": [
+    {
+      "path": "docs/cleanup-newsletter-two-contract-composition-review-20261012/ACCEPTANCE.json",
+      "bytes": 1950,
+      "sha256": "edff8002a2940f9a9d997954b08cefb53f81c10ff15ea7a6fb90cd1c1cff252d"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-composition-review-20261012/ACCEPTANCE.md",
+      "bytes": 3544,
+      "sha256": "5d9ebbe2406fefa352890a99b969bcaceb33c01954c2f31645b4569ab7b9b831"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-composition-review-20261012/evidence/newsletter-composition-proof.json",
+      "bytes": 484955,
+      "sha256": "e428fa973db3a7fdb27884aaa855c58feed676d6c3521e3d87cad74d098c24e5"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-composition-review-20261012/evidence/newsletter-composition-proof.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-composition-review-20261012/evidence/newsletter-composition-proof.py",
+      "bytes": 13114,
+      "sha256": "29e1099856e8d2f929edad282d541094b8553194b07636e186c78c72a7fcae5b"
+    }
+  ]
+}
