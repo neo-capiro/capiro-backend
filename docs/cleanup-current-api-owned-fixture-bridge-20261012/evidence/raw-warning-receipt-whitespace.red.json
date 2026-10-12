@@ -1,0 +1,6 @@
+{
+  "command": "git diff --cached --check excluding only raw baseline Node stdout",
+  "exitCode": 2,
+  "classification": "Verbatim first whitespace-warning receipt itself echoes two trailing-space lines; source warning count0",
+  "toolStdout": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/raw-baseline-whitespace.red.log:2: trailing whitespace.\n++  \ndocs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/raw-baseline-whitespace.red.log:4: trailing whitespace.\n++  \n"
+}

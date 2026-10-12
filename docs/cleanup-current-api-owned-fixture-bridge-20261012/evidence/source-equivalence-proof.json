@@ -1,0 +1,118 @@
+{
+  "source": "133c868ea596cccb05525d1249ddf32c97fe1a54",
+  "tree": "22b5cb735fda84bda5be9e7b2d10029d59fbca6a",
+  "base": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "publishedSeam": "8ac4c42cc49876ec19808369c0683956e0f2f474",
+  "checks": [
+    {
+      "name": "exact frozen source head/tree",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actual destination base ancestor",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "only exact three authorized source/test/fixture paths differ",
+      "passed": true,
+      "detail": [
+        "apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json",
+        "apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs",
+        "apps/api/scripts/engagement-phase3-read-materialization.spec.ts"
+      ]
+    },
+    {
+      "name": "every baseline path outside three-path slice retains blob and mode",
+      "passed": true,
+      "detail": {
+        "count": 22141
+      }
+    },
+    {
+      "name": "original Web fixture and frontend tree remain unchanged",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "actual current547 reader is the declared complete original",
+      "passed": true,
+      "detail": {
+        "bytes": 7101,
+        "sha256": "e2a7d26bbc33bbd8140aba1194dca04990619ce28be159a1ac434e729fb7bcff"
+      }
+    },
+    {
+      "name": "one literal only, all original reader bytes restored by inverse",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "all six ordered current case identities and bodies preserved",
+      "passed": true,
+      "detail": [
+        "materializes every unique current UI read without an unresolved placeholder",
+        "binds the current mail-thread detail read to an owned synthetic row",
+        "adds the required attachment parent instead of accepting a matching 400",
+        "binds named nested parameters to the row that actually owns data",
+        "uses the real send-intent fixture and the deliberate no-job absence",
+        "negative controls fail on fixture drift, path drift, and unknown parameters"
+      ]
+    },
+    {
+      "name": "API-owned fixture exactly current547 data and mode",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "fixture declared183851bytes/SHA256/Gitblob exact",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "all three adopted paths match the independently published8ac seam blobs/modes",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "owned control imports only six Node builtin modules and no application graph",
+      "passed": true,
+      "detail": [
+        "node:assert/strict",
+        "node:crypto",
+        "node:fs",
+        "node:path",
+        "node:test",
+        "node:url"
+      ]
+    },
+    {
+      "name": "published four permanent controls include byte/path/body/name refusals",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "passed": true,
+  "sourceBindings": [
+    {
+      "path": "apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json",
+      "git": "100644 blob 2f8a2cb0f733016078b2f9f54418f77962f1d069",
+      "sha256": "39423247a62ae040d8dbc6c977597df2b0a58b338e74b70795d1c115c61b58ac",
+      "bytes": 183851
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs",
+      "git": "100644 blob 3c4e8cdd725cadd471535ff6f7e63d9bba6b5ec4",
+      "sha256": "6695debdfa92b490f6faf02ce55fb1e8291ad4eeaeb19bf5556934958d8d3e1a",
+      "bytes": 5055
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-read-materialization.spec.ts",
+      "git": "100644 blob e06d65453c36ff43e285a480be97bf00cb161fc5",
+      "sha256": "c0fb53594377e45c62acc4e7cdaafb668735af9687bc84117dca3acc00bbff59",
+      "bytes": 7070
+    }
+  ],
+  "qualification": "Six API/Jest cases are preserved by complete inverse byte proof, not executed. Only four standalone Node source/input controls were executed separately. No application/native/provider/SQL/CLI graph."
+}

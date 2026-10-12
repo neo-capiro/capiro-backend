@@ -1,0 +1,12 @@
+✔ backend-owned fixture preserves the complete immutable Core blob and byte identity (2.079211ms)
+✔ the exact Core JSON workload, route ownership and classifications remain present (5.303101ms)
+✔ existing API reader changes exactly one literal while preserving all six case identities and all assertions (0.576987ms)
+✔ qualification rejects fixture bytes, case bodies and reader-path drift without importing the API suite (2.630727ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 117.185866

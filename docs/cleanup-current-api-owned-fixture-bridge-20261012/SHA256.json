@@ -1,0 +1,92 @@
+{
+  "frozenSource": "133c868ea596cccb05525d1249ddf32c97fe1a54",
+  "frozenTree": "22b5cb735fda84bda5be9e7b2d10029d59fbca6a",
+  "excludesItselfOnly": true,
+  "packet": [
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/AUTHOR-RECEIPT.json",
+      "bytes": 3017,
+      "sha256": "b33c501058995dd757ec52b37694a545f1f1325e502a3112ec11b7793b2ed03f"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/HANDOFF.md",
+      "bytes": 4447,
+      "sha256": "6056a683f0883347be875eac59b753a66915d06a809c6eef2fd726eb1527007b"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/SOURCE-MANIFEST.json",
+      "bytes": 994,
+      "sha256": "ddb31b1123b88d80547a8e6e60d82e14078a7c9c7a04038afdeba225f48f9113"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/COMMANDS.json",
+      "bytes": 1507,
+      "sha256": "43a0b15dde01219e4cb11bffef3aa257ee1a17c039806da2b15831e92b2554bb"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/after-owned-fixture-controls.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/after-owned-fixture-controls.tap",
+      "bytes": 558,
+      "sha256": "0dec1689550a210ca6a110d1300a33c7339fae27aa6f88d5ea8ec56d9b4ddde7"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/before-owned-fixture-controls.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/before-owned-fixture-controls.tap",
+      "bytes": 5061,
+      "sha256": "0ab5a53cd5834bc867f16edca6ef30d056e2e4ce02d18dc7671422550ef50d50"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/raw-baseline-whitespace.red.log",
+      "bytes": 254,
+      "sha256": "f1deaebdca46515e104eae0a255bc684fe387dca58266b4aa64dcf43e5e4e4ef"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/raw-warning-receipt-whitespace.red.json",
+      "bytes": 503,
+      "sha256": "aaa07ec5a2a2be684951b510b145dae167c6fb1f8dd26444d41e94dc89fd5075"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/source-equivalence-proof.json",
+      "bytes": 4039,
+      "sha256": "2ab39d903130a9fad1a15c7bf13dc494adc38ecd1eb64480c1c95564b5be9bc8"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/source-equivalence-proof.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/source-equivalence-proof.py",
+      "bytes": 4654,
+      "sha256": "ce2de9b6a80e3c0c333ae0bc7bd88c383c356c9237c1d9b8b3c61a433104e058"
+    }
+  ],
+  "source": [
+    {
+      "path": "apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json",
+      "git": "100644 blob 2f8a2cb0f733016078b2f9f54418f77962f1d069",
+      "sha256": "39423247a62ae040d8dbc6c977597df2b0a58b338e74b70795d1c115c61b58ac",
+      "bytes": 183851
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs",
+      "git": "100644 blob 3c4e8cdd725cadd471535ff6f7e63d9bba6b5ec4",
+      "sha256": "6695debdfa92b490f6faf02ce55fb1e8291ad4eeaeb19bf5556934958d8d3e1a",
+      "bytes": 5055
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-read-materialization.spec.ts",
+      "git": "100644 blob e06d65453c36ff43e285a480be97bf00cb161fc5",
+      "sha256": "c0fb53594377e45c62acc4e7cdaafb668735af9687bc84117dca3acc00bbff59",
+      "bytes": 7070
+    }
+  ]
+}

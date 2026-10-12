@@ -1,0 +1,25 @@
+{
+  "source": "133c868ea596cccb05525d1249ddf32c97fe1a54",
+  "tree": "22b5cb735fda84bda5be9e7b2d10029d59fbca6a",
+  "base": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "files": [
+    {
+      "path": "apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json",
+      "git": "100644 blob 2f8a2cb0f733016078b2f9f54418f77962f1d069",
+      "sha256": "39423247a62ae040d8dbc6c977597df2b0a58b338e74b70795d1c115c61b58ac",
+      "bytes": 183851
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs",
+      "git": "100644 blob 3c4e8cdd725cadd471535ff6f7e63d9bba6b5ec4",
+      "sha256": "6695debdfa92b490f6faf02ce55fb1e8291ad4eeaeb19bf5556934958d8d3e1a",
+      "bytes": 5055
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-read-materialization.spec.ts",
+      "git": "100644 blob e06d65453c36ff43e285a480be97bf00cb161fc5",
+      "sha256": "c0fb53594377e45c62acc4e7cdaafb668735af9687bc84117dca3acc00bbff59",
+      "bytes": 7070
+    }
+  ]
+}
