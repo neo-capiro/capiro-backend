@@ -305,6 +305,8 @@ enum WsCollaboratorStatus {
 // In-app notification kinds (E-19): a collaborator invite the recipient can
 // accept/decline, and the resolution notices sent back to the inviter.
 enum WsNotificationKind {
+  newsletter_review
+  newsletter_comment
   collab_invite
   collab_accepted
   collab_declined
@@ -371,6 +373,7 @@ model WsNotification {
   @@index([tenantId, recipientId])
   @@index([recipientId, read])
   @@map("ws_notification")
+  newsletterId String? @map("newsletter_id") @db.Uuid
 }
 
 // A document is one tab within a draft/packet. A simple draft has exactly one;
@@ -824,4 +827,203 @@ model WsProspectDraftReceipt {
   @@unique([tenantId, ownerId, requestId], map: "ws_prospect_draft_receipt_request_key")
   @@index([tenantId, prospectId], map: "ws_prospect_draft_receipt_prospect_idx")
   @@map("ws_prospect_draft_receipt")
+}
+
+
+model WsNewsletterDocument {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  name String
+  revision Int @default(1)
+  status String @default("draft")
+  config Json
+  design Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  comments WsNewsletterComment[]
+  stages WsNewsletterStage[]
+  reviewers WsNewsletterReviewer[]
+  invitations WsNewsletterInvitation[]
+  @@unique([id, tenantId], map: "ws_newsletter_document_tenant_key")
+  @@index([tenantId, ownerId, updatedAt])
+  @@map("ws_newsletter_document")
+}
+
+
+model WsNewsletterBrandKit {
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  revision Int @default(1)
+  payload Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@id([tenantId, ownerId])
+  @@map("ws_newsletter_brand_kit")
+}
+
+
+model WsNewsletterReviewer {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  userId String @map("user_id")
+  role String @default("commenter")
+  notifications String @default("mentions")
+  createdAt DateTime @default(now()) @map("created_at")
+  document WsNewsletterDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  @@unique([documentId, userId])
+  @@index([tenantId, userId])
+  @@map("ws_newsletter_reviewer")
+}
+
+
+model WsNewsletterLibraryItem {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  kind String
+  name String
+  folder String @default("")
+  payload Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@index([tenantId, ownerId, kind])
+  @@map("ws_newsletter_library_item")
+}
+
+
+model WsNewsletterInvitation {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  authorId String @map("author_id")
+  requestKey String @map("request_key") @db.Uuid
+  email String @db.VarChar(320)
+  role String
+  message String
+  accountRole String @default("member") @map("account_role")
+  sourceClientIds String[] @default([]) @map("source_client_ids") @db.Uuid
+  recipientId String? @map("recipient_id")
+  activatedAt DateTime? @map("activated_at")
+  cancelledAt DateTime? @map("cancelled_at")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  document WsNewsletterDocument @relation(fields: [documentId, tenantId], references: [id, tenantId], onDelete: Cascade, map: "ws_newsletter_invitation_document_scope_fkey")
+  @@unique([tenantId, authorId, requestKey], map: "ws_newsletter_invitation_request_key")
+  @@index([tenantId, documentId, email])
+  @@index([activatedAt, createdAt])
+  @@map("ws_newsletter_invitation")
+}
+
+
+model WsNewsletterComment {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  authorId String @map("author_id")
+  blockId String? @map("block_id")
+  parentId String? @map("parent_id") @db.Uuid
+  message String
+  resolved Boolean @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  document WsNewsletterDocument @relation(fields:[documentId], references:[id], onDelete:Cascade)
+  watchers WsNewsletterThreadWatcher[]
+  emailRequests WsNewsletterReviewEmailRequest[] @relation("NewsletterEmailComment")
+  rootEmailRequests WsNewsletterReviewEmailRequest[] @relation("NewsletterEmailRoot")
+  @@unique([id, tenantId, documentId], map: "ws_newsletter_comment_scope_key")
+  @@index([tenantId, documentId, createdAt])
+  @@map("ws_newsletter_comment")
+}
+
+
+model WsNewsletterThreadWatcher {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  rootId String @map("root_id") @db.Uuid
+  userId String @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  root WsNewsletterComment @relation(fields: [rootId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: "ws_newsletter_thread_watcher_root_scope_fkey")
+  @@unique([rootId, userId])
+  @@index([tenantId, documentId])
+  @@map("ws_newsletter_thread_watcher")
+}
+
+
+model WsNewsletterReviewEmailRequest {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  rootId String @map("root_id") @db.Uuid
+  commentId String @map("comment_id") @db.Uuid
+  recipientId String @map("recipient_id")
+  sourceClientIds String[] @default([]) @map("source_client_ids") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  comment WsNewsletterComment @relation("NewsletterEmailComment", fields: [commentId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: "ws_newsletter_review_email_request_comment_scope_fkey")
+  root WsNewsletterComment @relation("NewsletterEmailRoot", fields: [rootId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: "ws_newsletter_review_email_request_root_scope_fkey")
+  @@unique([commentId, recipientId])
+  @@index([createdAt])
+  @@index([tenantId, documentId])
+  @@map("ws_newsletter_review_email_request")
+}
+
+
+model WsNewsletterAsset {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  name String
+  token String @unique
+  mimeType String @map("mime_type")
+  file Bytes
+  createdAt DateTime @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+  revisionRootId String? @map("revision_root_id") @db.Uuid
+  revisionParentId String? @map("revision_parent_id") @db.Uuid
+  revisionNumber Int @default(1) @map("revision_number")
+  currentRevision Boolean @default(true) @map("current_revision")
+  revisionRoot WsNewsletterAsset? @relation("NewsletterImageRoot", fields: [revisionRootId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, onUpdate: NoAction, map: "ws_newsletter_asset_revision_root_scope_fkey")
+  revisions WsNewsletterAsset[] @relation("NewsletterImageRoot")
+  revisionParent WsNewsletterAsset? @relation("NewsletterImageParent", fields: [revisionParentId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, onUpdate: NoAction, map: "ws_newsletter_asset_revision_parent_scope_fkey")
+  derivedImages WsNewsletterAsset[] @relation("NewsletterImageParent")
+  folderId String? @map("folder_id") @db.Uuid
+  folder WsNewsletterAssetFolder? @relation(fields: [folderId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, map: "ws_newsletter_asset_folder_scope_fkey")
+  @@index([tenantId, ownerId])
+  @@index([tenantId, ownerId, folderId])
+  @@unique([id, tenantId, ownerId], map: "ws_newsletter_asset_scope_key")
+  @@unique([revisionRootId, revisionNumber], map: "ws_newsletter_asset_revision_number_key")
+  @@index([tenantId, ownerId, currentRevision, deletedAt])
+  @@map("ws_newsletter_asset")
+}
+
+
+model WsNewsletterAssetFolder {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  name String
+  createdAt DateTime @default(now()) @map("created_at")
+  assets WsNewsletterAsset[]
+  @@unique([id, tenantId, ownerId], map: "ws_newsletter_asset_folder_scope_key")
+  @@index([tenantId, ownerId])
+  @@map("ws_newsletter_asset_folder")
+}
+
+
+model WsNewsletterStage {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  ownerId String @map("owner_id")
+  revision Int
+  name String
+  config Json
+  design Json
+  html String
+  plainText String @map("plain_text")
+  createdAt DateTime @default(now()) @map("created_at")
+  document WsNewsletterDocument @relation(fields:[documentId], references:[id], onDelete:Restrict)
+  @@unique([documentId, revision, ownerId])
+  @@index([tenantId, ownerId, createdAt])
+  @@map("ws_newsletter_stage")
 }

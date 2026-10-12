@@ -562,4 +562,46 @@ export class HillDaySourceService {
       return null;
     }
   }
+
+  async newsletterMembers(tenantId: string) {
+    return this.withTenant(
+      tenantId,
+      (tx) => tx.$queryRaw<Array<{ clerkUserId: string; name: string; email: string }>>`
+      SELECT u.clerk_user_id AS "clerkUserId", COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email::text) AS name, u.email::text AS email
+      FROM tenant_memberships m JOIN users u ON u.id = m.user_id
+      WHERE m.tenant_id = ${tenantId}::uuid AND m.status = 'active'
+      ORDER BY name LIMIT 500
+    `,
+    );
+  }
+
+  async newsletterMember(tenantId: string, clerkUserId: string) {
+    const rows = await this.withTenant(
+      tenantId,
+      (tx) => tx.$queryRaw<
+        Array<{ clerkUserId: string; name: string; email: string; role: string }>
+      >`
+      SELECT u.clerk_user_id AS "clerkUserId", COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email::text) AS name,
+        u.email::text AS email, m.role::text AS role
+      FROM tenant_memberships m JOIN users u ON u.id = m.user_id
+      WHERE m.tenant_id = ${tenantId}::uuid AND m.status = 'active' AND u.clerk_user_id = ${clerkUserId}
+      LIMIT 1`,
+    );
+    return rows[0] || null;
+  }
+
+  async newsletterMemberByEmail(tenantId: string, email: string) {
+    const rows = await this.withTenant(
+      tenantId,
+      (tx) => tx.$queryRaw<
+        Array<{ clerkUserId: string; name: string; email: string; role: string }>
+      >`
+      SELECT u.clerk_user_id AS "clerkUserId", COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), ''), u.email::text) AS name,
+        u.email::text AS email, m.role::text AS role
+      FROM tenant_memberships m JOIN users u ON u.id = m.user_id
+      WHERE m.tenant_id = ${tenantId}::uuid AND m.status = 'active' AND lower(u.email::text) = ${email}
+      LIMIT 1`,
+    );
+    return rows[0] || null;
+  }
 }

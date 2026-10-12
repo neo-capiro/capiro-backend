@@ -20,6 +20,8 @@ import { MeetingCapturePersistenceService } from '../meeting-capture/meeting-cap
 import { NotetakerModule, RAW_MEETING_BOT_PROVIDER } from './notetaker/notetaker.module.js';
 import { MEETING_BOT_PROVIDER, type MeetingBotProvider } from './notetaker/meeting-bot.provider.js';
 import { EngagementController } from './engagement.controller.js';
+import { NewsletterOutreachController, NewsletterPublicController } from './newsletter-outreach.controller.js';
+import { NewsletterOutreachService } from './newsletter-outreach.service.js';
 import { ClientAssociationService } from './client-association.service.js';
 import { EngagementAiService } from './engagement-ai.service.js';
 import { EngagementService } from './engagement.service.js';
@@ -104,7 +106,7 @@ import {
     QualityTelemetryModule,
     EvaluationModule,
   ],
-  controllers: [EngagementController, OutcomeController, KrispNotetakerController],
+  controllers: [EngagementController, OutcomeController, KrispNotetakerController, NewsletterOutreachController, NewsletterPublicController],
   providers: [
     KrispNotetakerService,
     {
@@ -227,6 +229,7 @@ import {
     EngagementMailSender,
     TokenCryptoService,
     OutreachDraftService,
+    NewsletterOutreachService,
     OutreachDraftAuditService,
     { provide: OutreachSendIntentService, useClass: RaceSafeOutreachSendIntentService },
     {

@@ -1109,6 +1109,17 @@ export const configSchema = z.object({
   // From-address for Workspace collaborator-invite emails (E-19). capiro.ai is a
   // verified SES domain identity, so any @capiro.ai sender works without new infra.
   WORKSPACE_INVITE_EMAIL_FROM: z.string().email().default('notifications@capiro.ai'),
+  // Newsletter comment emails are dormant until both newsletter migrations
+  // and the verified SES sender are configured in this environment.
+  NEWSLETTER_REVIEW_EMAIL_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  NEWSLETTER_REVIEW_APP_URL: z.string().url().default('https://app.capiro.ai'),
+  NEWSLETTER_INVITATION_EMAIL_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
   // Base URL used to build deep links in alert emails/SMS back to the client
   // profile Tracker tab.
   TRACKER_APP_BASE_URL: z.string().url().default('https://app.capiro.ai'),

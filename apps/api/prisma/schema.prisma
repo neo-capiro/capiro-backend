@@ -3185,6 +3185,10 @@ model OutreachDraftArtifact {
 /// ship without a PostgreSQL enum migration — see outreach-draft.types.ts for
 /// the authoritative literal unions and the sendability policy.
 model OutreachDraftVersion {
+  /// Set only by the server-side Workspace newsletter importer. Generic edits
+  /// use the default outreach format and cannot inherit this authority.
+  contentFormat     String   @default("outreach") @map("content_format") @db.VarChar(32)
+  newsletterStageId String?  @map("newsletter_stage_id") @db.Uuid
   id                String   @id @default(uuid()) @db.Uuid
   tenantId          String   @map("tenant_id") @db.Uuid
   artifactId        String   @map("artifact_id") @db.Uuid
@@ -16674,4 +16678,88 @@ model ProspectAttachmentUploadIntent {
   @@unique([tenantId, s3Key], map: "prospect_attachment_upload_intents_s3_key")
   @@index([tenantId, prospectId], map: "prospect_attachment_upload_intents_prospect_idx")
   @@map("prospect_attachment_upload_intents")
+}
+
+
+model NewsletterRecipientAccess {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  stageId        String   @map("stage_id") @db.Uuid
+  outreachRecordId String @map("outreach_record_id") @db.Uuid
+  draftVersionId String?  @map("draft_version_id") @db.Uuid
+  token          String   @unique @db.VarChar(64)
+  email          String   @db.VarChar(320)
+  html           String   @db.Text
+  surveyAnswers  Json     @default("{}") @map("survey_answers")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@index([tenantId, userId, outreachRecordId])
+  @@map("newsletter_recipient_access")
+}
+
+
+model NewsletterReviewEmailDelivery {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  commentId String @map("comment_id") @db.Uuid
+  recipientId String @map("recipient_id")
+  status String @db.VarChar(32)
+  messageId String? @map("message_id")
+  errorCode String? @map("error_code") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  @@index([tenantId, createdAt])
+  @@index([status, updatedAt])
+  @@map("newsletter_review_email_deliveries")
+}
+
+
+model NewsletterSubscription {
+  id             String   @id @default(uuid()) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  email          String   @db.VarChar(320)
+  unsubscribedAt DateTime? @map("unsubscribed_at") @db.Timestamptz(6)
+  @@unique([tenantId, userId, email])
+  @@map("newsletter_subscriptions")
+}
+
+
+model NewsletterAccountInvitation {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  authorId String @map("author_id")
+  email String @db.VarChar(320)
+  organizationId String @map("organization_id")
+  accountRole String @map("account_role")
+  status String @db.VarChar(32)
+  providerInvitationId String? @map("provider_invitation_id")
+  providerRole String? @map("provider_role")
+  attemptedAt DateTime? @map("attempted_at") @db.Timestamptz(6)
+  attemptKind String? @map("attempt_kind")
+  leaseId String? @map("lease_id") @db.Uuid
+  errorCode String? @map("error_code") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  @@index([tenantId, email, organizationId])
+  @@index([tenantId, documentId])
+  @@map("newsletter_account_invitations")
+}
+
+
+model NewsletterInvitationEmailDelivery {
+  id String @id @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  documentId String @map("document_id") @db.Uuid
+  recipientId String @map("recipient_id")
+  status String @db.VarChar(32)
+  messageId String? @map("message_id")
+  errorCode String? @map("error_code") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  @@index([tenantId, createdAt])
+  @@index([status, updatedAt])
+  @@map("newsletter_invitation_email_deliveries")
 }

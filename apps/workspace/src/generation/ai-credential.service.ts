@@ -1,4 +1,4 @@
-import { upgradeTextModel } from '@capiro/shared/ai-model-policy';
+import { OPENAI_TEXT_MODEL, upgradeTextModel } from '@capiro/shared/ai-model-policy';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -37,12 +37,20 @@ export class AiCredentialService {
   private readonly encryptionKey?: Buffer;
   private readonly globalAnthropic?: string;
   private readonly workspaceModel: string;
+  private readonly globalOpenai?: string;
+  private readonly newsletterImageModel: string;
+  private readonly newsletterAltTextModel: string;
 
   constructor(
     config: ConfigService,
     private readonly prisma: PrismaService,
   ) {
     this.globalAnthropic = config.get<string>('ANTHROPIC_API_KEY');
+    this.globalOpenai = config.get<string>('OPENAI_API_KEY');
+    this.newsletterImageModel = config.get<string>('NEWSLETTER_IMAGE_MODEL') || 'gpt-image-2.5-sunburst';
+    this.newsletterAltTextModel = upgradeTextModel(
+      config.get<string>('NEWSLETTER_ALT_TEXT_MODEL') || OPENAI_TEXT_MODEL,
+    );
     // Sonnet is the document-generation runtime model (build directive).
     this.workspaceModel = upgradeTextModel(
       config.get<string>('WORKSPACE_MODEL') ?? 'claude-sonnet-5',
@@ -118,6 +126,67 @@ export class AiCredentialService {
         provider: 'anthropic',
         secret: decrypted,
         model: upgradeTextModel(row.model_override ?? this.workspaceModel),
+        usedTenantKey: true,
+      };
+    } catch (err) {
+      this.logger.warn(
+        `Tenant AI credential resolve failed (falling back to global key): ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  async resolveNewsletterImage(tenantId: string): Promise<ResolvedAiCredential | null> {
+    const tenantCred = await this.tryNewsletterTenantCredential(tenantId);
+    if (tenantCred) return tenantCred;
+    return this.globalOpenai
+      ? {
+          provider: 'openai',
+          secret: this.globalOpenai,
+          model: this.newsletterImageModel,
+          usedTenantKey: false,
+        }
+      : null;
+  }
+
+  async resolveNewsletterAltText(tenantId: string): Promise<ResolvedAiCredential | null> {
+    const credential = await this.resolveNewsletterImage(tenantId);
+    return credential ? { ...credential, model: this.newsletterAltTextModel } : null;
+  }
+
+  private async tryNewsletterTenantCredential(tenantId: string): Promise<ResolvedAiCredential | null> {
+    const provider: AiProvider = 'openai';
+    if (!this.encryptionKey) return null;
+    try {
+      const rows = await this.prisma.$queryRaw<
+        {
+          key_ciphertext: string;
+          key_iv: string;
+          key_auth_tag: string;
+          model_override: string | null;
+        }[]
+      >`
+        SELECT key_ciphertext, key_iv, key_auth_tag, model_override
+        FROM tenant_ai_credentials
+        WHERE tenant_id = ${tenantId}::uuid
+          AND provider = ${provider}
+          AND status = 'active'
+        LIMIT 1
+      `;
+      const row = rows[0];
+      if (!row) return null;
+      const decrypted = decryptSecret(this.encryptionKey, {
+        ciphertext: row.key_ciphertext,
+        iv: row.key_iv,
+        authTag: row.key_auth_tag,
+      });
+      return {
+        provider,
+        secret: decrypted,
+        model:
+          provider === 'openai'
+            ? this.newsletterImageModel
+            : upgradeTextModel(row.model_override ?? this.workspaceModel),
         usedTenantKey: true,
       };
     } catch (err) {

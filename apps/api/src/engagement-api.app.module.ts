@@ -71,6 +71,8 @@ export class EngagementApiAppModule implements NestModule {
         { path: 'api/engagement/integrations/microsoft/notifications', method: RequestMethod.ALL },
         { path: '/api/engagement/integrations/google/callback', method: RequestMethod.GET },
         { path: 'api/engagement/integrations/google/callback', method: RequestMethod.GET },
+        { path: 'api/engagement/newsletter-public/(.*)', method: RequestMethod.ALL },
+        { path: '/api/engagement/newsletter-public/(.*)', method: RequestMethod.ALL },
         { path: '/api/internal/(.*)', method: RequestMethod.ALL },
         { path: 'api/internal/(.*)', method: RequestMethod.ALL },
       )

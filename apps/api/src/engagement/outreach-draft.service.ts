@@ -999,6 +999,36 @@ export class OutreachDraftService {
       history: a.versions.map(toVersionSummary),
     };
   }
+
+  async importNewsletterVersion(
+    ctx: TenantContext,
+    input: UpsertGeneratedVersionInput & { newsletterStageId: string },
+  ): Promise<OutreachDraftVersionDto> {
+    const created = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.assertRecordOwned(tx, ctx, input.outreachRecordId);
+      const stages = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id::text FROM ws_newsletter_stage
+        WHERE id = ${input.newsletterStageId}::uuid
+          AND tenant_id = ${ctx.tenantId}::uuid AND owner_id = ${ctx.clerkUserId}
+      `;
+      if (!stages.length) throw new NotFoundException('Staged newsletter not found');
+      const artifactId = await this.findOrCreateArtifactId(tx, ctx, input);
+      const version = await this.lockAndBumpArtifact(tx, ctx, artifactId);
+      return tx.outreachDraftVersion.create({
+        data: {
+          tenantId: ctx.tenantId, artifactId, version,
+          subject: input.subject, body: input.body,
+          contentHash: contentHashOf(input.subject, input.body),
+          generationStatus: 'manually_authored', contentFormat: 'workspace_newsletter',
+          newsletterStageId: input.newsletterStageId,
+          auditStatus: 'pending', approvalStatus: 'not_required', auditLedger: [],
+          createdByUserId: ctx.userId,
+        },
+        select: VERSION_SELECT,
+      });
+    });
+    return this.auditAndReload(ctx, created);
+  }
 }
 
 // ── pure helpers (exported for unit tests) ───────────────────────────────────
