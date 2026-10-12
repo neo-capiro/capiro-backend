@@ -5,6 +5,18 @@
       "sha256": "a1f866afc42571ac132fc523d9738151ea79fcb0e9ca8929f2d70f12d0e45059"
     },
     {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/COMMANDS.json",
+      "sha256": "4b1057ed878565d5e7d06dc6a4df8e04207a07ac4867e78a712ae6a0a17f2201"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/HANDOFF.md",
+      "sha256": "41162959eff40a7374efbd37c9854dd3324d4e3c6f75a12a54d1e4ca414cdc6c"
+    },
+    {
+      "path": "docs/cleanup-workspace-product-conversion-20261012/SOURCE-MANIFEST.json",
+      "sha256": "253aef92c5a99fbaee4d5db3c1635388d9cee747744147cc3dae6d8d0c4c9350"
+    },
+    {
       "path": "docs/cleanup-workspace-product-conversion-20261012/evidence/before-source-bindings.json",
       "sha256": "28d753bffef9784dbe691b86c7955fd793b4031919e6ede6d71fd0336ba76afb"
     },
@@ -174,5 +186,6 @@
     }
   ],
   "manifestExcludesSelf": true,
-  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa"
+  "sourceFreeze": "77e936d2a695203819b7d46277bf63ab6a659539",
+  "sourceFreezeTree": "d5763734ebf1ad79a0257e973090e6a417817e54"
 }
