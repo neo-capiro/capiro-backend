@@ -417,6 +417,34 @@ test('variable carrier fingerprints include export visibility and const/let muta
   );
 });
 
+for (const [kind, text] of [
+  ['function', 'export declare function canonicalRoute(input:string):string;'],
+  ['variable', 'export declare const canonicalRoute: (input:string)=>string;'],
+  ['class', 'export declare class canonicalRoute {}'],
+  ['enum', 'export declare enum canonicalRoute { Value }'],
+  ['function', 'export function canonicalRoute(input:string):string;'],
+  ['variable', 'export let canonicalRoute: (input:string)=>string;'],
+  ['enum', 'export const enum canonicalRoute { Value }'],
+])
+  test(`refuses an erased or uninitialized ${kind} owner: ${text}`, () => {
+    const result = check(({ files, config }) => {
+      files.set(owner, text);
+      config.profiles[0].symbols[0].kind = kind;
+    });
+    assert.ok(result.errors.length > 0);
+  });
+test('refuses an implicitly ambient owner supplied as a declaration file', () => {
+  const result = check(({ files, config }) => {
+    const declared = 'apps/example/src/registry.d.ts';
+    files.delete(owner);
+    files.set(declared, ownerSource);
+    config.profiles[0].owner = declared;
+    config.profiles[0].edges[0].module = './registry.d.js';
+    files.set(consumer, consumerSource.replace('./registry.js', './registry.d.js'));
+  });
+  assert.ok(result.errors.some((error) => error.includes('named module export')));
+});
+
 function onDisk(change, inspect) {
   const root = mkdtempSync(path.join(tmpdir(), 'capiro-registry-source-'));
   try {

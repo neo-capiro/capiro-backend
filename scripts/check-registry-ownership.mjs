@@ -69,7 +69,19 @@ function declarationEnvelope(node) {
 
 function isNamedModuleExport(node, sf) {
   const t = ts();
+  const value = node;
   node = declarationEnvelope(node);
+  const runtime = !t.isInterfaceDeclaration(value) && !t.isTypeAliasDeclaration(value);
+  if (
+    runtime &&
+    (sf?.isDeclarationFile ||
+      node.modifiers?.some((modifier) => modifier.kind === t.SyntaxKind.DeclareKeyword) ||
+      (t.isFunctionDeclaration(value) && !value.body) ||
+      (t.isVariableDeclaration(value) && !value.initializer) ||
+      (t.isEnumDeclaration(value) &&
+        value.modifiers?.some((modifier) => modifier.kind === t.SyntaxKind.ConstKeyword)))
+  )
+    return false;
   return (
     node.parent === sf &&
     node.modifiers?.some((modifier) => modifier.kind === t.SyntaxKind.ExportKeyword) &&
