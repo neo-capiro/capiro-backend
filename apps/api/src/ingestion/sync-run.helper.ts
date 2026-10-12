@@ -214,6 +214,7 @@ export async function runWithSyncRun(
         errorCount: counts.errors,
         status,
       };
+      if (counts.stats) data.stats = counts.stats;
       if (status === 'partial') {
         data.errorMessage = (
           counts.incompleteReason ?? 'Source window was not fully processed'

@@ -56,6 +56,8 @@ export interface RunCounts {
    * without reading raw task logs.
    */
   errorMessage?: string | null;
+  /** Source-owned bounded coverage receipt; omitted by existing jobs. */
+  stats?: Record<string, unknown>;
 }
 
 export type CompletedSyncRunStatus = 'success' | 'success_with_errors' | 'partial';
