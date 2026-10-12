@@ -1,0 +1,20 @@
+{
+  "startedAt": "2026-10-12T23:15:40.666Z",
+  "finishedAt": "2026-10-12T23:15:40.734Z",
+  "executable": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+  "args": [
+    "docs/cleanup-native-contract-prerequisites-20261012/native-contract-harness.cjs",
+    "--plan"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+  "envKeys": [
+    "PATH",
+    "LANG",
+    "TZ"
+  ],
+  "exitCode": 0,
+  "signal": null,
+  "error": null,
+  "rawLog": "evidence/03-plan.log",
+  "noDatabaseRun": true
+}

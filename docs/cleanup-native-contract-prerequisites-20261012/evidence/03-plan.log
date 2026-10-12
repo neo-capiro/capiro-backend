@@ -1,0 +1,125 @@
+{
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "sourceTree": "b7b33bfa38bccf69aa1a94dd2942add016bf19d3",
+  "sourceBindings": 59,
+  "fixtureParts": [
+    {
+      "source": "parent-fixture.sql",
+      "qualification": "minimal final-shape parents",
+      "bytes": 1435
+    },
+    {
+      "source": "apps/api/prisma/migrations/20260501000000_init_identity_tenancy/migration.sql",
+      "qualification": "exact functions and tenant/member policies, not entire migration",
+      "bytes": 1361
+    },
+    {
+      "source": "apps/api/prisma/migrations/20260502000000_user_admin_brand_clients/migration.sql",
+      "qualification": "exact client policy/grants",
+      "bytes": 510
+    },
+    {
+      "source": "apps/api/prisma/migrations/20260719220000_client_memory_walls/migration.sql",
+      "qualification": "exact additive wall/table/policy/grants before unrelated embedding backfill",
+      "bytes": 1864
+    },
+    {
+      "source": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+      "qualification": "whole exact reviewed migration",
+      "bytes": 3398
+    },
+    {
+      "source": "apps/api/prisma/migrations/20260908010000_outreach_v3_campaign_state/migration.sql",
+      "qualification": "whole exact reviewed migration",
+      "bytes": 13020
+    },
+    {
+      "source": "apps/workspace/prisma/migrations/00000000000000_init_workspace/migration.sql",
+      "qualification": "whole exact reviewed migration",
+      "bytes": 4417
+    },
+    {
+      "source": "apps/workspace/prisma/migrations/20260627185725_ws_doc_version/migration.sql",
+      "qualification": "whole exact reviewed migration",
+      "bytes": 971
+    },
+    {
+      "source": "apps/workspace/prisma/migrations/20260627190000_ws_collaborator/migration.sql",
+      "qualification": "whole exact reviewed migration",
+      "bytes": 1180
+    },
+    {
+      "source": "apps/workspace/prisma/migrations/20260913020000_legiwatch_preparation_actions/migration.sql",
+      "qualification": "whole exact reviewed migration",
+      "bytes": 895
+    },
+    {
+      "source": "apps/workspace/prisma/migrations/20261012030000_prospect_resource_origin/migration.sql",
+      "qualification": "whole exact reviewed migration",
+      "bytes": 2192
+    },
+    {
+      "source": "apps/workspace/prisma/migrations/20261012040000_saved_version_immutability/migration.sql",
+      "qualification": "whole exact reviewed migration",
+      "bytes": 533
+    },
+    {
+      "source": "apps/api/prisma/migrations/20260521030000_intel_optimization/migration.sql",
+      "qualification": "exact Federal Register base before unrelated Congress tables",
+      "bytes": 1162
+    },
+    {
+      "source": "apps/api/prisma/migrations/20260523080000_sync_run_table/migration.sql",
+      "qualification": "whole exact reviewed migration",
+      "bytes": 568
+    },
+    {
+      "source": "apps/api/prisma/migrations/20280921000100_federal_award_date_semantics/migration.sql",
+      "qualification": "exact SyncRun stats addition before unrelated award columns",
+      "bytes": 78
+    },
+    {
+      "source": "apps/api/prisma/migrations/20281012060000_federal_register_effective_evidence/migration.sql",
+      "qualification": "whole exact reviewed migration",
+      "bytes": 887
+    },
+    {
+      "source": "apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql",
+      "qualification": "whole exact Core rich newsletter migration; synthetic legacy parent only",
+      "bytes": 2048
+    },
+    {
+      "source": "apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql",
+      "qualification": "whole exact Core rich newsletter migration; synthetic legacy parent only",
+      "bytes": 1421
+    },
+    {
+      "source": "apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql",
+      "qualification": "whole exact Core rich newsletter migration; synthetic legacy parent only",
+      "bytes": 1289
+    },
+    {
+      "source": "apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql",
+      "qualification": "whole exact Core rich newsletter migration; synthetic legacy parent only",
+      "bytes": 1656
+    },
+    {
+      "source": "explicit fixture grants",
+      "qualification": "test prerequisite only; does not assert deployed Workspace grants",
+      "bytes": 394
+    }
+  ],
+  "target": {
+    "dataDirectory": "/tmp/capiro-native-pg-pr2429-20261012/data",
+    "socketDirectory": "/tmp/capiro-native-pg-socket-pr2429-20261012",
+    "port": 5432,
+    "user": "agent",
+    "database": "postgres",
+    "systemIdentifier": "7695922344929406966",
+    "listenAddresses": "",
+    "inetServerAddr": null
+  },
+  "runAuthorized": false,
+  "databaseDriverLoaded": false,
+  "nativeTestsRun": false
+}

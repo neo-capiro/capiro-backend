@@ -1,0 +1,67 @@
+✔ all 59 pinned source byte hashes verify without database (7.741702ms)
+✔ fixture source parts assemble without SQL execution (2.972441ms)
+✔ source extraction rejects missing or duplicate boundaries (0.623587ms)
+✔ target refuses mismatched dataDirectory (0.200793ms)
+✔ target refuses mismatched user (0.215152ms)
+✔ target refuses mismatched database (0.137363ms)
+✔ target refuses mismatched systemIdentifier (0.106825ms)
+✔ target refuses mismatched listenAddresses (0.193056ms)
+✔ target refuses mismatched inetServerAddr (0.115923ms)
+✔ target refuses mismatched version (0.260831ms)
+✔ target refuses mismatched publicTables (0.213159ms)
+✔ target refuses password input (0.16623ms)
+✔ target refuses connectionString input (0.135533ms)
+✔ target refuses url input (0.099682ms)
+✔ CLI rejects before driver work: [] (0.684398ms)
+✔ CLI rejects before driver work: ["--run"] (0.129882ms)
+✔ CLI rejects before driver work: ["--run","--run"] (0.100628ms)
+✔ CLI rejects before driver work: ["--plan","--run"] (0.089029ms)
+✔ CLI rejects before driver work: ["--unknown"] (0.097898ms)
+✔ CLI rejects before driver work: ["--run","--verified-target","unused","--output","/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-native-contract-prerequisites-20261012/README.md"] (0.081451ms)
+✖ actual canonical pure owners and reducers load through finite refusal loader (209.609467ms)
+✔ PG transaction adapter binds tagged values without interpolation and preserves rowCount (1.466784ms)
+✔ PG model projection adapters refuse unexpected arguments (3.172501ms)
+✖ harness contains no credential/database/extension installer or blanket cleanup (7.359438ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 22
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 344.660262
+
+✖ failing tests:
+
+test at docs/cleanup-native-contract-prerequisites-20261012/native-contract-harness.test.cjs:17:1
+✖ actual canonical pure owners and reducers load through finite refusal loader (209.609467ms)
+  Error: Target timeout declaration is not uniquely bounded
+      at loadCanonical (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-native-contract-prerequisites-20261012/canonical-loader.cjs:54:42)
+      at TestContext.<anonymous> (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-native-contract-prerequisites-20261012/native-contract-harness.test.cjs:18:15)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at docs/cleanup-native-contract-prerequisites-20261012/native-contract-harness.test.cjs:38:1
+✖ harness contains no credential/database/extension installer or blanket cleanup (7.359438ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert(!/CREATE\s+(?:DATABASE|EXTENSION)|LOGIN\s+PASSWORD|DROP\s+OWNED|DATABASE_URL/.test(source))
+  
+      at TestContext.<anonymous> (/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-native-contract-prerequisites-20261012/native-contract-harness.test.cjs:40:2)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
