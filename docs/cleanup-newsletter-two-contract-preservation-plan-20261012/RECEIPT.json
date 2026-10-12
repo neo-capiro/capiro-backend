@@ -1,0 +1,78 @@
+{
+  "classification": "Independent read-only source preservation prerequisite/ownership plan; no application/native/live acceptance",
+  "planBranch": "codex/cleanup-newsletter-two-contract-preservation-plan-20261012",
+  "preservedReviewParent": "c51e57613fe7c3545acfc227e44aa0a1d2e95a78",
+  "sourcePins": {
+    "C": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "W": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda",
+    "Q": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+    "four": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+    "assessment": "7286700fb80c43ec66e1330bed7b5c64b10804e0"
+  },
+  "sourceTrees": {
+    "C": "ce817706a72b7f096cf3e112f28ec355153e5653",
+    "W": "d7907c0d9e8f6feb1a79dab3ba02e91050379e18",
+    "Q": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+    "four": "d5a1acd33391ae681159c271f6a72602c6338055",
+    "assessment": "a3d1acd826bac6479d21ad233d6b71ba21e754fc"
+  },
+  "dedicatedFrontend": {
+    "head": "4a1614886fd98bb42d529f1ef59b3d01d7ff9173",
+    "tree": "16c0b62901859aa4ff3f2ea01856aa13e13c65cd",
+    "recursiveCount": 4939,
+    "truncated": false
+  },
+  "startingOriginalBindings": 27,
+  "runtimeOwners": 25,
+  "originalSpecs": 19,
+  "originalLiteralSpecCases": 168,
+  "historicalSQL": 14,
+  "sourceBindings": 91,
+  "unchangedQFourBindings": 91,
+  "routeDelegatesRebound": 67,
+  "originalRuntimeSpecsCEqualsW": 44,
+  "sourcePlanningControls": {
+    "passed": 42,
+    "total": 42,
+    "originalFailed": 3,
+    "originalCount": 42
+  },
+  "frontendControls": {
+    "passed": 8,
+    "total": 8
+  },
+  "frontendFamily": {
+    "paths": 262,
+    "runtimeTS": 43,
+    "staticAssets": 179,
+    "tests": 37,
+    "css": 2,
+    "generator": 1,
+    "CEqualsW": 261,
+    "soleDifference": "NewsletterEditor.test.tsx",
+    "sameDedicatedPath": 0,
+    "renamedDedicatedExactBlob": 0
+  },
+  "applicationEdits": 0,
+  "sqlExecuted": false,
+  "dependencyInstall": false,
+  "productionImportsExecuted": false,
+  "routeGETExecuted": false,
+  "providerOrDBCalls": false,
+  "nativePrismaOrSharp": false,
+  "unpublishedReportingSourceInspected": false,
+  "sourceCorrections": [
+    "Original source reader ENOBUFS1MiB→32MiB raw subprocess buffer, old raw log/script retained",
+    "Three static-control reader assumptions corrected to actual immutable C names/assertions; original39/42 retained",
+    "Unavailable optional YAML package did not install; raw lock importer used; failure reproduction retained",
+    "Local4a revision unavailable; authorized GitHub source-only commit/tree/file reads used,404 asset-path result retained"
+  ],
+  "boundedConclusion": "Two separate existing canonical-owner graphs can be source-composed additively. Q saved-revision wire/runtime unchanged; original rich newsletter metadata/assets/public-link/recipient/invitation contracts preserved by source/import/schema/history graph. No stageUUID/versionUUID association or group repair. Existing Q guard/policy bodies preserved; exact C-only original blobs/history and migration IDs retained.",
+  "remainingPrerequisites": [
+    "Author implementation and independent final merged canonical-owner/signature/source tests",
+    "Q prospect notification visibility, attachment predicates, WsDraft source/prospect fields and credential policy preservation",
+    "Coherent package/exports/schema/module/config and historical migration source pairing; no native execution",
+    "Parent-owned frozen frontend rich UI/static origin/router/build equivalence handoff; no frontend edit in this task",
+    "All native/applied ledger/role/RLS/MVCC/provider/live deployment and wider Cleanup gates remain unrun"
+  ]
+}
