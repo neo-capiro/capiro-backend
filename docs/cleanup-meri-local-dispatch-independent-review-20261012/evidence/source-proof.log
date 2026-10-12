@@ -1,0 +1,48 @@
+node:assert:152
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
+  [
++   'if (input.format !== undefined &&\n' +
++     "    input.format !== 'docx' &&\n" +
++     "    input.format !== 'pdf' &&\n" +
++     "    input.format !== 'txt') {\n" +
+-   "if (input.format !== undefined && input.format !== 'docx' && input.format !== 'pdf' && input.format !== 'txt') {\n" +
+      "    throw new BadRequestException('Document format must be docx, pdf or txt');\n" +
+      '}',
+    "return this.createDocument(ctx, input, input.format === 'txt' ? 'txt' : input.format === 'pdf' ? 'pdf' : 'docx', execution?.actionProposalId);"
+  ]
+
+    at Object.<anonymous> (/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-meri-local-dispatch-independent-review-20261012/evidence/source-proof.cjs:45:42)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [
+    'if (input.format !== undefined &&\n' +
+      "    input.format !== 'docx' &&\n" +
+      "    input.format !== 'pdf' &&\n" +
+      "    input.format !== 'txt') {\n" +
+      "    throw new BadRequestException('Document format must be docx, pdf or txt');\n" +
+      '}',
+    "return this.createDocument(ctx, input, input.format === 'txt' ? 'txt' : input.format === 'pdf' ? 'pdf' : 'docx', execution?.actionProposalId);"
+  ],
+  expected: [
+    "if (input.format !== undefined && input.format !== 'docx' && input.format !== 'pdf' && input.format !== 'txt') {\n" +
+      "    throw new BadRequestException('Document format must be docx, pdf or txt');\n" +
+      '}',
+    "return this.createDocument(ctx, input, input.format === 'txt' ? 'txt' : input.format === 'pdf' ? 'pdf' : 'docx', execution?.actionProposalId);"
+  ],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

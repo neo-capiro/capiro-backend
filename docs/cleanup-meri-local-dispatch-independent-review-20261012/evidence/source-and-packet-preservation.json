@@ -1,0 +1,37 @@
+{
+  "source": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+  "tree": "65e553b6ba81b025fe4d31c57e87c3f26c69dab9",
+  "authorSource": "eef2ee4b92aa6a16ae10225c3414794d5fb52a93",
+  "authorSourceTree": "4927911d7bc178d1f8e80c69453c96c6a4d3eeb3",
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "paths": [
+    {
+      "path": "apps/api/src/meri/meri-local-dispatch.equivalence.spec.ts",
+      "baseEntry": null,
+      "candidateEntry": "100644 blob 5a12ea1a984a6b9929636ae7342d4229a7173db4",
+      "sha256": "b88051b59c8d74328674350ce0b93e0e28c573955de0b93b2445556ed4016382",
+      "exactAcceptedAuthorSource": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-local-dispatch.ts",
+      "baseEntry": null,
+      "candidateEntry": "100644 blob 5611ff79634d7b64b4dfe43a7b85ec450cd8016a",
+      "sha256": "4eb39bb943cfe8030860ab3c1d32cee2766a21d036bc37dbec1e1b72e53aa76b",
+      "exactAcceptedAuthorSource": true
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "baseEntry": "100644 blob c4cc8ee7623c94b733650e9031d8b8e29388a3a1",
+      "candidateEntry": "100644 blob 32a7a744ba9ab812337baaf6093a37540864333b",
+      "sha256": "03052d70373c65f935c0885103a946123a621bd7898e023b45b9ddf10da5f267",
+      "exactAcceptedAuthorSource": true
+    }
+  ],
+  "allBaselineOutsideThreeAppPathsExact": 21380,
+  "allOtherApplicationsExact": 10505,
+  "schemaMigrationsExact": 603,
+  "priorDocsReceiptsExact": 9697,
+  "authorPacketEntriesVerified": 42,
+  "rootControlHunksNotYetIncludedOrAccepted": true,
+  "nativeAcceptance": false
+}

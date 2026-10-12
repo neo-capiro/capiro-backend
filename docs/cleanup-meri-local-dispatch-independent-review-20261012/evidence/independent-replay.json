@@ -1,0 +1,536 @@
+{
+  "source": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+  "originalBase": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "comparisons": 48,
+  "results": [
+    {
+      "label": "unknown/malformed/prototype",
+      "name": "__proto__",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "Unhandled Meri tool: __proto__"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "unknown/malformed/prototype",
+      "name": "constructor",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "Unhandled Meri tool: constructor"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "unknown/malformed/prototype",
+      "name": "toString",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "Unhandled Meri tool: toString"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "unknown/malformed/prototype",
+      "name": "__defineGetter__",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "Unhandled Meri tool: __defineGetter__"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "unknown/malformed/prototype",
+      "name": "",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "Unhandled Meri tool: "
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "unknown/malformed/prototype",
+      "name": "unknown",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "Unhandled Meri tool: unknown"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "unknown/malformed/prototype",
+      "name": "malformed object",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "Unhandled Meri tool: null"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "unknown/malformed/prototype",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "Unhandled Meri tool: undefined"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "unknown/malformed/prototype",
+      "name": 12,
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "Unhandled Meri tool: 12"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "unknown/malformed/prototype",
+      "name": "Symbol",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "TypeError",
+        "message": "Cannot convert a Symbol value to a string"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "unknown/malformed/prototype",
+      "name": "malformed object",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "Unhandled Meri tool: [object Object]"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "unknown/malformed/prototype",
+      "name": "malformed object",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "Unhandled Meri tool: send_email"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "object unknown interpolation marker",
+      "name": "malformed object",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "synthetic leaf/getter marker"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "cancelled before dispatch",
+      "name": "send_email",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "synthetic cancellation"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "cancelled before dispatch",
+      "name": "get_research_portfolio",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "synthetic cancellation"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "cancelled before dispatch",
+      "name": "search_funding_opportunities",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "synthetic cancellation"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "proposal getter order",
+      "name": "send_email",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "proposal getter exception",
+      "name": "send_email",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "synthetic leaf/getter marker"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "proposal getter order",
+      "name": "create_word",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "proposal getter exception",
+      "name": "create_word",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "synthetic leaf/getter marker"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "proposal getter order",
+      "name": "schedule_task",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "proposal getter exception",
+      "name": "schedule_task",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "synthetic leaf/getter marker"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "all8 funding actor/input getter order",
+      "name": "search_funding_opportunities",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "all8 funding actor/input getter order",
+      "name": "get_funding_opportunity_requirements",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "all8 funding actor/input getter order",
+      "name": "get_funding_opportunity",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "all8 funding actor/input getter order",
+      "name": "explain_opportunity_match",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "all8 funding actor/input getter order",
+      "name": "get_opportunity_client_context",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "all8 funding actor/input getter order",
+      "name": "get_opportunity_government_landscape",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "all8 funding actor/input getter order",
+      "name": "compare_funding_opportunities",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "all8 funding actor/input getter order",
+      "name": "build_opportunity_action_plan",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "canonical RP authority/current use",
+      "name": "get_research_portfolio",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 2,
+      "ownerCalls": 1
+    },
+    {
+      "label": "canonical RP authority/current use",
+      "name": "get_research_portfolio",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "synthetic leaf/getter marker"
+      },
+      "syntheticReads": 1,
+      "ownerCalls": 0
+    },
+    {
+      "label": "canonical RP authority/current use",
+      "name": "get_research_portfolio",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "ForbiddenException",
+        "message": "Research Portfolio current-turn authority is unavailable"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "canonical RP authority/current use",
+      "name": "get_research_portfolio",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "BadRequestException",
+        "message": "This conversation is not scoped to a Research Portfolio"
+      },
+      "syntheticReads": 1,
+      "ownerCalls": 0
+    },
+    {
+      "label": "canonical RP authority/current use",
+      "name": "get_research_portfolio",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "BadRequestException",
+        "message": "The current conversation client no longer matches this turn"
+      },
+      "syntheticReads": 1,
+      "ownerCalls": 0
+    },
+    {
+      "label": "canonical RP authority/current use",
+      "name": "get_research_portfolio",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "BadRequestException",
+        "message": "The current Research Portfolio conversation scope changed while access was checked"
+      },
+      "syntheticReads": 2,
+      "ownerCalls": 0
+    },
+    {
+      "label": "canonical RP authority/current use",
+      "name": "get_research_portfolio",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 2,
+      "ownerCalls": 1
+    },
+    {
+      "label": "cross actor/conversation denies before owner",
+      "name": "get_research_portfolio",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "ForbiddenException",
+        "message": "Research Portfolio current-turn authority does not match"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "cross actor/conversation denies before owner",
+      "name": "get_research_portfolio",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "ForbiddenException",
+        "message": "Research Portfolio current-turn authority does not match"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "cross actor/conversation denies before owner",
+      "name": "get_research_portfolio",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "ForbiddenException",
+        "message": "Research Portfolio current-turn authority does not match"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "getter/error/district timing",
+      "name": "get_client_context",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "synthetic leaf/getter marker"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "getter/error/district timing",
+      "name": "send_email",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "synthetic leaf/getter marker"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "getter/error/district timing",
+      "name": "get_district_nexus_context",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 0
+    },
+    {
+      "label": "getter/error/district timing",
+      "name": "get_district_nexus_context",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "plain/promise/thenable/error adoption",
+      "name": "get_client_context",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "plain/promise/thenable/error adoption",
+      "name": "get_client_context",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "plain/promise/thenable/error adoption",
+      "name": "get_client_context",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": null,
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    },
+    {
+      "label": "plain/promise/thenable/error adoption",
+      "name": "get_client_context",
+      "exactTraceAndArgs": true,
+      "sharedErrorRealm": true,
+      "error": {
+        "name": "Error",
+        "message": "synthetic leaf/getter marker"
+      },
+      "syntheticReads": 0,
+      "ownerCalls": 1
+    }
+  ],
+  "successiveOwnerReplays": 4,
+  "concurrentRpCallsWithIsolatedAlsContexts": 4,
+  "originalBodiesTakenDirectlyFromGitNotCandidateTable": true,
+  "sameHostErrorRealm": true,
+  "actualApplicationGraphImported": false,
+  "fakeDataPortsOnly": true,
+  "databaseProviderNativeCalls": 0,
+  "cancellationScope": "Original cooperative guard retained; cancellation during grant has exactly original outcome, no rollback claim"
+}

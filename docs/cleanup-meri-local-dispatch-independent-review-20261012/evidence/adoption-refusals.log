@@ -1,0 +1,19 @@
+{"label":"widen canonical finite name to string","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-local-dispatch.ts/MeriLocalToolName"]}
+{"label":"widen readonly callback registry","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-local-dispatch.ts/MeriLocalDispatchRegistry"]}
+{"label":"unknown helper returns instead of original failure","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-local-dispatch.ts/executeMeriLocalDispatch"]}
+{"label":"accept inherited prototype tool keys","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-local-dispatch.ts/executeMeriLocalDispatch"]}
+{"label":"duplicate owned helper declaration","rejected":true,"errors":["meri-local-core-dispatch: executeMeriLocalDispatch must have one named module export (function) in apps/api/src/meri/meri-local-dispatch.ts"]}
+{"label":"duplicate owned type declaration","rejected":true,"errors":["meri-local-core-dispatch: MeriLocalToolName must have one named module export (type) in apps/api/src/meri/meri-local-dispatch.ts"]}
+{"label":"wrong canonical import module","rejected":true,"errors":["meri-local-core-dispatch: apps/api/src/meri/meri-tools.service.ts/executeMeriLocalDispatch: expected one runtime named import, found 0","meri-local-core-dispatch: unlisted owner import apps/api/src/meri/meri-tools.service.ts/executeMeriLocalDispatch"]}
+{"label":"unlisted new named runtime consumer","rejected":true,"errors":["meri-local-core-dispatch: unlisted owner import apps/api/src/meri/reviewer-new-consumer.ts/executeMeriLocalDispatch"]}
+{"label":"new namespace runtime consumer","rejected":true,"errors":["meri-local-core-dispatch: unsupported owner import in apps/api/src/meri/reviewer-namespace-consumer.ts"]}
+{"label":"remove first active cancellation assertion","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-tools.service.ts/MeriToolsService"]}
+{"label":"eager ResearchPortfolio owner resolution","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-tools.service.ts/MeriToolsService"]}
+{"label":"ResearchPortfolio primitive name drift","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-tools.service.ts/MeriToolsService"]}
+{"label":"eager proposal getter before selection","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-tools.service.ts/MeriToolsService"]}
+{"label":"Funding current actor source bypass","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-tools.service.ts/MeriToolsService"]}
+{"label":"Funding input first getter drift","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-tools.service.ts/MeriToolsService"]}
+{"label":"capture per actor context on owner instance","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-tools.service.ts/MeriToolsService"]}
+{"label":"pass cached actor to current use authority","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-tools.service.ts/MeriToolsService"]}
+{"label":"unknown failure function returns instead of Error","rejected":true,"errors":["meri-local-core-dispatch: carrier drift or missing declaration: apps/api/src/meri/meri-tools.service.ts/assertNever"]}
+{"source":"7ea444c74a5637577aa0eb3cb99cb420b5f8223e","baseline":{"errors":[],"profiles":1,"files":1880},"refusals":18,"inventoryRefusals":2,"mutationsExecuted":false}

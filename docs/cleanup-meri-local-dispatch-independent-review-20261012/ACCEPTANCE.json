@@ -1,0 +1,91 @@
+{
+  "disposition": "ACCEPTED within the Meri application and four adoption-hunk source-only scope",
+  "source": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+  "tree": "d5a1acd33391ae681159c271f6a72602c6338055",
+  "authorApplicationPacket": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+  "authorApplicationSource": "eef2ee4b92aa6a16ae10225c3414794d5fb52a93",
+  "originalBase": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "originalSwitchSha256": "a67ef2db537d518a176a734e7f0d89395e521122d731ab5e9da06bf243b71a41",
+  "reviewedApplicationPaths": [
+    "apps/api/src/meri/meri-tools.service.ts",
+    "apps/api/src/meri/meri-local-dispatch.ts",
+    "apps/api/src/meri/meri-local-dispatch.equivalence.spec.ts"
+  ],
+  "reviewedAdoptionPaths": [
+    "scripts/registry-ownership.json",
+    "scripts/duplicate-helper-names.txt",
+    "package.json",
+    ".github/workflows/ci-pr.yml"
+  ],
+  "freshChecks": {
+    "inertOracle887": "887/887 PASS at author packet",
+    "independentBeforeAfterComparisons": 48,
+    "successiveOwnerReplays": 4,
+    "concurrentRpActorContexts": 4,
+    "focusedStrictTypecheck": "PASS at author packet",
+    "fullCoreCachedTypecheck": "PASS at author packet",
+    "adoptedAliasExactJestArgsViaNode": "887/887 PASS at integrated source",
+    "currentOwnerProfiles": 5,
+    "currentSourceFiles": 2199,
+    "currentOwnerInspectionErrors": 0,
+    "actualCoreMutationSourceFiles": 1880,
+    "parseOnlyMutationRefusals": 18,
+    "inventoryRefusals": 2,
+    "helperInventory": 7
+  },
+  "applicationCheckCarry": {
+    "reason": "All three application blobs and modes match the original author packet exactly",
+    "proof": "evidence/adoption-wiring-review.json"
+  },
+  "preservation": {
+    "baseline": "74d04937d4453813d15ec957a76337c73b712899",
+    "outsideOverlayPaths": 21519,
+    "outsideOverlayAppPaths": 10512,
+    "schemaMigrationPaths": 603,
+    "priorDocumentPaths": 9829,
+    "authorChecksumEntries": 42,
+    "otherFourProfilesExact": true,
+    "priorSixInventoryRowsByteExact": true,
+    "allPriorPackageValuesExact": true,
+    "allPriorWorkflowValuesAndTextExact": true
+  },
+  "correctedReviewerFailures": [
+    {
+      "source": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+      "program": "evidence/source-proof-first.cjs",
+      "rawLogs": [
+        "evidence/source-proof-first.log",
+        "evidence/source-proof.log"
+      ],
+      "exitCode": 1,
+      "classification": "Reviewer layout oracle false positive: printer preserves source line breaks. Corrected to exact scanner tokens; retained original byte-preservation assertions."
+    },
+    {
+      "source": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+      "program": "evidence/independent-replay-first.cjs",
+      "rawLogs": [
+        "evidence/independent-replay-first.log",
+        "evidence/independent-replay.log"
+      ],
+      "exitCode": 1,
+      "classification": "Reviewer lexical regex false positive: existing in-process comment. Corrected to executable Identifier nodes; no forbidden executable identifiers or resources allowed."
+    }
+  ],
+  "excludedReviewScopes": [
+    "Generic ownership guard implementation (separate reviewer)",
+    "Other four application conversions (separate reviewers)",
+    "Unpublished scoped EngagementService reporting source"
+  ],
+  "limits": [
+    "Bounded declaration/import/carrier grammar; no arbitrary JS or renamed semantic-copy containment",
+    "Cancellation and authority retain original behavior; no rollback or new cancellation guarantee",
+    "Full Core TSC was run on the author packet; only exact Meri source conclusions are carried to the integrated source",
+    "No pnpm alias, package installation, CI invocation, database, SQL, native engine, provider, model, security or deployment operations",
+    "Wider cleanup/native gates, historical documentation/manifest gaps and separate production-source reconciliation remain open",
+    "123 deferred clock samples and prior native readiness conditions are unchanged"
+  ],
+  "newRuntimeImportsInHelper": 0,
+  "routesDtoSchemaFrontendContractChanges": 0,
+  "sourceEditsByReviewer": 0,
+  "nativeAcceptance": false
+}

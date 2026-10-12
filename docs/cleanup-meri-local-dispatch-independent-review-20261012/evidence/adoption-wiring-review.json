@@ -1,0 +1,116 @@
+{
+  "source": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+  "tree": "d5a1acd33391ae681159c271f6a72602c6338055",
+  "base": "74d04937d4453813d15ec957a76337c73b712899",
+  "baseTree": "6ecdbf3af3c2c35df83a8a2bf28958fafe8c94f6",
+  "author": "d3e0efacf59fb64361c612c01da5ae8a6f19e426",
+  "nonDocumentDelta": [
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "baseEntry": "100644 blob 171e17f7cdf2f7458ffe3564ce9972045d8584c6",
+      "sourceEntry": "100644 blob a6af5a8a530b627295f7cb82a0584944e576fefc",
+      "sha256": "ac548187c71bd5de607dcd6f06caee8fd512d6d9d35b800fbd76f347acba684a"
+    },
+    {
+      "path": "apps/api/src/meri/meri-local-dispatch.equivalence.spec.ts",
+      "baseEntry": null,
+      "sourceEntry": "100644 blob 5a12ea1a984a6b9929636ae7342d4229a7173db4",
+      "sha256": "b88051b59c8d74328674350ce0b93e0e28c573955de0b93b2445556ed4016382"
+    },
+    {
+      "path": "apps/api/src/meri/meri-local-dispatch.ts",
+      "baseEntry": null,
+      "sourceEntry": "100644 blob 5611ff79634d7b64b4dfe43a7b85ec450cd8016a",
+      "sha256": "4eb39bb943cfe8030860ab3c1d32cee2766a21d036bc37dbec1e1b72e53aa76b"
+    },
+    {
+      "path": "apps/api/src/meri/meri-tools.service.ts",
+      "baseEntry": "100644 blob c4cc8ee7623c94b733650e9031d8b8e29388a3a1",
+      "sourceEntry": "100644 blob 32a7a744ba9ab812337baaf6093a37540864333b",
+      "sha256": "03052d70373c65f935c0885103a946123a621bd7898e023b45b9ddf10da5f267"
+    },
+    {
+      "path": "package.json",
+      "baseEntry": "100644 blob 3c6a3080ec904c6575aa146f2606bdfab6509fc8",
+      "sourceEntry": "100644 blob b5e74ae3d6341c2c371a7366f00957cae35f12ee",
+      "sha256": "ea94b791a19e08886d6bfb42174074b4c7e882f71a3dad3902fd8eb476c0d869"
+    },
+    {
+      "path": "scripts/duplicate-helper-names.txt",
+      "baseEntry": "100644 blob 5403a7cebfa7b9ced561eb58030b24ad1969b846",
+      "sourceEntry": "100644 blob 26c812bafd649771aa162467437a75717056bc65",
+      "sha256": "a6577ff6989458e5a2f4205608943e71917904d949d2c0c2e5450fab0f011b19"
+    },
+    {
+      "path": "scripts/registry-ownership.json",
+      "baseEntry": "100644 blob 1ac3dcbb829e24a6c9e3952fc04c772cefc5d30d",
+      "sourceEntry": "100644 blob 04bb47461ea4c482137789e2fcb7bcf399f3a50f",
+      "sha256": "9c7bf9a64d581f223264181ffec3cdbc53d6b12cc0750e072bf2bc686ee85e8a"
+    }
+  ],
+  "originalAuthorApplicationBlobsAndModesExact": [
+    "apps/api/src/meri/meri-tools.service.ts",
+    "apps/api/src/meri/meri-local-dispatch.ts",
+    "apps/api/src/meri/meri-local-dispatch.equivalence.spec.ts"
+  ],
+  "protectedPaths": 21519,
+  "protectedApps": 10512,
+  "schemasAndMigrations": 603,
+  "priorDocuments": 9829,
+  "otherFourProfilesExact": true,
+  "carrierDigestsVerified": [
+    {
+      "file": "apps/api/src/meri/meri-local-dispatch.ts",
+      "name": "executeMeriLocalDispatch",
+      "kind": "function",
+      "sha256": "e672b9bb43f3e38507ca29627e6e61faafb55519c2c872775f53a6a27f7a3e71"
+    },
+    {
+      "file": "apps/api/src/meri/meri-local-dispatch.ts",
+      "name": "MeriLocalToolName",
+      "kind": "type",
+      "sha256": "cea84f632d5596a97313179e1c8de2ddc601b2ea7ce62a9bb2047e5a45fb5da9"
+    },
+    {
+      "file": "apps/api/src/meri/meri-local-dispatch.ts",
+      "name": "MeriLocalDispatchRegistry",
+      "kind": "type",
+      "sha256": "8a6d5844810475a6e88c309bdfe090f0df5e9b56ee9763580e02f1b333df7a38"
+    },
+    {
+      "file": "apps/api/src/meri/meri-tools.service.ts",
+      "name": "MeriToolsService",
+      "kind": "class",
+      "sha256": "9013128022387baba6d160209a1d2d8aeaaac103d2877b12ff8b963c7d51bff7"
+    },
+    {
+      "file": "apps/api/src/meri/meri-tools.service.ts",
+      "name": "assertNever",
+      "kind": "function",
+      "sha256": "6201e8948f53c41538c6c64ad6faca84cf9cbdc4903cd2c281a23d0ee6437cd7"
+    }
+  ],
+  "priorSixInventoryRowsByteExact": true,
+  "inventory": {
+    "errors": [],
+    "helpers": 7
+  },
+  "onlyPackageChangeOneAlias": "gate:cleanup4:meri-local-dispatch",
+  "onlyCiChangeOneUnconditionalStep": {
+    "jobName": "verify",
+    "name": "Test reviewed Meri local dispatch",
+    "run": "pnpm gate:cleanup4:meri-local-dispatch"
+  },
+  "allOriginalCiValuesAndTextExact": true,
+  "existingNativeDraftConditionsUnchanged": true,
+  "existingDependencyOrderingPreserved": true,
+  "currentInspection": {
+    "errors": [],
+    "profiles": 5,
+    "files": 2199
+  },
+  "cachedYamlVersion": "2.9.1",
+  "applicationModulesImported": false,
+  "pnpmAliasOrCiExecuted": false,
+  "nativeAcceptance": false
+}
