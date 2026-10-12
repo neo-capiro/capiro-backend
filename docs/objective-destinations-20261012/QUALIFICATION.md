@@ -1,9 +1,10 @@
 # Objective destination source qualification
 
-Reviewed production/source checkpoint:
+Original reviewed production/source checkpoint:
 `49c6fe290cfc4f02552b05357ae00df1f6750b67`, tree
-`b3119cffa84304611f53c9627b2de665b1556df5`. Subsequent publication changes
-are documentation and retained evidence only. The original Objective candidate
+`b3119cffa84304611f53c9627b2de665b1556df5`. Its initial publication changes
+were documentation and retained evidence only. A follow-on permission finding
+required the source correction below. The original Objective candidate
 and refreshed main remain preserved ancestors.
 
 | Check | Outcome and receipt |
@@ -18,6 +19,33 @@ and refreshed main remain preserved ancestors.
 | Dependency/path checks | Every preserved candidate's exact head and merge base checked by Git; `path-intersections.json` contains complete changed paths and both increment/whole-branch intersections. Main read-only refresh confirms `4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace`. |
 
 ## Failed and corrected evidence
+
+Follow-on P1 correction: initial published head
+`30fa58467238542ff2b98137844ea02a3225e545` requested `FOR SHARE` on immutable
+revisions, although original Objective migration source grants only SELECT/INSERT
+and revokes UPDATE/DELETE on that table. PostgreSQL locking SELECT requires UPDATE
+privilege ([official SELECT documentation](https://www.postgresql.org/docs/current/sql-select.html)).
+The initial synthetic suite did not model that privilege boundary; its passing
+results remain historical evidence and are not native permission acceptance.
+
+Corrected source `3f5a879efc06174f77231706244c1ba5e33810fa`, tree
+`1f94bbde87da5f996b17ec074b849c97452a769e`, removes only that immutable revision
+row-lock request. The mutable current Objective and current tenant/member/user/
+client/grant locks remain; parent locks protect cascade removals during resolution.
+Schema, migration, role grants and permission configuration are byte-identical.
+There is no new privilege request or executed grant.
+
+The new source/synthetic privilege regression failed on the original published
+source with the modeled UPDATE privilege refusal, then passed after correction.
+An incomplete initial patch application also failed 1/120; both raw failures are
+retained in `evidence/immutable-revision-repair`. The corrected source passes
+120/120 selected synthetic tests across 10 suites and full primary Core TypeScript.
+The independent correction review receipt records its own additional tests and
+exact reviewed source hashes: 130/130 across 11 synthetic suites, including 10 new
+independent repair cases, 39 retained independent destination cases and 81 author
+cases. Its evidence-only commit is `9d7b2d4706646ebe9069de85761c4b6f7881cd0c`.
+No database, migration, native MVCC/RLS or live
+permission experiment was run.
 
 The original full TypeScript check failed on 16 strict unchecked array indexing
 diagnostics. Its raw `core-tsc-frozen.log` remains. Production now uses an optional

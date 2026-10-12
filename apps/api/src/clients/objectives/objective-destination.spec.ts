@@ -75,7 +75,7 @@ describe('Objective destination current revision authority (synthetic SQL bounda
       input.objectiveId,
       input.objectiveVersion,
     ]);
-    expect(h.calls[3]!.sql).toContain('FOR SHARE');
+    expect(h.calls[3]!.sql).not.toMatch(/\bFOR\s+(?:SHARE|UPDATE|KEY|NO)\b/i);
   });
 
   it.each([

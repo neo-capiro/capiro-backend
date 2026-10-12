@@ -1,0 +1,26 @@
+{
+  "originalPublishedHead": "30fa58467238542ff2b98137844ea02a3225e545",
+  "reviewSourceHead": "3f5a879efc06174f77231706244c1ba5e33810fa",
+  "reviewSourceTree": "1f94bbde87da5f996b17ec074b849c97452a769e",
+  "productionDelta": "remove immutable revisionFORSHAREonly; mutableObjectiveFORSHARE retained",
+  "tests": "120/120 selectedsynthetic10suitespass",
+  "primaryCoreTypeScript": "pass exit0 full --noEmit8GB",
+  "schemaMigrationGrantsChanged": false,
+  "nativeDatabaseExecuted": false,
+  "migrationExecuted": false,
+  "sourceHashes": {
+    "apps/api/src/clients/objectives/objective-destination.privileges.spec.ts": "01a6e4aaf88febb41367f2b14b9eb89501a1aec3e5d12baaf0cbda85206b28d1",
+    "apps/api/src/clients/objectives/objective-destination.spec.ts": "b0e6da10d4097afb97ffa8800240b954947475f1590152947ab07bdae5b4a4bd",
+    "apps/api/src/clients/objectives/objectives.service.ts": "779976e1e3a3b59722b0204f15f84fb0ebfa1d964b77bffd369a93b22a2c7c78",
+    "docs/objective-destinations-20261012/CONTRACT.md": "4f25a58da7f6434c1f4dce039519e7f24c2e6e3479427fa36181c926704d7b87"
+  },
+  "objectiveMigrationSha256": "cd6a1f08162b55b04325d7ef017fdabc23d1d28870fd1c6ce863789f70fca5e2",
+  "postgresqlSource": "https://www.postgresql.org/docs/current/sql-select.html",
+  "independentReview": {
+    "reviewedHead": "3f5a879efc06174f77231706244c1ba5e33810fa",
+    "reviewedTree": "1f94bbde87da5f996b17ec074b849c97452a769e",
+    "evidenceCommit": "9d7b2d4706646ebe9069de85761c4b6f7881cd0c",
+    "tests": "130/130 across11synthetic suites including10additionalrepaircases",
+    "status": "source accepted; nativeunrun"
+  }
+}

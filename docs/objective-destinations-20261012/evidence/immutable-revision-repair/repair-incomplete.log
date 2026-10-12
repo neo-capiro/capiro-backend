@@ -1,0 +1,39 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS ../../docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts (5.263 s)
+PASS src/outreach-v3/outreach-v3-phase2-architecture.spec.ts
+PASS src/clients/objectives/objectives.service.spec.ts
+PASS src/outreach-v3/services/outreach-objective-destination.spec.ts
+PASS src/outreach-v3/api/outreach-objective-destination.controller.spec.ts
+PASS src/clients/objectives/objectives.controller.spec.ts
+PASS src/clients/objectives/objective-destination.spec.ts
+FAIL src/clients/objectives/objective-destination.privileges.spec.ts
+  ● Objective immutable revision read privileges (source/synthetic only) › resolves under original SELECT/INSERT-only revision permissions without an update grant
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [Error: UPDATE privilege required by locking SELECT on immutable revisions]
+
+      32 |     } };
+      33 |     const service = new ClientObjectivesService({} as PrismaService);
+    > 34 |     await expect(service.requireDestinationRevisionWithinTx(tx as unknown as Prisma.TransactionClient, ctx, input))
+         |           ^
+      35 |       .resolves.toEqual({ ...input, objectiveRevisionId: revisionId });
+      36 |     expect(calls.find(sql => sql.includes('FROM client_objectives'))).toContain('deleted_at IS NULL FOR SHARE');
+      37 |     expect(calls.find(sql => sql.includes('FROM client_objective_revisions'))).not.toMatch(/\bFOR\s+(?:UPDATE|SHARE|KEY|NO)\b/i);
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (apps/api/src/clients/objectives/objective-destination.privileges.spec.ts:34:11)
+
+PASS src/clients/objectives/objective-rules.spec.ts
+PASS src/outreach-v3/api/outreach-v3-state.guard.spec.ts
+
+Test Suites: 1 failed, 9 passed, 10 total
+Tests:       1 failed, 119 passed, 120 total
+Snapshots:   0 total
+Time:        7.551 s
+Ran all test suites within paths "src/clients/objectives/objective-destination.privileges.spec.ts", "src/clients/objectives/objective-destination.spec.ts", "src/clients/objectives/objective-rules.spec.ts", "src/clients/objectives/objectives.service.spec.ts", "src/clients/objectives/objectives.controller.spec.ts", "src/outreach-v3/services/outreach-objective-destination.spec.ts", "src/outreach-v3/api/outreach-objective-destination.controller.spec.ts", "src/outreach-v3/outreach-v3-phase2-architecture.spec.ts", "src/outreach-v3/api/outreach-v3-state.guard.spec.ts", "../../docs/objective-destinations-20261012/evidence/independent-review/objective-independent.spec.ts".
+Test results written to: ../../docs/objective-destinations-20261012/evidence/immutable-revision-repair/repair-green.json
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

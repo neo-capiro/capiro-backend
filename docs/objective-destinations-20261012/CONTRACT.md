@@ -70,7 +70,9 @@ Free text, firm, coalition, multi-client and other scopes cannot substitute.
 Campaign goal/objective strings are not canonical Objective identity.
 
 The lock stages are session → current authority rows (tenant/membership/user/client
-in one joined query) → actual wall grant (when walled) → Objective → revision.
+in one joined query) → actual wall grant (when walled) → mutable Objective. The
+immutable revision is then read with ordinary SELECT under its existing read/insert
+permissions, without requesting an update privilege or taking a revision row lock.
 This does not independently qualify PostgreSQL's row acquisition order within the
 joined authority query. The owned session lock serializes sponsor edits
 and archival; shared authority locks protect current row/grant revocation and
