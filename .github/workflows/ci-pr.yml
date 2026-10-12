@@ -7,6 +7,7 @@ name: ci-pr
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -213,6 +214,7 @@ jobs:
       # (guarded specs self-skip; intel-api is unguarded and fails) and are
       # tracked as baseline setup packets — not hidden or skipped here.
       - name: Test apps/api
+        if: ${{ toJSON(github.event.pull_request.draft) == 'false' }}
         run: pnpm --filter @capiro/api test
 
       # CleanUp1 §5.3.2 — apps/web vitest so the ~6.4k web tests no longer
@@ -225,6 +227,7 @@ jobs:
       # output. Build it first (turbo `test` dependsOn `^build` — dependencies,
       # not the package's own build), then run the suite. No test is skipped.
       - name: Test apps/defense-api
+        if: ${{ toJSON(github.event.pull_request.draft) == 'false' }}
         run: |
           pnpm turbo run build --filter=@capiro/defense-api
           pnpm --filter @capiro/defense-api test
