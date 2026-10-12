@@ -122,6 +122,11 @@ interface OverlayQueryResultV1 {
 }
 
 async function main(): Promise<void> {
+  if (!process.env.DATABASE_URL) {
+    console.error('Usage: apps/api/scripts/plan-defense-budget-promotion-v1.ts requires DATABASE_URL (database configuration is required)');
+    process.exit(2);
+  }
+
   const domain = argValue('--domain') ?? DEFAULT_DOMAIN;
   const environment = argValue('--environment');
   const cycleId = argValue('--cycle-id');
@@ -335,7 +340,7 @@ async function main(): Promise<void> {
           2,
         ),
       );
-      process.exit(3);
+      { process.exitCode = 3; return; }
     }
 
     const plan = buildPromotionPlanV1({
@@ -385,13 +390,15 @@ async function main(): Promise<void> {
     };
 
     console.log(JSON.stringify(report, null, 2));
-    if (plan.blocked) process.exit(3);
+    if (plan.blocked) { process.exitCode = 3; return; }
   } finally {
     await prisma.$disconnect();
   }
 }
 
+if (require.main === module) {
 void main().catch((error) => {
   console.error('plan-defense-budget-promotion-v1 FAILED:', error);
   process.exit(1);
 });
+}
