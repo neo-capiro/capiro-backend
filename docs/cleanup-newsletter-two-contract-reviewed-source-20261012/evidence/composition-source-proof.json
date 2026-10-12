@@ -1,0 +1,22 @@
+{
+  "candidate": "c6c15e4214f707395606d9fbbdb408f74b019faf",
+  "tree": "d4db0e3e367bf3f80943e2127f8a81fe1c15c335",
+  "publishedBase": "bcad60272fa300383f117f3a08a554e9e070e85b",
+  "frozenSource": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "sourceDelta": 76,
+  "nonDocumentDriftFromFrozenSource": 0,
+  "exactBaselinePathsOutsideSourceDeltaIncludingDocuments": 21862,
+  "exactBaselineDocuments": 10183,
+  "baselineSchemaMigrationPaths": 603,
+  "additiveSchemaOwners": [
+    "apps/api/prisma/schema.prisma",
+    "apps/workspace/prisma/schema.prisma"
+  ],
+  "otherBaselineSchemaMigrationPathsExact": 601,
+  "originalHistoricalMigrationSourcesAdded": 14,
+  "candidateSourceBlobsAndModesExact": true,
+  "publishedAuthorAndReviewAncestorsExact": true,
+  "protectedReportingBodiesRead": false,
+  "databaseSqlProviderNativeApplicationExecution": false,
+  "passed": true
+}
