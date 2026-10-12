@@ -1,0 +1,19 @@
+Independent static audit receipt
+frozen head: 6a4b48e6286a270ab18c033eb4ccaf6f72f42c70
+frozen tree: f14d6fa3f191645839414972063e1057fce557bf
+working source equals frozen Git blobs: 28/28
+local switch names: 134 unique; registry core: 134; federal proxy: 5
+local/registry name-set difference: none
+proposalId-consuming cases: send_email, create_word, schedule_task
+production imports executed: 0; canonical owners invoked: 0; test suites executed: 0; database/migrations/native engines: 0
+Source reads only; lexical inventory is not AST/runtime equivalence acceptance.
+Existing provider-free test sources inspected, not executed.
+Concrete existing generic registration blind spot: Proxy generic function trap replaces executeScoped itself.
+Required future guards: lazy current-instance ports; own-key/Map dispatch; exact synchronous authenticated vs async raw/proxy timing; lazy RP current-use callback; argument identity/order/count.
+Read/setup limitations preserved: absent CONTRACT.md (packet not yet authored at that read); absent apps/api/src/research-portfolio directory (correct owner transport is apps/api/src/meri/meri-rp-tool-transport.ts); broad combined rg output truncated, followed by bounded exact reads. These were read-command limitations, not test failures.
+Parent baseline characterization failure retained: evidence/baseline-characterization-failure.json (Unqualified direct arg name); corrected parent293 characterization is not reviewer-executed candidate acceptance.
+Inherited catalog expected138/actual139 baseline classification preserved unchanged; no catalog/assertion edits.
+Allowed reviewer writes only INDEPENDENT-AUDIT.md and evidence/independent-*.{txt,json}.
+Audit document SHA256: c59128f0f86da4bdaca780209ad0a20ae42603d898b232b560abbee1a5269947
+Source inventory SHA256: 55a933f69de85bc4254cb6a8bc4707219ee96048e20c6c7147738cd44fe8e615
+Implementation pending; retirement ownership coordination pending; separate Engagement reporting untouched.

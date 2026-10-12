@@ -1,0 +1,22 @@
+{
+  "frozenHead": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "check": "read-only AST + frozen blob equality",
+  "serviceLines": 10500,
+  "literalCases": 134,
+  "uniqueCases": 134,
+  "registryOwnerCounts": {
+    "meri": 134,
+    "federal_market": 5
+  },
+  "missing": [],
+  "extra": [],
+  "executionArgCases": [
+    "send_email",
+    "create_word",
+    "schedule_task"
+  ],
+  "auditedSourceFiles": 23,
+  "productionModulesLoaded": 0,
+  "toolOwnersInvoked": 0,
+  "nativeAcceptance": false
+}

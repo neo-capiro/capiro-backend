@@ -1,0 +1,88 @@
+{
+  "cwd": "/workspace/capirov2-cleanup-next-meri-dispatch-audit",
+  "frozenHead": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "node": "v24.19.0",
+  "typescriptCachedOnly": true,
+  "productionModulesLoaded": 0,
+  "realToolOwnersInvoked": 0,
+  "nativeAcceptance": false,
+  "receipts": [
+    {
+      "name": "inventory",
+      "argv": [
+        "node",
+        "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/audit-dispatch.cjs",
+        "/workspace/capirov2/node_modules/typescript"
+      ],
+      "exitCode": 0,
+      "result": "inventory-validation.json"
+    },
+    {
+      "name": "baseline-characterization-initial",
+      "argv": [
+        "node",
+        "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/characterize-baseline-initial.cjs",
+        "/workspace/capirov2/node_modules/typescript"
+      ],
+      "exitCode": 1,
+      "result": "baseline-characterization-failure.json",
+      "explanation": "Harness expected-argument qualifier omitted the actual LegiWatch name argument. Exact initial harness and failed receipt retained; source unchanged."
+    },
+    {
+      "name": "baseline-characterization-corrected",
+      "argv": [
+        "node",
+        "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/characterize-baseline.cjs",
+        "/workspace/capirov2/node_modules/typescript"
+      ],
+      "exitCode": 0,
+      "result": "baseline-characterization.json",
+      "checks": 293
+    },
+    {
+      "name": "initial-exploratory-read",
+      "argv": [
+        "cat",
+        "apps/api/src/meri/research-portfolio-meri-turn-binding.ts"
+      ],
+      "exitCode": 1,
+      "output": "cat: apps/api/src/meri/research-portfolio-meri-turn-binding.ts: No such file or directory",
+      "explanation": "Exploratory wrong filename; canonical import identified meri-rp-tool-transport.ts and actual owner was read. No source mutation."
+    },
+    {
+      "name": "nonpacket-preservation",
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+        "--",
+        ".",
+        ":!docs/cleanup-next-meri-dispatch-audit-20261012"
+      ],
+      "exitCode": 0
+    },
+    {
+      "name": "independent-packet-not-yet-written-probe",
+      "argv": [
+        "rg",
+        "-n",
+        "README|alias|finite|sync|Proxy|raw|executeScoped",
+        "docs/cleanup-next-meri-dispatch-audit-20261012/INDEPENDENT-AUDIT.md"
+      ],
+      "exitCode": 2,
+      "output": "rg: docs/cleanup-next-meri-dispatch-audit-20261012/INDEPENDENT-AUDIT.md: IO error for operation on docs/cleanup-next-meri-dispatch-audit-20261012/INDEPENDENT-AUDIT.md: No such file or directory (os error 2)",
+      "explanation": "Read-only packet readiness check before independent reviewer wrote its file; no application effect."
+    },
+    {
+      "name": "independent-evidence-not-yet-written-probe",
+      "argv": [
+        "ls",
+        "docs/cleanup-next-meri-dispatch-audit-20261012/evidence/independent*"
+      ],
+      "exitCode": 2,
+      "output": "ls: cannot access 'docs/cleanup-next-meri-dispatch-audit-20261012/evidence/independent*': No such file or directory",
+      "explanation": "Reviewer document had appeared but final evidence was still being written; readiness probe only."
+    }
+  ]
+}
