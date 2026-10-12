@@ -1,0 +1,16 @@
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ []
+- [
+-   237
+- ]
+
+    at run (/workspace/capirov2-clock-rng-independent-review/docs/clock-rng-independent-review-20261012/evidence/runtime-delay-inert-review.cjs:6:355) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [Array],
+  expected: [Array],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}

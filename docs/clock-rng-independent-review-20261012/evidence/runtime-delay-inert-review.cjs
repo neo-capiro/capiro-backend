@@ -1,0 +1,7 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const ts=require('/workspace/capirov2-cleanup-source-prereqs/apps/api/node_modules/typescript');const exportsObject={};
+const source=fs.readFileSync('apps/api-strategy/src/meri/context-load.ts','utf8');
+vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{exports:exportsObject,require(name){assert.equal(name,'@nestjs/common');return{Logger:class{warn(){}log(){}}};},Error},{timeout:1000});
+async function run(){let attempts=0,resume;const waits=[];const pending=exportsObject.withContextRetry('delay-boundary',async()=>{if(++attempts===1)throw{code:'P1001'};return'OK';},{random:()=>0.5,delay:ms=>{waits.push(ms);return new Promise(resolve=>{resume=resolve;});}});await Promise.resolve();await Promise.resolve();assert.equal(attempts,1);assert.deepEqual(waits,[237]);assert.equal(typeof resume,'function');resume();assert.equal(await pending,'OK');assert.equal(attempts,2);const receipt={source:'f86bf11b9b6da367d464da453ee1f260fa60e06e',passed:true,controls:1,attemptsBeforeDelayRelease:1,attemptsAfterDelayRelease:2,injectedDelay:237,realTimersUsed:false,nativeAcceptance:false};fs.writeFileSync('docs/clock-rng-independent-review-20261012/evidence/runtime-delay-inert-review.json',JSON.stringify(receipt,null,2)+'\n');console.log(JSON.stringify(receipt,null,2));}
+run().catch(error=>{console.error(error);process.exitCode=1;});

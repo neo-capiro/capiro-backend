@@ -1,0 +1,21 @@
+{
+  "sourceFiles": 169,
+  "cases": 16,
+  "rejected": 2,
+  "unexpectedlyAccepted": [
+    "global alias clock",
+    "computed global clock",
+    "global alias random",
+    "computed global random",
+    "global alias constructor",
+    "computed global constructor",
+    "global alias timer",
+    "computed global timer",
+    "system local alias",
+    "system namespace destructure",
+    "retry local alias",
+    "quoted canonical method",
+    "computed canonical method",
+    "timer module namespace"
+  ]
+}

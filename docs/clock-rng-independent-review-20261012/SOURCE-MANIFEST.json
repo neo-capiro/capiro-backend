@@ -1,0 +1,33 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "tree": "b0389feda4b907bd0e6f222c1301458bebe74d79",
+  "base": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "sourcePaths": {
+    ".github/workflows/ci-pr.yml": "7e85a280c3db09cb295b0125c51a2d2c977b05ec05600288746d33d0de996fbd",
+    "apps/api-strategy/src/fiscal/fiscal.spec.ts": "1fa81c9a24a1a70616aaeada8659a438552096243d7d3439fdee38398bcb63c7",
+    "apps/api-strategy/src/fiscal/fiscal.ts": "31bbedc196283335625110729e4296ad6eb72d9d900da8696f770f166213003c",
+    "apps/api-strategy/src/meri/context-load.spec.ts": "598ef991b079ec233275df1f2c629730d5a166deb2f28d0cbed8d6cfa8027181",
+    "apps/api-strategy/src/meri/context-load.ts": "8a44d6eeaf5476aabfba62cb5c43c124aa1fd109563896e6aed9bf0cf0f8a0e6",
+    "apps/api-strategy/src/meri/draft-job.service.spec.ts": "6855a39f2896c6a9eb39ae286090a75757439ed67b968beed6d4ea7e9e63c681",
+    "apps/api-strategy/src/meri/draft-job.service.ts": "4e013d0f60b56f35c8469375fc40d133d539a0c34633321169221ef52cd5f6dc",
+    "apps/api-strategy/src/meri/meri.module.ts": "1d4d25e208f07aca7d2fc89c9525cac1b97d1bff05417004ac6b126cf91dba4d",
+    "apps/api-strategy/src/meri/meri.service.spec.ts": "b7250a9f1d5f5090cec0aca0c953e2d37281d6df39c3d7f36de49e5cd1bc3583",
+    "apps/api-strategy/src/meri/meri.service.ts": "487b88a3da52861aac30d2c3be42c98a0442e157ceb9154df302c7696a9c0189",
+    "apps/api-strategy/src/meri/strategy-time.providers.spec.ts": "a2cba034cceba25423f9b5bea881d9a1fdb16bef6b7c48975d2fa3113f3046d2",
+    "apps/api-strategy/src/meri/strategy-time.providers.ts": "457d68075d1d3a3078694761b8443468c89af678651f9889e21546c7a76cd39a",
+    "package.json": "91d180ac38e42ab6168bcf1c8e6c55dc3ce6e04243ee5229a32cf845ee7692d2",
+    "packages/shared/src/index.ts": "fde2cea920fcb64f3150bbe5849d2cfd438462edaf711634dc7ed48f0eba7d9a",
+    "packages/shared/src/time.ts": "c8f5e960d56e7bdb509a990517c2c2ffe7cbfbc975442bb7a53a4ed52845a854",
+    "scripts/check-strategy-time-bypasses.mjs": "e5a864085d5fc5b953ecc2ce1dd76f7e94ae86a5c6e9fddf15fd52c448f6f312",
+    "scripts/check-strategy-time-bypasses.test.mjs": "059fb159910b1b0637505b38cbb0d1ce7ae977102e88012f162d13bb41edb2da",
+    "scripts/strategy-time-boundaries.json": "8a23b813ad929a04987bd99b9b365ddb727168d54dab762a5c9c7eeaa8d38aa9"
+  },
+  "runtimeControls": 16,
+  "synchronizedDelayControls": 1,
+  "constructorInjectionControls": 4,
+  "authorGuardControls": 29,
+  "independentGuardBaseline": "169-file scan PASS",
+  "guardDisposition": "BLOCKED:14 independent bypasses plus hoisted-import alias; await separate repair",
+  "frontendUntouched": true,
+  "nativeAcceptance": false
+}

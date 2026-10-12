@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "originalSamples": 129,
+  "removed": 6,
+  "deferredSamples": 123,
+  "providerSamples": 3,
+  "productionFiles": 169
+}

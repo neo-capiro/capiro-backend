@@ -1,0 +1,10 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "passed": true,
+  "controls": 1,
+  "attemptsBeforeDelayRelease": 1,
+  "attemptsAfterDelayRelease": 2,
+  "injectedDelay": 237,
+  "realTimersUsed": false,
+  "nativeAcceptance": false
+}

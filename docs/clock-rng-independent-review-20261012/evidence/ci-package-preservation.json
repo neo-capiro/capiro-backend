@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "base": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "job": "verify",
+  "newStepIndex": 22,
+  "newStep": {
+    "name": "Guard Strategy grounding time and retry adoption",
+    "run": "pnpm gate:cleanup4:strategy-time"
+  },
+  "allOtherWorkflowPropertiesExact": true,
+  "existingInstallStepsBeforeGuard": [
+    {
+      "index": 9,
+      "name": null,
+      "run": "pnpm install --frozen-lockfile"
+    }
+  ],
+  "existingNativeReadinessConditionsUnchanged": true,
+  "allRootManifestValuesExactExceptOneAlias": true,
+  "newRootAlias": "node scripts/check-strategy-time-bypasses.mjs && node --test scripts/check-strategy-time-bypasses.test.mjs",
+  "packageManager": "pnpm@9.12.0",
+  "toolchainSteps": [
+    {
+      "uses": "pnpm/action-setup@v4"
+    },
+    {
+      "uses": "actions/setup-node@v7",
+      "with": {
+        "node-version": 22,
+        "cache": "pnpm"
+      }
+    }
+  ],
+  "CIExecuted": false,
+  "nativeAcceptance": false
+}
