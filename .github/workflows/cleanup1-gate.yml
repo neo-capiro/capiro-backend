@@ -19,6 +19,7 @@ name: cleanup1-gate
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'apps/**'
       - 'packages/**'
@@ -37,6 +38,9 @@ permissions:
 
 jobs:
   gate:
+    # Source-only draft publication must not execute native DB/bootstrap work.
+    # Ready PRs and explicit dispatch retain the complete, unchanged gate.
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft }}
     # PINNED, not `ubuntu-latest`: the visual baseline must be regenerated and
     # compared against a reproducible OS/font/browser environment (independent
     # review round 3, item 5). Bump this image only together with the visual
