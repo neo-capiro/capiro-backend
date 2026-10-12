@@ -1,0 +1,10 @@
+PASS apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts
+PASS apps/api/src/funding-opportunities/opportunity-explanation.spec.ts
+PASS apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       60 passed, 60 total
+Snapshots:   0 total
+Time:        1.867 s
+Ran all test suites within paths "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts", "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/api/scripts/lib/memory-phase3-review-inbox-contract.spec.ts", "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/api/src/funding-opportunities/opportunity-explanation.spec.ts".
+Test results written to: docs/cleanup-memory-canonical-copy-contract-repair-20261012/evidence/web-refused-results.json

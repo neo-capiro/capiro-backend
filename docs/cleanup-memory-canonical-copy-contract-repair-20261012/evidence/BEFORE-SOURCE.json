@@ -1,0 +1,97 @@
+{
+  "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "tree": "b7b33bfa38bccf69aa1a94dd2942add016bf19d3",
+  "rows": [
+    {
+      "path": "apps/web/src/components/MemoryFileEditor.tsx",
+      "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+      "blob": "440c0d3ac329ef7bb78b2f5f52a8cc098e103d65",
+      "sha256": "5802bab1767ca1a7e8c4f3515b51a5340e1b3b79d86840429b18f0eaf7a86354",
+      "bytes": 6526,
+      "publishedHistoricalEquality": {
+        "1e99f0921b207318c6d2abf03927b5c4daa5768b": {
+          "exists": true,
+          "byteExact": true
+        },
+        "193703e34f2bedbb69d87d6a8ee303f65ab8dbda": {
+          "exists": true,
+          "byteExact": true
+        },
+        "67fa9255b8a73f489d7a57c8fe270ed6d03fa016": {
+          "exists": true,
+          "byteExact": true
+        }
+      }
+    },
+    {
+      "path": "apps/web/src/components/memory-file-editor-shared.ts",
+      "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+      "blob": "eb107ed89c130d6e082c238a81c4a81d0eeae52c",
+      "sha256": "72905cd3aa59a1a9bf415926f99111ec7f9d8b94fc78da6263ebe83812de0c4f",
+      "bytes": 2037,
+      "publishedHistoricalEquality": {
+        "1e99f0921b207318c6d2abf03927b5c4daa5768b": {
+          "exists": true,
+          "byteExact": true
+        },
+        "193703e34f2bedbb69d87d6a8ee303f65ab8dbda": {
+          "exists": true,
+          "byteExact": true
+        },
+        "67fa9255b8a73f489d7a57c8fe270ed6d03fa016": {
+          "exists": true,
+          "byteExact": true
+        }
+      }
+    },
+    {
+      "path": "apps/web/src/components/MemoryFileEditor.phase3.test.ts",
+      "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+      "blob": "ea3e2744051c58859e32bea0d0dbdd371a08c5b5",
+      "sha256": "35ea50fd7ba152e74df5a04ba49f1ad87d2a51483a704d513af44a23fa4848de",
+      "bytes": 2960
+    },
+    {
+      "path": "apps/api/scripts/lib/memory-admin-self-approval-contract.spec.ts",
+      "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+      "blob": "e8dc531e5d4963e28e0ea42403fd881f435cb9e2",
+      "sha256": "fe20d9a510d10b8f91310a3f32f1e24296e09e6b9c12aa6b8a41bde0b0fea215",
+      "bytes": 6028
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/MemoryFileEditor.tsx.txt",
+      "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+      "blob": "440c0d3ac329ef7bb78b2f5f52a8cc098e103d65",
+      "sha256": "5802bab1767ca1a7e8c4f3515b51a5340e1b3b79d86840429b18f0eaf7a86354",
+      "bytes": 6526
+    },
+    {
+      "path": "apps/web/src/components/pending-memory-review-shared.ts",
+      "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+      "blob": "511662be59ae9ba498209a5e8f396a4978237566",
+      "sha256": "c6b715f984064ba51ecbe969b3948ffe4bd3535de443ea360994268c14d7de31",
+      "bytes": 2440,
+      "publishedHistoricalEquality": {
+        "1e99f0921b207318c6d2abf03927b5c4daa5768b": true,
+        "193703e34f2bedbb69d87d6a8ee303f65ab8dbda": true,
+        "67fa9255b8a73f489d7a57c8fe270ed6d03fa016": true
+      }
+    },
+    {
+      "path": "apps/web/src/components/PendingMemoryReviewPanel.tsx",
+      "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+      "blob": "d2f1a3db632d8a7043bebe1b93dcfd3b8295a439",
+      "sha256": "72f65313cf5b1cfa4d5f40788070a00737eae91e7e493f4f426cc33a37e9eb5c",
+      "bytes": 6279
+    },
+    {
+      "path": "apps/api/scripts/lib/__fixtures__/legacy-ui-contracts/src/components/PendingMemoryReviewPanel.tsx.txt",
+      "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+      "blob": "d2f1a3db632d8a7043bebe1b93dcfd3b8295a439",
+      "sha256": "72f65313cf5b1cfa4d5f40788070a00737eae91e7e493f4f426cc33a37e9eb5c",
+      "bytes": 6279
+    }
+  ],
+  "originalAPIEditorFixtureExactCurrentWeb": true,
+  "frontendEdited": false
+}
