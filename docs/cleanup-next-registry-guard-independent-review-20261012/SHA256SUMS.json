@@ -1,0 +1,33 @@
+{
+  "scope": "initial independent review packet excluding checksum self",
+  "files": [
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/INITIAL-REVIEW.md",
+      "sha256": "0ec106ed8ebc39e82a2d983faed6cff1de8d3edcf60c99e7212087ea24db033b"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/adversarial-corpus-initial.command.json",
+      "sha256": "21486578ce159217431fff40b0c9b40ad33b4853dfb175cb4d738ddc737889e5"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/adversarial-corpus-initial.json",
+      "sha256": "1b67ecb6fa54cb60b7c01466b8b9876db02eda4b600e1d44f3212ef8b1cae25b"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/adversarial-corpus.mjs",
+      "sha256": "a7c953eefb9eefc2b6f5504ee2e6fac1cd6bec97758650bf12b2223ad22faedd"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/author-controls-reproduction.command.json",
+      "sha256": "04876952b9b2addb8936c0ce030cdbeec80fa111cd9c972e38bf95cb9a1f39c6"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/author-controls-reproduction.tap",
+      "sha256": "dc4bf8d3c6e91cad4a001fd437e064075e351acbd6b10e8d0e60c55ebef0838e"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/initial-source-preservation.json",
+      "sha256": "6537a412d28fa194eba4a8f3af60a7f18171a199b12043336ed0b69e462948a0"
+    }
+  ]
+}

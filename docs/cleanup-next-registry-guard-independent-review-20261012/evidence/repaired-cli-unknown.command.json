@@ -1,0 +1,18 @@
+{
+  "cwd": "/workspace/capirov2-cleanup-next-registry-guard-reacceptance",
+  "argv": [
+    "node",
+    "scripts/check-registry-ownership.mjs",
+    "--not-supported"
+  ],
+  "environment": {
+    "NODE_PATH": "/workspace/capirov2/node_modules"
+  },
+  "exitCode": 1,
+  "seconds": 0.076,
+  "frozenHead": "721bfd4825bfccd819be50172ed712023891f978",
+  "stdout": "",
+  "stderr": "Unsupported registry ownership arguments\n",
+  "sourceStringsEvaluated": false,
+  "nativeAcceptance": false
+}

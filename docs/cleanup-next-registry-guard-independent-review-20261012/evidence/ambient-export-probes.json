@@ -1,0 +1,47 @@
+{
+  "frozenHead": "721bfd4825bfccd819be50172ed712023891f978",
+  "checks": 4,
+  "passed": 0,
+  "failed": 4,
+  "results": [
+    {
+      "name": "ambient function is not a runtime owner",
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "ambient variable is not a runtime owner",
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "ambient class is not a runtime owner",
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "ambient enum is not a runtime owner",
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    }
+  ],
+  "sourceStringsEvaluated": false,
+  "applicationImports": 0,
+  "nativeAcceptance": false
+}

@@ -1,0 +1,18 @@
+{
+  "cwd": "/workspace/capirov2-cleanup-registry-guard-final-review",
+  "argv": [
+    "node",
+    "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/final-ambient-probes.mjs"
+  ],
+  "environment": {
+    "NODE_PATH": "/workspace/capirov2/node_modules"
+  },
+  "exitCode": 0,
+  "seconds": 0.427,
+  "frozenHead": "4104f49f6ebfdbf00ad1706079ba340bd9b566c8",
+  "frozenTree": "257856362ba9075b25bee52debf3efa35f3dfb77",
+  "stdout": "{\"frozenHead\":\"4104f49f6ebfdbf00ad1706079ba340bd9b566c8\",\"checks\":4,\"passed\":4,\"failed\":0,\"results\":[{\"name\":\"ambient function is not a runtime owner\",\"pass\":true,\"output\":{\"errors\":[\"example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts\"],\"profiles\":1,\"files\":2}},{\"name\":\"ambient variable is not a runtime owner\",\"pass\":true,\"output\":{\"errors\":[\"example: canonicalRoute must have one named module export (variable) in apps/example/src/registry.ts\"],\"profiles\":1,\"files\":2}},{\"name\":\"ambient class is not a runtime owner\",\"pass\":true,\"output\":{\"errors\":[\"example: canonicalRoute must have one named module export (class) in apps/example/src/registry.ts\"],\"profiles\":1,\"files\":2}},{\"name\":\"ambient enum is not a runtime owner\",\"pass\":true,\"output\":{\"errors\":[\"example: canonicalRoute must have one named module export (enum) in apps/example/src/registry.ts\"],\"profiles\":1,\"files\":2}}],\"sourceStringsEvaluated\":false,\"applicationImports\":0,\"nativeAcceptance\":false}\n",
+  "stderr": "",
+  "sourceStringsEvaluated": false,
+  "nativeAcceptance": false
+}
