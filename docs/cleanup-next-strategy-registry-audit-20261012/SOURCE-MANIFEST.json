@@ -1,0 +1,99 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "tree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "files": [
+    {
+      "path": "apps/api-strategy/src/context/frontmatter.ts",
+      "gitBlob": "9d3564ce92fcc7a29d2f99bd1b1dcf379f1d49ba",
+      "sha256": "250a942a6b06f1529a02315b6bf07e3f7d1a872fdf6e70daecd0f69406353645"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-context.ts",
+      "gitBlob": "7eab9da1adf4f2cab0b6d2554e738bbb19dadc2f",
+      "sha256": "a9ee28a55f064ee7e0211752e1721b296402a421b5fa2bcc9276e038ff17aabb"
+    },
+    {
+      "path": "apps/api-strategy/src/context/context-import.service.ts",
+      "gitBlob": "a4b24c925dd6a794378d2c0f15ce2fc97f363e2b",
+      "sha256": "d8640aa0099641e4f108ae86db56e234a4e3fdde0671d4b737d9a09052513e30"
+    },
+    {
+      "path": "apps/api-strategy/src/context/current-plan-export.service.ts",
+      "gitBlob": "4430134e4122057464d8f2b4741e43349ed69d32",
+      "sha256": "e3ae918f440d6a3283a3cc92a31dd8ae80920f1bf11828aea6bd99d8b42c999e"
+    },
+    {
+      "path": "apps/api-strategy/src/context/steward.service.ts",
+      "gitBlob": "9d41ae5eceba74e0fa0f0d43eb5197189d201f49",
+      "sha256": "7cf4f8a4a2dc3733d5138eb96d57ef8ade640ef35cb8fc91cac9d6529d5b64b6"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/meri.service.ts",
+      "gitBlob": "7579ff15d9fb4ef0757485529eb2e75a7b1b5ca3",
+      "sha256": "487b88a3da52861aac30d2c3be42c98a0442e157ceb9154df302c7696a9c0189"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/steward/context-import-prompt.ts",
+      "gitBlob": "c43d9e80bb957a6b58eebb5c5778e7e0eff58e03",
+      "sha256": "95e5e002bb1f219cb9591f7916dd5f5ed46c7ad012508c1823bdb62a61d2b614"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/strategy/strategy-prompt.ts",
+      "gitBlob": "a4efaca9c097900fb214d03a0a84d5934db452a6",
+      "sha256": "91157a20ed49662009b18f37168e25cb689e2483bbfe8acbf8473653004f7be4"
+    },
+    {
+      "path": "apps/web/src/vnext/pages/strategies/context/context-categories.ts",
+      "gitBlob": "fd3c411fbc21814cef9f9a7011db8562b563ab6e",
+      "sha256": "36653ff8ecda0c0175ffbfabb73b164e30d6e55350c3b9dd60d59604646ea377"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-content.ts",
+      "gitBlob": "28e9a139b6212bf516ee9d3754bf3639952147e2",
+      "sha256": "9e41c78d5d7830595336e2ad2fcc27815d3fccbb1f9bb49bc2aff2935c0dec32"
+    },
+    {
+      "path": "apps/api-strategy/src/context/templates/README.md",
+      "gitBlob": "f0cd02035006fe70520221c43f827e07a307dc7a",
+      "sha256": "4e7d3b0f02f611edba22311aac8ada6d8eb75211bc534bf5b9a9fccf879b24ae"
+    },
+    {
+      "path": "apps/api-strategy/jest.config.cjs",
+      "gitBlob": "17057aa2568c68ace80b4739ceeca7852aa4e81f",
+      "sha256": "8fcb909c2f8834fbd7d8dbbd7991c59090840197ba7147d3a0694fe0d0ea6ab8"
+    },
+    {
+      "path": "apps/api-strategy/tsconfig.json",
+      "gitBlob": "410e389b6dc669e990526cdb19154a52373d2461",
+      "sha256": "8240ffdc525253c6308877e4b4206976e9c86fd5671012528c453caff2689118"
+    },
+    {
+      "path": "apps/api-strategy/tsconfig.build.json",
+      "gitBlob": "6c73a30dc6d6c173b563da558bb498f03b28f84f",
+      "sha256": "a136f4dc65f97c3f09e33b975fceb13684ca28210c6f2ba591bc2934cbb586b9"
+    },
+    {
+      "path": "apps/api-strategy/nest-cli.json",
+      "gitBlob": "b6a695fdd8db37868952b9f867aaf855df7a0399",
+      "sha256": "5d4ecb9c2f9063ca309cd7027d7ac4dbda5ba1795f04b914cd7b2704dc4a1fd0"
+    },
+    {
+      "path": "apps/api-strategy/Dockerfile",
+      "gitBlob": "317fdeb1d486b1b835d8205b4830f10948d622d2",
+      "sha256": "c84f0f0d0c3f2b3d122cade5ead25ccdfb4450978c8b56dc30dfa27f13766b90"
+    },
+    {
+      "path": "scripts/strategy-time-boundaries.json",
+      "gitBlob": "fe5371e38485e570ec53a93e54430d63b8e793e8",
+      "sha256": "fb7665bd53162ec74f6ca6ed9377e1987894da5a20389131de66067787eddf14"
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "gitBlob": "f9931af2d0f6d916131d69f1f13001842af139de",
+      "sha256": "7e85a280c3db09cb295b0125c51a2d2c977b05ec05600288746d33d0de996fbd"
+    }
+  ],
+  "productionEdits": 0,
+  "implementationApproved": false,
+  "coordinationPending": true
+}

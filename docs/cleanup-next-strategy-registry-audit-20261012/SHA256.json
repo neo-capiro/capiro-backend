@@ -1,0 +1,21 @@
+{
+  "AUDIT.md": "89d6d26d26806c1b9c9215943586c809eb381f86142492f25c66fb28b6f629bc",
+  "PROPOSED-PROFILE.json": "447e9439956079ec7ea6ddcb27b081a8539fc56400c61d24bf1b27b36d5387ae",
+  "PROPOSED-SCOPE.json": "401255278be91450a352d88fef37d55958369539bda91b262eff02a9ca85dc8d",
+  "SOURCE-MANIFEST.json": "f9184fdad54cd572c8a2f2b56a36ab13f72514e149194a3ad2df2d8094d5ca0d",
+  "evidence/characterize-registry.cjs": "f1e0e971a28747a9219aaddf2dd1c869ef608a732f36a49aabe467cd7dc4ed37",
+  "evidence/consumer-initial-failure.json": "551ce86ecfbeec896f8e3f77a65a0f2fbdd15f871900624df298712787c30b23",
+  "evidence/consumer-inventory-initial.cjs": "2dc751c1b4b5901c48cbc4ea51ce95ba30e080de016ed3a2fdbf2212a378b8b8",
+  "evidence/consumer-inventory-initial.command.json": "22c72771a596bd47ffe5c7d675ea88045a5aa7f486b95686a1cb5e03a00723f1",
+  "evidence/consumer-inventory-initial.log": "525f8dfde67e10c0c889863a5277a2bc789d13381abd03697f0e3dcdb8d9e865",
+  "evidence/consumer-inventory.cjs": "fa33e4ca0077e9c31a7a0b4f4c7a8920917b211d9e84fe65e6a15253c391f743",
+  "evidence/consumer-inventory.command.json": "69c8732cf13be2a989252665aa0e48fa01f94e498830ef9b13ef05923f11e584",
+  "evidence/consumer-inventory.json": "f279d4d8303af0a6981796a4f784f174c090c1fe975d9adfd89895f6335c48ba",
+  "evidence/consumer-inventory.log": "8ddd549e30c9e0c4d2ee92e50447ec35cfcc5144574474da58a073251822b8c8",
+  "evidence/read-discovery-corrections.log": "f64862050cf6934bd44230acebe9d8c691993621651615a14a44636ebab96ba8",
+  "evidence/registry-characterization.command.json": "0b6ef8679657658c4fc2fb579a3ab9aee78bf6dd7888cd6aded79ae662b68508",
+  "evidence/registry-characterization.json": "618dad5cc4689ece2de510b665645bfe58969bc5bfef2a65c70d6839a3a03459",
+  "evidence/registry-characterization.log": "0b20c4b702ccd4a88fe287ad4185b2caf6d20f94e5aae6abc97cbc94d230200f",
+  "evidence/remote-pr2412.command.json": "fa6bfb74fa242d3aba57541292999e4b2f39e7174d06f0ed8ea5d7c920d53d0d",
+  "evidence/remote-pr2412.json": "f6f1b0eaa90bfd6a77c0255e747da41f0f4396c4fc80264b9d481786f97cefdc"
+}

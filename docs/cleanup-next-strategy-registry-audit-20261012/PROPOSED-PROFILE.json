@@ -1,0 +1,226 @@
+{
+  "documentTypes": [
+    "context_manifest",
+    "strategy_brief",
+    "client_constraints",
+    "ask_and_options",
+    "stakeholder_map",
+    "calendar_and_deadlines",
+    "decision_rules",
+    "current_plan",
+    "evidence_register",
+    "meeting_intelligence",
+    "decision_log",
+    "agent_mission",
+    "execution_playbook",
+    "agent_permissions",
+    "target_budget_line",
+    "vendor_reference_pull",
+    "route_and_vehicle_status"
+  ],
+  "templateKeyByType": {
+    "context_manifest": "00_context_manifest",
+    "strategy_brief": "01_strategy_brief",
+    "client_constraints": "02_client_constraints",
+    "ask_and_options": "03_ask_and_options",
+    "stakeholder_map": "04_stakeholder_map",
+    "calendar_and_deadlines": "05_calendar_and_deadlines",
+    "decision_rules": "06_decision_rules",
+    "current_plan": "07_current_plan",
+    "evidence_register": "08_evidence_register",
+    "meeting_intelligence": "09_meeting_intelligence",
+    "decision_log": "10_decision_log",
+    "agent_mission": "11_agent_mission",
+    "execution_playbook": "12_execution_playbook",
+    "agent_permissions": "13_agent_permissions",
+    "target_budget_line": "14_target_budget_line",
+    "vendor_reference_pull": "15_vendor_reference_pull",
+    "route_and_vehicle_status": "16_route_and_vehicle_status"
+  },
+  "operationalTemplateKeys": [
+    "00_context_manifest",
+    "07_current_plan",
+    "11_agent_mission",
+    "12_execution_playbook",
+    "13_agent_permissions"
+  ],
+  "sectionTitles": {
+    "situation": "Situation and stakes",
+    "outcomes": "Objectives and definition of success",
+    "ask": "Strategic ask and options",
+    "stakeholders": "Stakeholder landscape",
+    "constraints": "Constraints and decision rules",
+    "timing": "Timing and external windows",
+    "evidence": "Evidence and assumptions",
+    "decisions": "Decisions and commitments",
+    "intelligence": "Recent intelligence",
+    "governance": "Internal operating guidance"
+  },
+  "sectionTitleRecordOrder": [
+    "situation",
+    "outcomes",
+    "ask",
+    "stakeholders",
+    "constraints",
+    "timing",
+    "evidence",
+    "decisions",
+    "intelligence",
+    "governance"
+  ],
+  "sectionOutputOrder": [
+    "situation",
+    "outcomes",
+    "ask",
+    "stakeholders",
+    "constraints",
+    "timing",
+    "decisions",
+    "intelligence",
+    "evidence",
+    "governance"
+  ],
+  "prefixFallbacks": [
+    {
+      "prefix": "01_",
+      "category": "situation"
+    },
+    {
+      "prefix": "02_",
+      "category": "constraints"
+    },
+    {
+      "prefix": "06_",
+      "category": "constraints"
+    },
+    {
+      "prefix": "03_",
+      "category": "ask"
+    },
+    {
+      "prefix": "04_",
+      "category": "stakeholders"
+    },
+    {
+      "prefix": "05_",
+      "category": "timing"
+    },
+    {
+      "prefix": "08_",
+      "category": "evidence"
+    },
+    {
+      "prefix": "09_",
+      "category": "intelligence"
+    },
+    {
+      "prefix": "10_",
+      "category": "decisions"
+    }
+  ],
+  "defaultCategory": "governance",
+  "knownTemplateProfiles": [
+    {
+      "documentType": "context_manifest",
+      "templateKey": "00_context_manifest",
+      "reportFallback": "governance",
+      "reportOperational": true
+    },
+    {
+      "documentType": "strategy_brief",
+      "templateKey": "01_strategy_brief",
+      "reportFallback": "situation",
+      "reportOperational": false
+    },
+    {
+      "documentType": "client_constraints",
+      "templateKey": "02_client_constraints",
+      "reportFallback": "constraints",
+      "reportOperational": false
+    },
+    {
+      "documentType": "ask_and_options",
+      "templateKey": "03_ask_and_options",
+      "reportFallback": "ask",
+      "reportOperational": false
+    },
+    {
+      "documentType": "stakeholder_map",
+      "templateKey": "04_stakeholder_map",
+      "reportFallback": "stakeholders",
+      "reportOperational": false
+    },
+    {
+      "documentType": "calendar_and_deadlines",
+      "templateKey": "05_calendar_and_deadlines",
+      "reportFallback": "timing",
+      "reportOperational": false
+    },
+    {
+      "documentType": "decision_rules",
+      "templateKey": "06_decision_rules",
+      "reportFallback": "constraints",
+      "reportOperational": false
+    },
+    {
+      "documentType": "current_plan",
+      "templateKey": "07_current_plan",
+      "reportFallback": "governance",
+      "reportOperational": true
+    },
+    {
+      "documentType": "evidence_register",
+      "templateKey": "08_evidence_register",
+      "reportFallback": "evidence",
+      "reportOperational": false
+    },
+    {
+      "documentType": "meeting_intelligence",
+      "templateKey": "09_meeting_intelligence",
+      "reportFallback": "intelligence",
+      "reportOperational": false
+    },
+    {
+      "documentType": "decision_log",
+      "templateKey": "10_decision_log",
+      "reportFallback": "decisions",
+      "reportOperational": false
+    },
+    {
+      "documentType": "agent_mission",
+      "templateKey": "11_agent_mission",
+      "reportFallback": "governance",
+      "reportOperational": true
+    },
+    {
+      "documentType": "execution_playbook",
+      "templateKey": "12_execution_playbook",
+      "reportFallback": "governance",
+      "reportOperational": true
+    },
+    {
+      "documentType": "agent_permissions",
+      "templateKey": "13_agent_permissions",
+      "reportFallback": "governance",
+      "reportOperational": true
+    },
+    {
+      "documentType": "target_budget_line",
+      "templateKey": "14_target_budget_line",
+      "reportFallback": "governance",
+      "reportOperational": false
+    },
+    {
+      "documentType": "vendor_reference_pull",
+      "templateKey": "15_vendor_reference_pull",
+      "reportFallback": "governance",
+      "reportOperational": false
+    },
+    {
+      "documentType": "route_and_vehicle_status",
+      "templateKey": "16_route_and_vehicle_status",
+      "reportFallback": "governance",
+      "reportOperational": false
+    }
+  ]
+}

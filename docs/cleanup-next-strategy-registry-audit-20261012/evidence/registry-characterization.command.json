@@ -1,0 +1,12 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "tree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "argv": [
+    "node",
+    "docs/cleanup-next-strategy-registry-audit-20261012/evidence/characterize-registry.cjs"
+  ],
+  "cwd": "/workspace/capirov2-cleanup-next-strategy-registry-audit",
+  "exitCode": 0,
+  "productionEdits": 0,
+  "nativeAcceptance": false
+}

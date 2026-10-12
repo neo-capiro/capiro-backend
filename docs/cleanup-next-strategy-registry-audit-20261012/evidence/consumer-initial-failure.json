@@ -1,0 +1,6 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "error": "ENOBUFS",
+  "classification": "Read-only git ls-files output exceeded Node default1MiB capture buffer; named corrected inventory raises only capture capacity to64MiB. No source policy or assertion changed. Original script/full failure log retained.",
+  "nativeAcceptance": false
+}
