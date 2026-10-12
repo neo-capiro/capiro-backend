@@ -1,0 +1,33 @@
+{
+  "originalSource": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "phase": "red",
+  "sourceFiles": 169,
+  "baseline": [],
+  "deferredIdentities": 116,
+  "deferredSamples": 123,
+  "cases": 21,
+  "rejected": 2,
+  "unexpectedlyAccepted": [
+    "global alias clock",
+    "computed global clock",
+    "global alias random",
+    "computed global random",
+    "global alias constructor",
+    "computed global constructor",
+    "global alias timer",
+    "computed global timer",
+    "system local alias",
+    "system namespace destructure",
+    "retry local alias",
+    "quoted canonical method",
+    "computed canonical method",
+    "timer module namespace",
+    "hoisted imported RNG alias",
+    "object canonical function",
+    "computed canonical property",
+    "class canonical property",
+    "canonical getter"
+  ],
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}

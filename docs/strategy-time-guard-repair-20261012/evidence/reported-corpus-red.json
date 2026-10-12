@@ -1,0 +1,165 @@
+{
+  "originalSource": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "phase": "red",
+  "sourceFiles": 169,
+  "baseline": [],
+  "deferredIdentities": 116,
+  "deferredSamples": 123,
+  "cases": 21,
+  "rejected": 2,
+  "unexpectedlyAccepted": [
+    "global alias clock",
+    "computed global clock",
+    "global alias random",
+    "computed global random",
+    "global alias constructor",
+    "computed global constructor",
+    "global alias timer",
+    "computed global timer",
+    "system local alias",
+    "system namespace destructure",
+    "retry local alias",
+    "quoted canonical method",
+    "computed canonical method",
+    "timer module namespace",
+    "hoisted imported RNG alias",
+    "object canonical function",
+    "computed canonical property",
+    "class canonical property",
+    "canonical getter"
+  ],
+  "results": [
+    {
+      "name": "direct clock",
+      "addition": "function reviewProbe(){return Date.now();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||Date.now (1 > 0)"
+      ]
+    },
+    {
+      "name": "global alias clock",
+      "addition": "function reviewProbe(){const ambient=globalThis;return ambient.Date.now();}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "computed global clock",
+      "addition": "function reviewProbe(){return globalThis['Da'+'te']['now']();}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "global alias random",
+      "addition": "function reviewProbe(){const ambient=globalThis;return ambient.Math.random();}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "computed global random",
+      "addition": "function reviewProbe(){return globalThis['Ma'+'th']['random']();}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "global alias constructor",
+      "addition": "function reviewProbe(){const ambient=globalThis;return new ambient.Date();}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "computed global constructor",
+      "addition": "function reviewProbe(){return new (globalThis['Da'+'te'])();}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "global alias timer",
+      "addition": "function reviewProbe(){const ambient=globalThis;return ambient.setTimeout(()=>{},1);}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "computed global timer",
+      "addition": "function reviewProbe(){return globalThis['set'+'Timeout'](()=>{},1);}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "system local alias",
+      "addition": "import { systemWallClock } from '@capiro/shared';function reviewProbe(){const clock=systemWallClock;return clock();}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "system namespace destructure",
+      "addition": "import * as sharedTime from '@capiro/shared';function reviewProbe(){const {systemWallClock:clock}=sharedTime;return clock();}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "retry local alias",
+      "addition": "function reviewProbe(){const retry:any=withContextRetry;return retry(\"x\",()=>1);}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "quoted canonical method",
+      "addition": "class ReviewProbe { \"withContextRetry\"() {return 1;} }",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "computed canonical method",
+      "addition": "class ReviewProbe { [\"withContextRetry\"]() {return 1;} }",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "timer module namespace",
+      "addition": "import * as timers from 'node:timers';function reviewProbe(){return timers.setTimeout(()=>{},1);}",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "direct system fallback",
+      "addition": "function reviewProbe(){return systemWallClock();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||system time hook invoked outside its provider (1 > 0)"
+      ]
+    },
+    {
+      "name": "hoisted imported RNG alias",
+      "addition": "function reviewHoistedAlias() { return rng(); }\nimport { systemRandom as rng } from '@capiro/shared';",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "object canonical function",
+      "addition": "const reviewDup = { withContextRetry: () => 1 };",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "computed canonical property",
+      "addition": "const reviewDup = { [\"withContextRetry\"]: () => 1 };",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "class canonical property",
+      "addition": "class ReviewDup { withContextRetry = () => 1; }",
+      "rejected": false,
+      "failures": []
+    },
+    {
+      "name": "canonical getter",
+      "addition": "class ReviewDup { get withContextRetry() { return () => 1; } }",
+      "rejected": false,
+      "failures": []
+    }
+  ],
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}

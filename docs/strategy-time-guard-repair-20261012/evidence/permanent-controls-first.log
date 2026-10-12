@@ -1,0 +1,106 @@
+✔ explicit runtime boundary permits deterministic date math, types, comments and strings (350.082508ms)
+✔ rejects new ambient or indirect boundary: new date (4.992448ms)
+✔ rejects new ambient or indirect boundary: date call (3.623877ms)
+✔ rejects new ambient or indirect boundary: clock (5.332316ms)
+✔ rejects new ambient or indirect boundary: random (3.256542ms)
+✔ rejects new ambient or indirect boundary: bracket clock (3.878456ms)
+✔ rejects new ambient or indirect boundary: bracket random (3.326273ms)
+✔ rejects new ambient or indirect boundary: global clock (4.424636ms)
+✔ rejects new ambient or indirect boundary: global bracket clock (4.598161ms)
+✔ rejects new ambient or indirect boundary: global random (3.446485ms)
+✔ rejects new ambient or indirect boundary: spread constructor (3.645768ms)
+✔ rejects new ambient or indirect boundary: date alias (2.141446ms)
+✔ rejects new ambient or indirect boundary: random alias (2.083744ms)
+✔ rejects new ambient or indirect boundary: clock destructuring (5.798483ms)
+✔ rejects new ambient or indirect boundary: math destructuring (3.332992ms)
+✔ rejects new ambient or indirect boundary: dynamic member (3.215128ms)
+✔ rejects new ambient or indirect boundary: timer (2.459955ms)
+✔ rejects new ambient or indirect boundary: global timer (2.766034ms)
+✔ rejects new ambient or indirect boundary: timer alias (2.973402ms)
+✔ rejects new ambient or indirect boundary: system fallback call (2.64252ms)
+✔ rejects new ambient or indirect boundary: aliased system fallback (14.363706ms)
+✔ rejects new ambient or indirect boundary: namespace system fallback (6.521579ms)
+✔ rejects new ambient or indirect boundary: retry namespace bypass (1.708957ms)
+✔ rejects new ambient or indirect boundary: retry import alias (3.233742ms)
+✔ existing sample allowance cannot grow or move to another owner (11.135644ms)
+✔ required runtime cannot become optional, defaulted, omitted or replaced (29.784636ms)
+✔ missing source, parse failures and malformed inventory fail closed (5.56472ms)
+✔ canonical helper ownership rejects function, variable and method copies (3.781026ms)
+✔ refuses reported AST bypass: global alias clock (5.047124ms)
+✔ refuses reported AST bypass: computed global clock (2.174868ms)
+✔ refuses reported AST bypass: global alias random (2.048111ms)
+✔ refuses reported AST bypass: computed global random (1.528706ms)
+✔ refuses reported AST bypass: global alias constructor (1.512058ms)
+✔ refuses reported AST bypass: computed global constructor (7.009972ms)
+✔ refuses reported AST bypass: global alias timer (2.710782ms)
+✔ refuses reported AST bypass: computed global timer (2.440519ms)
+✔ refuses reported AST bypass: system local alias (3.55491ms)
+✔ refuses reported AST bypass: system namespace destructure (2.597331ms)
+✔ refuses reported AST bypass: retry local alias (1.994613ms)
+✔ refuses reported AST bypass: quoted canonical method (3.844175ms)
+✔ refuses reported AST bypass: computed canonical method (2.062501ms)
+✔ refuses reported AST bypass: timer module namespace (5.130172ms)
+✔ refuses reported AST bypass: hoisted imported RNG alias (3.131712ms)
+✔ refuses reported AST bypass: object canonical function (2.118662ms)
+✔ refuses reported AST bypass: computed canonical property (1.978677ms)
+✔ refuses reported AST bypass: class canonical property (2.024702ms)
+✔ refuses reported AST bypass: canonical getter (1.605405ms)
+✖ refuses bounded static alias variant: nested global destructuring (3.173703ms)
+✔ refuses bounded static alias variant: chained global alias (1.930932ms)
+✔ refuses bounded static alias variant: assigned global alias (4.35806ms)
+✔ refuses bounded static alias variant: constant member alias (9.270812ms)
+✔ refuses bounded static alias variant: template member alias (6.139546ms)
+✔ refuses bounded static alias variant: unknown global member (3.848302ms)
+✔ refuses bounded static alias variant: unknown math member (2.445685ms)
+✔ refuses bounded static alias variant: system array destructuring (8.025037ms)
+✔ refuses bounded static alias variant: namespace object alias (3.48446ms)
+✔ refuses bounded static alias variant: system bound alias (4.222669ms)
+✔ refuses bounded static alias variant: system parameter default (7.459718ms)
+✔ refuses bounded static alias variant: system callback reference (1.672933ms)
+✔ refuses bounded static alias variant: system renamed forwarding export (2.156041ms)
+✔ refuses bounded static alias variant: system forwarding export (1.788691ms)
+✔ refuses bounded static alias variant: timer namespace destructuring (1.902981ms)
+✔ refuses bounded static alias variant: timer named import alias (2.092595ms)
+✔ refuses bounded static alias variant: timer promise namespace (1.884963ms)
+✔ refuses bounded static alias variant: retry destructuring alias (1.894599ms)
+✔ refuses bounded static alias variant: retry alias even with valid runtime (1.424347ms)
+✔ refuses bounded static alias variant: retry callback reference (1.364489ms)
+✔ refuses bounded static alias variant: constant canonical method name (1.747157ms)
+✔ refuses bounded static alias variant: computed class arrow property (1.694785ms)
+✔ refuses bounded static alias variant: canonical setter (1.453147ms)
+✔ refuses bounded static alias variant: canonical object method (0.978287ms)
+✔ refuses bounded static alias variant: Date constructor alias with explicit argument (1.383337ms)
+✔ refuses bounded static alias variant: global Date constructor alias (1.805468ms)
+✔ refuses bounded static alias variant: property Date constructor alias (3.503831ms)
+✔ lexical shadows, explicit dates, ordinary object members and type-only references stay permitted (8.394838ms)
+✔ a hoisted imported alias does not taint a different lexical parameter binding (2.434148ms)
+✔ only data-owned lazy provider values are permitted, never invocation or callback fallbacks (21.835228ms)
+✔ system defaults sample only on invocation and pass delay unchanged (26.268843ms)
+ℹ tests 78
+ℹ suites 0
+ℹ pass 77
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 853.842559
+
+✖ failing tests:
+
+test at scripts/check-strategy-time-bypasses.test.mjs:170:3
+✖ refuses bounded static alias variant: nested global destructuring (3.173703ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" not to be strictly deep-equal to: []
+      at TestContext.<anonymous> (file:///workspace/capirov2-strategy-time-guard-repair/scripts/check-strategy-time-bypasses.test.mjs:171:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [],
+    operator: 'notDeepStrictEqual',
+    diff: 'simple'
+  }

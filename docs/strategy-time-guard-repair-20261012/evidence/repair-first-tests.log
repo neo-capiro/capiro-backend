@@ -1,0 +1,111 @@
+✔ explicit runtime boundary permits deterministic date math, types, comments and strings (315.749093ms)
+✔ rejects new ambient or indirect boundary: new date (4.552051ms)
+✔ rejects new ambient or indirect boundary: date call (4.222519ms)
+✔ rejects new ambient or indirect boundary: clock (6.01369ms)
+✔ rejects new ambient or indirect boundary: random (3.020776ms)
+✔ rejects new ambient or indirect boundary: bracket clock (4.377645ms)
+✔ rejects new ambient or indirect boundary: bracket random (2.840215ms)
+✖ rejects new ambient or indirect boundary: global clock (4.174572ms)
+✖ rejects new ambient or indirect boundary: global bracket clock (3.891852ms)
+✖ rejects new ambient or indirect boundary: global random (4.396821ms)
+✔ rejects new ambient or indirect boundary: spread constructor (7.485702ms)
+✔ rejects new ambient or indirect boundary: date alias (1.930082ms)
+✔ rejects new ambient or indirect boundary: random alias (2.597781ms)
+✔ rejects new ambient or indirect boundary: clock destructuring (4.788891ms)
+✔ rejects new ambient or indirect boundary: math destructuring (2.033938ms)
+✔ rejects new ambient or indirect boundary: dynamic member (2.493898ms)
+✔ rejects new ambient or indirect boundary: timer (1.674471ms)
+✖ rejects new ambient or indirect boundary: global timer (2.22726ms)
+✔ rejects new ambient or indirect boundary: timer alias (2.460154ms)
+✔ rejects new ambient or indirect boundary: system fallback call (2.194333ms)
+✔ rejects new ambient or indirect boundary: aliased system fallback (9.907234ms)
+✔ rejects new ambient or indirect boundary: namespace system fallback (4.398288ms)
+✔ rejects new ambient or indirect boundary: retry namespace bypass (2.131032ms)
+✔ rejects new ambient or indirect boundary: retry import alias (2.704467ms)
+✔ existing sample allowance cannot grow or move to another owner (8.33269ms)
+✔ required runtime cannot become optional, defaulted, omitted or replaced (13.481904ms)
+✔ missing source, parse failures and malformed inventory fail closed (6.962261ms)
+✔ canonical helper ownership rejects function, variable and method copies (10.419174ms)
+✔ system defaults sample only on invocation and pass delay unchanged (33.482572ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 25
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 615.567651
+
+✖ failing tests:
+
+test at scripts/check-strategy-time-bypasses.test.mjs:66:3
+✖ rejects new ambient or indirect boundary: global clock (4.174572ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" not to be strictly deep-equal to: []
+      at TestContext.<anonymous> (file:///workspace/capirov2-strategy-time-guard-repair/scripts/check-strategy-time-bypasses.test.mjs:67:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [],
+    operator: 'notDeepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/check-strategy-time-bypasses.test.mjs:66:3
+✖ rejects new ambient or indirect boundary: global bracket clock (3.891852ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" not to be strictly deep-equal to: []
+      at TestContext.<anonymous> (file:///workspace/capirov2-strategy-time-guard-repair/scripts/check-strategy-time-bypasses.test.mjs:67:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [],
+    operator: 'notDeepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/check-strategy-time-bypasses.test.mjs:66:3
+✖ rejects new ambient or indirect boundary: global random (4.396821ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" not to be strictly deep-equal to: []
+      at TestContext.<anonymous> (file:///workspace/capirov2-strategy-time-guard-repair/scripts/check-strategy-time-bypasses.test.mjs:67:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [],
+    operator: 'notDeepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts/check-strategy-time-bypasses.test.mjs:66:3
+✖ rejects new ambient or indirect boundary: global timer (2.22726ms)
+  AssertionError [ERR_ASSERTION]: Expected "actual" not to be strictly deep-equal to: []
+      at TestContext.<anonymous> (file:///workspace/capirov2-strategy-time-guard-repair/scripts/check-strategy-time-bypasses.test.mjs:67:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [],
+    expected: [],
+    operator: 'notDeepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,85 @@
+{
+  "source": "61804fd16f2ab3cd44e4ef5b4b60d1a2960a7e8f",
+  "sourceTree": "a61515fffdf1fd5499f4305de360867b353f529f",
+  "base": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "sourceFiles": 169,
+  "productionPaths": {
+    "scripts/check-strategy-time-bypasses.mjs": {
+      "blob": "66778bca4d1f1eabbfb38289dc81d4f0b1beb1b6",
+      "sha256": "29088932f4cc0f8b9e92a003d8aa1c9f9dacb5b5fe6bde67f00912a23f03c44e"
+    },
+    "scripts/check-strategy-time-bypasses.test.mjs": {
+      "blob": "ca9ac6680efe1b000310c3849dedee049335d7e1",
+      "sha256": "cbb5449d3908acb45696da64935654aa99c55dee53304176b2d0e263113a4ab1"
+    },
+    "scripts/strategy-time-boundaries.json": {
+      "blob": "9110f7f604869089750e5b58bcc96316250581ab",
+      "sha256": "b7e25fced513412c837cf79b967545dd35efe5dba260839d0a012b941249fd2e"
+    }
+  },
+  "authorEvidenceHashes": {
+    "docs/strategy-time-guard-repair-20261012/evidence/baseline-guard.log": "24c3327d7aa9ee21ccbeb5d9607d1702bd1e125511728007d4816987c4178fce",
+    "docs/strategy-time-guard-repair-20261012/evidence/baseline-tests.log": "b2969733a60d195dcb1b52e5d7c83a39f0431628c08bc3f194ba10b07730686c",
+    "docs/strategy-time-guard-repair-20261012/evidence/cli-help.log": "dea3a226e34d0360beb6c5def76c7c0074cac829fda8f2d02c95c9b563d27cf2",
+    "docs/strategy-time-guard-repair-20261012/evidence/cli-unknown.log": "dea3a226e34d0360beb6c5def76c7c0074cac829fda8f2d02c95c9b563d27cf2",
+    "docs/strategy-time-guard-repair-20261012/evidence/final-guard.log": "24c3327d7aa9ee21ccbeb5d9607d1702bd1e125511728007d4816987c4178fce",
+    "docs/strategy-time-guard-repair-20261012/evidence/formatter-final.log": "26d2ec66ba59731e0f3c3bc2789e5d1455d83c43e0312e6294a422fd0b0cdc09",
+    "docs/strategy-time-guard-repair-20261012/evidence/formatter.log": "429b5185be114abfea4c1da37ce759b13388f2a2ac440fdee1022bcc6aa0209a",
+    "docs/strategy-time-guard-repair-20261012/evidence/independent-original-adversarial-guard-review.json": "f56893b5815d594e6d318bd901d87775db97eb0615991fca5533dee2b64b6d59",
+    "docs/strategy-time-guard-repair-20261012/evidence/independent-original-canonical-member-adversarial-red.json": "d88ccd7570c77d50a8052883a31912081d2bbde7a851d536baa12f0158c894cc",
+    "docs/strategy-time-guard-repair-20261012/evidence/independent-original-hoisted-alias-adversarial-red.json": "5e311a4e257b19e37b599f7358fe0ab302aab6b97ec089a85e31810ef2bdbcfa",
+    "docs/strategy-time-guard-repair-20261012/evidence/inventory-and-test-preservation.json": "9af06f583c35de7abb31ea039b42fad81162ffc2ccc7be79cebcf4abcd2bb284",
+    "docs/strategy-time-guard-repair-20261012/evidence/permanent-controls-first.log": "6dde7948cd013a7ba3dcaf58492cbfec3f052b615d504c4daaa78c6a9d4c322c",
+    "docs/strategy-time-guard-repair-20261012/evidence/permanent-controls-second.log": "aef2927273f2e59cfbca73b97944cab0a903741898ed281e8bc9b60e55ac8a31",
+    "docs/strategy-time-guard-repair-20261012/evidence/permanent-controls-third.log": "39e56c2bc584be51c732c01ba8bf0d1cd17220fc1d269c9376356e016975fa17",
+    "docs/strategy-time-guard-repair-20261012/evidence/repair-first-guard.log": "d2932205ce631b3b0f178929dac9da7d98d7b6aca68630712c8898142e02ae2c",
+    "docs/strategy-time-guard-repair-20261012/evidence/repair-first-tests.log": "c460a66a2421f49f1d9c3f79a23d2736ff4de41898e4ed199316a60694b80187",
+    "docs/strategy-time-guard-repair-20261012/evidence/repair-second-full-guard.log": "24c3327d7aa9ee21ccbeb5d9607d1702bd1e125511728007d4816987c4178fce",
+    "docs/strategy-time-guard-repair-20261012/evidence/repair-second-guard.log": "24c3327d7aa9ee21ccbeb5d9607d1702bd1e125511728007d4816987c4178fce",
+    "docs/strategy-time-guard-repair-20261012/evidence/repair-second-tests.log": "abea9668f6365f741529d240c02d2be59e2e6eb8daba781074684e4d51cb1c85",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-final-green.log": "2833451cf36c8ae81d28ec940674b7b6e45788bd645e1a8116a92334142a69af",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-first-green.log": "2833451cf36c8ae81d28ec940674b7b6e45788bd645e1a8116a92334142a69af",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-green.json": "67103e17f2ca70098ec67a5407b14671181fc09231f664df4c6963817ff82da0",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-red.json": "0f05704dcc5ac35c0b3df0a3b00e7c620af4a163408b65148bab3a07a938acd6",
+    "docs/strategy-time-guard-repair-20261012/evidence/reported-corpus-red.log": "d723ef3ccf33b0ea4e10060183e1dc1962401aa0f6d6cd0ce37ac2ee9638376f",
+    "docs/strategy-time-guard-repair-20261012/evidence/reproduce-reported-corpus.mjs": "eef1e9fe91d2911fe6a5c8fb0df67248464db5f099bb74e0fc94f65dfbc0e0ef"
+  },
+  "checks": {
+    "baselineTests": 29,
+    "reportedRed": {
+      "cases": 21,
+      "rejected": 2,
+      "acceptedBypasses": 19
+    },
+    "finalPermanentTests": {
+      "cases": 82,
+      "passed": 82
+    },
+    "finalReportedCorpus": {
+      "cases": 21,
+      "rejected": 21
+    },
+    "fullSourceGuard": {
+      "files": 169,
+      "exit": 0
+    },
+    "inventory": {
+      "deferredIdentities": 116,
+      "deferredSamples": 123,
+      "canonicalDefaultSamples": 3,
+      "explicitRetryCalls": 6,
+      "allOriginalDataFieldsPreserved": true
+    },
+    "cliHelp": 0,
+    "cliUnknownExpected": 2
+  },
+  "failedEvidencePreserved": [
+    "repair-first-tests.log",
+    "repair-first-guard.log",
+    "permanent-controls-first.log"
+  ],
+  "independentReview": "awaiting frozen-source independent B receipt",
+  "mutantsExecuted": false,
+  "nativeAcceptance": false,
+  "sourceMutationsOutsideAllowedThreeFiles": false
+}

@@ -1,0 +1,355 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "sourceFiles": 169,
+  "baselineFailures": [],
+  "results": [
+    {
+      "name": "direct clock",
+      "addition": "function reviewProbe(){return Date.now();}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||Date.now (1 > 0)"
+      ],
+      "analysis": {
+        "events": [
+          "apps/api-strategy/src/meri/context-load.ts|reviewProbe||Date.now"
+        ],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "global alias clock",
+      "addition": "function reviewProbe(){const ambient=globalThis;return ambient.Date.now();}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          },
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "ambient"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "computed global clock",
+      "addition": "function reviewProbe(){return globalThis['Da'+'te']['now']();}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "global alias random",
+      "addition": "function reviewProbe(){const ambient=globalThis;return ambient.Math.random();}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          },
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "ambient"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "computed global random",
+      "addition": "function reviewProbe(){return globalThis['Ma'+'th']['random']();}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "global alias constructor",
+      "addition": "function reviewProbe(){const ambient=globalThis;return new ambient.Date();}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          },
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "ambient"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "computed global constructor",
+      "addition": "function reviewProbe(){return new (globalThis['Da'+'te'])();}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "global alias timer",
+      "addition": "function reviewProbe(){const ambient=globalThis;return ambient.setTimeout(()=>{},1);}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          },
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "ambient"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "computed global timer",
+      "addition": "function reviewProbe(){return globalThis['set'+'Timeout'](()=>{},1);}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "system local alias",
+      "addition": "import { systemWallClock } from '@capiro/shared';function reviewProbe(){const clock=systemWallClock;return clock();}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          },
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "clock"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "system namespace destructure",
+      "addition": "import * as sharedTime from '@capiro/shared';function reviewProbe(){const {systemWallClock:clock}=sharedTime;return clock();}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          },
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "clock"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "retry local alias",
+      "addition": "function reviewProbe(){const retry:any=withContextRetry;return retry(\"x\",()=>1);}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          },
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "retry"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "quoted canonical method",
+      "addition": "class ReviewProbe { \"withContextRetry\"() {return 1;} }",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [],
+        "problems": []
+      }
+    },
+    {
+      "name": "computed canonical method",
+      "addition": "class ReviewProbe { [\"withContextRetry\"]() {return 1;} }",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [],
+        "problems": []
+      }
+    },
+    {
+      "name": "timer module namespace",
+      "addition": "import * as timers from 'node:timers';function reviewProbe(){return timers.setTimeout(()=>{},1);}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": false,
+      "failures": [],
+      "analysis": {
+        "events": [],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          }
+        ],
+        "problems": []
+      }
+    },
+    {
+      "name": "direct system fallback",
+      "addition": "function reviewProbe(){return systemWallClock();}",
+      "expected": "reject new clock/random/retry/canonical/timer bypass",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/context-load.ts|reviewProbe||system time hook invoked outside its provider (1 > 0)"
+      ],
+      "analysis": {
+        "events": [
+          "apps/api-strategy/src/meri/context-load.ts|reviewProbe||system time hook invoked outside its provider"
+        ],
+        "retryCalls": [],
+        "retryDefinitions": [],
+        "definitions": [
+          {
+            "file": "apps/api-strategy/src/meri/context-load.ts",
+            "name": "reviewProbe"
+          }
+        ],
+        "problems": []
+      }
+    }
+  ],
+  "unexpectedlyAccepted": [
+    "global alias clock",
+    "computed global clock",
+    "global alias random",
+    "computed global random",
+    "global alias constructor",
+    "computed global constructor",
+    "global alias timer",
+    "computed global timer",
+    "system local alias",
+    "system namespace destructure",
+    "retry local alias",
+    "quoted canonical method",
+    "computed canonical method",
+    "timer module namespace"
+  ],
+  "nativeAcceptance": false,
+  "mutantsExecuted": false
+}
