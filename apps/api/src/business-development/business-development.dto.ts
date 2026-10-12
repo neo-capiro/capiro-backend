@@ -21,17 +21,8 @@ import {
  * ValidationPipe; these shapes ARE the route contract for the frontend worker.
  */
 
-export const BIZDEV_STAGES = [
-  'researching',
-  'qualified',
-  'outreach',
-  'meeting',
-  'proposal',
-  'won',
-  'lost',
-  'parked',
-] as const;
-export type BizDevStage = (typeof BIZDEV_STAGES)[number];
+import { BIZDEV_STAGES, type BizDevStage } from './prospect-stages.js';
+export { BIZDEV_STAGES, type BizDevStage } from './prospect-stages.js';
 
 /** Stage values that mean a firm won or lost the engagement. */
 export const BIZDEV_STAGE = { WON: 'won', LOST: 'lost' } as const;

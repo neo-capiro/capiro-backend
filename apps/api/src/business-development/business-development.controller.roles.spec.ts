@@ -66,6 +66,7 @@ describe('route role metadata', () => {
 
   test('member routes inherit the standard_user floor', () => {
     for (const route of [
+      'stageCatalog',
       'list',
       'get',
       'create',
@@ -97,6 +98,11 @@ describe('route role metadata', () => {
 });
 
 describe('real RolesGuard decisions', () => {
+  test('stage catalog inherits the real role floor and denies missing or portal context', () => {
+    expect(guardAllows('stageCatalog', 'standard_user')).toBe(true);
+    expect(() => guardAllows('stageCatalog', 'client_portal_user')).toThrow(ForbiddenException);
+    expect(() => guardAllows('stageCatalog', undefined)).toThrow(ForbiddenException);
+  });
   test('standard_user: reads + ordinary workflow allowed', () => {
     for (const route of [
       'list',

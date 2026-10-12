@@ -17,6 +17,7 @@ import { Roles } from '../auth/roles.decorator.js';
 import { RolesGuard } from '../auth/roles.guard.js';
 import { BusinessDevelopmentFlagGuard } from './business-development-flag.guard.js';
 import { BusinessDevelopmentService } from './business-development.service.js';
+import { prospectStageCatalog } from './prospect-stages.js';
 import {
   AddNoteDto,
   CanonicalEntityIdParam,
@@ -85,6 +86,12 @@ export class BusinessDevelopmentController {
     private readonly brief: BizDevBriefService,
     private readonly watchSvc: BizDevWatchService,
   ) {}
+
+  /** List/filter prospects + stage counts. */
+  @Get('prospect-stages')
+  stageCatalog() {
+    return prospectStageCatalog();
+  }
 
   /** List/filter prospects + stage counts. */
   @Get('prospects')
@@ -461,10 +468,7 @@ export class BusinessDevelopmentController {
   /** Tenant top-bar notification center: current owner's alerts. */
   @Get('alerts')
   @UseGuards(BusinessDevelopmentWatchFlagGuard)
-  listBizDevAlerts(
-    @CurrentTenant() ctx: TenantContext,
-    @Query() query: ListTenantAlertsQueryDto,
-  ) {
+  listBizDevAlerts(@CurrentTenant() ctx: TenantContext, @Query() query: ListTenantAlertsQueryDto) {
     return this.watchSvc.listTenantAlerts(ctx, {
       limit: query.limit,
       cursor: query.cursor,
