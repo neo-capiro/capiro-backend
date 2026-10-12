@@ -1,0 +1,12 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS ../backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts (11.851 s)
+PASS ../backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       37 passed, 37 total
+Snapshots:   0 total
+Time:        12.49 s
+Ran all test suites within paths "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts".
+Test results written to: ../backend-qualification-20261012/independent-review/prospect-resource-design/core-baseline.json

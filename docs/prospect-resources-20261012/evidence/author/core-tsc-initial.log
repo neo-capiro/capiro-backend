@@ -1,0 +1,2 @@
+src/engagement/engagement.service.ts(2654,11): error TS2353: Object literal may only specify known properties, and 'prospectId' does not exist in type 'OutreachRecordWhereInput'.
+src/engagement/engagement.service.ts(2654,29): error TS2339: Property 'prospectId' does not exist on type 'OutreachQuery'.

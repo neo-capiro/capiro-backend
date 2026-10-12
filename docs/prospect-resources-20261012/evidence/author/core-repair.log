@@ -1,0 +1,29 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-prospect-resources/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/engagement/engagement-document-read.spec.ts
+PASS apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts
+FAIL apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts
+  ● prospect attachment lifecycle (synthetic only) › selects only the canonical prospect and excludes legacy and other-prospect rows
+
+    BadRequestException: An attachment parent (or unlinked=true) is required
+
+      7761 |     );
+      7762 |     if (!hasParent && !query.unlinked) {
+    > 7763 |       throw new BadRequestException('An attachment parent (or unlinked=true) is required');
+           |             ^
+      7764 |     }
+      7765 |     await this.validateAttachmentParents(ctx, query);
+      7766 |     const { rows, uploaderNameById } = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+
+      at EngagementService.listAttachments (src/engagement/engagement.service.ts:7763:13)
+      at Object.<anonymous> (src/engagement/attachments/prospect-attachment-access.spec.ts:283:29)
+
+PASS apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts
+
+Test Suites: 1 failed, 3 passed, 4 total
+Tests:       1 failed, 60 passed, 61 total
+Snapshots:   0 total
+Time:        5.921 s
+Ran all test suites within paths "apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts", "apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts", "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts", "apps/api/src/engagement/engagement-document-read.spec.ts".
+Test results written to: ../../tmp/capiro-prospect-core-repair.json

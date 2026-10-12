@@ -1,0 +1,465 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/engagement/attachments/prospect-independent-review.spec.ts (7.735 s)
+PASS apps/api/src/engagement/outreach-send-intent.service.spec.ts
+PASS apps/api/src/engagement/generation/evidence-source.service.spec.ts
+PASS apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts
+FAIL apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts
+  ● OutreachContextReferenceService — document locator authorization › accepts a client document belonging to the authorized client, even when quarantined with no scanner configured
+
+    CapabilityError: The requested context was not found in the authorized scope.
+
+      635 |
+      636 | function contextNotFound(): CapabilityError {
+    > 637 |   return new CapabilityError(
+          |          ^
+      638 |     'CAPABILITY_NOT_FOUND',
+      639 |     'The requested context was not found in the authorized scope.',
+      640 |   );
+
+      at contextNotFound (src/capabilities/context/outreach-context-reference.service.ts:637:10)
+      at OutreachContextReferenceService.resolveDocument (src/capabilities/context/outreach-context-reference.service.ts:430:58)
+
+PASS apps/api/src/common/tenant-flags.spec.ts
+PASS apps/api/src/engagement/mailbox-selection.spec.ts
+PASS apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts
+PASS apps/api/src/engagement/google/gmail-send.service.spec.ts
+FAIL apps/api/src/embeddings/client-kb-access.spec.ts
+  ● client KB document authorization and readiness › filters an old private embedding for a colleague but permits its owner
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -55,8 +55,9 @@
+              },
+            ],
+          },
+        ],
+        "clientId": "client",
+    +   "prospectId": null,
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:665:43
+      at ClientKbService.search (src/embeddings/client-kb.service.ts:663:18)
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:85:19)
+
+  ● client KB document authorization and readiness › does not return previously indexed pending, threat, unscanned or superseded content
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -55,8 +55,9 @@
+              },
+            ],
+          },
+        ],
+        "clientId": "client",
+    +   "prospectId": null,
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:665:43
+      at ClientKbService.search (src/embeddings/client-kb.service.ts:663:18)
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:94:20)
+
+  ● client KB document authorization and readiness › keeps optional scanning policy but never admits a known threat or quarantine
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -55,8 +55,9 @@
+              },
+            ],
+          },
+        ],
+        "clientId": "client",
+    +   "prospectId": null,
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:665:43
+      at ClientKbService.search (src/embeddings/client-kb.service.ts:663:18)
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:103:20)
+
+  ● client KB document authorization and readiness › omits private and blocked filenames from another user’s always-on snapshot
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -61,9 +61,10 @@
+          "in": Array [
+            "ready",
+            "legacy_ready",
+          ],
+        },
+    +   "prospectId": null,
+        "scanStatus": "clean",
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:744:14
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:72:81)
+      at ClientKbService.buildSnapshot (src/embeddings/client-kb.service.ts:743:19)
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:130:22)
+
+  ● client KB document authorization and readiness › bounds snapshot reads before materializing documents when scanning is required=true
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -61,9 +61,10 @@
+          "in": Array [
+            "ready",
+            "legacy_ready",
+          ],
+        },
+    +   "prospectId": null,
+        "scanStatus": "clean",
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:744:14
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:72:81)
+      at ClientKbService.buildSnapshot (src/embeddings/client-kb.service.ts:743:19)
+      at src/embeddings/client-kb-access.spec.ts:148:22
+
+  ● client KB document authorization and readiness › bounds snapshot reads before materializing documents when scanning is required=false
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -71,8 +71,9 @@
+          "in": Array [
+            "ready",
+            "legacy_ready",
+          ],
+        },
+    +   "prospectId": null,
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:744:14
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:72:81)
+      at ClientKbService.buildSnapshot (src/embeddings/client-kb.service.ts:743:19)
+      at src/embeddings/client-kb-access.spec.ts:148:22
+
+PASS apps/api/src/engagement/engagement-document-read.spec.ts
+PASS apps/api/src/embeddings/client-kb-assignment-race.spec.ts
+PASS apps/api/src/engagement/engagement-send-thread-key.spec.ts
+PASS apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts
+PASS apps/api/src/engagement/independent-sender-review.spec.ts
+PASS apps/api/src/engagement/mail-sender.service.spec.ts
+PASS apps/api/src/embeddings/client-kb-readability.spec.ts
+PASS apps/api/src/memory/memory-wall.helpers.spec.ts
+PASS apps/api/src/engagement/runtime/engagement-route-controller-coverage.spec.ts
+PASS apps/api/src/engagement/engagement-send-authorization.spec.ts
+PASS apps/api/src/engagement/hearing-record-document-access.spec.ts
+PASS apps/api/src/engagement/engagement-mail-threads.spec.ts
+PASS apps/api/src/engagement/mailbox-selection.controller.spec.ts
+PASS apps/api/src/embeddings/client-kb-await-source.spec.ts
+PASS apps/api/src/outreach-v3/send/outreach-v3-send.guard.spec.ts
+PASS apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts
+PASS apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts
+
+Summary of all failing tests
+FAIL src/capabilities/context/outreach-context-reference.service.spec.ts
+  ● OutreachContextReferenceService — document locator authorization › accepts a client document belonging to the authorized client, even when quarantined with no scanner configured
+
+    CapabilityError: The requested context was not found in the authorized scope.
+
+      635 |
+      636 | function contextNotFound(): CapabilityError {
+    > 637 |   return new CapabilityError(
+          |          ^
+      638 |     'CAPABILITY_NOT_FOUND',
+      639 |     'The requested context was not found in the authorized scope.',
+      640 |   );
+
+      at contextNotFound (src/capabilities/context/outreach-context-reference.service.ts:637:10)
+      at OutreachContextReferenceService.resolveDocument (src/capabilities/context/outreach-context-reference.service.ts:430:58)
+
+FAIL src/embeddings/client-kb-access.spec.ts
+  ● client KB document authorization and readiness › filters an old private embedding for a colleague but permits its owner
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -55,8 +55,9 @@
+              },
+            ],
+          },
+        ],
+        "clientId": "client",
+    +   "prospectId": null,
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:665:43
+      at ClientKbService.search (src/embeddings/client-kb.service.ts:663:18)
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:85:19)
+
+  ● client KB document authorization and readiness › does not return previously indexed pending, threat, unscanned or superseded content
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -55,8 +55,9 @@
+              },
+            ],
+          },
+        ],
+        "clientId": "client",
+    +   "prospectId": null,
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:665:43
+      at ClientKbService.search (src/embeddings/client-kb.service.ts:663:18)
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:94:20)
+
+  ● client KB document authorization and readiness › keeps optional scanning policy but never admits a known threat or quarantine
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -55,8 +55,9 @@
+              },
+            ],
+          },
+        ],
+        "clientId": "client",
+    +   "prospectId": null,
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:665:43
+      at ClientKbService.search (src/embeddings/client-kb.service.ts:663:18)
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:103:20)
+
+  ● client KB document authorization and readiness › omits private and blocked filenames from another user’s always-on snapshot
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -61,9 +61,10 @@
+          "in": Array [
+            "ready",
+            "legacy_ready",
+          ],
+        },
+    +   "prospectId": null,
+        "scanStatus": "clean",
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:744:14
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:72:81)
+      at ClientKbService.buildSnapshot (src/embeddings/client-kb.service.ts:743:19)
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:130:22)
+
+  ● client KB document authorization and readiness › bounds snapshot reads before materializing documents when scanning is required=true
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -61,9 +61,10 @@
+          "in": Array [
+            "ready",
+            "legacy_ready",
+          ],
+        },
+    +   "prospectId": null,
+        "scanStatus": "clean",
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:744:14
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:72:81)
+      at ClientKbService.buildSnapshot (src/embeddings/client-kb.service.ts:743:19)
+      at src/embeddings/client-kb-access.spec.ts:148:22
+
+  ● client KB document authorization and readiness › bounds snapshot reads before materializing documents when scanning is required=false
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 1
+
+    @@ -71,8 +71,9 @@
+          "in": Array [
+            "ready",
+            "legacy_ready",
+          ],
+        },
+    +   "prospectId": null,
+        "supersededByAttachmentId": null,
+        "tenantId": "tenant",
+      }
+
+      32 |   const findMany = jest.fn(async ({ where, take }) => {
+      33 |     const viewer = where.AND[0].OR[2].uploadedByUserId;
+    > 34 |     expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+         |                   ^
+      35 |       ...(take === undefined ? {} : {
+      36 |         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
+      37 |         ...(scanRequired ? { scanStatus: 'clean' }
+
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:34:19)
+      at ClientKbService.visibleDocuments (src/embeddings/client-kb.service.ts:109:48)
+      at src/embeddings/client-kb.service.ts:744:14
+      at Object.<anonymous> (src/embeddings/client-kb-access.spec.ts:72:81)
+      at ClientKbService.buildSnapshot (src/embeddings/client-kb.service.ts:743:19)
+      at src/embeddings/client-kb-access.spec.ts:148:22
+
+
+Test Suites: 2 failed, 25 passed, 27 total
+Tests:       7 failed, 400 passed, 407 total
+Snapshots:   0 total
+Time:        23.325 s
+Ran all test suites within paths "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/common/tenant-flags.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/mailbox-selection.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/google/gmail-send.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/engagement-document-read.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/engagement-send-thread-key.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/independent-sender-review.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/mail-sender.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/runtime/engagement-route-controller-coverage.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/engagement-send-authorization.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/hearing-record-document-access.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/engagement-mail-threads.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/mailbox-selection.controller.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-independent-review.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/outreach-send-intent.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/outreach-v3/send/outreach-v3-send.guard.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/generation/evidence-source.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/embeddings/client-kb-access.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/embeddings/client-kb-readability.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/embeddings/client-kb-assignment-race.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/embeddings/client-kb-await-source.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/memory/memory-wall.helpers.spec.ts".
+Test results written to: ../core-repair.json

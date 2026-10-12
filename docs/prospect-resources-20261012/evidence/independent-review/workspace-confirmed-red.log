@@ -1,0 +1,65 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL ../backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts
+  independent prospect Workspace lifecycle and alternate-path controls
+    ✕ recovers an exact creation receipt after dismissed when historical read remains authorized (8 ms)
+    ✕ recovers an exact creation receipt after archived when historical read remains authorized (3 ms)
+    ✓ still rejects new creation after dismissed (3 ms)
+    ✓ still rejects new creation after archived (2 ms)
+    ✓ does not silently accept changed input when a receipt exists (3 ms)
+    ✓ does not recreate a draft removed after an acknowledged or lost response (3 ms)
+    ✓ denies receipt replay after current membership revocation (3 ms)
+    ✓ denies receipt replay after current portal_role revocation (2 ms)
+    ✓ denies receipt replay after current wall revocation (3 ms)
+    ✓ denies receipt replay after current flag revocation (2 ms)
+    ✓ preserves draft ACL independently from the current Core scope (3 ms)
+    ✓ requires exact addressed pending invitation and current Core scope for acceptance (2 ms)
+    ✓ refuses identity-free external invitees (1 ms)
+    ✓ keeps only an addressed pending invitation visible without granting document read (2 ms)
+    ✓ hides deleted-draft notice text and counts on all notification read variants (3 ms)
+    ✓ rejects public-share idempotency replay before looking up or returning token metadata (2 ms)
+    ✓ refuses firm-memory promotion before making any external call (2 ms)
+
+  ● independent prospect Workspace lifecycle and alternate-path controls › recovers an exact creation receipt after dismissed when historical read remains authorized
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [NotFoundException: Prospect resource not found]
+
+       96 |     else { h.state.linked = true; h.state.archived = true; }
+       97 |     await expect(h.authorize()).resolves.toBeUndefined();
+    >  98 |     await expect(h.run()).resolves.toEqual(created);
+          |           ^
+       99 |     expect(h.create).toHaveBeenCalledTimes(1);
+      100 |     expect(h.receipts).toHaveLength(1);
+      101 |   });
+
+      at expect (../../../../../../capirov2-prospect-resources/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/prospect-resources/prospect-independent-review.spec.ts:98:11
+
+  ● independent prospect Workspace lifecycle and alternate-path controls › recovers an exact creation receipt after archived when historical read remains authorized
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [NotFoundException: Prospect resource not found]
+
+       96 |     else { h.state.linked = true; h.state.archived = true; }
+       97 |     await expect(h.authorize()).resolves.toBeUndefined();
+    >  98 |     await expect(h.run()).resolves.toEqual(created);
+          |           ^
+       99 |     expect(h.create).toHaveBeenCalledTimes(1);
+      100 |     expect(h.receipts).toHaveLength(1);
+      101 |   });
+
+      at expect (../../../../../../capirov2-prospect-resources/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/prospect-resources/prospect-independent-review.spec.ts:98:11
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 15 passed, 17 total
+Snapshots:   0 total
+Time:        1.309 s
+Ran all test suites within paths "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts".
+Test results written to: ../backend-qualification-20261012/independent-review/prospect-resource-design/workspace-confirmed-red.json

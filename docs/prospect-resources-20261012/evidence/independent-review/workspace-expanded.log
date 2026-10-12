@@ -1,0 +1,52 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/workspace/src/generation/generation.service.spec.ts (5.41 s)
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] Anthropic generation failed with HTTP 500
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] Anthropic generation failed with HTTP 500
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] generation run: section "Overview" failed (unknown)
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] generation run: section "Request" failed (unknown)
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] generation run aborted: no Anthropic credential (tenant or platform)
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] as-generated snapshot failed after section persistence: version table unavailable
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] section "Overview": stripped 1 unresolvable citation token(s): [S:pe:0603851F]
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] generation run: claim assurance would hold (dark) 1 section(s): Overview
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] Steering memory load failed: context_plane_transport_failed
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] Anthropic generation failed with HTTP 429
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] generation run: section "Overview" failed (provider_rate_limited)
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 20624  - 10/12/2026, 4:58:35 AM    WARN [GenerationService] generation run: section "Retired" failed (provider_unavailable)
+PASS apps/workspace/src/template-studio/template-studio.spec.ts
+PASS apps/workspace/src/delivery/delivery.spec.ts
+[Nest] 20624  - 10/12/2026, 4:58:37 AM   ERROR [QuickDraftService] Quick draft generation failed for draft-1: DOCUMENT_AGENT_REVISION_CONFLICT
+[Nest] 20624  - 10/12/2026, 4:58:37 AM    WARN [QuickDraftService] Draft draft-1 was saved, but its intake transcript could not be recorded: transcript unavailable
+PASS apps/workspace/src/quick-draft/quick-draft.service.spec.ts
+PASS apps/workspace/test/draft-acl.spec.ts
+PASS apps/workspace/src/drafts/editorial-output.spec.ts
+[Nest] 20624  - 10/12/2026, 4:58:39 AM   DEBUG [IntakeService] Idempotent intake replay for tenant tenant-1, key key-12345678 → draft existing-draft
+PASS apps/workspace/src/quick-draft/intake.service.spec.ts
+PASS apps/workspace/src/export/export.service.spec.ts
+PASS apps/workspace/src/quick-draft/source-resolver.service.spec.ts
+PASS apps/workspace/src/documents/documents.service.spec.ts
+PASS apps/workspace/test/memory-promotion.spec.ts
+PASS apps/workspace/src/comments/comments.service.spec.ts
+PASS apps/workspace/src/generation/generation-run.spec.ts
+PASS apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts
+PASS apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts
+PASS apps/workspace/src/hillday/hillday-library-access.spec.ts
+
+Test Suites: 16 passed, 16 total
+Tests:       154 passed, 154 total
+Snapshots:   0 total
+Time:        16.473 s
+Ran all test suites within paths "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/generation/generation.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/delivery/delivery.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/quick-draft/quick-draft.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/test/draft-acl.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/drafts/editorial-output.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/quick-draft/intake.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/export/export.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/quick-draft/source-resolver.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/documents/documents.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/test/memory-promotion.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/comments/comments.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/hillday/hillday-library-access.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/generation/generation-run.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/workspace/src/template-studio/template-studio.spec.ts".
+Test results written to: ../workspace-expanded.json
