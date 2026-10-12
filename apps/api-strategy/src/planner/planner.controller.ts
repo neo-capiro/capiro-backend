@@ -1,3 +1,4 @@
+import { requirePlannerCommandScope } from './planner-command-scope.js';
 import {
   Body,
   Controller,
@@ -197,6 +198,7 @@ export class PlannerController {
     @Body() dto: unknown,
     @Req() req: Request,
   ) {
+    requirePlannerCommandScope(ctx, req.headers);
     return this.planner.createTaskCommand(ctx, dto, req.headers.authorization);
   }
   @Get('task-create-commands/:requestId') taskCreateCommand(
@@ -204,6 +206,7 @@ export class PlannerController {
     @Param('requestId') requestId: string,
     @Req() req: Request,
   ) {
+    requirePlannerCommandScope(ctx, req.headers);
     return this.planner.taskCreateCommand(ctx, requestId, req.headers.authorization);
   }
   @Post('tasks/import') importTask(

@@ -1,3 +1,6 @@
+import { ActivityCommandController } from './activity-commands/activity-command.controller.js';
+import { ActivityCommandService } from './activity-commands/activity-command.service.js';
+import { ActivityCommandPlanner } from './activity-commands/activity-command.planner.js';
 import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ClientsController } from './clients.controller.js';
@@ -83,6 +86,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     ClientProfileFillController,
     ClientAdvocacyMatterController,
     ClientActivityController,
+    ActivityCommandController,
     ClientFilesController,
     ClientAccountOwnerController,
     ClientTeamController,
@@ -144,6 +148,8 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
       useClass: AdvocacyHistoryPresentationInterceptor,
     },
     ClientActivityService,
+    ActivityCommandService,
+    ActivityCommandPlanner,
     ClientFilesService,
     ClientAccountOwnerService,
     ClientTeamService,

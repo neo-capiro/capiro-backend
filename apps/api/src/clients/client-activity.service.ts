@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { isISO8601 } from 'class-validator';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import { ownMeetingWhere, ownOutreachRecordWhere } from '../engagement/engagement-access.helpers.js';
@@ -228,7 +229,7 @@ export class ClientActivityService {
     });
   }
 
-  async create(ctx: TenantContext, clientId: string, input: CreateActivityInput) {
+  private validateCreate(input: CreateActivityInput) {
     if (!RECORDABLE_KINDS.includes(input.kind)) {
       // meeting/document/outreach are owned by their own features; letting the
       // quick-add write one would create a second, diverging copy.
@@ -242,44 +243,56 @@ export class ClientActivityService {
     if (input.dueAt && input.kind !== 'commitment' && input.kind !== 'request') {
       throw new BadRequestException('Only commitments and requests carry a due date');
     }
+  }
 
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const client = await tx.client.findFirst({
-        where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+  async create(ctx: TenantContext, clientId: string, input: CreateActivityInput) {
+    this.validateCreate(input);
+    return this.prisma.withTenant(ctx.tenantId, (tx) => this.createInTransaction(tx, ctx, clientId, input));
+  }
+
+  /** Compose canonical creation with an owner's receipt in the same transaction. */
+  async createInTransaction(
+    tx: Prisma.TransactionClient,
+    ctx: TenantContext,
+    clientId: string,
+    input: CreateActivityInput,
+  ) {
+    this.validateCreate(input);
+    const client = await tx.client.findFirst({
+      where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
+      select: { id: true },
+    });
+    if (!client) throw new NotFoundException('Client not found');
+
+    // personId must name a contact of THIS client. Without the check the
+    // FK constraint (client_person.id) happily accepts another client's —
+    // or another tenant's — person, and the activity row then points at a
+    // contact the caller cannot see (cross-client data write defect found
+    // in the boundary audit).
+    if (input.personId) {
+      const person = await tx.clientPerson.findFirst({
+        where: { id: input.personId, tenantId: ctx.tenantId, clientId },
         select: { id: true },
       });
-      if (!client) throw new NotFoundException('Client not found');
+      if (!person) throw new BadRequestException('That person is not a contact of this client');
+    }
 
-      // personId must name a contact of THIS client. Without the check the
-      // FK constraint (client_person.id) happily accepts another client's —
-      // or another tenant's — person, and the activity row then points at a
-      // contact the caller cannot see (cross-client data write defect found
-      // in the boundary audit).
-      if (input.personId) {
-        const person = await tx.clientPerson.findFirst({
-          where: { id: input.personId, tenantId: ctx.tenantId, clientId },
-          select: { id: true },
-        });
-        if (!person) throw new BadRequestException('That person is not a contact of this client');
-      }
-
-      return tx.clientActivity.create({
-        data: {
-          tenantId: ctx.tenantId,
-          clientId,
-          kind: input.kind,
-          title: input.title.trim(),
-          body: input.body?.trim() || null,
-          occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
-          personId: input.personId ?? null,
-          sourceType: input.sourceType ?? null,
-          sourceId: input.sourceId ?? null,
-          dueAt: input.dueAt ? new Date(input.dueAt) : null,
-          pinned: input.pinned ?? false,
-          actorUserId: ctx.userId ?? null,
-          createdByUserId: ctx.userId ?? null,
-        },
-      });
+    return tx.clientActivity.create({
+      data: {
+        tenantId: ctx.tenantId,
+        clientId,
+        kind: input.kind,
+        title: input.title.trim(),
+        body: input.body?.trim() || null,
+        occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
+        personId: input.personId ?? null,
+        sourceType: input.sourceType ?? null,
+        sourceId: input.sourceId ?? null,
+        dueAt: input.dueAt ? new Date(input.dueAt) : null,
+        pinned: input.pinned ?? false,
+        actorUserId: ctx.userId ?? null,
+        createdByUserId: ctx.userId ?? null,
+      },
     });
   }
 

@@ -104,6 +104,27 @@ describe('Planner HTTP routing and tenant guard coverage', () => {
   afterAll(async () => {
     await app?.close();
   });
+  it.each([
+    ['post', 'x-capiro-expected-tenant-id'],
+    ['get', 'x-capiro-expected-tenant-id'],
+    ['post', 'x-capiro-expected-actor-id'],
+    ['get', 'x-capiro-expected-actor-id'],
+  ])('rejects %s scope mismatch in %s before command delegation', async (verb, header) => {
+    planner.createTaskCommand.mockClear();
+    planner.taskCreateCommand.mockClear();
+    const url = '/strategy-api/planner/task-create-commands' + (verb === 'get' ? `/${ID}` : '');
+    const call =
+      verb === 'get'
+        ? request(app.getHttpServer()).get(url)
+        : request(app.getHttpServer()).post(url);
+    await call
+      .set('x-planner-qa', 'allowed')
+      .set(header, 'foreign')
+      .send({ requestId: ID, data: {} })
+      .expect(403);
+    expect(planner.createTaskCommand).not.toHaveBeenCalled();
+    expect(planner.taskCreateCommand).not.toHaveBeenCalled();
+  });
   it('routes task commands and recovery through the signed-in tenant with the original bearer', async () => {
     const dto = { requestId: ID, data: { name: 'Synthetic' } };
     await request(app.getHttpServer())
