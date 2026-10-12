@@ -1,0 +1,48 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-review-sender/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/engagement/microsoft/microsoft-send.service.spec.ts
+PASS apps/api/src/engagement/google/gmail-send.mime.spec.ts
+FAIL apps/api/src/engagement/independent-sender-review.spec.ts
+  ● independent sender review: persisted receipt identity › does not claim a receipt for a same-mailbox message in another persisted thread (reply=undefined)
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"messageId": "sync-message", "ok": true, "provider": "gmail", "senderConnectionId": "44444444-4444-4444-8444-444444444444", "senderEmail": "b@example.test", "senderName": "Mailbox B", "signatureAppended": false, "signaturePolicy": "actor", "threadId": "local-thread"}
+
+      41 |     const h = harness();
+      42 |     h.tx.mailMessage.upsert.mockResolvedValue({ id: 'sync-message', connectionId: B, threadId: 'different-sync-thread', metadata: { mailboxSyncMode: 'incremental' } });
+    > 43 |     await expect(h.service.sendSingleMail(ctx, { ...input, threadId })).rejects.toMatchObject({ response: { error: 'MAIL_SEND_RECEIPT_UNAVAILABLE', retryable: false, senderConnectionId: B } });
+         |           ^
+      44 |     expect(h.provider.sendMail).toHaveBeenCalledTimes(1);
+      45 |     expect(h.state()).toEqual({ touched: false });
+      46 |     expect(h.tx.engagementAttachment.updateMany).not.toHaveBeenCalled();
+
+      at expect (../../../capirov2-sender/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/engagement/independent-sender-review.spec.ts:43:11
+
+  ● independent sender review: persisted receipt identity › does not claim a receipt for a same-mailbox message in another persisted thread (reply=local-thread)
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"messageId": "sync-message", "ok": true, "provider": "gmail", "senderConnectionId": "44444444-4444-4444-8444-444444444444", "senderEmail": "b@example.test", "senderName": "Mailbox B", "signatureAppended": false, "signaturePolicy": "actor", "threadId": "local-thread"}
+
+      41 |     const h = harness();
+      42 |     h.tx.mailMessage.upsert.mockResolvedValue({ id: 'sync-message', connectionId: B, threadId: 'different-sync-thread', metadata: { mailboxSyncMode: 'incremental' } });
+    > 43 |     await expect(h.service.sendSingleMail(ctx, { ...input, threadId })).rejects.toMatchObject({ response: { error: 'MAIL_SEND_RECEIPT_UNAVAILABLE', retryable: false, senderConnectionId: B } });
+         |           ^
+      44 |     expect(h.provider.sendMail).toHaveBeenCalledTimes(1);
+      45 |     expect(h.state()).toEqual({ touched: false });
+      46 |     expect(h.tx.engagementAttachment.updateMany).not.toHaveBeenCalled();
+
+      at expect (../../../capirov2-sender/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at src/engagement/independent-sender-review.spec.ts:43:11
+
+Test Suites: 1 failed, 2 passed, 3 total
+Tests:       2 failed, 34 passed, 36 total
+Snapshots:   0 total
+Time:        3.103 s
+Ran all test suites within paths "apps/api/src/engagement/independent-sender-review.spec.ts", "apps/api/src/engagement/microsoft/microsoft-send.service.spec.ts", "apps/api/src/engagement/google/gmail-send.mime.spec.ts".
+Test results written to: ../backend-qualification-20261012/independent-review/sender-additional-red.json

@@ -84,6 +84,12 @@ import { assertHearingRecordDocumentAccess } from './hearing-record-document-acc
 import { attachmentViewerWhere } from './attachments/attachment-viewer-access.js';
 import { assertOutboundAttachmentAccess } from './attachments/outbound-attachment-access.js';
 import {
+  mailboxSender,
+  ownedSendingMailboxWhere,
+  sendingMailboxProjection,
+  sendingMailboxSelect,
+} from './mailbox-selection.js';
+import {
   recordAiUsageEvent,
   deriveMeetingVirtuality,
   billStatusLabel,
@@ -256,6 +262,8 @@ export interface SingleMailRecipientInput {
 }
 
 export interface SendSingleMailInput {
+  /** Exact caller-owned sending mailbox. Replies must use their originating connection. */
+  senderConnectionId?: string;
   clientId?: string;
   /** Every selected "To" recipient — one or more, e.g. picked from the client's org roster. */
   personIds?: string[];
@@ -1331,6 +1339,19 @@ export class EngagementService {
         orderBy: [{ provider: 'asc' }, { createdAt: 'desc' }],
       }),
     );
+  }
+
+  async listSendingMailboxes(ctx: TenantContext) {
+    const connections = await this.prisma.withTenant(ctx.tenantId, (tx) =>
+      tx.integrationConnection.findMany({
+        where: { ...ownedSendingMailboxWhere(ctx), accountEmail: { not: null } },
+        select: sendingMailboxSelect,
+        orderBy: [{ updatedAt: 'desc' }, { id: 'asc' }],
+      }),
+    );
+    return connections
+      .filter((connection) => connection.accountEmail?.trim())
+      .map(sendingMailboxProjection);
   }
 
   createIntegration(ctx: TenantContext, input: CreateIntegrationInput) {
@@ -9068,21 +9089,8 @@ export class EngagementService {
   async findCampaignSendConnection(ctx: TenantContext, preferredConnectionId?: string | null) {
     // Any connected inbox the user owns can send — Outlook (Graph) or Gmail.
     // The dispatcher routes on `provider`, so it must be selected.
-    const baseWhere = {
-      tenantId: ctx.tenantId,
-      provider: {
-        in: [EngagementProvider.microsoft_365, EngagementProvider.google_workspace],
-      },
-      status: EngagementConnectionStatus.connected,
-      createdByUserId: ctx.userId,
-      token: { isNot: null },
-    };
-    const selectFields = {
-      id: true,
-      provider: true,
-      accountEmail: true,
-      displayName: true,
-    } as const;
+    const baseWhere = ownedSendingMailboxWhere(ctx);
+    const selectFields = sendingMailboxSelect;
 
     // When the caller pins a specific mailbox (wizard picker), honor exactly
     // that one — never silently fall back to another inbox, which would send
@@ -9138,28 +9146,38 @@ export class EngagementService {
    * campaign send path uses.
    */
   async sendSingleMail(ctx: TenantContext, input: SendSingleMailInput) {
+    let senderConnectionId = input.senderConnectionId;
     // Authorization must precede the irreversible provider call. The transaction
     // below checks again before persistence, but rejecting there alone is too
     // late: a request for somebody else's thread would already have sent mail.
     if (input.threadId) {
-      await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const thread = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
         const thread = await tx.mailThread.findFirst({
           where: {
             id: input.threadId,
             tenantId: ctx.tenantId,
             ...ownMailThreadWhere(ctx.userId),
           },
-          select: { id: true },
+          select: { id: true, connectionId: true },
         });
         if (!thread) throw new NotFoundException('Mail thread not found');
+        return thread;
       });
+      if (
+        !thread.connectionId ||
+        (senderConnectionId && senderConnectionId !== thread.connectionId)
+      ) {
+        throw new BadRequestException('Replies must use the originating thread mailbox.');
+      }
+      senderConnectionId = thread.connectionId;
     }
-    const connection = await this.findCampaignSendConnection(ctx).catch((error) => {
-      if (error instanceof BadRequestException) {
+    const connection = await this.findCampaignSendConnection(ctx, senderConnectionId).catch((error) => {
+      if (!senderConnectionId && error instanceof BadRequestException) {
         throw new BadRequestException('Connect your email in Settings before sending from Capiro');
       }
       throw error;
     });
+    const sender = mailboxSender(connection);
     const signature = await this.resolveSenderSignatureHtml(ctx, input.appendSignature);
     // Same render pipeline every campaign send uses: sanitize the editor HTML
     // against the outbound allowlist (renderOutreachBody), then append the
@@ -9199,9 +9217,14 @@ export class EngagementService {
         // At-most-once send: the outcome is genuinely undetermined (timeout /
         // socket failure after the request left this process). The message
         // may already be in the recipient's inbox — never silently retry.
-        throw new ServiceUnavailableException(
-          "Could not confirm this email sent. Check your Sent Items before trying again — don't resend blindly.",
-        );
+        throw new ServiceUnavailableException({
+          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+          error: 'MAIL_SEND_OUTCOME_UNKNOWN',
+          message: "Could not confirm this email sent. Check your Sent Items before trying again — don't resend blindly.",
+          senderConnectionId: connection.id,
+          senderEmail: sender.email,
+          retryable: false,
+        });
       }
       throw new BadRequestException(emailSendErrorMessage(error));
     }
@@ -9209,9 +9232,7 @@ export class EngagementService {
     const providerSlug = sendProviderSlug(connection.provider);
     const now = new Date();
     const participants = [
-      signature.senderEmail
-        ? { email: signature.senderEmail, name: signature.senderFirstName, role: 'from' }
-        : null,
+      { email: sender.email, name: sender.name, role: 'from' },
       ...input.to.map((r) => ({ email: r.email, name: r.name ?? null, role: 'to' })),
       ...(input.cc ?? []).map((r) => ({ email: r.email, name: r.name ?? null, role: 'cc' })),
       ...(input.bcc ?? []).map((r) => ({ email: r.email, name: r.name ?? null, role: 'bcc' })),
@@ -9296,6 +9317,7 @@ export class EngagementService {
               where: {
                 id: input.threadId,
                 tenantId: ctx.tenantId,
+                connectionId: connection.id,
                 ...ownMailThreadWhere(ctx.userId),
               },
               select: { id: true },
@@ -9337,12 +9359,17 @@ export class EngagementService {
             // client association must not be silently overwritten by a send.
             update: { lastMessageAt: now, snippet: snippetFromHtml(body.content) },
           });
+      // Provider IDs are dedup keys, never grants to another connection's rows.
+      // Throw inside the transaction so a collision rolls back the upsert touch.
+      if (thread.connectionId !== connection.id) {
+        throw new NotFoundException('Mail thread not found');
+      }
       const messageData = {
         threadId: thread.id,
         connectionId: connection.id,
         subject: input.subject,
-        fromEmail: signature.senderEmail,
-        fromName: signature.senderFirstName,
+        fromEmail: sender.email,
+        fromName: sender.name,
         toRecipients: input.to.map((r) => ({
           email: r.email,
           name: r.name ?? null,
@@ -9364,7 +9391,12 @@ export class EngagementService {
         // on Outlook forever, since the outbound row is `manual`-keyed and sync
         // never reaches it.
         hasAttachments: sentWithAttachments,
-        metadata: { personIds: input.personIds ?? [] } as Prisma.InputJsonValue,
+        metadata: {
+          personIds: input.personIds ?? [],
+          senderConnectionId: connection.id,
+          signaturePolicy: 'actor',
+          signatureAppended: Boolean(signature.signatureHtml),
+        } as Prisma.InputJsonValue,
       };
       // Upsert, not create: when `externalId` is a real provider id, a fast
       // sync cycle may already have written this exact row (same unique key)
@@ -9392,6 +9424,9 @@ export class EngagementService {
         create: { tenantId: ctx.tenantId, source: messageSource, externalId, ...messageData },
         update: sentWithAttachments ? { hasAttachments: true } : {},
       });
+      if (message.connectionId !== connection.id || message.threadId !== thread.id) {
+        throw new NotFoundException('Mail message not found');
+      }
       // Back-link the attachments to the message they were sent on, inside the
       // same transaction — the compose flow confirms them (source
       // 'email-compose') before any message row exists, so `mailMessageId` is
@@ -9412,6 +9447,17 @@ export class EngagementService {
         });
       }
       return { thread, message };
+    }).catch(() => {
+      // Provider acceptance is irreversible. A local receipt failure is not a
+      // rejected send and must never invite an automatic second delivery.
+      throw new ServiceUnavailableException({
+        statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+        error: 'MAIL_SEND_RECEIPT_UNAVAILABLE',
+        message: 'The mailbox accepted this email, but Capiro could not save its receipt. Check Sent Items before taking further action; do not resend.',
+        senderConnectionId: connection.id,
+        senderEmail: sender.email,
+        retryable: false,
+      });
     });
 
     return {
@@ -9419,7 +9465,11 @@ export class EngagementService {
       threadId: thread.id,
       messageId: message.id,
       provider: providerSlug,
-      senderEmail: signature.senderEmail,
+      senderConnectionId: connection.id,
+      senderEmail: sender.email,
+      senderName: sender.name,
+      signaturePolicy: 'actor' as const,
+      signatureAppended: Boolean(signature.signatureHtml),
     };
   }
 

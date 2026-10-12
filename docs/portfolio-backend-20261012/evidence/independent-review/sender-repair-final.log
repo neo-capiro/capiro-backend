@@ -1,0 +1,26 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-review-sender/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/engagement/independent-sender-review.spec.ts
+PASS apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts
+PASS apps/api/src/engagement/mailbox-selection.controller.spec.ts
+PASS apps/api/src/engagement/microsoft/microsoft-send.service.spec.ts
+PASS apps/api/src/engagement/mailbox-selection.spec.ts
+PASS apps/api/src/engagement/engagement-document-read.spec.ts
+PASS apps/api/src/engagement/engagement-send-thread-key.spec.ts
+PASS apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts
+PASS apps/api/src/engagement/engagement-send-authorization.spec.ts
+PASS apps/api/src/engagement/runtime/engagement-route-controller-coverage.spec.ts
+PASS apps/api/src/engagement/engagement-mail-threads.spec.ts
+PASS apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts
+PASS apps/api/src/engagement/google/gmail-send.mime.spec.ts
+PASS apps/api/src/engagement/google/gmail-send.service.spec.ts
+PASS apps/api/src/engagement/mail-sender.service.spec.ts
+PASS apps/api/src/engagement/hearing-record-document-access.spec.ts
+
+Test Suites: 16 passed, 16 total
+Tests:       168 passed, 168 total
+Snapshots:   0 total
+Time:        12.708 s, estimated 21 s
+Ran all test suites within paths "apps/api/src/engagement/mailbox-selection.spec.ts", "apps/api/src/engagement/mailbox-selection.controller.spec.ts", "apps/api/src/engagement/engagement-send-authorization.spec.ts", "apps/api/src/engagement/engagement-send-thread-key.spec.ts", "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts", "apps/api/src/engagement/engagement-document-read.spec.ts", "apps/api/src/engagement/engagement-mail-threads.spec.ts", "apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts", "apps/api/src/engagement/hearing-record-document-access.spec.ts", "apps/api/src/engagement/mail-sender.service.spec.ts", "apps/api/src/engagement/google/gmail-send.service.spec.ts", "apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts", "apps/api/src/engagement/runtime/engagement-route-controller-coverage.spec.ts", "apps/api/src/engagement/independent-sender-review.spec.ts", "apps/api/src/engagement/microsoft/microsoft-send.service.spec.ts", "apps/api/src/engagement/google/gmail-send.mime.spec.ts".
+Test results written to: ../backend-qualification-20261012/independent-review/sender-repair-final.json

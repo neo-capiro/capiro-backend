@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/workspace/capirov2-review-facility/apps/api/node_modules/.bin/tsx",
+    "/workspace/capirov2-review-facility/apps/api/scripts/geocode-facilities.ts"
+  ],
+  "cwd": "empty task-owned temporary directory",
+  "environmentKeys": [
+    "PATH"
+  ],
+  "exitCode": 2,
+  "expectedExitCode": 2,
+  "stdout": "",
+  "stderr": "Usage: apps/api/scripts/geocode-facilities.ts requires DATABASE_URL (database configuration is required)\n"
+}

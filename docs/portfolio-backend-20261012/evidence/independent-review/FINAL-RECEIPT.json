@@ -1,0 +1,64 @@
+{
+  "reviewer": "independent_backend_review (not implementing author)",
+  "sender": {
+    "originalRef": "8340ac22cdb5c9f4d03e1f36b7f96d30b2af4502",
+    "repairRef": "14d66227c4898ad3aaa7e46ec054c5b2c325c5fe",
+    "repairTree": "b251eeee1140eb5d40b84a62cc1c4c889d4ec148",
+    "verdict": "Acceptable within source-only scope after P2 repair; no blocking source findings",
+    "originalReplay": {
+      "numPassedTests": 132,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numPassedTestSuites": 13,
+      "numFailedTestSuites": 0,
+      "success": true
+    },
+    "independentRed": {
+      "numPassedTests": 34,
+      "numFailedTests": 2,
+      "numPendingTests": 0,
+      "numPassedTestSuites": 2,
+      "numFailedTestSuites": 1,
+      "success": false
+    },
+    "finalReplay": {
+      "numPassedTests": 168,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numPassedTestSuites": 16,
+      "numFailedTestSuites": 0,
+      "success": true
+    }
+  },
+  "facility": {
+    "ref": "5d075af9b376cd3ed67256b5c38e4a2a2130a51d",
+    "tree": "d39cba8fea8195f8bf05de2e0529d3e3c50b76e0",
+    "verdict": "Acceptable within source-only scope; no blocking source findings",
+    "retainedReplay": {
+      "numPassedTests": 96,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numPassedTestSuites": 4,
+      "numFailedTestSuites": 0,
+      "success": true
+    },
+    "independentLifecycle": {
+      "numPassedTests": 4,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numPassedTestSuites": 1,
+      "numFailedTestSuites": 0,
+      "success": true
+    },
+    "missingConfigurationCliExit": 2
+  },
+  "qualificationLimit": "Synthetic provider/persistence doubles and PGlite query adapter only; native Prisma/PostgreSQL/RLS/multi-connection and deployed/provider/browser acceptance NOT RUN",
+  "blocker": "Official Prisma5.22 CDN binaries.prisma.sh returned403; existing engine-free client supports generation/compilation only. No engine/checksum bypass or database target used.",
+  "failuresRetained": [
+    "sender-additional-red.json",
+    "sender-additional-red.log",
+    "facility-replay.log"
+  ],
+  "originalBranchesPreserved": true,
+  "reviewerProductionEdits": false
+}
