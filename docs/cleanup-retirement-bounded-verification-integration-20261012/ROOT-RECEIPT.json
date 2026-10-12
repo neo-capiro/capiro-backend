@@ -1,0 +1,41 @@
+{
+  "baseline": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "reviewedSource": "b877e03c5710bfc347568c7bbd1197f7caedbcde",
+  "reviewedTree": "38641eb7379661a551c5f29c287ed2e2d74c5a99",
+  "verifiedIndices": [
+    {
+      "index": "docs/cleanup-newsletter-two-contract-reviewed-source-20261012/SHA256SUMS.json",
+      "verifiedBindings": 270
+    },
+    {
+      "index": "docs/cleanup-retirement-engagement-verification-integration-20261012/SHA256-INDEX.json",
+      "verifiedBindings": 39
+    },
+    {
+      "index": "docs/cleanup-retirement-outreach-verification-integration-20261012/SHA256.json",
+      "verifiedBindings": 17
+    },
+    {
+      "index": "docs/cleanup-current-api-owned-fixture-bridge-20261012/SHA256.json",
+      "verifiedBindings": 16
+    },
+    {
+      "index": "docs/cleanup-retirement-root-compatibility-20261012/SHA256.json",
+      "verifiedBindings": 10
+    },
+    {
+      "index": "docs/cleanup-retirement-verification-independent-review-20261012/SHA256-INDEX.json",
+      "verifiedBindings": 71
+    }
+  ],
+  "inherited270FileBytesPreserved": true,
+  "all20SourceBlobModesPreserved": true,
+  "pureFakeControls": {
+    "composed": 136,
+    "independent": 104,
+    "repairedReplay": 8
+  },
+  "nativeOrFullGateAcceptance": false,
+  "currentFullWhitespaceQualification": "OPEN: 38 archived raw-format warnings preserved without exemption; all20 source paths separately pass",
+  "operations": "Source/Git/hash reads and pure/fake checks only. No actual qualification, install, build, application, SQL, native, provider, CI dispatch, merge to main or deployment."
+}

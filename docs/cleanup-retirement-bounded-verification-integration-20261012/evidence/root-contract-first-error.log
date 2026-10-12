@@ -1,0 +1,36 @@
+Original unified-exec stdout/stderr transcript for the first root contract run (exit1); current source/config changes were not implicated. The initial test program is preserved separately.
+✔ destination package preserves all 107 existing aliases and all metadata (2.779122ms)
+✔ Phase1 scoped operands retain one explicit run and every current syntax check (0.874181ms)
+✔ all twelve scoped verification aliases bind one run and exactly one declared scope (0.369905ms)
+✔ current 19 typed workspaces remain partitioned 17 backend plus retained Web/Onboard (9.818628ms)
+✔ CI is exactly the destination scope hunk union and retains every old guard/test/condition (14.681484ms)
+✔ source contract refuses dropping any old gate or metadata, narrowing a backend test, or coupling frontend status (76.525691ms)
+✖ no shared, runtime, newsletter or frontend source is replaced by older Core integration (59.610163ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 6
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 319.542125
+
+✖ failing tests:
+
+test at scripts/ci/rebuild-verification-scopes.spec.mjs:142:1
+✖ no shared, runtime, newsletter or frontend source is replaced by older Core integration (59.610163ms)
+  Error: ENOENT: no such file or directory, open '/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/api/src/outreach-v3/outreach-v3.service.ts'
+      at readFileSync (node:fs:484:20)
+      at current (file:///tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/scripts/ci/rebuild-verification-scopes.spec.mjs:17:27)
+      at TestContext.<anonymous> (file:///tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/scripts/ci/rebuild-verification-scopes.spec.mjs:148:18)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:960:18)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:960:18)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    errno: -2,
+    code: 'ENOENT',
+    syscall: 'open',
+    path: '/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/api/src/outreach-v3/outreach-v3.service.ts'
+  }

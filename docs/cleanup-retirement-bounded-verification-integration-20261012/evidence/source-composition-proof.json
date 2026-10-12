@@ -1,0 +1,13 @@
+{
+  "baseline": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "baselineTree": "613e54b654bc30dcebd09c955c58a2e8940abf30",
+  "reviewedSource": "b877e03c5710bfc347568c7bbd1197f7caedbcde",
+  "reviewedTree": "38641eb7379661a551c5f29c287ed2e2d74c5a99",
+  "compositionChecked": "caf011e4e46e17108c9016b7494ecb016862cdad",
+  "sourcePaths": 20,
+  "protectedBaselineEntries": 22133,
+  "schemaMigrationPathsExact": 617,
+  "newsletterSourcePathsExact": 76,
+  "baselineDocsExact": 10387,
+  "qualification": "Git blob/mode and SHA-256 source evidence only. No application, SQL, native, verifier, provider or CI execution."
+}

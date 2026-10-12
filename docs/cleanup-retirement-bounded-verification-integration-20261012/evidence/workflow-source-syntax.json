@@ -1,0 +1,10 @@
+{
+  "yamlVersion": "2.9.1",
+  "jobs": [
+    "verify",
+    "engagement-phase-2",
+    "frontend"
+  ],
+  "runBlocksParsedWithoutExecution": 40,
+  "qualified": "Source syntax only; no workflow dispatch, shell run block, app, native or provider execution"
+}

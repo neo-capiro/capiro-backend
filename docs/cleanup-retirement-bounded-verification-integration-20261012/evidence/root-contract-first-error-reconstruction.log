@@ -1,0 +1,11 @@
+First root contract source run: Node24.19.0, node --test scripts/ci/rebuild-verification-scopes.spec.mjs, exit1. Six cases passed; the extra unchanged-application check referenced an absent guessed service path apps/api/src/outreach-v3/outreach-v3.service.ts and failed ENOENT. Source implementation was unchanged. The extra application byte census belongs in the scoped adoption evidence, not the permanent CI mode/alias contract; it was removed from that contract. Original program retained. Tool failure output follows.
+Error: ENOENT: no such file or directory, open '/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/api/src/outreach-v3/outreach-v3.service.ts'
+    at readFileSync (node:fs:484:20)
+    at current (file:///tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/scripts/ci/rebuild-verification-scopes.spec.mjs:17:27)
+    at TestContext.<anonymous> (file:///tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/scripts/ci/rebuild-verification-scopes.spec.mjs:148:18)
+    at Test.runInAsyncScope (node:async_hooks:227:14)
+    at Test.run (node:internal/test_runner/test:960:18)
+    at Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    at Test.postRun (node:internal/test_runner/test:1064:19)
+    at Test.run (node:internal/test_runner/test:1012:12)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)

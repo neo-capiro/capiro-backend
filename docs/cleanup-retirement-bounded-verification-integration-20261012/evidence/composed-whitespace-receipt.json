@@ -1,0 +1,50 @@
+{
+  "committedFloorMatchingPathCheck": {
+    "argv": [
+      "git",
+      "diff",
+      "--check",
+      "5470c6df029c9553dd49e531229c3c91b26275ef",
+      "--",
+      ".",
+      ":(exclude)docs/plans/**/*.md"
+    ],
+    "exitCode": 2,
+    "stdout": "docs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/before-owned-fixture-controls.tap:53: trailing whitespace.\n+  \ndocs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/before-owned-fixture-controls.tap:55: trailing whitespace.\n+  \ndocs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/raw-baseline-whitespace.red.log:2: trailing whitespace.\n++  \ndocs/cleanup-current-api-owned-fixture-bridge-20261012/evidence/raw-baseline-whitespace.red.log:4: trailing whitespace.\n++  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:101: trailing whitespace.\n+  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:114: trailing whitespace.\n+  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:133: trailing whitespace.\n+  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:186: trailing whitespace.\n+  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:205: trailing whitespace.\n+  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:277: trailing whitespace.\n+  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/02-pure-plan-controls-repaired.log:101: trailing whitespace.\n+  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/02-pure-plan-controls-repaired.log:103: trailing whitespace.\n+  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/09-frozen-source-whitespace.log:2: trailing whitespace.\n++const full=JSON.parse(JSON.stringify(vm.runInNewContext(oldArray+'\\nsteps;',context,{timeout:1000}))); \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:2: trailing whitespace.\n++  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:4: trailing whitespace.\n++  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:6: trailing whitespace.\n++  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:8: trailing whitespace.\n++  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:10: trailing whitespace.\n++  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:12: trailing whitespace.\n++  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:14: trailing whitespace.\n++  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:16: trailing whitespace.\n++  \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:18: trailing whitespace.\n+++const full=JSON.parse(JSON.stringify(vm.runInNewContext(oldArray+'\\nsteps;',context,{timeout:1000}))); \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:20: trailing whitespace.\n++ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:22: trailing whitespace.\n++ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:24: trailing whitespace.\n++ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:26: trailing whitespace.\n++ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:28: trailing whitespace.\n++ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:30: trailing whitespace.\n++ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:32: trailing whitespace.\n++ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/18-current-full-whitespace-floor.log:34: trailing whitespace.\n++const full=JSON.parse(JSON.stringify(vm.runInNewContext(oldArray+'\\nsteps;',context,{timeout:1000}))); \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:8: trailing whitespace.\n+ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:94: trailing whitespace.\n+ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:106: trailing whitespace.\n+ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:109: trailing whitespace.\n+ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:128: trailing whitespace.\n+ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:139: trailing whitespace.\n+ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:144: trailing whitespace.\n+ \ndocs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase3-plan.spec.realm-repaired.mjs:19: trailing whitespace.\n+const full=JSON.parse(JSON.stringify(vm.runInNewContext(oldArray+'\\nsteps;',context,{timeout:1000}))); \n",
+    "stderr": "",
+    "warningCount": 38
+  },
+  "source20Check": {
+    "argv": [
+      "git",
+      "diff",
+      "--check",
+      "5470c6df029c9553dd49e531229c3c91b26275ef",
+      "--",
+      ".github/workflows/ci-pr.yml",
+      "apps/api/scripts/__fixtures__/engagement-current-ui-surface-manifest.v1.json",
+      "apps/api/scripts/engagement-phase1-qualification-plan.spec.mjs",
+      "apps/api/scripts/engagement-phase1-qualification-plan.ts",
+      "apps/api/scripts/engagement-phase3-owned-fixture.spec.mjs",
+      "apps/api/scripts/engagement-phase3-read-materialization.spec.ts",
+      "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "package.json",
+      "scripts/ci/__fixtures__/rebuild-verification-frontend.job.yml",
+      "scripts/ci/rebuild-verification-scopes.spec.mjs",
+      "scripts/engagement-phase3-qualification-plan.mjs",
+      "scripts/engagement-phase3-qualification-plan.spec.mjs",
+      "scripts/outreach-v3-qualification-plan.mjs",
+      "scripts/outreach-v3-qualification-plan.spec.mjs",
+      "scripts/verify-engagement-phase2-code.mode.spec.mjs",
+      "scripts/verify-engagement-phase2-code.sh",
+      "scripts/verify-engagement-phase3-code.mjs",
+      "scripts/verify-outreach-v3-phase1-code.mjs",
+      "scripts/verify-outreach-v3-phase3-code.mjs",
+      "scripts/verify-outreach-v3-phase4-code.mjs"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "qualification": "Read-only Git whitespace evidence. No actual verifier; all raw evidence preserved; no exclusions or source floors changed."
+}
