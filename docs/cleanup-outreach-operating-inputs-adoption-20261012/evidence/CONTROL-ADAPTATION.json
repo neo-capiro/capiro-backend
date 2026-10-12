@@ -1,0 +1,10 @@
+{
+  "onlyChange": "single originalSource inverse digest assertion now binds exact current d587 verifier, preserving smoke+Usage, rather than older 8ac bytes",
+  "oldVerifierDigest": "2544f528cc1c5f37b3b7b6117b3c61c9f9d7a5e4ffd2a01768676460314c096b",
+  "currentVerifierDigest": "a2e6496f1936a06c4ee8ba6336092f368aa118ab3666f72847d6ca56ed3a8f42",
+  "publishedControlsSha256": "55ff75ef6c18daf88ea2f7a25e925910fc45ae55ae69c090546ab5938c840194",
+  "candidateControlsSha256": "64ecea01aaa7d7c8195b24f09ccee42e96955c6ceed9b7f0c8adfacf8ce010f1",
+  "reverseControlDeltaExactPublished": true,
+  "allOtherCasesAndAssertionsPreserved": true,
+  "originalUnadaptedExit": 1
+}
