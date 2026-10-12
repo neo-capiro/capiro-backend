@@ -1,0 +1,57 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/independent.spec.ts
+  independent current Objective authority and resource owners
+    ✓ strategy binds exact canonical resource and current revision without writes (16 ms)
+    ✓ planner binds exact canonical resource and current revision without writes (4 ms)
+    ✓ strategy rechecks current tenant, member, role, client, wall and Objective on each open (6 ms)
+    ✓ planner rechecks current tenant, member, role, client, wall and Objective on each open (6 ms)
+    ✓ strategy does not grant stale admin context an ethical-wall bypass
+    ✓ planner does not grant stale admin context an ethical-wall bypass
+    ✓ strategy rejects foreign actor tenant, wrong client, and foreign Objective scope (1 ms)
+    ✓ planner rejects foreign actor tenant, wrong client, and foreign Objective scope (1 ms)
+    ✓ strategy returns authorized stale conflict and never reads a historical revision (1 ms)
+    ✓ planner returns authorized stale conflict and never reads a historical revision (1 ms)
+    ✓ strategy supports current unwalled clients without requiring an invented grant (2 ms)
+    ✓ planner supports current unwalled clients without requiring an invented grant (2 ms)
+    ✓ strategy propagates every infrastructure phase failure without rewriting it as authority (1 ms)
+    ✓ planner propagates every infrastructure phase failure without rewriting it as authority (2 ms)
+    ✓ preserves exact Core UUID/Clerk agreement while resolving non-Core callers through current membership (1 ms)
+    ✓ uses the actual resolved UUID for a wall grant and never treats a Clerk subject as a UUID
+    ✓ keeps mutable parent/current locks while reading the immutable revision with original grants
+    ✓ Strategy rejects archival/client mismatch before loading resource content or Objective state (5 ms)
+    ✓ Strategy retains live node/artifact filtering and canonical mutation lock serialization (1 ms)
+    ✓ Planner acquires the same exact tenant advisory lock before any task/project authority read (2 ms)
+    ✓ Planner refuses absent/archived/foreign-tenant task without Objective reads (2 ms)
+    ✓ Planner requires explicit task client and never derives one from projects, meeting or parent (3 ms)
+    ✓ Planner current project grant is authoritative even for task owner/admin context (3 ms)
+    ✓ Planner preserves addressed assignee and collaborator reads and revocation (3 ms)
+    ✓ Planner does not expose unreadable project membership/fields or dependency references (2 ms)
+    ✓ strategy normalizes UUID case and rejects forged canonical revision/kind through scalar bounds (1 ms)
+    ✓ planner normalizes UUID case and rejects forged canonical revision/kind through scalar bounds (1 ms)
+    ✓ final shared scalar guards reject arrays/coercion objects for both UUIDs before SQL (86 ms)
+  independent strict destination transport without a database or provider
+    ✓ supports exact required scalar query and marks both owner responses private/no-store (28 ms)
+    ✓ refuses absent clientId (2 ms)
+    ✓ refuses absent objectiveId (1 ms)
+    ✓ refuses absent objectiveVersion (1 ms)
+    ✓ refuses duplicate/nested scalar clientId (1 ms)
+    ✓ refuses duplicate/nested scalar objectiveId (1 ms)
+    ✓ refuses duplicate/nested scalar objectiveVersion (2 ms)
+    ✓ refuses browser-supplied kind claim
+    ✓ refuses browser-supplied url claim (1 ms)
+    ✓ refuses browser-supplied resourceId claim
+    ✓ refuses browser-supplied objectiveRevisionId claim (1 ms)
+    ✓ refuses browser-supplied tenantId claim
+    ✓ refuses browser-supplied userId claim
+    ✓ refuses browser-supplied clerkUserId claim (1 ms)
+    ✓ refuses browser-supplied snapshotHash claim
+    ✓ bounds numeric version and resource UUID independently before owner methods (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       44 passed, 44 total
+Snapshots:   0 total
+Time:        4.561 s
+Ran all test suites.
+Test results written to: docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/independent-initial.json

@@ -1,0 +1,30 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/independent.spec.ts (5.583 s)
+PASS apps/api-strategy/src/strategy/objective-destination.service.spec.ts
+PASS apps/api/src/outreach-v3/services/outreach-objective-destination.spec.ts
+PASS apps/api-strategy/src/strategy/objective-destination.controller.spec.ts
+PASS apps/api/src/clients/objectives/objective-destination.spec.ts
+PASS apps/api/src/clients/objectives/objective-destination.shared.spec.ts
+FAIL apps/api/src/clients/objectives/objective-destination.privileges.spec.ts
+  ● Objective immutable revision read privileges (source/synthetic only) › resolves under original SELECT/INSERT-only revision permissions without an update grant
+
+    ENOENT: no such file or directory, open '/workspace/strategy-planner-objective-review/prisma/migrations/20281011010000_client_objectives/migration.sql'
+
+      13 | describe('Objective immutable revision read privileges (source/synthetic only)', () => {
+      14 |   it('resolves under original SELECT/INSERT-only revision permissions without an update grant', async () => {
+    > 15 |     const migration = readFileSync(resolve(process.cwd(), 'prisma/migrations/20281011010000_client_objectives/migration.sql'), 'utf8');
+         |                                   ^
+      16 |     expect(migration).toContain('REVOKE UPDATE, DELETE ON client_objective_revisions FROM capiro_app');
+      17 |     expect(migration).toContain('GRANT SELECT, INSERT ON client_objective_revisions TO capiro_app');
+      18 |     const calls: string[] = [];
+
+      at Object.<anonymous> (apps/api/src/clients/objectives/objective-destination.privileges.spec.ts:15:35)
+
+Test Suites: 1 failed, 6 passed, 7 total
+Tests:       1 failed, 108 passed, 109 total
+Snapshots:   0 total
+Time:        8.015 s
+Ran all test suites.
+Test results written to: docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/combined.json

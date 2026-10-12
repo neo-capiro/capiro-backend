@@ -1,0 +1,63 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true", see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/independent.spec.ts
+  independent current Objective authority and resource owners
+    ✓ strategy binds exact canonical resource and current revision without writes (8 ms)
+    ✓ planner binds exact canonical resource and current revision without writes (3 ms)
+    ✓ strategy rechecks current tenant, member, role, client, wall and Objective on each open (4 ms)
+    ✓ planner rechecks current tenant, member, role, client, wall and Objective on each open (6 ms)
+    ✓ strategy does not grant stale admin context an ethical-wall bypass (1 ms)
+    ✓ planner does not grant stale admin context an ethical-wall bypass (1 ms)
+    ✓ strategy rejects foreign actor tenant, wrong client, and foreign Objective scope (1 ms)
+    ✓ planner rejects foreign actor tenant, wrong client, and foreign Objective scope (1 ms)
+    ✓ strategy returns authorized stale conflict and never reads a historical revision (1 ms)
+    ✓ planner returns authorized stale conflict and never reads a historical revision (1 ms)
+    ✓ strategy supports current unwalled clients without requiring an invented grant (1 ms)
+    ✓ planner supports current unwalled clients without requiring an invented grant (1 ms)
+    ✓ strategy propagates every infrastructure phase failure without rewriting it as authority (1 ms)
+    ✓ planner propagates every infrastructure phase failure without rewriting it as authority (1 ms)
+    ✓ preserves exact Core UUID/Clerk agreement while resolving non-Core callers through current membership (1 ms)
+    ✓ uses the actual resolved UUID for a wall grant and never treats a Clerk subject as a UUID (1 ms)
+    ✓ keeps mutable parent/current locks while reading the immutable revision with original grants
+    ✓ Strategy rejects archival/client mismatch before loading resource content or Objective state (2 ms)
+    ✓ Strategy retains live node/artifact filtering and canonical mutation lock serialization (1 ms)
+    ✓ Planner acquires the same exact tenant advisory lock before any task/project authority read (2 ms)
+    ✓ Planner refuses absent/archived/foreign-tenant task without Objective reads (1 ms)
+    ✓ Planner requires explicit task client and never derives one from projects, meeting or parent (2 ms)
+    ✓ Planner current project grant is authoritative even for task owner/admin context (2 ms)
+    ✓ Planner preserves addressed assignee and collaborator reads and revocation (3 ms)
+    ✓ Planner does not expose unreadable project membership/fields or dependency references (1 ms)
+    ✓ strategy normalizes UUID case and rejects forged canonical revision/kind through scalar bounds (3 ms)
+    ✓ planner normalizes UUID case and rejects forged canonical revision/kind through scalar bounds (1 ms)
+    ✓ final shared scalar guards reject arrays/coercion objects for both UUIDs before SQL (25 ms)
+    ✓ Strategy awaits resource authority and rechecks membership changed before its scope lock (1 ms)
+    ✓ Planner checks current project ACL after waiting for its task read (1 ms)
+    ✓ strategy refetches canonical revision/owner version on retry without a durable association
+    ✓ planner refetches canonical revision/owner version on retry without a durable association (1 ms)
+    ✓ Core delegates to this same canonical helper while preserving its exact actor UUID pin (1 ms)
+    ✓ Core preserves mapped invalid/stale/unavailable errors and untouched infrastructure failures (1 ms)
+  independent strict destination transport without a database or provider
+    ✓ supports exact required scalar query and marks both owner responses private/no-store (5 ms)
+    ✓ refuses absent clientId (1 ms)
+    ✓ refuses absent objectiveId (1 ms)
+    ✓ refuses absent objectiveVersion
+    ✓ refuses duplicate/nested scalar clientId (1 ms)
+    ✓ refuses duplicate/nested scalar objectiveId (2 ms)
+    ✓ refuses duplicate/nested scalar objectiveVersion (1 ms)
+    ✓ refuses browser-supplied kind claim
+    ✓ refuses browser-supplied url claim
+    ✓ refuses browser-supplied resourceId claim
+    ✓ refuses browser-supplied objectiveRevisionId claim (1 ms)
+    ✓ refuses browser-supplied tenantId claim
+    ✓ refuses browser-supplied userId claim (1 ms)
+    ✓ refuses browser-supplied clerkUserId claim
+    ✓ refuses browser-supplied snapshotHash claim
+    ✓ bounds numeric version and resource UUID independently before owner methods (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       50 passed, 50 total
+Snapshots:   0 total
+Time:        5.012 s
+Ran all test suites.
+Test results written to: docs/objective-strategy-planner-destinations-20261012/evidence/independent-review/independent-final.json
