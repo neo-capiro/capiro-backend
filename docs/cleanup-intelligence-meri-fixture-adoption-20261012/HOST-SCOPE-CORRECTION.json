@@ -1,0 +1,23 @@
+{
+  "preservedOriginalAuthorEvidence": "c482325819e6d41ab8a4e4d2cf95b41bc6f0c1a9",
+  "sourceHeadUnchanged": "98397536c3bda66810abc2ca997ad2ff02b76b34",
+  "allSixSourceBlobsModesUnchanged": true,
+  "originalAuthorSelectedCasePasses": [
+    36,
+    36
+  ],
+  "originalAuthorHostIncidentalHasteRead": "Published engagement.service.ts metadata discovery before selected suites; no reporting behavior executed or manually inspected.",
+  "zeroProtectedReadClaimForOriginalHostWithdrawn": true,
+  "independentFreshSafeHostReported": {
+    "selectedOwnedCases": 36,
+    "parentCombinedCases": 46,
+    "suites": 3,
+    "failedPendingTodo": 0,
+    "protection": "modulePathIgnorePatterns excludes the canonical unselected reporting source; Node preload read-denial enforces it before Jest scanning.",
+    "independentReceiptPending": true
+  },
+  "deniedDetailedReportReadOrCopied": false,
+  "noAdditionalAuthorRunsRequired": true,
+  "historicalHostConfigResultsRetained": true,
+  "noSourceOrRootCiChanges": true
+}

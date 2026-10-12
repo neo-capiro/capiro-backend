@@ -88,7 +88,6 @@
   "schemasMigrationsUnchanged": true,
   "codeOnlyInspection": true,
   "deniedReportReadOrCopied": false,
-  "protectedReportingBodiesInspected": false,
   "sourceDiffCheck": {
     "exitCode": 2,
     "log": "evidence/source-diff-check.log",
@@ -109,7 +108,11 @@
     "exitCodes": [
       0,
       0
-    ]
+    ],
+    "originalHostScopeLimitation": "Broad default Jest roots permitted an incidental haste read of engagement.service.ts; zero-protected-read implication withdrawn. Final independent bounded host excludes and denies that unselected source."
   },
-  "independentReviewPending": true
+  "independentReviewPending": true,
+  "manualProtectedReportingBodyInspection": false,
+  "historicalJestHasteIncidentalPublishedProtectedSourceRead": true,
+  "protectedReportingBehaviorExecuted": false
 }
