@@ -1,0 +1,15 @@
+{
+  "source": "Parent supplied read-only isolated target evidence; no AWS/container/database operation by worker",
+  "entries": [
+    {
+      "path": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/native-acceptance-pr2429-20261012/evidence/ISOLATED-POSTGRES-MANIFEST.json",
+      "bytes": 104875,
+      "sha256": "7a440559322e86ba807f3bfe863c9b1d6d8c8af58ca9f9d49fcb706672a1883d"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/native-acceptance-pr2429-20261012/evidence/verified-isolated-target.json",
+      "bytes": 361,
+      "sha256": "9eda06c130bc85a25e91c6fce79cdfdc7fd835d0237d5d9771b8aa08251a2d13"
+    }
+  ]
+}
