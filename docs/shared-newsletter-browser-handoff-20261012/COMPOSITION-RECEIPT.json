@@ -1,0 +1,31 @@
+{
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "producer": "0180fd0b6564444cf029446cce56da652b1644fb",
+  "independentReview": "49036163736497f15e395005b90c0880e10e223d",
+  "independentReviewTree": "e8d00f7a9baeedd2bb748aec74ebdcad8cc5e422",
+  "producerTree": "21347c88d26eb5aa45c4431b9c1cf86fac7dc0f6",
+  "artifactSource": "fe50dc1c2de1660a036e338cf81acdcf0f2fb26a",
+  "sharedAndCompilerFilesExact": 39,
+  "nonDocumentSourceChanges": 0,
+  "inheritedIndexedFilesExact": 727,
+  "componentChecks": [
+    {
+      "index": "docs/shared-newsletter-packed-distribution-20261012/SHA256-INDEX.json",
+      "entries": 133,
+      "allPass": true
+    },
+    {
+      "index": "docs/cleanup-outreach-metadata-retirement-contract-audit-20261012/SHA256-INDEX.json",
+      "entries": 26,
+      "allPass": true
+    },
+    {
+      "index": "docs/cleanup-shared-packed-newsletter-independent-review-20261012/SHA256-INDEX.json",
+      "entries": 66,
+      "allPass": true
+    }
+  ],
+  "receivingContractSha256": "dc8377aefa66ed65521154a680a0cc2f03532a2146c076b2e80c3aec054d83f6",
+  "frontendConsumptionOrDispatchClaim": false,
+  "nativeRlsOrDeploymentClaim": false
+}
