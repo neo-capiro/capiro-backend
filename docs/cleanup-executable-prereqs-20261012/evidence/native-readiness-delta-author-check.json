@@ -1,0 +1,9 @@
+{
+  "source": "b054c7bf842f963256848758e32cf568f680d5a4",
+  "comparedSource": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+  "removedExactFourAddedLinesRestoresOriginalWorkflowBytes": true,
+  "everyOriginalStepCommandEnvironmentServicePermissionBudgetPathPreserved": true,
+  "readyForReviewEventAdded": true,
+  "nativeOrWorkflowExecuted": false,
+  "independentReviewPending": true
+}

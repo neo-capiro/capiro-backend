@@ -1,0 +1,12 @@
+{
+  "wholePacketExitCode": 0,
+  "wholePacketOutput": "",
+  "authoredScopeExitCode": 0,
+  "authoredScopeOutput": "",
+  "excludedPreservedRawPatterns": [
+    "docs/**/evidence/**/*.log",
+    "docs/**/evidence/**/*.diff"
+  ],
+  "rawBytesUnmodified": true,
+  "nativeAcceptance": false
+}

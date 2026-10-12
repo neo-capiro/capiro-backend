@@ -1,0 +1,25 @@
+{
+  "name": "web-full-corrected-runner-long-budget",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs/apps/web",
+  "argv": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--pool=threads",
+    "--no-file-parallelism",
+    "--testTimeout=20000",
+    "--hookTimeout=20000",
+    "--reporter=json",
+    "--outputFile",
+    "/workspace/capirov2-cleanup-source-prereqs/docs/cleanup-executable-prereqs-20261012/evidence/web-full-corrected-runner-long-budget.json"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 2173.6,
+  "measuredSource": "ed1cb70cad206949ee27657d5748e2832952a0f1",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "commandBudgetSeconds": 3600,
+  "caseHookTimeoutsUnchanged": true,
+  "outputFile": "web-full-corrected-runner-long-budget.log"
+}

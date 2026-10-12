@@ -26,6 +26,17 @@
       "scope": "final truthful PE boundary/test",
       "evidenceCommit": "943640754f8387fb09290e21e688efddb75c98f7",
       "source": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12"
+    },
+    {
+      "scope": "draft-native workflow eligibility",
+      "evidenceCommit": "8a3d9571bad84c6272aa84a7eaa31b20c50d6961",
+      "source": "ed1cb70cad206949ee27657d5748e2832952a0f1"
+    },
+    {
+      "scope": "completed Web report, case inventory and tracked-input continuity",
+      "evidenceCommit": "a9dfe4ac96f7cf9211fb6f5d98b6f82b6a7aa796",
+      "source": "ed1cb70cad206949ee27657d5748e2832952a0f1",
+      "auditChecks": 33
     }
   ],
   "originalCarrier": "03d85a40e390f8f52614aab20427a3a9433786bb",
@@ -39,9 +50,7 @@
     "verify-pe-migration-guards strict migration-history refusal",
     "verify-pe-phase-e-exact-sha four existing facade marker refusals"
   ],
-  "pendingChecks": [
-    "complete Web serial runner long-budget report"
-  ],
+  "pendingChecks": [],
   "nativeAcceptance": false,
   "operationsExcluded": [
     "database/SQL/migrations/PGlite",
@@ -50,5 +59,25 @@
     "customer mutations/credentials/permissions/security-network changes",
     "main merge/deploy",
     "unpublished EngagementService reporting owner"
-  ]
+  ],
+  "reviewedWorkflowOverlay": "ed1cb70cad206949ee27657d5748e2832952a0f1",
+  "reviewedWorkflowOverlayTree": "8988b19a56da936adb82f12173f3c2dfbd589833",
+  "executableWorkflowOverlayManifest": "evidence/reviewed-workflow-source-overlay.json",
+  "webSourceResult": {
+    "exitCode": 0,
+    "passed": 6437,
+    "failed": 0,
+    "pending": 0,
+    "physicalTestFiles": 701,
+    "seconds": 2173.6,
+    "canonicalRunnerUnchanged": true,
+    "testHookTimeoutsSeconds": 20,
+    "nativeAcceptance": false,
+    "receipt": "evidence/web-full-corrected-runner-long-budget.command.json",
+    "aggregate": "evidence/web-full-corrected-runner-long-budget.json",
+    "casePreservation": "evidence/web-final-author-case-preservation.json",
+    "independentReview": "evidence/web-completion-independent-review/WEB-COMPLETION-REVIEW.json"
+  },
+  "remainingAcceptance": "Three baseline PE policy refusals and the six native/toolchain/isolated-smoke/coverage/visual/complete-gate prerequisites in HANDOFF.md; CleanUp4/CleanUp2 production adoption remains partial/missing",
+  "composedSourceVerification": "evidence/final-source-manifest-composition.json"
 }

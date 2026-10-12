@@ -1,0 +1,14 @@
+{
+  "verifiedAt": "b2b7f2f5d50b894d895325d50b833776cea33390",
+  "coreSource": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+  "workflowOverlaySource": "ed1cb70cad206949ee27657d5748e2832952a0f1",
+  "base": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "composedNonDocPaths": 1049,
+  "overlayReplacements": [
+    ".github/workflows/ci-pr.yml",
+    ".github/workflows/cleanup1-gate.yml"
+  ],
+  "allBlobsMatchComposedReviewedManifests": true,
+  "missingOrExtraChangedSourcePaths": [],
+  "nativeAcceptance": false
+}

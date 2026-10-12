@@ -1,0 +1,13 @@
+{
+  "initialResult": "exact native step name assertion failed before writing any file",
+  "requestedNames": [
+    "Test apps/api (jest)",
+    "Test apps/defense-api (tsx --test)"
+  ],
+  "actualNames": [
+    "Test apps/api",
+    "Test apps/defense-api"
+  ],
+  "sourceTouchedDuringFailedAttempt": false,
+  "correction": "use exact current names, retain all original steps"
+}

@@ -1,0 +1,8 @@
+{
+  "startCommit": "07d0e0b9ab62513a83e665aa67efcc54283a2382",
+  "currentCommit": "b054c7bf842f963256848758e32cf568f680d5a4",
+  "changedWebSharedMeriCoreSourceInputs": [],
+  "webDependencyBindingsChangedDuringRun": false,
+  "noPassingAggregateInferred": true,
+  "nativeAcceptance": false
+}

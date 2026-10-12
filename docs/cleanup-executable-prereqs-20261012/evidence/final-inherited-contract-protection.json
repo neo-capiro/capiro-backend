@@ -1,0 +1,22 @@
+{
+  "verifiedSource": "b2b7f2f5d50b894d895325d50b833776cea33390",
+  "reviewedExecutableSource": "ed1cb70cad206949ee27657d5748e2832952a0f1",
+  "base": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "originalManifestEntries": 194,
+  "entriesByteIdenticalTo2407": 192,
+  "changedEntries": [
+    "apps/api-strategy/package.json",
+    "pnpm-lock.yaml"
+  ],
+  "changedEntryMeaning": "Additive compatible package CLI and lock carrier wiring; no inherited product source replacement",
+  "schemaMigrationChanges": [],
+  "inheritedPacketChanges": [],
+  "readOnlyRemoteRefs": [
+    "2b3a51da89e90ed628edfd1ac76297e492542824\trefs/heads/codex/rebuild-cleanup-executable-prereqs-20261012",
+    "f1e83a3f194a8ebd972e370ff6e5b5f559888b29\trefs/heads/codex/rebuild-cleanup-source-gates-20261012",
+    "243248e726243c44bd4b9d24fd1ed220da18c56a\trefs/heads/codex/rebuild-integrated-source-rc-20261012",
+    "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace\trefs/heads/main"
+  ],
+  "reportingOwner": "excluded, untouched and unassessed",
+  "nativeAcceptance": false
+}

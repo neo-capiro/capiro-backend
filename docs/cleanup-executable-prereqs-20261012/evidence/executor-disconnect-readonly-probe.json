@@ -1,0 +1,16 @@
+{
+  "notificationUTC": "2026-10-12T13:37:00Z",
+  "verifiedReadOnlyCommandUTC": "2026-10-12T13:38:36.445671+00:00",
+  "executorCommandExit": 0,
+  "head": "b054c7bf842f963256848758e32cf568f680d5a4",
+  "tree": "4ff190fc8c43c0606be8ebd16810def562b748ca",
+  "trackedChangesAtProbe": false,
+  "observedOwnedCheck": {
+    "pid": 204155,
+    "kind": "long Web wrapper",
+    "elapsedSeconds": 1311,
+    "completedReceipt": null
+  },
+  "claim": "available based on actual read-only executor result, not turn status",
+  "sourceWorkPreserved": true
+}

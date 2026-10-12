@@ -1,0 +1,41 @@
+{
+  "source": "ed1cb70cad206949ee27657d5748e2832952a0f1",
+  "tree": "8988b19a56da936adb82f12173f3c2dfbd589833",
+  "oldSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "oldCases": 6435,
+  "currentCases": 6437,
+  "physicalTestFiles": 701,
+  "vitestNestedSuites": 1963,
+  "statuses": {
+    "passed": 6437
+  },
+  "removedCaseIdentityMappedToRename": [
+    {
+      "file": "src/vnext/pages/program-elements/profile/PeProfileVNext.test.tsx",
+      "name": "PeProfileVNext canonical pathname and explicit legacy override a lowercase pathname is not claimed and does not request a profile",
+      "count": 1
+    }
+  ],
+  "addedCaseIdentities": [
+    {
+      "file": "src/vnext/pages/program-elements/profile/PeProfileVNext.test.tsx",
+      "name": "PeProfileVNext canonical pathname and explicit legacy override an ASCII-lowercase pathname is claimed, requests the canonical uppercase id and keeps the original URL",
+      "count": 1
+    },
+    {
+      "file": "src/vnext/pages/program-elements/profile/PeProfileVNext.test.tsx",
+      "name": "PeProfileVNext canonical pathname and explicit legacy override a static-segment or malformed pathname (reconciliation) is not claimed as a line profile",
+      "count": 1
+    },
+    {
+      "file": "src/vnext/pages/program-elements/profile/PeProfileVNext.test.tsx",
+      "name": "PeProfileVNext canonical pathname and explicit legacy override a static-segment or malformed pathname (whatever) is not claimed as a line profile",
+      "count": 1
+    }
+  ],
+  "originalCasesPreservedAfterExplicitRename": true,
+  "runtimeInputChangesDuringRun": [],
+  "canonicalRunnerAnd20sCaseHookCapsUnchanged": true,
+  "originalThirtyMinuteTimeoutRetained": true,
+  "nativeAcceptance": false
+}
