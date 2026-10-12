@@ -1,0 +1,28 @@
+const id = z.uuid();
+const client = z.object({ id, name: z.string() }).strip().nullable();
+export const outreachRecord = z
+  .object({
+    id,
+    title: z.string(),
+    type: z.string(),
+    status: z.string(),
+    subject: z.string().nullable(),
+    body: z.string().nullable(),
+    client: client.optional(),
+    createdAt: z.string().optional(),
+    recipients: z
+      .array(
+        z.object({
+          id: z.string().max(240).optional(),
+          clientId: id.optional(),
+          name: z.string().max(160).optional(),
+          email: z.string().email().optional(),
+          office: z.string().max(240).optional(),
+          title: z.string().max(160).optional(),
+          direction: z.enum(["on-behalf", "to-clients"]).optional(),
+        }),
+      )
+      .optional(),
+  })
+  .strip();
+exports.schema=outreachRecord;

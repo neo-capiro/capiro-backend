@@ -1,0 +1,43 @@
+  async open(ctx: TenantContext, stageId: string) {
+    const stage = await this.stage(ctx, stageId);
+    const row = await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      // One stage lock covers the lookup and creation, including a StrictMode
+      // double request or two tabs opening the same saved handoff.
+      await tx.$queryRaw`SELECT id FROM ws_newsletter_stage WHERE id = ${stageId}::uuid AND tenant_id = ${ctx.tenantId}::uuid AND owner_id = ${ctx.clerkUserId} FOR UPDATE`;
+      const existing = await tx.outreachRecord.findFirst({
+        where: {
+          tenantId: ctx.tenantId,
+          createdByUserId: ctx.userId,
+          deletedAt: null,
+          status: 'draft',
+          metadata: { path: ['newsletterStageId'], equals: stageId },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true },
+      });
+      return (
+        existing ??
+        tx.outreachRecord.create({
+          data: {
+            tenantId: ctx.tenantId,
+            createdByUserId: ctx.userId,
+            type: 'outbound_campaign',
+            clientId: stage.config.clientId,
+            status: 'draft',
+            title: stage.name,
+            subject: stage.config.subject,
+            recipients: [],
+            recipientCount: 0,
+            lastStep: 1,
+            metadata: {
+              direction: 'to-clients',
+              contextPool: [],
+              newsletterStageId: stage.id,
+              newsletterRevision: stage.revision,
+            },
+          },
+        })
+      );
+    });
+    return this.get(ctx, row.id);
+  }

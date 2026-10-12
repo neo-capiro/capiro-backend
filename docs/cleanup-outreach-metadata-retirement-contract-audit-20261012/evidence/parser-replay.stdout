@@ -1,0 +1,8 @@
+{
+  "checks": 4,
+  "sourceHashVerified": true,
+  "exactDeclarationsVerified": true,
+  "originalReceiptReproduced": true,
+  "transportImported": false,
+  "frontendModified": false
+}
