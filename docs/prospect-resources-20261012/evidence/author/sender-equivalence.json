@@ -1,0 +1,6 @@
+{
+  "base": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+  "method": "EngagementService.sendSingleMail",
+  "byteIdentical": true,
+  "sha256": "8d25ca06a117b18b4d4f55d06d3b4a34bc2936dfc3afd6dc505bcf22f97de542"
+}

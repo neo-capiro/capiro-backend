@@ -1,0 +1,17 @@
+{
+  "from_ref": "e7dd54326b8c2eb147845670e23f8760c0c6ce5d",
+  "to_ref": "9c2765224fc38d111df0fe184ca50229c6128373",
+  "to_tree": "0827ee2a1dc6665483878117cf688d9c4aa5f0d7",
+  "changed_paths": [
+    "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts"
+  ],
+  "only_change": "Adds the required unused ShareLinkService collaborator dependency as {} as never in public-share refusal test; no assertions changed",
+  "all_runtime_migrations_and_core_tests_unchanged": true,
+  "original_workspace_sha256": "90e06efb041a5e784277a7f1d5bc40460265facfa3992e0bc091f0868e350de2",
+  "final_workspace_sha256": "0beefa6e1ec6af8e9ac196a6773854a1cb15aa897bf4ab0035930ad68c34af7a",
+  "independent_final_replay": {
+    "tests": 17,
+    "suites": 1,
+    "failed": 0
+  }
+}

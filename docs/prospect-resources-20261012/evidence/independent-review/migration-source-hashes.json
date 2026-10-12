@@ -1,0 +1,4 @@
+{
+  "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql": "0441a93ecd2c33bc86100e80aa13fbddf9e842da07c7d1bfd54037ada35f8052",
+  "apps/workspace/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql": "2ea8c04127567b1d1a0aea936cc25f6c56714655b19655fa5faacb9420139788"
+}

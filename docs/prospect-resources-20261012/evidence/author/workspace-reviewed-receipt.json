@@ -1,0 +1,28 @@
+{
+  "source": "ef64c441302e32b1c141c70751e165fd7456a472",
+  "command": [
+    "/workspace/capirov2-prospect-resources/apps/workspace/node_modules/.bin/jest",
+    "--config",
+    "/tmp/capiro-prospect-workspace-jest.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "apps/workspace/src/generation/generation.service.spec.ts",
+    "apps/workspace/src/delivery/delivery.spec.ts",
+    "apps/workspace/src/quick-draft/quick-draft.service.spec.ts",
+    "apps/workspace/test/draft-acl.spec.ts",
+    "apps/workspace/src/drafts/editorial-output.spec.ts",
+    "apps/workspace/src/quick-draft/intake.service.spec.ts",
+    "apps/workspace/src/export/export.service.spec.ts",
+    "apps/workspace/src/quick-draft/source-resolver.service.spec.ts",
+    "apps/workspace/src/documents/documents.service.spec.ts",
+    "apps/workspace/test/memory-promotion.spec.ts",
+    "apps/workspace/src/comments/comments.service.spec.ts",
+    "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+    "apps/workspace/src/hillday/hillday-library-access.spec.ts",
+    "--json",
+    "--outputFile=/tmp/capiro-prospect-workspace-reviewed.json"
+  ],
+  "exitCode": 0,
+  "startedAt": "2026-10-12T04:56:09.697260+00:00",
+  "finishedAt": "2026-10-12T04:56:16.767429+00:00"
+}

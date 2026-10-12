@@ -46,18 +46,18 @@ source only and MUST NOT be executed, including in an ephemeral database.
 | 2398 Frontend handoff | 797e3a59158cff56b017ab7d01ee445bf624fced | Contract documentation source. |
 | 2399 Ordered owners | 0783423aeaaa8b65f289d0927d605142816d8cfe | Schema/ClientsModule composition only; preserve versioned ranks/legacy owner adapter. |
 
-Before publication, recompute exact changed-path intersections for this candidate
-and all refs above. A shared schema filename does not authorize cherry-picking all
+Exact changed-path intersections for this candidate and all refs above are
+recorded in INTEGRATION.md and path-intersections.json. A shared schema filename does not authorize cherry-picking all
 other candidates. No merge, migration, deploy, provider messages/uploads or paid
 model runs are authorized. Native SQL/RLS/concurrency qualification stays unrun.
 
-## Pending choices and access review
+## Build scope and access review
 
 Neo removed the new Commitment UI scope at 04:41 UTC and requested reference-based
 dead-code cleanup at 04:42 UTC. Firm-vs-client/WeOwe/TheyOwe semantics are no longer
 a pending build decision. The existing activity contract and PR2396 generic
 activity/Planner command remain in scope and are preserved. Prospect resource origin will survive conversion;
 current linked-client access is additive and no resource is copied into a client
-library. Detailed lifecycle/read/write and sharing rules will be recorded with the
-implementation. Independent reviewer is auditing alternate resource readers,
-conversion/revocation, durable recovery and the Workspace service boundary.
+library. CONTRACT.md records the lifecycle/read/write and sharing rules. Independent review
+covers alternate resource readers, conversion/revocation, durable recovery and the
+Workspace service boundary; exact findings and test receipts are in evidence.

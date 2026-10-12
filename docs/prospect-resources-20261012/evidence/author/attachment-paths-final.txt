@@ -1,0 +1,74 @@
+apps/api/src/embeddings/client-kb.service.ts:109:    const rows = await tx.engagementAttachment.findMany({
+apps/api/src/embeddings/client-kb.service.ts:292:      tx.engagementAttachment.findFirst({
+apps/api/src/embeddings/client-kb.service.ts:350:      await tx.engagementAttachment.update({
+apps/api/src/embeddings/client-kb.service.ts:362:        await tx.engagementAttachment.update({
+apps/api/src/embeddings/client-kb.service.ts:417:      await tx.engagementAttachment.update({
+apps/api/src/embeddings/client-kb.service.ts:462:        FROM engagement_attachments WHERE tenant_id = $1::uuid AND id = $2::uuid AND prospect_id IS NULL FOR UPDATE`,
+apps/api/src/embeddings/client-kb.service.ts:626:      tx.engagementAttachment.findMany({
+apps/api/src/engagement/outreach-send-intent.service.ts:1189:      tx.engagementAttachment.findMany({
+apps/api/src/engagement/outreach-send-intent.service.ts:1283:      tx.engagementAttachment.findMany({
+apps/api/src/engagement/generation/evidence-source.service.ts:798:      tx.engagementAttachment.findFirst({
+apps/api/src/engagement/attachments/prospect-attachment-access.ts:147:    const replay = await tx.engagementAttachment.findFirst({
+apps/api/src/engagement/attachments/prospect-attachment-access.ts:176:  await tx.$queryRaw`SELECT id FROM engagement_attachments WHERE tenant_id=${ctx.tenantId}::uuid AND id=${row.id}::uuid FOR UPDATE`;
+apps/api/src/engagement/attachments/prospect-attachment-access.ts:177:  const current = await tx.engagementAttachment.findFirst({
+apps/api/src/engagement/notetaker/notetaker.service.ts:400:      tx.engagementAttachment.findMany({
+apps/api/src/capabilities/context/outreach-context-reference.service.ts:405:    const row = await tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:1710:    const attachments = await tx.engagementAttachment.findMany({ where, select: { id: true } });
+apps/api/src/engagement/engagement.service.ts:1711:    await tx.engagementAttachment.updateMany({ where, data: { ...data, indexedAt: null } });
+apps/api/src/engagement/engagement.service.ts:2003:        const row = await tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:2053:      tx.engagementAttachment.findMany({
+apps/api/src/engagement/engagement.service.ts:2114:        return tx.engagementAttachment.update({ where: { id: ref.id }, data });
+apps/api/src/engagement/engagement.service.ts:2131:        return tx.engagementAttachment.update({ where: { id: ref.id }, data });
+apps/api/src/engagement/engagement.service.ts:2161:      tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:4539:        tx.engagementAttachment.findMany({
+apps/api/src/engagement/engagement.service.ts:6497:        tx.engagementAttachment.findMany({
+apps/api/src/engagement/engagement.service.ts:7666:      const replay = await tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:7691:      const created = await tx.engagementAttachment.create({
+apps/api/src/engagement/engagement.service.ts:7774:      const rows = await tx.engagementAttachment.findMany({
+apps/api/src/engagement/engagement.service.ts:7871:      tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:8084:      const attachment = await tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:8089:      return tx.engagementAttachment.update({
+apps/api/src/engagement/engagement.service.ts:8110:          ? await tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:8121:        return tx.engagementAttachment.updateMany({
+apps/api/src/engagement/engagement.service.ts:8224:        tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:8310:          ? tx.engagementAttachment.upsert({ where: { id: stableId }, create: data, update: {} })
+apps/api/src/engagement/engagement.service.ts:8311:          : tx.engagementAttachment.create({ data });
+apps/api/src/engagement/engagement.service.ts:8323:            tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:8383:      const row = await tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:8415:        return tx.engagementAttachment.updateMany({
+apps/api/src/engagement/engagement.service.ts:8430:              await tx.$executeRaw`UPDATE engagement_attachments SET lifecycle_status='delete_failed',
+apps/api/src/engagement/engagement.service.ts:8435:              await tx.engagementAttachment.updateMany({
+apps/api/src/engagement/engagement.service.ts:8473:        await tx.engagementAttachment.delete({ where: { id } });
+apps/api/src/engagement/engagement.service.ts:8477:        tx.engagementAttachment.delete({ where: { id } }),
+apps/api/src/engagement/engagement.service.ts:8563:      tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:8571:      tx.engagementAttachment.updateMany({
+apps/api/src/engagement/engagement.service.ts:8583:            tx.engagementAttachment.updateMany({
+apps/api/src/engagement/engagement.service.ts:8618:      tx.engagementAttachment.delete({ where: { id, tenantId } }),
+apps/api/src/engagement/engagement.service.ts:8647:      tx.engagementAttachment.findFirst({ where: { id: oldId, tenantId: ctx.tenantId } }),
+apps/api/src/engagement/engagement.service.ts:8658:      const replacement = await tx.engagementAttachment.findFirst({
+apps/api/src/engagement/engagement.service.ts:8669:      return tx.engagementAttachment.updateMany({
+apps/api/src/engagement/engagement.service.ts:8689:      tx.engagementAttachment.findMany({
+apps/api/src/engagement/engagement.service.ts:8707:          tx.engagementAttachment.delete({ where: { id: row.id } }),
+apps/api/src/engagement/engagement.service.ts:8807:      tx.engagementAttachment.findMany({
+apps/api/src/engagement/engagement.service.ts:9554:        await tx.engagementAttachment.updateMany({
+apps/api/src/engagement/synthetic-document-deletion.helpers.ts:130:  >`SELECT xmin::text AS version FROM engagement_attachments WHERE tenant_id=${ctx.tenantId}::uuid AND id=${id}::uuid FOR UPDATE`;
+apps/api/src/engagement/synthetic-document-deletion.helpers.ts:140:  const row = await tx.engagementAttachment.findFirst({ where: { id, tenantId: ctx.tenantId } });
+apps/api/src/engagement/synthetic-document-deletion.helpers.ts:183:    await tx.engagementAttachment.update({
+apps/api/src/meri/meri-job-deliverables.service.ts:161:        tx.engagementAttachment.findFirst({
+apps/api/src/intelligence/alert-memo/hearing-recap.service.ts:137:      tx.engagementAttachment.findFirst({
+apps/api/src/intelligence/alert-memo/hearing-recap.service.ts:329:        >`SELECT d.attachment_id AS id FROM legiwatch_record_document d JOIN engagement_attachments a ON a.id=d.attachment_id
+apps/api/src/intelligence/alert-memo/hearing-recap.service.ts:522:        FROM engagement_attachments a
+apps/api/src/clients/client-activity.service.ts:121:        tx.engagementAttachment.findMany({
+apps/api/src/clients/client-files.controller.ts:54:      const rows = await tx.engagementAttachment.groupBy({
+apps/api/src/clients/client-files.controller.ts:82:      const existing = await tx.engagementAttachment.findFirst({
+apps/api/src/clients/client-files.controller.ts:91:      return tx.engagementAttachment.update({
+apps/api/src/clients/client-files.controller.ts:108:      const row = await tx.engagementAttachment.findFirst({
+apps/api/src/clients/client-files.controller.ts:150:      const existing = await tx.engagementAttachment.findFirst({
+apps/api/src/clients/client-files.controller.ts:163:      return tx.engagementAttachment.update({
+apps/api/src/clients/client-files.controller.ts:199:      const result = await tx.engagementAttachment.updateMany({
+apps/api/src/clients/client-profile-fill.service.ts:685:        tx.engagementAttachment.findFirst({
+apps/api/src/clients/client-profile-fill.service.ts:752:      tx.engagementAttachment.findFirst({
+apps/api/src/clients/client-profile-fill-workflow.service.ts:1084:          tx.engagementAttachment.findFirst({
+apps/api/src/clients/client-profile-fill-workflow.service.ts:1325:      tx.engagementAttachment.findMany({
+apps/api/src/knowledge/mailbox/mailbox-knowledge.repository.ts:173:            FROM engagement_attachments AS attachment
+apps/api/src/outreach-v3/send/outreach-v3-send.service.ts:437:      tx.engagementAttachment.findMany({

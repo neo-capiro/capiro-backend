@@ -1,0 +1,55 @@
+{
+  "review_kind": "independent non-author source review and synthetic regressions",
+  "verdict": "acceptable within bounded source scope; no unresolved source blocker",
+  "candidate": "9c2765224fc38d111df0fe184ca50229c6128373",
+  "candidate_tree": "0827ee2a1dc6665483878117cf688d9c4aa5f0d7",
+  "runtime_and_migrations_ref": "ef64c441302e32b1c141c70751e165fd7456a472",
+  "base": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+  "initial_review_ref": "056bae1a00004f1ad7b0001ed89c48e704f84a7f",
+  "independent_tests_retained": 36,
+  "results": {
+    "core": {
+      "passed_tests": 407,
+      "failed_tests": 0,
+      "pending_tests": 0,
+      "passed_suites": 27,
+      "failed_suites": 0,
+      "success": true
+    },
+    "workspace": {
+      "passed_tests": 154,
+      "failed_tests": 0,
+      "pending_tests": 0,
+      "passed_suites": 16,
+      "failed_suites": 0,
+      "success": true
+    }
+  },
+  "total_passed_tests": 561,
+  "total_suites": 43,
+  "reviewer_production_edits": false,
+  "reviewer_primary_compile_run": false,
+  "migrations_or_database_execution": false,
+  "live_providers_or_paid_models": false,
+  "native_qualification": "unrun; not permitted",
+  "initial_confirmed_source_failures": {
+    "workspace_exact_history_replay": 2,
+    "legacy_strict_null_fixture_failures": 7
+  },
+  "limitations": [
+    "No native PostgreSQL RLS, MVCC, lock/deadlock or migration execution",
+    "No live S3/provider integration",
+    "Author primary compile/build results separately owned",
+    "Preserved path intersections require exact integrated source qualification"
+  ],
+  "report": "SOURCE-REVIEW.md",
+  "report_sha256": "e63008b9d9894dbb3da066c5cf0af37845c270f467a11e30a68ff5c8fdc29dec",
+  "expanded_tests_exact_ref": "e7dd54326b8c2eb147845670e23f8760c0c6ce5d",
+  "final_fixture_delta": "one unused ShareLinkService constructor dependency; assertions unchanged",
+  "final_targeted_replay": {
+    "exact_ref": "9c2765224fc38d111df0fe184ca50229c6128373",
+    "passed_tests": 17,
+    "failed_tests": 0,
+    "passed_suites": 1
+  }
+}
