@@ -5,7 +5,7 @@ Refreshed origin heads 2026-10-12; main remains
 remaining-contract status in PR2393 without altering that candidate. All rows
 are source status; none implies deployed or database-qualified behavior.
 
-## Preserved published work
+## Published source work (all draft, unmerged)
 
 | Candidate | Exact head | Closed source contract / dependency |
 | --- | --- | --- |
@@ -14,6 +14,7 @@ are source status; none implies deployed or database-qualified behavior.
 | PR2395 | `c5e41e320af4b4d841d4b3136777d712116916ed` | Existing Planner task owner gains private idempotent create-command receipt/recovery. |
 | PR2396 | `e2c2c110edd986e799d47d43b0db50b24fab0201` | Core atomic activity/intent + explicit recoverable generic Planner follow-up; based on2395 and adds Planner expected-scope checks. Full commitment still open. |
 | PR2397 | `4915f3fa5c938182b2624377375674654baa5337` | Requested governed-memory wording only; existing mandatory pending/admin authority unchanged. |
+| PR2399 | `0783423aeaaa8b65f289d0927d605142816d8cfe` | Atomic versioned Primary–Quaternary replacement, protected legacy writes and preserved team roles. Reviewed source/tests `5f7308891e9bb3f0561804a0895b4372030c0d38`; independent107/107, Core primary TypeScript/Nest pass. Migration source only. |
 
 Preserved original candidates: Cleanup2392 `03d85a40e390f8f52614aab20427a3a9433786bb`;
 Facility2373 `6e5774a14c73ea04f0a77650a5bbd33173bcc9b3`;
@@ -30,7 +31,7 @@ No branch is overwritten. Cleanup's exact-source release gate is independent.
 | --- | --- | --- |
 | Prospect Files | EngagementAttachment, existing scan/version/viewer/uploader ACL and S3 lifecycle; BD prospect is distinct from Client | Optional tenant+prospect FK alone is insufficient. Presign must bind prospect identity through confirm, replay and all signed/read/send/delete/supersession paths. Current presign returns a tenant-prefixed key without a durable prospect intent. Conversion retains prospect; files should retain immutable origin and require current linked-client wall rather than be copied or widened. A cohesive prospect association change must include every reader and preserve2393. No implementation claim. |
 | Prospect Workspace | WsDraft, WsDocVersion and CollaboratorsService | Current free-text client is not authority. List/byId/mutation/version/export/collaboration need canonical prospect binding and access checks. Existing sourceAccess handles Intel source receipts, not BD. Retain draft/version/author identity and collaborator ACL across conversion; do not expose all tenant drafts. No second draft store. A joint Core/Workspace boundary is still needed. |
-| Ordered owners | ClientAccountOwnerService plus ClientTeamService | Next isolated source candidate: zero to four distinct active tenant members, contiguous positions, versioned atomic replacement; keep clients.account_owner_user_id as Primary compatibility projection. Preserve free-text team rows/roles. Details below. |
+| Ordered owners | ClientAccountOwnerService plus ClientTeamService | Closed in source by PR2399: zero to four distinct active tenant members, contiguous positions, versioned atomic replacement; keep clients.account_owner_user_id as Primary compatibility projection. Preserve free-text team rows/roles. Details below. |
 | Objective navigation | Preserved PR2362 versioned drafts/revisions/idempotent create and client walls | Bounded destination kind + canonical resource ID + objective revision and same-client authority must be rechecked by each destination owner. Existing generic navigation is not objective-bound creation. Do not recreate objective persistence. |
 | Newsletter to Outreach | Exact WsDocVersion snapshot and existing OutreachV3 versioned commands | Require saved draft/version/hash provenance, selected authorized Outreach session and expectedStateVersion with a durable staging receipt. Never imply generation/send is enabled. Current source does not establish a saved-revision staging bridge. |
 | Effective-date calendar | FederalRegisterService and rule source repository | Existing upcoming-deadline data is comment-end date (30-day/50 cap), not effective-date evidence. Add only records with authoritative effective-date provenance, date kind and coverage; publication/comment timestamps cannot substitute. Coverage/refresh and corrected-date lifecycle remain contract work. |
@@ -38,12 +39,12 @@ No branch is overwritten. Cleanup's exact-source release gate is independent.
 | Full commitment | Core ClientActivity + PR2396 + Planner + PR2362/Directory | Date-only commitment, direction, canonical counterparty and objective/step lineage are not in current activity schema. PR2396 closes durable recovery only. Figma confirms Planner ownership and internal-only task wording. Party interpretation is the one pending product question below. |
 
 Prospect association remains the highest-priority broader integration, but the
-ordered-owner contract can be implemented independently without choosing new
-cross-service sharing/conversion behavior. It is not blocked on that dependency.
+ordered-owner contract was implemented independently in [PR2399](https://github.com/neo-capiro/capirov2/pull/2399) without choosing new
+cross-service sharing/conversion behavior. Prospect association remains open.
 
-## Ordered-owner candidate outline
+## Ordered-owner design implemented in PR2399
 
-Create an isolated main-based branch, separate from all preserved candidates.
+Implemented in isolated main-based branch `codex/client-ordered-owners-20261012`, separate from all preserved candidates.
 Canonical ordered ownership lives beside ClientAccountOwnerService; the existing
 single-owner API delegates writes into the same transaction. A thin ordered route
 accepts only `{expectedVersion,userIds}`; array order expresses ranks and removes
@@ -68,8 +69,9 @@ Focused checks: four-rank reorder/clear/readback; duplicates/malformed IDs/forei
 or inactive member; archived/missing/walled client; role/actor revocation;
 concurrent stale replacement; legacy multi-owner conflict/no-op; team dedup/role
 preservation; migration source tenant FK/RLS/backfill and path intersections.
-Independent review is required before publishing runtime. Migration SQL will not
-be executed; native concurrency/RLS qualification remains a separate gate.
+Independent review accepted exact source/tests `5f7308891e9bb3f0561804a0895b4372030c0d38`:107/107 tests across nine suites, including29 retained independent adversarial tests. Author97/97 across seven suites overlaps that count; primary Core TypeScript and Nest build passed. Migration SQL was not executed; native concurrency/RLS qualification remains a separate gate.
+
+[Exact owner contract](https://github.com/neo-capiro/capirov2/blob/0783423aeaaa8b65f289d0927d605142816d8cfe/docs/ordered-client-owners-20261012/CONTRACT.md) and [qualification receipts](https://github.com/neo-capiro/capirov2/blob/0783423aeaaa8b65f289d0927d605142816d8cfe/docs/ordered-client-owners-20261012/QUALIFICATION.md) define the deliberate hard-user-delete restriction and coordinated migration/writer rollout. All47 evidence file hashes were verified against published Git blobs; post-review changes are docs/evidence only. Changed-path intersections are only schema.prisma and ClientsModule with Objective2362 and QuickLog2396; Cleanup and all other preserved candidates have no intersection.
 
 ## Commitment design evidence and smallest question
 
