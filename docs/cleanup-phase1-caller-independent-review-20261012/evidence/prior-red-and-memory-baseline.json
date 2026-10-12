@@ -1,0 +1,53 @@
+{
+  "source": "2496e57b4193cdd4d004232711a77ef707ae6b98",
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "copiedAuthorReceipts": [
+    {
+      "origin": "/workspace/capirov2-phase1-caller-repair/docs/cleanup-phase1-caller-repair-20261012/evidence/caller-contract-baseline.tap",
+      "copiedAs": "evidence/author-caller-contract-baseline.tap",
+      "sha256": "89e0cedb8113ce2ac573215f178e6c57d3b8b5052a89fb93a46e74caa7c8e092",
+      "classification": "Original baseline root alias refusal",
+      "reviewerExecutedThisFullRun": false
+    },
+    {
+      "origin": "/workspace/capirov2-phase1-caller-repair/docs/cleanup-phase1-caller-repair-20261012/evidence/guarded-cli-and-caller-repaired.tap",
+      "copiedAs": "evidence/author-guarded-cli-and-caller-repaired.tap",
+      "sha256": "5b440f25acea711fa7517d1a0ef92a841837a8df3515dbe7686eb2ebba851dd0",
+      "classification": "Three cached dependency-resolution ENV failures plus unchanged Memory documentation RED",
+      "reviewerExecutedThisFullRun": false
+    },
+    {
+      "origin": "/workspace/capirov2-phase1-caller-repair/docs/cleanup-phase1-caller-repair-20261012/evidence/guarded-cli-and-caller-cached-dependencies.tap",
+      "copiedAs": "evidence/author-guarded-cli-and-caller-cached-dependencies.tap",
+      "sha256": "62d47b1f1b263ca9591a0309dda4c643f3674c13b0d1e1f7cb6ec44d66ed9b99",
+      "classification": "Author four-test run: three PASS and unchanged Memory documentation RED",
+      "reviewerExecutedThisFullRun": false
+    }
+  ],
+  "independentBaselineRootAliasRegexRefuses": true,
+  "repairedRootAliasRegexAccepts": true,
+  "unchangedMemoryDocumentation": [
+    {
+      "path": "docs/handoffs/memory-phase2-next-increment.md",
+      "unchangedBytes": true,
+      "sha256": "5a2c7bf576c66b41a282a1f3155428fa1a3c8992fae0ade8b6b05e04a54e410c",
+      "commandRequiresRunOperandMissing": true
+    },
+    {
+      "path": "docs/handoffs/memory-admin-self-approval-release.md",
+      "unchangedBytes": true,
+      "sha256": "ff25e883f9760a45e32187a3d511e2af48c9d0d9cc2d8f4609f9df5138072d77",
+      "commandRequiresRunOperandMissing": true
+    },
+    {
+      "path": "docs/qa/memory-admin-self-approval-policy.md",
+      "unchangedBytes": true,
+      "sha256": "3e85412c73eb41089df60e1adaa7242fd663d1b7eb7074f7ce453a2757764992",
+      "commandRequiresRunOperandMissing": true
+    }
+  ],
+  "reviewerCurrentStaticCallerTest": "Phase1 root/local wrapper assertions pass; then existing first Memory documentation assertion remains RED",
+  "fullFourTestSuiteAccepted": false,
+  "memoryDocumentsEdited": false,
+  "noOperationalCommandsExecuted": true
+}

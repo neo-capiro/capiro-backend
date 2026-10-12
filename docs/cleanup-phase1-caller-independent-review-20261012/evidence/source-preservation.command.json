@@ -1,0 +1,9 @@
+{
+  "source": "2496e57b4193cdd4d004232711a77ef707ae6b98",
+  "tree": "ed4f162b3b59dbc27b3757170073e88be0181f35",
+  "shellCommand": "python3 docs/cleanup-phase1-caller-independent-review-20261012/evidence/verify-source.py > docs/cleanup-phase1-caller-independent-review-20261012/evidence/source-preservation.log 2>&1",
+  "exitCode": 0,
+  "expectedExitCode": 0,
+  "expected": true,
+  "nativeOrRealCloseoutExecuted": false
+}

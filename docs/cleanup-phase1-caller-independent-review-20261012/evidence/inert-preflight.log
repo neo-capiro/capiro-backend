@@ -1,0 +1,218 @@
+{
+  "source": "2496e57b4193cdd4d004232711a77ef707ae6b98",
+  "tree": "ed4f162b3b59dbc27b3757170073e88be0181f35",
+  "inertPreflightCases": [
+    {
+      "name": "helper no arguments",
+      "argv": [],
+      "exit": 2,
+      "runSelected": false,
+      "stdout": [],
+      "stderr": [
+        "Usage: tsx scripts/verify-engagement-phase1-runtime.ts (--run | --help)"
+      ]
+    },
+    {
+      "name": "helper help",
+      "argv": [
+        "--help"
+      ],
+      "exit": 0,
+      "runSelected": false,
+      "stdout": [
+        "Usage: tsx scripts/verify-engagement-phase1-runtime.ts (--run | --help)"
+      ],
+      "stderr": []
+    },
+    {
+      "name": "helper unknown",
+      "argv": [
+        "--unknown"
+      ],
+      "exit": 2,
+      "runSelected": false,
+      "stdout": [],
+      "stderr": [
+        "Usage: tsx scripts/verify-engagement-phase1-runtime.ts (--run | --help)"
+      ]
+    },
+    {
+      "name": "helper run plus unknown",
+      "argv": [
+        "--run",
+        "--unknown"
+      ],
+      "exit": 2,
+      "runSelected": false,
+      "stdout": [],
+      "stderr": [
+        "Usage: tsx scripts/verify-engagement-phase1-runtime.ts (--run | --help)"
+      ]
+    },
+    {
+      "name": "helper help plus run",
+      "argv": [
+        "--help",
+        "--run"
+      ],
+      "exit": 2,
+      "runSelected": false,
+      "stdout": [],
+      "stderr": [
+        "Usage: tsx scripts/verify-engagement-phase1-runtime.ts (--run | --help)"
+      ]
+    },
+    {
+      "name": "helper repeated run",
+      "argv": [
+        "--run",
+        "--run"
+      ],
+      "exit": 2,
+      "runSelected": false,
+      "stdout": [],
+      "stderr": [
+        "Usage: tsx scripts/verify-engagement-phase1-runtime.ts (--run | --help)"
+      ]
+    },
+    {
+      "name": "helper extra option refused",
+      "argv": [
+        "--run",
+        "--sha",
+        "synthetic"
+      ],
+      "exit": 2,
+      "runSelected": false,
+      "stdout": [],
+      "stderr": [
+        "Usage: tsx scripts/verify-engagement-phase1-runtime.ts (--run | --help)"
+      ]
+    },
+    {
+      "name": "helper exact run selected",
+      "argv": [
+        "--run"
+      ],
+      "exit": null,
+      "runSelected": true,
+      "stdout": [],
+      "stderr": []
+    },
+    {
+      "name": "local no arguments",
+      "argv": [],
+      "exit": 2,
+      "runSelected": false,
+      "stdout": [],
+      "stderr": [
+        "synthetic usage"
+      ]
+    },
+    {
+      "name": "local help",
+      "argv": [
+        "--help"
+      ],
+      "exit": 0,
+      "runSelected": false,
+      "stdout": [
+        "synthetic usage"
+      ],
+      "stderr": []
+    },
+    {
+      "name": "local run help",
+      "argv": [
+        "--run",
+        "--help"
+      ],
+      "exit": 0,
+      "runSelected": false,
+      "stdout": [
+        "synthetic usage"
+      ],
+      "stderr": []
+    },
+    {
+      "name": "local unknown",
+      "argv": [
+        "--unknown"
+      ],
+      "exit": 2,
+      "runSelected": false,
+      "stdout": [],
+      "stderr": [
+        "synthetic usage"
+      ]
+    },
+    {
+      "name": "local run unknown",
+      "argv": [
+        "--run",
+        "--unknown"
+      ],
+      "exit": 2,
+      "runSelected": false,
+      "stdout": [],
+      "stderr": [
+        "synthetic usage"
+      ]
+    },
+    {
+      "name": "local duplicate run",
+      "argv": [
+        "--run",
+        "--run"
+      ],
+      "exit": 2,
+      "runSelected": false,
+      "stdout": [],
+      "stderr": [
+        "synthetic usage"
+      ]
+    },
+    {
+      "name": "local valid run stripped",
+      "argv": [
+        "--run"
+      ],
+      "exit": null,
+      "runSelected": true,
+      "stdout": [],
+      "stderr": [],
+      "forwarded": []
+    },
+    {
+      "name": "local options preserve order",
+      "argv": [
+        "--run",
+        "--sha",
+        "synthetic",
+        "--evidence-dir=synthetic-directory"
+      ],
+      "exit": null,
+      "runSelected": true,
+      "stdout": [],
+      "stderr": [],
+      "forwarded": [
+        "--sha",
+        "synthetic",
+        "--evidence-dir=synthetic-directory"
+      ]
+    }
+  ],
+  "cases": 16,
+  "localHelperArgv": [
+    "--filter",
+    "@capiro/api",
+    "exec",
+    "tsx",
+    "scripts/verify-engagement-phase1-runtime.ts",
+    "--run"
+  ],
+  "phase2CallsCanonicalRootAliasWithoutChangingForwardedArgv": true,
+  "phase2DeadlineExitAndCompletionFailurePredicatesPreserved": true,
+  "operationalFunctionsExecuted": false,
+  "realChildOrResourceCalls": 0
+}
