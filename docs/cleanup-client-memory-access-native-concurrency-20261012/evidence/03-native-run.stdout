@@ -1,0 +1,8 @@
+PASS original two-writer negative schedule leaves a union, not the last complete roster
+PASS candidate serializes complete writers 00000000-0000-4000-8000-000000000008 then 00000000-0000-4000-8000-000000000009
+PASS candidate serializes complete writers 00000000-0000-4000-8000-000000000009 then 00000000-0000-4000-8000-000000000008
+PASS reader finishes before the blocked client-first writer; fresh reader denies revocation
+PASS foreign and absent client return404 before membership/grant/audit work
+PASS membership failure rolls back without changes and releases the client lock
+PASS another same-tenant client can finish while the first client remains locked
+PASS post-audit adapter error rolls back all native writes and releases the client lock

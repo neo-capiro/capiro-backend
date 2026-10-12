@@ -1,0 +1,28 @@
+{
+  "sourceHead": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "runnerHead": "cf30727ad5dfba61d2d153b2983eae8163a73ffd",
+  "runnerTree": "f751283cbcff8e22cd49ae1dbf03c537be04534a",
+  "preparationHead": "1f85971181932612ace636bca61c6aab4e8aaf48",
+  "command": [
+    "env",
+    "-i",
+    "PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "NODE_OPTIONS=--max-old-space-size=4096",
+    "TZ=UTC",
+    "LANG=C.UTF-8",
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "docs/cleanup-client-memory-access-native-concurrency-20261012/native-wall-writer.cjs",
+    "--run",
+    "--verified-target",
+    "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/ROOT-VERIFIED-TARGET.json",
+    "--output",
+    "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/03-native-run.json"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-strategy-template-independent-review",
+  "startedAt": "2026-10-12T23:52:42.632069+00:00",
+  "finishedAt": "2026-10-12T23:52:44.075121+00:00",
+  "elapsedSeconds": 1.4430620560015086,
+  "exit": 0,
+  "sqlExecuted": true,
+  "rootExactCommandAuthorized": true
+}

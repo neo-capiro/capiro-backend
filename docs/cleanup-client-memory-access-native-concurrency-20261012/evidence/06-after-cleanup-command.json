@@ -1,0 +1,23 @@
+{
+  "command": [
+    "env",
+    "-i",
+    "PATH=/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin:/usr/bin:/bin",
+    "NODE_OPTIONS=--max-old-space-size=4096",
+    "TZ=UTC",
+    "LANG=C.UTF-8",
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/after-cleanup.cjs",
+    "--run",
+    "--output",
+    "docs/cleanup-client-memory-access-native-concurrency-20261012/evidence/06-after-cleanup.json"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-strategy-template-independent-review",
+  "startedAt": "2026-10-12T23:54:19.364751+00:00",
+  "finishedAt": "2026-10-12T23:54:19.693846+00:00",
+  "elapsedSeconds": 0.32914349600468995,
+  "exit": 0,
+  "readOnlySqlStatements": 5,
+  "mutationQueries": 0,
+  "rootActionAuthorized": true
+}

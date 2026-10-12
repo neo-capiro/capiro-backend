@@ -1,0 +1,58 @@
+{
+  "applicationHead": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "applicationTree": "20f6c336489913c6f4c16a98f2a16fed4847ecd4",
+  "runnerHead": "cf30727ad5dfba61d2d153b2983eae8163a73ffd",
+  "runnerTree": "f751283cbcff8e22cd49ae1dbf03c537be04534a",
+  "preparationHead": "1f85971181932612ace636bca61c6aab4e8aaf48",
+  "applicationDeltaAfter926": 0,
+  "postRunSourceBindings": [
+    {
+      "path": "apps/api/src/clients/clients.service.ts",
+      "sha256": "1d854d3fa4080d2ff613741d3a607285a2e88e28a13f55358a8c508cfddc9dec",
+      "bytes": 70294,
+      "blob": "dbc180fe215e58b64f2d101f4aba56b20095309f"
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443",
+      "bytes": 4318,
+      "blob": "767a11ddff2ff43a39cdf572029b40a4976facac"
+    }
+  ],
+  "postRunRunnerFiles": [
+    {
+      "path": "fixture.sql",
+      "sha256": "5042c6508e551f6c37ca878a43789691c62af7671c141a387a2e9aa91bfd70a7",
+      "bytes": 3205
+    },
+    {
+      "path": "native-wall-writer.cjs",
+      "sha256": "8e48fd323695bcce8a8ec319f8c95662567128d3e16d3b016d39ccae1d7b852a",
+      "bytes": 28252
+    }
+  ],
+  "afterCleanupProbeSha256": "a601a91acd28e50afe529882cec6b7ceefcdbfe8d5048fdea89f26039ce953cc",
+  "nativeGroups": 8,
+  "nativeFailures": 0,
+  "nativeExecutorExit": 0,
+  "originalUnionDefectObserved": true,
+  "independentCleanupExecutorExit": 0,
+  "cleanupIdentity": {
+    "dataDirectory": "/tmp/capiro-native-pg-pr2429-20261012/data",
+    "listenAddresses": "",
+    "inetServerAddr": null,
+    "user": "agent",
+    "database": "postgres",
+    "systemIdentifier": "7695922344929406966",
+    "version": "PostgreSQL 16.15 (Debian 16.15-1.pgdg12+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit"
+  },
+  "ownedSchemaRemaining": 0,
+  "ownedRolesRemaining": 0,
+  "ownedSessionsRemaining": 0,
+  "publicTables": 0,
+  "nativePrisma": false,
+  "fullClientAuditLogSchema": false,
+  "productionRlsAcceptance": false,
+  "fullMigrationReplay": false,
+  "independentReceiptReview": "pending"
+}
