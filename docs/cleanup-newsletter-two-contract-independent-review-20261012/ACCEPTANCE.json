@@ -1,0 +1,43 @@
+{
+  "disposition": "ACCEPTED for bounded source preservation and synthetic authority/replay controls",
+  "source": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "tree": "b87c85a0fc0ae57f876b86a8018a953adbddb71c",
+  "authorEvidence": "509e560e1d3b528ff84b63915f235a8a124febcc",
+  "authorTree": "ee5cca9c408e023d41f29a11f642d9280e2658b7",
+  "ownSourceMerge": "2e08dc875e42d3f15a501c5a85d02e78631a1992",
+  "sourceOverlayFiles": 76,
+  "originalCwByteIdentical": 58,
+  "canonicalIntegrations": 18,
+  "allOriginalModelsExact": 16,
+  "protectedPaths": 21548,
+  "protectedSchemasMigrations": 601,
+  "protectedPriorDocs": 9869,
+  "beforeAfterComparisons": 69,
+  "counts": {
+    "authorityVersionTokenGetRichReplay": 44,
+    "accountAttemptStatus": 17,
+    "individualSenderGate": 8,
+    "classifierRefusals": 6,
+    "publicPrefixCases": 8
+  },
+  "qStagingAndSenderNotificationCredentialPreservation": true,
+  "originalCExpectedValuesReboundBeforeCandidateComparison": true,
+  "authorPacketHashesVerified": 55,
+  "authorSourceHashesVerified": 76,
+  "publishedBcAdActualAncestorOfAuthor": true,
+  "completeAuthorNonDocTreeExactFrozenSource": true,
+  "schemaExportLockGeneratorReviewScope": "Separate reviewer; not independently accepted in this receipt",
+  "actualRouteGraphClientProviderSqlNativeCalls": 0,
+  "sourceEditsByReviewer": 0,
+  "workspaceParserAndFullTypingAccepted": false,
+  "nativeAcceptance": false,
+  "open": [
+    "Exact htmlparser2@8.0.2 dependency; Workspace final6 dependent diagnostics",
+    "Real rendering and application/bootstrap/provider constructors",
+    "Applied migrations/catalog privileges/RLS/FK/index/immutability/MVCC",
+    "Worker leases/replicas/provider outcomes/deadlines/token/data lifetimes",
+    "Native/fullCleanup gates and123 deferred clock samples",
+    "Separate frontend43runtime+179asset preservation",
+    "Unpublished scoped EngagementService reporting integration and other preserved historical gaps"
+  ]
+}

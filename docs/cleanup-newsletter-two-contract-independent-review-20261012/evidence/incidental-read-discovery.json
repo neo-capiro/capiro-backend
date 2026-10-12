@@ -1,0 +1,7 @@
+{
+  "action": "Read-only discovery of newsletter HANDOFF files under /tmp",
+  "stderr": "rg: /tmp/codex-daemon-1000: Permission denied (os error 13)",
+  "qualificationUse": false,
+  "correction": "Used git worktree porcelain metadata to find the exact root worktree, then read only its known docs directory.",
+  "bypassOrEscalation": false
+}

@@ -1,0 +1,237 @@
+{
+  "acceptedSource": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "acceptedTree": "b87c85a0fc0ae57f876b86a8018a953adbddb71c",
+  "excludesItselfOnly": true,
+  "entries": [
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/ACCEPTANCE.json",
+      "bytes": 1949,
+      "sha256": "f1601c8896ac5842cef0307bf13493638c9a093ad4453d7d8ca0fc958fc35182"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/capture-schema-before.cjs",
+      "bytes": 1833,
+      "sha256": "29ebee73e6eb7320a900a6ba079d37aa73d90f86ce1646bfe30f09e0409e4daa"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/COMMANDS.json",
+      "bytes": 5743,
+      "sha256": "9c382f48d7b7d4d5ba1aacf31d1472beed7a1cb71a3a11eab3f63e0521e0062d"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-account-replay.cjs",
+      "bytes": 9865,
+      "sha256": "a8d26fdf1c8b874f4d59f837a5009d8ffb541033cda2100463c8bb5a50b1236c"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-account-replay.json",
+      "bytes": 3474,
+      "sha256": "7e92699f954fedc8a1f4a42a6162673c5d66c34444f038bd389cc2649aeb96da"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-account-replay.log",
+      "bytes": 98,
+      "sha256": "a78eba976bf1058674f58ffbedde8990cdb19a5a2707745ae93752c644b78df0"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-authority-review-34.json",
+      "bytes": 66619,
+      "sha256": "3210ca50660fa61617d68488eb6e17db87ac47ec71fc12245bc677de86d35831"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-authority-review-34.log",
+      "bytes": 105,
+      "sha256": "54a84b2e995783ef2e21308970b52e20a34f52dadd5801aeb00bd4acc6be1b52"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-authority-review-with-rich-replay.log",
+      "bytes": 105,
+      "sha256": "acfc5e1401be74ea8a7944eeabee3aa9f46e7edf4937fb66bf783ea271a29e70"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-authority-review.cjs",
+      "bytes": 16319,
+      "sha256": "fc6a36f214702d9cdbaeabe56d62eca91cb46d3c0577cfc6ce4edb7f97a0eb27"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-authority-review.json",
+      "bytes": 78961,
+      "sha256": "4913712ed17a28b44bdd8b1efaad3adc3faf7081168d43ea3c0993a47505381d"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-authority-review.log",
+      "bytes": 105,
+      "sha256": "54a84b2e995783ef2e21308970b52e20a34f52dadd5801aeb00bd4acc6be1b52"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-corrected.log",
+      "bytes": 5358,
+      "sha256": "8ffd02ae3c723f50d62d186f06771f734342ca3ec663d8938c40a1beeae7924d"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-final-all-inverses.log",
+      "bytes": 72,
+      "sha256": "200af12b33111cbc5803f20c4faaeddde57501619fce6fc6c44dac69159ae701"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-final-byteproof.log",
+      "bytes": 72,
+      "sha256": "200af12b33111cbc5803f20c4faaeddde57501619fce6fc6c44dac69159ae701"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-final-exact.log",
+      "bytes": 72,
+      "sha256": "200af12b33111cbc5803f20c4faaeddde57501619fce6fc6c44dac69159ae701"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-final.log",
+      "bytes": 5632,
+      "sha256": "e269f5fac6f507c373c98db2a4683103e2dbd6040ac890389d7218087d1956d9"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-first.cjs",
+      "bytes": 6636,
+      "sha256": "71636fa016c0726339fa139a6b1c25e2c0cd3f0f878c0bf0c7603569e5356d14"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-first.log",
+      "bytes": 2050,
+      "sha256": "1add7a4b32ba35837ab10568c8c8897fb37e5a2efb5dbda10c01cbf77e223d07"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-sealed.log",
+      "bytes": 72,
+      "sha256": "200af12b33111cbc5803f20c4faaeddde57501619fce6fc6c44dac69159ae701"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-template-scan.cjs",
+      "bytes": 7566,
+      "sha256": "ba6e0a5f88b84d8f78a92350a5e66c23078c5d4a134125588c36a33d70d0a43c"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-template-scan.log",
+      "bytes": 5632,
+      "sha256": "e269f5fac6f507c373c98db2a4683103e2dbd6040ac890389d7218087d1956d9"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-type-prefix.cjs",
+      "bytes": 6637,
+      "sha256": "caa28a0a5b0375226c526b3bf551bf77cd59808d2ba070aefd5c524fdd11e43c"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries-type-prefix.log",
+      "bytes": 5358,
+      "sha256": "8ffd02ae3c723f50d62d186f06771f734342ca3ec663d8938c40a1beeae7924d"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries.cjs",
+      "bytes": 9254,
+      "sha256": "f96b3c345984b8782868c695f42adcf0f9188b7f0b95e648b1ffbc3ed4fbfd39"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries.json",
+      "bytes": 6805,
+      "sha256": "668bed237807031064cb8688ca00fa12aca1bab41a238039f2639dd74cb8f0f3"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/fake-sender-boundaries.log",
+      "bytes": 2050,
+      "sha256": "1add7a4b32ba35837ab10568c8c8897fb37e5a2efb5dbda10c01cbf77e223d07"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof-corrected.log",
+      "bytes": 1020,
+      "sha256": "3ec1f279b4f78c967b65bb556e9741f4c488ab8c7abda612ba2c7feb1de45f81"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof-final.log",
+      "bytes": 2509,
+      "sha256": "84ff63c91a73794239959b19d39034aecced2b36f610aa6c1a2de86631af15f0"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof-first.cjs",
+      "bytes": 7313,
+      "sha256": "4d3f6dddc3224bb812a2508b68124993121eafb9484092a8616f38a29aa3af35"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof-first.log",
+      "bytes": 8672,
+      "sha256": "82b910f0314f9722d678a0adab3ff58fe599b86eee2bb755daa4fbe71dfbecfd"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof-schema-corrected.cjs",
+      "bytes": 7679,
+      "sha256": "2f2e9df00bcb11ff8b2b110334128163608ee2f8d6c9e06a67ce8b8603de120c"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof-schema-corrected.log",
+      "bytes": 1020,
+      "sha256": "3ec1f279b4f78c967b65bb556e9741f4c488ab8c7abda612ba2c7feb1de45f81"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof.cjs",
+      "bytes": 7762,
+      "sha256": "47d653bf163cedc73b0a76767a3260c7116d62d9c852ebbc0cac64eac9a2610c"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof.json",
+      "bytes": 2509,
+      "sha256": "84ff63c91a73794239959b19d39034aecced2b36f610aa6c1a2de86631af15f0"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/frozen-source-proof.log",
+      "bytes": 8672,
+      "sha256": "82b910f0314f9722d678a0adab3ff58fe599b86eee2bb755daa4fbe71dfbecfd"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/incidental-read-discovery.json",
+      "bytes": 342,
+      "sha256": "f2c60109432ee342402ecaff12e7e1de5fc7c7e0b980d8551d78f69e9657c183"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/prefrozen-rebound.json",
+      "bytes": 23667,
+      "sha256": "9e21ebcecd317c3207eaad5f50396dc6f123d933bde0e2c7c161cf68fb841897"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/prefrozen-rebound.log",
+      "bytes": 152,
+      "sha256": "15b3bcc5f221f6450ed8b3de08dda92531a548d502a8296a26097ef8d5beb576"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/public-prefix-refusals.json",
+      "bytes": 1356,
+      "sha256": "8be745c01de5dc5caa7fcd828c3434c6128a7acf8b59aa97ae58f8876a95497b"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/rebind-prefrozen.cjs",
+      "bytes": 2333,
+      "sha256": "aa2ca7471471a17c7375befa85f83ca09e6471a969f6c1ceccc0155de5a3935c"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/schema-before-golden.json",
+      "bytes": 16225,
+      "sha256": "9c95b4d4c3e7ef603f581b13302355fee4c4fe47a3a3bfd418fd2b01618dff3b"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/schema-before-golden.log",
+      "bytes": 258,
+      "sha256": "39a9471abf3082b8245a235158fe3a30d6078f6470239f49fb1a0325cf09e59d"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/evidence/staged-full-diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/REVIEW-PLAN.md",
+      "bytes": 5157,
+      "sha256": "fa1410da8468a2d3c5a4d49fba5f3e8a88bc21263dbd187a9c13d2b50cb16568"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-independent-review-20261012/REVIEW.md",
+      "bytes": 6487,
+      "sha256": "d533a7fe8ca91ec0b4987b43c70d1f61c0d9759f79b8af3c30af8b1b6179044c"
+    }
+  ]
+}

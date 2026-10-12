@@ -1,0 +1,125 @@
+{
+  "source": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "Q": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+  "models": [
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "name": "NewsletterRecipientAccess",
+      "originalBlock": "model NewsletterRecipientAccess {\n  id             String   @id @default(uuid()) @db.Uuid\n  tenantId       String   @map(\"tenant_id\") @db.Uuid\n  userId         String   @map(\"user_id\") @db.Uuid\n  stageId        String   @map(\"stage_id\") @db.Uuid\n  outreachRecordId String @map(\"outreach_record_id\") @db.Uuid\n  draftVersionId String?  @map(\"draft_version_id\") @db.Uuid\n  token          String   @unique @db.VarChar(64)\n  email          String   @db.VarChar(320)\n  html           String   @db.Text\n  surveyAnswers  Json     @default(\"{}\") @map(\"survey_answers\")\n  createdAt      DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n  @@index([tenantId, userId, outreachRecordId])\n  @@map(\"newsletter_recipient_access\")\n}",
+      "sha256": "673e0f1171d348663416c42bd51b39c0ef4de4d20c5f3de95e00cb40b913e70a",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "name": "NewsletterReviewEmailDelivery",
+      "originalBlock": "model NewsletterReviewEmailDelivery {\n  id String @id @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  commentId String @map(\"comment_id\") @db.Uuid\n  recipientId String @map(\"recipient_id\")\n  status String @db.VarChar(32)\n  messageId String? @map(\"message_id\")\n  errorCode String? @map(\"error_code\") @db.VarChar(64)\n  createdAt DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n  updatedAt DateTime @default(now()) @map(\"updated_at\") @db.Timestamptz(6)\n  @@index([tenantId, createdAt])\n  @@index([status, updatedAt])\n  @@map(\"newsletter_review_email_deliveries\")\n}",
+      "sha256": "0be83bf7d7463aa081685be7c19926c1c880541ff4b530a02df528acad36c422",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "name": "NewsletterSubscription",
+      "originalBlock": "model NewsletterSubscription {\n  id             String   @id @default(uuid()) @db.Uuid\n  tenantId       String   @map(\"tenant_id\") @db.Uuid\n  userId         String   @map(\"user_id\") @db.Uuid\n  email          String   @db.VarChar(320)\n  unsubscribedAt DateTime? @map(\"unsubscribed_at\") @db.Timestamptz(6)\n  @@unique([tenantId, userId, email])\n  @@map(\"newsletter_subscriptions\")\n}",
+      "sha256": "d928b28faf4b4d51859211977cbc34ab7edeaadc7d0f70112dd5bcda6771b8c5",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "name": "NewsletterAccountInvitation",
+      "originalBlock": "model NewsletterAccountInvitation {\n  id String @id @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  authorId String @map(\"author_id\")\n  email String @db.VarChar(320)\n  organizationId String @map(\"organization_id\")\n  accountRole String @map(\"account_role\")\n  status String @db.VarChar(32)\n  providerInvitationId String? @map(\"provider_invitation_id\")\n  providerRole String? @map(\"provider_role\")\n  attemptedAt DateTime? @map(\"attempted_at\") @db.Timestamptz(6)\n  attemptKind String? @map(\"attempt_kind\")\n  leaseId String? @map(\"lease_id\") @db.Uuid\n  errorCode String? @map(\"error_code\") @db.VarChar(64)\n  createdAt DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n  updatedAt DateTime @default(now()) @map(\"updated_at\") @db.Timestamptz(6)\n  @@index([tenantId, email, organizationId])\n  @@index([tenantId, documentId])\n  @@map(\"newsletter_account_invitations\")\n}",
+      "sha256": "aece354456c302a6d52a1cd3ce2a6c3277c34cc47aeaac98bbba48cb0e16881c",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "name": "NewsletterInvitationEmailDelivery",
+      "originalBlock": "model NewsletterInvitationEmailDelivery {\n  id String @id @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  recipientId String @map(\"recipient_id\")\n  status String @db.VarChar(32)\n  messageId String? @map(\"message_id\")\n  errorCode String? @map(\"error_code\") @db.VarChar(64)\n  createdAt DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n  updatedAt DateTime @default(now()) @map(\"updated_at\") @db.Timestamptz(6)\n  @@index([tenantId, createdAt])\n  @@index([status, updatedAt])\n  @@map(\"newsletter_invitation_email_deliveries\")\n}",
+      "sha256": "610b74a39e6df7fb72936955ff8ebe8adf2ee922eac45b8345be5d004382b52e",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "name": "WsNewsletterDocument",
+      "originalBlock": "model WsNewsletterDocument {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  name String\n  revision Int @default(1)\n  status String @default(\"draft\")\n  config Json\n  design Json\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n  comments WsNewsletterComment[]\n  stages WsNewsletterStage[]\n  reviewers WsNewsletterReviewer[]\n  invitations WsNewsletterInvitation[]\n  @@unique([id, tenantId], map: \"ws_newsletter_document_tenant_key\")\n  @@index([tenantId, ownerId, updatedAt])\n  @@map(\"ws_newsletter_document\")\n}",
+      "sha256": "1e66e5f197194e16aadd30fbae694649a8e6b0b16b4533778e1644f812a84fdb",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "name": "WsNewsletterBrandKit",
+      "originalBlock": "model WsNewsletterBrandKit {\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  revision Int @default(1)\n  payload Json\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n  @@id([tenantId, ownerId])\n  @@map(\"ws_newsletter_brand_kit\")\n}",
+      "sha256": "97a69ebaa5561556c393eaa0e557f51f4dbe2f1915f3c5c5a5e853b811fd1203",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "name": "WsNewsletterReviewer",
+      "originalBlock": "model WsNewsletterReviewer {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  userId String @map(\"user_id\")\n  role String @default(\"commenter\")\n  notifications String @default(\"mentions\")\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  document WsNewsletterDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)\n  @@unique([documentId, userId])\n  @@index([tenantId, userId])\n  @@map(\"ws_newsletter_reviewer\")\n}",
+      "sha256": "724a64cd785606b5166aae922d514909103cbc729e448f143409ae6d75555571",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "name": "WsNewsletterLibraryItem",
+      "originalBlock": "model WsNewsletterLibraryItem {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  kind String\n  name String\n  folder String @default(\"\")\n  payload Json\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n  @@index([tenantId, ownerId, kind])\n  @@map(\"ws_newsletter_library_item\")\n}",
+      "sha256": "b82f11bb0c77e9a23e2f7715d245ffe2ebbf536fecb23b335bb9fe00ee8997d7",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "name": "WsNewsletterInvitation",
+      "originalBlock": "model WsNewsletterInvitation {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  authorId String @map(\"author_id\")\n  requestKey String @map(\"request_key\") @db.Uuid\n  email String @db.VarChar(320)\n  role String\n  message String\n  accountRole String @default(\"member\") @map(\"account_role\")\n  sourceClientIds String[] @default([]) @map(\"source_client_ids\") @db.Uuid\n  recipientId String? @map(\"recipient_id\")\n  activatedAt DateTime? @map(\"activated_at\")\n  cancelledAt DateTime? @map(\"cancelled_at\")\n  expiresAt DateTime @map(\"expires_at\")\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  document WsNewsletterDocument @relation(fields: [documentId, tenantId], references: [id, tenantId], onDelete: Cascade, map: \"ws_newsletter_invitation_document_scope_fkey\")\n  @@unique([tenantId, authorId, requestKey], map: \"ws_newsletter_invitation_request_key\")\n  @@index([tenantId, documentId, email])\n  @@index([activatedAt, createdAt])\n  @@map(\"ws_newsletter_invitation\")\n}",
+      "sha256": "89c378b9aa59dec3c1acddf3eaf3f507076bfdf422bf4ea1b5dcbee74220d906",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "name": "WsNewsletterComment",
+      "originalBlock": "model WsNewsletterComment {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  authorId String @map(\"author_id\")\n  blockId String? @map(\"block_id\")\n  parentId String? @map(\"parent_id\") @db.Uuid\n  message String\n  resolved Boolean @default(false)\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  document WsNewsletterDocument @relation(fields:[documentId], references:[id], onDelete:Cascade)\n  watchers WsNewsletterThreadWatcher[]\n  emailRequests WsNewsletterReviewEmailRequest[] @relation(\"NewsletterEmailComment\")\n  rootEmailRequests WsNewsletterReviewEmailRequest[] @relation(\"NewsletterEmailRoot\")\n  @@unique([id, tenantId, documentId], map: \"ws_newsletter_comment_scope_key\")\n  @@index([tenantId, documentId, createdAt])\n  @@map(\"ws_newsletter_comment\")\n}",
+      "sha256": "2d017dc26fd539638fcd724040ec7c78bec03a866635bfedd28f2c9e7296b9d3",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "name": "WsNewsletterThreadWatcher",
+      "originalBlock": "model WsNewsletterThreadWatcher {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  rootId String @map(\"root_id\") @db.Uuid\n  userId String @map(\"user_id\")\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  root WsNewsletterComment @relation(fields: [rootId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: \"ws_newsletter_thread_watcher_root_scope_fkey\")\n  @@unique([rootId, userId])\n  @@index([tenantId, documentId])\n  @@map(\"ws_newsletter_thread_watcher\")\n}",
+      "sha256": "404dbc73db0fdac8f8ce48f468499e5d4ad520fb8023e60e0fdd6dda539bc4a8",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "name": "WsNewsletterReviewEmailRequest",
+      "originalBlock": "model WsNewsletterReviewEmailRequest {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  rootId String @map(\"root_id\") @db.Uuid\n  commentId String @map(\"comment_id\") @db.Uuid\n  recipientId String @map(\"recipient_id\")\n  sourceClientIds String[] @default([]) @map(\"source_client_ids\") @db.Uuid\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  comment WsNewsletterComment @relation(\"NewsletterEmailComment\", fields: [commentId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: \"ws_newsletter_review_email_request_comment_scope_fkey\")\n  root WsNewsletterComment @relation(\"NewsletterEmailRoot\", fields: [rootId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: \"ws_newsletter_review_email_request_root_scope_fkey\")\n  @@unique([commentId, recipientId])\n  @@index([createdAt])\n  @@index([tenantId, documentId])\n  @@map(\"ws_newsletter_review_email_request\")\n}",
+      "sha256": "9c50d73359d4a5989bb9fff2d3f92d5b60321efd4941b88c6d01bb22cc7f184c",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "name": "WsNewsletterAsset",
+      "originalBlock": "model WsNewsletterAsset {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  name String\n  token String @unique\n  mimeType String @map(\"mime_type\")\n  file Bytes\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  deletedAt DateTime? @map(\"deleted_at\")\n  revisionRootId String? @map(\"revision_root_id\") @db.Uuid\n  revisionParentId String? @map(\"revision_parent_id\") @db.Uuid\n  revisionNumber Int @default(1) @map(\"revision_number\")\n  currentRevision Boolean @default(true) @map(\"current_revision\")\n  revisionRoot WsNewsletterAsset? @relation(\"NewsletterImageRoot\", fields: [revisionRootId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, onUpdate: NoAction, map: \"ws_newsletter_asset_revision_root_scope_fkey\")\n  revisions WsNewsletterAsset[] @relation(\"NewsletterImageRoot\")\n  revisionParent WsNewsletterAsset? @relation(\"NewsletterImageParent\", fields: [revisionParentId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, onUpdate: NoAction, map: \"ws_newsletter_asset_revision_parent_scope_fkey\")\n  derivedImages WsNewsletterAsset[] @relation(\"NewsletterImageParent\")\n  folderId String? @map(\"folder_id\") @db.Uuid\n  folder WsNewsletterAssetFolder? @relation(fields: [folderId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, map: \"ws_newsletter_asset_folder_scope_fkey\")\n  @@index([tenantId, ownerId])\n  @@index([tenantId, ownerId, folderId])\n  @@unique([id, tenantId, ownerId], map: \"ws_newsletter_asset_scope_key\")\n  @@unique([revisionRootId, revisionNumber], map: \"ws_newsletter_asset_revision_number_key\")\n  @@index([tenantId, ownerId, currentRevision, deletedAt])\n  @@map(\"ws_newsletter_asset\")\n}",
+      "sha256": "d60650aa8012f0909ab3896e95d71d831e5dfe60211cf8a12e226e7ec616e554",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "name": "WsNewsletterAssetFolder",
+      "originalBlock": "model WsNewsletterAssetFolder {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  name String\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  assets WsNewsletterAsset[]\n  @@unique([id, tenantId, ownerId], map: \"ws_newsletter_asset_folder_scope_key\")\n  @@index([tenantId, ownerId])\n  @@map(\"ws_newsletter_asset_folder\")\n}",
+      "sha256": "5ddcd5a6bf8b7b71af41e9a6edace455c83842eaf2b90d6db3195501b04fcb11",
+      "absentFromQ": true
+    },
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "name": "WsNewsletterStage",
+      "originalBlock": "model WsNewsletterStage {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  revision Int\n  name String\n  config Json\n  design Json\n  html String\n  plainText String @map(\"plain_text\")\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  document WsNewsletterDocument @relation(fields:[documentId], references:[id], onDelete:Restrict)\n  @@unique([documentId, revision, ownerId])\n  @@index([tenantId, ownerId, createdAt])\n  @@map(\"ws_newsletter_stage\")\n}",
+      "sha256": "b0795be8350dc676535ec4a42e67e256fbfc0ab37207a94c25441c5cb64c326c",
+      "absentFromQ": true
+    }
+  ],
+  "originalFormatFields": [
+    "  contentFormat     String   @default(\"outreach\") @map(\"content_format\") @db.VarChar(32)",
+    "  newsletterStageId String?  @map(\"newsletter_stage_id\") @db.Uuid"
+  ],
+  "migrationExecution": false,
+  "schemaOrGeneratorExecution": false,
+  "applicationAcceptance": false
+}

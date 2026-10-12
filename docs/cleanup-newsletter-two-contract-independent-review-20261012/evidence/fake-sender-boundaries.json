@@ -1,0 +1,289 @@
+{
+  "source": "a247f7a02a9b94d95e9ee5a516b396202aea994b",
+  "original": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+  "ordinaryBaseline": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+  "individualLateUseComparisons": 8,
+  "results": [
+    {
+      "label": "ordinary delivery unchanged",
+      "trace": [],
+      "downstreamProviderNotExecuted": true
+    },
+    {
+      "label": "dormant group unchanged",
+      "trace": [],
+      "downstreamProviderNotExecuted": true
+    },
+    {
+      "label": "real individual source and subscription",
+      "trace": [
+        [
+          "scope",
+          "tenant"
+        ],
+        [
+          "accessRead",
+          {
+            "where": {
+              "tenantId": "tenant",
+              "userId": "sender",
+              "draftVersionId": "version"
+            },
+            "select": {
+              "id": true,
+              "stageId": true
+            }
+          }
+        ],
+        [
+          "currentSourceAndMember",
+          {
+            "tenantId": "tenant",
+            "userId": "sender"
+          },
+          "stage"
+        ],
+        [
+          "scope",
+          "tenant"
+        ],
+        [
+          "subscriptionRead",
+          {
+            "where": {
+              "tenantId": "tenant",
+              "userId": "sender",
+              "unsubscribedAt": {
+                "not": null
+              },
+              "email": {
+                "in": [
+                  "to@example.test",
+                  "cc@example.test",
+                  "bcc@example.test"
+                ]
+              }
+            }
+          }
+        ]
+      ],
+      "downstreamProviderNotExecuted": true
+    },
+    {
+      "label": "individual test still checks source",
+      "trace": [
+        [
+          "scope",
+          "tenant"
+        ],
+        [
+          "accessRead",
+          {
+            "where": {
+              "tenantId": "tenant",
+              "userId": "sender",
+              "draftVersionId": "version"
+            },
+            "select": {
+              "id": true,
+              "stageId": true
+            }
+          }
+        ],
+        [
+          "currentSourceAndMember",
+          {
+            "tenantId": "tenant",
+            "userId": "sender"
+          },
+          "stage"
+        ]
+      ],
+      "downstreamProviderNotExecuted": true
+    },
+    {
+      "label": "recipient receipt absent",
+      "trace": [
+        [
+          "scope",
+          "tenant"
+        ],
+        [
+          "accessRead",
+          {
+            "where": {
+              "tenantId": "tenant",
+              "userId": "sender",
+              "draftVersionId": "version"
+            },
+            "select": {
+              "id": true,
+              "stageId": true
+            }
+          }
+        ],
+        [
+          "finish",
+          "delivery",
+          "failed",
+          {
+            "errorCode": "NEWSLETTER_ACCESS_MISSING",
+            "errorMessage": "The saved newsletter delivery could not be verified."
+          }
+        ]
+      ],
+      "downstreamProviderNotExecuted": true
+    },
+    {
+      "label": "source/member revoked",
+      "trace": [
+        [
+          "scope",
+          "tenant"
+        ],
+        [
+          "accessRead",
+          {
+            "where": {
+              "tenantId": "tenant",
+              "userId": "sender",
+              "draftVersionId": "version"
+            },
+            "select": {
+              "id": true,
+              "stageId": true
+            }
+          }
+        ],
+        [
+          "currentSourceAndMember",
+          {
+            "tenantId": "tenant",
+            "userId": "sender"
+          },
+          "stage"
+        ],
+        [
+          "finish",
+          "delivery",
+          "failed",
+          {
+            "errorCode": "NEWSLETTER_SOURCE_UNAVAILABLE",
+            "errorMessage": "Access to the staged newsletter source could not be verified."
+          }
+        ]
+      ],
+      "downstreamProviderNotExecuted": true
+    },
+    {
+      "label": "recipient to/cc/bcc unsubscribed",
+      "trace": [
+        [
+          "scope",
+          "tenant"
+        ],
+        [
+          "accessRead",
+          {
+            "where": {
+              "tenantId": "tenant",
+              "userId": "sender",
+              "draftVersionId": "version"
+            },
+            "select": {
+              "id": true,
+              "stageId": true
+            }
+          }
+        ],
+        [
+          "currentSourceAndMember",
+          {
+            "tenantId": "tenant",
+            "userId": "sender"
+          },
+          "stage"
+        ],
+        [
+          "scope",
+          "tenant"
+        ],
+        [
+          "subscriptionRead",
+          {
+            "where": {
+              "tenantId": "tenant",
+              "userId": "sender",
+              "unsubscribedAt": {
+                "not": null
+              },
+              "email": {
+                "in": [
+                  "to@example.test",
+                  "cc@example.test",
+                  "bcc@example.test"
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "finish",
+          "delivery",
+          "failed",
+          {
+            "errorCode": "NEWSLETTER_UNSUBSCRIBED",
+            "errorMessage": "A destination unsubscribed before delivery."
+          }
+        ]
+      ],
+      "downstreamProviderNotExecuted": true
+    },
+    {
+      "label": "test ignores subscription only",
+      "trace": [
+        [
+          "scope",
+          "tenant"
+        ],
+        [
+          "accessRead",
+          {
+            "where": {
+              "tenantId": "tenant",
+              "userId": "sender",
+              "draftVersionId": "version"
+            },
+            "select": {
+              "id": true,
+              "stageId": true
+            }
+          }
+        ],
+        [
+          "currentSourceAndMember",
+          {
+            "tenantId": "tenant",
+            "userId": "sender"
+          },
+          "stage"
+        ]
+      ],
+      "downstreamProviderNotExecuted": true
+    }
+  ],
+  "trustedClassifierRefusals": 6,
+  "validTupleAccepted": true,
+  "canonicalLateHookExactOriginalC": true,
+  "allRemainingDeliveryCodeBytesExactQ": true,
+  "otherExistingMembersBytesExactQExceptThreeDeclaredMethods": true,
+  "loadSendableVersionsExactOriginalC": true,
+  "createIntentBodyByteExactQAfterInverseKnownCRendering": true,
+  "loadVersionsByteExactQAfterInverseThreeFieldsTwoChecksAndTrustedPromptPredicate": true,
+  "runtimeOrSqlProviderCalls": 0,
+  "fullDeliveryOrWorkerExecuted": false,
+  "sourceMemberAuthorityPortSynthetic": true,
+  "scope": "Original individual newsletter pre-provider boundary only; downstream is a named inert return boundary",
+  "nativeAcceptance": false,
+  "finalAcceptance": false
+}
