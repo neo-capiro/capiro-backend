@@ -11,6 +11,7 @@
     { "method": "GET", "path": "/api/engagement/outreach-v3/sessions/:sessionId", "handler": "getSession" },
     { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/archive", "handler": "archiveSession" },
     { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/commands", "handler": "applyCommands" },
+    { "method": "POST", "path": "/api/engagement/outreach-v3/sessions/:sessionId/newsletter-staging", "handler": "stageNewsletter" },
     { "method": "GET", "path": "/api/engagement/outreach-v3/sessions/:sessionId/versions", "handler": "listVersions" },
     { "method": "GET", "path": "/api/engagement/outreach-v3/sessions/:sessionId/versions/:version", "handler": "getVersion" },
     { "method": "GET", "path": "/api/engagement/outreach-v3/sessions/:sessionId/events", "handler": "listEvents" },

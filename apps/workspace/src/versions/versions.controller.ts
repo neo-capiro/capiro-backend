@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { TenantGuard } from '../auth/tenant.guard.js';
 import { CurrentTenant } from '../auth/current-tenant.decorator.js';
 import type { WorkspaceTenantContext } from '../auth/tenant-context.js';
@@ -14,6 +14,15 @@ export class VersionsController {
   @Get()
   list(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
     return this.versions.list(ctx.tenantId, draftId, ctx.clerkUserId);
+  }
+
+  @Get(':versionId/outreach-revision')
+  outreachRevision(
+    @CurrentTenant() ctx: WorkspaceTenantContext,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Param('versionId', ParseUUIDPipe) versionId: string,
+  ) {
+    return this.versions.outreachRevision(ctx.tenantId, draftId, versionId, ctx.clerkUserId);
   }
 
   /** Snapshot the current draft (called on a manual "Save draft"). */

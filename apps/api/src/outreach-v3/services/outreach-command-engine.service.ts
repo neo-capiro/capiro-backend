@@ -1,3 +1,6 @@
+import { z } from 'zod';
+import { createHash } from 'node:crypto';
+import { workspaceSavedOutreachRevisionWithinTx, WorkspaceRevisionUnavailable, canonicalWorkspaceSnapshot } from '@capiro/shared';
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { TenantContext } from '@capiro/shared';
@@ -48,6 +51,8 @@ export interface ApplyWithinTxOptions {
   source?: OutreachEventSource;
   prelockedSession?: OutreachSessionRow;
   excludeProposalId?: string | null;
+  /** Bound provenance attached only by the saved-revision staging entrypoint. */
+  savedRevisionStaging?: Record<string, unknown>;
 }
 
 @Injectable()
@@ -59,6 +64,98 @@ export class OutreachCommandEngineService {
     private readonly targetReferences: OutreachTargetReferenceService,
     private readonly contextReferences: OutreachContextReferenceService,
   ) {}
+
+  /** User-selected saved revision -> existing literal skeleton command. No
+   * session creation, artifact creation, model call, upload or send occurs. */
+  async stageSavedNewsletter(ctx: TenantContext, sessionId: string, input: unknown) {
+    const selected = z.object({
+      requestId: z.string().uuid().transform((s) => s.toLowerCase()),
+      draftId: z.string().uuid().transform((s) => s.toLowerCase()),
+      versionId: z.string().uuid().transform((s) => s.toLowerCase()),
+      snapshotHash: z.string().regex(/^[0-9a-f]{64}$/),
+      expectedStateVersion: z.number().int().positive(),
+    }).strict().parse(input);
+    sessionId = z.string().uuid().parse(sessionId).toLowerCase();
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      const session = await this.repository.lockOwnedSession(tx, ctx, sessionId);
+      let revision;
+      try {
+        revision = await workspaceSavedOutreachRevisionWithinTx(tx, {
+          tenantId: ctx.tenantId, clerkUserId: ctx.clerkUserId, userId: ctx.userId,
+          draftId: selected.draftId, versionId: selected.versionId,
+        });
+      } catch (error) {
+        if (error instanceof WorkspaceRevisionUnavailable) throw unauthorizedReference('saved Workspace');
+        throw error;
+      }
+      const snapshotHash = createHash('sha256').update(revision.snapshotJson).digest('hex');
+      if (snapshotHash !== selected.snapshotHash) {
+        throw new OutreachCommandError('OUTREACH_STATE_CONFLICT', 'The selected saved revision hash does not match. Refresh the selection.', 409);
+      }
+      const current = await this.repository.loadStateVersion(tx, ctx, session.id, session.currentStateVersion);
+      const spec = this.parseAndVerifyState(current.specJsonb, current.specHash);
+      await this.authorizeSavedRevisionSponsor(tx, ctx, session.id, spec, revision.clientId);
+      const batch = this.parseNormalizeAndValidateBatch({
+        batchId: selected.requestId, expectedStateVersion: selected.expectedStateVersion,
+        commands: [{ type: 'SET_CONTENT_SKELETON', schemaVersion: 1, payload: { value: revision.contentSkeleton } }],
+      });
+      const requestHash = createHash('sha256').update(canonicalWorkspaceSnapshot({
+        tenantId: ctx.tenantId.toLowerCase(), actorUserId: ctx.userId.toLowerCase(),
+        sessionId, ...selected,
+      })).digest('hex');
+      const provenance = {
+        kind: 'workspace_saved_newsletter_v1', requestHash, requestId: selected.requestId,
+        draftId: revision.draftId, versionId: revision.versionId, snapshotHash,
+        hashFormat: 'workspace-snapshot-canonical-json-v1',
+        clientId: revision.clientId, savedAt: revision.savedAt,
+        authorId: revision.authorId, authorKind: revision.authorKind,
+        expectedStateVersion: selected.expectedStateVersion,
+        commandHash: hashNormalizedOutreachCommandBatch(batch),
+      };
+      const prior = await this.repository.findBatchResult(tx, ctx, session.id, batch.batchId);
+      if (prior) {
+        const staging = (prior.safeMetadataJsonb as { savedRevisionStaging?: unknown } | null)?.savedRevisionStaging;
+        // Generic command IDs and staging IDs share the existing durable unique
+        // namespace; an ordinary command can never be upgraded into a receipt.
+        if (!staging || canonicalWorkspaceSnapshot(staging) !== canonicalWorkspaceSnapshot(provenance)) {
+          throw new OutreachCommandError('OUTREACH_COMMAND_ID_REUSE', 'This request ID was already used for another command or saved revision.', 409);
+        }
+      }
+      const result = await this.applyBatchWithinTx(tx, ctx, session.id, batch, {
+        prelockedSession: session, savedRevisionStaging: provenance,
+      });
+      const receipt = prior ?? await this.repository.findBatchResult(tx, ctx, session.id, batch.batchId);
+      if (!receipt) throw new OutreachCommandError('OUTREACH_STATE_CORRUPT', 'The staging receipt was not recorded.', 500);
+      return { ...result, receiptId: receipt.id, staged: provenance };
+    }, { timeoutMs: OUTREACH_REFERENCE_TX_TIMEOUT_MS });
+  }
+
+  private async authorizeSavedRevisionSponsor(
+    tx: Prisma.TransactionClient, ctx: TenantContext, sessionId: string,
+    spec: OutreachCampaignSpecV1, clientId: string | null,
+  ) {
+    if (!clientId) {
+      if (spec.sponsor.kind !== 'firm' || spec.sponsor.clientRefs.length) {
+        throw unauthorizedReference('newsletter sponsor');
+      }
+      return;
+    }
+    if (spec.sponsor.kind !== 'client' || spec.sponsor.clientRefs.length !== 1 ||
+        spec.sponsor.clientRefs[0]!.clientId.toLowerCase() !== clientId) {
+      throw unauthorizedReference('newsletter sponsor');
+    }
+    const clients = await tx.$queryRaw<Array<{ memoryWall: boolean }>>`
+      SELECT memory_wall AS "memoryWall" FROM clients
+      WHERE tenant_id=${ctx.tenantId}::uuid AND id=${clientId}::uuid AND status::text<>'archived' FOR SHARE`;
+    if (!clients[0]) throw unauthorizedReference('newsletter client');
+    if (clients[0].memoryWall) {
+      const grants = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT id FROM client_memory_access WHERE tenant_id=${ctx.tenantId}::uuid
+        AND client_id=${clientId}::uuid AND user_id=${ctx.userId}::uuid FOR SHARE`;
+      if (!grants.length) throw unauthorizedReference('newsletter client');
+    }
+    await this.authorizeClientRefs(tx, ctx, sessionId, [clientId]);
+  }
 
   async applyBatch(ctx: TenantContext, sessionId: string, input: unknown) {
     const batch = this.parseNormalizeAndValidateBatch(input);
@@ -247,7 +344,7 @@ export class OutreachCommandEngineService {
       stateVersionAfter: nextVersion,
       commandBatchId: batch.batchId,
       payloadHash: batchHash,
-      safeMetadata: result as unknown as Record<string, unknown>,
+      safeMetadata: { ...result, ...(options.savedRevisionStaging ? { savedRevisionStaging: options.savedRevisionStaging } : {}) },
     });
 
     return result;

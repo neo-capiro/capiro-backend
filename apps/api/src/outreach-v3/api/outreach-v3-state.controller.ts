@@ -151,6 +151,15 @@ export class OutreachV3StateController {
     return this.sessions.archiveSession(ctx, sessionId);
   }
 
+  @Post('sessions/:sessionId/newsletter-staging')
+  stageNewsletter(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @Body() body: unknown,
+  ) {
+    return this.commands.stageSavedNewsletter(ctx, sessionId, body);
+  }
+
   @Post('sessions/:sessionId/commands')
   applyCommands(
     @CurrentTenant() ctx: TenantContext,

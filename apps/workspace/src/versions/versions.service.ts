@@ -1,3 +1,5 @@
+import { workspaceSavedOutreachRevisionWithinTx, WorkspaceRevisionUnavailable } from '@capiro/shared';
+import { createHash } from 'node:crypto';
 import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -51,6 +53,21 @@ export class VersionsService {
     }
     await assertProspectDraft(this.prisma, draft, actorId, predicate);
     return draft;
+  }
+
+  /** Selected saved revision only: never reads the live working copy as output. */
+  async outreachRevision(tenantId: string, draftId: string, versionId: string, clerkUserId: string) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+        const revision = await workspaceSavedOutreachRevisionWithinTx(tx, { tenantId, draftId, versionId, clerkUserId });
+        const { snapshotJson, ...selected } = revision;
+        return { ...selected, snapshotHash: createHash('sha256').update(snapshotJson).digest('hex'), hashFormat: 'workspace-snapshot-canonical-json-v1' };
+      });
+    } catch (error) {
+      if (error instanceof WorkspaceRevisionUnavailable) throw new NotFoundException('Saved revision unavailable for staging');
+      throw error;
+    }
   }
 
   async list(tenantId: string, draftId: string, actorId?: string) {
