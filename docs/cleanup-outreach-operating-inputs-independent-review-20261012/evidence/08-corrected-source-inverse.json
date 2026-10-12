@@ -1,0 +1,62 @@
+{
+  "sourceHead": "7a425df71ce2162bbfdfd430a10d285a179e2832",
+  "sourceTree": "b4d67aadd3e56da1a5d8c452a710c6a7c90cf2fb",
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "wholeVerifierInverseExact": true,
+  "existingSixCaseSpecByteExact": true,
+  "original13CurrentCapabilitiesAuthorityPredicatesFourOperatingDocsSmokeUsageAndScopesPreserved": true,
+  "embeddedOriginalPlans": [
+    {
+      "id": "outreach-v3-phase1-foundations",
+      "originalPath": "docs/plans/outreach-v3/revised-phase-1-shared-foundations.md",
+      "bytes": 2474,
+      "sha256": "89ca2d953e3d9b5861e9e286d9e3372e838ac851660681a750b4e5e145aaed55",
+      "originalBlob": "b8741c9b637d04423593547fcc6efa5accb99548"
+    },
+    {
+      "id": "outreach-v3-phase2-readiness",
+      "originalPath": "docs/plans/outreach-v3/revised-phase-2-readiness.md",
+      "bytes": 1215,
+      "sha256": "9c1ceeac9a5733306312b8124b15f10acf5a87b77ef0294a66389b9131e00716",
+      "originalBlob": "89c8d191ed5ffd1280b374c6c42d8ae1816e2a9c"
+    }
+  ],
+  "originalPlansRemainUnchangedActive": true,
+  "changedPaths": [
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/HANDOFF.md",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/SHA256-INDEX.json",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/BINDING-CHECKS.json",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/COMMANDS.json",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/CONTROL-ADAPTATION.json",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/SOURCE-MANIFEST-BEFORE-CONTROL-ADAPTATION.json",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/SOURCE-MANIFEST.json",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/adopt-bounded.py",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/adoption.stdout",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/binding-checks.stderr",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/binding-checks.stdout",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/candidate-six.stderr",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/candidate-six.stdout",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/current-controls.stderr",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/current-controls.stdout",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/no-external-ports.cjs",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/original-phase1.md.txt",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/original-phase2.md.txt",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/original-six.stderr",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/original-six.stdout",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/original-verifier.mjs.txt",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/original-verifier.spec.mjs.txt",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/published-controls.mjs.txt",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/published-inputs.md.txt",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/published-unadapted-controls.stderr",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/published-unadapted-controls.stdout",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/published-verifier.mjs.txt",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/source-whitespace.stderr",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/source-whitespace.stdout",
+    "docs/cleanup-outreach-operating-inputs-adoption-20261012/evidence/verify-bindings.py",
+    "docs/contracts/outreach-v3-verification-inputs-v1.md",
+    "scripts/ci/outreach-operating-inputs.spec.mjs",
+    "scripts/verify-outreach-v3-p1-architecture.mjs"
+  ],
+  "externalArchiveCustodyReferenceNotVerifiedHere": true,
+  "scope": "Only source/byte inverse and twooriginalbodyhashes; no operationalCLI/native/app/provider/DB run or deniedreportread"
+}

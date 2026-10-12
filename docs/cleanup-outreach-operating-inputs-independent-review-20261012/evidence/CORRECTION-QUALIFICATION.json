@@ -1,0 +1,29 @@
+{
+  "initialSource": "1ed986c092b4b0998c82007e895463255d6f4901",
+  "correctedSource": "7a425df71ce2162bbfdfd430a10d285a179e2832",
+  "same15InputNamesAndExpectations": true,
+  "documentBytesUnchanged": true,
+  "initialProbe": {
+    "pass": 9,
+    "fail": 6
+  },
+  "correctedProbe": {
+    "pass": 15,
+    "fail": 0
+  },
+  "publishedCiChangeAtInitialAdoptionOnlyCurrentBaselineDigest": true,
+  "rootDestinationBaselineDigest": "a2e6496f1936a06c4ee8ba6336092f368aa118ab3666f72847d6ca56ed3a8f42",
+  "originalPublishedBaselineDigestIndependentlyDerived": "2544f528cc1c5f37b3b7b6117b3c61c9f9d7a5e4ffd2a01768676460314c096b",
+  "canonicalControls": {
+    "originalCandidate": 112,
+    "corrected": 119,
+    "pass": 119,
+    "fail": 0,
+    "skip": 0
+  },
+  "repairScope": "Barebegin-token uniqueness and existing canonicalLF only; no new Markdown grammar/line-anchoring/general validation claim",
+  "allPhysicalRawEvidenceRetained": true,
+  "fullCommittedWhitespaceFloor": "OPEN; no encoding/trim/removal/exclusion or floor change",
+  "deniedNewReportReadCopiedOrPublished": false,
+  "reviewerMetadataFailure": "Initial qualification guessed wrong full old digest; trace retained and corrected by immutable original Git-byte derivation"
+}

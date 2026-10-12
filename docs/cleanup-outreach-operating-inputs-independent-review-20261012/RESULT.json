@@ -1,0 +1,65 @@
+{
+  "acceptedSource": "7a425df71ce2162bbfdfd430a10d285a179e2832",
+  "acceptedTree": "b4d67aadd3e56da1a5d8c452a710c6a7c90cf2fb",
+  "preservedInitialSource": "1ed986c092b4b0998c82007e895463255d6f4901",
+  "sourceComposition": {
+    "head": "bd8f1068bce1f5fa84431672290430857626f8cb",
+    "tree": "8c96bc9234f7674860ef3d8b7e008221c95f3ace",
+    "reviewerSourceEdits": 0,
+    "trueMergeOfFrozenSourceAndPriorAccepted13Paths": true
+  },
+  "base": "d587441261fd356ee5144a8fc29cb2f771d062b8",
+  "commands": [
+    {
+      "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node --test scripts/verify-outreach-v3-p1-architecture.spec.mjs",
+      "phase": "original and initialcandidate",
+      "testsEach": 6,
+      "passEach": 6,
+      "failEach": 0,
+      "exitCodeEach": 0
+    },
+    {
+      "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node --test scripts/ci/outreach-operating-inputs.spec.mjs",
+      "phase": "initialcandidate",
+      "tests": 112,
+      "pass": 112,
+      "fail": 0,
+      "skip": 0,
+      "exitCode": 0
+    },
+    {
+      "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node evidence/marker-negative-probe.cjs",
+      "phase": "independentinitial",
+      "inputs": 15,
+      "pass": 9,
+      "fail": 6,
+      "exitCode": 1
+    },
+    {
+      "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node evidence/marker-negative-probe.cjs 06-corrected-marker-negative-probe",
+      "phase": "sameindependentcorpuscorrected",
+      "inputs": 15,
+      "pass": 15,
+      "fail": 0,
+      "exitCode": 0
+    },
+    {
+      "command": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node --test scripts/ci/outreach-operating-inputs.spec.mjs",
+      "phase": "correctedcandidate",
+      "tests": 119,
+      "pass": 119,
+      "fail": 0,
+      "skip": 0,
+      "exitCode": 0
+    }
+  ],
+  "source3PathWhitespace": {
+    "exitCode": 0
+  },
+  "allRawPhysicalBytesRetained": true,
+  "globalCommittedWhitespaceFloor": "OPEN (prior rawphysicalEOF warnings and broaderfloor remain; no encoding/exclusion/removal)",
+  "operationalCliAppProviderDbNativeRun": false,
+  "deniedNewReportReadCopiedOrPublished": false,
+  "externalHistoricalFilesystemArchiveNotQualified": true,
+  "acceptance": "Bounded operatinginput source preservation/currentbaselineinverse/expectedbaretokenuniquenessandLFgrammar only; no new generalMarkdownparser/native/fullcompletionclaims"
+}
