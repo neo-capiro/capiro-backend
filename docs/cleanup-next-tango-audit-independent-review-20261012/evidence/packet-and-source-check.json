@@ -1,0 +1,12 @@
+{
+  "authorHead": "ed43dbb5bad37763688a9553680253f9b756fca1",
+  "authorTree": "a11b987ee629d316a7074cd0587716216137599f",
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "docOnlyPaths": 17,
+  "packetHashRowsVerified": 16,
+  "rawFrozenSourceRowsVerified": 28,
+  "allOriginalProductionModesAndBlobsUnchanged": true,
+  "authorReplayCopiesByteExact": true,
+  "scriptWritesRestrictedToReviewerNewPacket": true,
+  "nativeAcceptance": false
+}

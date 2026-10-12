@@ -1,0 +1,68 @@
+node:assert:152
+  throw new AssertionError(obj);
+  ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'constructor(\n' +
++   '    readonly status: number,\n' +
++   '    message: string,\n' +
++   '    /**\n' +
++   '     * Rate metadata from the FAILING response, when the provider sent any.\n' +
++   '     *\n' +
++   "     * Carried on the error rather than dropped because a 429's `Retry-After`\n" +
++   '     * is the only thing that says how long to wait — a caller that has to\n' +
++   '     * guess will either hammer the limit or idle far longer than needed.\n' +
++   "     * P17's live probe measured this account at 25 requests per ~31s, which a\n" +
++   '     * page-complete catalog walk reaches almost immediately.\n' +
++   '     */\n' +
++   '    readonly rate: TangoRateMetadata | null = null,\n' +
++   '  ) {\n' +
++   '    super(message);\n' +
++   "    this.name = 'TangoDibbsHttpError';\n" +
+- 'constructor(config: TangoDibbsClientConfig = {}) {\n' +
+-   '    this.apiKey = config.apiKey?.trim() || null;\n' +
+-   "    this.baseUrl = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\\/+$/, '');\n" +
+-   '    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;\n' +
+-   '    this.fetchImpl = config.fetchImpl ?? fetch;\n' +
+    '  }'
+
+    at Object.<anonymous> (/workspace/capirov2-next-tango-audit-independent-review/docs/cleanup-next-tango-audit-independent-review-20261012/evidence/verify-frozen-packet.cjs:64:10)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'constructor(\n' +
+    '    readonly status: number,\n' +
+    '    message: string,\n' +
+    '    /**\n' +
+    '     * Rate metadata from the FAILING response, when the provider sent any.\n' +
+    '     *\n' +
+    "     * Carried on the error rather than dropped because a 429's `Retry-After`\n" +
+    '     * is the only thing that says how long to wait — a caller that has to\n' +
+    '     * guess will either hammer the limit or idle far longer than needed.\n' +
+    "     * P17's live probe measured this account at 25 requests per ~31s, which a\n" +
+    '     * page-complete catalog walk reaches almost immediately.\n' +
+    '     */\n' +
+    '    readonly rate: TangoRateMetadata | null = null,\n' +
+    '  ) {\n' +
+    '    super(message);\n' +
+    "    this.name = 'TangoDibbsHttpError';\n" +
+    '  }',
+  expected: 'constructor(config: TangoDibbsClientConfig = {}) {\n' +
+    '    this.apiKey = config.apiKey?.trim() || null;\n' +
+    "    this.baseUrl = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\\/+$/, '');\n" +
+    '    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;\n' +
+    '    this.fetchImpl = config.fetchImpl ?? fetch;\n' +
+    '  }',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

@@ -1,0 +1,98 @@
+{
+  "files": [
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/RECEIPT.json",
+      "sha256": "47da0078c3d613fee8454477e240edd87487e75ea02b1ec0b13dfd6b7c7ac841"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/REVIEW.md",
+      "sha256": "2fc425203b9771993bc46ace9c5fd6f8b367daabb1d9361309603b6591d89b71"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/author-replay/envelope.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/author-replay/envelope.stdout.log",
+      "sha256": "09a8662a946756e3a3cf0094835267c341dc6bb12faf03ba16548db1f0d6c696"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/author-replay/leaf.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/author-replay/leaf.stdout.log",
+      "sha256": "f69ec48c8d59091311156ccb6322ecd71fa57f9bf0d5d0f1468dda7975178856"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/author-replay/original-envelope-profiles.json",
+      "sha256": "3c5406b921bee032b196b34c40f8e9c6223af97bb24c194c17f0271649146bb4"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/author-replay/original-envelope-profiles.mjs",
+      "sha256": "7ec45f128d1737b43c6d2b9c0521b15ca6196decaeb49000f7c6fc9cd3bbc73d"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/author-replay/original-leaf-differential.json",
+      "sha256": "ea73af4f72d141e486b622925e339e3773a2ee366937fe782b726f3b531c112a"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/author-replay/original-leaf-differential.mjs",
+      "sha256": "99d8f9098d7ae36c49d2a605506532ce50f15fa8fc15eee8dac05ee108f8a877"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/error-realm-challenge-with-full-profiles.json",
+      "sha256": "00ff4af64dbb275fcb3c10a262b710090112d7e998e768cdb63182f67c6e07dc"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/error-realm-challenge-with-full-profiles.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/error-realm-challenge.cjs",
+      "sha256": "e4b81d5aa24b02d5c5c48e49867a21f7e1fcaaf41230a6027d3153f7565a6e02"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/error-realm-challenge.json",
+      "sha256": "bd8d88a09b8722c5437a09c1ef7c5a1fefa1c346d7f19ba4cff3721401d01311"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/error-realm-challenge.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/independent-leaf-line-and-call-proof.json",
+      "sha256": "e97fac3726da94fb5aed0e3403aa6f8fda59dd034acbf2520239b5c1aebdda05"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/independent-verification-first.json",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/independent-verification-first.stderr.log",
+      "sha256": "7f509d35c27e926e1b67d4ddc01a440cdfe0fc9c3a50eee3b89adc82073e01fe"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/independent-verification.json",
+      "sha256": "c2c513c1a1b9cc0bac4c63f63625713c02c2822c776e92ce344fd20b1839a865"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/independent-verification.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/packet-and-source-check.json",
+      "sha256": "c8847b5bc4482ef5af11fe6843baac53c3e526664e2e52afc394ead87ef4a991"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/verify-frozen-packet-first.cjs",
+      "sha256": "f4825cae8a98e0792419a4ea7d49e97616f8703eb25915ff38c23b299fb1d483"
+    },
+    {
+      "path": "docs/cleanup-next-tango-audit-independent-review-20261012/evidence/verify-frozen-packet.cjs",
+      "sha256": "a4eb88f9541a0ed47c7b3c25cf069d71b472ee734565940224a45e05db322c9b"
+    }
+  ],
+  "manifestExcludesSelf": true,
+  "authorPacketUnmodified": true
+}
