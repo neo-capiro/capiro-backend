@@ -1,7 +1,8 @@
+import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
-import { canEdit } from '../collaborators/role-policy.js';
+import { canEdit, canRead } from '../collaborators/role-policy.js';
 
 // A holder is "inactive" (eligible for take-over) once their last heartbeat is
 // older than this window (Q-ED-2: take-over allowed only when holder inactive
@@ -96,9 +97,11 @@ export class EditLockService {
   }
 
   async status(tenantId: string, draftId: string, selfId: string): Promise<LockStatus> {
-    await this.assertDraft(tenantId, draftId);
-    const lock = await this.prisma.wsEditLock.findFirst({ where: { draftId, tenantId } });
-    return this.toStatus(lock, selfId);
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(this.prisma, draft, selfId, canRead, 'read', async (db) => {
+      const lock = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });
+      return this.toStatus(lock, selfId);
+    });
   }
 
   /**
@@ -113,60 +116,64 @@ export class EditLockService {
     selfId: string,
     selfName: string,
   ): Promise<LockStatus> {
-    await this.assertDraft(tenantId, draftId);
-    await this.assertCanHoldLock(tenantId, draftId, selfId);
-    const existing = await this.prisma.wsEditLock.findFirst({ where: { draftId, tenantId } });
-    const now = new Date();
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {
+      await this.assertCanHoldLock(tenantId, draftId, selfId);
+      const existing = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });
+      const now = new Date();
 
-    if (!existing) {
-      const created = await this.prisma.wsEditLock.create({
-        data: { draftId, tenantId, holderId: selfId, holderName: selfName },
-      });
-      return this.toStatus(created, selfId);
-    }
+      if (!existing) {
+        const created = await db.wsEditLock.create({
+          data: { draftId, tenantId, holderId: selfId, holderName: selfName },
+        });
+        return this.toStatus(created, selfId);
+      }
 
-    const inactive = now.getTime() - existing.lastHeartbeatAt.getTime() > LOCK_INACTIVITY_MS;
-    if (existing.holderId === selfId) {
-      // Already mine — heartbeat.
-      const updated = await this.prisma.wsEditLock.update({
-        where: { draftId },
-        data: { lastHeartbeatAt: now },
-      });
-      return this.toStatus(updated, selfId);
-    }
-    if (inactive) {
-      // Stale holder — claim it (clears any prior request).
-      const updated = await this.prisma.wsEditLock.update({
-        where: { draftId },
-        data: {
-          holderId: selfId,
-          holderName: selfName,
-          acquiredAt: now,
-          lastHeartbeatAt: now,
-          requestedById: null,
-          requestedByName: null,
-          requestedAt: null,
-        },
-      });
-      return this.toStatus(updated, selfId);
-    }
-    // Actively held by someone else — caller stays view-only.
-    return this.toStatus(existing, selfId);
+      const inactive = now.getTime() - existing.lastHeartbeatAt.getTime() > LOCK_INACTIVITY_MS;
+      if (existing.holderId === selfId) {
+        // Already mine — heartbeat.
+        const updated = await db.wsEditLock.update({
+          where: { draftId },
+          data: { lastHeartbeatAt: now },
+        });
+        return this.toStatus(updated, selfId);
+      }
+      if (inactive) {
+        // Stale holder — claim it (clears any prior request).
+        const updated = await db.wsEditLock.update({
+          where: { draftId },
+          data: {
+            holderId: selfId,
+            holderName: selfName,
+            acquiredAt: now,
+            lastHeartbeatAt: now,
+            requestedById: null,
+            requestedByName: null,
+            requestedAt: null,
+          },
+        });
+        return this.toStatus(updated, selfId);
+      }
+      // Actively held by someone else — caller stays view-only.
+      return this.toStatus(existing, selfId);
+    });
   }
 
   /** Heartbeat: only the active holder may extend the lock. */
   async heartbeat(tenantId: string, draftId: string, selfId: string): Promise<LockStatus> {
-    await this.assertDraft(tenantId, draftId);
-    const lock = await this.prisma.wsEditLock.findFirst({ where: { draftId, tenantId } });
-    if (!lock || lock.holderId !== selfId) {
-      // Not the holder — return current status (the client will flip to viewer).
-      return this.toStatus(lock, selfId);
-    }
-    const updated = await this.prisma.wsEditLock.update({
-      where: { draftId },
-      data: { lastHeartbeatAt: new Date() },
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {
+      const lock = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });
+      if (!lock || lock.holderId !== selfId) {
+        // Not the holder — return current status (the client will flip to viewer).
+        return this.toStatus(lock, selfId);
+      }
+      const updated = await db.wsEditLock.update({
+        where: { draftId },
+        data: { lastHeartbeatAt: new Date() },
+      });
+      return this.toStatus(updated, selfId);
     });
-    return this.toStatus(updated, selfId);
   }
 
   /**
@@ -176,29 +183,40 @@ export class EditLockService {
    * is deleted (lock becomes free).
    */
   async release(tenantId: string, draftId: string, selfId: string): Promise<LockStatus> {
-    await this.assertDraft(tenantId, draftId);
-    const lock = await this.prisma.wsEditLock.findFirst({ where: { draftId, tenantId } });
-    if (!lock || lock.holderId !== selfId) {
-      return this.toStatus(lock, selfId);
-    }
-    if (lock.requestedById && lock.requestedByName) {
-      // Transfer to the requester.
-      const transferred = await this.prisma.wsEditLock.update({
-        where: { draftId },
-        data: {
-          holderId: lock.requestedById,
-          holderName: lock.requestedByName,
-          acquiredAt: new Date(),
-          lastHeartbeatAt: new Date(),
-          requestedById: null,
-          requestedByName: null,
-          requestedAt: null,
-        },
-      });
-      return this.toStatus(transferred, selfId);
-    }
-    await this.prisma.wsEditLock.delete({ where: { draftId } });
-    return this.toStatus(null, selfId);
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(this.prisma, draft, selfId, canRead, 'read', async (db) => {
+      const lock = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });
+      if (!lock || lock.holderId !== selfId) {
+        return this.toStatus(lock, selfId);
+      }
+      let transferAllowed = true;
+      if (draft.prospectId && lock.requestedById) {
+        try {
+          await requireProspectDraftInTx(db, draft, lock.requestedById, canEdit, 'write');
+        } catch (error) {
+          if (!(error instanceof NotFoundException)) throw error;
+          transferAllowed = false;
+        }
+      }
+      if (transferAllowed && lock.requestedById && lock.requestedByName) {
+        // Transfer to the requester.
+        const transferred = await db.wsEditLock.update({
+          where: { draftId },
+          data: {
+            holderId: lock.requestedById,
+            holderName: lock.requestedByName,
+            acquiredAt: new Date(),
+            lastHeartbeatAt: new Date(),
+            requestedById: null,
+            requestedByName: null,
+            requestedAt: null,
+          },
+        });
+        return this.toStatus(transferred, selfId);
+      }
+      await db.wsEditLock.delete({ where: { draftId } });
+      return this.toStatus(null, selfId);
+    });
   }
 
   /**
@@ -212,15 +230,17 @@ export class EditLockService {
     selfId: string,
     selfName: string,
   ): Promise<LockStatus> {
-    await this.assertDraft(tenantId, draftId);
-    const lock = await this.prisma.wsEditLock.findFirst({ where: { draftId, tenantId } });
-    if (!lock) throw new NotFoundException('No active editor to request from');
-    if (lock.holderId === selfId) return this.toStatus(lock, selfId);
-    const updated = await this.prisma.wsEditLock.update({
-      where: { draftId },
-      data: { requestedById: selfId, requestedByName: selfName, requestedAt: new Date() },
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {
+      const lock = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });
+      if (!lock) throw new NotFoundException('No active editor to request from');
+      if (lock.holderId === selfId) return this.toStatus(lock, selfId);
+      const updated = await db.wsEditLock.update({
+        where: { draftId },
+        data: { requestedById: selfId, requestedByName: selfName, requestedAt: new Date() },
+      });
+      return this.toStatus(updated, selfId);
     });
-    return this.toStatus(updated, selfId);
   }
 
   /**
@@ -234,31 +254,37 @@ export class EditLockService {
     selfId: string,
     selfName: string,
   ): Promise<LockStatus> {
-    await this.assertDraft(tenantId, draftId);
-    await this.assertCanHoldLock(tenantId, draftId, selfId);
-    const lock = await this.prisma.wsEditLock.findFirst({ where: { draftId, tenantId } });
-    if (!lock) {
-      // Nothing to take over — acquire fresh.
-      return this.acquire(tenantId, draftId, selfId, selfName);
-    }
-    if (lock.holderId === selfId) return this.toStatus(lock, selfId);
-    const inactive = Date.now() - lock.lastHeartbeatAt.getTime() > LOCK_INACTIVITY_MS;
-    if (!inactive) {
-      throw new ForbiddenException('Editor is still active — cannot take over');
-    }
-    const updated = await this.prisma.wsEditLock.update({
-      where: { draftId },
-      data: {
-        holderId: selfId,
-        holderName: selfName,
-        acquiredAt: new Date(),
-        lastHeartbeatAt: new Date(),
-        requestedById: null,
-        requestedByName: null,
-        requestedAt: null,
-      },
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(this.prisma, draft, selfId, canEdit, 'write', async (db) => {
+      await this.assertCanHoldLock(tenantId, draftId, selfId);
+      const lock = await db.wsEditLock.findFirst({ where: { draftId, tenantId } });
+      if (!lock) {
+        // Nothing to take over — acquire fresh.
+        if (!draft.prospectId) return this.acquire(tenantId, draftId, selfId, selfName);
+        const created = await db.wsEditLock.create({
+          data: { draftId, tenantId, holderId: selfId, holderName: selfName },
+        });
+        return this.toStatus(created, selfId);
+      }
+      if (lock.holderId === selfId) return this.toStatus(lock, selfId);
+      const inactive = Date.now() - lock.lastHeartbeatAt.getTime() > LOCK_INACTIVITY_MS;
+      if (!inactive) {
+        throw new ForbiddenException('Editor is still active — cannot take over');
+      }
+      const updated = await db.wsEditLock.update({
+        where: { draftId },
+        data: {
+          holderId: selfId,
+          holderName: selfName,
+          acquiredAt: new Date(),
+          lastHeartbeatAt: new Date(),
+          requestedById: null,
+          requestedByName: null,
+          requestedAt: null,
+        },
+      });
+      return this.toStatus(updated, selfId);
     });
-    return this.toStatus(updated, selfId);
   }
 }
 

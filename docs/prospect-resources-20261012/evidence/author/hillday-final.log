@@ -1,0 +1,16 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-prospect-resources/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/workspace/src/hillday/hillday-library-access.spec.ts
+  Workspace library private drafts
+    ✓ checks source access concurrently so one held source does not block checking ordinary drafts (181 ms)
+    ✓ filters owner/active collaboration in SQL and revoked source access before returning metadata (7 ms)
+    ✓ lists Hill Day packets only, and pages over them alone, when kind=hillday (2 ms)
+    ✓ never aliases a canonical prospect draft into a client library by display name (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       4 passed, 4 total
+Snapshots:   0 total
+Time:        3.564 s
+Ran all test suites within paths "apps/workspace/src/hillday/hillday-library-access.spec.ts".
+Test results written to: ../../tmp/capiro-prospect-hillday-final.json

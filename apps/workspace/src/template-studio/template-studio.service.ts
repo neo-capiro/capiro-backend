@@ -81,9 +81,7 @@ export class TemplateStudioService {
    * `config.documentAgent.blueprintPin.blueprintId` matches the blueprint.
    * (GAPS §11 — the list route previously did not return this count.)
    */
-  async listBlueprints(
-    tenantId: string,
-  ): Promise<Array<WsBlueprint & { pinnedDocCount: number }>> {
+  async listBlueprints(tenantId: string): Promise<Array<WsBlueprint & { pinnedDocCount: number }>> {
     const blueprints = (await this.prisma.wsBlueprint.findMany({
       where: { OR: [{ tenantId: null }, { tenantId }] },
       orderBy: [{ product: 'asc' }, { name: 'asc' }],
@@ -99,16 +97,14 @@ export class TemplateStudioService {
     // draft count is bounded (this is a per-tenant list), so the in-memory
     // scan is efficient.
     const drafts = await this.prisma.wsDraft.findMany({
-      where: { tenantId },
+      where: { tenantId, prospectId: null },
       select: { config: true },
     });
     const pinCounts = new Map<string, number>();
     for (const draft of drafts) {
       const cfg = draft.config as Record<string, unknown> | null;
       if (!cfg) continue;
-      const agent = cfg.documentAgent as
-        | { blueprintPin?: { blueprintId?: string } }
-        | undefined;
+      const agent = cfg.documentAgent as { blueprintPin?: { blueprintId?: string } } | undefined;
       const bpId = agent?.blueprintPin?.blueprintId;
       if (bpId) {
         pinCounts.set(bpId, (pinCounts.get(bpId) ?? 0) + 1);

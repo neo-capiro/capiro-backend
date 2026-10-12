@@ -539,7 +539,7 @@ export class SourceResolverService {
     retrievedAt: string,
   ): Promise<ResolvedSource> {
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: priorDraftId, tenantId },
+      where: { prospectId: null, id: priorDraftId, tenantId },
       select: { id: true, docTitle: true, config: true, ownerId: true },
     });
     if (!draft) {
@@ -626,7 +626,7 @@ export class SourceResolverService {
     retrievedAt: string,
   ): Promise<ResolvedSource> {
     const item = await this.prisma.wsContextItem.findFirst({
-      where: { id: itemId, tenantId, draftId },
+      where: { id: itemId, tenantId, draftId, draft: { prospectId: null } },
       select: { id: true, kind: true, payload: true },
     });
     if (!item) {

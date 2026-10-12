@@ -1,3 +1,4 @@
+import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
@@ -35,11 +36,13 @@ export class DocumentsService {
     );
   }
 
-  async list(tenantId: string, draftId: string) {
-    await this.assertDraft(tenantId, draftId);
-    return this.prisma.wsDocument.findMany({
-      where: { tenantId, draftId },
-      orderBy: { ordinal: 'asc' },
+  async list(tenantId: string, draftId: string, actorId?: string) {
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(this.prisma, draft, actorId, canRead, 'read', async (db) => {
+      return db.wsDocument.findMany({
+        where: { tenantId, draftId },
+        orderBy: { ordinal: 'asc' },
+      });
     });
   }
 
@@ -49,7 +52,8 @@ export class DocumentsService {
    * the subsequent `readForMeriImport` body fetch.
    */
   async listForMeriImport(tenantId: string, draftId: string, actorId: string) {
-    await this.assertDraft(tenantId, draftId);
+    const draft = await this.assertDraft(tenantId, draftId);
+    denyProspectTransfer(draft);
     await this.collaborators.assertCan(
       tenantId,
       draftId,
@@ -71,6 +75,7 @@ export class DocumentsService {
    */
   async readForMeriImport(tenantId: string, draftId: string, docId: string, actorId: string) {
     const draft = await this.assertDraft(tenantId, draftId);
+    denyProspectTransfer(draft);
     await this.collaborators.assertCan(
       tenantId,
       draftId,
@@ -87,20 +92,22 @@ export class DocumentsService {
   }
 
   async add(tenantId: string, draftId: string, actorId: string, dto: CreateDocumentDto) {
-    await this.assertDraft(tenantId, draftId);
-    await this.assertCanEdit(tenantId, draftId, actorId);
-    const count = await this.prisma.wsDocument.count({ where: { tenantId, draftId } });
-    const doc = await this.prisma.wsDocument.create({
-      data: {
-        tenantId,
-        draftId,
-        name: dto.name,
-        ordinal: dto.ordinal ?? count,
-        body: (dto.body ?? { blocks: [] }) as never,
-      },
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(this.prisma, draft, actorId, canEdit, 'write', async (db) => {
+      await this.assertCanEdit(tenantId, draftId, actorId);
+      const count = await db.wsDocument.count({ where: { tenantId, draftId } });
+      const doc = await db.wsDocument.create({
+        data: {
+          tenantId,
+          draftId,
+          name: dto.name,
+          ordinal: dto.ordinal ?? count,
+          body: (dto.body ?? { blocks: [] }) as never,
+        },
+      });
+      await this.syncPacket(tenantId, draftId, db);
+      return doc;
     });
-    await this.syncPacket(tenantId, draftId);
-    return doc;
   }
 
   async update(
@@ -110,19 +117,21 @@ export class DocumentsService {
     actorId: string,
     dto: UpdateDocumentDto,
   ) {
-    await this.assertDraft(tenantId, draftId);
-    await this.assertCanEdit(tenantId, draftId, actorId);
-    const existing = await this.prisma.wsDocument.findFirst({
-      where: { id: docId, tenantId, draftId },
-    });
-    if (!existing) throw new NotFoundException('Document not found');
-    return this.prisma.wsDocument.update({
-      where: { id: docId },
-      data: {
-        ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.ordinal !== undefined ? { ordinal: dto.ordinal } : {}),
-        ...(dto.body !== undefined ? { body: dto.body as never } : {}),
-      },
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(this.prisma, draft, actorId, canEdit, 'write', async (db) => {
+      await this.assertCanEdit(tenantId, draftId, actorId);
+      const existing = await db.wsDocument.findFirst({
+        where: { id: docId, tenantId, draftId },
+      });
+      if (!existing) throw new NotFoundException('Document not found');
+      return db.wsDocument.update({
+        where: { id: docId },
+        data: {
+          ...(dto.name !== undefined ? { name: dto.name } : {}),
+          ...(dto.ordinal !== undefined ? { ordinal: dto.ordinal } : {}),
+          ...(dto.body !== undefined ? { body: dto.body as never } : {}),
+        },
+      });
     });
   }
 
@@ -132,23 +141,29 @@ export class DocumentsService {
     docId: string,
     actorId: string,
   ): Promise<{ deleted: boolean }> {
-    await this.assertDraft(tenantId, draftId);
-    await this.assertCanEdit(tenantId, draftId, actorId);
-    const existing = await this.prisma.wsDocument.findFirst({
-      where: { id: docId, tenantId, draftId },
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(this.prisma, draft, actorId, canEdit, 'write', async (db) => {
+      await this.assertCanEdit(tenantId, draftId, actorId);
+      const existing = await db.wsDocument.findFirst({
+        where: { id: docId, tenantId, draftId },
+      });
+      if (!existing) throw new NotFoundException('Document not found');
+      await db.wsDocument.delete({ where: { id: docId } });
+      await this.syncPacket(tenantId, draftId, db);
+      return { deleted: true };
     });
-    if (!existing) throw new NotFoundException('Document not found');
-    await this.prisma.wsDocument.delete({ where: { id: docId } });
-    await this.syncPacket(tenantId, draftId);
-    return { deleted: true };
   }
 
   /** Recompute the parent draft's isPacket/docCount after a tab change. */
-  private async syncPacket(tenantId: string, draftId: string): Promise<void> {
-    const count = await this.prisma.wsDocument.count({ where: { tenantId, draftId } });
-    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+  private async syncPacket(
+    tenantId: string,
+    draftId: string,
+    db: import('../../generated/prisma-client/index.js').Prisma.TransactionClient = this.prisma,
+  ): Promise<void> {
+    const count = await db.wsDocument.count({ where: { tenantId, draftId } });
+    const draft = await db.wsDraft.findFirst({ where: { id: draftId, tenantId } });
     const cover = Boolean((draft?.config as Record<string, unknown> | undefined)?.coverLetter);
-    await this.prisma.wsDraft.update({
+    await db.wsDraft.update({
       where: { id: draftId },
       data: { docCount: count, isPacket: cover || count > 1 },
     });

@@ -1,0 +1,4 @@
+
+> @capiro/shared@0.0.0 build /workspace/capirov2-prospect-resources/packages/shared
+> tsc -p tsconfig.json
+

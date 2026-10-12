@@ -1,0 +1,1 @@
+const c=require('/workspace/capirov2-prospect-resources/apps/workspace/jest.config.cjs');c.rootDir='/workspace/capirov2-prospect-resources/apps/workspace';for(const t of Object.values(c.transform))if(Array.isArray(t))t[1].isolatedModules=true;module.exports=c;

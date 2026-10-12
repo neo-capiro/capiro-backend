@@ -15,6 +15,6 @@ export class ChecksController {
 
   @Get()
   evaluate(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
-    return this.checks.evaluate(ctx.tenantId, draftId);
+    return this.checks.evaluate(ctx.tenantId, draftId, ctx.clerkUserId);
   }
 }

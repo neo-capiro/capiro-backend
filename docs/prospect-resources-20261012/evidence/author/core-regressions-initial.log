@@ -1,0 +1,88 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-prospect-resources/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts (7.672 s)
+PASS apps/api/src/common/tenant-flags.spec.ts
+PASS apps/api/src/engagement/mailbox-selection.spec.ts
+FAIL apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts
+  ● outbound attachment viewer and current-version boundary › filters tenant, current version and ordinary viewers, and refuses an unresolved ID before bytes or provider
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    - Expected
+    + Received
+
+    @@ -17,9 +17,10 @@
+          "id": Object {
+            "in": Array [
+              "attachment-1",
+            ],
+          },
+    +     "prospectId": null,
+          "supersededByAttachmentId": null,
+          "tenantId": "tenant-1",
+        },
+      },
+
+    Number of calls: 1
+
+      143 |       response: expect.objectContaining({ error: 'ATTACHMENT_MISSING' }),
+      144 |     });
+    > 145 |     expect(h.tx.engagementAttachment.findMany).toHaveBeenCalledWith({
+          |                                                ^
+      146 |       where: {
+      147 |         tenantId: ctx.tenantId,
+      148 |         id: { in: input.attachmentIds },
+
+      at Object.<anonymous> (src/engagement/attachments/outbound-attachment-access.spec.ts:145:48)
+
+PASS apps/api/src/engagement/google/gmail-send.service.spec.ts
+FAIL apps/api/src/engagement/engagement-document-read.spec.ts
+  ● canonical document extraction access › requires matching client, current file version and current viewer access in the byte-read lookup
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    - Expected
+    + Received
+
+    @@ -14,9 +14,10 @@
+              "uploadedByUserId": "user-1",
+            },
+          ],
+          "clientId": "client-1",
+          "id": "doc-1",
+    +     "prospectId": null,
+          "supersededByAttachmentId": null,
+          "tenantId": "tenant-1",
+        },
+      },
+
+    Number of calls: 1
+
+      53 |       m.service.extractAttachmentText(ctx, 'doc-1', { clientId: 'client-1', section: 1 }),
+      54 |     ).rejects.toThrow('Attachment not found');
+    > 55 |     expect(m.findFirst).toHaveBeenCalledWith({
+         |                         ^
+      56 |       where: {
+      57 |         id: 'doc-1',
+      58 |         tenantId: ctx.tenantId,
+
+      at Object.<anonymous> (src/engagement/engagement-document-read.spec.ts:55:25)
+
+PASS apps/api/src/engagement/engagement-send-thread-key.spec.ts
+PASS apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts
+PASS apps/api/src/engagement/independent-sender-review.spec.ts
+PASS apps/api/src/engagement/mail-sender.service.spec.ts
+PASS apps/api/src/engagement/runtime/engagement-route-controller-coverage.spec.ts
+PASS apps/api/src/engagement/engagement-send-authorization.spec.ts
+PASS apps/api/src/engagement/hearing-record-document-access.spec.ts
+PASS apps/api/src/engagement/engagement-mail-threads.spec.ts
+PASS apps/api/src/engagement/mailbox-selection.controller.spec.ts
+PASS apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts
+PASS apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts
+
+Test Suites: 2 failed, 15 passed, 17 total
+Tests:       2 failed, 215 passed, 217 total
+Snapshots:   0 total
+Time:        14.898 s
+Ran all test suites within paths "apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts", "apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts", "apps/api/src/engagement/mailbox-selection.spec.ts", "apps/api/src/engagement/mailbox-selection.controller.spec.ts", "apps/api/src/engagement/engagement-send-authorization.spec.ts", "apps/api/src/engagement/engagement-send-thread-key.spec.ts", "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts", "apps/api/src/engagement/engagement-document-read.spec.ts", "apps/api/src/engagement/engagement-mail-threads.spec.ts", "apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts", "apps/api/src/engagement/hearing-record-document-access.spec.ts", "apps/api/src/engagement/mail-sender.service.spec.ts", "apps/api/src/engagement/google/gmail-send.service.spec.ts", "apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts", "apps/api/src/engagement/runtime/engagement-route-controller-coverage.spec.ts", "apps/api/src/engagement/independent-sender-review.spec.ts", "apps/api/src/common/tenant-flags.spec.ts".

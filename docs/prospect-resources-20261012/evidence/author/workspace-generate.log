@@ -1,0 +1,1 @@
+PASS: Prisma 5.22.0 official WASM DMMF + client generator, noEngine:true; no native engine or database used. Output: /workspace/capirov2-prospect-resources/apps/workspace/generated/prisma-client

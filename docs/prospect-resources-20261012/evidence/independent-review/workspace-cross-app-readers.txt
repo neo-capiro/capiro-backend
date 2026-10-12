@@ -1,0 +1,5 @@
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api-strategy/src/agents/watcher-checks.ts:146:   * artifact refs point at OTHER services' rows (ws_draft / outreach_records)
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api-strategy/src/agents/watcher.service.ts:865: * back-links into OTHER services (ws_draft / outreach_records) which we cannot
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api-strategy/src/strategy/dto/artifact.dto.ts:9: * (ws_draft.id / outreach_records.id) owned by another service, so it is
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api-strategy/src/strategy/version.service.ts:43: *  - the upstream artifacts themselves (ws_draft / outreach_records, owned by
+b1ac2649e134af560d41bee790cacbd61de01c9b:packages/meriv2-core/test/parity/parity.ts:97:  // and writes ws_draft.config); it runs only when the extra env is present.

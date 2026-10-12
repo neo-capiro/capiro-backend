@@ -227,7 +227,7 @@ export class QuickDraftService {
     );
 
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
+      where: { prospectId: null, id: draftId, tenantId },
       select: {
         id: true,
         docTitle: true,

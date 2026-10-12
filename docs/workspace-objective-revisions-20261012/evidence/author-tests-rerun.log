@@ -1,0 +1,40 @@
+FAIL src/versions/objective-destination.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module ../core/index.cjs mapped as:
+    $1.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^(.{1,2}\/.*).js$/": "$1"
+      },
+      "resolver": undefined
+    }
+
+    > 1 | import { IsIn, IsOptional, IsString } from 'class-validator';
+        | ^
+      2 |
+      3 | export class CreateVersionDto {
+      4 |   @IsOptional() @IsString() label?: string;
+
+      at createNoMappedModuleFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (../../../capirov2/node_modules/.pnpm/libphonenumber-js@1.13.13/node_modules/libphonenumber-js/max/index.cjs:4:12)
+      at Object.<anonymous> (../../../capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/src/decorator/string/IsPhoneNumber.ts:3:1)
+      at Object.<anonymous> (../../../capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/src/decorator/decorators.ts:89:1)
+      at Object.<anonymous> (../../../capirov2/node_modules/.pnpm/class-validator@0.15.1/node_modules/src/index.ts:13:1)
+      at Object.<anonymous> (src/versions/dto/version.dto.ts:1:1)
+      at Object.<anonymous> (src/versions/versions.controller.ts:6:1)
+      at Object.<anonymous> (src/versions/objective-destination.spec.ts:8:1)
+
+PASS src/prospect-resources/prospect-draft-access.spec.ts
+PASS src/prospect-resources/prospect-independent-review.spec.ts
+PASS src/documents/documents.service.spec.ts
+
+Test Suites: 1 failed, 3 passed, 4 total
+Tests:       39 passed, 39 total
+Snapshots:   0 total
+Time:        9.797 s, estimated 19 s
+Ran all test suites matching /src\/versions\/objective-destination.spec.ts|src\/documents\/documents.service.spec.ts|src\/prospect-resources\/prospect-independent-review.spec.ts|src\/prospect-resources\/prospect-draft-access.spec.ts/i.

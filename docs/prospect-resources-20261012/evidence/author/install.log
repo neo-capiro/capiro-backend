@@ -1,0 +1,43 @@
+Scope: all 19 workspace projects
+(node:16689) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +1980
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 1980, reused 325, downloaded 0, added 0
+Progress: resolved 1980, reused 834, downloaded 0, added 0
+Progress: resolved 1980, reused 1710, downloaded 0, added 0
+Progress: resolved 1980, reused 1972, downloaded 0, added 2
+Progress: resolved 1980, reused 1972, downloaded 0, added 75
+Progress: resolved 1980, reused 1972, downloaded 0, added 280
+Progress: resolved 1980, reused 1972, downloaded 0, added 366
+Progress: resolved 1980, reused 1972, downloaded 0, added 431
+Progress: resolved 1980, reused 1972, downloaded 0, added 465
+Progress: resolved 1980, reused 1972, downloaded 0, added 549
+Progress: resolved 1980, reused 1972, downloaded 0, added 568
+Progress: resolved 1980, reused 1972, downloaded 0, added 645
+Progress: resolved 1980, reused 1972, downloaded 0, added 683
+Progress: resolved 1980, reused 1972, downloaded 0, added 724
+Progress: resolved 1980, reused 1972, downloaded 0, added 804
+Progress: resolved 1980, reused 1972, downloaded 0, added 854
+Progress: resolved 1980, reused 1972, downloaded 0, added 1010
+Progress: resolved 1980, reused 1972, downloaded 0, added 1225
+Progress: resolved 1980, reused 1972, downloaded 0, added 1451
+Progress: resolved 1980, reused 1972, downloaded 0, added 1524
+Progress: resolved 1980, reused 1972, downloaded 0, added 1576
+Progress: resolved 1980, reused 1972, downloaded 0, added 1684
+Progress: resolved 1980, reused 1972, downloaded 0, added 1760
+Progress: resolved 1980, reused 1972, downloaded 0, added 1861
+Progress: resolved 1980, reused 1972, downloaded 0, added 1943
+Progress: resolved 1980, reused 1972, downloaded 0, added 1979
+Progress: resolved 1980, reused 1972, downloaded 0, added 1980
+Progress: resolved 1980, reused 1972, downloaded 0, added 1980, done
+
+devDependencies:
++ prettier 3.9.9
++ promptfoo 0.123.1
++ turbo 2.11.4
++ typescript 5.9.3
+
+Done in 29.7s

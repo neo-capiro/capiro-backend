@@ -1,0 +1,29 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-prospect-resources/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts
+  independent prospect Workspace lifecycle and alternate-path controls
+    ✓ recovers an exact creation receipt after dismissed when historical read remains authorized (9 ms)
+    ✓ recovers an exact creation receipt after archived when historical read remains authorized (3 ms)
+    ✓ still rejects new creation after dismissed (2 ms)
+    ✓ still rejects new creation after archived (2 ms)
+    ✓ does not silently accept changed input when a receipt exists (2 ms)
+    ✓ does not recreate a draft removed after an acknowledged or lost response (3 ms)
+    ✓ denies receipt replay after current membership revocation (3 ms)
+    ✓ denies receipt replay after current portal_role revocation (2 ms)
+    ✓ denies receipt replay after current wall revocation (2 ms)
+    ✓ denies receipt replay after current flag revocation (2 ms)
+    ✓ preserves draft ACL independently from the current Core scope (3 ms)
+    ✓ requires exact addressed pending invitation and current Core scope for acceptance (3 ms)
+    ✓ refuses identity-free external invitees (2 ms)
+    ✓ keeps only an addressed pending invitation visible without granting document read (3 ms)
+    ✓ hides deleted-draft notice text and counts on all notification read variants (3 ms)
+    ✓ rejects public-share idempotency replay before looking up or returning token metadata (2 ms)
+    ✓ refuses firm-memory promotion before making any external call (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       17 passed, 17 total
+Snapshots:   0 total
+Time:        1.366 s
+Ran all test suites within paths "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts".
+Test results written to: ../../tmp/capiro-prospect-workspace-fixture-repair.json

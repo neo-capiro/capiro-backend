@@ -1,0 +1,68 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/newsletter-staging/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts
+  independent saved newsletter adversarial review
+    ✓ respects existing SELECT/INSERT-only source receipt privileges (6 ms)
+    ✓ denies legiwatch_research receipt even after human edits (4 ms)
+    ✓ denies legiwatch_editorial receipt even after human edits (1 ms)
+    ✓ denies legiwatch_preparation receipt even after human edits (1 ms)
+    ✓ denies unknown_source receipt even after human edits (1 ms)
+    ✓ never treats unbound legacy client context as firm content (1 ms)
+    ✓ never treats unbound legacy clientAssociated context as firm content
+    ✓ never treats unbound legacy clientPersons context as firm content (1 ms)
+    ✓ never treats current legacy draft.client as firm content when config client is absent (1 ms)
+    ✓ checks source-owner client wall before returning a saved snapshot to the chooser (15 ms)
+    ✓ checks source-owner client lifecycle before returning a saved snapshot (1 ms)
+    ✕ supports exact same-client chooser and staging through current wall authority (17 ms)
+    ✓ permits a current unwalled client without inventing a grant requirement (4 ms)
+    ✓ denies changed or missing canonical client assignment on the current draft (1 ms)
+    ✓ rechecks current client wall and source collaboration before exact retry (4 ms)
+    ✓ never exposes a chooser revision under a spoofed optional actor UUID
+    ✓ refuses empty_documents without truncation, model generation or templating (1 ms)
+    ✓ refuses oversized_documents without truncation, model generation or templating (1 ms)
+    ✓ refuses body_slots without truncation, model generation or templating (2 ms)
+    ✓ refuses subject_slots without truncation, model generation or templating (1 ms)
+    ✓ refuses body_over_limit without truncation, model generation or templating (1 ms)
+    ✓ denies current suspended membership before receipt replay (5 ms)
+    ✓ denies current removed membership before receipt replay (4 ms)
+    ✓ requires the actual UUID and Clerk subject to identify the same current member (1 ms)
+    ✓ fails closed for unsupported current member role tenant_admin (1 ms)
+    ✓ fails closed for unsupported current member role client_user (1 ms)
+    ✓ fails closed for unsupported current member role guest (1 ms)
+    ✓ denies a foreign saved revision tenant and a saved revision from a different draft (1 ms)
+    ✓ refuses replay after source deletion and never resurrects a receipt source (4 ms)
+    ✓ refuses changed snapshot bytes even if plain text projection stays equal (4 ms)
+    ✓ requires exact request identity as well as exact skeleton and snapshot (4 ms)
+    ✓ rejects a generic command receipt occupying the same durable ID (2 ms)
+    ✓ rejects forged or modified provenance rather than replaying it (4 ms)
+    ✓ serializes one receipt for simultaneous identical synthetic retries (4 ms)
+    ✓ refuses a simultaneous stale competitor in the synthetic session lock (3 ms)
+    ✓ does not alter state or retain an event when final receipt readback fails (4 ms)
+    ✓ restages identical text with a fresh identity as no_change plus a new exact receipt (5 ms)
+    ✓ requires strict input and rejects caller-controlled source bytes, commands and recipient changes (12 ms)
+    ✓ leaves provider, upload and generation APIs outside the staging call graph (18 ms)
+    ✓ uses bounded actual role policy and parameter binds while locking mutable source authority (4 ms)
+
+  ● independent saved newsletter adversarial review › supports exact same-client chooser and staging through current wall authority
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      131 |     expect(h.authorization.authorizeClientWithinTx).toHaveBeenCalledWith(h.tx, expect.objectContaining({ actorUserId: ctx.userId }), clientId);
+      132 |     expect(h.sql.filter((q) => q.text.includes("set_config('app.current_user'")).every((q) => q.params[0] === ctx.userId)).toBe(true);
+    > 133 |     expect(h.sql.filter((q) => q.text.includes('FROM clients WHERE') || q.text.includes('FROM client_memory_access')).every((q) => q.text.includes('FOR SHARE'))).toBe(true);
+          |                                                                                                                                                                   ^
+      134 |     expect(h.sql.some((q) => q.text.includes('FROM clients c'))).toBe(true);
+      135 |   });
+      136 |   it('permits a current unwalled client without inventing a grant requirement', async () => {
+
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:133:163)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 39 passed, 40 total
+Snapshots:   0 total
+Time:        4.462 s
+Ran all test suites.

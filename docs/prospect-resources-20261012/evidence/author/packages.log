@@ -1,0 +1,13 @@
+Scope: 6 of 19 workspace projects
+packages/shared build$ tsc -p tsconfig.json
+packages/defense-contracts build$ tsc -p tsconfig.json
+packages/auth build$ tsc -p tsconfig.json
+packages/strategy-verifier build$ tsc -p tsconfig.json
+packages/defense-contracts build: Done
+packages/strategy-verifier build: Done
+packages/auth build: Done
+packages/shared build: Done
+packages/meriv2-core build$ tsc -p tsconfig.json
+packages/defense-domain build$ tsc -p tsconfig.json
+packages/defense-domain build: Done
+packages/meriv2-core build: Done

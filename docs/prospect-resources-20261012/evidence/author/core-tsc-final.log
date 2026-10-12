@@ -1,0 +1,4 @@
+src/engagement/attachments/prospect-attachment-access.spec.ts(153,7): error TS2345: Argument of type 'number | undefined' is not assignable to parameter of type 'number | bigint'.
+  Type 'undefined' is not assignable to type 'number | bigint'.
+src/engagement/engagement.service.ts(8813,77): error TS2554: Expected 3-4 arguments, but got 5.
+src/engagement/engagement.service.ts(8853,75): error TS2554: Expected 3-4 arguments, but got 5.

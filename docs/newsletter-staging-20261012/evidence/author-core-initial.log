@@ -1,0 +1,107 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/newsletter-staging/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL apps/api/src/outreach-v3/services/outreach-command-engine.service.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '@capiro/meriv2-core' from 'src/common/meri-evidence-accuracy-flags.ts'
+
+    Require stack:
+      src/common/meri-evidence-accuracy-flags.ts
+      src/capabilities/context/outreach-context-reference.service.ts
+      src/outreach-v3/services/outreach-command-engine.service.ts
+      src/outreach-v3/services/outreach-command-engine.service.spec.ts
+
+    > 1 | import {
+        | ^
+      2 |   EVIDENCE_ACCURACY_CAPABILITY,
+      3 |   resolveEvidenceAccuracyMode,
+      4 |   validateCapabilityRolloutConfig,
+
+      at Resolver._throwModNotFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.<anonymous> (src/common/meri-evidence-accuracy-flags.ts:1:1)
+      at Object.<anonymous> (src/capabilities/context/outreach-context-reference.service.ts:6:1)
+      at Object.<anonymous> (src/outreach-v3/services/outreach-command-engine.service.ts:15:1)
+      at Object.<anonymous> (src/outreach-v3/services/outreach-command-engine.service.spec.ts:25:1)
+
+FAIL apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts
+  ● Test suite failed to run
+
+    Cannot find module '@capiro/meriv2-core' from 'src/common/meri-evidence-accuracy-flags.ts'
+
+    Require stack:
+      src/common/meri-evidence-accuracy-flags.ts
+      src/capabilities/context/outreach-context-reference.service.ts
+      src/outreach-v3/services/outreach-command-engine.service.ts
+      src/outreach-v3/services/outreach-newsletter-staging.spec.ts
+
+    > 1 | import {
+        | ^
+      2 |   EVIDENCE_ACCURACY_CAPABILITY,
+      3 |   resolveEvidenceAccuracyMode,
+      4 |   validateCapabilityRolloutConfig,
+
+      at Resolver._throwModNotFoundError (../../../capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.<anonymous> (src/common/meri-evidence-accuracy-flags.ts:1:1)
+      at Object.<anonymous> (src/capabilities/context/outreach-context-reference.service.ts:6:1)
+      at Object.<anonymous> (src/outreach-v3/services/outreach-command-engine.service.ts:15:1)
+      at Object.<anonymous> (src/outreach-v3/services/outreach-newsletter-staging.spec.ts:4:1)
+
+FAIL apps/api/src/outreach-v3/outreach-v3-phase2-architecture.spec.ts
+  ● Outreach V3 Revised Phase 2 architecture › keeps the committed route manifest byte-for-contract with the controller
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 0
+    + Received  + 5
+
+    @@ -43,10 +43,15 @@
+          "handler": "applyCommands",
+          "method": "POST",
+          "path": "/api/engagement/outreach-v3/sessions/:sessionId/commands",
+        },
+        Object {
+    +     "handler": "stageNewsletter",
+    +     "method": "POST",
+    +     "path": "/api/engagement/outreach-v3/sessions/:sessionId/newsletter-staging",
+    +   },
+    +   Object {
+          "handler": "createProposal",
+          "method": "POST",
+          "path": "/api/engagement/outreach-v3/sessions/:sessionId/proposals",
+        },
+        Object {
+
+      214 |       `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`),
+      215 |     );
+    > 216 |     expect(controllerRouteManifest(controller)).toEqual(expected);
+          |                                                 ^
+      217 |     expect(manifest.runtime).toBe('engagement-api');
+      218 |     expect(manifest.featureFlag).toBe('OUTREACH_V3_STATE_ENABLED');
+      219 |     expect(manifest.disabledBehavior).toBe(404);
+
+      at Object.<anonymous> (src/outreach-v3/outreach-v3-phase2-architecture.spec.ts:216:49)
+
+PASS apps/api/src/outreach-v3/state/outreach-content-skeleton-state.spec.ts
+PASS apps/api/src/outreach-v3/state/outreach-command-contract.spec.ts
+FAIL apps/api/src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts
+  ● Test suite failed to run
+
+    ENOENT: no such file or directory, open '/workspace/web/src/vnext/pages/engagement/outreach-v3-skeleton-editing.ts'
+
+       98 |    * apps/web is a separate package the API's jest project cannot resolve.
+       99 |    */
+    > 100 |   const webEditingSource = readFileSync(
+          |                                        ^
+      101 |     join(
+      102 |       process.cwd(),
+      103 |       '..',
+
+      at src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts:100:40
+      at Object.<anonymous> (src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts:89:9)
+
+Test Suites: 4 failed, 2 passed, 6 total
+Tests:       1 failed, 27 passed, 28 total
+Snapshots:   0 total
+Time:        6.106 s
+Ran all test suites matching /apps\/api\/src\/outreach-v3\/services\/outreach-newsletter-staging.spec.ts|apps\/api\/src\/outreach-v3\/services\/outreach-command-engine.service.spec.ts|apps\/api\/src\/outreach-v3\/state\/outreach-command-contract.spec.ts|apps\/api\/src\/outreach-v3\/state\/outreach-content-skeleton-state.spec.ts|apps\/api\/src\/outreach-v3\/state\/outreach-content-skeleton-boundaries.spec.ts|apps\/api\/src\/outreach-v3\/outreach-v3-phase2-architecture.spec.ts/i.

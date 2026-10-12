@@ -1,0 +1,77 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL ../backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-independent-review.spec.ts
+  independent prospect attachment intent and alternate-consumer controls
+    ✓ recovers confirmed exact replay after expiry without S3 access or recreation (8 ms)
+    ✓ keeps deleted confirmed uploads consumed, without external calls (31 ms)
+    ✓ keeps delete_pending confirmed uploads consumed, without external calls (2 ms)
+    ✓ keeps delete_failed confirmed uploads consumed, without external calls (1 ms)
+    ✓ keeps superseded confirmed uploads consumed, without external calls (1 ms)
+    ✓ refuses changed fileName before external reads even on confirmed replay (1 ms)
+    ✕ refuses changed contentType before external reads even on confirmed replay (5 ms)
+    ✓ refuses changed checksumSha256 before external reads even on confirmed replay (1 ms)
+    ✓ refuses changed source before external reads even on confirmed replay (1 ms)
+    ✓ prevents legacy confirmation from laundering a reserved prospect upload key (1 ms)
+    ✓ refuses added legacy parents before any external reads (1 ms)
+    ✓ rechecks revoked membership before returning the original uploader receipt (1 ms)
+    ✓ retains origin after conversion and applies current client wall to receipt replay (1 ms)
+    ✓ refuses a foreign actor intent even when their tenant membership is otherwise valid
+    ✓ rejects an unconfirmed expired intent instead of recreating or reading bytes (1 ms)
+    ✓ excludes prospective bytes from both Outreach intent preparation and manifest recovery (21 ms)
+    ✓ blocks generic Outlook/Graph selected attachment loading before bytes (1 ms)
+    ✓ makes Outreach V3 selection unavailable instead of silently omitting the attachment (1 ms)
+    ✕ refuses evidence and generic Outreach context document readers (11 ms)
+
+  ● independent prospect attachment intent and alternate-consumer controls › refuses changed contentType before external reads even on confirmed replay
+
+    expect(received).rejects.toMatchObject(expected)
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+    -   "status": 409,
+    +   "status": 400,
+      }
+
+      79 |   it.each(['fileName', 'contentType', 'checksumSha256', 'source'])('refuses changed %s before external reads even on confirmed replay', async (field) => {
+      80 |     const h = fixture();
+    > 81 |     await expect(h.confirm({ [field]: 'changed' })).rejects.toMatchObject({ status: 409 });
+         |                                                             ^
+      82 |     expect(h.external).not.toHaveBeenCalled();
+      83 |   });
+      84 |   it('prevents legacy confirmation from laundering a reserved prospect upload key', async () => {
+
+      at Object.toMatchObject (../../../../../../capirov2-prospect-resources/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at src/engagement/attachments/prospect-independent-review.spec.ts:81:61
+
+  ● independent prospect attachment intent and alternate-consumer controls › refuses evidence and generic Outreach context document readers
+
+    expect(received).rejects.toMatchObject(expected)
+
+    - Expected  - 3
+    + Received  + 1
+
+    - Object {
+    -   "status": 404,
+    - }
+    + [CapabilityError: The requested context was not found in the authorized scope.]
+
+      143 |     expect(result.failures).toHaveLength(1);
+      144 |     const context: any = Object.create(OutreachContextReferenceService.prototype);
+    > 145 |     await expect(context.resolveDocument(h.tx, ctx, { source: 'document', id: attachmentId, clientId: client })).rejects.toMatchObject({ status: 404 });
+          |                                                                                                                          ^
+      146 |     expect(h.external).not.toHaveBeenCalled();
+      147 |   });
+      148 | });
+
+      at Object.toMatchObject (../../../../../../capirov2-prospect-resources/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (src/engagement/attachments/prospect-independent-review.spec.ts:145:122)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 17 passed, 19 total
+Snapshots:   0 total
+Time:        3.589 s
+Ran all test suites within paths "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-independent-review.spec.ts".
+Test results written to: ../backend-qualification-20261012/independent-review/prospect-resource-design/core-independent-initial.json

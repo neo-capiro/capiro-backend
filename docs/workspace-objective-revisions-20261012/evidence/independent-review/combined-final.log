@@ -1,0 +1,12 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/workspace-objective-revisions-review/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS docs/workspace-objective-revisions-20261012/evidence/independent-review/independent.spec.ts
+PASS apps/workspace/src/versions/objective-destination.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       133 passed, 133 total
+Snapshots:   0 total
+Time:        3.403 s
+Ran all test suites.
+Test results written to: docs/workspace-objective-revisions-20261012/evidence/independent-review/combined-final.json

@@ -1,0 +1,71 @@
+{
+  "auditedHead": "77e8323527d5ed533aa084cb8865f4b2d75f9958",
+  "auditedTree": "fd813d3ecf5937f1eebcc498af244f612bcdb61b",
+  "files": [
+    {
+      "path": "77e832352-final-40.log",
+      "sha256": "9e5e13f341a095b5436a1c8411a45a9859766b3fc8131da9659d1d079bafb4ba",
+      "bytes": 3958
+    },
+    {
+      "path": "77e832352-initial-30-pass.log",
+      "sha256": "0093721bc06d6113e51da7d5a1083b1eab33ec94f6b1b62ec0f19da43c0d7dd0",
+      "bytes": 3088
+    },
+    {
+      "path": "77e832352-self-contained-40.log",
+      "sha256": "174aae9f4e3151a17018b507251ffce4d94bd7c9cb64b1bd21bf644cf9dd7f28",
+      "bytes": 3992
+    },
+    {
+      "path": "77e832352-user-binding-40.log",
+      "sha256": "f60aeeca9287bdbd83f2497d1ad1d4178f43649fe9965bf09032c455b589dc32",
+      "bytes": 3973
+    },
+    {
+      "path": "REVIEW.md",
+      "sha256": "32d15d829da51484dbc4181ed5176266ecaa78021b30c3081b272d21e7d4a8ea",
+      "bytes": 7960
+    },
+    {
+      "path": "adversarial.spec.ts",
+      "sha256": "6e2e8d418066298f7b262648205bcaa45b8e2cfa30b504c43ad3199767be6fd0",
+      "bytes": 19183
+    },
+    {
+      "path": "fcea81c0f-regression.log",
+      "sha256": "9d4c336b605e86684fbfff9177a1e0d61428a4a623b5744724f0340857ce11ea",
+      "bytes": 19995
+    },
+    {
+      "path": "fixture-lock-selector-failure.log",
+      "sha256": "f057ac92a3f968a5979acc7dd60c4ceccadab46b5a1a4758e7d6438663aa215b",
+      "bytes": 5204
+    },
+    {
+      "path": "fixture-sponsor-failure.log",
+      "sha256": "2a2edd24a370b72ae5210d3dc600867c216bda4f7ba060551cbd1390bc724e06",
+      "bytes": 21775
+    },
+    {
+      "path": "fixture-target-field-failure.log",
+      "sha256": "5d443eac2c55bcdc3010f7194dda566eec18db5890c09880b0297bffdb4d190f",
+      "bytes": 20926
+    },
+    {
+      "path": "jest.config.cjs",
+      "sha256": "1c64c84ee5c069b9802e710c2fee869a42e6b709788ba7058c24b0995fd5d9e7",
+      "bytes": 931
+    },
+    {
+      "path": "reviewed-source.json",
+      "sha256": "d298c7e9af524436abcdf9354757b955ffe097298b9ea23be74742ffd16b725d",
+      "bytes": 2819
+    },
+    {
+      "path": "setup-resolution-failure.log",
+      "sha256": "d6d9a4b778a1ef446ada66c446bd77842b2f420fa7d8490a10b2147f5b5d1eba",
+      "bytes": 204
+    }
+  ]
+}

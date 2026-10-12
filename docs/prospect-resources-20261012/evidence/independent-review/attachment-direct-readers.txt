@@ -1,0 +1,75 @@
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/capabilities/context/outreach-context-reference.service.ts:405:    const row = await tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-activity.service.ts:121:        tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-files.controller.ts:54:      const rows = await tx.engagementAttachment.groupBy({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-files.controller.ts:82:      const existing = await tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-files.controller.ts:91:      return tx.engagementAttachment.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-files.controller.ts:108:      const row = await tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-files.controller.ts:150:      const existing = await tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-files.controller.ts:163:      return tx.engagementAttachment.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-files.controller.ts:199:      const result = await tx.engagementAttachment.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-profile-fill-workflow.service.ts:1084:          tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-profile-fill-workflow.service.ts:1325:      tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-profile-fill.service.ts:685:        tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/clients/client-profile-fill.service.ts:752:      tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/embeddings/client-kb.service.ts:109:    const rows = await tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/embeddings/client-kb.service.ts:292:      tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/embeddings/client-kb.service.ts:350:      await tx.engagementAttachment.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/embeddings/client-kb.service.ts:362:        await tx.engagementAttachment.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/embeddings/client-kb.service.ts:417:      await tx.engagementAttachment.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/embeddings/client-kb.service.ts:462:        FROM engagement_attachments WHERE tenant_id = $1::uuid AND id = $2::uuid FOR UPDATE`,
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/embeddings/client-kb.service.ts:626:      tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/__fixtures__/engagement-phase3-fixture-contract.v1.json:570:    "engagement_attachments",
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:1698:    const attachments = await tx.engagementAttachment.findMany({ where, select: { id: true } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:1699:    await tx.engagementAttachment.updateMany({ where, data: { ...data, indexedAt: null } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:1991:        const row = await tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:2041:      tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:2102:        return tx.engagementAttachment.update({ where: { id: ref.id }, data });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:2119:        return tx.engagementAttachment.update({ where: { id: ref.id }, data });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:2149:      tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:4527:        tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:6483:        tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:7596:      const replay = await tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:7620:      return tx.engagementAttachment.create({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:7687:      const rows = await tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:7780:      tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:7992:      const attachment = await tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:7997:      return tx.engagementAttachment.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8018:          ? await tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8029:        return tx.engagementAttachment.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8132:        tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8218:          ? tx.engagementAttachment.upsert({ where: { id: stableId }, create: data, update: {} })
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8219:          : tx.engagementAttachment.create({ data });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8231:            tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8291:      const row = await tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8320:        tx.engagementAttachment.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8335:              await tx.$executeRaw`UPDATE engagement_attachments SET lifecycle_status='delete_failed',
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8340:              await tx.engagementAttachment.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8378:        await tx.engagementAttachment.delete({ where: { id } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8382:        tx.engagementAttachment.delete({ where: { id } }),
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8468:      tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8476:      tx.engagementAttachment.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8488:            tx.engagementAttachment.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8523:      tx.engagementAttachment.delete({ where: { id, tenantId } }),
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8552:      tx.engagementAttachment.findFirst({ where: { id: oldId, tenantId: ctx.tenantId } }),
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8563:      tx.engagementAttachment.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8583:      tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8601:          tx.engagementAttachment.delete({ where: { id: row.id } }),
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:8701:      tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/engagement.service.ts:9440:        await tx.engagementAttachment.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/generation/evidence-source.service.ts:798:      tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/notetaker/notetaker.service.ts:400:      tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/outreach-send-intent.service.ts:1189:      tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/outreach-send-intent.service.ts:1283:      tx.engagementAttachment.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/synthetic-document-deletion.helpers.ts:68:    owner: 'engagement_attachment',
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/synthetic-document-deletion.helpers.ts:130:  >`SELECT xmin::text AS version FROM engagement_attachments WHERE tenant_id=${ctx.tenantId}::uuid AND id=${id}::uuid FOR UPDATE`;
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/synthetic-document-deletion.helpers.ts:140:  const row = await tx.engagementAttachment.findFirst({ where: { id, tenantId: ctx.tenantId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/engagement/synthetic-document-deletion.helpers.ts:183:    await tx.engagementAttachment.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/intelligence/alert-memo/hearing-recap.service.ts:137:      tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/intelligence/alert-memo/hearing-recap.service.ts:329:        >`SELECT d.attachment_id AS id FROM legiwatch_record_document d JOIN engagement_attachments a ON a.id=d.attachment_id
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/intelligence/alert-memo/hearing-recap.service.ts:522:        FROM engagement_attachments a
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/knowledge/mailbox/mailbox-knowledge.repository.ts:173:            FROM engagement_attachments AS attachment
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/meri/meri-document-read.helpers.ts:247:          sourceTable: 'engagement_attachment',
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/meri/meri-job-deliverables.service.ts:161:        tx.engagementAttachment.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/meri/meri-meeting-read.helpers.ts:408:        owner: source.sourceKind === 'note' ? 'meeting_notes' : 'engagement_attachment_storage',
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/meri/meri-research-meeting-proof.ts:184:    !['meeting_notes', 'engagement_attachment_storage'].includes(String(provenance.owner)) ||
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/api/src/outreach-v3/send/outreach-v3-send.service.ts:437:      tx.engagementAttachment.findMany({

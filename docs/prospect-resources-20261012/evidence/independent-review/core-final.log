@@ -1,0 +1,37 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts
+PASS apps/api/src/embeddings/client-kb-access.spec.ts
+PASS apps/api/src/engagement/attachments/prospect-independent-review.spec.ts
+PASS apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts
+PASS apps/api/src/engagement/outreach-send-intent.service.spec.ts
+PASS apps/api/src/engagement/mailbox-selection.controller.spec.ts
+PASS apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts
+PASS apps/api/src/engagement/mailbox-selection.spec.ts
+PASS apps/api/src/engagement/independent-sender-review.spec.ts
+PASS apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts
+PASS apps/api/src/engagement/engagement-document-read.spec.ts
+PASS apps/api/src/engagement/generation/evidence-source.service.spec.ts
+PASS apps/api/src/engagement/engagement-send-authorization.spec.ts
+PASS apps/api/src/engagement/engagement-send-thread-key.spec.ts
+PASS apps/api/src/engagement/engagement-mail-threads.spec.ts
+PASS apps/api/src/engagement/runtime/engagement-route-controller-coverage.spec.ts
+PASS apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts
+PASS apps/api/src/embeddings/client-kb-assignment-race.spec.ts
+PASS apps/api/src/engagement/mail-sender.service.spec.ts
+PASS apps/api/src/engagement/google/gmail-send.service.spec.ts
+PASS apps/api/src/embeddings/client-kb-await-source.spec.ts
+PASS apps/api/src/embeddings/client-kb-readability.spec.ts
+PASS apps/api/src/outreach-v3/send/outreach-v3-send.guard.spec.ts
+PASS apps/api/src/common/tenant-flags.spec.ts
+PASS apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts
+PASS apps/api/src/engagement/hearing-record-document-access.spec.ts
+PASS apps/api/src/memory/memory-wall.helpers.spec.ts
+
+Test Suites: 27 passed, 27 total
+Tests:       407 passed, 407 total
+Snapshots:   0 total
+Time:        20.145 s, estimated 23 s
+Ran all test suites within paths "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/common/tenant-flags.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/mailbox-selection.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/google/gmail-send.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/engagement-document-read.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/engagement-send-thread-key.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/independent-sender-review.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/mail-sender.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/runtime/engagement-route-controller-coverage.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/engagement-send-authorization.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/hearing-record-document-access.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/engagement-mail-threads.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/mailbox-selection.controller.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/attachments/prospect-independent-review.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/outreach-send-intent.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/outreach-v3/send/outreach-v3-send.guard.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/engagement/generation/evidence-source.service.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/embeddings/client-kb-access.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/embeddings/client-kb-readability.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/embeddings/client-kb-assignment-race.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/embeddings/client-kb-await-source.spec.ts", "/workspace/backend-qualification-20261012/independent-review/prospect-resource-design/source-056bae1/apps/api/src/memory/memory-wall.helpers.spec.ts".
+Test results written to: ../core-final.json

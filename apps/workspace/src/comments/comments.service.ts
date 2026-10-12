@@ -1,8 +1,9 @@
+import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { GenerationService } from '../generation/generation.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
-import { canComment, canReview } from '../collaborators/role-policy.js';
+import { canComment, canReview, canRead } from '../collaborators/role-policy.js';
 import type { CreateCommentDto, UpdateCommentDto } from './dto/comment.dto.js';
 
 /**
@@ -25,49 +26,68 @@ export class CommentsService {
   private async assertDocument(tenantId: string, documentId: string) {
     const doc = await this.prisma.wsDocument.findFirst({
       where: { id: documentId, tenantId },
+      include: { draft: { select: { id: true, tenantId: true, prospectId: true } } },
     });
     if (!doc) throw new NotFoundException('Document not found');
     return doc;
   }
 
-  async list(tenantId: string, documentId: string) {
-    await this.assertDocument(tenantId, documentId);
-    // Top-level comments with their replies threaded underneath.
-    return this.prisma.wsComment.findMany({
-      where: { tenantId, documentId, parentId: null },
-      orderBy: { createdAt: 'asc' },
-      include: { replies: { orderBy: { createdAt: 'asc' } } },
-    });
+  async list(tenantId: string, documentId: string, actorId?: string) {
+    const doc = await this.assertDocument(tenantId, documentId);
+    return withProspectDraft(
+      this.prisma,
+      doc.draft ?? { id: doc.draftId, tenantId },
+      actorId,
+      canRead,
+      'read',
+      async (db) => {
+        // Top-level comments with their replies threaded underneath.
+        return db.wsComment.findMany({
+          where: { tenantId, documentId, parentId: null },
+          orderBy: { createdAt: 'asc' },
+          include: { replies: { orderBy: { createdAt: 'asc' } } },
+        });
+      },
+    );
   }
 
   async create(tenantId: string, documentId: string, authorId: string, dto: CreateCommentDto) {
     const doc = await this.assertDocument(tenantId, documentId);
-    // Creating comments/replies is any role with access except viewer.
-    await this.collaborators.assertCan(
-      tenantId,
-      doc.draftId,
+    return withProspectDraft(
+      this.prisma,
+      doc.draft ?? { id: doc.draftId, tenantId },
       authorId,
       canComment,
-      'Viewers cannot comment on this document',
-    );
-    if (dto.parentId) {
-      const parent = await this.prisma.wsComment.findFirst({
-        where: { id: dto.parentId, tenantId, documentId },
-      });
-      if (!parent) throw new NotFoundException('Parent comment not found');
-    }
-    return this.prisma.wsComment.create({
-      data: {
-        tenantId,
-        documentId,
-        authorId,
-        role: dto.role ?? 'editor',
-        body: dto.body,
-        quote: dto.quote ?? null,
-        anchor: (dto.anchor ?? undefined) as never,
-        parentId: dto.parentId ?? null,
+      'write',
+      async (db) => {
+        // Creating comments/replies is any role with access except viewer.
+        await this.collaborators.assertCan(
+          tenantId,
+          doc.draftId,
+          authorId,
+          canComment,
+          'Viewers cannot comment on this document',
+        );
+        if (dto.parentId) {
+          const parent = await db.wsComment.findFirst({
+            where: { id: dto.parentId, tenantId, documentId },
+          });
+          if (!parent) throw new NotFoundException('Parent comment not found');
+        }
+        return db.wsComment.create({
+          data: {
+            tenantId,
+            documentId,
+            authorId,
+            role: dto.role ?? 'editor',
+            body: dto.body,
+            quote: dto.quote ?? null,
+            anchor: (dto.anchor ?? undefined) as never,
+            parentId: dto.parentId ?? null,
+          },
+        });
       },
-    });
+    );
   }
 
   async update(
@@ -78,27 +98,36 @@ export class CommentsService {
     dto: UpdateCommentDto,
   ) {
     const doc = await this.assertDocument(tenantId, documentId);
-    const existing = await this.prisma.wsComment.findFirst({
-      where: { id: commentId, tenantId, documentId },
-    });
-    if (!existing) throw new NotFoundException('Comment not found');
-    // Resolving a thread is a review action: owner + editor + reviewer only
-    // (commenter/viewer cannot resolve). Editing the body is gated the same way
-    // here (body edits ride alongside resolve on this endpoint).
-    await this.collaborators.assertCan(
-      tenantId,
-      doc.draftId,
+    return withProspectDraft(
+      this.prisma,
+      doc.draft ?? { id: doc.draftId, tenantId },
       actorId,
       canReview,
-      'Only owners, editors and reviewers can resolve comments',
-    );
-    return this.prisma.wsComment.update({
-      where: { id: commentId },
-      data: {
-        ...(dto.body !== undefined ? { body: dto.body } : {}),
-        ...(dto.resolved !== undefined ? { resolved: dto.resolved } : {}),
+      'write',
+      async (db) => {
+        const existing = await db.wsComment.findFirst({
+          where: { id: commentId, tenantId, documentId },
+        });
+        if (!existing) throw new NotFoundException('Comment not found');
+        // Resolving a thread is a review action: owner + editor + reviewer only
+        // (commenter/viewer cannot resolve). Editing the body is gated the same way
+        // here (body edits ride alongside resolve on this endpoint).
+        await this.collaborators.assertCan(
+          tenantId,
+          doc.draftId,
+          actorId,
+          canReview,
+          'Only owners, editors and reviewers can resolve comments',
+        );
+        return db.wsComment.update({
+          where: { id: commentId },
+          data: {
+            ...(dto.body !== undefined ? { body: dto.body } : {}),
+            ...(dto.resolved !== undefined ? { resolved: dto.resolved } : {}),
+          },
+        });
       },
-    });
+    );
   }
 
   /**
@@ -109,6 +138,7 @@ export class CommentsService {
    */
   async suggestEdit(tenantId: string, documentId: string, commentId: string, actorId: string) {
     const doc = await this.assertDocument(tenantId, documentId);
+    denyProspectTransfer(doc.draft);
     // Drafting/approving a Meri suggestion is a review action.
     await this.collaborators.assertCan(
       tenantId,
@@ -154,31 +184,40 @@ export class CommentsService {
     actorId: string,
   ): Promise<{ deleted: boolean }> {
     const doc = await this.assertDocument(tenantId, documentId);
-    const existing = await this.prisma.wsComment.findFirst({
-      where: { id: commentId, tenantId, documentId },
-    });
-    if (!existing) throw new NotFoundException('Comment not found');
-    // Deleting is a review action (same bar as resolving), except an author may
-    // always remove their own comment. Previously this endpoint had no role
-    // check at all — any tenant member could delete any comment on any draft.
-    if (existing.authorId !== actorId) {
-      await this.collaborators.assertCan(
-        tenantId,
-        doc.draftId,
-        actorId,
-        canReview,
-        'Only owners, editors and reviewers can delete another person’s comment',
-      );
-    } else {
-      await this.collaborators.assertCan(
-        tenantId,
-        doc.draftId,
-        actorId,
-        canComment,
-        'You do not have permission to access this document',
-      );
-    }
-    await this.prisma.wsComment.delete({ where: { id: commentId } });
-    return { deleted: true };
+    return withProspectDraft(
+      this.prisma,
+      doc.draft ?? { id: doc.draftId, tenantId },
+      actorId,
+      canRead,
+      'write',
+      async (db) => {
+        const existing = await db.wsComment.findFirst({
+          where: { id: commentId, tenantId, documentId },
+        });
+        if (!existing) throw new NotFoundException('Comment not found');
+        // Deleting is a review action (same bar as resolving), except an author may
+        // always remove their own comment. Previously this endpoint had no role
+        // check at all — any tenant member could delete any comment on any draft.
+        if (existing.authorId !== actorId) {
+          await this.collaborators.assertCan(
+            tenantId,
+            doc.draftId,
+            actorId,
+            canReview,
+            'Only owners, editors and reviewers can delete another person’s comment',
+          );
+        } else {
+          await this.collaborators.assertCan(
+            tenantId,
+            doc.draftId,
+            actorId,
+            canComment,
+            'You do not have permission to access this document',
+          );
+        }
+        await db.wsComment.delete({ where: { id: commentId } });
+        return { deleted: true };
+      },
+    );
   }
 }

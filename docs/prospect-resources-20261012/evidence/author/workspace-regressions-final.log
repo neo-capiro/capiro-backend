@@ -1,0 +1,48 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-prospect-resources/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] Anthropic generation failed with HTTP 500
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] Anthropic generation failed with HTTP 500
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] generation run: section "Overview" failed (unknown)
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] generation run: section "Request" failed (unknown)
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] generation run aborted: no Anthropic credential (tenant or platform)
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] as-generated snapshot failed after section persistence: version table unavailable
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] section "Overview": stripped 1 unresolvable citation token(s): [S:pe:0603851F]
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] generation run: claim assurance would hold (dark) 1 section(s): Overview
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] Steering memory load failed: context_plane_transport_failed
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] Anthropic generation failed with HTTP 429
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] generation run: section "Overview" failed (provider_rate_limited)
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [GenerationService] generation run: section "Retired" failed (provider_unavailable)
+PASS apps/workspace/src/generation/generation.service.spec.ts
+PASS apps/workspace/src/delivery/delivery.spec.ts
+PASS apps/workspace/test/draft-acl.spec.ts
+[Nest] 19347  - 10/12/2026, 4:49:31 AM   ERROR [QuickDraftService] Quick draft generation failed for draft-1: DOCUMENT_AGENT_REVISION_CONFLICT
+PASS apps/workspace/src/quick-draft/quick-draft.service.spec.ts
+[Nest] 19347  - 10/12/2026, 4:49:31 AM    WARN [QuickDraftService] Draft draft-1 was saved, but its intake transcript could not be recorded: transcript unavailable
+PASS apps/workspace/src/drafts/editorial-output.spec.ts
+PASS apps/workspace/src/export/export.service.spec.ts
+PASS apps/workspace/src/quick-draft/intake.service.spec.ts
+[Nest] 19347  - 10/12/2026, 4:49:32 AM   DEBUG [IntakeService] Idempotent intake replay for tenant tenant-1, key key-12345678 → draft existing-draft
+PASS apps/workspace/src/comments/comments.service.spec.ts
+PASS apps/workspace/src/documents/documents.service.spec.ts
+PASS apps/workspace/src/quick-draft/source-resolver.service.spec.ts
+PASS apps/workspace/test/memory-promotion.spec.ts
+
+Test Suites: 12 passed, 12 total
+Tests:       121 passed, 121 total
+Snapshots:   0 total
+Time:        3.569 s, estimated 5 s
+Ran all test suites within paths "apps/workspace/src/generation/generation.service.spec.ts", "apps/workspace/src/delivery/delivery.spec.ts", "apps/workspace/src/quick-draft/quick-draft.service.spec.ts", "apps/workspace/test/draft-acl.spec.ts", "apps/workspace/src/drafts/editorial-output.spec.ts", "apps/workspace/src/quick-draft/intake.service.spec.ts", "apps/workspace/src/export/export.service.spec.ts", "apps/workspace/src/quick-draft/source-resolver.service.spec.ts", "apps/workspace/src/documents/documents.service.spec.ts", "apps/workspace/test/memory-promotion.spec.ts", "apps/workspace/src/comments/comments.service.spec.ts", "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts".
+Test results written to: ../../tmp/capiro-prospect-workspace-regressions-final.json

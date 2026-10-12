@@ -6,6 +6,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   Min,
 } from 'class-validator';
@@ -22,6 +23,8 @@ export class WsAskDto {
 }
 
 export class CreateDraftDto {
+  @IsOptional() @IsUUID() prospectId?: string;
+  @IsOptional() @IsUUID() requestId?: string;
   // Seed from a product (Library card click) — the service applies product
   // defaults (sections, pages, meta) from the cascade.
   @IsOptional() @IsString() industry?: string;
@@ -42,6 +45,7 @@ export class UpdateDraftDto {
 }
 
 export class ListDraftsQueryDto {
+  @IsOptional() @IsUUID() prospectId?: string;
   @IsOptional() @IsString() sector?: string; // industry filter
   @IsOptional() @IsIn(['all', 'mine', 'shared']) scope?: 'all' | 'mine' | 'shared';
 }

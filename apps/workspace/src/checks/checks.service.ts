@@ -1,3 +1,4 @@
+import { assertProspectDraft } from '../prospect-resources/prospect-draft-access.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { WSC } from '../cascade/cascade.config.js';
@@ -120,12 +121,13 @@ function sectionFromFindingDetail(detail: string, sections: string[]): string | 
 export class ChecksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async evaluate(tenantId: string, draftId: string): Promise<WsChecksResponse> {
+  async evaluate(tenantId: string, draftId: string, actorId?: string): Promise<WsChecksResponse> {
     const draft = await this.prisma.wsDraft.findFirst({
       where: { id: draftId, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
     if (!draft) throw new NotFoundException('Draft not found');
+    await assertProspectDraft(this.prisma, draft, actorId);
 
     const cfg = (draft.config as Record<string, unknown>) ?? {};
     const product = draft.product ?? (cfg.product as string | null) ?? '';

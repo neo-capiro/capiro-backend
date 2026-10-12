@@ -1,0 +1,17 @@
+{
+  "publishedHelperPr": 2404,
+  "publishedHelperHead": "0716767e8b6ff323b2516d166b22edb4d2413e57",
+  "publishedHelperTree": "207657e1ae89de5790816e07b5fa149512381955",
+  "acceptedHelperSource": "d198733d66ea6b6b29eaafbccb6a76b6a174b239",
+  "helperPath": "packages/shared/src/client-objective-destination.ts",
+  "gitBlob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+  "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443",
+  "workspaceBase": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+  "workspaceSource": "490076ab8a9a5db72eda97b0d576a81e87f81cbb",
+  "workspaceSourceTree": "bfb8195babb0a25863a2ccde0e050b2ebc2a9c95",
+  "consumedPaths": [
+    "packages/shared/src/client-objective-destination.ts",
+    "packages/shared/src/index.ts (additive export only)"
+  ],
+  "CoreObjectiveRuntimePrerequisite": "Preserved PR2362 schema/migration, shared package build and coordinated corrected Core delegation release; Workspace never owns Core ORM or migration."
+}

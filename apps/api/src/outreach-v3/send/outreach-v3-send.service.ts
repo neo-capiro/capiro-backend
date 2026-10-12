@@ -435,7 +435,7 @@ export class OutreachV3SendService {
     const ids = uniqueStrings(attachmentIds);
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findMany({
-        where: { tenantId: ctx.tenantId, id: { in: ids } },
+        where: { tenantId: ctx.tenantId, prospectId: null, id: { in: ids } },
         select: {
           id: true,
           fileName: true,

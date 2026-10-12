@@ -1,3 +1,4 @@
+import { denyProspectTransfer } from '../prospect-resources/prospect-draft-access.js';
 import {
   Injectable,
   Logger,
@@ -212,6 +213,9 @@ export class GenerationRunWorkerService {
    * incomplete stage. Returns the terminal status.
    */
   private async processRun(run: GenerationRunRow): Promise<string> {
+    const origin = await this.prisma.wsDraft.findFirst({ where: { tenantId: run.tenantId, id: run.draftId }, select: { prospectId: true } });
+    if (!origin) throw new NotFoundException('Draft not found');
+    denyProspectTransfer(origin);
     let stages = readStages(run.stages);
     let sectionStates = readSectionStates(run.sectionStates);
     let terminal = run.status;
@@ -316,7 +320,7 @@ export class GenerationRunWorkerService {
     agentRevision: number,
   ): Promise<StageOutcome> {
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: run.draftId, tenantId: run.tenantId },
+      where: { prospectId: null, id: run.draftId, tenantId: run.tenantId },
       select: { id: true, config: true },
     });
     if (!draft) {
@@ -363,7 +367,7 @@ export class GenerationRunWorkerService {
   ): Promise<StageOutcome> {
     // Revision guard — re-read the draft's current document-agent revision.
     const current = await this.prisma.wsDraft.findFirst({
-      where: { id: run.draftId, tenantId: run.tenantId },
+      where: { prospectId: null, id: run.draftId, tenantId: run.tenantId },
       select: { config: true },
     });
     if (!current) {
@@ -506,6 +510,9 @@ export class GenerationRunWorkerService {
       where: { id: runId, tenantId },
     });
     if (!run) throw new NotFoundException('Run not found');
+    const origin = await this.prisma.wsDraft.findFirst({ where: { tenantId, id: run.draftId }, select: { prospectId: true } });
+    if (!origin) throw new NotFoundException('Run not found');
+    denyProspectTransfer(origin);
 
     // GAI-31: retrying generation overwrites section content → owner/editor.
     await this.collaborators.assertCan(
@@ -575,6 +582,9 @@ export class GenerationRunWorkerService {
       where: { id: runId, tenantId },
     });
     if (!run) throw new NotFoundException('Run not found');
+    const origin = await this.prisma.wsDraft.findFirst({ where: { tenantId, id: run.draftId }, select: { prospectId: true } });
+    if (!origin) throw new NotFoundException('Run not found');
+    denyProspectTransfer(origin);
     const stages = readStages(run.stages);
     const sectionStates = readSectionStates(run.sectionStates);
     return {
@@ -602,7 +612,7 @@ export class GenerationRunWorkerService {
 
   private async declaredSections(run: GenerationRunRow): Promise<string[]> {
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: run.draftId, tenantId: run.tenantId },
+      where: { prospectId: null, id: run.draftId, tenantId: run.tenantId },
       select: { config: true },
     });
     const cfg = (draft?.config as Record<string, unknown> | undefined) ?? {};
@@ -613,7 +623,7 @@ export class GenerationRunWorkerService {
     run: GenerationRunRow,
   ): Promise<Record<string, string>> {
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: run.draftId, tenantId: run.tenantId },
+      where: { prospectId: null, id: run.draftId, tenantId: run.tenantId },
       select: { config: true },
     });
     const cfg = (draft?.config as Record<string, unknown> | undefined) ?? {};

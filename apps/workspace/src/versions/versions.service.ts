@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  workspaceSavedOutreachRevisionWithinTx, WorkspaceRevisionUnavailable,
+  normalizeClientObjectiveDestination, requireClientObjectiveDestinationRevision,
+  ClientObjectiveDestinationError, type ClientObjectiveDestinationInput,
+} from '@capiro/shared';
+import { createHash } from 'node:crypto';
+import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
 import { canEdit, canRead, type ResolvedRole } from '../collaborators/role-policy.js';
@@ -48,15 +55,85 @@ export class VersionsService {
         'You do not have permission to access this document',
       );
     }
+    await assertProspectDraft(this.prisma, draft, actorId, predicate);
     return draft;
   }
 
+  /** Selected saved revision only: never reads the live working copy as output. */
+  async outreachRevision(tenantId: string, draftId: string, versionId: string, clerkUserId: string) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+        const revision = await workspaceSavedOutreachRevisionWithinTx(tx, { tenantId, draftId, versionId, clerkUserId });
+        const { snapshotJson, ...selected } = revision;
+        return { ...selected, snapshotHash: createHash('sha256').update(snapshotJson).digest('hex'), hashFormat: 'workspace-snapshot-canonical-json-v1' };
+      });
+    } catch (error) {
+      if (error instanceof WorkspaceRevisionUnavailable) throw new NotFoundException('Saved revision unavailable for staging');
+      throw error;
+    }
+  }
+
+  /** Current Objective authority and the exact eligible saved revision are one
+   * read-only observation. Neither the binding nor its hash grants later access. */
+  async objectiveDestination(
+    tenantId: string, draftId: string, versionId: string, clerkUserId: string,
+    input: ClientObjectiveDestinationInput,
+  ) {
+    try {
+      const binding = normalizeClientObjectiveDestination(input);
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.current_tenant',${tenantId},true)`;
+        const revision = await workspaceSavedOutreachRevisionWithinTx(tx, {
+          tenantId, draftId, versionId, clerkUserId,
+        });
+        // The saved/current canonical UUID must exist and match BEFORE probing
+        // Objective version conflicts. Display names never infer this authority.
+        if (!revision.clientId || revision.clientId !== binding.clientId)
+          throw new NotFoundException('Objective destination not found');
+        const objective = await requireClientObjectiveDestinationRevision(
+          tx, { tenantId, clerkUserId }, binding,
+        );
+        const { snapshotJson, ...selected } = revision;
+        return {
+          ...selected,
+          snapshotHash: createHash('sha256').update(snapshotJson).digest('hex'),
+          hashFormat: 'workspace-snapshot-canonical-json-v1',
+          destination: {
+            kind: 'workspace_saved_revision' as const,
+            resourceId: revision.versionId,
+            draftId: revision.draftId,
+            ...objective,
+          },
+        };
+      });
+    } catch (error) {
+      if (error instanceof WorkspaceRevisionUnavailable)
+        throw new NotFoundException('Objective destination not found');
+      if (error instanceof ClientObjectiveDestinationError) {
+        if (error.code === 'OBJECTIVE_DESTINATION_INVALID')
+          throw new BadRequestException('Invalid Objective destination binding');
+        if (error.code === 'OBJECTIVE_VERSION_CONFLICT')
+          throw new ConflictException({
+            code: 'OBJECTIVE_VERSION_CONFLICT',
+            message: 'The Objective changed. Refresh before opening this saved revision.',
+          });
+        throw new NotFoundException('Objective destination not found');
+      }
+      // Permission, deadlock and other infrastructure failures remain errors;
+      // there is no fallback, successful stale binding or automatic write retry.
+      throw error;
+    }
+  }
+
   async list(tenantId: string, draftId: string, actorId?: string) {
-    await this.loadDraft(tenantId, draftId, actorId, canRead);
-    return this.prisma.wsDocVersion.findMany({
-      where: { tenantId, draftId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const draft = await this.loadDraft(tenantId, draftId, actorId, canRead);
+    return withProspectDraft(this.prisma, draft, actorId, canRead, 'read', (db) =>
+      db.wsDocVersion.findMany({
+        where: { tenantId, draftId },
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
   }
 
   /**
@@ -67,27 +144,34 @@ export class VersionsService {
   async create(tenantId: string, draftId: string, authorId: string, dto: CreateVersionDto) {
     // Snapshotting is a "Save draft" editor action — owner/editor only. authorId
     // is the acting user (the controller passes ctx.clerkUserId).
-    const draft = await this.loadDraft(tenantId, draftId, authorId, canEdit);
-    const snapshot = {
-      docTitle: draft.docTitle,
-      config: draft.config,
-      ask: draft.ask,
-      documents: draft.documents.map((d) => ({
-        id: d.id,
-        name: d.name,
-        ordinal: d.ordinal,
-        body: d.body,
-      })),
-    };
-    return this.prisma.wsDocVersion.create({
-      data: {
-        tenantId,
-        draftId,
-        label: dto.label ?? null,
-        authorId,
-        authorKind: dto.authorKind ?? 'person',
-        snapshot: snapshot as never,
-      },
+    let draft = await this.loadDraft(tenantId, draftId, authorId, canEdit);
+    return withProspectDraft(this.prisma, draft, authorId, canEdit, 'write', async (db) => {
+      if (draft.prospectId)
+        draft = await db.wsDraft.findFirstOrThrow({
+          where: { tenantId, id: draftId },
+          include: { documents: { orderBy: { ordinal: 'asc' } } },
+        });
+      const snapshot = {
+        docTitle: draft.docTitle,
+        config: draft.config,
+        ask: draft.ask,
+        documents: draft.documents.map((d) => ({
+          id: d.id,
+          name: d.name,
+          ordinal: d.ordinal,
+          body: d.body,
+        })),
+      };
+      return db.wsDocVersion.create({
+        data: {
+          tenantId,
+          draftId,
+          label: dto.label ?? null,
+          authorId,
+          authorKind: dto.authorKind ?? 'person',
+          snapshot: snapshot as never,
+        },
+      });
     });
   }
 
@@ -108,6 +192,7 @@ export class VersionsService {
 
     const snap = (version.snapshot as Snapshot) ?? {};
     await this.prisma.$transaction(async (tx) => {
+      await requireProspectDraftInTx(tx, draft, actorId, canEdit, 'write');
       await tx.wsDraft.update({
         where: { id: draftId },
         data: {
@@ -130,10 +215,12 @@ export class VersionsService {
       }
     });
 
-    return this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
-      include: { documents: { orderBy: { ordinal: 'asc' } } },
-    });
+    return withProspectDraft(this.prisma, draft, actorId, canRead, 'read', (db) =>
+      db.wsDraft.findFirst({
+        where: { id: draftId, tenantId },
+        include: { documents: { orderBy: { ordinal: 'asc' } } },
+      }),
+    );
   }
 }
 

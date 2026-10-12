@@ -332,6 +332,7 @@ describe('ShareLinkService', () => {
   });
 
   it('persists a guest comment durably with a real 429 when rate-limited', async () => {
+    (prisma as any)._drafts.set('draft-1', { id: 'draft-1', tenantId: 'tenant-1', prospectId: null });
     const token = 'guest-comment-token';
     const tokenHash = service.hashToken(token);
     (prisma as any)._shareLinks.set('share-5', {

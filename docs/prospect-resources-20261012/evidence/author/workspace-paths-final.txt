@@ -1,0 +1,105 @@
+apps/workspace/src/versions/versions.service.ts:38:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/versions/versions.service.ts:59:      db.wsDocVersion.findMany({
+apps/workspace/src/versions/versions.service.ts:77:        draft = await db.wsDraft.findFirstOrThrow({
+apps/workspace/src/versions/versions.service.ts:92:      return db.wsDocVersion.create({
+apps/workspace/src/versions/versions.service.ts:115:    const version = await this.prisma.wsDocVersion.findFirst({
+apps/workspace/src/versions/versions.service.ts:123:      await tx.wsDraft.update({
+apps/workspace/src/versions/versions.service.ts:135:        await tx.wsDocument.update({
+apps/workspace/src/versions/versions.service.ts:146:      db.wsDraft.findFirst({
+apps/workspace/src/export/export.service.ts:387:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/drafts/drafts.service.ts:81:    const draft = await db.wsDraft.create({
+apps/workspace/src/drafts/drafts.service.ts:99:    await db.wsDocument.create({
+apps/workspace/src/drafts/drafts.service.ts:110:      ? db.wsDraft.findFirstOrThrow({
+apps/workspace/src/drafts/drafts.service.ts:194:          const draft = await tx.wsDraft.findFirst({
+apps/workspace/src/drafts/drafts.service.ts:198:          const context = await tx.wsContextItem.findFirst({
+apps/workspace/src/drafts/drafts.service.ts:211:        await tx.wsDraft.updateMany({
+apps/workspace/src/drafts/drafts.service.ts:217:        const item = await tx.wsContextItem.create({
+apps/workspace/src/drafts/drafts.service.ts:242:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/drafts/drafts.service.ts:289:    const rows = await this.prisma.wsDraft.findMany({
+apps/workspace/src/drafts/drafts.service.ts:348:    const existing = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/drafts/drafts.service.ts:384:      const updated = await db.wsDraft.update({
+apps/workspace/src/drafts/drafts.service.ts:399:      return db.wsDraft.findFirstOrThrow({
+apps/workspace/src/drafts/drafts.service.ts:413:    const draft = await this.prisma.wsDraft.findFirst({ where: { id, tenantId } });
+apps/workspace/src/drafts/drafts.service.ts:431:    const existing = await this.prisma.wsDraft.findFirst({ where: { id, tenantId } });
+apps/workspace/src/drafts/drafts.service.ts:443:      db.wsDraft.delete({ where: { id } }),
+apps/workspace/src/generation/generation.service.ts:349:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/generation/generation.service.ts:563:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/generation/generation.service.ts:752:    const draft = await this.prisma.wsDraft.create({
+apps/workspace/src/generation/generation.service.ts:766:    await this.prisma.wsDocument.create({
+apps/workspace/src/generation/generation.service.ts:775:    return this.prisma.wsDraft.findFirst({
+apps/workspace/src/generation/generation.service.ts:793:    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+apps/workspace/src/generation/generation.service.ts:846:    const draft = await this.prisma.wsDraft.findFirst({ where: { prospectId: null, id: draftId, tenantId } });
+apps/workspace/src/generation/generation.service.ts:860:    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+apps/workspace/src/generation/generation.service.ts:871:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/generation/generation.service.ts:908:    const draft = await this.prisma.wsDraft.findFirst({ where: { prospectId: null, id: draftId, tenantId } });
+apps/workspace/src/generation/generation.service.ts:1133:    const saved = await this.prisma.wsDraft.updateMany({
+apps/workspace/src/generation/generation.service.ts:1140:    const finalDraft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/generation/generation.service.ts:1183:    const written = await this.prisma.wsDraft.updateMany({
+apps/workspace/src/generation/generation.service.ts:1198:    return this.prisma.wsDraft.findFirst({
+apps/workspace/src/generation/generation.service.ts:1225:      const version = await this.prisma.wsDocVersion.create({
+apps/workspace/src/generation/generation.service.ts:1302:    const draft = await this.prisma.wsDraft.findFirst({ where: { prospectId: null, id: draftId, tenantId } });
+apps/workspace/src/generation/memory-promotion.service.ts:26:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/quick-draft/generation-run-worker.service.ts:216:    const origin = await this.prisma.wsDraft.findFirst({ where: { tenantId: run.tenantId, id: run.draftId }, select: { prospectId: true } });
+apps/workspace/src/quick-draft/generation-run-worker.service.ts:322:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/quick-draft/generation-run-worker.service.ts:369:    const current = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/quick-draft/generation-run-worker.service.ts:513:    const origin = await this.prisma.wsDraft.findFirst({ where: { tenantId, id: run.draftId }, select: { prospectId: true } });
+apps/workspace/src/quick-draft/generation-run-worker.service.ts:585:    const origin = await this.prisma.wsDraft.findFirst({ where: { tenantId, id: run.draftId }, select: { prospectId: true } });
+apps/workspace/src/quick-draft/generation-run-worker.service.ts:614:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/quick-draft/generation-run-worker.service.ts:625:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/prospect-resources/prospect-draft-create.ts:53:      const replay = await tx.wsDraft.findFirst({
+apps/workspace/src/prospect-resources/prospect-notification-access.ts:14:  const draft = await prisma.wsDraft.findFirst({
+apps/workspace/src/prospect-resources/prospect-notification-access.ts:26:    const current = await tx.wsDraft.findFirst({
+apps/workspace/src/quick-draft/intake.service.ts:218:      await tx.wsDraft.create({
+apps/workspace/src/quick-draft/intake.service.ts:269:      await tx.wsDocument.create({
+apps/workspace/src/comments/comments.service.ts:27:    const doc = await this.prisma.wsDocument.findFirst({
+apps/workspace/src/comments/comments.service.ts:159:    const document = await this.prisma.wsDocument.findFirst({
+apps/workspace/src/quick-draft/source-resolver.service.ts:541:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/quick-draft/source-resolver.service.ts:628:    const item = await this.prisma.wsContextItem.findFirst({
+apps/workspace/src/documents/documents.service.ts:23:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+apps/workspace/src/documents/documents.service.ts:42:      return db.wsDocument.findMany({
+apps/workspace/src/documents/documents.service.ts:64:    return this.prisma.wsDocument.findMany({
+apps/workspace/src/documents/documents.service.ts:86:    const document = await this.prisma.wsDocument.findFirst({
+apps/workspace/src/documents/documents.service.ts:98:      const count = await db.wsDocument.count({ where: { tenantId, draftId } });
+apps/workspace/src/documents/documents.service.ts:99:      const doc = await db.wsDocument.create({
+apps/workspace/src/documents/documents.service.ts:123:      const existing = await db.wsDocument.findFirst({
+apps/workspace/src/documents/documents.service.ts:127:      return db.wsDocument.update({
+apps/workspace/src/documents/documents.service.ts:147:      const existing = await db.wsDocument.findFirst({
+apps/workspace/src/documents/documents.service.ts:151:      await db.wsDocument.delete({ where: { id: docId } });
+apps/workspace/src/documents/documents.service.ts:163:    const count = await db.wsDocument.count({ where: { tenantId, draftId } });
+apps/workspace/src/documents/documents.service.ts:164:    const draft = await db.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+apps/workspace/src/documents/documents.service.ts:166:    await db.wsDraft.update({
+apps/workspace/src/quick-draft/quick-draft.service.ts:229:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/quick-draft/quick-draft.service.ts:541:      const updated = await this.prisma.wsDraft.updateMany({
+apps/workspace/src/quick-draft/quick-draft.service.ts:784:    await this.prisma.wsDraft.updateMany({
+apps/workspace/src/collaborators/collaborators.service.ts:43:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+apps/workspace/src/collaborators/collaborators.service.ts:62:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/collaborators/collaborators.service.ts:84:    const origin = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/collaborators/collaborators.service.ts:327:      const draft = await db.wsDraft.findFirst({
+apps/workspace/src/collaborators/collaborators.service.ts:369:      const draft = await db.wsDraft.findFirst({
+apps/workspace/src/checks/checks.service.ts:125:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/document-agent/document-agent-quality.service.ts:44:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/document-agent/document-agent-quality.service.ts:223:    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: params.tenantId, id: params.draftId }, select: { prospectId: true } }));
+apps/workspace/src/document-agent/document-agent-revision.service.ts:30:      await this.prisma.wsDraft.findFirst({
+apps/workspace/src/template-studio/template-studio.service.ts:99:    const drafts = await this.prisma.wsDraft.findMany({
+apps/workspace/src/document-agent/document-agent.service.ts:555:    const items = await this.prisma.wsContextItem.findMany({
+apps/workspace/src/document-agent/document-agent.service.ts:585:    const items = await this.prisma.wsContextItem.findMany({
+apps/workspace/src/document-agent/document-agent.service.ts:690:    const item = await this.prisma.wsContextItem.findFirst({
+apps/workspace/src/document-agent/document-agent.service.ts:696:    const updated = await this.prisma.wsContextItem.update({
+apps/workspace/src/document-agent/document-agent.service.ts:1146:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/document-agent/document-agent.service.ts:1199:    await this.prisma.wsDraft.update({
+apps/workspace/src/delivery/share-link.service.ts:55:    const origin = await this.prisma.wsDraft.findFirst({ where: { id: link.draftId, tenantId: link.tenantId }, select: { prospectId: true } });
+apps/workspace/src/delivery/share-link.service.ts:69:    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+apps/workspace/src/delivery/share-link.service.ts:106:    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+apps/workspace/src/delivery/share-link.service.ts:133:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/delivery/share-link.service.ts:144:      const version = await this.prisma.wsDocVersion.findFirst({
+apps/workspace/src/delivery/share-link.service.ts:260:    const drafts = await this.prisma.wsDraft.findMany({
+apps/workspace/src/delivery/approval.service.ts:34:    const draft = await this.prisma.wsDraft.findFirst({
+apps/workspace/src/delivery/approval.service.ts:85:    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+apps/workspace/src/delivery/approval.service.ts:127:    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+apps/workspace/src/context/context.service.ts:38:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+apps/workspace/src/context/context.service.ts:55:      return db.wsContextItem.findMany({
+apps/workspace/src/context/context.service.ts:65:      return db.wsContextItem.create({
+apps/workspace/src/context/context.service.ts:79:      const existing = await db.wsContextItem.findFirst({
+apps/workspace/src/context/context.service.ts:83:      await db.wsContextItem.delete({ where: { id: itemId } });
+apps/workspace/src/edit-lock/edit-lock.service.ts:49:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+apps/workspace/src/hillday/hillday-document.service.ts:306:      : await this.prisma.wsDraft.findMany({

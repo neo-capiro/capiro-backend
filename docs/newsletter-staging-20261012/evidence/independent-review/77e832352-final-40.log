@@ -1,0 +1,51 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/newsletter-staging/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts
+  independent saved newsletter adversarial review
+    ✓ respects existing SELECT/INSERT-only source receipt privileges (7 ms)
+    ✓ denies legiwatch_research receipt even after human edits (4 ms)
+    ✓ denies legiwatch_editorial receipt even after human edits (2 ms)
+    ✓ denies legiwatch_preparation receipt even after human edits (1 ms)
+    ✓ denies unknown_source receipt even after human edits (1 ms)
+    ✓ never treats unbound legacy client context as firm content (1 ms)
+    ✓ never treats unbound legacy clientAssociated context as firm content (1 ms)
+    ✓ never treats unbound legacy clientPersons context as firm content (3 ms)
+    ✓ never treats current legacy draft.client as firm content when config client is absent (1 ms)
+    ✓ checks source-owner client wall before returning a saved snapshot to the chooser (17 ms)
+    ✓ checks source-owner client lifecycle before returning a saved snapshot (1 ms)
+    ✓ supports exact same-client chooser and staging through current wall authority (11 ms)
+    ✓ permits a current unwalled client without inventing a grant requirement (4 ms)
+    ✓ denies changed or missing canonical client assignment on the current draft (1 ms)
+    ✓ rechecks current client wall and source collaboration before exact retry (5 ms)
+    ✓ never exposes a chooser revision under a spoofed optional actor UUID (1 ms)
+    ✓ refuses empty_documents without truncation, model generation or templating (1 ms)
+    ✓ refuses oversized_documents without truncation, model generation or templating (1 ms)
+    ✓ refuses body_slots without truncation, model generation or templating
+    ✓ refuses subject_slots without truncation, model generation or templating (1 ms)
+    ✓ refuses body_over_limit without truncation, model generation or templating (1 ms)
+    ✓ denies current suspended membership before receipt replay (3 ms)
+    ✓ denies current removed membership before receipt replay (3 ms)
+    ✓ requires the actual UUID and Clerk subject to identify the same current member (1 ms)
+    ✓ fails closed for unsupported current member role tenant_admin (1 ms)
+    ✓ fails closed for unsupported current member role client_user (1 ms)
+    ✓ fails closed for unsupported current member role guest
+    ✓ denies a foreign saved revision tenant and a saved revision from a different draft (1 ms)
+    ✓ refuses replay after source deletion and never resurrects a receipt source (4 ms)
+    ✓ refuses changed snapshot bytes even if plain text projection stays equal (5 ms)
+    ✓ requires exact request identity as well as exact skeleton and snapshot (5 ms)
+    ✓ rejects a generic command receipt occupying the same durable ID (2 ms)
+    ✓ rejects forged or modified provenance rather than replaying it (4 ms)
+    ✓ serializes one receipt for simultaneous identical synthetic retries (5 ms)
+    ✓ refuses a simultaneous stale competitor in the synthetic session lock (4 ms)
+    ✓ does not alter state or retain an event when final receipt readback fails (5 ms)
+    ✓ restages identical text with a fresh identity as no_change plus a new exact receipt (7 ms)
+    ✓ requires strict input and rejects caller-controlled source bytes, commands and recipient changes (13 ms)
+    ✓ leaves provider, upload and generation APIs outside the staging call graph (4 ms)
+    ✓ uses bounded actual role policy and parameter binds while locking mutable source authority (3 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       40 passed, 40 total
+Snapshots:   0 total
+Time:        4.387 s
+Ran all test suites.

@@ -1,3 +1,11 @@
+import {
+  assertProspectParent,
+  beginProspectUpload,
+  prospectUploadForConfirm,
+  requireProspectScope,
+  assertProspectAttachmentAccess,
+  assertProspectAttachmentInTx,
+} from './attachments/prospect-attachment-access.js';
 import { clientAssociatedMeetingWhere } from './engagement-access.helpers.js';
 import {
   guardSyntheticDocumentDeletionInTx,
@@ -278,6 +286,9 @@ export interface SendSingleMailInput {
 }
 
 export interface AttachmentUploadInput {
+  prospectId?: string;
+  requestId?: string;
+  checksumSha256?: string;
   clientId?: string;
   meetingId?: string;
   mailMessageId?: string;
@@ -287,6 +298,7 @@ export interface AttachmentUploadInput {
 }
 
 export interface ConfirmAttachmentInput {
+  prospectId?: string;
   clientId?: string;
   meetingId?: string;
   mailMessageId?: string;
@@ -4534,6 +4546,8 @@ export class EngagementService {
       // centralized policy the send-intent path enforces, and refuse the whole
       // send rather than silently mailing without it (plan hard boundary: never
       // silently omit an attachment).
+      if (rows.some((row) => row.prospectId))
+        throw new BadRequestException({ code: 'PROSPECT_RESOURCE_TRANSFER_UNSUPPORTED' });
       const unusable: string[] = [];
       for (const row of rows) {
         const verdict = this.attachmentContent.readiness(row, this.scanner.scanRequired);
@@ -7517,19 +7531,58 @@ export class EngagementService {
     await this.validateAttachmentParents(ctx, input);
 
     const safeName = safeFileName(input.fileName);
-    const s3Key = `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
+    const intent = input.prospectId
+      ? await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+          beginProspectUpload(tx, ctx, input, this.bucket!, safeName),
+        )
+      : null;
+    const s3Key = intent?.s3Key ?? `tenants/${ctx.tenantId}/engagement/${randomUUID()}/${safeName}`;
     const presigned = await createPresignedPost(this.s3, {
       Bucket: this.bucket,
       Key: s3Key,
       Conditions: [
-        ['content-length-range', 1, MAX_ATTACHMENT_BYTES],
+        [
+          'content-length-range',
+          intent ? input.contentLength : 1,
+          intent ? input.contentLength : MAX_ATTACHMENT_BYTES,
+        ],
+        ...(intent
+          ? [
+              ['eq', '$x-amz-checksum-algorithm', 'SHA256'] as ['eq', string, string],
+              [
+                'eq',
+                '$x-amz-checksum-sha256',
+                Buffer.from(intent.checksumSha256, 'hex').toString('base64'),
+              ] as ['eq', string, string],
+            ]
+          : []),
         ['eq', '$Content-Type', input.contentType],
         ['starts-with', '$key', `tenants/${ctx.tenantId}/engagement/`],
       ],
-      Fields: { 'Content-Type': input.contentType },
-      Expires: 300,
+      Fields: {
+        'Content-Type': input.contentType,
+        ...(intent
+          ? {
+              'x-amz-checksum-algorithm': 'SHA256',
+              'x-amz-checksum-sha256': Buffer.from(intent.checksumSha256, 'hex').toString('base64'),
+            }
+          : {}),
+      },
+      Expires: intent
+        ? Math.max(1, Math.min(300, Math.floor((intent.expiresAt.getTime() - Date.now()) / 1000)))
+        : 300,
     });
-    return { ...presigned, s3Key };
+    if (input.prospectId)
+      await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+        requireProspectScope(tx, ctx, input.prospectId!, 'write'),
+      );
+    return {
+      ...presigned,
+      s3Key,
+      ...(intent
+        ? { uploadIntentId: intent.id, requestId: intent.requestId, expiresAt: intent.expiresAt }
+        : {}),
+    };
   }
 
   async confirmAttachment(ctx: TenantContext, input: ConfirmAttachmentInput) {
@@ -7544,6 +7597,14 @@ export class EngagementService {
     if (!input.s3Key.startsWith(`tenants/${ctx.tenantId}/engagement/`)) {
       throw new BadRequestException('Attachment key is outside tenant engagement prefix');
     }
+    const prospective =
+      input.prospectId ||
+      input.s3Key.startsWith(`tenants/${ctx.tenantId}/engagement/prospect-uploads/`)
+        ? await this.prisma.withTenantUser(ctx.tenantId, ctx.userId, (tx) =>
+            prospectUploadForConfirm(tx, ctx, input, this.bucket!),
+          )
+        : null;
+    if (prospective?.replay) return prospective.replay;
     const head = await this.s3
       .send(new HeadObjectCommand({ Bucket: this.bucket, Key: input.s3Key }))
       .catch(() => null);
@@ -7581,6 +7642,13 @@ export class EngagementService {
       );
     }
 
+    if (
+      prospective &&
+      (calculatedSha256 !== prospective.intent.checksumSha256 ||
+        head.ContentLength !== prospective.intent.contentLength)
+    )
+      throw new BadRequestException({ code: 'prospect_upload_integrity_mismatch' });
+
     // New uploads start QUARANTINED with a pending scan. The DB default is
     // 'legacy_ready' precisely so the migration cannot retroactively quarantine
     // historical rows; the quarantine decision lives here, at the point of upload.
@@ -7591,7 +7659,9 @@ export class EngagementService {
       // Confirm is a retry boundary. Serialize by the opaque S3 key, then
       // return the caller's existing row for an exact replay instead of
       // duplicating one uploaded object into several attachment records.
+      const bound = await prospectUploadForConfirm(tx, ctx, input, this.bucket!);
       await tx.$executeRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtext(${input.s3Key}))`);
+      if (bound?.replay) return bound.replay;
       const clientId = await this.attachmentClientAtWrite(tx, ctx, input);
       const replay = await tx.engagementAttachment.findFirst({
         where: { tenantId: ctx.tenantId, s3Key: input.s3Key },
@@ -7599,6 +7669,7 @@ export class EngagementService {
       if (replay) {
         const exactReplay =
           replay.uploadedByUserId === ctx.userId &&
+          (replay.prospectId ?? null) === (input.prospectId ?? null) &&
           replay.clientId === clientId &&
           replay.meetingId === (input.meetingId ?? null) &&
           replay.mailMessageId === (input.mailMessageId ?? null) &&
@@ -7617,9 +7688,10 @@ export class EngagementService {
         }
         return replay;
       }
-      return tx.engagementAttachment.create({
+      const created = await tx.engagementAttachment.create({
         data: {
           tenantId: ctx.tenantId,
+          prospectId: input.prospectId ?? null,
           clientId,
           meetingId: input.meetingId ?? null,
           mailMessageId: input.mailMessageId ?? null,
@@ -7640,7 +7712,14 @@ export class EngagementService {
           extractionStatus: 'pending',
         },
       });
+      if (bound)
+        await tx.prospectAttachmentUploadIntent.update({
+          where: { id: bound.intent.id },
+          data: { confirmedAttachmentId: created.id },
+        });
+      return created;
     });
+    await assertProspectAttachmentAccess(this.prisma, ctx, attachment);
     // Client KB (F5): client-linked documents become retrievable knowledge.
     if (attachment.clientId) {
       this.clientKb.indexAttachmentFireAndForget(ctx.tenantId, attachment.id);
@@ -7676,9 +7755,17 @@ export class EngagementService {
 
   async listAttachments(
     ctx: TenantContext,
-    query: { clientId?: string; meetingId?: string; mailMessageId?: string; unlinked?: boolean },
+    query: {
+      prospectId?: string;
+      clientId?: string;
+      meetingId?: string;
+      mailMessageId?: string;
+      unlinked?: boolean;
+    },
   ) {
-    const hasParent = Boolean(query.clientId || query.meetingId || query.mailMessageId);
+    const hasParent = Boolean(
+      query.prospectId || query.clientId || query.meetingId || query.mailMessageId,
+    );
     if (!hasParent && !query.unlinked) {
       throw new BadRequestException('An attachment parent (or unlinked=true) is required');
     }
@@ -7687,6 +7774,7 @@ export class EngagementService {
       const rows = await tx.engagementAttachment.findMany({
         where: {
           tenantId: ctx.tenantId,
+          prospectId: query.prospectId ?? null,
           // Gate H a-6: a superseded row is a past version, not a document a
           // caller listing "the client's documents" should see — excluding it
           // here is what makes supersedeAttachment look like a delete to every
@@ -7697,7 +7785,7 @@ export class EngagementService {
           // when no parent is given) so a caller can't accidentally page the
           // whole tenant's attachments.
           ...(!hasParent && query.unlinked
-            ? { clientId: null, meetingId: null, mailMessageId: null }
+            ? { prospectId: null, clientId: null, meetingId: null, mailMessageId: null }
             : {}),
           ...(query.clientId ? { clientId: query.clientId } : {}),
           ...(query.meetingId ? { meetingId: query.meetingId } : {}),
@@ -7729,9 +7817,10 @@ export class EngagementService {
     for (const row of rows) {
       try {
         await assertHearingRecordDocumentAccess(this.prisma, ctx, row);
+        await assertProspectAttachmentAccess(this.prisma, ctx, row);
         accessibleRows.push(row);
       } catch (error) {
-        if (row.sourceEntityType !== 'hearing_record_brief') throw error;
+        if (row.sourceEntityType !== 'hearing_record_brief' && !row.prospectId) throw error;
         // A removed private context must not leak its title or signed bytes.
       }
     }
@@ -7742,7 +7831,7 @@ export class EngagementService {
         // a quarantined or threat-flagged object is the download the gate exists
         // to prevent.
         const verdict = this.attachmentContent.readiness(row, this.scanner.scanRequired);
-        return {
+        const result = {
           ...row,
           uploadedByName: row.uploadedByUserId
             ? (uploaderNameById.get(row.uploadedByUserId) ?? null)
@@ -7755,6 +7844,8 @@ export class EngagementService {
           ...(verdict.code ? { blockedReason: verdict.code } : {}),
           ...(verdict.disclosure ? { scanDisclosure: verdict.disclosure } : {}),
         };
+        await assertProspectAttachmentAccess(this.prisma, ctx, row);
+        return result;
       }),
     );
   }
@@ -7781,6 +7872,7 @@ export class EngagementService {
         where: {
           id,
           tenantId: ctx.tenantId,
+          prospectId: null,
           ...(options.clientId ? { clientId: options.clientId } : {}),
           supersededByAttachmentId: null,
           OR: attachmentViewerWhere(ctx.userId),
@@ -8294,7 +8386,9 @@ export class EngagementService {
       if (!row) throw new NotFoundException('Attachment not found');
       return row;
     });
+    await assertProspectAttachmentAccess(this.prisma, ctx, attachment, 'delete');
     await this.validateAttachmentParents(ctx, {
+      prospectId: attachment.prospectId ?? undefined,
       clientId: attachment.clientId ?? undefined,
       meetingId: attachment.meetingId ?? undefined,
       mailMessageId: attachment.mailMessageId ?? undefined,
@@ -8316,12 +8410,13 @@ export class EngagementService {
       attachment = claimed.attachment;
       fixtureIntent = claimed.intent;
     } else
-      await this.prisma.withTenant(ctx.tenantId, (tx) =>
-        tx.engagementAttachment.updateMany({
+      await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+        await assertProspectAttachmentInTx(tx, ctx, attachment, 'delete');
+        return tx.engagementAttachment.updateMany({
           where: { id, tenantId: ctx.tenantId },
           data: { lifecycleStatus: 'delete_pending', sharedAt: null, sharedByUserId: null },
-        }),
-      );
+        });
+      });
 
     // 2. Delete the object OUTSIDE any transaction.
     if (this.bucket) {
@@ -8559,12 +8654,23 @@ export class EngagementService {
       this.logger.warn(`supersedeAttachment: old attachment ${oldId} not found — nothing to link`);
       return;
     }
-    await this.prisma.withTenant(ctx.tenantId, (tx) =>
-      tx.engagementAttachment.updateMany({
+    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      const replacement = await tx.engagementAttachment.findFirst({
+        where: { id: newId, tenantId: ctx.tenantId },
+      });
+      if (old.prospectId || replacement?.prospectId) {
+        if (!old.prospectId || old.prospectId !== replacement?.prospectId)
+          throw new BadRequestException({ code: 'PROSPECT_ATTACHMENT_ORIGIN_MISMATCH' });
+        // Stable lock order for two resources; conversion/current ACL checked in this transaction.
+        for (const row of [old, replacement].sort((a, b) => a.id.localeCompare(b.id)))
+          await assertProspectAttachmentInTx(tx, ctx, row, 'write');
+        this.assertAttachmentUsable(replacement);
+      }
+      return tx.engagementAttachment.updateMany({
         where: { id: oldId, tenantId: ctx.tenantId },
         data: { supersededByAttachmentId: newId },
-      }),
-    );
+      });
+    });
   }
 
   /**
@@ -8701,6 +8807,7 @@ export class EngagementService {
       tx.engagementAttachment.findMany({
         where: {
           tenantId: ctx.tenantId,
+          prospectId: null,
           id: { in: attachmentIds },
           supersededByAttachmentId: null,
           OR: attachmentViewerWhere(ctx.userId),
@@ -9007,9 +9114,16 @@ export class EngagementService {
 
   private async validateAttachmentParents(
     ctx: TenantContext,
-    input: { clientId?: string | null; meetingId?: string | null; mailMessageId?: string | null },
+    input: {
+      prospectId?: string | null;
+      clientId?: string | null;
+      meetingId?: string | null;
+      mailMessageId?: string | null;
+    },
   ) {
+    assertProspectParent(input);
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      if (input.prospectId) await requireProspectScope(tx, ctx, input.prospectId);
       if (input.clientId) {
         await ensureExists(
           tx.client.findFirst({

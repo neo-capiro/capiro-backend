@@ -53,7 +53,7 @@ export class ClientFilesService {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const rows = await tx.engagementAttachment.groupBy({
         by: ['folder'],
-        where: {
+        where: { prospectId: null,
           tenantId: ctx.tenantId,
           clientId,
           // A restricted file the caller cannot view is not "in" the folder for them.
@@ -80,7 +80,7 @@ export class ClientFilesService {
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.engagementAttachment.findFirst({
-        where: { id: attachmentId, tenantId: ctx.tenantId, clientId },
+        where: { prospectId: null, id: attachmentId, tenantId: ctx.tenantId, clientId },
         select: { id: true, viewerMode: true, viewerUserIds: true, uploadedByUserId: true },
       });
       if (!existing) throw new NotFoundException('File not found for this client');
@@ -106,7 +106,7 @@ export class ClientFilesService {
   async getAccess(ctx: TenantContext, clientId: string, attachmentId: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const row = await tx.engagementAttachment.findFirst({
-        where: { id: attachmentId, tenantId: ctx.tenantId, clientId },
+        where: { prospectId: null, id: attachmentId, tenantId: ctx.tenantId, clientId },
         select: {
           id: true,
           fileName: true,
@@ -148,7 +148,7 @@ export class ClientFilesService {
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
       const existing = await tx.engagementAttachment.findFirst({
-        where: { id: attachmentId, tenantId: ctx.tenantId, clientId },
+        where: { prospectId: null, id: attachmentId, tenantId: ctx.tenantId, clientId },
         select: { id: true, viewerMode: true, viewerUserIds: true, uploadedByUserId: true },
       });
       if (!existing) throw new NotFoundException('File not found for this client');
@@ -197,7 +197,7 @@ export class ClientFilesService {
       }
 
       const result = await tx.engagementAttachment.updateMany({
-        where: {
+        where: { prospectId: null,
           tenantId: ctx.tenantId,
           clientId,
           folder: normalizedFolder,

@@ -1,3 +1,4 @@
+import { denyProspectTransfer } from '../prospect-resources/prospect-draft-access.js';
 // Share Link Service — manages secure share links.
 // Stores ONLY the hash of the token. Tokens are returned once.
 // Share links have expiration and revocation.
@@ -51,6 +52,8 @@ export class ShareLinkService {
     if (link.expiresAt && link.expiresAt.getTime() < Date.now()) {
       throw new NotFoundException('Share link has expired');
     }
+    const origin = await this.prisma.wsDraft.findFirst({ where: { id: link.draftId, tenantId: link.tenantId }, select: { prospectId: true } });
+    if (!origin || origin.prospectId) throw new NotFoundException('Share link not found');
     return link;
   }
 
@@ -63,6 +66,8 @@ export class ShareLinkService {
     createdById: string,
     params: { label?: string; expiresInDays?: number; versionId?: string; idempotencyKey?: string },
   ): Promise<{ shareId: string; token: string; expiresAt: string | null }> {
+    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+
     // Idempotency check.
     if (params.idempotencyKey) {
       const existing = await this.prisma.wsShareLink.findFirst({
@@ -98,6 +103,8 @@ export class ShareLinkService {
    * Revoke a share link.
    */
   async revoke(tenantId: string, draftId: string, shareLinkId: string): Promise<void> {
+    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+
     const link = await this.prisma.wsShareLink.findFirst({
       where: { id: shareLinkId, tenantId, draftId },
     });
@@ -124,7 +131,7 @@ export class ShareLinkService {
 
     // Load the draft and sanitize the payload.
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: link.draftId },
+      where: { prospectId: null, id: link.draftId },
     });
     if (!draft) throw new NotFoundException('Document not found');
 
@@ -251,7 +258,7 @@ export class ShareLinkService {
 
     const draftIds = [...new Set(links.map((l) => l.draftId))];
     const drafts = await this.prisma.wsDraft.findMany({
-      where: { id: { in: draftIds }, tenantId },
+      where: { prospectId: null, id: { in: draftIds }, tenantId },
       select: { id: true, docTitle: true },
     });
     const draftMap = new Map(drafts.map((d) => [d.id, d.docTitle]));
@@ -266,7 +273,7 @@ export class ShareLinkService {
     );
 
     return {
-      shares: links.map((link) => ({
+      shares: links.filter(link => draftMap.has(link.draftId)).map((link) => ({
         id: link.id,
         draftId: link.draftId,
         draftTitle: draftMap.get(link.draftId) ?? 'Untitled',

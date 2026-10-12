@@ -1,0 +1,92 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/workspace-objective-revisions-review/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS docs/workspace-objective-revisions-20261012/evidence/independent-review/independent.spec.ts
+  independent actual Workspace and Objective source seams
+    ✓ returns one exact saved snapshot/projection/hash and current Objective binding in one read-only tx (12 ms)
+    ✓ hashes the entire saved snapshot including ask/config while ignoring live working prose (2 ms)
+    ✓ normalizes canonical UUID case without trusting browser resource or revision claims (1 ms)
+    ✓ rechecks current tenantStatus on every open (2 ms)
+    ✓ rechecks current memberStatus on every open
+    ✓ rechecks current memberRole on every open
+    ✓ rechecks current clerk on every open
+    ✓ rechecks current clientExists on every open
+    ✓ rechecks current clientStatus on every open
+    ✓ rechecks current grant on every open (1 ms)
+    ✓ rechecks current canonicalWallAllowed on every open
+    ✓ both scopes use current actual Clerk-to-Core mapping, and resource/admin ownership does not bypass wall (1 ms)
+    ✓ retains current active Workspace viewer read rights, then denies revocation (1 ms)
+    ✓ retains current active Workspace commenter read rights, then denies revocation (1 ms)
+    ✓ retains current active Workspace reviewer read rights, then denies revocation (1 ms)
+    ✓ retains current active Workspace editor read rights, then denies revocation
+    ✓ fails closed for unsupported Workspace role null even with authorized Objective (1 ms)
+    ✓ fails closed for unsupported Workspace role pending even with authorized Objective
+    ✓ fails closed for unsupported Workspace role unknown even with authorized Objective
+    ✓ requires exact draft/version/tenant binding, never a sibling or current document substitute (2 ms)
+    ✓ denies deleted source lifetime on replay without recovering a stale binding (1 ms)
+    ✓ preserves immutable legiwatch_research origin exclusion without row locks/provider authorization (1 ms)
+    ✓ preserves immutable legiwatch_editorial origin exclusion without row locks/provider authorization (1 ms)
+    ✓ preserves immutable legiwatch_preparation origin exclusion without row locks/provider authorization
+    ✓ preserves immutable unknown_future origin exclusion without row locks/provider authorization (1 ms)
+    ✓ preserves prospect-origin exclusion after conversion rather than inferring a client (1 ms)
+    ✓ rejects null canonical source client and every legacy source hint before stale Objective probes (2 ms)
+    ✓ denies current/saved client reassignment and requested cross-client before disclosing stale 409 (1 ms)
+    ✓ refuses changed current Objective/revision objectiveExists scope (1 ms)
+    ✓ refuses changed current Objective/revision objectiveDeleted scope (1 ms)
+    ✓ refuses changed current Objective/revision objectiveClient scope
+    ✓ refuses changed current Objective/revision objectiveTenant scope (1 ms)
+    ✓ refuses changed current Objective/revision revisionExists scope (1 ms)
+    ✓ refuses changed current Objective/revision revisionClient scope
+    ✓ refuses changed current Objective/revision revisionTenant scope
+    ✓ refuses changed current Objective/revision revisionObjective scope (1 ms)
+    ✓ returns typed conflict only for current authorized same-client Objective; refreshed opens read new canonical revision (2 ms)
+    ✓ supports current unwalled canonical client without creating an unnecessary grant
+    ✓ retains mutable authority/lifetime locks while immutable receipts and Objective revisions stay plain SELECT (2 ms)
+    ✓ propagates tenant_context permission/deadlock/infrastructure failure without 404, fallback or retry
+    ✓ propagates source_tenant permission/deadlock/infrastructure failure without 404, fallback or retry (1 ms)
+    ✓ propagates source_member permission/deadlock/infrastructure failure without 404, fallback or retry
+    ✓ propagates user_context permission/deadlock/infrastructure failure without 404, fallback or retry
+    ✓ propagates draft permission/deadlock/infrastructure failure without 404, fallback or retry
+    ✓ propagates origin permission/deadlock/infrastructure failure without 404, fallback or retry
+    ✓ propagates saved_version permission/deadlock/infrastructure failure without 404, fallback or retry (1 ms)
+    ✓ propagates source_client permission/deadlock/infrastructure failure without 404, fallback or retry
+    ✓ propagates source_grant permission/deadlock/infrastructure failure without 404, fallback or retry
+    ✓ propagates wall_predicate permission/deadlock/infrastructure failure without 404, fallback or retry (1 ms)
+    ✓ propagates objective_scope permission/deadlock/infrastructure failure without 404, fallback or retry
+    ✓ propagates objective_grant permission/deadlock/infrastructure failure without 404, fallback or retry (1 ms)
+    ✓ propagates objective permission/deadlock/infrastructure failure without 404, fallback or retry (1 ms)
+    ✓ propagates objective_revision permission/deadlock/infrastructure failure without 404, fallback or retry (2 ms)
+    ✓ denies membership changed during an awaited source authority query
+    ✓ denies source collaborator changed before the awaited active-role query completes (1 ms)
+    ✓ denies a deleted saved version before the awaited exact-row read completes
+    ✓ rechecks actual current Objective authority across the seam await instead of returning earlier source success (1 ms)
+    ✓ rechecks the current Objective version during its awaited current-row read
+    ✓ does not let a working-copy edit substitute for the selected saved snapshot across an await
+    ✓ keeps published saved-revision empty bounds and never truncates or generates (1 ms)
+    ✓ keeps published saved-revision oversized bounds and never truncates or generates
+    ✓ keeps published saved-revision slots bounds and never truncates or generates
+    ✓ keeps published saved-revision malformed_saved_client bounds and never truncates or generates (1 ms)
+  independent Workspace bounded transport and source-derived response
+    ✓ requires exact scalar fields and marks the nested owner response private/no-store (4 ms)
+    ✓ refuses missing/repeated/nested clientId claim (4 ms)
+    ✓ refuses missing/repeated/nested objectiveId claim (1 ms)
+    ✓ refuses missing/repeated/nested objectiveVersion claim (2 ms)
+    ✓ refuses caller-controlled actor claim
+    ✓ refuses caller-controlled userId claim
+    ✓ refuses caller-controlled clerkUserId claim (1 ms)
+    ✓ refuses caller-controlled tenantId claim
+    ✓ refuses caller-controlled kind claim (1 ms)
+    ✓ refuses caller-controlled resourceId claim (1 ms)
+    ✓ refuses caller-controlled draftId claim
+    ✓ refuses caller-controlled versionId claim (1 ms)
+    ✓ refuses caller-controlled objectiveRevisionId claim
+    ✓ refuses caller-controlled snapshotHash claim
+    ✓ refuses caller-controlled contentSkeleton claim
+    ✓ rejects malformed resource UUIDs and scalar/int32 service input before any transaction (3 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       79 passed, 79 total
+Snapshots:   0 total
+Time:        2.648 s
+Ran all test suites.
+Test results written to: docs/workspace-objective-revisions-20261012/evidence/independent-review/independent-confirmed-gaps.json

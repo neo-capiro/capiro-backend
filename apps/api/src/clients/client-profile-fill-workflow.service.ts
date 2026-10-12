@@ -1082,7 +1082,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
           throw new BadRequestException('Capability document task is missing attachmentId');
         const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
           tx.engagementAttachment.findFirst({
-            where: { id: attachmentId, tenantId: ctx.tenantId, clientId: task.clientId },
+            where: { prospectId: null, id: attachmentId, tenantId: ctx.tenantId, clientId: task.clientId },
             select: { id: true, clientId: true },
           }),
         );
@@ -1323,7 +1323,7 @@ export class ClientProfileFillWorkflowService implements OnModuleInit, OnModuleD
     if (!attachmentIds.length) return [];
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findMany({
-        where: { id: { in: attachmentIds }, tenantId: ctx.tenantId, clientId },
+        where: { prospectId: null, id: { in: attachmentIds }, tenantId: ctx.tenantId, clientId },
         select: { id: true, fileName: true },
         orderBy: { createdAt: 'asc' },
       }),

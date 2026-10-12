@@ -1,3 +1,4 @@
+import { prospectNotificationVisible } from '../prospect-resources/prospect-notification-access.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -30,26 +31,50 @@ export class NotificationsService {
 
   /** A member's recent notifications (newest first) + the unread count. */
   async list(tenantId: string, recipientId: string) {
-    const [items, unread] = await Promise.all([
+    const [candidates, unreadCandidates] = await Promise.all([
       this.prisma.wsNotification.findMany({
         where: { tenantId, recipientId },
         orderBy: { createdAt: 'desc' },
         take: 30,
       }),
-      this.prisma.wsNotification.count({ where: { tenantId, recipientId, read: false } }),
+      this.prisma.wsNotification.findMany({
+        where: { tenantId, recipientId, read: false },
+        select: { draftId: true, collaboratorId: true, kind: true },
+      }),
     ]);
+    const items = [];
+    for (const item of candidates)
+      if (await prospectNotificationVisible(this.prisma, tenantId, recipientId, item))
+        items.push(item);
+    let unread = 0;
+    for (const item of unreadCandidates)
+      if (await prospectNotificationVisible(this.prisma, tenantId, recipientId, item)) unread++;
     return { items, unread };
   }
 
   async markRead(tenantId: string, recipientId: string, id: string) {
     const n = await this.prisma.wsNotification.findFirst({ where: { id, tenantId, recipientId } });
-    if (!n) throw new NotFoundException('Notification not found');
-    return this.prisma.wsNotification.update({ where: { id }, data: { read: true } });
+    if (!n || !(await prospectNotificationVisible(this.prisma, tenantId, recipientId, n)))
+      throw new NotFoundException('Notification not found');
+    const updated = await this.prisma.wsNotification.update({
+      where: { id },
+      data: { read: true },
+    });
+    if (!(await prospectNotificationVisible(this.prisma, tenantId, recipientId, updated)))
+      throw new NotFoundException('Notification not found');
+    return updated;
   }
 
   async markAllRead(tenantId: string, recipientId: string): Promise<{ updated: number }> {
-    const res = await this.prisma.wsNotification.updateMany({
+    const candidates = await this.prisma.wsNotification.findMany({
       where: { tenantId, recipientId, read: false },
+    });
+    const ids: string[] = [];
+    for (const item of candidates)
+      if (await prospectNotificationVisible(this.prisma, tenantId, recipientId, item))
+        ids.push(item.id);
+    const res = await this.prisma.wsNotification.updateMany({
+      where: { tenantId, recipientId, read: false, id: { in: ids } },
       data: { read: true },
     });
     return { updated: res.count };

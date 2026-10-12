@@ -1,0 +1,11 @@
+{
+  "reviewedRuntime": "ef64c441302e32b1c141c70751e165fd7456a472",
+  "retainedIndependentTestsHead": "e7dd54326b8c2eb147845670e23f8760c0c6ce5d",
+  "changedPaths": [
+    "apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts",
+    "apps/api/src/embeddings/client-kb-access.spec.ts",
+    "apps/api/src/engagement/attachments/prospect-independent-review.spec.ts",
+    "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts"
+  ],
+  "onlyTestsChanged": true
+}

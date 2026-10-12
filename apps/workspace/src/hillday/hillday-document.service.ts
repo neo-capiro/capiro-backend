@@ -305,6 +305,9 @@ export class HillDayDocumentService {
       ? []
       : await this.prisma.wsDraft.findMany({
       where: {
+        // This library associates clients by display name. Canonical prospect
+        // drafts stay in the prospect-aware drafts list, never name-matched here.
+        prospectId: null,
         tenantId,
         AND: [{ OR: [{ ownerId: actorId }, { id: { in: shared.map((r) => r.draftId) } }] }],
         ...(clientName ? { client: clientName } : {}),

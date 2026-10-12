@@ -1,0 +1,32 @@
+{
+  "source": "ef64c441302e32b1c141c70751e165fd7456a472",
+  "command": [
+    "/workspace/capirov2-prospect-resources/apps/api/node_modules/.bin/jest",
+    "--config",
+    "/tmp/capiro-prospect-jest.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "apps/api/src/engagement/outreach-send-attachment-integrity.spec.ts",
+    "apps/api/src/common/tenant-flags.spec.ts",
+    "apps/api/src/engagement/mailbox-selection.spec.ts",
+    "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+    "apps/api/src/engagement/google/gmail-send.service.spec.ts",
+    "apps/api/src/engagement/engagement-document-read.spec.ts",
+    "apps/api/src/engagement/engagement-send-thread-key.spec.ts",
+    "apps/api/src/engagement/runtime/engagement-runtime.guard.spec.ts",
+    "apps/api/src/engagement/independent-sender-review.spec.ts",
+    "apps/api/src/engagement/mail-sender.service.spec.ts",
+    "apps/api/src/engagement/runtime/engagement-route-controller-coverage.spec.ts",
+    "apps/api/src/engagement/engagement-send-authorization.spec.ts",
+    "apps/api/src/engagement/hearing-record-document-access.spec.ts",
+    "apps/api/src/engagement/engagement-mail-threads.spec.ts",
+    "apps/api/src/engagement/mailbox-selection.controller.spec.ts",
+    "apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts",
+    "apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts",
+    "--json",
+    "--outputFile=/tmp/capiro-prospect-core-reviewed.json"
+  ],
+  "exitCode": 0,
+  "startedAt": "2026-10-12T04:56:09.697731+00:00",
+  "finishedAt": "2026-10-12T04:56:30.731794+00:00"
+}

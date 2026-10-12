@@ -1,3 +1,4 @@
+import { denyProspectTransfer } from '../prospect-resources/prospect-draft-access.js';
 import { prepareAnthropicRequest } from '@capiro/shared/ai-model-policy';
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
@@ -346,7 +347,7 @@ export class GenerationService {
       );
     }
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
+      where: { prospectId: null, id: draftId, tenantId },
       include: { context: true },
     });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
@@ -560,7 +561,7 @@ export class GenerationService {
     actorId?: string,
   ): Promise<ContextProvenance | null> {
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
+      where: { prospectId: null, id: draftId, tenantId },
       select: { config: true },
     });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
@@ -772,7 +773,7 @@ export class GenerationService {
     // "Open editor" calls generateAllSections. Intake just resolves the product,
     // seeds the section names + config, and returns the draft for that flow.
     return this.prisma.wsDraft.findFirst({
-      where: { id: draft.id, tenantId },
+      where: { prospectId: null, id: draft.id, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
   }
@@ -789,6 +790,8 @@ export class GenerationService {
     actorId: string,
     opts?: { bearerToken?: string },
   ) {
+    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+
     // GAI-31: whole-document generation overwrites every section → owner/editor
     // only. Asserted BEFORE the flag branch so the MeriV2 proxy path is gated
     // too (the orchestrator re-enters via generate-all-direct, which re-asserts).
@@ -840,7 +843,7 @@ export class GenerationService {
         'Only owners and editors can generate content in this document',
       );
     }
-    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+    const draft = await this.prisma.wsDraft.findFirst({ where: { prospectId: null, id: draftId, tenantId } });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
     const cfg = draft.config as Record<string, unknown>;
     const sections = (cfg.sections as string[] | undefined) ?? [];
@@ -854,6 +857,8 @@ export class GenerationService {
    * are linkable in the audit trail.
    */
   async retryFailedSections(tenantId: string, draftId: string, actorId?: string) {
+    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+
     if (actorId) {
       await this.collaborators.assertCan(
         tenantId,
@@ -864,7 +869,7 @@ export class GenerationService {
       );
     }
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
+      where: { prospectId: null, id: draftId, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
@@ -900,7 +905,7 @@ export class GenerationService {
     retryOfRunId: string | null,
   ): Promise<GenerationRunResult> {
     const startedAt = new Date().toISOString();
-    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+    const draft = await this.prisma.wsDraft.findFirst({ where: { prospectId: null, id: draftId, tenantId } });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
     const cfg = draft.config as Record<string, unknown>;
 
@@ -1133,7 +1138,7 @@ export class GenerationService {
       throw new ServiceUnavailableException('Generation run summary could not be saved durably');
     }
     const finalDraft = await this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
+      where: { prospectId: null, id: draftId, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
     if (!finalDraft) throw new ServiceUnavailableException('Generated draft could not be reloaded');
@@ -1191,7 +1196,7 @@ export class GenerationService {
       throw new ServiceUnavailableException('Generated sections could not be saved durably');
     }
     return this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
+      where: { prospectId: null, id: draftId, tenantId },
       include: { documents: { orderBy: { ordinal: 'asc' } } },
     });
   }
@@ -1294,7 +1299,7 @@ export class GenerationService {
         'Only owners and editors can apply generated content to this document',
       );
     }
-    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+    const draft = await this.prisma.wsDraft.findFirst({ where: { prospectId: null, id: draftId, tenantId } });
     if (!draft) throw new ServiceUnavailableException('Draft not found');
     const cfg = draft.config as Record<string, unknown>;
 

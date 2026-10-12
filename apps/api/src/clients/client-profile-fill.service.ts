@@ -683,7 +683,7 @@ export class ClientProfileFillService {
     try {
       const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.engagementAttachment.findFirst({
-          where: { id: attachmentId, tenantId: ctx.tenantId, clientId },
+          where: { prospectId: null, id: attachmentId, tenantId: ctx.tenantId, clientId },
           select: {
             id: true,
             clientId: true,
@@ -750,7 +750,7 @@ export class ClientProfileFillService {
     const client = await this.getClientSnapshot(ctx.tenantId, clientId);
     const attachment = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findFirst({
-        where: { id: attachmentId, tenantId: ctx.tenantId, clientId },
+        where: { prospectId: null, id: attachmentId, tenantId: ctx.tenantId, clientId },
         select: { id: true, fileName: true },
       }),
     );

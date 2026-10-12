@@ -1,0 +1,23 @@
+{
+  "previous_runtime": "ef64c441302e32b1c141c70751e165fd7456a472",
+  "candidate": "e7dd54326b8c2eb147845670e23f8760c0c6ce5d",
+  "changed_paths": [
+    "apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts",
+    "apps/api/src/embeddings/client-kb-access.spec.ts",
+    "apps/api/src/engagement/attachments/prospect-independent-review.spec.ts",
+    "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts"
+  ],
+  "independent_tests": [
+    {
+      "path": "apps/api/src/engagement/attachments/prospect-independent-review.spec.ts",
+      "sha256": "78b99b0e68a9d9e9c15737c654f4d3965284a0f3048a1deddccaed8f13e888b6",
+      "retained_byte_identical": true
+    },
+    {
+      "path": "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts",
+      "sha256": "90e06efb041a5e784277a7f1d5bc40460265facfa3992e0bc091f0868e350de2",
+      "retained_byte_identical": true
+    }
+  ],
+  "runtime_and_migrations_unchanged": true
+}

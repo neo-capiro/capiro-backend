@@ -1,0 +1,63 @@
+{
+  "source": "77e8323527d5ed533aa084cb8865f4b2d75f9958",
+  "tree": "fd813d3ecf5937f1eebcc498af244f612bcdb61b",
+  "requiredBase": "6c26ac2dad3756a61b6733329dea7ce3c9138ece",
+  "originalRejectedSource": "fcea81c0f1bda36c658d47def1abb9e7ccaf80a2",
+  "sourcePaths": [
+    {
+      "path": "apps/api/src/outreach-v3/__fixtures__/outreach-v3-route-manifest.v1.json",
+      "gitBlob": "0ff5c8239e998f3db1a059ea36a00611bdb46128",
+      "sha256": "9f90975e134e0f6ae96273cb304208b851280369632ae66b2a0260d0f361f048"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts",
+      "gitBlob": "76a1c9f94b71a44336b9f60b728d97ccfca3740d",
+      "sha256": "3566eece5727e8624575f462246da3cef55f060fa1042957d3731f789337ab53"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-command-engine.service.ts",
+      "gitBlob": "70c009506c25183f38e0eaf16d12e1671e57fc3b",
+      "sha256": "12d0b335cfafac9a20d947ab88d9bf8badc618a6f106c6f07fd2515c6d667a82"
+    },
+    {
+      "path": "apps/api/src/outreach-v3/services/outreach-newsletter-staging.spec.ts",
+      "gitBlob": "e5065cb153abb29cb1fe5a2971dfe8614cc4be5e",
+      "sha256": "f4fd0e3bce44183cfa3c8addd6b33c7a7936f4804b4d4595e3c331f931d92e5b"
+    },
+    {
+      "path": "apps/workspace/prisma/migrations/20281012040000_saved_version_immutability/migration.sql",
+      "gitBlob": "c500ac28dcb42dd51d8387603c19f21c7ed78f3b",
+      "sha256": "a00d85df4d7cc55e7e637593c8ad75688c850ff765ff8f4121cca7c716ed29c4"
+    },
+    {
+      "path": "apps/workspace/src/collaborators/role-policy.ts",
+      "gitBlob": "f1525b192107e90c1bf4007d987be0eeb047c49f",
+      "sha256": "c2eee776d7ac4bb84f5d394a65d48bfd1de6058b8997806197443c08448b73a6"
+    },
+    {
+      "path": "apps/workspace/src/documents/meri-import-text.ts",
+      "gitBlob": "98ce06f6d1140b47f75a892dbd1d7f5166a2a829",
+      "sha256": "b06b9b8fe14173255f37a005e3d921bfd3b4512b969a7776c0763977f7578ec5"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.controller.ts",
+      "gitBlob": "55fd4241250d9facd347d5b240f186cf27cafdc9",
+      "sha256": "9cad107f2cd3efbb528f57acdd1f99fcbe8c2de133d586349c48751d391c4b1e"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.service.ts",
+      "gitBlob": "6943fa216ed2492f1683b43ae97956f601f3be62",
+      "sha256": "f25179ba031f91b0e547a7cac27159e4b6b59d81b4cac6d1a4811ad5e0c0bf5c"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "gitBlob": "967e0650fe48976f2513dca91e81de79b4d7fa60",
+      "sha256": "c4dbf3f5cc4b86c8b6815a396e27fe0837752ab718e8338603851f3bf40ce1f7"
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "gitBlob": "c388618b7d618c0b3314fcb6bea77a2e0c205076",
+      "sha256": "6fcb81da835a33908c0be9564e91a661f64394b592375114d9f82e6dbb231db8"
+    }
+  ]
+}

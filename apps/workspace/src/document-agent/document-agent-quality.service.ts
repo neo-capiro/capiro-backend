@@ -1,3 +1,4 @@
+import { denyProspectTransfer } from '../prospect-resources/prospect-draft-access.js';
 // Document Agent Quality Service — an adapter over the existing ChecksService.
 // Does NOT duplicate existing checks. Adds agent-specific checks for the
 // document-agent workflow. A "fix" operation creates a revision proposal;
@@ -41,7 +42,7 @@ export class DocumentAgentQualityService {
 
     // Load the agent state.
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
+      where: { prospectId: null, id: draftId, tenantId },
       select: { config: true },
     });
     if (!draft) {
@@ -219,6 +220,8 @@ export class DocumentAgentQualityService {
     baseHash: string;
     instruction?: string;
   }): Promise<{ proposalId: string }> {
+    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: params.tenantId, id: params.draftId }, select: { prospectId: true } }));
+
     const proposal = await this.prisma.wsAgentProposal.create({
       data: {
         tenantId: params.tenantId,

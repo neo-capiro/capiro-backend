@@ -1,0 +1,17 @@
+[
+  {
+    "name": "sendSingleMail",
+    "byteIdentical": true,
+    "sha256": "8d25ca06a117b18b4d4f55d06d3b4a34bc2936dfc3afd6dc505bcf22f97de542"
+  },
+  {
+    "name": "eraseAttachmentAsSystem",
+    "byteIdentical": true,
+    "sha256": "01f1721b4eb9f4c691f7f6e4318427c1bcb881f35d059af94cad454eff3031a8"
+  },
+  {
+    "name": "reconcileFailedAttachmentDeletes",
+    "byteIdentical": true,
+    "sha256": "6af48b1a87dceb9dbcb4f3b0304829d2822fef63b5da71de8b2b3ded404dfe2d"
+  }
+]

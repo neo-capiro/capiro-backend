@@ -1,0 +1,65 @@
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/checks/checks.service.ts:124:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/collaborators/collaborators.service.ts:42:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/collaborators/collaborators.service.ts:61:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/collaborators/collaborators.service.ts:287:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/collaborators/collaborators.service.ts:326:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/comments/comments.service.ts:26:    const doc = await this.prisma.wsDocument.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/comments/comments.service.ts:129:    const document = await this.prisma.wsDocument.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/context/context.service.ts:37:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/delivery/approval.service.ts:33:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/delivery/share-link.service.ts:126:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/delivery/share-link.service.ts:137:      const version = await this.prisma.wsDocVersion.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/delivery/share-link.service.ts:253:    const drafts = await this.prisma.wsDraft.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/document-agent/document-agent-quality.service.ts:43:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/document-agent/document-agent.service.ts:1146:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/document-agent/document-agent.service.ts:1199:    await this.prisma.wsDraft.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/documents/documents.service.ts:22:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/documents/documents.service.ts:40:    return this.prisma.wsDocument.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/documents/documents.service.ts:60:    return this.prisma.wsDocument.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/documents/documents.service.ts:81:    const document = await this.prisma.wsDocument.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/documents/documents.service.ts:115:    const existing = await this.prisma.wsDocument.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/documents/documents.service.ts:119:    return this.prisma.wsDocument.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/documents/documents.service.ts:137:    const existing = await this.prisma.wsDocument.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/documents/documents.service.ts:141:    await this.prisma.wsDocument.delete({ where: { id: docId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/documents/documents.service.ts:149:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/documents/documents.service.ts:151:    await this.prisma.wsDraft.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/drafts/drafts.service.ts:103:      ? db.wsDraft.findFirstOrThrow({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/drafts/drafts.service.ts:187:          const draft = await tx.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/drafts/drafts.service.ts:204:        await tx.wsDraft.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/drafts/drafts.service.ts:235:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/drafts/drafts.service.ts:280:    const rows = await this.prisma.wsDraft.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/drafts/drafts.service.ts:325:    const existing = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/drafts/drafts.service.ts:360:    const updated = await this.prisma.wsDraft.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/drafts/drafts.service.ts:385:    const draft = await this.prisma.wsDraft.findFirst({ where: { id, tenantId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/drafts/drafts.service.ts:402:    const existing = await this.prisma.wsDraft.findFirst({ where: { id, tenantId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/drafts/drafts.service.ts:413:    await this.prisma.wsDraft.delete({ where: { id } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/edit-lock/edit-lock.service.ts:48:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/export/export.service.ts:386:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/generation.service.ts:348:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/generation.service.ts:562:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/generation.service.ts:774:    return this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/generation.service.ts:843:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/generation.service.ts:866:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/generation.service.ts:903:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/generation.service.ts:1128:    const saved = await this.prisma.wsDraft.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/generation.service.ts:1135:    const finalDraft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/generation.service.ts:1178:    const written = await this.prisma.wsDraft.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/generation.service.ts:1193:    return this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/generation.service.ts:1297:    const draft = await this.prisma.wsDraft.findFirst({ where: { id: draftId, tenantId } });
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/generation/memory-promotion.service.ts:26:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/hillday/hillday-document.service.ts:306:      : await this.prisma.wsDraft.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/quick-draft/generation-run-worker.service.ts:318:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/quick-draft/generation-run-worker.service.ts:365:    const current = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/quick-draft/generation-run-worker.service.ts:604:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/quick-draft/generation-run-worker.service.ts:615:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/quick-draft/quick-draft.service.ts:229:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/quick-draft/quick-draft.service.ts:541:      const updated = await this.prisma.wsDraft.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/quick-draft/quick-draft.service.ts:784:    await this.prisma.wsDraft.updateMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/quick-draft/source-resolver.service.ts:541:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/template-studio/template-studio.service.ts:101:    const drafts = await this.prisma.wsDraft.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/versions/versions.service.ts:37:    const draft = await this.prisma.wsDraft.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/versions/versions.service.ts:56:    return this.prisma.wsDocVersion.findMany({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/versions/versions.service.ts:104:    const version = await this.prisma.wsDocVersion.findFirst({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/versions/versions.service.ts:111:      await tx.wsDraft.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/versions/versions.service.ts:123:        await tx.wsDocument.update({
+b1ac2649e134af560d41bee790cacbd61de01c9b:apps/workspace/src/versions/versions.service.ts:133:    return this.prisma.wsDraft.findFirst({

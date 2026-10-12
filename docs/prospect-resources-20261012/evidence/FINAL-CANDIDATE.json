@@ -1,0 +1,27 @@
+{
+  "reviewedSource": "9c2765224fc38d111df0fe184ca50229c6128373",
+  "reviewedTree": "0827ee2a1dc6665483878117cf688d9c4aa5f0d7",
+  "runtimeAndMigrations": "ef64c441302e32b1c141c70751e165fd7456a472",
+  "base": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+  "independentResult": {
+    "core": 407,
+    "workspace": 154,
+    "suites": 43,
+    "failed": 0,
+    "skipped": 0,
+    "finalFixtureReplay": 17
+  },
+  "independentReceiptSha256": "3ea48e417b1f393d37da7e8665588df855c5cc9c5852eb931424ab4a58791269",
+  "primary": {
+    "coreTsc": 0,
+    "workspaceTsc": 0,
+    "coreNestBuild": 0,
+    "workspaceNestBuild": 0
+  },
+  "lint": "unavailable: missing package eslint executable, exit127",
+  "nativeDatabaseOrProviderQualification": "unrun",
+  "migrationsExecuted": false,
+  "originalHeadsPreserved": 14,
+  "commitmentUiScope": "removed; no new unused party/owed-by runtime scaffolding found; existing generic APIs preserved",
+  "publicationCommitWillOnlyAddDocumentationAndEvidence": true
+}

@@ -1485,6 +1485,7 @@ model MobileDeviceToken {
 model EngagementAttachment {
   id                String    @id @default(uuid()) @db.Uuid
   tenantId          String    @map("tenant_id") @db.Uuid
+  prospectId        String?   @map("prospect_id") @db.Uuid
   clientId          String?   @map("client_id") @db.Uuid
   meetingId         String?   @map("meeting_id") @db.Uuid
   mailMessageId     String?   @map("mail_message_id") @db.Uuid
@@ -1565,6 +1566,7 @@ model EngagementAttachment {
   supersededBy             EngagementAttachment?  @relation("AttachmentSupersession", fields: [supersededByAttachmentId], references: [id], onDelete: SetNull)
   supersedes               EngagementAttachment[] @relation("AttachmentSupersession")
 
+  prospect    BusinessDevelopmentProspect? @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Restrict, map: "engagement_attachments_prospect_fkey")
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client      Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
   meeting     Meeting?     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
@@ -1572,6 +1574,7 @@ model EngagementAttachment {
   approvedBy  User?        @relation("EngagementAttachmentApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
   sharedBy    User?        @relation("EngagementAttachmentSharedBy", fields: [sharedByUserId], references: [id], onDelete: SetNull)
 
+  @@index([tenantId, prospectId, createdAt], map: "engagement_attachments_prospect_idx")
   @@index([tenantId, clientId], map: "engagement_attachments_tenant_client_idx")
   @@index([tenantId, clientId, source, sourceEntityType, createdAt], map: "engagement_attachments_generated_source_idx")
   @@index([tenantId, meetingId], map: "engagement_attachments_tenant_meeting_idx")
@@ -14734,6 +14737,8 @@ model BusinessDevelopmentProspect {
   // (mirroring Client.createdByUserId): a departed owner or creator never
   // breaks reads, and history stays intact. Membership is validated in the
   // service against an ACTIVE TenantMembership of the same tenant.
+  attachments     EngagementAttachment[]
+  uploadIntents   ProspectAttachmentUploadIntent[]
   activity        BusinessDevelopmentProspectActivity[]
   briefs          BusinessDevelopmentBrief[]
   watches         BusinessDevelopmentWatch[]
@@ -16641,4 +16646,28 @@ model ClientActivityCommand {
 
   @@unique([tenantId, actorUserId, clientId, requestId], map: "client_activity_commands_request_key")
   @@map("client_activity_commands")
+}
+
+/// Durable prospect upload receipt. Retained after attachment deletion to prevent
+/// key replay from resurrecting bytes or rebinding the origin. SQL-owned RLS.
+model ProspectAttachmentUploadIntent {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  prospectId String @map("prospect_id") @db.Uuid
+  actorUserId String @map("actor_user_id") @db.Uuid
+  requestId String @map("request_id") @db.Uuid
+  fileName String @map("file_name")
+  contentType String @map("content_type")
+  contentLength Int @map("content_length")
+  checksumSha256 String @map("checksum_sha256") @db.VarChar(64)
+  bucket String
+  s3Key String @map("s3_key")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  confirmedAttachmentId String? @map("confirmed_attachment_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  prospect BusinessDevelopmentProspect @relation(fields: [tenantId, prospectId], references: [tenantId, id], onDelete: Restrict, map: "prospect_attachment_upload_intents_prospect_fkey")
+  @@unique([tenantId, actorUserId, requestId], map: "prospect_attachment_upload_intents_request_key")
+  @@unique([tenantId, s3Key], map: "prospect_attachment_upload_intents_s3_key")
+  @@index([tenantId, prospectId], map: "prospect_attachment_upload_intents_prospect_idx")
+  @@map("prospect_attachment_upload_intents")
 }

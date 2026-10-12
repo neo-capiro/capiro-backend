@@ -1,0 +1,28 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-prospect-resources/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts
+  prospect Workspace resource boundaries (synthetic only)
+    ✓ requires a current Core identity even for the Workspace owner and never treats client text as a grant (6 ms)
+    ✓ rejects missing/foreign actor undefined without an operation (2 ms)
+    ✓ rejects missing/foreign actor "user_foreign" without an operation (1 ms)
+    ✓ requires active collaborator role separately from current Core scope (3 ms)
+    ✓ keeps legacy drafts on their original callback path
+    ✓ composes prospect scope with existing private Intel source authority (1 ms)
+    ✓ creates draft, initial document and immutable receipt together, recovers the same id, and does not resurrect deleted drafts (2 ms)
+    ✓ rejects rebinding by update and restores only whitelisted snapshot fields (2 ms)
+    ✓ protects documents/comments/versions/context/checks/anonymize by ID after revocation (3 ms)
+    ✓ protects actual document and draft mutation boundaries and saved versions (2 ms)
+    ✓ filters prospect draft list after collaborator/current scope revalidation (2 ms)
+    ✓ rechecks client authority after export rendering before returning bytes (12 ms)
+    ✓ denies public token reads/comments and new shares before any content output or mutation (2 ms)
+    ✓ refuses Meri import, firm-memory promotion and generation before downstream calls (1 ms)
+    ✓ does not invite external/foreign recipients, but preserves the pending-to-active internal flow (3 ms)
+    ✓ keeps removed collaborators and deleted drafts out of notification metadata
+    ✓ clears a lock handoff when the saved requester is no longer eligible (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       17 passed, 17 total
+Snapshots:   0 total
+Time:        3.145 s
+Ran all test suites within paths "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts".

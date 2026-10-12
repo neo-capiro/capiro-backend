@@ -1,0 +1,12 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-prospect-resources/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts
+PASS apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       38 passed, 38 total
+Snapshots:   0 total
+Time:        3.008 s
+Ran all test suites within paths "apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts", "apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts".
+Test results written to: ../../tmp/capiro-prospect-origin-repair-core.json

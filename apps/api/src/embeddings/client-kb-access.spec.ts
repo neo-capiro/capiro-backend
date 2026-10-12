@@ -14,7 +14,7 @@ const OWNER = 'owner';
 const COLLEAGUE = 'colleague';
 
 function document(id: string, overrides: Record<string, unknown> = {}) {
-  return { id, clientId: CLIENT, tenantId: TENANT, fileName: `${id}.txt`,
+  return { id, clientId: CLIENT, tenantId: TENANT, prospectId: null, fileName: `${id}.txt`,
     contentType: 'text/plain', lifecycleStatus: 'ready', scanStatus: 'clean',
     viewerMode: 'all', viewerUserIds: [] as string[], uploadedByUserId: OWNER,
     supersededByAttachmentId: null, meetingId: null, mailMessageId: null,
@@ -31,7 +31,7 @@ function fixture() {
   let scanRequired = true;
   const findMany = jest.fn(async ({ where, take }) => {
     const viewer = where.AND[0].OR[2].uploadedByUserId;
-    expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, supersededByAttachmentId: null,
+    expect(where).toEqual({ tenantId: TENANT, clientId: CLIENT, prospectId: null, supersededByAttachmentId: null,
       ...(take === undefined ? {} : {
         lifecycleStatus: { in: ['ready', 'legacy_ready'] },
         ...(scanRequired ? { scanStatus: 'clean' }

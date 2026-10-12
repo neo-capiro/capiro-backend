@@ -139,4 +139,44 @@ describe('Workspace library private drafts', () => {
     expect(prisma.wsCollaborator.findMany).not.toHaveBeenCalled();
     expect(collaborators.sourceAccess).not.toHaveBeenCalled();
   });
+  it('never aliases a canonical prospect draft into a client library by display name', async () => {
+    const rows = [
+      { id: 'prospect-draft', prospectId: 'prospect', client: 'Same name' },
+      { id: 'legacy-draft', prospectId: null, client: 'Same name' },
+    ].map((row) => ({
+      ...row,
+      ownerId: 'actor',
+      updatedAt: new Date(),
+      docTitle: row.id,
+      status: 'draft',
+      product: null,
+    }));
+    const prisma = {
+      wsHillDayDocument: { findMany: jest.fn(async () => []) },
+      wsCollaborator: { findMany: jest.fn(async () => []) },
+      wsDraft: {
+        findMany: jest.fn(async ({ where }: any) =>
+          rows.filter(
+            (row) =>
+              (where.prospectId === undefined || row.prospectId === where.prospectId) &&
+              (!where.client || row.client === where.client),
+          ),
+        ),
+      },
+    };
+    const service = new HillDayDocumentService(
+      prisma as never,
+      {
+        resolveUserId: jest.fn(async () => 'core-actor'),
+        getClient: jest.fn(async () => ({ name: 'Same name', wallAllowed: true })),
+        userDisplays: jest.fn(async () => new Map()),
+      } as never,
+      {} as never,
+      { sourceAccess: jest.fn(async () => true) } as never,
+    );
+    const page = await service.listDocuments('tenant', 'actor', {
+      clientId: '11111111-1111-4111-8111-111111111111',
+    });
+    expect(page.items.map((row) => row.id)).toEqual(['legacy-draft']);
+  });
 });

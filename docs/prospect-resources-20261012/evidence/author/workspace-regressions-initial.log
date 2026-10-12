@@ -1,0 +1,63 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-prospect-resources/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/workspace/src/generation/generation.service.spec.ts
+[Nest] 18259  - 10/12/2026, 4:40:53 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 18259  - 10/12/2026, 4:40:53 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 18259  - 10/12/2026, 4:40:53 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 18259  - 10/12/2026, 4:40:53 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 18259  - 10/12/2026, 4:40:53 AM    WARN [GenerationService] Anthropic generation failed with HTTP 500
+[Nest] 18259  - 10/12/2026, 4:40:53 AM    WARN [GenerationService] Anthropic generation failed with HTTP 500
+[Nest] 18259  - 10/12/2026, 4:40:53 AM    WARN [GenerationService] generation run: section "Overview" failed (unknown)
+[Nest] 18259  - 10/12/2026, 4:40:53 AM    WARN [GenerationService] generation run: section "Request" failed (unknown)
+[Nest] 18259  - 10/12/2026, 4:40:53 AM    WARN [GenerationService] generation run aborted: no Anthropic credential (tenant or platform)
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] as-generated snapshot failed after section persistence: version table unavailable
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] section "Overview": stripped 1 unresolvable citation token(s): [S:pe:0603851F]
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] generation run: claim assurance would hold (dark) 1 section(s): Overview
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] Steering memory load failed: context_plane_transport_failed
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] Anthropic generation failed with HTTP 429
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] generation run: section "Overview" failed (provider_rate_limited)
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] generation run: section "Request" failed (provider_unavailable)
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] Anthropic generation failed with HTTP 503
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [GenerationService] generation run: section "Retired" failed (provider_unavailable)
+FAIL apps/workspace/src/delivery/delivery.spec.ts
+  ● ShareLinkService › persists a guest comment durably with a real 429 when rate-limited
+
+    NotFoundException: Share link not found
+
+      54 |     }
+      55 |     const origin = await this.prisma.wsDraft.findFirst({ where: { id: link.draftId, tenantId: link.tenantId }, select: { prospectId: true } });
+    > 56 |     if (!origin || origin.prospectId) throw new NotFoundException('Share link not found');
+         |                                             ^
+      57 |     return link;
+      58 |   }
+      59 |
+
+      at ShareLinkService.findLiveLinkByToken (src/delivery/share-link.service.ts:56:45)
+      at ShareLinkService.addGuestComment (src/delivery/share-link.service.ts:197:18)
+      at Object.<anonymous> (src/delivery/delivery.spec.ts:347:5)
+
+[Nest] 18259  - 10/12/2026, 4:40:54 AM   ERROR [QuickDraftService] Quick draft generation failed for draft-1: DOCUMENT_AGENT_REVISION_CONFLICT
+PASS apps/workspace/src/quick-draft/quick-draft.service.spec.ts
+[Nest] 18259  - 10/12/2026, 4:40:54 AM    WARN [QuickDraftService] Draft draft-1 was saved, but its intake transcript could not be recorded: transcript unavailable
+PASS apps/workspace/test/draft-acl.spec.ts
+PASS apps/workspace/src/drafts/editorial-output.spec.ts
+PASS apps/workspace/src/quick-draft/intake.service.spec.ts
+[Nest] 18259  - 10/12/2026, 4:40:55 AM   DEBUG [IntakeService] Idempotent intake replay for tenant tenant-1, key key-12345678 → draft existing-draft
+PASS apps/workspace/src/export/export.service.spec.ts
+PASS apps/workspace/src/quick-draft/source-resolver.service.spec.ts
+PASS apps/workspace/src/documents/documents.service.spec.ts
+PASS apps/workspace/test/memory-promotion.spec.ts
+PASS apps/workspace/src/comments/comments.service.spec.ts
+PASS apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts
+
+Test Suites: 1 failed, 11 passed, 12 total
+Tests:       1 failed, 120 passed, 121 total
+Snapshots:   0 total
+Time:        3.499 s
+Ran all test suites within paths "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts", "apps/workspace/test/draft-acl.spec.ts", "apps/workspace/src/documents/documents.service.spec.ts", "apps/workspace/src/comments/comments.service.spec.ts", "apps/workspace/src/delivery/delivery.spec.ts", "apps/workspace/src/export/export.service.spec.ts", "apps/workspace/src/quick-draft/source-resolver.service.spec.ts", "apps/workspace/src/drafts/editorial-output.spec.ts", "apps/workspace/src/quick-draft/intake.service.spec.ts", "apps/workspace/src/quick-draft/quick-draft.service.spec.ts", "apps/workspace/src/generation/generation.service.spec.ts", "apps/workspace/test/memory-promotion.spec.ts".

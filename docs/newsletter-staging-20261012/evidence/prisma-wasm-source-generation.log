@@ -1,0 +1,2 @@
+PASS api: official pinned Prisma5.22 WASM/DMMF and noEngine generation; worktree-local output.
+PASS workspace: official pinned Prisma5.22 WASM/DMMF and noEngine generation; worktree-local output.

@@ -1,0 +1,63 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/workspace-objective-revisions/apps/workspace/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/versions/objective-destination.spec.ts
+  canonical saved Workspace revision Objective destination
+    ✓ binds exact saved version and parent to current Objective revision in one read-only transaction (11 ms)
+    ✓ reads selected saved bytes after working text changes and normalizes UUID case (1 ms)
+    ✓ fails closed on current tenant unavailability (1 ms)
+    ✓ fails closed on current member unavailability (1 ms)
+    ✓ fails closed on current draft unavailability (1 ms)
+    ✓ fails closed on current version unavailability
+    ✓ fails closed on current client unavailability (1 ms)
+    ✓ fails closed on current grant unavailability
+    ✓ fails closed on current wallAllowed unavailability
+    ✓ fails closed on current objectiveScope unavailability (1 ms)
+    ✓ fails closed on current objective unavailability (2 ms)
+    ✓ fails closed on current revision unavailability
+    ✓ never fabricates a Core UUID from Workspace Clerk context
+    ✓ refuses absent/unsupported active draft role null (1 ms)
+    ✓ refuses absent/unsupported active draft role pending
+    ✓ refuses absent/unsupported active draft role unsupported (1 ms)
+    ✓ uses current viewer read/export rights and rechecks every replay after ACL revocation (1 ms)
+    ✓ retains legiwatch_research source-origin exclusion
+    ✓ retains legiwatch_editorial source-origin exclusion (1 ms)
+    ✓ retains legiwatch_preparation source-origin exclusion
+    ✓ retains future_source source-origin exclusion (1 ms)
+    ✓ retains immutable prospect exclusion
+    ✓ refuses null/free-text source clients before exposing a stale Objective conflict (1 ms)
+    ✓ refuses cross-client query and current/saved reassignment before querying Objective version (1 ms)
+    ✓ returns typed conflict only for an authorized same-client stale current Objective (1 ms)
+    ✓ rejects invalid bounded Objective version 0 before a transaction (1 ms)
+    ✓ rejects invalid bounded Objective version -1 before a transaction (1 ms)
+    ✓ rejects invalid bounded Objective version 1.5 before a transaction
+    ✓ rejects invalid bounded Objective version 2147483648 before a transaction (1 ms)
+    ✓ rejects invalid bounded Objective version NaN before a transaction
+    ✓ rejects malformed scalar clientId service inputs (1 ms)
+    ✓ rejects malformed scalar objectiveId service inputs
+    ✓ rejects mismatched parent/version identity (1 ms)
+    ✓ rechecks current Objective authority for repeated opens (2 ms)
+    ✓ propagates infrastructure failure at FROM ws_draft without 404 or retry (1 ms)
+    ✓ propagates infrastructure failure at FROM client_objectives without 404 or retry (1 ms)
+    ✓ keeps mutable locks and plain immutable receipt/revision reads (1 ms)
+  saved revision Objective destination transport
+    ✓ returns literal owner binding with private no-store caching (38 ms)
+    ✓ requires query field clientId (6 ms)
+    ✓ requires query field objectiveId (4 ms)
+    ✓ requires query field objectiveVersion (4 ms)
+    ✓ refuses arbitrary query claim actor (8 ms)
+    ✓ refuses arbitrary query claim tenantId (4 ms)
+    ✓ refuses arbitrary query claim kind (3 ms)
+    ✓ refuses arbitrary query claim resourceId (4 ms)
+    ✓ refuses arbitrary query claim objectiveRevisionId (4 ms)
+    ✓ refuses arbitrary query claim snapshotHash (4 ms)
+    ✓ rejects repeated/nested query field clientId (9 ms)
+    ✓ rejects repeated/nested query field objectiveId (6 ms)
+    ✓ rejects repeated/nested query field objectiveVersion (8 ms)
+    ✓ rejects malformed path identities before owner access (4 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       51 passed, 51 total
+Snapshots:   0 total
+Time:        2.357 s
+Ran all test suites matching /src\/versions\/objective-destination.spec.ts/i.

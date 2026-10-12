@@ -1,0 +1,210 @@
+{
+  "reviewedSource": "9c2765224fc38d111df0fe184ca50229c6128373",
+  "base": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+  "refreshedMain": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "candidatePaths": [
+    "apps/api/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+    "apps/api/prisma/schema.prisma",
+    "apps/api/src/capabilities/context/outreach-context-reference.service.spec.ts",
+    "apps/api/src/capabilities/context/outreach-context-reference.service.ts",
+    "apps/api/src/clients/client-activity.service.ts",
+    "apps/api/src/clients/client-files.controller.ts",
+    "apps/api/src/clients/client-profile-fill-workflow.service.ts",
+    "apps/api/src/clients/client-profile-fill.service.ts",
+    "apps/api/src/common/tenant-flags.ts",
+    "apps/api/src/embeddings/client-kb-access.spec.ts",
+    "apps/api/src/embeddings/client-kb.service.ts",
+    "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+    "apps/api/src/engagement/attachments/prospect-attachment-access.spec.ts",
+    "apps/api/src/engagement/attachments/prospect-attachment-access.ts",
+    "apps/api/src/engagement/attachments/prospect-independent-review.spec.ts",
+    "apps/api/src/engagement/attachments/prospect-resource-scope.spec.ts",
+    "apps/api/src/engagement/engagement-document-read.spec.ts",
+    "apps/api/src/engagement/engagement.controller.ts",
+    "apps/api/src/engagement/engagement.service.ts",
+    "apps/api/src/engagement/generation/evidence-source.service.ts",
+    "apps/api/src/engagement/outreach-send-intent.service.ts",
+    "apps/api/src/memory/memory-wall.helpers.ts",
+    "apps/api/src/meri/meri-job-deliverables.service.ts",
+    "apps/api/src/outreach-v3/send/outreach-v3-send.service.ts",
+    "apps/workspace/prisma/migrations/20281012030000_prospect_resource_origin/migration.sql",
+    "apps/workspace/prisma/schema.prisma",
+    "apps/workspace/src/checks/checks.controller.ts",
+    "apps/workspace/src/checks/checks.service.ts",
+    "apps/workspace/src/collaborators/collaborators.controller.ts",
+    "apps/workspace/src/collaborators/collaborators.service.ts",
+    "apps/workspace/src/comments/comments.controller.ts",
+    "apps/workspace/src/comments/comments.service.ts",
+    "apps/workspace/src/context/context.service.ts",
+    "apps/workspace/src/delivery/approval.service.ts",
+    "apps/workspace/src/delivery/delivery.spec.ts",
+    "apps/workspace/src/delivery/share-link.service.ts",
+    "apps/workspace/src/document-agent/document-agent-quality.service.ts",
+    "apps/workspace/src/document-agent/document-agent-revision.service.ts",
+    "apps/workspace/src/document-agent/document-agent.service.ts",
+    "apps/workspace/src/documents/documents.controller.ts",
+    "apps/workspace/src/documents/documents.service.ts",
+    "apps/workspace/src/drafts/drafts.controller.ts",
+    "apps/workspace/src/drafts/drafts.service.ts",
+    "apps/workspace/src/drafts/dto/draft.dto.ts",
+    "apps/workspace/src/edit-lock/edit-lock.service.ts",
+    "apps/workspace/src/export/export.service.ts",
+    "apps/workspace/src/generation/generation.service.ts",
+    "apps/workspace/src/generation/memory-promotion.service.ts",
+    "apps/workspace/src/hillday/hillday-document.service.ts",
+    "apps/workspace/src/hillday/hillday-library-access.spec.ts",
+    "apps/workspace/src/notifications/notifications.service.ts",
+    "apps/workspace/src/prospect-resources/prospect-draft-access.spec.ts",
+    "apps/workspace/src/prospect-resources/prospect-draft-access.ts",
+    "apps/workspace/src/prospect-resources/prospect-draft-create.ts",
+    "apps/workspace/src/prospect-resources/prospect-independent-review.spec.ts",
+    "apps/workspace/src/prospect-resources/prospect-notification-access.ts",
+    "apps/workspace/src/quick-draft/generation-run-worker.service.ts",
+    "apps/workspace/src/quick-draft/quick-draft.service.ts",
+    "apps/workspace/src/quick-draft/source-resolver.service.ts",
+    "apps/workspace/src/template-studio/template-studio.service.ts",
+    "apps/workspace/src/versions/versions.service.ts",
+    "docs/prospect-resources-20261012/COMMITMENT-SCOPE-CLEANUP.md",
+    "docs/prospect-resources-20261012/DEPENDENCIES.md",
+    "packages/shared/src/client-memory-wall.ts",
+    "packages/shared/src/index.ts",
+    "packages/shared/src/prospect-resource-scope.ts",
+    "packages/shared/src/tenant-feature.ts"
+  ],
+  "preservedCandidates": [
+    {
+      "candidate": "2392 Cleanup",
+      "head": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "changedPathCount": 1379,
+      "prospectIntersections": [
+        "packages/shared/src/index.ts"
+      ]
+    },
+    {
+      "candidate": "2373 Facility original",
+      "head": "6e5774a14c73ea04f0a77650a5bbd33173bcc9b3",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "changedPathCount": 8,
+      "prospectIntersections": []
+    },
+    {
+      "candidate": "2364 Reply",
+      "head": "4b3c672574ed3738e42b1c5e1f7483e32f358095",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "changedPathCount": 2,
+      "prospectIntersections": [
+        "apps/api/src/engagement/engagement.service.ts"
+      ]
+    },
+    {
+      "candidate": "2381 Attachments",
+      "head": "171ec869ed3928c96172c8790a9aeb3b4de901ae",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "changedPathCount": 5,
+      "prospectIntersections": [
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/engagement.service.ts"
+      ]
+    },
+    {
+      "candidate": "2365 Prospect stages",
+      "head": "fd6ed6c017ae91ab774fd34f74475a746de13b68",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "changedPathCount": 9,
+      "prospectIntersections": []
+    },
+    {
+      "candidate": "2371 Prospect contacts",
+      "head": "6c6f88e9e5ba077452716f3a0db0dd3bbea2963f",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "changedPathCount": 8,
+      "prospectIntersections": []
+    },
+    {
+      "candidate": "2362 Objectives",
+      "head": "72bfea4c5f574c2d9dba63c6bbc63dac1c7e377e",
+      "mergeBase": "fd8765ec01d292013758606204f2c9d886cd31c1",
+      "changedPathCount": 15,
+      "prospectIntersections": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    },
+    {
+      "candidate": "2393 Sender",
+      "head": "b1ac2649e134af560d41bee790cacbd61de01c9b",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "changedPathCount": 47,
+      "prospectIntersections": [
+        "apps/api/src/engagement/attachments/outbound-attachment-access.spec.ts",
+        "apps/api/src/engagement/engagement.controller.ts",
+        "apps/api/src/engagement/engagement.service.ts"
+      ]
+    },
+    {
+      "candidate": "2394 Facility reconciliation",
+      "head": "5d075af9b376cd3ed67256b5c38e4a2a2130a51d",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "changedPathCount": 11,
+      "prospectIntersections": []
+    },
+    {
+      "candidate": "2395 Planner task command",
+      "head": "c5e41e320af4b4d841d4b3136777d712116916ed",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "changedPathCount": 36,
+      "prospectIntersections": []
+    },
+    {
+      "candidate": "2396 Core quick log",
+      "head": "e2c2c110edd986e799d47d43b0db50b24fab0201",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "changedPathCount": 135,
+      "prospectIntersections": [
+        "apps/api/prisma/schema.prisma",
+        "apps/api/src/clients/client-activity.service.ts"
+      ]
+    },
+    {
+      "candidate": "2397 Memory wording",
+      "head": "4915f3fa5c938182b2624377375674654baa5337",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "changedPathCount": 34,
+      "prospectIntersections": []
+    },
+    {
+      "candidate": "2398 Frontend handoff",
+      "head": "797e3a59158cff56b017ab7d01ee445bf624fced",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "changedPathCount": 3,
+      "prospectIntersections": []
+    },
+    {
+      "candidate": "2399 Ordered owners",
+      "head": "0783423aeaaa8b65f289d0927d605142816d8cfe",
+      "mergeBase": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+      "changedPathCount": 66,
+      "prospectIntersections": [
+        "apps/api/prisma/schema.prisma"
+      ]
+    }
+  ],
+  "schemaSlots": {
+    "Core": [
+      "20281012010000_client_activity_commands",
+      "20281012020000_client_ordered_owners",
+      "20281012030000_prospect_resource_origin"
+    ],
+    "Workspace": [
+      "20281012030000_prospect_resource_origin"
+    ]
+  },
+  "clientsModule": {
+    "prospectCandidateChanges": false,
+    "ownersRequiringComposition": [
+      "PR2362",
+      "PR2396",
+      "PR2399"
+    ]
+  }
+}

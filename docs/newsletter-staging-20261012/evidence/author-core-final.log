@@ -1,0 +1,15 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/newsletter-staging/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS src/outreach-v3/services/outreach-newsletter-staging.spec.ts
+PASS src/outreach-v3/services/outreach-command-engine.service.spec.ts
+PASS src/outreach-v3/outreach-v3-phase2-architecture.spec.ts
+PASS src/outreach-v3/state/outreach-content-skeleton-state.spec.ts
+PASS src/outreach-v3/state/outreach-command-contract.spec.ts
+PASS src/outreach-v3/state/outreach-content-skeleton-boundaries.spec.ts
+
+Test Suites: 6 passed, 6 total
+Tests:       92 passed, 92 total
+Snapshots:   0 total
+Time:        3.95 s, estimated 7 s
+Ran all test suites matching /src\/outreach-v3\/services\/outreach-newsletter-staging.spec.ts|src\/outreach-v3\/services\/outreach-command-engine.service.spec.ts|src\/outreach-v3\/state\/outreach-command-contract.spec.ts|src\/outreach-v3\/state\/outreach-content-skeleton-state.spec.ts|src\/outreach-v3\/state\/outreach-content-skeleton-boundaries.spec.ts|src\/outreach-v3\/outreach-v3-phase2-architecture.spec.ts/i.

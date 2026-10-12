@@ -1,0 +1,9 @@
+{
+  "source": "9c2765224fc38d111df0fe184ca50229c6128373",
+  "command": "NODE_OPTIONS=--max-old-space-size=8192 apps/workspace/node_modules/.bin/tsc --noEmit -p apps/workspace/tsconfig.json",
+  "observedToolExitCode": 0,
+  "log": "workspace-tsc-fixture-repair.log",
+  "independentSuitePassed": 17,
+  "runtimeOrAssertionsChanged": false,
+  "repair": "Required unused ShareLinkService second constructor argument supplied in test fixture"
+}

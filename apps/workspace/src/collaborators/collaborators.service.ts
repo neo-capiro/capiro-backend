@@ -1,3 +1,4 @@
+import { withProspectDraft, prospectDraftSourceAccess, withProspectInvitation, requireProspectInvitee } from '../prospect-resources/prospect-draft-access.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -8,7 +9,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import type { ResolvedRole } from './role-policy.js';
-import { canManageCollaborators } from './role-policy.js';
+import { canManageCollaborators, canRead } from './role-policy.js';
 import type { InviteCollaboratorDto, UpdateCollaboratorDto } from './dto/collaborator.dto.js';
 
 /**
@@ -80,6 +81,12 @@ export class CollaboratorsService {
     clerkUserId: string,
     signal?: AbortSignal,
   ): Promise<boolean> {
+    const origin = await this.prisma.wsDraft.findFirst({
+      where: { tenantId, id: draftId },
+      select: { id: true, tenantId: true, prospectId: true },
+    });
+    if (!origin || !(await prospectDraftSourceAccess(this.prisma, origin, clerkUserId)))
+      return false;
     const rows = await this.prisma.$queryRaw<
       Array<{ source_key: string; owner_id: string; source_type: string }>
     >`SELECT source_key,owner_id,source_type FROM ws_source_action WHERE tenant_id=${tenantId}::uuid AND draft_id=${draftId}::uuid AND source_type IN ('legiwatch_research','legiwatch_editorial')`;
@@ -127,107 +134,118 @@ export class CollaboratorsService {
   }
 
   /** List collaborators (active + pending) plus the synthetic Owner first. */
-  async list(tenantId: string, draftId: string) {
+  async list(tenantId: string, draftId: string, actorId?: string) {
     const draft = await this.assertDraft(tenantId, draftId);
-    const rows = await this.prisma.wsCollaborator.findMany({
-      where: { tenantId, draftId },
-      orderBy: { createdAt: 'asc' },
+    return withProspectDraft(this.prisma, draft, actorId, canRead, 'read', async (db) => {
+      const rows = await db.wsCollaborator.findMany({
+        where: { tenantId, draftId },
+        orderBy: { createdAt: 'asc' },
+      });
+      const owner = {
+        id: `owner:${draft.id}`,
+        subjectId: draft.ownerId,
+        email: null as string | null,
+        name: null as string | null,
+        role: 'owner' as const,
+        status: 'active' as const,
+        isOwner: true,
+      };
+      const collaborators = rows.map((r) => ({
+        id: r.id,
+        subjectId: r.subjectId,
+        email: r.email,
+        name: r.name,
+        role: r.role,
+        status: r.status,
+        isOwner: false,
+      }));
+      return { collaborators: [owner, ...collaborators] };
     });
-    const owner = {
-      id: `owner:${draft.id}`,
-      subjectId: draft.ownerId,
-      email: null as string | null,
-      name: null as string | null,
-      role: 'owner' as const,
-      status: 'active' as const,
-      isOwner: true,
-    };
-    const collaborators = rows.map((r) => ({
-      id: r.id,
-      subjectId: r.subjectId,
-      email: r.email,
-      name: r.name,
-      role: r.role,
-      status: r.status,
-      isOwner: false,
-    }));
-    return { collaborators: [owner, ...collaborators] };
   }
 
   /** Invite a collaborator. Internal (subjectId) → active; external (email) → pending. */
   async invite(tenantId: string, draftId: string, inviterId: string, dto: InviteCollaboratorDto) {
     const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(
+      this.prisma,
+      draft,
+      inviterId,
+      canManageCollaborators,
+      'write',
+      async (db) => {
+        const subjectId = dto.subjectId?.trim() || null;
+        const email = dto.email?.trim().toLowerCase() || null;
+        await requireProspectInvitee(db, draft, subjectId);
+        if (!subjectId && !email) {
+          throw new BadRequestException('Provide a teammate (subjectId) or an email to invite');
+        }
 
-    const subjectId = dto.subjectId?.trim() || null;
-    const email = dto.email?.trim().toLowerCase() || null;
-    if (!subjectId && !email) {
-      throw new BadRequestException('Provide a teammate (subjectId) or an email to invite');
-    }
+        if (subjectId) {
+          // Internal teammate — active now. Cannot invite the owner as a collaborator.
+          if (subjectId === draft.ownerId) {
+            throw new BadRequestException('This person is the document owner');
+          }
+          const existing = await db.wsCollaborator.findFirst({
+            where: { tenantId, draftId, subjectId },
+          });
+          if (existing) {
+            throw new BadRequestException('This teammate already has access or a pending invite');
+          }
+          // E-19: invites are PENDING until the invitee accepts (access is granted on
+          // accept). An in-app notification lets them accept/decline from the bell.
+          const row = await db.wsCollaborator.create({
+            data: {
+              tenantId,
+              draftId,
+              subjectId,
+              name: dto.name?.trim() || null,
+              role: dto.role,
+              status: 'pending',
+              invitedById: inviterId,
+            },
+          });
+          await this.notifications.create({
+            tenantId,
+            recipientId: subjectId,
+            kind: 'collab_invite',
+            message: `${dto.inviterName?.trim() || 'A teammate'} invited you to collaborate on “${draft.docTitle}” as ${dto.role}.`,
+            draftId,
+            collaboratorId: row.id,
+            actorName: dto.inviterName?.trim() || null,
+            draftTitle: draft.docTitle,
+            role: dto.role,
+            actionable: true,
+          });
+          return row;
+        }
 
-    if (subjectId) {
-      // Internal teammate — active now. Cannot invite the owner as a collaborator.
-      if (subjectId === draft.ownerId) {
-        throw new BadRequestException('This person is the document owner');
-      }
-      const existing = await this.prisma.wsCollaborator.findFirst({
-        where: { tenantId, draftId, subjectId },
-      });
-      if (existing) {
-        throw new BadRequestException('This teammate already has access or a pending invite');
-      }
-      // E-19: invites are PENDING until the invitee accepts (access is granted on
-      // accept). An in-app notification lets them accept/decline from the bell.
-      const row = await this.prisma.wsCollaborator.create({
-        data: {
-          tenantId,
-          draftId,
-          subjectId,
-          name: dto.name?.trim() || null,
-          role: dto.role,
-          status: 'pending',
-          invitedById: inviterId,
-        },
-      });
-      await this.notifications.create({
-        tenantId,
-        recipientId: subjectId,
-        kind: 'collab_invite',
-        message: `${dto.inviterName?.trim() || 'A teammate'} invited you to collaborate on “${draft.docTitle}” as ${dto.role}.`,
-        draftId,
-        collaboratorId: row.id,
-        actorName: dto.inviterName?.trim() || null,
-        draftTitle: draft.docTitle,
-        role: dto.role,
-        actionable: true,
-      });
-      return row;
-    }
-
-    // External client SME — pending row tagged for the client portal. The Clerk
-    // org-invite for externals is deferred; the pending row carries the intended
-    // role until accepted.
-    const existing = await this.prisma.wsCollaborator.findFirst({
-      where: { tenantId, draftId, email },
-    });
-    if (existing) {
-      throw new BadRequestException('This email already has access or a pending invite');
-    }
-    const row = await this.prisma.wsCollaborator.create({
-      data: {
-        tenantId,
-        draftId,
-        email,
-        name: dto.name?.trim() || null,
-        role: dto.role,
-        status: 'pending',
-        invitedById: inviterId,
+        // External client SME — pending row tagged for the client portal. The Clerk
+        // org-invite for externals is deferred; the pending row carries the intended
+        // role until accepted.
+        const existing = await db.wsCollaborator.findFirst({
+          where: { tenantId, draftId, email },
+        });
+        if (existing) {
+          throw new BadRequestException('This email already has access or a pending invite');
+        }
+        const row = await db.wsCollaborator.create({
+          data: {
+            tenantId,
+            draftId,
+            email,
+            name: dto.name?.trim() || null,
+            role: dto.role,
+            status: 'pending',
+            invitedById: inviterId,
+          },
+        });
+        // TODO(phase): trigger Clerk org invite for external client SMEs (the main
+        // api owns the tenant→clerkOrgId mapping + createOrganizationInvitation; the
+        // engine cannot reach that DB, so the pending row stands in until accepted).
+        this.logger.log(`Pending external collaborator invited to draft ${draftId}: ${email}`);
+        return row;
       },
-    });
-    // TODO(phase): trigger Clerk org invite for external client SMEs (the main
-    // api owns the tenant→clerkOrgId mapping + createOrganizationInvitation; the
-    // engine cannot reach that DB, so the pending row stands in until accepted).
-    this.logger.log(`Pending external collaborator invited to draft ${draftId}: ${email}`);
-    return row;
+    );
   }
 
   /** Change a collaborator's role. Owner-only (enforced in the controller). */
@@ -236,16 +254,26 @@ export class CollaboratorsService {
     draftId: string,
     collaboratorId: string,
     dto: UpdateCollaboratorDto,
+    actorId?: string,
   ) {
-    await this.assertDraft(tenantId, draftId);
-    const existing = await this.prisma.wsCollaborator.findFirst({
-      where: { id: collaboratorId, tenantId, draftId },
-    });
-    if (!existing) throw new NotFoundException('Collaborator not found');
-    return this.prisma.wsCollaborator.update({
-      where: { id: collaboratorId },
-      data: { role: dto.role },
-    });
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(
+      this.prisma,
+      draft,
+      actorId,
+      canManageCollaborators,
+      'write',
+      async (db) => {
+        const existing = await db.wsCollaborator.findFirst({
+          where: { id: collaboratorId, tenantId, draftId },
+        });
+        if (!existing) throw new NotFoundException('Collaborator not found');
+        return db.wsCollaborator.update({
+          where: { id: collaboratorId },
+          data: { role: dto.role },
+        });
+      },
+    );
   }
 
   /** Remove a collaborator. Owner-only (enforced in the controller). The Owner
@@ -254,15 +282,25 @@ export class CollaboratorsService {
     tenantId: string,
     draftId: string,
     collaboratorId: string,
+    actorId?: string,
   ): Promise<{ deleted: boolean }> {
-    await this.assertDraft(tenantId, draftId);
-    const existing = await this.prisma.wsCollaborator.findFirst({
-      where: { id: collaboratorId, tenantId, draftId },
-    });
-    if (!existing) throw new NotFoundException('Collaborator not found');
-    await this.notifications.resolveInvite(collaboratorId);
-    await this.prisma.wsCollaborator.delete({ where: { id: collaboratorId } });
-    return { deleted: true };
+    const draft = await this.assertDraft(tenantId, draftId);
+    return withProspectDraft(
+      this.prisma,
+      draft,
+      actorId,
+      canManageCollaborators,
+      'read',
+      async (db) => {
+        const existing = await db.wsCollaborator.findFirst({
+          where: { id: collaboratorId, tenantId, draftId },
+        });
+        if (!existing) throw new NotFoundException('Collaborator not found');
+        await this.notifications.resolveInvite(collaboratorId);
+        await db.wsCollaborator.delete({ where: { id: collaboratorId } });
+        return { deleted: true };
+      },
+    );
   }
 
   /**
@@ -271,36 +309,39 @@ export class CollaboratorsService {
    * notification, and notifies the inviter. Only the invited subject may accept.
    */
   async accept(tenantId: string, draftId: string, collaboratorId: string, actorId: string) {
-    const row = await this.prisma.wsCollaborator.findFirst({
-      where: { id: collaboratorId, tenantId, draftId },
-    });
-    if (!row) throw new NotFoundException('Invitation not found');
-    if (row.subjectId !== actorId) {
-      throw new ForbiddenException('This invitation is not addressed to you');
-    }
-    await this.notifications.resolveInvite(collaboratorId);
-    if (row.status === 'active') return row; // idempotent
-    const updated = await this.prisma.wsCollaborator.update({
-      where: { id: collaboratorId },
-      data: { status: 'active' },
-    });
-    const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
-      select: { docTitle: true },
-    });
-    if (row.invitedById) {
-      await this.notifications.create({
-        tenantId,
-        recipientId: row.invitedById,
-        kind: 'collab_accepted',
-        message: `${row.name?.trim() || 'A teammate'} accepted your invitation to “${draft?.docTitle ?? 'a document'}”.`,
-        draftId,
-        collaboratorId,
-        draftTitle: draft?.docTitle ?? null,
-        role: row.role,
+    const origin = await this.assertDraft(tenantId, draftId);
+    return withProspectInvitation(this.prisma, origin, actorId, collaboratorId, async (db) => {
+      const row = await db.wsCollaborator.findFirst({
+        where: { id: collaboratorId, tenantId, draftId },
       });
-    }
-    return updated;
+      if (!row) throw new NotFoundException('Invitation not found');
+      if (row.subjectId !== actorId) {
+        throw new ForbiddenException('This invitation is not addressed to you');
+      }
+      await this.notifications.resolveInvite(collaboratorId);
+      if (row.status === 'active') return row; // idempotent
+      const updated = await db.wsCollaborator.update({
+        where: { id: collaboratorId },
+        data: { status: 'active' },
+      });
+      const draft = await db.wsDraft.findFirst({
+        where: { id: draftId, tenantId },
+        select: { docTitle: true },
+      });
+      if (row.invitedById) {
+        await this.notifications.create({
+          tenantId,
+          recipientId: row.invitedById,
+          kind: 'collab_accepted',
+          message: `${row.name?.trim() || 'A teammate'} accepted your invitation to “${draft?.docTitle ?? 'a document'}”.`,
+          draftId,
+          collaboratorId,
+          draftTitle: draft?.docTitle ?? null,
+          role: row.role,
+        });
+      }
+      return updated;
+    });
   }
 
   /**
@@ -314,29 +355,32 @@ export class CollaboratorsService {
     collaboratorId: string,
     actorId: string,
   ): Promise<{ declined: boolean }> {
-    const row = await this.prisma.wsCollaborator.findFirst({
-      where: { id: collaboratorId, tenantId, draftId },
-    });
-    if (!row) throw new NotFoundException('Invitation not found');
-    if (row.subjectId !== actorId) {
-      throw new ForbiddenException('This invitation is not addressed to you');
-    }
-    await this.notifications.resolveInvite(collaboratorId);
-    await this.prisma.wsCollaborator.delete({ where: { id: collaboratorId } });
-    const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
-      select: { docTitle: true },
-    });
-    if (row.invitedById) {
-      await this.notifications.create({
-        tenantId,
-        recipientId: row.invitedById,
-        kind: 'collab_declined',
-        message: `${row.name?.trim() || 'A teammate'} declined your invitation to “${draft?.docTitle ?? 'a document'}”.`,
-        draftId,
-        draftTitle: draft?.docTitle ?? null,
+    const origin = await this.assertDraft(tenantId, draftId);
+    return withProspectInvitation(this.prisma, origin, actorId, collaboratorId, async (db) => {
+      const row = await db.wsCollaborator.findFirst({
+        where: { id: collaboratorId, tenantId, draftId },
       });
-    }
-    return { declined: true };
+      if (!row) throw new NotFoundException('Invitation not found');
+      if (row.subjectId !== actorId) {
+        throw new ForbiddenException('This invitation is not addressed to you');
+      }
+      await this.notifications.resolveInvite(collaboratorId);
+      await db.wsCollaborator.delete({ where: { id: collaboratorId } });
+      const draft = await db.wsDraft.findFirst({
+        where: { id: draftId, tenantId },
+        select: { docTitle: true },
+      });
+      if (row.invitedById) {
+        await this.notifications.create({
+          tenantId,
+          recipientId: row.invitedById,
+          kind: 'collab_declined',
+          message: `${row.name?.trim() || 'A teammate'} declined your invitation to “${draft?.docTitle ?? 'a document'}”.`,
+          draftId,
+          draftTitle: draft?.docTitle ?? null,
+        });
+      }
+      return { declined: true };
+    });
   }
 }

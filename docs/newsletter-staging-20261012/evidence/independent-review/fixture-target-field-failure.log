@@ -1,0 +1,222 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/newsletter-staging/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts
+  independent saved newsletter adversarial review
+    ✕ respects existing SELECT/INSERT-only source receipt privileges (6 ms)
+    ✓ denies legiwatch_research receipt even after human edits (5 ms)
+    ✓ denies legiwatch_editorial receipt even after human edits (2 ms)
+    ✕ denies legiwatch_preparation receipt even after human edits (10 ms)
+    ✕ denies unknown_source receipt even after human edits (4 ms)
+    ✕ never treats unbound legacy client context as firm content (5 ms)
+    ✕ never treats unbound legacy clientAssociated context as firm content (4 ms)
+    ✕ never treats unbound legacy clientPersons context as firm content (4 ms)
+    ✕ never treats current legacy draft.client as firm content when config client is absent (3 ms)
+    ✕ checks source-owner client wall before returning a saved snapshot to the chooser (3 ms)
+    ✕ checks source-owner client lifecycle before returning a saved snapshot (1 ms)
+    ✓ denies current suspended membership before receipt replay (3 ms)
+    ✓ denies current removed membership before receipt replay (4 ms)
+    ✓ requires the actual UUID and Clerk subject to identify the same current member (1 ms)
+    ✓ fails closed for unsupported current member role tenant_admin
+    ✓ fails closed for unsupported current member role client_user (1 ms)
+    ✓ fails closed for unsupported current member role guest (1 ms)
+    ✓ denies a foreign saved revision tenant and a saved revision from a different draft (1 ms)
+    ✓ refuses replay after source deletion and never resurrects a receipt source (4 ms)
+    ✓ refuses changed snapshot bytes even if plain text projection stays equal (4 ms)
+    ✓ requires exact request identity as well as exact skeleton and snapshot (5 ms)
+    ✓ rejects a generic command receipt occupying the same durable ID (2 ms)
+    ✓ rejects forged or modified provenance rather than replaying it (5 ms)
+    ✓ serializes one receipt for simultaneous identical synthetic retries (5 ms)
+    ✓ refuses a simultaneous stale competitor in the synthetic session lock (4 ms)
+    ✓ does not alter state or retain an event when final receipt readback fails (4 ms)
+    ✓ restages identical text with a fresh identity as no_change plus a new exact receipt (6 ms)
+    ✓ requires strict input and rejects caller-controlled source bytes, commands and recipient changes (11 ms)
+    ✕ leaves provider, upload and generation APIs outside the staging call graph (4 ms)
+    ✓ uses bounded actual role policy and parameter binds while locking mutable source authority (24 ms)
+
+  ● independent saved newsletter adversarial review › respects existing SELECT/INSERT-only source receipt privileges
+
+    expect(received).resolves.toMatchObject()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [Error: permission denied for table ws_source_action]
+
+      101 |     expect(migration).toContain('REVOKE UPDATE,DELETE,TRUNCATE ON ws_source_action FROM capiro_app');
+      102 |     const h = harness(); h.state.enforceSourcePrivileges = true;
+    > 103 |     await expect(h.read()).resolves.toMatchObject({ versionId });
+          |           ^
+      104 |     expect(h.sql.find((q) => q.text.includes('FROM ws_source_action'))?.text).not.toMatch(/FOR\s+(?:SHARE|KEY\s+SHARE|UPDATE|NO\s+KEY\s+UPDATE)/i);
+      105 |   });
+      106 |   it.each(['legiwatch_research', 'legiwatch_editorial', 'legiwatch_preparation', 'unknown_source'])('denies %s receipt even after human edits', async (source) => {
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:103:11)
+
+  ● independent saved newsletter adversarial review › denies legiwatch_preparation receipt even after human edits
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"batchId": "12345678-1234-4000-8000-000000000006", "changed": true, "commandCount": 1, "receiptId": "12345678-1234-4000-8000-000000000101", "replayed": false, "specHash": "9dd88dacb97aa56bf9cea01f4cded4644c87b0e7767caa8226d3db8df0f342ce", "staged": {"authorId": "user_original", "authorKind": "person", "clientId": null, "commandHash": "b71b616e3c33192099fa0beddc7b72556d3a6c885ee5811100405c1530eb2947", "draftId": "12345678-1234-4000-8000-000000000003", "expectedStateVersion": 1, "hashFormat": "workspace-snapshot-canonical-json-v1", "kind": "workspace_saved_newsletter_v1", "requestHash": "8483cf9c1edf1194e05fe994d6df6ce67661bc75059b5bc101db36d057d309ec", "requestId": "12345678-1234-4000-8000-000000000006", "savedAt": "2026-10-12T01:02:03.000Z", "snapshotHash": "3f73faf60336feaf0f13dce5443949df78bf297763b7f3aacf25f4596b511560", "versionId": "12345678-1234-4000-8000-000000000004"}, "stateVersion": 2, "status": "applied"}
+
+      106 |   it.each(['legiwatch_research', 'legiwatch_editorial', 'legiwatch_preparation', 'unknown_source'])('denies %s receipt even after human edits', async (source) => {
+      107 |     const h = harness(); h.state.sourceTypes = [source];
+    > 108 |     await expect(h.stage()).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED' }); expect(h.state.writes).toBe(0);
+          |           ^
+      109 |   });
+      110 |   it.each(['client', 'clientAssociated', 'clientPersons'])('never treats unbound legacy %s context as firm content', async (kind) => {
+      111 |     const h = harness(); h.state.snapshot.config[kind] = kind === 'client' ? 'Walled client' : kind === 'clientAssociated' ? true : [{ id: id(20) }];
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:108:11
+
+  ● independent saved newsletter adversarial review › denies unknown_source receipt even after human edits
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"batchId": "12345678-1234-4000-8000-000000000006", "changed": true, "commandCount": 1, "receiptId": "12345678-1234-4000-8000-000000000101", "replayed": false, "specHash": "9dd88dacb97aa56bf9cea01f4cded4644c87b0e7767caa8226d3db8df0f342ce", "staged": {"authorId": "user_original", "authorKind": "person", "clientId": null, "commandHash": "b71b616e3c33192099fa0beddc7b72556d3a6c885ee5811100405c1530eb2947", "draftId": "12345678-1234-4000-8000-000000000003", "expectedStateVersion": 1, "hashFormat": "workspace-snapshot-canonical-json-v1", "kind": "workspace_saved_newsletter_v1", "requestHash": "8483cf9c1edf1194e05fe994d6df6ce67661bc75059b5bc101db36d057d309ec", "requestId": "12345678-1234-4000-8000-000000000006", "savedAt": "2026-10-12T01:02:03.000Z", "snapshotHash": "3f73faf60336feaf0f13dce5443949df78bf297763b7f3aacf25f4596b511560", "versionId": "12345678-1234-4000-8000-000000000004"}, "stateVersion": 2, "status": "applied"}
+
+      106 |   it.each(['legiwatch_research', 'legiwatch_editorial', 'legiwatch_preparation', 'unknown_source'])('denies %s receipt even after human edits', async (source) => {
+      107 |     const h = harness(); h.state.sourceTypes = [source];
+    > 108 |     await expect(h.stage()).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED' }); expect(h.state.writes).toBe(0);
+          |           ^
+      109 |   });
+      110 |   it.each(['client', 'clientAssociated', 'clientPersons'])('never treats unbound legacy %s context as firm content', async (kind) => {
+      111 |     const h = harness(); h.state.snapshot.config[kind] = kind === 'client' ? 'Walled client' : kind === 'clientAssociated' ? true : [{ id: id(20) }];
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:108:11
+
+  ● independent saved newsletter adversarial review › never treats unbound legacy client context as firm content
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"batchId": "12345678-1234-4000-8000-000000000006", "changed": true, "commandCount": 1, "receiptId": "12345678-1234-4000-8000-000000000101", "replayed": false, "specHash": "9dd88dacb97aa56bf9cea01f4cded4644c87b0e7767caa8226d3db8df0f342ce", "staged": {"authorId": "user_original", "authorKind": "person", "clientId": null, "commandHash": "b71b616e3c33192099fa0beddc7b72556d3a6c885ee5811100405c1530eb2947", "draftId": "12345678-1234-4000-8000-000000000003", "expectedStateVersion": 1, "hashFormat": "workspace-snapshot-canonical-json-v1", "kind": "workspace_saved_newsletter_v1", "requestHash": "60aec7e1e6c3b2f543a46d72a5435fde94d3bb99182860fe55efea8a16fcbd16", "requestId": "12345678-1234-4000-8000-000000000006", "savedAt": "2026-10-12T01:02:03.000Z", "snapshotHash": "9e8a61e2d054b3f927a68807769d58ff75914efaa5a6387a45d08bde6f9248c4", "versionId": "12345678-1234-4000-8000-000000000004"}, "stateVersion": 2, "status": "applied"}
+
+      111 |     const h = harness(); h.state.snapshot.config[kind] = kind === 'client' ? 'Walled client' : kind === 'clientAssociated' ? true : [{ id: id(20) }];
+      112 |     h.state.currentConfig = structuredClone(h.state.snapshot.config);
+    > 113 |     await expect(h.stage()).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED' }); expect(h.state.writes).toBe(0);
+          |           ^
+      114 |   });
+      115 |   it('never treats current legacy draft.client as firm content when config client is absent', async () => {
+      116 |     const h = harness(); h.state.draftClient = 'Walled client';
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:113:11
+
+  ● independent saved newsletter adversarial review › never treats unbound legacy clientAssociated context as firm content
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"batchId": "12345678-1234-4000-8000-000000000006", "changed": true, "commandCount": 1, "receiptId": "12345678-1234-4000-8000-000000000101", "replayed": false, "specHash": "9dd88dacb97aa56bf9cea01f4cded4644c87b0e7767caa8226d3db8df0f342ce", "staged": {"authorId": "user_original", "authorKind": "person", "clientId": null, "commandHash": "b71b616e3c33192099fa0beddc7b72556d3a6c885ee5811100405c1530eb2947", "draftId": "12345678-1234-4000-8000-000000000003", "expectedStateVersion": 1, "hashFormat": "workspace-snapshot-canonical-json-v1", "kind": "workspace_saved_newsletter_v1", "requestHash": "d0c8415a893ffadf3a052be99923c1df89e75b5d760264767954f1b8d8d00ee3", "requestId": "12345678-1234-4000-8000-000000000006", "savedAt": "2026-10-12T01:02:03.000Z", "snapshotHash": "7f15046963483d5ffdc159d99a648872b9c6d1165cebfc50ddf220e2ce3d6ac6", "versionId": "12345678-1234-4000-8000-000000000004"}, "stateVersion": 2, "status": "applied"}
+
+      111 |     const h = harness(); h.state.snapshot.config[kind] = kind === 'client' ? 'Walled client' : kind === 'clientAssociated' ? true : [{ id: id(20) }];
+      112 |     h.state.currentConfig = structuredClone(h.state.snapshot.config);
+    > 113 |     await expect(h.stage()).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED' }); expect(h.state.writes).toBe(0);
+          |           ^
+      114 |   });
+      115 |   it('never treats current legacy draft.client as firm content when config client is absent', async () => {
+      116 |     const h = harness(); h.state.draftClient = 'Walled client';
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:113:11
+
+  ● independent saved newsletter adversarial review › never treats unbound legacy clientPersons context as firm content
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"batchId": "12345678-1234-4000-8000-000000000006", "changed": true, "commandCount": 1, "receiptId": "12345678-1234-4000-8000-000000000101", "replayed": false, "specHash": "9dd88dacb97aa56bf9cea01f4cded4644c87b0e7767caa8226d3db8df0f342ce", "staged": {"authorId": "user_original", "authorKind": "person", "clientId": null, "commandHash": "b71b616e3c33192099fa0beddc7b72556d3a6c885ee5811100405c1530eb2947", "draftId": "12345678-1234-4000-8000-000000000003", "expectedStateVersion": 1, "hashFormat": "workspace-snapshot-canonical-json-v1", "kind": "workspace_saved_newsletter_v1", "requestHash": "05f23dfb5f6f31e692ab20e1c57ab5dc31854b73214eea3495c09318ad3de748", "requestId": "12345678-1234-4000-8000-000000000006", "savedAt": "2026-10-12T01:02:03.000Z", "snapshotHash": "2d28800ee0a4638113ed30e1cfcb1bf25b992d7c9c8e1a1ba92dc1653a92fc9f", "versionId": "12345678-1234-4000-8000-000000000004"}, "stateVersion": 2, "status": "applied"}
+
+      111 |     const h = harness(); h.state.snapshot.config[kind] = kind === 'client' ? 'Walled client' : kind === 'clientAssociated' ? true : [{ id: id(20) }];
+      112 |     h.state.currentConfig = structuredClone(h.state.snapshot.config);
+    > 113 |     await expect(h.stage()).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED' }); expect(h.state.writes).toBe(0);
+          |           ^
+      114 |   });
+      115 |   it('never treats current legacy draft.client as firm content when config client is absent', async () => {
+      116 |     const h = harness(); h.state.draftClient = 'Walled client';
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:113:11
+
+  ● independent saved newsletter adversarial review › never treats current legacy draft.client as firm content when config client is absent
+
+    expect(received).rejects.toMatchObject()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"batchId": "12345678-1234-4000-8000-000000000006", "changed": true, "commandCount": 1, "receiptId": "12345678-1234-4000-8000-000000000101", "replayed": false, "specHash": "9dd88dacb97aa56bf9cea01f4cded4644c87b0e7767caa8226d3db8df0f342ce", "staged": {"authorId": "user_original", "authorKind": "person", "clientId": null, "commandHash": "b71b616e3c33192099fa0beddc7b72556d3a6c885ee5811100405c1530eb2947", "draftId": "12345678-1234-4000-8000-000000000003", "expectedStateVersion": 1, "hashFormat": "workspace-snapshot-canonical-json-v1", "kind": "workspace_saved_newsletter_v1", "requestHash": "8483cf9c1edf1194e05fe994d6df6ce67661bc75059b5bc101db36d057d309ec", "requestId": "12345678-1234-4000-8000-000000000006", "savedAt": "2026-10-12T01:02:03.000Z", "snapshotHash": "3f73faf60336feaf0f13dce5443949df78bf297763b7f3aacf25f4596b511560", "versionId": "12345678-1234-4000-8000-000000000004"}, "stateVersion": 2, "status": "applied"}
+
+      115 |   it('never treats current legacy draft.client as firm content when config client is absent', async () => {
+      116 |     const h = harness(); h.state.draftClient = 'Walled client';
+    > 117 |     await expect(h.stage()).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED' }); expect(h.state.writes).toBe(0);
+          |           ^
+      118 |   });
+      119 |   it('checks source-owner client wall before returning a saved snapshot to the chooser', async () => {
+      120 |     const h = harness(); h.bindClient(); h.state.grant = false;
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:117:11)
+
+  ● independent saved newsletter adversarial review › checks source-owner client wall before returning a saved snapshot to the chooser
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"authorId": "user_original", "authorKind": "person", "clientId": "12345678-1234-4000-8000-000000000007", "contentSkeleton": {"body": "Update
+    Pinned text.", "slots": [], "subject": "Pinned title"}, "draftId": "12345678-1234-4000-8000-000000000003", "savedAt": "2026-10-12T01:02:03.000Z", "snapshot": {"ask": null, "config": {"clientId": "12345678-1234-4000-8000-000000000007"}, "docTitle": "Pinned title", "documents": [{"body": {"blocks": [{"content": "<p>Pinned text.</p>", "title": "Update"}]}}]}, "snapshotJson": "{\"ask\":null,\"config\":{\"clientId\":\"12345678-1234-4000-8000-000000000007\"},\"docTitle\":\"Pinned title\",\"documents\":[{\"body\":{\"blocks\":[{\"content\":\"<p>Pinned text.</p>\",\"title\":\"Update\"}]}}]}", "versionId": "12345678-1234-4000-8000-000000000004"}
+
+      119 |   it('checks source-owner client wall before returning a saved snapshot to the chooser', async () => {
+      120 |     const h = harness(); h.bindClient(); h.state.grant = false;
+    > 121 |     await expect(h.read()).rejects.toThrow();
+          |           ^
+      122 |   });
+      123 |   it('checks source-owner client lifecycle before returning a saved snapshot', async () => {
+      124 |     const h = harness(); h.bindClient(); h.state.clientStatus = 'archived';
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:121:11)
+
+  ● independent saved newsletter adversarial review › checks source-owner client lifecycle before returning a saved snapshot
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"authorId": "user_original", "authorKind": "person", "clientId": "12345678-1234-4000-8000-000000000007", "contentSkeleton": {"body": "Update
+    Pinned text.", "slots": [], "subject": "Pinned title"}, "draftId": "12345678-1234-4000-8000-000000000003", "savedAt": "2026-10-12T01:02:03.000Z", "snapshot": {"ask": null, "config": {"clientId": "12345678-1234-4000-8000-000000000007"}, "docTitle": "Pinned title", "documents": [{"body": {"blocks": [{"content": "<p>Pinned text.</p>", "title": "Update"}]}}]}, "snapshotJson": "{\"ask\":null,\"config\":{\"clientId\":\"12345678-1234-4000-8000-000000000007\"},\"docTitle\":\"Pinned title\",\"documents\":[{\"body\":{\"blocks\":[{\"content\":\"<p>Pinned text.</p>\",\"title\":\"Update\"}]}}]}", "versionId": "12345678-1234-4000-8000-000000000004"}
+
+      123 |   it('checks source-owner client lifecycle before returning a saved snapshot', async () => {
+      124 |     const h = harness(); h.bindClient(); h.state.clientStatus = 'archived';
+    > 125 |     await expect(h.read()).rejects.toThrow();
+          |           ^
+      126 |   });
+      127 |   it.each(['suspended', 'removed'])('denies current %s membership before receipt replay', async (status) => {
+      128 |     const h = harness(); await h.stage(); h.state.memberStatus = status;
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:125:11)
+
+  ● independent saved newsletter adversarial review › leaves provider, upload and generation APIs outside the staging call graph
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: []
+    Received: undefined
+
+      189 |     const h = harness(); await h.stage();
+      190 |     expect(h.state.spec.contentSkeleton).toEqual({ subject: 'Pinned title', body: 'Update\nPinned text.', slots: [] });
+    > 191 |     expect(h.state.spec.targetRefs).toEqual([]);
+          |                                     ^
+      192 |     expect(h.repository.appendEvent.mock.calls.every((call) => ['command_applied', 'command_batch_result'].includes(call[3].eventType))).toBe(true);
+      193 |   });
+      194 |   it('uses bounded actual role policy and parameter binds while locking mutable source authority', async () => {
+
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:191:37)
+
+Test Suites: 1 failed, 1 total
+Tests:       10 failed, 20 passed, 30 total
+Snapshots:   0 total
+Time:        4.04 s
+Ran all test suites.

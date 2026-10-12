@@ -18,6 +18,7 @@
 // makes it auditable and impossible to drift between mutations.
 // ============================================================================
 
+import { workspaceCanRead } from '@capiro/shared';
 import type { WsRole } from '../../generated/prisma-client/index.js';
 
 /** The resolved role of an actor on a draft — a WsRole, the synthetic Owner, or
@@ -41,7 +42,7 @@ export function canComment(role: ResolvedRole): boolean {
 
 /** Read + export. Any role with access (including viewer). */
 export function canRead(role: ResolvedRole): boolean {
-  return role !== null;
+  return workspaceCanRead(role);
 }
 
 /** Invite collaborators + change/remove roles. Owner only. */

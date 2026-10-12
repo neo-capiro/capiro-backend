@@ -1,3 +1,4 @@
+import { denyProspectTransfer } from '../prospect-resources/prospect-draft-access.js';
 // Document Agent Revision Service — creates and manages revision proposals.
 // A proposal must be accepted or rejected; it never silently edits the document.
 
@@ -25,6 +26,12 @@ export class DocumentAgentRevisionService {
     baseHash: string;
     payload: Record<string, unknown>;
   }): Promise<{ proposalId: string }> {
+    denyProspectTransfer(
+      await this.prisma.wsDraft.findFirst({
+        where: { tenantId: params.tenantId, id: params.draftId },
+        select: { prospectId: true },
+      }),
+    );
     const proposal = await this.prisma.wsAgentProposal.create({
       data: {
         tenantId: params.tenantId,

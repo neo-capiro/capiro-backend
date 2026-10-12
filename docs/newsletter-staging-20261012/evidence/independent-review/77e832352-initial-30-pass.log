@@ -1,0 +1,41 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/newsletter-staging/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts (6.334 s)
+  independent saved newsletter adversarial review
+    ✓ respects existing SELECT/INSERT-only source receipt privileges (9 ms)
+    ✓ denies legiwatch_research receipt even after human edits (5 ms)
+    ✓ denies legiwatch_editorial receipt even after human edits (1 ms)
+    ✓ denies legiwatch_preparation receipt even after human edits (1 ms)
+    ✓ denies unknown_source receipt even after human edits (2 ms)
+    ✓ never treats unbound legacy client context as firm content (2 ms)
+    ✓ never treats unbound legacy clientAssociated context as firm content (2 ms)
+    ✓ never treats unbound legacy clientPersons context as firm content (9 ms)
+    ✓ never treats current legacy draft.client as firm content when config client is absent (2 ms)
+    ✓ checks source-owner client wall before returning a saved snapshot to the chooser (36 ms)
+    ✓ checks source-owner client lifecycle before returning a saved snapshot (4 ms)
+    ✓ denies current suspended membership before receipt replay (16 ms)
+    ✓ denies current removed membership before receipt replay (8 ms)
+    ✓ requires the actual UUID and Clerk subject to identify the same current member (2 ms)
+    ✓ fails closed for unsupported current member role tenant_admin (1 ms)
+    ✓ fails closed for unsupported current member role client_user (1 ms)
+    ✓ fails closed for unsupported current member role guest
+    ✓ denies a foreign saved revision tenant and a saved revision from a different draft (1 ms)
+    ✓ refuses replay after source deletion and never resurrects a receipt source (7 ms)
+    ✓ refuses changed snapshot bytes even if plain text projection stays equal (26 ms)
+    ✓ requires exact request identity as well as exact skeleton and snapshot (8 ms)
+    ✓ rejects a generic command receipt occupying the same durable ID (2 ms)
+    ✓ rejects forged or modified provenance rather than replaying it (8 ms)
+    ✓ serializes one receipt for simultaneous identical synthetic retries (7 ms)
+    ✓ refuses a simultaneous stale competitor in the synthetic session lock (7 ms)
+    ✓ does not alter state or retain an event when final receipt readback fails (6 ms)
+    ✓ restages identical text with a fresh identity as no_change plus a new exact receipt (11 ms)
+    ✓ requires strict input and rejects caller-controlled source bytes, commands and recipient changes (32 ms)
+    ✓ leaves provider, upload and generation APIs outside the staging call graph (8 ms)
+    ✓ uses bounded actual role policy and parameter binds while locking mutable source authority (6 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       30 passed, 30 total
+Snapshots:   0 total
+Time:        6.916 s
+Ran all test suites.

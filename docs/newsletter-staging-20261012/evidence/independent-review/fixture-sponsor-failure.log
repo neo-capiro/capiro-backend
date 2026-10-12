@@ -1,0 +1,330 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/newsletter-staging/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+FAIL docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts (9.028 s)
+  independent saved newsletter adversarial review
+    ✕ respects existing SELECT/INSERT-only source receipt privileges (12 ms)
+    ✓ denies legiwatch_research receipt even after human edits (16 ms)
+    ✓ denies legiwatch_editorial receipt even after human edits (10 ms)
+    ✓ denies legiwatch_preparation receipt even after human edits (13 ms)
+    ✓ denies unknown_source receipt even after human edits (24 ms)
+    ✓ never treats unbound legacy client context as firm content (5 ms)
+    ✓ never treats unbound legacy clientAssociated context as firm content (6 ms)
+    ✓ never treats unbound legacy clientPersons context as firm content (4 ms)
+    ✓ never treats current legacy draft.client as firm content when config client is absent (3 ms)
+    ✕ checks source-owner client wall before returning a saved snapshot to the chooser (3 ms)
+    ✕ checks source-owner client lifecycle before returning a saved snapshot (2 ms)
+    ✕ denies current suspended membership before receipt replay (5 ms)
+    ✕ denies current removed membership before receipt replay (21 ms)
+    ✓ requires the actual UUID and Clerk subject to identify the same current member (27 ms)
+    ✓ fails closed for unsupported current member role tenant_admin (1 ms)
+    ✓ fails closed for unsupported current member role client_user (3 ms)
+    ✓ fails closed for unsupported current member role guest (1 ms)
+    ✓ denies a foreign saved revision tenant and a saved revision from a different draft (1 ms)
+    ✕ refuses replay after source deletion and never resurrects a receipt source (3 ms)
+    ✕ refuses changed snapshot bytes even if plain text projection stays equal (5 ms)
+    ✕ requires exact request identity as well as exact skeleton and snapshot (23 ms)
+    ✕ rejects a generic command receipt occupying the same durable ID (7 ms)
+    ✕ rejects forged or modified provenance rather than replaying it (31 ms)
+    ✕ serializes one receipt for simultaneous identical synthetic retries (7 ms)
+    ✕ refuses a simultaneous stale competitor in the synthetic session lock (8 ms)
+    ✕ does not alter state or retain an event when final receipt readback fails (4 ms)
+    ✕ restages identical text with a fresh identity as no_change plus a new exact receipt (3 ms)
+    ✓ requires strict input and rejects caller-controlled source bytes, commands and recipient changes (19 ms)
+    ✕ leaves provider, upload and generation APIs outside the staging call graph (3 ms)
+    ✕ uses bounded actual role policy and parameter binds while locking mutable source authority (2 ms)
+
+  ● independent saved newsletter adversarial review › respects existing SELECT/INSERT-only source receipt privileges
+
+    expect(received).resolves.toMatchObject()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [Error: permission denied for table ws_source_action]
+
+      100 |     expect(migration).toContain('REVOKE UPDATE,DELETE,TRUNCATE ON ws_source_action FROM capiro_app');
+      101 |     const h = harness(); h.state.enforceSourcePrivileges = true;
+    > 102 |     await expect(h.read()).resolves.toMatchObject({ versionId });
+          |           ^
+      103 |     expect(h.sql.find((q) => q.text.includes('FROM ws_source_action'))?.text).not.toMatch(/FOR\s+(?:SHARE|KEY\s+SHARE|UPDATE|NO\s+KEY\s+UPDATE)/i);
+      104 |   });
+      105 |   it.each(['legiwatch_research', 'legiwatch_editorial', 'legiwatch_preparation', 'unknown_source'])('denies %s receipt even after human edits', async (source) => {
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:102:11)
+
+  ● independent saved newsletter adversarial review › checks source-owner client wall before returning a saved snapshot to the chooser
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"authorId": "user_original", "authorKind": "person", "clientId": "12345678-1234-4000-8000-000000000007", "contentSkeleton": {"body": "Update
+    Pinned text.", "slots": [], "subject": "Pinned title"}, "draftId": "12345678-1234-4000-8000-000000000003", "savedAt": "2026-10-12T01:02:03.000Z", "snapshot": {"ask": null, "config": {"clientId": "12345678-1234-4000-8000-000000000007"}, "docTitle": "Pinned title", "documents": [{"body": {"blocks": [{"content": "<p>Pinned text.</p>", "title": "Update"}]}}]}, "snapshotJson": "{\"ask\":null,\"config\":{\"clientId\":\"12345678-1234-4000-8000-000000000007\"},\"docTitle\":\"Pinned title\",\"documents\":[{\"body\":{\"blocks\":[{\"content\":\"<p>Pinned text.</p>\",\"title\":\"Update\"}]}}]}", "versionId": "12345678-1234-4000-8000-000000000004"}
+
+      118 |   it('checks source-owner client wall before returning a saved snapshot to the chooser', async () => {
+      119 |     const h = harness(); h.bindClient(); h.state.grant = false;
+    > 120 |     await expect(h.read()).rejects.toThrow();
+          |           ^
+      121 |   });
+      122 |   it('checks source-owner client lifecycle before returning a saved snapshot', async () => {
+      123 |     const h = harness(); h.bindClient(); h.state.clientStatus = 'archived';
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:120:11)
+
+  ● independent saved newsletter adversarial review › checks source-owner client lifecycle before returning a saved snapshot
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: {"authorId": "user_original", "authorKind": "person", "clientId": "12345678-1234-4000-8000-000000000007", "contentSkeleton": {"body": "Update
+    Pinned text.", "slots": [], "subject": "Pinned title"}, "draftId": "12345678-1234-4000-8000-000000000003", "savedAt": "2026-10-12T01:02:03.000Z", "snapshot": {"ask": null, "config": {"clientId": "12345678-1234-4000-8000-000000000007"}, "docTitle": "Pinned title", "documents": [{"body": {"blocks": [{"content": "<p>Pinned text.</p>", "title": "Update"}]}}]}, "snapshotJson": "{\"ask\":null,\"config\":{\"clientId\":\"12345678-1234-4000-8000-000000000007\"},\"docTitle\":\"Pinned title\",\"documents\":[{\"body\":{\"blocks\":[{\"content\":\"<p>Pinned text.</p>\",\"title\":\"Update\"}]}}]}", "versionId": "12345678-1234-4000-8000-000000000004"}
+
+      122 |   it('checks source-owner client lifecycle before returning a saved snapshot', async () => {
+      123 |     const h = harness(); h.bindClient(); h.state.clientStatus = 'archived';
+    > 124 |     await expect(h.read()).rejects.toThrow();
+          |           ^
+      125 |   });
+      126 |   it.each(['suspended', 'removed'])('denies current %s membership before receipt replay', async (status) => {
+      127 |     const h = harness(); await h.stage(); h.state.memberStatus = status;
+
+      at expect (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:124:11)
+
+  ● independent saved newsletter adversarial review › denies current suspended membership before receipt replay
+
+    OutreachCommandError: One or more newsletter sponsor references are not available in the authorized scope.
+
+      511 |
+      512 | function unauthorizedReference(kind: string): OutreachCommandError {
+    > 513 |   return new OutreachCommandError(
+          |          ^
+      514 |     'OUTREACH_REFERENCE_UNAUTHORIZED',
+      515 |     `One or more ${kind} references are not available in the authorized scope.`,
+      516 |     403,
+
+      at unauthorizedReference (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:513:10)
+      at OutreachCommandEngineService.authorizeSavedRevisionSponsor (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:139:15)
+      at prisma.withTenantUser.timeoutMs (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:97:18)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:84:20
+
+  ● independent saved newsletter adversarial review › denies current removed membership before receipt replay
+
+    OutreachCommandError: One or more newsletter sponsor references are not available in the authorized scope.
+
+      511 |
+      512 | function unauthorizedReference(kind: string): OutreachCommandError {
+    > 513 |   return new OutreachCommandError(
+          |          ^
+      514 |     'OUTREACH_REFERENCE_UNAUTHORIZED',
+      515 |     `One or more ${kind} references are not available in the authorized scope.`,
+      516 |     403,
+
+      at unauthorizedReference (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:513:10)
+      at OutreachCommandEngineService.authorizeSavedRevisionSponsor (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:139:15)
+      at prisma.withTenantUser.timeoutMs (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:97:18)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:84:20
+
+  ● independent saved newsletter adversarial review › refuses replay after source deletion and never resurrects a receipt source
+
+    OutreachCommandError: One or more newsletter sponsor references are not available in the authorized scope.
+
+      511 |
+      512 | function unauthorizedReference(kind: string): OutreachCommandError {
+    > 513 |   return new OutreachCommandError(
+          |          ^
+      514 |     'OUTREACH_REFERENCE_UNAUTHORIZED',
+      515 |     `One or more ${kind} references are not available in the authorized scope.`,
+      516 |     403,
+
+      at unauthorizedReference (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:513:10)
+      at OutreachCommandEngineService.authorizeSavedRevisionSponsor (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:139:15)
+      at prisma.withTenantUser.timeoutMs (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:97:18)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:84:20
+
+  ● independent saved newsletter adversarial review › refuses changed snapshot bytes even if plain text projection stays equal
+
+    OutreachCommandError: One or more newsletter sponsor references are not available in the authorized scope.
+
+      511 |
+      512 | function unauthorizedReference(kind: string): OutreachCommandError {
+    > 513 |   return new OutreachCommandError(
+          |          ^
+      514 |     'OUTREACH_REFERENCE_UNAUTHORIZED',
+      515 |     `One or more ${kind} references are not available in the authorized scope.`,
+      516 |     403,
+
+      at unauthorizedReference (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:513:10)
+      at OutreachCommandEngineService.authorizeSavedRevisionSponsor (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:139:15)
+      at prisma.withTenantUser.timeoutMs (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:97:18)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:84:20
+
+  ● independent saved newsletter adversarial review › requires exact request identity as well as exact skeleton and snapshot
+
+    OutreachCommandError: One or more newsletter sponsor references are not available in the authorized scope.
+
+      511 |
+      512 | function unauthorizedReference(kind: string): OutreachCommandError {
+    > 513 |   return new OutreachCommandError(
+          |          ^
+      514 |     'OUTREACH_REFERENCE_UNAUTHORIZED',
+      515 |     `One or more ${kind} references are not available in the authorized scope.`,
+      516 |     403,
+
+      at unauthorizedReference (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:513:10)
+      at OutreachCommandEngineService.authorizeSavedRevisionSponsor (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:139:15)
+      at prisma.withTenantUser.timeoutMs (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:97:18)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:84:20
+
+  ● independent saved newsletter adversarial review › rejects a generic command receipt occupying the same durable ID
+
+    expect(received).rejects.toMatchObject(expected)
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+    -   "code": "OUTREACH_COMMAND_ID_REUSE",
+    +   "code": "OUTREACH_REFERENCE_UNAUTHORIZED",
+      }
+
+      157 |   it('rejects a generic command receipt occupying the same durable ID', async () => {
+      158 |     const h = harness(); h.state.events.push({ eventType: 'command_batch_result', commandBatchId: requestId, payloadHash: 'pretend', safeMetadataJsonb: {} });
+    > 159 |     await expect(h.stage()).rejects.toMatchObject({ code: 'OUTREACH_COMMAND_ID_REUSE' }); expect(h.state.writes).toBe(0);
+          |                                     ^
+      160 |   });
+      161 |   it('rejects forged or modified provenance rather than replaying it', async () => {
+      162 |     const h = harness(); await h.stage(); h.state.events.find((e) => e.commandBatchId === requestId).safeMetadataJsonb.savedRevisionStaging.authorId = 'user_forged';
+
+      at Object.toMatchObject (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:159:37)
+
+  ● independent saved newsletter adversarial review › rejects forged or modified provenance rather than replaying it
+
+    OutreachCommandError: One or more newsletter sponsor references are not available in the authorized scope.
+
+      511 |
+      512 | function unauthorizedReference(kind: string): OutreachCommandError {
+    > 513 |   return new OutreachCommandError(
+          |          ^
+      514 |     'OUTREACH_REFERENCE_UNAUTHORIZED',
+      515 |     `One or more ${kind} references are not available in the authorized scope.`,
+      516 |     403,
+
+      at unauthorizedReference (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:513:10)
+      at OutreachCommandEngineService.authorizeSavedRevisionSponsor (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:139:15)
+      at prisma.withTenantUser.timeoutMs (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:97:18)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:84:20
+
+  ● independent saved newsletter adversarial review › serializes one receipt for simultaneous identical synthetic retries
+
+    OutreachCommandError: One or more newsletter sponsor references are not available in the authorized scope.
+
+      511 |
+      512 | function unauthorizedReference(kind: string): OutreachCommandError {
+    > 513 |   return new OutreachCommandError(
+          |          ^
+      514 |     'OUTREACH_REFERENCE_UNAUTHORIZED',
+      515 |     `One or more ${kind} references are not available in the authorized scope.`,
+      516 |     403,
+
+      at unauthorizedReference (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:513:10)
+      at OutreachCommandEngineService.authorizeSavedRevisionSponsor (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:139:15)
+      at prisma.withTenantUser.timeoutMs (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:97:18)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:84:20
+
+  ● independent saved newsletter adversarial review › refuses a simultaneous stale competitor in the synthetic session lock
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "fulfilled"
+    Received: "rejected"
+
+      169 |   it('refuses a simultaneous stale competitor in the synthetic session lock', async () => {
+      170 |     const h = harness(); const calls = await Promise.allSettled([h.stage(), h.stage({ requestId: id(93) })]);
+    > 171 |     expect(calls[0].status).toBe('fulfilled'); expect(calls[1].status).toBe('rejected'); expect(h.state.writes).toBe(1);
+          |                             ^
+      172 |   });
+      173 |   it('does not alter state or retain an event when final receipt readback fails', async () => {
+      174 |     const h = harness(); h.repository.findBatchResult.mockResolvedValue(null);
+
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:171:29)
+
+  ● independent saved newsletter adversarial review › does not alter state or retain an event when final receipt readback fails
+
+    expect(received).rejects.toMatchObject(expected)
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+    -   "code": "OUTREACH_STATE_CORRUPT",
+    +   "code": "OUTREACH_REFERENCE_UNAUTHORIZED",
+      }
+
+      173 |   it('does not alter state or retain an event when final receipt readback fails', async () => {
+      174 |     const h = harness(); h.repository.findBatchResult.mockResolvedValue(null);
+    > 175 |     await expect(h.stage()).rejects.toMatchObject({ code: 'OUTREACH_STATE_CORRUPT' }); expect(h.state.writes).toBe(0); expect(h.state.events).toEqual([]);
+          |                                     ^
+      176 |   });
+      177 |   it('restages identical text with a fresh identity as no_change plus a new exact receipt', async () => {
+      178 |     const h = harness(); await h.stage(); const second = await h.stage({ requestId: id(94), expectedStateVersion: 2 });
+
+      at Object.toMatchObject (../capirov2/node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:175:37)
+
+  ● independent saved newsletter adversarial review › restages identical text with a fresh identity as no_change plus a new exact receipt
+
+    OutreachCommandError: One or more newsletter sponsor references are not available in the authorized scope.
+
+      511 |
+      512 | function unauthorizedReference(kind: string): OutreachCommandError {
+    > 513 |   return new OutreachCommandError(
+          |          ^
+      514 |     'OUTREACH_REFERENCE_UNAUTHORIZED',
+      515 |     `One or more ${kind} references are not available in the authorized scope.`,
+      516 |     403,
+
+      at unauthorizedReference (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:513:10)
+      at OutreachCommandEngineService.authorizeSavedRevisionSponsor (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:139:15)
+      at prisma.withTenantUser.timeoutMs (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:97:18)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:84:20
+
+  ● independent saved newsletter adversarial review › leaves provider, upload and generation APIs outside the staging call graph
+
+    OutreachCommandError: One or more newsletter sponsor references are not available in the authorized scope.
+
+      511 |
+      512 | function unauthorizedReference(kind: string): OutreachCommandError {
+    > 513 |   return new OutreachCommandError(
+          |          ^
+      514 |     'OUTREACH_REFERENCE_UNAUTHORIZED',
+      515 |     `One or more ${kind} references are not available in the authorized scope.`,
+      516 |     403,
+
+      at unauthorizedReference (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:513:10)
+      at OutreachCommandEngineService.authorizeSavedRevisionSponsor (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:139:15)
+      at prisma.withTenantUser.timeoutMs (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:97:18)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:84:20
+
+  ● independent saved newsletter adversarial review › uses bounded actual role policy and parameter binds while locking mutable source authority
+
+    OutreachCommandError: One or more newsletter sponsor references are not available in the authorized scope.
+
+      511 |
+      512 | function unauthorizedReference(kind: string): OutreachCommandError {
+    > 513 |   return new OutreachCommandError(
+          |          ^
+      514 |     'OUTREACH_REFERENCE_UNAUTHORIZED',
+      515 |     `One or more ${kind} references are not available in the authorized scope.`,
+      516 |     403,
+
+      at unauthorizedReference (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:513:10)
+      at OutreachCommandEngineService.authorizeSavedRevisionSponsor (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:139:15)
+      at prisma.withTenantUser.timeoutMs (apps/api/src/outreach-v3/services/outreach-command-engine.service.ts:97:18)
+      at docs/newsletter-staging-20261012/evidence/independent-review/adversarial.spec.ts:84:20
+
+Test Suites: 1 failed, 1 total
+Tests:       16 failed, 14 passed, 30 total
+Snapshots:   0 total
+Time:        9.571 s
+Ran all test suites.
