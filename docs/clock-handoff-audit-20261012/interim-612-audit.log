@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/workspace/capirov2-clock-handoff-independent-audit/docs/clock-handoff-audit-20261012/audit-packet.py", line 71, in <module>
+    assert [retention[k] for k in ['baselineCases', 'frozenCases', 'retained', 'removed', 'added']] == [102, 137, 102, 0, 35]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

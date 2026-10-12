@@ -1,0 +1,75 @@
+{
+  "packetHead": "c958b794357bedcbd8d0b71e0ecbd45e2de7b64b",
+  "packetTree": "8260646ccde2c5a12ec5ee161e52047d3c5ba67f",
+  "source": "b3e02fb8f056ab3481b5153bf1a1b2fe3a7d4a7d",
+  "sourceTree": "62bbe8e9c2fae921ae1a59a7ca9e582c7dfb8dc0",
+  "copiedRawBytesWithoutEditing": true,
+  "snapshots": [
+    {
+      "originalPath": "docs/cleanup-clock-injection-20261012/HANDOFF.md",
+      "snapshotPath": "final-snapshots/HANDOFF.md",
+      "bytes": 8743,
+      "sha256": "b3090cf6422bb923091ead9e0ef5e27c375c19005ce5f44c37518f2e8b3d6fec"
+    },
+    {
+      "originalPath": "docs/cleanup-clock-injection-20261012/RELEASE-MANIFEST.json",
+      "snapshotPath": "final-snapshots/RELEASE-MANIFEST.json",
+      "bytes": 2310,
+      "sha256": "62e149c1099dad5314d90b7d49d6e4cc02dc5cedb401450c56881b2c4ed4b4ac"
+    },
+    {
+      "originalPath": "docs/cleanup-clock-injection-20261012/SOURCE-MANIFEST.json",
+      "snapshotPath": "final-snapshots/SOURCE-MANIFEST.json",
+      "bytes": 4496,
+      "sha256": "b6c325559398ce5bc857e14661b59d73dcc3bab3948bc60b46696997474e2dc5"
+    },
+    {
+      "originalPath": "docs/cleanup-clock-injection-20261012/SHA256SUMS",
+      "snapshotPath": "final-snapshots/SHA256SUMS",
+      "bytes": 42678,
+      "sha256": "f2121b82b18084260b2afb6de5abaec00d82ce13c03f333934efc2aad54711ff"
+    },
+    {
+      "originalPath": "docs/plans/cleanup4-progress.md",
+      "snapshotPath": "final-snapshots/cleanup4-progress.md",
+      "bytes": 4218,
+      "sha256": "395e24541b1451aae8d403efdb87111aab1e6e8304e752965612391a1fbcac66"
+    },
+    {
+      "originalPath": "docs/cleanup-clock-injection-20261012/evidence/SHA256SUMS-before-author-acceptance",
+      "snapshotPath": "final-snapshots/SHA256SUMS-before-author-acceptance",
+      "bytes": 42394,
+      "sha256": "49dd6e2d41b7785b96a9f17fd9f13dad6d553d38e7226ff749f44d5bb7a5d148"
+    },
+    {
+      "originalPath": "docs/cleanup-clock-injection-20261012/evidence/root-canonical-provenance-controls.command.json",
+      "snapshotPath": "final-snapshots/root-canonical-provenance-controls.command.json",
+      "bytes": 277,
+      "sha256": "ec8feb70aabcaa98e7ca4825b9dddd9bf42005bea8b62d7e571669cb4141a680"
+    },
+    {
+      "originalPath": "docs/cleanup-clock-injection-20261012/evidence/root-canonical-provenance-scan.command.json",
+      "snapshotPath": "final-snapshots/root-canonical-provenance-scan.command.json",
+      "bytes": 258,
+      "sha256": "7366bf9bf2ab67e5128b307fade4d9f0fbe6c62933415f047862a9a756e8d20f"
+    },
+    {
+      "originalPath": "docs/cleanup-clock-injection-20261012/evidence/root-canonical-provenance-source-preservation.json",
+      "snapshotPath": "final-snapshots/root-canonical-provenance-source-preservation.json",
+      "bytes": 409,
+      "sha256": "91b120b8d33c1e929613bc55631b51e435fdc933bb11ba36084b8c00ace146da"
+    },
+    {
+      "originalPath": "docs/clock-rng-final-independent-review-20261012/ACCEPTANCE-C00.json",
+      "snapshotPath": "final-snapshots/ACCEPTANCE-C00.json",
+      "bytes": 1447,
+      "sha256": "2df897f50796d8fd6e0bf2f82d344412ec5071a200f605ef01e602c91cea363c"
+    },
+    {
+      "originalPath": "docs/strategy-time-guard-repair-20261012/INDEPENDENT-ACCEPTANCE.json",
+      "snapshotPath": "final-snapshots/INDEPENDENT-ACCEPTANCE.json",
+      "bytes": 3002,
+      "sha256": "9cc74da6b8dfb4f37fcbb57731d960fbf2a584937b80a9142f1a3b6b5d98f7f0"
+    }
+  ]
+}

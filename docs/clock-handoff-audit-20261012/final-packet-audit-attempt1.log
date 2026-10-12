@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "/workspace/capirov2-clock-handoff-independent-audit/docs/clock-handoff-audit-20261012/audit-final-packet.py", line 94, in <module>
+    assert all(tree(packet_head).get(p) == base_tree[p] for values in protected_sets.values() for p in values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/capirov2-clock-handoff-independent-audit/docs/clock-handoff-audit-20261012/audit-final-packet.py", line 94, in <genexpr>
+    assert all(tree(packet_head).get(p) == base_tree[p] for values in protected_sets.values() for p in values)
+               ^^^^^^^^^^^^^^^^^
+  File "/workspace/capirov2-clock-handoff-independent-audit/docs/clock-handoff-audit-20261012/audit-final-packet.py", line 43, in tree
+    for line in git('ls-tree', '-r', ref).splitlines()}
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/capirov2-clock-handoff-independent-audit/docs/clock-handoff-audit-20261012/audit-final-packet.py", line 29, in git
+    b = subprocess.check_output(['git', *args], cwd=repo)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 466, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py", line 1196, in communicate
+    stdout = self.stdout.read()
+             ^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

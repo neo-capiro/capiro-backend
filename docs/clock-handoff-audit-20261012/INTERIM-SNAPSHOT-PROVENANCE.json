@@ -1,0 +1,21 @@
+{
+  "source": "6123e3d2d8c2606c4775db8201da5568ae0358cc",
+  "draftOnly": true,
+  "snapshots": [
+    {
+      "origin": "/workspace/capirov2-cleanup-clock-source/docs/cleanup-clock-injection-20261012/HANDOFF.md",
+      "snapshot": "docs/clock-handoff-audit-20261012/interim-snapshots/HANDOFF.md",
+      "sha256": "80a0174d19c0e7b18ff6ae521677e587d337308d9fc40e46114e6adef8334eb4"
+    },
+    {
+      "origin": "/workspace/capirov2-cleanup-clock-source/docs/plans/cleanup4-progress.md",
+      "snapshot": "docs/clock-handoff-audit-20261012/interim-snapshots/cleanup4-progress.md",
+      "sha256": "395e24541b1451aae8d403efdb87111aab1e6e8304e752965612391a1fbcac66"
+    },
+    {
+      "origin": "/workspace/capirov2-cleanup-clock-source/docs/cleanup-clock-injection-20261012/evidence/root-source-preservation.json",
+      "snapshot": "docs/clock-handoff-audit-20261012/interim-snapshots/root-source-preservation.json",
+      "sha256": "2ef92f1028d2dc6116fb68bbbcade8a12b64d4ae2e18c6d62acc3235646c73a3"
+    }
+  ]
+}

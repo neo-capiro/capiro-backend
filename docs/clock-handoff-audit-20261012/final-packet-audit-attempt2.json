@@ -1,0 +1,233 @@
+{
+  "result": "PASS: exact bounded documentation and receipt audit; no packet discrepancies found",
+  "source": "b3e02fb8f056ab3481b5153bf1a1b2fe3a7d4a7d",
+  "sourceTree": "62bbe8e9c2fae921ae1a59a7ca9e582c7dfb8dc0",
+  "packetHead": "c958b794357bedcbd8d0b71e0ecbd45e2de7b64b",
+  "packetTree": "8260646ccde2c5a12ec5ee161e52047d3c5ba67f",
+  "guardSource": "c00c86917af2da637c2183fd078f4390fe0ac361",
+  "guardTree": "c7ccd8cb80528c3cedaeead92e5c3babcfbdf158",
+  "independentReview": "0e756bf87b860f981951cfc97dd6e77a7d882e13",
+  "independentReviewTree": "9eeb2e87b2e5f313e7331d04b8904ff0634d42b7",
+  "authorFinalEvidence": "d94eb7e33767a2c79fc6e4e7d87847e82164cecd",
+  "masterEntries": 276,
+  "masterSha256": "f2121b82b18084260b2afb6de5abaec00d82ce13c03f333934efc2aad54711ff",
+  "masterCompleteSixPacketDirectoriesAndProgress": true,
+  "sourceManifest18RowsVerifiedGitBlobBytesSha256": true,
+  "sourceAndCurrentPacketAll18PathsExactAcceptedGuard": true,
+  "masterGitBlobsAndWorkingBytesExact": true,
+  "nestedChecksumIndexes": [
+    {
+      "path": "docs/clock-rng-final-independent-review-20261012/SHA256.json",
+      "entries": 73,
+      "allHashesExact": true
+    },
+    {
+      "path": "docs/clock-rng-independent-review-20261012/SHA256.json",
+      "entries": 41,
+      "allHashesExact": true
+    },
+    {
+      "path": "docs/clock-rng-repaired-independent-review-20261012/SHA256.json",
+      "entries": 39,
+      "allHashesExact": true
+    }
+  ],
+  "old274MasterPreservedSha256": "49dd6e2d41b7785b96a9f17fd9f13dad6d553d38e7226ff749f44d5bb7a5d148",
+  "old274EntriesRemoved": 0,
+  "old274ChangedCurrentHashes": [
+    "docs/cleanup-clock-injection-20261012/RELEASE-MANIFEST.json",
+    "docs/strategy-time-guard-repair-20261012/CONTRACT.md"
+  ],
+  "old274ChangesAreDocumentedAcceptanceSupplementOnly": true,
+  "freshRootSourceReceipts": {
+    "guard": {
+      "argv": [
+        "node",
+        "--test",
+        "scripts/check-strategy-time-bypasses.test.mjs"
+      ],
+      "source": "b3e02fb8f056ab3481b5153bf1a1b2fe3a7d4a7d",
+      "tree": "62bbe8e9c2fae921ae1a59a7ca9e582c7dfb8dc0",
+      "exit": 0,
+      "elapsedSeconds": 1.305,
+      "nativeAcceptance": false
+    },
+    "scan": {
+      "argv": [
+        "node",
+        "scripts/check-strategy-time-bypasses.mjs"
+      ],
+      "source": "b3e02fb8f056ab3481b5153bf1a1b2fe3a7d4a7d",
+      "tree": "62bbe8e9c2fae921ae1a59a7ca9e582c7dfb8dc0",
+      "exit": 0,
+      "elapsedSeconds": 4.701,
+      "nativeAcceptance": false
+    }
+  },
+  "historicalInterimReceipts": {
+    "recordedGuardReceipt": {
+      "argv": [
+        "node",
+        "--test",
+        "scripts/check-strategy-time-bypasses.test.mjs"
+      ],
+      "source": "da72cffb46f3dd0799aa87838d0571653b64e3ab",
+      "tree": "503b2e1d0332191e9f01d969afd510fe521eee12",
+      "exit": 0,
+      "elapsedSeconds": 1.411,
+      "nativeAcceptance": false
+    },
+    "recordedScanReceipt": {
+      "argv": [
+        "node",
+        "scripts/check-strategy-time-bypasses.mjs"
+      ],
+      "source": "da72cffb46f3dd0799aa87838d0571653b64e3ab",
+      "tree": "503b2e1d0332191e9f01d969afd510fe521eee12",
+      "exit": 0,
+      "elapsedSeconds": 4.423,
+      "nativeAcceptance": false
+    },
+    "recordedReceiptGuardBlobsMatchAuditSource": {
+      "guard": false,
+      "scan": false
+    }
+  },
+  "independentReceiptExactOriginalGitBytes": true,
+  "independentWholeMapNegativeRows": 25,
+  "independentRoleImportNegativeRows": 21,
+  "authorSupplementReceiptHashAndEmbeddedAcceptanceExact": true,
+  "structuralCountsAndRetainedEvidence": {
+    "auditedSource": "b3e02fb8f056ab3481b5153bf1a1b2fe3a7d4a7d",
+    "auditedTree": "62bbe8e9c2fae921ae1a59a7ca9e582c7dfb8dc0",
+    "packetRoot": "/workspace/capirov2-cleanup-clock-source",
+    "base": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+    "sibling": "fbdba6db6a995845727f4b57007da0a7f6aa5a6c",
+    "sourcePaths": [
+      ".github/workflows/ci-pr.yml",
+      "apps/api-strategy/src/fiscal/fiscal.spec.ts",
+      "apps/api-strategy/src/fiscal/fiscal.ts",
+      "apps/api-strategy/src/meri/context-load.spec.ts",
+      "apps/api-strategy/src/meri/context-load.ts",
+      "apps/api-strategy/src/meri/draft-job.service.spec.ts",
+      "apps/api-strategy/src/meri/draft-job.service.ts",
+      "apps/api-strategy/src/meri/meri.module.ts",
+      "apps/api-strategy/src/meri/meri.service.spec.ts",
+      "apps/api-strategy/src/meri/meri.service.ts",
+      "apps/api-strategy/src/meri/strategy-time.providers.spec.ts",
+      "apps/api-strategy/src/meri/strategy-time.providers.ts",
+      "package.json",
+      "packages/shared/src/index.ts",
+      "packages/shared/src/time.ts",
+      "scripts/check-strategy-time-bypasses.mjs",
+      "scripts/check-strategy-time-bypasses.test.mjs",
+      "scripts/strategy-time-boundaries.json"
+    ],
+    "siblingPaths": [
+      "apps/api/scripts/lib/pe-public-law-facade-containment.spec.ts",
+      "apps/api/scripts/lib/pe-public-law-facade-containment.ts",
+      "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs"
+    ],
+    "overlap": [],
+    "protectedPathCount": 1393,
+    "protectedAllGitModesAndBlobsExact": true,
+    "protectedSets": {
+      "schemaOrMigrationPaths": 603,
+      "priorCleanupPackets": 687,
+      "integratedRcPacket": 103
+    },
+    "f86OtherFifteenSourcePathsExact": true,
+    "allOriginalDataFieldsAnd119RowsExact": true,
+    "allowanceRows": 119,
+    "deferredIdentities": 116,
+    "deferredSamples": 123,
+    "canonicalDefaults": 3,
+    "executedCases": 137,
+    "executedSuites": 7,
+    "originalNameInventory": 102,
+    "originalNamesRetainedMultiset": 102,
+    "originalNamesRemoved": 0,
+    "baselineInventoryPendingNotAcceptance": true,
+    "authorEvidenceHashesVerified": [
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/author-frozen.json",
+        "sha256": "77da59916fc16b1781848d1d18c763b95ccb7ac3168f347bec26037cd49579ef"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/author-frozen.log",
+        "sha256": "7451affceee2868f76a391c33ff3a6c6686fa63215ddf82609c95c77f5973bf8"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/author-initial.json",
+        "sha256": "9b06c7e0c700a8136b82fda86dbb9786a7e4301cdba467a90b8049b49dbb0443"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/author-initial.log",
+        "sha256": "4b80e4696c40b3d87c4d7617049f4890e035f8c98d1907a1efb8af829f7c459e"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names-repaired.json",
+        "sha256": "a54704aec66eeb5c255d6abea4ace4d01a3fdfcaa90abd84d71093b82d049634"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names-repaired.log",
+        "sha256": "2b8e99f35dab5e20b50dc9dfa294180093701f3cd262cbf548eb5c327aa82ecd"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names.json",
+        "sha256": "36668eeaa62f861274acc18dcca260df655bd8ee2ecbefbd3938d923c6982797"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/baseline-test-names.log",
+        "sha256": "808badc72acdd2bda266dddbc6a2243cab1aa386b2e71b3e6f39636b30884cd0"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/clock.jest.cjs",
+        "sha256": "de4f794bf8fe7b022bb422afb9ccd4cf0d45bbae8c04683213e7f822a59c73d2"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/inventory-post-verification-failure.txt",
+        "sha256": "a75210be74fafed75a03334f9792f52da3bac07f3edbbb5583e0d2274c936f41"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/strategy-tsc-dependency-retry.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/strategy-tsc-frozen.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/strategy-tsc-initial.log",
+        "sha256": "e6ec18d9667908fd065855e9ef5953b4f07d00078e7a90632e134a38810c7510"
+      },
+      {
+        "path": "docs/cleanup-strategy-clock-rng-20261012/evidence/test-name-retention.json",
+        "sha256": "bf00d31fd2143cad7fb4f5db527f15aa05edbaf7a6f2fc3d2215c5a4b2aed675"
+      }
+    ],
+    "recordedGuardPass": 84,
+    "recordedScanFiles": 169,
+    "sameBaseSiblingNotComposed": true,
+    "transportFrontendSchemaDeltaInSourcePathSet": false,
+    "sourceTestsRerun": false,
+    "nativeOrFullGateAcceptance": false
+  },
+  "manualDocumentationReview": "HANDOFF/progress correctly bind source and source-only receipts, explicit finite grammar, preserved failures, noncomposed sibling and deferred/native/wider gates.",
+  "remainingPacketBlockers": [],
+  "sourceTestsRerun": false,
+  "runtimeSourceReviewPerformedByThisAudit": false,
+  "nativeAcceptance": false,
+  "fullCleanup1Acceptance": false,
+  "widerCleanup4Acceptance": false,
+  "unresolvedSourceAcceptanceBoundaries": [
+    "two migration-policy conflicts",
+    "standalone old public-law refusal until sibling composition",
+    "123 deferred ambient samples",
+    "configured clean Node22/pnpm9.12 toolchain",
+    "native DB/RLS/MVCC/concurrency/full CLI smoke",
+    "authentic coverage and pinned visuals",
+    "full Cleanup1 and wider Cleanup4 gates"
+  ]
+}
