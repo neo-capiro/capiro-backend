@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "--require",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/no-web-read.cjs",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review/docs/cleanup-static-fixtures-independent-review-20261012/evidence/skeleton-adversarial.mjs"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+  "exitCode": 0,
+  "stdoutSha256": "923068e11709b5d06bf52e12b31b85b22dca19474873fdc2007442f4343e8c7b",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "mutatedSourceExecuted": false
+}

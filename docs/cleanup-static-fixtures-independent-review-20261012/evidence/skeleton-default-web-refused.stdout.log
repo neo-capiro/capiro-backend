@@ -1,0 +1,16 @@
+✔ backend input preserves exact Core bytes and all ten original boundary cases (2.742859ms)
+✔ backend identity succeeds with Web absent and makes zero Web read attempts (2.344653ms)
+✔ missing opaque source is refused (1.155801ms)
+✔ same-size opaque source drift is refused (2.814143ms)
+✔ restored current-Web read operand is refused (2.286232ms)
+✔ skipping a browser/server syntax obligation is refused (1.785393ms)
+✔ removing a server schema assertion is refused (2.246418ms)
+✔ opaque symlink substitution is refused before reading (0.985961ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30.921468
