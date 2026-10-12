@@ -1,0 +1,76 @@
+{
+  "base": "61e9b467295235829e7d8097368ce41b0434818a",
+  "source": "e2f04d1a0d0f035a4f2fbf6e502323915c4240ba",
+  "sourceTree": "47c35bfbb15353e5b88c47d17199dd9f40860cad",
+  "commonInvocation": "env -i PATH=/usr/bin:/bin NODE_OPTIONS=--max-old-space-size=4096 /opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node /workspace/capirov2/apps/api/node_modules/jest/bin/jest.js --config docs/cleanup-newsletter-mocked-local-acceptance-20261012/jest.safe.cjs --runInBand --json --outputFile <attempt-json>",
+  "attempts": [
+    {
+      "id": "01",
+      "session": 19132,
+      "exit": 1,
+      "suitesFailedCollection": 19,
+      "tests": 0
+    },
+    {
+      "id": "02",
+      "session": 82906,
+      "exit": 1,
+      "suitesPassed": 10,
+      "testsPassed": 121
+    },
+    {
+      "id": "03",
+      "session": 18829,
+      "exit": 1,
+      "suitesPassed": 6,
+      "testsPassed": 156,
+      "testsFailed": 4,
+      "selection": "prior nine collection-failed suites only"
+    },
+    {
+      "id": "04",
+      "session": 33254,
+      "exit": 1,
+      "testsPassed": 7,
+      "testsFailed": 3,
+      "selection": "stock-image suite only"
+    },
+    {
+      "id": "06",
+      "session": 20165,
+      "exit": 0,
+      "suitesPassed": 3,
+      "testsPassed": 52,
+      "selection": "corrected image-revisions/survey/stock-image"
+    },
+    {
+      "id": "07",
+      "session": 71891,
+      "exit": 0,
+      "suitesPassed": 19,
+      "testsPassed": 291,
+      "qualification": "preliminary; global parser mapper not faithful to sanitizer closure"
+    },
+    {
+      "id": "09",
+      "session": 45583,
+      "exit": 1,
+      "suitesPassed": 6,
+      "testsPassed": 78,
+      "qualification": "real12 parser ESM unsupported by Jest29 CJS VM"
+    },
+    {
+      "id": "10",
+      "session": 51138,
+      "exit": 0,
+      "suitesPassed": 19,
+      "testsPassed": 291,
+      "qualification": "final actual dependency identities and unchanged real-sanitizer function"
+    }
+  ],
+  "actualProductionSourceChanged": false,
+  "PrismaDatabaseOrProviderExecuted": false,
+  "nativeSharpSyntheticCPU": true,
+  "loopbackFixture": true,
+  "realAppBootstrap": false
+}

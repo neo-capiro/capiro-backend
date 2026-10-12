@@ -1,0 +1,29 @@
+PASS apps/workspace/src/newsletters/newsletter-asset-import.spec.ts
+PASS apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts
+[33m[Nest] 455031  - [39m10/12/2026, 9:36:15 PM [33m   WARN[39m [38;5;3m[NewsletterInvitationEmailWorker] [39m[33mNewsletter invitation email request could not be processed[39m
+PASS apps/api/src/workspace-collab/newsletter-account-provider.spec.ts
+PASS apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts
+[33m[Nest] 455031  - [39m10/12/2026, 9:36:15 PM [33m   WARN[39m [38;5;3m[NewsletterReviewEmailWorker] [39m[33mNewsletter review email request could not be processed[39m
+PASS apps/workspace/src/newsletters/newsletter-image.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-html-check.spec.ts
+PASS apps/workspace/src/newsletters/newsletter.spec.ts
+[33m[Nest] 455031  - [39m10/12/2026, 9:36:16 PM [33m   WARN[39m [38;5;3m[NewsletterService] [39m[33mNewsletter saved; review notification could not be delivered[39m
+PASS apps/workspace/src/newsletters/newsletter-video.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-survey.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-stock-image.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-social.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-social-share.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-fonts.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-brand.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-assets.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts
+PASS apps/api/src/engagement/newsletter-outreach.service.spec.ts
+
+Test Suites: 19 passed, 19 total
+Tests:       291 passed, 291 total
+Snapshots:   0 total
+Time:        7.864 s
+Ran all test suites.
+Test results written to: docs/cleanup-newsletter-mocked-local-acceptance-20261012/evidence/10-real-sanitizer-coherent-original19.json

@@ -1,0 +1,62 @@
+{
+  "nodeVersion": "v24.19.0",
+  "dependencies": {
+    "directParser8": {
+      "path": "/tmp/capirov2-workspace-parser-acceptance-cache-20261012/htmlparser2-8.0.2/package",
+      "version": "8.0.2",
+      "dependencies": {
+        "domelementtype": "^2.3.0",
+        "domhandler": "^5.0.3",
+        "domutils": "^3.0.1",
+        "entities": "^4.4.0"
+      },
+      "entry": "lib/index.js",
+      "manifestSha256": "59a1ccf2ff631d6c789aab23076f531299100f7d63d3e0b2102c179ff79b8d6b",
+      "entrySha256": "d76fda50bb12cd232e6e968df7208630c37ef6aca9bd45666e433988f24e2344"
+    },
+    "sanitizeHtml": {
+      "path": "/workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html",
+      "version": "2.17.7",
+      "dependencies": {
+        "deepmerge": "^4.2.2",
+        "escape-string-regexp": "^4.0.0",
+        "htmlparser2": "^12.0.0",
+        "is-plain-object": "^5.0.0",
+        "parse-srcset": "^1.0.2",
+        "postcss": "^8.3.11",
+        "launder": "^1.7.1"
+      },
+      "entry": "index.js",
+      "manifestSha256": "f5f0b33726c5e9026324c48bbe29b7ca0cc6a4ae92e3d00af45054dc132d6a9b",
+      "entrySha256": "068d1c9ba72aa00489e204d2a0dcbf61216fcd3b48fb88ec8b4ebac2bc75ad32"
+    },
+    "sanitizerParser12": {
+      "path": "/workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2",
+      "version": "12.0.0",
+      "dependencies": {
+        "domelementtype": "^3.0.0",
+        "domhandler": "^6.0.0",
+        "domutils": "^4.0.2",
+        "entities": "^8.0.0"
+      },
+      "entry": "dist/index.js",
+      "manifestSha256": "2056f738ff8f63a73ebf931b7d220b2d1b93b0884454f94447cb4c3f54a603b1",
+      "entrySha256": "a87b86d915effe39edf97a54eed19b2d7d86b9d48fca2fd2d345e18307661429"
+    },
+    "sharp": {
+      "path": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp",
+      "version": "0.35.5",
+      "dependencies": {
+        "@img/colour": "^1.1.0",
+        "detect-libc": "^2.1.2",
+        "semver": "^7.8.5"
+      },
+      "entry": "dist/index.cjs",
+      "manifestSha256": "ad4a2535d72eb638053a38867b1abf43c328cd1c1dbae5cf4172d498365a8b97",
+      "entrySha256": "d69f275bc49fcd2a6188b26b35c986d4db32a1b008653fef88adb4598688232a"
+    }
+  },
+  "registryIntegrityOwner": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/cleanup-workspace-parser-local-acceptance-20261012/REGISTRY-INTEGRITY.json",
+  "retrievalPerformedByThisWorker": false,
+  "globalInstall": false
+}

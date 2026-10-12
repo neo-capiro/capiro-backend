@@ -1,0 +1,586 @@
+FAIL apps/workspace/src/newsletters/newsletter-stock-image.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException, Injectable } from '@nestjs/common';
+      2 | import { Parser } from 'htmlparser2';
+    > 3 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      4 | import { downloadNewsletterPage, newsletterImportUrl } from './newsletter-asset-import.service.js';
+      5 |
+      6 | function plain(value: string, max: number) {
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-link-preview.service.ts:3:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:20:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-stock-image.spec.ts:7:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-video.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException } from '@nestjs/common';
+    > 2 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      3 | import {
+      4 |   NEWSLETTER_BLOCK_KINDS,
+      5 |   createNewsletterBlock,
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-validation.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-video.spec.ts:22:1)
+
+FAIL apps/workspace/src/newsletters/newsletter.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException } from '@nestjs/common';
+    > 2 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      3 | import {
+      4 |   NEWSLETTER_BLOCK_KINDS,
+      5 |   createNewsletterBlock,
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-validation.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.spec.ts:16:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException, Injectable } from '@nestjs/common';
+      2 | import { Parser } from 'htmlparser2';
+    > 3 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      4 | import { downloadNewsletterPage, newsletterImportUrl } from './newsletter-asset-import.service.js';
+      5 |
+      6 | function plain(value: string, max: number) {
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-link-preview.service.ts:3:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:20:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts:2:1)
+
+FAIL apps/api/src/engagement/newsletter-outreach.service.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      20 |   renderNewsletterDesign,
+      21 | } from '@capiro/shared/newsletter-render';
+    > 22 | import sanitizeHtml from 'sanitize-html';
+         | ^
+      23 | import { PrismaService } from '../prisma/prisma.service.js';
+      24 | import { EngagementService, type OutreachRecipientInput } from './engagement.service.js';
+      25 | import { OutreachDraftService } from './outreach-draft.service.js';
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/api/src/engagement/newsletter-outreach.service.ts:22:1)
+      at Object.<anonymous> (apps/api/src/engagement/newsletter-outreach.service.spec.ts:4:1)
+
+PASS apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts
+FAIL apps/workspace/src/newsletters/newsletter-brand.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException, Injectable } from '@nestjs/common';
+      2 | import { Parser } from 'htmlparser2';
+    > 3 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      4 | import { downloadNewsletterPage, newsletterImportUrl } from './newsletter-asset-import.service.js';
+      5 |
+      6 | function plain(value: string, max: number) {
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-link-preview.service.ts:3:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:20:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-brand.spec.ts:11:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-social-share.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException } from '@nestjs/common';
+    > 2 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      3 | import {
+      4 |   NEWSLETTER_BLOCK_KINDS,
+      5 |   createNewsletterBlock,
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-validation.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-social-share.spec.ts:16:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-assets.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException, Injectable } from '@nestjs/common';
+      2 | import { Parser } from 'htmlparser2';
+    > 3 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      4 | import { downloadNewsletterPage, newsletterImportUrl } from './newsletter-asset-import.service.js';
+      5 |
+      6 | function plain(value: string, max: number) {
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-link-preview.service.ts:3:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:20:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-assets.spec.ts:2:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-survey.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException } from '@nestjs/common';
+    > 2 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      3 | import {
+      4 |   NEWSLETTER_BLOCK_KINDS,
+      5 |   createNewsletterBlock,
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-validation.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-survey.spec.ts:14:1)
+
+[33m[Nest] 454370  - [39m10/12/2026, 9:34:46 PM [33m   WARN[39m [38;5;3m[NewsletterInvitationEmailWorker] [39m[33mNewsletter invitation email request could not be processed[39m
+PASS apps/workspace/src/newsletters/newsletter-asset-import.spec.ts
+FAIL apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException, Injectable } from '@nestjs/common';
+      2 | import { Parser } from 'htmlparser2';
+    > 3 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      4 | import { downloadNewsletterPage, newsletterImportUrl } from './newsletter-asset-import.service.js';
+      5 |
+      6 | function plain(value: string, max: number) {
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-link-preview.service.ts:3:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:20:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts:2:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-fonts.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException } from '@nestjs/common';
+    > 2 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      3 | import {
+      4 |   NEWSLETTER_BLOCK_KINDS,
+      5 |   createNewsletterBlock,
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-validation.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-fonts.spec.ts:9:1)
+
+PASS apps/api/src/workspace-collab/newsletter-account-provider.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-image.spec.ts
+FAIL apps/workspace/src/newsletters/newsletter-social.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException } from '@nestjs/common';
+    > 2 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      3 | import {
+      4 |   NEWSLETTER_BLOCK_KINDS,
+      5 |   createNewsletterBlock,
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-validation.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-social.spec.ts:10:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts
+  ● Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     • If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     • If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     • To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     • If you need a custom transformation specify a "transform" option in your config.
+     • If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    /workspace/capirov2/node_modules/.pnpm/htmlparser2@12.0.0/node_modules/htmlparser2/dist/index.js:1
+    ({"Object.<anonymous>":function(module,exports,require,__dirname,__filename,jest){import { Parser } from "./Parser.js";
+                                                                                      ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      1 | import { BadRequestException, Injectable } from '@nestjs/common';
+      2 | import { Parser } from 'htmlparser2';
+    > 3 | import sanitizeHtml from 'sanitize-html';
+        | ^
+      4 | import { downloadNewsletterPage, newsletterImportUrl } from './newsletter-asset-import.service.js';
+      5 |
+      6 | function plain(value: string, max: number) {
+
+      at Runtime.createScriptFromCode (../../workspace/capirov2/node_modules/.pnpm/jest-runtime@29.7.0/node_modules/jest-runtime/build/index.js:1505:14)
+      at Object.<anonymous> (../../workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html/index.js:1:122)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-link-preview.service.ts:3:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts:1:1)
+
+PASS apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts
+[33m[Nest] 454370  - [39m10/12/2026, 9:34:48 PM [33m   WARN[39m [38;5;3m[NewsletterReviewEmailWorker] [39m[33mNewsletter review email request could not be processed[39m
+PASS apps/workspace/src/newsletters/newsletter-html-check.spec.ts
+
+Test Suites: 13 failed, 6 passed, 19 total
+Tests:       78 passed, 78 total
+Snapshots:   0 total
+Time:        4.925 s, estimated 8 s
+Ran all test suites.
+Test results written to: docs/cleanup-newsletter-mocked-local-acceptance-20261012/evidence/09-requester-coherent-original19.json

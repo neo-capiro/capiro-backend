@@ -1,0 +1,71 @@
+FAIL apps/workspace/src/newsletters/newsletter-stock-image.spec.ts
+  newsletter Pexels adapter
+    ✓ reports no connection without revealing credentials or making a provider call (20 ms)
+    ✓ encodes user searches on the fixed host and returns credited metadata only (19 ms)
+    ✓ loads curated photos for an empty query and resolves selection by numeric ID (3 ms)
+    ✓ rejects invalid pages, oversized queries and IDs before contacting the provider (3 ms)
+    ✓ handles quota, auth, network and unreadable responses without provider error disclosure (4 ms)
+    ✓ bounds both declared and streamed response size (5 ms)
+    ✓ rejects wrong photo IDs, untrusted media hosts and unsafe attribution URLs (3 ms)
+  newsletter stock-image HTTP boundary
+    ✕ requires the tenant guard for status, search and import (2 ms)
+    ✕ validates query fields before search and carries only normalized parameters
+    ✕ uses the authoritative provider selection and scoped existing asset importer
+
+  ● newsletter stock-image HTTP boundary › requires the tenant guard for status, search and import
+
+    TypeError: Cannot read properties of null (reading 'address')
+
+      177 |   it('requires the tenant guard for status, search and import', async () => {
+      178 |     await request(app.getHttpServer())
+    > 179 |       .get('/workspace-api/newsletters/stock-images/status')
+          |        ^
+      180 |       .expect(403);
+      181 |     await request(app.getHttpServer()).get('/workspace-api/newsletters/stock-images').expect(403);
+      182 |     await request(app.getHttpServer())
+
+      at Test.serverAddress (../../workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/lib/test.js:104:21)
+      at new Test (../../workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/lib/test.js:53:14)
+      at Object.obj.<computed> [as get] (../../workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/index.js:45:18)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-stock-image.spec.ts:179:8)
+
+  ● newsletter stock-image HTTP boundary › validates query fields before search and carries only normalized parameters
+
+    TypeError: Cannot read properties of null (reading 'address')
+
+      188 |   it('validates query fields before search and carries only normalized parameters', async () => {
+      189 |     await request(app.getHttpServer())
+    > 190 |       .get('/workspace-api/newsletters/stock-images?search=bills&page=2')
+          |        ^
+      191 |       .set('x-stock-test-auth', 'yes')
+      192 |       .expect(200);
+      193 |     expect(stock.search).toHaveBeenCalledWith('bills', 2);
+
+      at Test.serverAddress (../../workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/lib/test.js:104:21)
+      at new Test (../../workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/lib/test.js:53:14)
+      at Object.obj.<computed> [as get] (../../workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/index.js:45:18)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-stock-image.spec.ts:190:8)
+
+  ● newsletter stock-image HTTP boundary › uses the authoritative provider selection and scoped existing asset importer
+
+    TypeError: Cannot read properties of null (reading 'address')
+
+      206 |   it('uses the authoritative provider selection and scoped existing asset importer', async () => {
+      207 |     await request(app.getHttpServer())
+    > 208 |       .post('/workspace-api/newsletters/stock-images/123/import')
+          |        ^
+      209 |       .set('x-stock-test-auth', 'yes')
+      210 |       .send({ url: 'https://internal/image' })
+      211 |       .expect(400);
+
+      at Test.serverAddress (../../workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/lib/test.js:104:21)
+      at new Test (../../workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/lib/test.js:53:14)
+      at Object.obj.<computed> [as post] (../../workspace/capirov2/node_modules/.pnpm/supertest@7.3.0/node_modules/supertest/index.js:45:18)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-stock-image.spec.ts:208:8)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 7 passed, 10 total
+Snapshots:   0 total
+Time:        2.771 s
+Ran all test suites within paths "apps/workspace/src/newsletters/newsletter-stock-image.spec.ts".
+Test results written to: docs/cleanup-newsletter-mocked-local-acceptance-20261012/evidence/04-stock-http-host-repaired.json

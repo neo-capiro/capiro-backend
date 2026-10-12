@@ -1,0 +1,14 @@
+{
+  "failed": [
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/src/newsletters/newsletter.spec.ts",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/src/newsletters/newsletter-video.spec.ts",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/src/newsletters/newsletter-survey.spec.ts",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/src/newsletters/newsletter-stock-image.spec.ts",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/src/newsletters/newsletter-social-share.spec.ts",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/src/newsletters/newsletter-brand.spec.ts",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/src/newsletters/newsletter-assets.spec.ts",
+    "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts"
+  ],
+  "reason": "only suites that failed collection on incorrect cached Sharp entry; ten passed suites not repeated"
+}

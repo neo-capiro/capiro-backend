@@ -1,0 +1,269 @@
+FAIL apps/workspace/src/newsletters/newsletter.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module sharp mapped as:
+    /workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^sharp$/": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
+    > 2 | import sharp from 'sharp';
+        | ^
+      3 | import { newsletterVideoSource } from '@capiro/shared/newsletter';
+      4 | import {
+      5 |   downloadNewsletterVideoJson,
+
+      at createNoMappedModuleFoundError (../../workspace/capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-video.service.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:21:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.spec.ts:17:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-video.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module sharp mapped as:
+    /workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^sharp$/": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { BadGatewayException, BadRequestException } from '@nestjs/common';
+    > 2 | import sharp from 'sharp';
+        | ^
+      3 | import {
+      4 |   createNewsletterBlock,
+      5 |   createNewsletterSection,
+
+      at createNoMappedModuleFoundError (../../workspace/capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-video.spec.ts:2:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-survey.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module sharp mapped as:
+    /workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^sharp$/": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
+    > 2 | import sharp from 'sharp';
+        | ^
+      3 | import { newsletterVideoSource } from '@capiro/shared/newsletter';
+      4 | import {
+      5 |   downloadNewsletterVideoJson,
+
+      at createNoMappedModuleFoundError (../../workspace/capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-video.service.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:21:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-survey.spec.ts:19:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-stock-image.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module sharp mapped as:
+    /workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^sharp$/": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
+    > 2 | import sharp from 'sharp';
+        | ^
+      3 | import { newsletterVideoSource } from '@capiro/shared/newsletter';
+      4 | import {
+      5 |   downloadNewsletterVideoJson,
+
+      at createNoMappedModuleFoundError (../../workspace/capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-video.service.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:21:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-stock-image.spec.ts:7:1)
+
+PASS apps/workspace/src/newsletters/newsletter-social.spec.ts
+FAIL apps/workspace/src/newsletters/newsletter-social-share.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module sharp mapped as:
+    /workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^sharp$/": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
+    > 2 | import sharp from 'sharp';
+        | ^
+      3 | import { newsletterVideoSource } from '@capiro/shared/newsletter';
+      4 | import {
+      5 |   downloadNewsletterVideoJson,
+
+      at createNoMappedModuleFoundError (../../workspace/capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-video.service.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:21:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-social-share.spec.ts:17:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module sharp mapped as:
+    /workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^sharp$/": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
+    > 2 | import sharp from 'sharp';
+        | ^
+      3 | import { newsletterVideoSource } from '@capiro/shared/newsletter';
+      4 | import {
+      5 |   downloadNewsletterVideoJson,
+
+      at createNoMappedModuleFoundError (../../workspace/capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-video.service.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:21:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts:2:1)
+
+PASS apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-image.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-html-check.spec.ts
+PASS apps/workspace/src/newsletters/newsletter-fonts.spec.ts
+FAIL apps/workspace/src/newsletters/newsletter-brand.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module sharp mapped as:
+    /workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^sharp$/": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
+    > 2 | import sharp from 'sharp';
+        | ^
+      3 | import { newsletterVideoSource } from '@capiro/shared/newsletter';
+      4 | import {
+      5 |   downloadNewsletterVideoJson,
+
+      at createNoMappedModuleFoundError (../../workspace/capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-video.service.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:21:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-brand.spec.ts:11:1)
+
+FAIL apps/workspace/src/newsletters/newsletter-assets.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module sharp mapped as:
+    /workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^sharp$/": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
+    > 2 | import sharp from 'sharp';
+        | ^
+      3 | import { newsletterVideoSource } from '@capiro/shared/newsletter';
+      4 | import {
+      5 |   downloadNewsletterVideoJson,
+
+      at createNoMappedModuleFoundError (../../workspace/capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-video.service.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:21:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-assets.spec.ts:2:1)
+
+PASS apps/workspace/src/newsletters/newsletter-asset-import.spec.ts
+FAIL apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts
+  ● Test suite failed to run
+
+    Configuration error:
+
+    Could not locate module sharp mapped as:
+    /workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js.
+
+    Please check your configuration for these entries:
+    {
+      "moduleNameMapper": {
+        "/^sharp$/": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.js"
+      },
+      "resolver": undefined
+    }
+
+      1 | import { BadGatewayException, BadRequestException, Injectable } from '@nestjs/common';
+    > 2 | import sharp from 'sharp';
+        | ^
+      3 | import { newsletterVideoSource } from '@capiro/shared/newsletter';
+      4 | import {
+      5 |   downloadNewsletterVideoJson,
+
+      at createNoMappedModuleFoundError (../../workspace/capirov2/node_modules/.pnpm/jest-resolve@29.7.0/node_modules/jest-resolve/build/resolver.js:759:17)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-video.service.ts:2:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter.service.ts:21:1)
+      at Object.<anonymous> (apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts:2:1)
+
+PASS apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts
+[33m[Nest] 446027  - [39m10/12/2026, 9:21:56 PM [33m   WARN[39m [38;5;3m[NewsletterReviewEmailWorker] [39m[33mNewsletter review email request could not be processed[39m
+[33m[Nest] 446027  - [39m10/12/2026, 9:21:56 PM [33m   WARN[39m [38;5;3m[NewsletterInvitationEmailWorker] [39m[33mNewsletter invitation email request could not be processed[39m
+PASS apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts
+PASS apps/api/src/workspace-collab/newsletter-account-provider.spec.ts
+PASS apps/api/src/engagement/newsletter-outreach.service.spec.ts
+
+Test Suites: 9 failed, 10 passed, 19 total
+Tests:       121 passed, 121 total
+Snapshots:   0 total
+Time:        4.484 s
+Ran all test suites.
+Test results written to: docs/cleanup-newsletter-mocked-local-acceptance-20261012/evidence/02-original-newsletter-suites-host-repaired.json

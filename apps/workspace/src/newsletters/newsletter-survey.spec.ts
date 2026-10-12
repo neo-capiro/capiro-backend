@@ -168,7 +168,7 @@ describe('Saved survey drafts and newsletter buttons', () => {
       service
         .checks(design(block), defaultNewsletterConfig())
         .find((c) => c.id === `survey-${block.id}`)?.detail,
-    ).toContain('draft');
+    ).toBe('Hosted surveys are not enabled for newsletters. Remove this block before staging.');
   });
   it.each(['javascript:alert(1)', 'mailto:policy@example.test', 'data:image/png;base64,AAAA'])(
     'rejects unsafe survey media %s',
