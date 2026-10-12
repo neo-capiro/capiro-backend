@@ -216,6 +216,9 @@ jobs:
       - name: Guard Strategy grounding time and retry adoption
         run: pnpm gate:cleanup4:strategy-time
 
+      - name: Guard existing Strategy template vocabulary ownership
+        run: pnpm gate:cleanup4:registry-ownership
+
       - name: Test apps/api
         if: ${{ toJSON(github.event.pull_request.draft) == 'false' }}
         run: pnpm --filter @capiro/api test

@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "profiles": [
+    {
+      "id": "strategy-existing-template-vocabulary",
+      "status": "existing canonical vocabulary only; report metadata conversion remains pending",
+      "owner": "apps/api-strategy/src/context/frontmatter.ts",
+      "roots": ["apps/api-strategy/src"],
+      "symbols": [
+        {
+          "name": "DOCUMENT_TYPES",
+          "kind": "variable"
+        },
+        {
+          "name": "TEMPLATE_KEY_BY_TYPE",
+          "kind": "variable"
+        }
+      ],
+      "edges": [
+        {
+          "file": "apps/api-strategy/src/context/context-import.service.ts",
+          "module": "./frontmatter.js",
+          "imported": "DOCUMENT_TYPES",
+          "uses": 1
+        },
+        {
+          "file": "apps/api-strategy/src/context/context-import.service.ts",
+          "module": "./frontmatter.js",
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "uses": 1
+        },
+        {
+          "file": "apps/api-strategy/src/context/context-documents.service.ts",
+          "module": "./frontmatter.js",
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "uses": 1
+        },
+        {
+          "file": "apps/api-strategy/src/context/steward.service.ts",
+          "module": "./frontmatter.js",
+          "imported": "TEMPLATE_KEY_BY_TYPE",
+          "uses": 1
+        }
+      ],
+      "carriers": [
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "name": "DOCUMENT_TYPES",
+          "kind": "variable",
+          "sha256": "d8b436439591a168fc5f2b744ccde4a2f3e233d45bfd9bde9d16d75ea4c1f74c"
+        },
+        {
+          "file": "apps/api-strategy/src/context/frontmatter.ts",
+          "name": "TEMPLATE_KEY_BY_TYPE",
+          "kind": "variable",
+          "sha256": "f27cc5feabcb5bb83ba8867252c2143a126db57265db724ad9f06df1f62648cb"
+        }
+      ]
+    }
+  ]
+}
