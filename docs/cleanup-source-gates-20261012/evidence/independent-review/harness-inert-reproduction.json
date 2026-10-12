@@ -1,0 +1,145 @@
+{
+  "harness": "file:///workspace/capirov2-cleanup-review/docs/cleanup-source-gates-20261012/evidence/independent-review/reviewed-preload-hardened.cjs",
+  "harnessSHA256": "68c98ff61bf1ccab82b089de0240f62aa9bfea671494d93700f1142e1e898906",
+  "tests": 27,
+  "passed": 27,
+  "results": [
+    {
+      "name": "net TCP number",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "Socket TCP object",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "mixed IPC/TCP",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "unknown option",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "symbol option",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "non-TSX UNIX",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "relative path",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "traversal",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "path suffix",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "boxed string",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "nonplain prototype",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "getter path",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "normalized array getter",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "proxy object",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "proxy array",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "revoked proxy",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "TLS",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "HTTP request",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "HTTP get",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "HTTPS request",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "HTTPS get",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "fetch",
+      "expected": "refused before original transport",
+      "passed": true
+    },
+    {
+      "name": "valid path string",
+      "expected": "immutable TSX IPC delegation",
+      "passed": true
+    },
+    {
+      "name": "valid plain options",
+      "expected": "immutable TSX IPC delegation",
+      "passed": true
+    },
+    {
+      "name": "valid normalized args",
+      "expected": "immutable TSX IPC delegation",
+      "passed": true
+    },
+    {
+      "name": "valid null-prototype options",
+      "expected": "immutable TSX IPC delegation",
+      "passed": true
+    },
+    {
+      "name": "valid callback",
+      "expected": "immutable TSX IPC delegation",
+      "passed": true
+    }
+  ],
+  "actualSocketsDatabaseProviderCloudExecution": false,
+  "limit": "Inert controls over named Node transport API preload; not OS/syscall containment or native release acceptance."
+}

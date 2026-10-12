@@ -1,0 +1,14 @@
+{
+  "acceptedRuntimeSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "acceptedRuntimeTree": "d6c9d0b4c4a3836576576ebd12a90c30f0520d1f",
+  "scope": "evidence-only final document skim and inert diagnostic harness review",
+  "initialPreloadSha256": "12dece0a73e6d8752cd20b03f8225f1d1d0d0f6a97b5c84d17350a75d8d9828a",
+  "hardenedPreloadSha256": "68c98ff61bf1ccab82b089de0240f62aa9bfea671494d93700f1142e1e898906",
+  "inertTests": 27,
+  "inertPassed": 27,
+  "all194OverlayHashesVerified": true,
+  "historicalPacketUnchanged": true,
+  "pendingClassification": "artifact case: separately named full exact-main Web run pending; its result is not accepted here",
+  "nativeReleaseAccepted": false,
+  "actualSocketsDatabaseProviderCloudExecution": false
+}

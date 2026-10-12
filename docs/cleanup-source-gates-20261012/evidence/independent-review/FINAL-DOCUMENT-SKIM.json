@@ -1,0 +1,24 @@
+{
+  "reviewedAt": "2026-10-12T11:35:04.726830+00:00",
+  "runtimeSource": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "runtimeTree": "d6c9d0b4c4a3836576576ebd12a90c30f0520d1f",
+  "originalManifestEntries": 194,
+  "originalEntriesUnchanged": 192,
+  "declaredFormatterReplacements": 2,
+  "overlayAll194HashesVerified": true,
+  "all11OriginalCriteriaRemainUnaccepted": true,
+  "documents": {
+    "HANDOFF.md": "09cf8739966095eec19baa2076df643067ef2190a874ce5d41626c26844dcc4c",
+    "QUALIFICATION.md": "c51a754272cc55fcdc19b52dbb52f661a2c693d9f91a5bf7ed1bbe19d1b73b30",
+    "BLOCKERS.json": "f67edb742ee954122e3937d04904e8855c6406dcc534e18279dab90a377af978",
+    "GATE-MATRIX.json": "eae998d4f0afdf01b618330ee22d57770fc92d3f7fe9ee9e8d07ccdfa1b389e7",
+    "SOURCE-OVERLAY.json": "76bfc49e0924261a57acb41a959e5692f374526aff769324417b54091848d479"
+  },
+  "pendingClassification": "artifact case: separately named full exact-main Web run pending; its result is not accepted here",
+  "preloadLimit": "named Node transport APIs and inert/injected fixture diagnostics, not OS/v5 syscall/native containment",
+  "nativeAcceptance": false,
+  "newRuntimeChange": false,
+  "historicalPacketDiff": [],
+  "authorObservedHead": "4d7a8a7f576b47c2cb5ca46c256addefbbdc758b",
+  "authorNonDocsDiffFromAcceptedRuntime": []
+}

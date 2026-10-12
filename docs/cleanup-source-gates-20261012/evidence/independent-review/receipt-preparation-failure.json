@@ -1,0 +1,9 @@
+{
+  "command": "git rev-parse HEAD",
+  "cwd": "/workspace",
+  "exitCode": 128,
+  "stderr": "fatal: not a git repository (or any of the parent directories): .git",
+  "cause": "review receipt preparation walked one parent too far",
+  "correction": "explicit /workspace/capirov2-cleanup-source-gates cwd",
+  "runtimeOrQualificationExecuted": false
+}

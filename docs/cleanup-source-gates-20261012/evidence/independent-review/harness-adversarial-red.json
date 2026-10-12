@@ -1,0 +1,15 @@
+{
+  "harness": "/workspace/capirov2-cleanup-source-gates/docs/cleanup-source-gates-20261012/evidence/node-source-network-refusal-with-local-tsx-ipc.cjs",
+  "harnessSHA256": "12dece0a73e6d8752cd20b03f8225f1d1d0d0f6a97b5c84d17350a75d8d9828a",
+  "optionsPathReads": 3,
+  "delegated": [
+    {
+      "transport": "TCP",
+      "path": null,
+      "port": 443
+    }
+  ],
+  "thrown": null,
+  "finding": "guard forwarded mutable/getter options; later delegate sees TCP shape",
+  "actualNetworkDatabaseProviderExecution": false
+}
