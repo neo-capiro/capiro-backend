@@ -1,0 +1,7 @@
+{
+  "candidate": "82a4366256a35ab27099aac099c7fb7e610a4959",
+  "substitution": "Only access helper replaced through external Jest moduleNameMapper; all other source from pinned candidate",
+  "oldAccessSha256": "96760a814abc69a575cd7da65d11e1b5d045303a0fb43040711e76f080d5a2c5",
+  "provenance": "Exact uncommitted source snapshot retained before author initial commit; NOT a historical Git revision or native race test",
+  "clarification": "The working-source snapshot was captured while the author was repairing: it already contains the actor-lock fix but lacks the wall-grant lock. Its RED result qualifies only the wall-grant regression, not the original actor race."
+}

@@ -1,0 +1,11 @@
+Scope: 5 of 19 workspace projects
+packages/meriv2-core build$ tsc -p tsconfig.json
+packages/defense-domain build$ tsc -p tsconfig.json
+packages/defense-contracts build$ tsc -p tsconfig.json
+packages/auth build$ tsc -p tsconfig.json
+packages/defense-contracts build: Done
+packages/strategy-verifier build$ tsc -p tsconfig.json
+packages/auth build: Done
+packages/strategy-verifier build: Done
+packages/defense-domain build: Done
+packages/meriv2-core build: Done

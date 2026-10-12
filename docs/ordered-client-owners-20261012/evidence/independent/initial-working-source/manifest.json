@@ -1,0 +1,8 @@
+{
+  "qualification": "Read-only uncommitted working-source snapshot captured during concurrent author repairs. Actor-lock and migration-parent fixes already present, wall-grant fix not yet present. Not an exact Git revision; no SQL executed.",
+  "sha256": {
+    "apps/api/src/clients/client-ordered-owner.access.ts": "96760a814abc69a575cd7da65d11e1b5d045303a0fb43040711e76f080d5a2c5",
+    "apps/api/src/clients/client-ordered-owner.service.ts": "f95a885689239010c8206ddfdfd9b3db61535e55b05eae35f3c3f739dcfe58a3",
+    "apps/api/prisma/migrations/20281012020000_client_ordered_owners/migration.sql": "ae7f4d3dd629854f450af63b006fbb173c0ff22b3f05f0add9e65df50393f8c4"
+  }
+}

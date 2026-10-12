@@ -1,0 +1,8 @@
+
+> @capiro/api@0.0.0 lint /workspace/capirov2-ordered-owners/apps/api
+> eslint src --ext .ts
+
+sh: 1: eslint: not found
+/workspace/capirov2-ordered-owners/apps/api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @capiro/api@0.0.0 lint: `eslint src --ext .ts`
+spawn ENOENT

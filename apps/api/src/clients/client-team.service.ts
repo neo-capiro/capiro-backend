@@ -1,21 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { requireOwnerClient } from './client-ordered-owner.access.js';
 
-/**
- * Client account teams — which of the firm's own users work a given client.
- *
- * Before this, Capiro stored exactly ONE person per client
- * (`clients.account_owner_user_id`), so the client profile's "Account team"
- * had no record behind it and the UI showed "No roster" with no way to add
- * anyone.
- *
- * The owner is NOT duplicated into `client_team_members`. It stays a column on
- * `clients`, and `list` merges the two so a caller gets one roster with the
- * owner marked — storing the owner twice would let the two drift, and every
- * existing owner read path would have to learn about the new table.
- */
+/** General team memberships retain their own free-text roles. Ordered ownership
+ * is read from its canonical table and merged once per user; it grants no
+ * additional client or memory access. isOwner remains the legacy Primary flag. */
 
 export interface ClientTeamMember {
   /** `client_team_members.id`, or null for the owner (a `clients` column). */
@@ -30,6 +20,8 @@ export interface ClientTeamMember {
   isOwner: boolean;
   /** Null for the owner row, which has no assignment timestamp of its own. */
   addedAt: string | null;
+  ownerRank: number | null;
+  ownerAvailable: boolean | null;
 }
 
 type TeamRow = {
@@ -41,6 +33,8 @@ type TeamRow = {
   role: string | null;
   isOwner: boolean;
   addedAt: Date | null;
+  ownerRank: number | null;
+  ownerAvailable: boolean | null;
 };
 
 @Injectable()
@@ -57,7 +51,7 @@ export class ClientTeamService {
    */
   async list(ctx: TenantContext, clientId: string): Promise<ClientTeamMember[]> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.assertClient(tx, ctx.tenantId, clientId);
+      await requireOwnerClient(tx, ctx, clientId);
 
       const rows = await tx.$queryRaw<TeamRow[]>`
         SELECT
@@ -67,10 +61,14 @@ export class ClientTeamService {
           u.first_name                   AS "firstName",
           u.last_name                    AS "lastName",
           m.role                         AS "role",
-          true                           AS "isOwner",
-          NULL::timestamptz              AS "addedAt"
+          o.rank=1                       AS "isOwner",
+          NULL::timestamptz              AS "addedAt",
+          o.rank                         AS "ownerRank",
+          EXISTS (SELECT 1 FROM tenant_memberships tm WHERE tm.tenant_id=c.tenant_id
+            AND tm.user_id=u.id AND tm.status::text='active') AS "ownerAvailable"
         FROM clients c
-        INNER JOIN users u ON u.id = c.account_owner_user_id
+        INNER JOIN client_ordered_owners o ON o.tenant_id=c.tenant_id AND o.client_id=c.id
+        INNER JOIN users u ON u.id = o.user_id
         LEFT JOIN client_team_members m
           ON m.tenant_id = c.tenant_id AND m.client_id = c.id AND m.user_id = u.id
         WHERE c.id = CAST(${clientId} AS uuid)
@@ -86,16 +84,19 @@ export class ClientTeamService {
           u.last_name                    AS "lastName",
           m.role                         AS "role",
           false                          AS "isOwner",
-          m.created_at                   AS "addedAt"
+          m.created_at                   AS "addedAt",
+          NULL::integer                  AS "ownerRank",
+          NULL::boolean                  AS "ownerAvailable"
         FROM client_team_members m
         INNER JOIN users u ON u.id = m.user_id
         INNER JOIN clients c ON c.id = m.client_id AND c.tenant_id = m.tenant_id
         WHERE m.client_id = CAST(${clientId} AS uuid)
           AND m.tenant_id = CAST(${ctx.tenantId} AS uuid)
-          -- The owner is emitted by the first branch; skip the duplicate.
-          AND (c.account_owner_user_id IS NULL OR m.user_id <> c.account_owner_user_id)
+          -- Every ranked owner is emitted by the first branch exactly once.
+          AND NOT EXISTS (SELECT 1 FROM client_ordered_owners o
+            WHERE o.tenant_id=c.tenant_id AND o.client_id=c.id AND o.user_id=m.user_id)
 
-        ORDER BY "isOwner" DESC, "firstName" NULLS LAST, "lastName" NULLS LAST, "email"
+        ORDER BY "ownerRank" ASC NULLS LAST, "firstName" NULLS LAST, "lastName" NULLS LAST, "email"
       `;
 
       return rows.map((row) => ({
@@ -107,6 +108,8 @@ export class ClientTeamService {
         role: row.role,
         isOwner: row.isOwner,
         addedAt: row.addedAt ? row.addedAt.toISOString() : null,
+        ownerRank: row.ownerRank ?? null,
+        ownerAvailable: row.ownerAvailable ?? null,
       }));
     });
   }
@@ -123,7 +126,7 @@ export class ClientTeamService {
     role: string | null,
   ): Promise<ClientTeamMember[]> {
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.assertClient(tx, ctx.tenantId, clientId);
+      await requireOwnerClient(tx, ctx, clientId, true);
 
       // Same rule the account-owner assignment enforces: only an ACTIVE member
       // of this tenant can be put on one of its accounts. Without this a valid
@@ -168,18 +171,18 @@ export class ClientTeamService {
    */
   async remove(ctx: TenantContext, clientId: string, userId: string): Promise<ClientTeamMember[]> {
     await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      await this.assertClient(tx, ctx.tenantId, clientId);
+      await requireOwnerClient(tx, ctx, clientId, true);
       const owners = await tx.$queryRaw<{ id: string }[]>`
-        SELECT id::text AS "id"
-        FROM clients
-        WHERE id = CAST(${clientId} AS uuid)
+        SELECT user_id::text AS "id"
+        FROM client_ordered_owners
+        WHERE client_id = CAST(${clientId} AS uuid)
           AND tenant_id = CAST(${ctx.tenantId} AS uuid)
-          AND account_owner_user_id = CAST(${userId} AS uuid)
+          AND user_id = CAST(${userId} AS uuid)
         LIMIT 1
       `;
       if (owners.length > 0) {
         throw new BadRequestException(
-          'That user is the account owner. Reassign the account owner instead of removing them from the team.',
+          'That user is an account owner. Update ordered account owners before removing them from the team.',
         );
       }
       await tx.$executeRaw`
@@ -191,21 +194,5 @@ export class ClientTeamService {
     });
 
     return this.list(ctx, clientId);
-  }
-
-  /** 404 rather than an empty roster when the client is not this tenant's. */
-  private async assertClient(
-    tx: Prisma.TransactionClient,
-    tenantId: string,
-    clientId: string,
-  ): Promise<void> {
-    const clients = await tx.$queryRaw<{ id: string }[]>`
-      SELECT id::text AS "id"
-      FROM clients
-      WHERE id = CAST(${clientId} AS uuid)
-        AND tenant_id = CAST(${tenantId} AS uuid)
-      LIMIT 1
-    `;
-    if (clients.length === 0) throw new NotFoundException('Client not found');
   }
 }

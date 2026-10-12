@@ -1,6 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ClientOrderedOwnerService } from './client-ordered-owner.service.js';
+import { requireOwnerActor } from './client-ordered-owner.access.js';
+import { fetchDeniedClientIds } from '../memory/memory-wall.helpers.js';
 
 export interface ClientAccountOwner {
   id: string;
@@ -24,10 +27,14 @@ type OwnerRow = {
 
 @Injectable()
 export class ClientAccountOwnerService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly ordered: ClientOrderedOwnerService,
+  ) {}
 
   async listOptions(ctx: TenantContext): Promise<ClientAccountOwner[]> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await requireOwnerActor(tx, ctx);
       return tx.$queryRaw<ClientAccountOwner[]>`
         SELECT
           u.id::text AS "id",
@@ -44,29 +51,9 @@ export class ClientAccountOwnerService {
   }
 
   async get(ctx: TenantContext, clientId: string): Promise<ClientAccountOwnerAssignment> {
-    return this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const rows = await tx.$queryRaw<OwnerRow[]>`
-        SELECT
-          c.account_owner_user_id::text AS "accountOwnerUserId",
-          u.id::text AS "id",
-          u.email::text AS "email",
-          u.first_name AS "firstName",
-          u.last_name AS "lastName"
-        FROM clients c
-        LEFT JOIN users u ON u.id = c.account_owner_user_id
-        WHERE c.id = CAST(${clientId} AS uuid)
-          AND c.tenant_id = CAST(${ctx.tenantId} AS uuid)
-        LIMIT 1
-      `;
-      const row = rows[0];
-      if (!row) throw new NotFoundException('Client not found');
-      return {
-        accountOwnerUserId: row.accountOwnerUserId,
-        accountOwner: row.id && row.email
-          ? { id: row.id, email: row.email, firstName: row.firstName, lastName: row.lastName }
-          : null,
-      };
-    });
+    const view = await this.ordered.get(ctx, clientId);
+    const first = view.owners[0];
+    return { accountOwnerUserId: first?.userId ?? null, accountOwner: first?.person ?? null };
   }
 
   /**
@@ -76,6 +63,7 @@ export class ClientAccountOwnerService {
    */
   async listAll(ctx: TenantContext): Promise<Record<string, ClientAccountOwnerAssignment>> {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await requireOwnerActor(tx, ctx);
       const rows = await tx.$queryRaw<Array<{ clientId: string } & OwnerRow>>`
         SELECT
           c.id::text AS "clientId",
@@ -85,17 +73,22 @@ export class ClientAccountOwnerService {
           u.first_name AS "firstName",
           u.last_name AS "lastName"
         FROM clients c
-        LEFT JOIN users u ON u.id = c.account_owner_user_id
+        LEFT JOIN tenant_memberships tm ON tm.tenant_id=c.tenant_id
+          AND tm.user_id=c.account_owner_user_id AND tm.status::text='active'
+        LEFT JOIN users u ON u.id = tm.user_id
         WHERE c.tenant_id = CAST(${ctx.tenantId} AS uuid)
           AND c.status != 'archived'
       `;
+      const denied = new Set(await fetchDeniedClientIds(tx, ctx.tenantId, ctx.userId));
       const map: Record<string, ClientAccountOwnerAssignment> = {};
       for (const row of rows) {
+        if (denied.has(row.clientId)) continue;
         map[row.clientId] = {
           accountOwnerUserId: row.accountOwnerUserId,
-          accountOwner: row.id && row.email
-            ? { id: row.id, email: row.email, firstName: row.firstName, lastName: row.lastName }
-            : null,
+          accountOwner:
+            row.id && row.email
+              ? { id: row.id, email: row.email, firstName: row.firstName, lastName: row.lastName }
+              : null,
         };
       }
       return map;
@@ -107,39 +100,6 @@ export class ClientAccountOwnerService {
     clientId: string,
     accountOwnerUserId: string | null,
   ): Promise<ClientAccountOwnerAssignment> {
-    await this.prisma.withTenant(ctx.tenantId, async (tx) => {
-      const clients = await tx.$queryRaw<{ id: string }[]>`
-        SELECT id::text AS "id"
-        FROM clients
-        WHERE id = CAST(${clientId} AS uuid)
-          AND tenant_id = CAST(${ctx.tenantId} AS uuid)
-        LIMIT 1
-      `;
-      if (clients.length === 0) throw new NotFoundException('Client not found');
-
-      if (accountOwnerUserId) {
-        const members = await tx.$queryRaw<{ id: string }[]>`
-          SELECT id::text AS "id"
-          FROM tenant_memberships
-          WHERE tenant_id = CAST(${ctx.tenantId} AS uuid)
-            AND user_id = CAST(${accountOwnerUserId} AS uuid)
-            AND status = 'active'::membership_status
-          LIMIT 1
-        `;
-        if (members.length === 0) {
-          throw new BadRequestException('Account owner must be an active member of this tenant');
-        }
-      }
-
-      await tx.$executeRaw`
-        UPDATE clients
-        SET account_owner_user_id = CAST(${accountOwnerUserId} AS uuid),
-            updated_at = NOW()
-        WHERE id = CAST(${clientId} AS uuid)
-          AND tenant_id = CAST(${ctx.tenantId} AS uuid)
-      `;
-    });
-
-    return this.get(ctx, clientId);
+    return this.ordered.replaceLegacy(ctx, clientId, accountOwnerUserId);
   }
 }

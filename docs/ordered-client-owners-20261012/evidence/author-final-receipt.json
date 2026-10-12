@@ -1,0 +1,58 @@
+{
+  "source": "5f7308891e9bb3f0561804a0895b4372030c0d38",
+  "sourceTree": "15355c281ff13f012c49e7edb51f134e0fb8f742",
+  "runtime": "82a4366256a35ab27099aac099c7fb7e610a4959",
+  "base": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "authorTests": {
+    "passed": 97,
+    "failed": 0,
+    "suites": 7,
+    "exit": 0,
+    "log": "owners-qualified.log"
+  },
+  "independentTests": {
+    "passed": 107,
+    "failed": 0,
+    "suites": 9,
+    "exit": 0,
+    "receipt": "independent/FINAL-RECEIPT.json",
+    "overlapsAuthor": true
+  },
+  "primaryTypeScript": {
+    "exit": 0,
+    "command": "NODE_OPTIONS=--max-old-space-size=8192 node_modules/.bin/tsc --noEmit --rootDir .",
+    "cwd": "apps/api",
+    "log": "api-primary-tsc-qualified.log"
+  },
+  "nestBuild": {
+    "exit": 0,
+    "command": "NODE_OPTIONS=--max-old-space-size=8192 node_modules/.bin/nest build",
+    "cwd": "apps/api",
+    "log": "api-nest-build.log"
+  },
+  "prismaWasm": {
+    "exit": 0,
+    "noEngine": true,
+    "databaseUsed": false,
+    "log": "prisma-wasm-final.log"
+  },
+  "format": {
+    "exit": 0,
+    "log": "prettier-check.log"
+  },
+  "eslint": {
+    "exit": 1,
+    "cause": "Missing checked-in eslint dependency/config",
+    "log": "api-lint.log"
+  },
+  "retainedFailures": [
+    "owners-initial.log: 33PASS/6FAIL invalid historical fixture UUIDs",
+    "api-primary-tsc-initial.log: exit2 strict tuple/index typing",
+    "independent/initial-access-red.log: 26PASS/3FAIL wall-lock partial-repair replay"
+  ],
+  "migration": "20281012020000_client_ordered_owners",
+  "migrationExecuted": false,
+  "nativeRlsConcurrencyQualified": false,
+  "deployed": false,
+  "independentReceiptCompileNote": "Independent receipt captured before final author checks; this receipt records subsequent exact-source primary TypeScript and Nest successes without rewriting reviewer evidence."
+}

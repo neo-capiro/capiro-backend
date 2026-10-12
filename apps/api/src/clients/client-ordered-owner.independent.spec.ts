@@ -1,0 +1,219 @@
+import { ClientAccountOwnerService } from './client-account-owner.service.js';
+import { ClientTeamService } from './client-team.service.js';
+import { setup, ctx, client, ids } from './client-ordered-owner.test-support.js';
+
+type Fixture = ReturnType<typeof setup>;
+const textOf = (q: any) => (Array.isArray(q) ? q.join('?') : q.sql);
+const calls = {
+  rankedRead: (f: Fixture) => f.service.get(ctx, client),
+  rankedWrite: (f: Fixture) =>
+    f.service.replace(ctx, client, { expectedVersion: 0, userIds: [ids[1]] }),
+  legacyWrite: (f: Fixture) =>
+    new ClientAccountOwnerService(f.prisma as never, f.service).update(ctx, client, ids[1]),
+  teamRead: (f: Fixture) => new ClientTeamService(f.prisma as never).list(ctx, client),
+  teamAdd: (f: Fixture) =>
+    new ClientTeamService(f.prisma as never).add(ctx, client, ids[1], 'Research'),
+  teamRemove: (f: Fixture) => new ClientTeamService(f.prisma as never).remove(ctx, client, ids[1]),
+};
+
+describe('independent ordered-owner adversarial controls', () => {
+  // These are deterministic transaction-adapter interleavings, not SQL/MVCC
+  // qualification. The real service decides whether to reread authorization.
+  test.each(
+    Object.entries(calls).flatMap(([name, run]) =>
+      ['removed', 'demoted', 'remapped'].map((change) => ({ name, run, change })),
+    ),
+  )('$name denies actor $change while waiting for the client lock', async ({ run, change }) => {
+    const f = setup([ids[0]]);
+    const original = f.tx.$queryRaw.getMockImplementation()!;
+    let lockReturned = false;
+    f.tx.$queryRaw.mockImplementation(async (q: any, ...args: any[]) => {
+      const text = textOf(q);
+      if (text.includes('account_owner_version AS version')) {
+        const rows = await original(q, ...args);
+        lockReturned = true;
+        if (change === 'removed') f.state.active = false;
+        if (change === 'demoted') f.state.role = 'client_portal_user';
+        return rows;
+      }
+      if (text.includes('FOR SHARE OF tm, u') && change === 'remapped') return [];
+      return original(q, ...args);
+    });
+    await expect(run(f)).rejects.toMatchObject({ status: 403 });
+    expect(lockReturned).toBe(true);
+    expect(f.tx.$executeRaw).not.toHaveBeenCalled();
+    expect(f.state).toMatchObject({ owners: [ids[0]], primary: ids[0], version: 0, audits: [] });
+  });
+
+  test.each(['rankedWrite', 'legacyWrite'] as const)(
+    '%s denies a grant revoked before the grant lock resolves',
+    async (name) => {
+      const f = setup([ids[0]]);
+      const original = f.tx.$queryRaw.getMockImplementation()!;
+      f.tx.$queryRaw.mockImplementation(async (q: any, ...args: any[]) => {
+        if (textOf(q).includes('FROM client_memory_access')) f.state.wall = false;
+        return original(q, ...args);
+      });
+      await expect(calls[name](f)).rejects.toMatchObject({ status: 404 });
+      expect(f.tx.$executeRaw).not.toHaveBeenCalled();
+      expect(f.state.owners).toEqual([ids[0]]);
+    },
+  );
+
+  test('retains actor identity and grant locks before a requested-member wait', async () => {
+    const f = setup([ids[0]]);
+    const original = f.tx.$queryRaw.getMockImplementation()!;
+    let actorLocked = false;
+    let grantLocked = false;
+    let laterWait = false;
+    f.tx.$queryRaw.mockImplementation(async (q: any, ...args: any[]) => {
+      const text = textOf(q);
+      if (text.includes('FOR SHARE OF tm, u')) actorLocked = true;
+      if (text.includes('FROM client_memory_access')) {
+        expect(text).toContain('FOR SHARE');
+        grantLocked = true;
+      }
+      if (text.includes('FROM tenant_memberships') && !text.includes('JOIN users')) {
+        laterWait = true;
+        // Native PostgreSQL must independently qualify the blocking behavior;
+        // the service must at least acquire both protective locks beforehand.
+        expect({ actorLocked, grantLocked }).toEqual({ actorLocked: true, grantLocked: true });
+        expect(text).toContain('FOR SHARE');
+      }
+      return original(q, ...args);
+    });
+    await expect(calls.rankedWrite(f)).resolves.toMatchObject({ version: 1 });
+    expect(laterWait).toBe(true);
+  });
+
+  test('a second-rank insert failure rolls back deletions and the first insertion', async () => {
+    const f = setup([ids[0], ids[1]]);
+    const original = f.tx.$executeRaw.getMockImplementation()!;
+    f.tx.$executeRaw.mockImplementation(async (q: any, ...args: any[]) => {
+      if (textOf(q).includes('INSERT INTO client_ordered_owners') && args[2] === 2)
+        throw new Error('synthetic second-rank failure');
+      return original(q, ...args);
+    });
+    await expect(
+      f.service.replace(ctx, client, { expectedVersion: 0, userIds: [ids[2], ids[3]] }),
+    ).rejects.toThrow('synthetic second-rank failure');
+    expect(f.state).toMatchObject({
+      owners: [ids[0], ids[1]],
+      primary: ids[0],
+      version: 0,
+      audits: [],
+    });
+  });
+
+  test('receipt-query failure after audit also rolls back the complete save', async () => {
+    const f = setup([ids[0]]);
+    const original = f.tx.$queryRaw.getMockImplementation()!;
+    f.tx.$queryRaw.mockImplementation(async (q: any, ...args: any[]) => {
+      if (textOf(q).includes('SELECT o.user_id')) throw new Error('synthetic receipt failure');
+      return original(q, ...args);
+    });
+    await expect(calls.rankedWrite(f)).rejects.toThrow('synthetic receipt failure');
+    expect(f.tx.auditLog.create).toHaveBeenCalledTimes(1);
+    expect(f.state).toMatchObject({ owners: [ids[0]], primary: ids[0], version: 0, audits: [] });
+  });
+
+  test('lost committed reply is recoverable by GET, while stale identical PUT stays a conflict', async () => {
+    const f = setup([ids[0]]);
+    const body = { expectedVersion: 0, userIds: [ids[2], ids[1]] };
+    await f.service.replace(ctx, client, body); // Deliberately discard the reply.
+    await expect(f.service.replace(ctx, client, body)).rejects.toMatchObject({ status: 409 });
+    const receipt = await f.service.get(ctx, client);
+    expect(receipt.version).toBe(1);
+    expect(receipt.owners.map((owner) => owner.userId)).toEqual(body.userIds);
+    expect(f.state.audits).toHaveLength(1);
+  });
+
+  test('mixed-case UUIDs normalize before validation, persistence and receipts', async () => {
+    const f = setup();
+    const lower = 'abcdefab-cdef-4abc-8abc-abcdefabcdef';
+    f.state.members.add(lower);
+    const original = f.tx.$queryRaw.getMockImplementation()!;
+    f.tx.$queryRaw.mockImplementation(async (q: any, ...args: any[]) => {
+      if (textOf(q).includes('FROM tenant_memberships') && !textOf(q).includes('JOIN users')) {
+        expect(q.values).toContain(lower);
+        expect(q.values).not.toContain(lower.toUpperCase());
+        return [{ userId: lower }];
+      }
+      return original(q, ...args);
+    });
+    const saved = await f.service.replace(ctx, client, {
+      expectedVersion: 0,
+      userIds: [lower.toUpperCase()],
+    });
+    expect(saved.owners[0]).toMatchObject({ userId: lower, rank: 1, available: true });
+    expect(f.state.primary).toBe(lower);
+  });
+
+  test('an unavailable historical Primary stays identified on the legacy read', async () => {
+    const f = setup(ids.slice(0, 3));
+    f.state.members.delete(ids[0]);
+    const legacy = new ClientAccountOwnerService(f.prisma as never, f.service);
+    expect(await legacy.get(ctx, client)).toEqual({
+      accountOwnerUserId: ids[0],
+      accountOwner: null,
+    });
+    expect(await legacy.update(ctx, client, ids[0])).toEqual({
+      accountOwnerUserId: ids[0],
+      accountOwner: null,
+    });
+    expect(f.state.owners).toEqual(ids.slice(0, 3));
+    expect(f.tx.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  test('a secondary owner cannot be removed via legacy team removal', async () => {
+    const f = setup(ids.slice(0, 2));
+    const team = new ClientTeamService(f.prisma as never);
+    await expect(team.remove(ctx, client, ids[1])).rejects.toMatchObject({ status: 400 });
+    expect(f.tx.$executeRaw).not.toHaveBeenCalled();
+    expect(f.state.owners).toEqual(ids.slice(0, 2));
+  });
+
+  test('team responses preserve every rank, availability flag and explicit free-text role', async () => {
+    const f = setup(ids.slice(0, 3));
+    const original = f.tx.$queryRaw.getMockImplementation()!;
+    const rows = ids.slice(0, 3).map((userId, i) => ({
+      id: null,
+      userId,
+      email: `${i}@synthetic.invalid`,
+      firstName: null,
+      lastName: null,
+      role: ['Lead lobbyist', 'Research', null][i],
+      isOwner: i === 0,
+      addedAt: null,
+      ownerRank: i + 1,
+      ownerAvailable: i !== 0,
+    }));
+    f.tx.$queryRaw.mockImplementation(async (q: any, ...args: any[]) => {
+      if (textOf(q).includes('UNION ALL')) return rows;
+      return original(q, ...args);
+    });
+    expect(await new ClientTeamService(f.prisma as never).list(ctx, client)).toEqual(rows);
+    expect(f.tx.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  test('ranked and legacy exhaustion are typed conflicts, with maximum-version no-op still safe', async () => {
+    const f = setup([ids[0]]);
+    f.state.version = 2147483647;
+    const rankedError = await f.service
+      .replace(ctx, client, { expectedVersion: 2147483647, userIds: [] })
+      .catch((error) => error);
+    expect(rankedError.getResponse()).toMatchObject({
+      statusCode: 409,
+      code: 'owner_version_exhausted',
+    });
+    const error = await f.service.replaceLegacy(ctx, client, null).catch((error) => error);
+    expect(error.getResponse()).toMatchObject({ statusCode: 409, code: 'owner_version_exhausted' });
+    expect(
+      await f.service.replace(ctx, client, { expectedVersion: 2147483647, userIds: [ids[0]] }),
+    ).toMatchObject({ version: 2147483647 });
+    await expect(
+      f.service.replace(ctx, client, { expectedVersion: 2147483648, userIds: [] }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(f.tx.$executeRaw).not.toHaveBeenCalled();
+  });
+});

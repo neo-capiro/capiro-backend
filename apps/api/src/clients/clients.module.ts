@@ -36,6 +36,8 @@ import {
 } from './governed-client-profile-fill.factory.js';
 import { ClientAccountOwnerController } from './client-account-owner.controller.js';
 import { ClientAccountOwnerService } from './client-account-owner.service.js';
+import { ClientOrderedOwnerController } from './client-ordered-owner.controller.js';
+import { ClientOrderedOwnerService } from './client-ordered-owner.service.js';
 import { ClientTeamController } from './client-team.controller.js';
 import { ClientTeamService } from './client-team.service.js';
 import { ClientObjectivesModule } from './objectives/objectives.module.js';
@@ -91,6 +93,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     ActivityCommandController,
     ClientFilesController,
     ClientAccountOwnerController,
+    ClientOrderedOwnerController,
     ClientTeamController,
     // Backend-only Hill Day co-branding bridge (InternalServiceGuard).
     InternalClientBrandingController,
@@ -154,6 +157,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
     ActivityCommandPlanner,
     ClientFilesService,
     ClientAccountOwnerService,
+    ClientOrderedOwnerService,
     ClientTeamService,
   ],
   // Exported so Meri's get_client_context tool can read full client profiles

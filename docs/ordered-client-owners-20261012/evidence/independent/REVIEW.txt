@@ -1,0 +1,21 @@
+Independent verdict: ACCEPTABLE bounded source; no remaining blocking findings.
+
+Exact candidate: 5f7308891e9bb3f0561804a0895b4372030c0d38
+Tree: 15355c281ff13f012c49e7edb51f134e0fb8f742
+Runtime: 82a4366256a35ab27099aac099c7fb7e610a4959
+
+Final independent replay:107/107 tests,9 suites. Includes75 owner/HTTP tests (29 reviewer-authored adversarial cases) and32 existing role/wall/tenant controls. Uses checked-in Jest config plus external isolatedModules=true to avoid prior memory exhaustion. No heavy primary compile performed by reviewer; author compile attribution is recorded separately.
+
+All three initial source findings are addressed: actor recheck/row locks after client lock, grant row lock before later requested-member waits, and immutable assignment parent guard in migration. Final version boundary also aligned deliberately: MAX no-op is valid, mutations return typed exhaustion conflict.
+
+The author retained reviewer tests byte-for-byte at5f730. That commit adds only the independent suite over82a436, whose production runtime is unchanged. The reviewer worktree has no implementation edits; only borrowed node_modules symlinks remain untracked.
+
+Preserved negative control: substituting the saved uncommitted partial-repair access helper yields26pass/3fail; final source passes all29. The saved helper was captured during active author repair, already included the actor fix and lacked only the wall-grant lock. This is not an exact original Git revision or a native race test. Original actor and migration findings remain documented initial source observations.
+
+Additional controls cover membership removal/demotion/identity remapping at lock acquisition across ranked reads/writes, legacy mutation, and team read/add/remove; wall denial; complete rollback on second-rank insert and post-audit receipt failure; uncertain committed result recovered by GET with stale identical PUT conflict; mixed-case normalization; historical inactive Primary; Secondary removal refusal; rank/availability/free-text role projections; maximum version.
+
+Source-only migration review confirms declared composite FK, rank/member uniqueness, backfill, FORCE RLS USING/WITH CHECK, invoker-right deferred contiguity/Primary checks, hard-user delete restriction and parent-delete cascade. SQL was never executed. Native syntax, trigger/RLS privileges, MVCC, deletion, locking, volume and coordinated rollout remain unqualified. Migration plus writer rollout must be coordinated through dot.
+
+Changed-path intersections are limited to schema.prisma and clients.module.ts with Objectives2362 and QuickLog2396. All other preserved candidates have no changed-path intersection. No original candidate or frontend files were edited.
+
+Evidence: FINAL-RECEIPT.json, final-retained-replay.{json,log}, independent-tests.patch, retained-test-equivalence.json, intersections.json, migration-source-review.json and preserved partial-repair negative logs. No native engine/proxy bypass, DB writes, providers, migrations, deployment or merge.

@@ -1,0 +1,120 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /workspace/capirov2-ordered-owners/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/clients/client-ordered-owner.service.spec.ts
+FAIL apps/api/src/clients/client-team.service.spec.ts
+  ● ClientTeamService › 404s for a client outside the tenant instead of returning an empty roster
+
+    expect(received).rejects.toBeInstanceOf(expected)
+
+    Expected constructor: NotFoundException
+    Received constructor: ForbiddenException
+
+      36 |     tx.$queryRaw.mockResolvedValueOnce([]); // assertClient finds nothing
+      37 |
+    > 38 |     await expect(service.list(ctx, clientId)).rejects.toBeInstanceOf(NotFoundException);
+         |                                                       ^
+      39 |   });
+      40 |
+      41 |   test('returns the merged roster with the owner flagged and dates serialized', async () => {
+
+      at Object.toBeInstanceOf (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (src/clients/client-team.service.spec.ts:38:55)
+
+  ● ClientTeamService › returns the merged roster with the owner flagged and dates serialized
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [ForbiddenException: Account owner access denied]
+
+      66 |       ]);
+      67 |
+    > 68 |     await expect(service.list(ctx, clientId)).resolves.toEqual([
+         |           ^
+      69 |       {
+      70 |         id: null,
+      71 |         userId: 'owner-1',
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (src/clients/client-team.service.spec.ts:68:11)
+
+  ● ClientTeamService › refuses a user who is not an active member of this tenant
+
+    expect(received).rejects.toBeInstanceOf(expected)
+
+    Expected constructor: BadRequestException
+    Received constructor: ForbiddenException
+
+       98 |       .mockResolvedValueOnce([]); // no active tenant membership
+       99 |
+    > 100 |     await expect(service.add(ctx, clientId, userId, null)).rejects.toBeInstanceOf(BadRequestException);
+          |                                                                    ^
+      101 |     expect(tx.$executeRaw).not.toHaveBeenCalled();
+      102 |   });
+      103 |
+
+      at Object.toBeInstanceOf (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (src/clients/client-team.service.spec.ts:100:68)
+
+  ● ClientTeamService › writes the membership for an active tenant member and re-reads the roster
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [ForbiddenException: Account owner access denied]
+
+      110 |       .mockResolvedValueOnce([]); // roster
+      111 |
+    > 112 |     await expect(service.add(ctx, clientId, userId, 'Research')).resolves.toEqual([]);
+          |           ^
+      113 |     expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+      114 |   });
+      115 |
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (src/clients/client-team.service.spec.ts:112:11)
+
+  ● ClientTeamService › will not remove the account owner through the roster endpoint
+
+    expect(received).rejects.toBeInstanceOf(expected)
+
+    Expected constructor: BadRequestException
+    Received constructor: ForbiddenException
+
+      122 |     // Clearing the owner is `/api/client-account-owners/:clientId`, a separate
+      123 |     // deliberate act — doing it as a side effect of a roster edit would surprise.
+    > 124 |     await expect(service.remove(ctx, clientId, userId)).rejects.toBeInstanceOf(BadRequestException);
+          |                                                                 ^
+      125 |     expect(tx.$executeRaw).not.toHaveBeenCalled();
+      126 |   });
+      127 |
+
+      at Object.toBeInstanceOf (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:218:22)
+      at Object.<anonymous> (src/clients/client-team.service.spec.ts:124:65)
+
+  ● ClientTeamService › removes an ordinary member
+
+    expect(received).resolves.toEqual()
+
+    Received promise rejected instead of resolved
+    Rejected to value: [ForbiddenException: Account owner access denied]
+
+      134 |       .mockResolvedValueOnce([]); // roster
+      135 |
+    > 136 |     await expect(service.remove(ctx, clientId, userId)).resolves.toEqual([]);
+          |           ^
+      137 |     expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+      138 |   });
+      139 | });
+
+      at expect (../../node_modules/.pnpm/expect@29.7.0/node_modules/expect/build/index.js:113:15)
+      at Object.<anonymous> (src/clients/client-team.service.spec.ts:136:11)
+
+PASS apps/api/src/clients/client-account-owner.service.spec.ts
+
+Test Suites: 1 failed, 2 passed, 3 total
+Tests:       6 failed, 33 passed, 39 total
+Snapshots:   0 total
+Time:        2.557 s
+Ran all test suites within paths "apps/api/src/clients/client-ordered-owner.service.spec.ts", "apps/api/src/clients/client-account-owner.service.spec.ts", "apps/api/src/clients/client-team.service.spec.ts".

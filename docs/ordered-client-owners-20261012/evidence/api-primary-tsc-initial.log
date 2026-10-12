@@ -1,0 +1,34 @@
+src/clients/client-account-owner.service.spec.ts(24,26): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/clients/client-account-owner.service.spec.ts(25,45): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+src/clients/client-account-owner.service.spec.ts(30,53): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+src/clients/client-ordered-owner.service.spec.ts(47,45): error TS2532: Object is possibly 'undefined'.
+src/clients/client-ordered-owner.service.spec.ts(56,36): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/clients/client-ordered-owner.service.spec.ts(61,43): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/clients/client-ordered-owner.service.spec.ts(62,26): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/clients/client-ordered-owner.service.spec.ts(69,26): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/clients/client-ordered-owner.service.spec.ts(77,12): error TS2532: Object is possibly 'undefined'.
+src/clients/client-ordered-owner.service.spec.ts(104,41): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/clients/client-ordered-owner.service.spec.ts(109,31): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/clients/client-ordered-owner.service.spec.ts(115,39): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/clients/client-ordered-owner.service.spec.ts(140,39): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/clients/client-ordered-owner.service.spec.ts(148,39): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/clients/client-ordered-owner.service.spec.ts(162,53): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+src/clients/client-ordered-owner.service.spec.ts(176,26): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/clients/client-ordered-owner.service.spec.ts(177,46): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+src/clients/client-ordered-owner.service.spec.ts(181,55): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.

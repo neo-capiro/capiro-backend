@@ -1,0 +1,9 @@
+{
+  "reviewedRuntime": "82a4366256a35ab27099aac099c7fb7e610a4959",
+  "retainedTestCommit": "5f7308891e9bb3f0561804a0895b4372030c0d38",
+  "testSha256": "86c4abf7213edd4979815aef04b69eb501859b7b18c4de2f0a27333a38b11514",
+  "byteIdentical": true,
+  "deltaPaths": [
+    "apps/api/src/clients/client-ordered-owner.independent.spec.ts"
+  ]
+}

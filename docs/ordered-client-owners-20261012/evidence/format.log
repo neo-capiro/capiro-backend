@@ -1,0 +1,10 @@
+apps/api/src/clients/client-ordered-owner.access.ts 152ms
+apps/api/src/clients/client-ordered-owner.controller.ts 18ms
+apps/api/src/clients/client-ordered-owner.service.spec.ts 97ms
+apps/api/src/clients/client-ordered-owner.service.ts 39ms
+apps/api/src/clients/client-ordered-owner.test-support.ts 34ms
+apps/api/src/clients/client-account-owner.service.ts 13ms
+apps/api/src/clients/client-account-owner.service.spec.ts 14ms
+apps/api/src/clients/client-team.service.ts 17ms
+apps/api/src/clients/client-team.service.spec.ts 26ms
+apps/api/src/clients/clients.module.ts 25ms (unchanged)

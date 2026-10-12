@@ -633,6 +633,7 @@ model User {
   programElementDataIssuesResolved ProgramElementDataIssue[]      @relation("PeDataIssueResolver")
   peAlertEmailPrefs                PeAlertEmailPref[]
   clientMemoryAccessGrants         ClientMemoryAccess[]           @relation("ClientMemoryAccessUser")
+  orderedClientOwnerships         ClientOrderedOwner[]
   clientTeamMemberships            ClientTeamMember[]             @relation("ClientTeamMemberUser")
   governedMemoryAccessGrants       MemoryAccessGrant[]            @relation("MemoryAccessGrantUser")
   outreachDraftArtifacts           OutreachDraftArtifact[]        @relation("OutreachDraftArtifactAuthor")
@@ -975,6 +976,8 @@ model Client {
   clioProactiveAlerts      ClioProactiveAlert[]
   actionRecommendations    ActionRecommendation[]
   memoryAccessGrants       ClientMemoryAccess[]
+  accountOwnerVersion      Int @default(0) @map("account_owner_version")
+  orderedOwners            ClientOrderedOwner[]
   teamMembers              ClientTeamMember[]
   objectives               ClientObjective[]
   governedMemoryGrants     MemoryAccessGrant[]
@@ -1072,6 +1075,23 @@ model ClientObjectiveRevision {
 
   @@unique([tenantId, objectiveId, version], map: "client_objective_revisions_version_key")
   @@map("client_objective_revisions")
+}
+
+/// Canonical Primary–Quaternary assignments. SQL owns the deferred Primary
+/// consistency check (hard deletion requires removing ownership).
+/// Active membership is checked on replacement; inactivity does not erase rank.
+model ClientOrderedOwner {
+  tenantId String @map("tenant_id") @db.Uuid
+  clientId String @map("client_id") @db.Uuid
+  rank Int
+  userId String @map("user_id") @db.Uuid
+  client Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade, onUpdate: NoAction, map: "client_ordered_owners_client_fk")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "client_ordered_owners_user_fk")
+
+  @@id([tenantId, clientId, rank], map: "client_ordered_owners_pkey")
+  @@unique([tenantId, clientId, userId], map: "client_ordered_owners_user_unique")
+  @@index([tenantId, userId], map: "client_ordered_owners_member_idx")
+  @@map("client_ordered_owners")
 }
 
 /// Account team: which of the firm's own users work a given client.

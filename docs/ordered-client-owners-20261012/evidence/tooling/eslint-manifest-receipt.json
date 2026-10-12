@@ -1,0 +1,38 @@
+[
+  {
+    "ref": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+    "path": "package.json",
+    "lint": "turbo run lint",
+    "eslintDependencies": {}
+  },
+  {
+    "ref": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+    "path": "apps/api/package.json",
+    "lint": "eslint src --ext .ts",
+    "eslintDependencies": {}
+  },
+  {
+    "ref": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+    "path": "apps/api-strategy/package.json",
+    "lint": "eslint src --ext .ts",
+    "eslintDependencies": {}
+  },
+  {
+    "ref": "03d85a40e390f8f52614aab20427a3a9433786bb",
+    "path": "package.json",
+    "lint": "turbo run lint",
+    "eslintDependencies": {}
+  },
+  {
+    "ref": "03d85a40e390f8f52614aab20427a3a9433786bb",
+    "path": "apps/api/package.json",
+    "lint": "eslint src --ext .ts",
+    "eslintDependencies": {}
+  },
+  {
+    "ref": "03d85a40e390f8f52614aab20427a3a9433786bb",
+    "path": "apps/api-strategy/package.json",
+    "lint": "eslint src --ext .ts",
+    "eslintDependencies": {}
+  }
+]
