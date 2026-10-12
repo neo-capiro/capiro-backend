@@ -1,0 +1,2 @@
+apps/api/src/meri/meri-tools.service.ts(2592,76): error TS2345: Argument of type '"get_bill_status" | "get_pe_budget_timeline" | "search_memory" | "save_note" | "save_chat_attachments" | "get_email_thread" | "list_emails" | "read_client_documents" | "search_emails" | ... 124 more ... | "get_business_development_recent_changes"' is not assignable to parameter of type 'ResearchPortfolioMeriToolName'.
+  Type '"get_bill_status"' is not assignable to type 'ResearchPortfolioMeriToolName'.
