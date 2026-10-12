@@ -1,0 +1,263 @@
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/ingestion/sync-run.helper.spec.ts (104.328 s)
+  ● Console
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":5,"rows_updated":2,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-new","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":10,"rows_updated":3,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":10,"rows_updated":0,"error_count":2,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-sam-opportunities","rows_inserted":5000,"rows_updated":0,"error_count":0,"complete":false,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"geocode-facilities","rows_inserted":1,"rows_updated":0,"error_count":2,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-x","rows_inserted":0,"rows_updated":0,"error_count":1,"complete":false,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_SKIP {"source":"sync-congress","reason":"already_running","running_since":"2026-10-12T06:48:46.355Z"}
+
+      at runWithSyncRun (src/ingestion/sync-run.helper.ts:185:17)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+    console.log
+      INGESTION_METRIC {"source":"sync-congress","rows_inserted":0,"rows_updated":0,"error_count":0,"complete":true,"duration_seconds":0}
+
+      at emitMetricLine (src/ingestion/sync-run.helper.ts:94:13)
+
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/federal-register/effective-date-evidence.spec.ts
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/index.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/funding-opportunities-v2.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/funding-opportunities-v2-detail.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/funding-opportunities-v2-workflow.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/meri-read-outcome.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/defense-budget-line.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/pe-source-coverage.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/funding-priorities.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/legislative-research.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/research-portfolios.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/defense-research.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/legiwatch-query.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/legiwatch-phase8.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/us-states.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/meri-document-request.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/schedule/time-zone.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/schedule/deadline.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/schedule/validate.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /workspace/capirov2/packages/shared/dist/schedule/synthesis.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+FAIL src/federal-register/federal-register-calendar.spec.ts (17.532 s)
+  ● effective date calendar owner › retains authenticated standard user role guard
+
+    expect(received).toEqual(expected) // deep equality
+
+    Expected: ["standard_user"]
+    Received: undefined
+
+      41 |   afterEach(() => jest.useRealTimers());
+      42 |   it('retains authenticated standard user role guard', () => {
+    > 43 |     expect(Reflect.getMetadata(GUARDS_METADATA, FederalRegisterController)).toContain(RolesGuard);
+         |                                                                     ^
+      44 |     expect(Reflect.getMetadata(ROLES_KEY, FederalRegisterController)).toEqual(['standard_user']);
+      45 |   });
+      46 |   it('projects effective provenance and explicit bounded coverage/pagination', async () => {
+
+      at Object.<anonymous> (src/federal-register/federal-register-calendar.spec.ts:43:69)
+
+  ● effective date calendar owner › projects effective provenance and explicit bounded coverage/pagination
+
+    TypeError: tx.syncRun.findMany is not a function
+
+      61 |       );
+      62 |     }
+    > 63 |     const now = new Date();
+         |                            ^
+      64 |     const offset = (page - 1) * limit;
+      65 |     return this.prisma.$transaction(
+      66 |       async (tx) => {
+
+      at prisma.$transaction.isolationLevel (src/federal-register/federal-register.service.ts:63:37)
+      at Object.<anonymous> (src/federal-register/federal-register-calendar.spec.ts:47:20)
+
+  ● effective date calendar owner › refuses legacy evidence
+
+    TypeError: tx.syncRun.findMany is not a function
+
+      61 |       );
+      62 |     }
+    > 63 |     const now = new Date();
+         |                            ^
+      64 |     const offset = (page - 1) * limit;
+      65 |     return this.prisma.$transaction(
+      66 |       async (tx) => {
+
+      at prisma.$transaction.isolationLevel (src/federal-register/federal-register.service.ts:63:37)
+      at src/federal-register/federal-register-calendar.spec.ts:90:22
+
+  ● effective date calendar owner › refuses stale evidence
+
+    TypeError: tx.syncRun.findMany is not a function
+
+      61 |       );
+      62 |     }
+    > 63 |     const now = new Date();
+         |                            ^
+      64 |     const offset = (page - 1) * limit;
+      65 |     return this.prisma.$transaction(
+      66 |       async (tx) => {
+
+      at prisma.$transaction.isolationLevel (src/federal-register/federal-register.service.ts:63:37)
+      at src/federal-register/federal-register-calendar.spec.ts:90:22
+
+  ● effective date calendar owner › refuses future evidence
+
+    TypeError: tx.syncRun.findMany is not a function
+
+      61 |       );
+      62 |     }
+    > 63 |     const now = new Date();
+         |                            ^
+      64 |     const offset = (page - 1) * limit;
+      65 |     return this.prisma.$transaction(
+      66 |       async (tx) => {
+
+      at prisma.$transaction.isolationLevel (src/federal-register/federal-register.service.ts:63:37)
+      at src/federal-register/federal-register-calendar.spec.ts:90:22
+
+  ● effective date calendar owner › refuses mismatch evidence
+
+    TypeError: tx.syncRun.findMany is not a function
+
+      61 |       );
+      62 |     }
+    > 63 |     const now = new Date();
+         |                            ^
+      64 |     const offset = (page - 1) * limit;
+      65 |     return this.prisma.$transaction(
+      66 |       async (tx) => {
+
+      at prisma.$transaction.isolationLevel (src/federal-register/federal-register.service.ts:63:37)
+      at src/federal-register/federal-register-calendar.spec.ts:90:22
+
+  ● effective date calendar owner › refuses tampered evidence
+
+    TypeError: tx.syncRun.findMany is not a function
+
+      61 |       );
+      62 |     }
+    > 63 |     const now = new Date();
+         |                            ^
+      64 |     const offset = (page - 1) * limit;
+      65 |     return this.prisma.$transaction(
+      66 |       async (tx) => {
+
+      at prisma.$transaction.isolationLevel (src/federal-register/federal-register.service.ts:63:37)
+      at src/federal-register/federal-register-calendar.spec.ts:90:22
+
+  ● effective date calendar owner › refuses column-time evidence
+
+    TypeError: tx.syncRun.findMany is not a function
+
+      61 |       );
+      62 |     }
+    > 63 |     const now = new Date();
+         |                            ^
+      64 |     const offset = (page - 1) * limit;
+      65 |     return this.prisma.$transaction(
+      66 |       async (tx) => {
+
+      at prisma.$transaction.isolationLevel (src/federal-register/federal-register.service.ts:63:37)
+      at src/federal-register/federal-register-calendar.spec.ts:90:22
+
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/federal-register/federal-register-observation.spec.ts
+ts-jest[config] (WARN) [94mmessage[0m[90m TS151002: [0mUsing hybrid module kind (Node16/18/Next) is only supported in "isolatedModules: true". Please set "isolatedModules: true" in your tsconfig.json. To disable this message, you can set "diagnostics.ignoreCodes" to include 151002 in your ts-jest config. See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/options/diagnostics
+PASS src/ingestion/embed-watermark.spec.ts
+
+Test Suites: 1 failed, 4 passed, 5 total
+Tests:       8 failed, 64 passed, 72 total
+Snapshots:   0 total
+Time:        129.389 s
+Ran all test suites matching /src\/federal-register|src\/ingestion\/sync-run.helper.spec.ts|src\/ingestion\/embed-watermark.spec.ts/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

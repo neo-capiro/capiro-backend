@@ -1,0 +1,22 @@
+{
+  "evidenceKind": "official_prisma_wasm_dmmf_source_only",
+  "version": "5.22.0",
+  "model": "FederalRegisterDocument",
+  "fields": [
+    {
+      "name": "effectiveDate",
+      "type": "DateTime",
+      "isRequired": false
+    },
+    {
+      "name": "effectiveDateEvidence",
+      "type": "Json",
+      "isRequired": false
+    },
+    {
+      "name": "effectiveDateObservedAt",
+      "type": "DateTime",
+      "isRequired": false
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "kind": "read_only_source_reference_checks",
+  "federalRegisterDocumentation": "https://www.federalregister.gov/developers/documentation/api/v1",
+  "documentationOutcome": "read_success",
+  "sourceRepository": "https://github.com/usnationalarchives/federalregister-api-core",
+  "sourceHead": "e9c64236b385c04c7383eef167e6c29d03cfe467",
+  "sourceRepositoryOutcome": "read_only_clone_success",
+  "inaccessibleBrowserReferences": [
+    "https://www.federalregister.gov/api/v1/documents/2026-22425.json",
+    "https://www.federalregister.gov/api/v1/documents.json?conditions%5Btype%5D%5B%5D=RULE&per_page=1"
+  ],
+  "inaccessibleOutcome": "URL is not accessible via web tool; no source sample retained",
+  "syncOwnerExecuted": false,
+  "nativeDatabaseQualification": false
+}
