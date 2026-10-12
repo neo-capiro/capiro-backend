@@ -1,0 +1,21 @@
+{
+  "source": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "addition": "function reviewHoistedAlias() { return rng(); }\nimport { systemRandom as rng } from '@capiro/shared';",
+  "expected": "reject hoisted aliased system RNG call",
+  "failures": [],
+  "unexpectedlyAccepted": true,
+  "analysis": {
+    "events": [],
+    "retryCalls": [],
+    "retryDefinitions": [],
+    "definitions": [
+      {
+        "file": "apps/api-strategy/src/meri/context-load.ts",
+        "name": "reviewHoistedAlias"
+      }
+    ],
+    "problems": []
+  },
+  "mutantExecuted": false,
+  "nativeAcceptance": false
+}

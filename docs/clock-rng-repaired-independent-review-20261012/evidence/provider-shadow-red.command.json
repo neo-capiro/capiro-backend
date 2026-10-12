@@ -1,0 +1,13 @@
+{
+  "source": "aa1ce11fd480cf664f5b3d1902a61751368d238d",
+  "tree": "8f97dc2a55aa837115d43f9d2a38a443ee914afb",
+  "cwd": "/workspace/capirov2-clock-rng-repaired-review",
+  "argv": [
+    "node",
+    "docs/clock-rng-repaired-independent-review-20261012/evidence/provider-shadow-probe.mjs"
+  ],
+  "exitCode": 0,
+  "probeExitIsNotGuardAcceptance": true,
+  "nativeAcceptance": false,
+  "mutantsExecuted": false
+}
