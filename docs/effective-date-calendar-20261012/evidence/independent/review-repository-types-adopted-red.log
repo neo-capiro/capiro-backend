@@ -1,0 +1,9 @@
+src/federal-register/effective-independent-review.spec.ts(167,12): error TS2532: Object is possibly 'undefined'.
+src/federal-register/effective-script-independent-review.spec.ts(104,75): error TS2532: Object is possibly 'undefined'.
+src/federal-register/effective-script-independent-review.spec.ts(105,36): error TS2532: Object is possibly 'undefined'.
+src/federal-register/effective-script-independent-review.spec.ts(105,81): error TS2532: Object is possibly 'undefined'.
+src/federal-register/effective-script-independent-review.spec.ts(107,51): error TS2532: Object is possibly 'undefined'.
+src/federal-register/effective-script-independent-review.spec.ts(110,30): error TS2532: Object is possibly 'undefined'.
+src/federal-register/effective-script-independent-review.spec.ts(111,87): error TS2532: Object is possibly 'undefined'.
+src/federal-register/effective-script-independent-review.spec.ts(112,55): error TS2532: Object is possibly 'undefined'.
+exit_code=2

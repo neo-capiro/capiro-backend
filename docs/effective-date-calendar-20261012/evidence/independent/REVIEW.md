@@ -11,7 +11,8 @@ Reviewer additions are tests and evidence only. No author worktree was edited.
 The final review run passes **154/154 tests in seven suites**, including **82
 independently authored tests** and 72 retained author/helper cases. Counts overlap
 the author's checks and must not be added to them. Focused strict semantic
-TypeScript verification includes both independent test files and the actual
+TypeScript verification, including the repository's `noUncheckedIndexedAccess`
+setting, includes both independent test files and the actual
 `apps/api/scripts/sync-federal-register.ts` script, with no emission. The separate
 Jest runner uses isolated transpilation to keep the full repository's semantic
 graph out of synthetic test execution; semantic compilation is a separate check.
@@ -78,6 +79,17 @@ The whole-candidate whitespace check flags trailing spaces in unchanged raw
 ts-jest warning output; its failure is retained in `review-diff-check-raw.log`.
 The source/test check scoped to `apps`, `packages` and `scripts` passes. Raw
 tool-output bytes were preserved rather than edited to satisfy a formatting check.
+
+The author's subsequent full Core compile identified eight possible-undefined
+index accesses in reviewer fixtures. The earlier focused strict command had not
+enabled the repository's additional `noUncheckedIndexedAccess` flag. The original
+full-compile failure is retained as `review-repository-types-adopted-red.log`.
+Reviewer-only assertions now check the transaction call count before deliberate
+non-null call indexing, and the two-rule script fixture is a const tuple. The
+updated focused compile explicitly enables `--noUncheckedIndexedAccess` and
+includes the actual sync script; it passes. The unchanged 154 synthetic cases
+pass again in `review-fixture-repair-final.json`. Runtime source still matches
+every frozen Git blob in `source-review-fixture-repair-final.json`.
 
 This review does not constitute native Prisma/PostgreSQL/RLS acceptance, provider
 verification, migration application, deployment or a main merge. Those checks

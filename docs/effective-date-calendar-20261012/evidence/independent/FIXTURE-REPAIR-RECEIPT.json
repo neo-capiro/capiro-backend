@@ -1,0 +1,46 @@
+{
+  "verdict": "accepted_test_fixture_repair_source_unchanged",
+  "reviewedRuntimeHead": "f2b4cf3d733bf3cbb84dd8c453c037848d82ea82",
+  "reviewedRuntimeTree": "08519d0fa4fc14da9116b3f299d0d9d5c4e0c685",
+  "preservedReviewHeads": [
+    "e542d25fbd2491fa8b45c250b807c6021d4a34d2",
+    "20014af61136268445e229885ffd81f65e6a3255"
+  ],
+  "fixtureChanges": [
+    "assert one transaction call then deliberate non-null indexing of that mock call",
+    "const tuple for the known two-rule fixture"
+  ],
+  "runtimeSourceChanged": false,
+  "tests": 154,
+  "suites": 7,
+  "failedTests": 0,
+  "independentTests": 82,
+  "semanticCompile": {
+    "command": "NODE_OPTIONS=--max-old-space-size=4096 node_modules/.bin/tsc --noEmit --skipLibCheck --strict --noUncheckedIndexedAccess --esModuleInterop --target ES2022 --module Node16 --moduleResolution Node16 --experimentalDecorators --emitDecoratorMetadata --types jest,node src/federal-register/effective-independent-review.spec.ts src/federal-register/effective-script-independent-review.spec.ts scripts/sync-federal-register.ts",
+    "cwd": "apps/api",
+    "exitCode": 0,
+    "log": "review-types-no-unchecked-final.log"
+  },
+  "sourceBlobCheck": {
+    "exitCode": 0,
+    "result": "source-review-fixture-repair-final.json",
+    "log": "source-review-fixture-repair-final.log"
+  },
+  "sourceDiffCheck": {
+    "command": "git diff --check -- apps packages scripts",
+    "exitCode": 0
+  },
+  "preservedRedEvidence": {
+    "log": "review-repository-types-adopted-red.log",
+    "exitCode": 2,
+    "fixtureErrors": 8
+  },
+  "syntheticEvidence": {
+    "log": "review-fixture-repair-final.log",
+    "result": "review-fixture-repair-final.json",
+    "exitCode": 0
+  },
+  "sourceOnly": true,
+  "nativeDatabaseOrProviderQualification": false,
+  "generatedAt": "2026-10-12T07:07:14.877Z"
+}

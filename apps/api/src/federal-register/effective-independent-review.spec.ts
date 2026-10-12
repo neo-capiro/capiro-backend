@@ -164,7 +164,8 @@ describe('independent calendar authority and coverage review', () => {
     expect(value.coverage).toMatchObject({ complete: false, allFederalRules: false,
       parsedFullDatesSection: false, separatelyIssuedCorrectionsResolved: false, refreshRequired: true,
       catalogRules: 99, withoutEvidence: 7, unsupportedEvidence: 4 });
-    expect(h.prisma.$transaction.mock.calls[0][1]).toEqual({ isolationLevel: 'RepeatableRead' });
+    expect(h.prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(h.prisma.$transaction.mock.calls[0]![1]).toEqual({ isolationLevel: 'RepeatableRead' });
   });
   it('selects latest ingestion and refresh independently without a shared history cutoff', async () => {
     const h = calendarHarness();

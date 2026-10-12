@@ -1,11 +1,15 @@
 [
   {
     "path": "docs/effective-date-calendar-20261012/evidence/independent/FINAL-RECEIPT.json",
-    "sha256": "df2dd3957ad84f9929932e095a828e5432a683e225eb8e0ad89976dbb4c5ed70"
+    "sha256": "3e439ed954777777c1088743ead7900ca55093eec2e2becb81495941b0b7500b"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/independent/FIXTURE-REPAIR-RECEIPT.json",
+    "sha256": "ebfc1a40a8d6a69637791fc9cf33d8dfa4c73f0a8833a404b5982432091ed9dc"
   },
   {
     "path": "docs/effective-date-calendar-20261012/evidence/independent/REVIEW.md",
-    "sha256": "e6118462df68ce0233b474788e17e448a2a82f6e389bd0f68d70964149dc67f2"
+    "sha256": "55d6cbc3c07f2d3155c5b5c5800824e1268ffd041e350d7e07954acb712e56eb"
   },
   {
     "path": "docs/effective-date-calendar-20261012/evidence/independent/review-combined.json",
@@ -40,6 +44,14 @@
     "sha256": "1132e862a50a750e9a82a5487456833f57450e6c7685fb6670b1fdb69ab22ff5"
   },
   {
+    "path": "docs/effective-date-calendar-20261012/evidence/independent/review-fixture-repair-final.json",
+    "sha256": "ba892219114148e26e4c8ad37ab0484a619f321e1ffb0fb81e24399bd04d7d76"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/independent/review-fixture-repair-final.log",
+    "sha256": "7803130a7bce2505eeac320cb5eed1ce817fada325b0c6d96a1713138f6e4d3e"
+  },
+  {
     "path": "docs/effective-date-calendar-20261012/evidence/independent/review-initial.log",
     "sha256": "76fe27e7082e639ef9c862d27f08cc4aa163ca7f5d18f68f02e941f7d8be18c2"
   },
@@ -56,6 +68,10 @@
     "sha256": "a7f4d00641f4f00b0e1c0d0e09ecff689453d8a3f3e36d9bc0a47b00b8f37531"
   },
   {
+    "path": "docs/effective-date-calendar-20261012/evidence/independent/review-repository-types-adopted-red.log",
+    "sha256": "f48f4fe6e21198c374f3768d8b22cc1756809bca1067953b0f767a58a1ad3705"
+  },
+  {
     "path": "docs/effective-date-calendar-20261012/evidence/independent/review-types-app.log",
     "sha256": "02db93f27c5ef266d5529699534706a5d45066a1cf9432918ec5f68b1eb14cfb"
   },
@@ -68,7 +84,19 @@
     "sha256": "7c1018d9171cf9de2cad98e29619e69c1185bcd55d2677e124ca0a007e4e51cb"
   },
   {
+    "path": "docs/effective-date-calendar-20261012/evidence/independent/review-types-no-unchecked-final.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
     "path": "docs/effective-date-calendar-20261012/evidence/independent/review-types-with-script-final.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/independent/source-review-fixture-repair-final.json",
+    "sha256": "6eb33c4466c2c696971f23c49f280f252f48241f745cb5400b688291c16c71f9"
+  },
+  {
+    "path": "docs/effective-date-calendar-20261012/evidence/independent/source-review-fixture-repair-final.log",
     "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
   {
@@ -85,10 +113,10 @@
   },
   {
     "path": "apps/api/src/federal-register/effective-independent-review.spec.ts",
-    "sha256": "1d7af4cfef54466afa881ebf8c0f611c2611a8d7b20e7114d1aeed0a1a42ceda"
+    "sha256": "55ddcf413fa3e4008aaf1561a06b2941ae0d87ee3c5661e0bd3bef4b4c710b85"
   },
   {
     "path": "apps/api/src/federal-register/effective-script-independent-review.spec.ts",
-    "sha256": "7587eda40e4521af5efa8196dfb9230180d6838b15e391e3cbaeb29770fec87f"
+    "sha256": "640ddccd4f407809adb09c06387ebfb46518187b3ce74356cc56f6d7267b1e80"
   }
 ]

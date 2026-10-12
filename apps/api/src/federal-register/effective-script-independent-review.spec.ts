@@ -100,7 +100,7 @@ describe('independent synthetic execution of actual Federal Register sync script
     expect(r.runs[0]).toMatchObject({ status: 'success_with_errors', counts: { errors: 1, updated: 0 } });
   });
   it('refreshes exact bounded existing identities without a publication-date watermark', async () => {
-    const docs = [rule(1), rule(2)];
+    const docs = [rule(1), rule(2)] as const;
     const r = await execute({ argv: ['--refresh-effective-dates'], upper: docs[1].document_number,
       batches: [[{ documentNumber: docs[0].document_number }, { documentNumber: docs[1].document_number }], []],
       response: url => docs.find(doc => url.pathname.endsWith(`/${doc.document_number}.json`)),
