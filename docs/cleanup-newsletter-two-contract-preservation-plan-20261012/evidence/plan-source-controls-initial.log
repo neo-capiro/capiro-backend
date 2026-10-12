@@ -1,0 +1,192 @@
+{
+  "sourcePins": {
+    "C": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "W": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda",
+    "Q": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+    "four": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+    "assessment": "7286700fb80c43ec66e1330bed7b5c64b10804e0"
+  },
+  "sourceTrees": {
+    "C": "ce817706a72b7f096cf3e112f28ec355153e5653",
+    "W": "d7907c0d9e8f6feb1a79dab3ba02e91050379e18",
+    "Q": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+    "four": "d5a1acd33391ae681159c271f6a72602c6338055",
+    "assessment": "a3d1acd826bac6479d21ad233d6b71ba21e754fc"
+  },
+  "checks": [
+    {
+      "name": "Exact27 recorded C blobs, hashes and W identities, absent Q/four",
+      "passed": true
+    },
+    {
+      "name": "Exactly14 original SQL IDs, no re-numbering",
+      "passed": true
+    },
+    {
+      "name": "All91 recorded prerequisite Q blobs unchanged in four union",
+      "passed": true
+    },
+    {
+      "name": "All25 original runtime owner paths retained in finite graph",
+      "passed": true
+    },
+    {
+      "name": "All19 original spec paths bound, not executed",
+      "passed": true
+    },
+    {
+      "name": "Every67 assessment delegate body equals actual immutable C AST",
+      "passed": true
+    },
+    {
+      "name": "Missing generated Workspace Prisma target is type-only",
+      "passed": true
+    },
+    {
+      "name": "Published interface header compatible getOutreachRecord",
+      "passed": true
+    },
+    {
+      "name": "Published interface header compatible updateOutreachRecord",
+      "passed": true
+    },
+    {
+      "name": "Published interface header compatible findCampaignSendConnection",
+      "passed": true
+    },
+    {
+      "name": "Published interface header compatible createIntent",
+      "passed": true
+    },
+    {
+      "name": "Published interface header compatible updateMemberRole",
+      "passed": true
+    },
+    {
+      "name": "Draft importer missing in Q needs existing-owner additive composition",
+      "passed": true
+    },
+    {
+      "name": "Workspace source membership APIs are three additive dependencies",
+      "passed": true
+    },
+    {
+      "name": "Newsletter image and alt methods use existing credential owner",
+      "passed": true
+    },
+    {
+      "name": "GET delegates reviewRow via review, no inert/read-only assumption",
+      "passed": true
+    },
+    {
+      "name": "reviewRow can activate invitations then requery grants",
+      "passed": true
+    },
+    {
+      "name": "Invitation activation persists review grant, invitation state and notification",
+      "passed": true
+    },
+    {
+      "name": "Invitation activation current membership and both source scopes remain explicit",
+      "passed": false,
+      "error": "The expression evaluated to a falsy value:\n\n  assert((b.match(/assertDesignClients/g)||[]).length>=2)\n"
+    },
+    {
+      "name": "Rich stage exact revision CAS then per-author upsert, no UUID bridge",
+      "passed": true
+    },
+    {
+      "name": "Hosted surveys, campaign sharing and forwarding stay refused",
+      "passed": true
+    },
+    {
+      "name": "Stage remains actor-owned and gets current design clients",
+      "passed": true
+    },
+    {
+      "name": "Legacy open locks stage and creates/reuses only legacy OutreachRecord",
+      "passed": true
+    },
+    {
+      "name": "Nonempty newsletter groups refused before normalization output",
+      "passed": true
+    },
+    {
+      "name": "Prepare normalizes before recipient artifacts and retains all rich public URLs",
+      "passed": true
+    },
+    {
+      "name": "C late-use source owner binds actor active membership and all source clients",
+      "passed": true
+    },
+    {
+      "name": "Sender individual newsletter late-use gates and ordinary group boundary pinned",
+      "passed": false,
+      "error": "missing sender.sendOne"
+    },
+    {
+      "name": "Canonical Q prospect attachment gates remain two",
+      "passed": true
+    },
+    {
+      "name": "Canonical Q notification visibility checks must survive",
+      "passed": true
+    },
+    {
+      "name": "Public capability validates64hex and binds non-test pending/sending/sent/unknown delivery",
+      "passed": true
+    },
+    {
+      "name": "Preference GET delegates omit write boolean, POST delegates true",
+      "passed": true
+    },
+    {
+      "name": "Survey GET delegates omit submit boolean, POST delegates true",
+      "passed": true
+    },
+    {
+      "name": "Subscriptions remain sender-scoped and survey answers retain merge-write limitation",
+      "passed": true
+    },
+    {
+      "name": "Original public asset lookup retains token and bytes without deletedAt filter",
+      "passed": false,
+      "error": "The expression evaluated to a falsy value:\n\n  assert(b.includes('publicToken'))\n"
+    },
+    {
+      "name": "Q plaintext staging route and provenance engine preserved byteexact",
+      "passed": true
+    },
+    {
+      "name": "Q staging source owner remains saved-version/hash/single command receipt",
+      "passed": true
+    },
+    {
+      "name": "Two shared newsletter subpaths absentQ and require additive exports",
+      "passed": true
+    },
+    {
+      "name": "Workspace three runtime package versions absentQ and retained C",
+      "passed": true
+    },
+    {
+      "name": "Sixteen new tables stay distinct from Q WsDocVersion/WsDraft",
+      "passed": true
+    },
+    {
+      "name": "WsDocVersion model byteexact C/Q while existing WsDraft differs",
+      "passed": true
+    },
+    {
+      "name": "262 finite Web family with179assets43runtime, only1test C/W delta",
+      "passed": true
+    },
+    {
+      "name": "Template fixed image targets and dynamic social family exact source URLs",
+      "passed": true
+    }
+  ],
+  "passed": 39,
+  "total": 42,
+  "scope": "Static actual immutable source assertions only. No production code, route, GET, provider or database operation executed. These establish planning evidence, not application/native acceptance."
+}

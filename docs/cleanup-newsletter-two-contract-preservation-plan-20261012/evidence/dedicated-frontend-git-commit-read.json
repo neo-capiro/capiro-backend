@@ -1,0 +1,22 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Action completed."
+    }
+  ],
+  "structuredContent": {
+    "content": "{\"sha\":\"4a1614886fd98bb42d529f1ef59b3d01d7ff9173\",\"node_id\":\"C_kwDOVD8qFdoAKDRhMTYxNDg4NmZkOThiYjQyZDUyOWYxZWY1OWIzZDAxZDdmZjkxNzM\",\"url\":\"https://api.github.com/repos/neo-capiro/capiro-frontend/git/commits/4a1614886fd98bb42d529f1ef59b3d01d7ff9173\",\"html_url\":\"https://github.com/neo-capiro/capiro-frontend/commit/4a1614886fd98bb42d529f1ef59b3d01d7ff9173\",\"author\":{\"name\":\"NEO MARTINEZ\",\"email\":\"neo@capiro.ai\",\"date\":\"2026-10-12T11:48:20Z\"},\"committer\":{\"name\":\"NEO MARTINEZ\",\"email\":\"neo@capiro.ai\",\"date\":\"2026-10-12T11:48:20Z\"},\"tree\":{\"sha\":\"16c0b62901859aa4ff3f2ea01856aa13e13c65cd\",\"url\":\"https://api.github.com/repos/neo-capiro/capiro-frontend/git/trees/16c0b62901859aa4ff3f2ea01856aa13e13c65cd\"},\"message\":\"Repair seven scoped presentation findings across shared frontend\",\"parents\":[{\"sha\":\"a397d45c461b24eb741afcd3b7cf28ca354d1e96\",\"url\":\"https://api.github.com/repos/neo-capiro/capiro-frontend/git/commits/a397d45c461b24eb741afcd3b7cf28ca354d1e96\",\"html_url\":\"https://github.com/neo-capiro/capiro-frontend/commit/a397d45c461b24eb741afcd3b7cf28ca354d1e96\"}],\"verification\":{\"verified\":false,\"reason\":\"unsigned\",\"signature\":null,\"payload\":null,\"verified_at\":null}}",
+    "title": "4a1614886fd98bb42d529f1ef59b3d01d7ff9173",
+    "modified_date": null,
+    "url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/commits/4a1614886fd98bb42d529f1ef59b3d01d7ff9173",
+    "display_url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/commits/4a1614886fd98bb42d529f1ef59b3d01d7ff9173",
+    "display_title": "4a1614886fd98bb42d529f1ef59b3d01d7ff9173",
+    "structuredContent": {
+      "title": "4a1614886fd98bb42d529f1ef59b3d01d7ff9173",
+      "content": "{\"sha\":\"4a1614886fd98bb42d529f1ef59b3d01d7ff9173\",\"node_id\":\"C_kwDOVD8qFdoAKDRhMTYxNDg4NmZkOThiYjQyZDUyOWYxZWY1OWIzZDAxZDdmZjkxNzM\",\"url\":\"https://api.github.com/repos/neo-capiro/capiro-frontend/git/commits/4a1614886fd98bb42d529f1ef59b3d01d7ff9173\",\"html_url\":\"https://github.com/neo-capiro/capiro-frontend/commit/4a1614886fd98bb42d529f1ef59b3d01d7ff9173\",\"author\":{\"name\":\"NEO MARTINEZ\",\"email\":\"neo@capiro.ai\",\"date\":\"2026-10-12T11:48:20Z\"},\"committer\":{\"name\":\"NEO MARTINEZ\",\"email\":\"neo@capiro.ai\",\"date\":\"2026-10-12T11:48:20Z\"},\"tree\":{\"sha\":\"16c0b62901859aa4ff3f2ea01856aa13e13c65cd\",\"url\":\"https://api.github.com/repos/neo-capiro/capiro-frontend/git/trees/16c0b62901859aa4ff3f2ea01856aa13e13c65cd\"},\"message\":\"Repair seven scoped presentation findings across shared frontend\",\"parents\":[{\"sha\":\"a397d45c461b24eb741afcd3b7cf28ca354d1e96\",\"url\":\"https://api.github.com/repos/neo-capiro/capiro-frontend/git/commits/a397d45c461b24eb741afcd3b7cf28ca354d1e96\",\"html_url\":\"https://github.com/neo-capiro/capiro-frontend/commit/a397d45c461b24eb741afcd3b7cf28ca354d1e96\"}],\"verification\":{\"verified\":false,\"reason\":\"unsigned\",\"signature\":null,\"payload\":null,\"verified_at\":null}}",
+      "display_url": "https://api.github.com/repos/neo-capiro/capiro-frontend/git/commits/4a1614886fd98bb42d529f1ef59b3d01d7ff9173"
+    }
+  },
+  "isError": false
+}
