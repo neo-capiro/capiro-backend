@@ -1,0 +1,67 @@
+{
+  "acceptedScopedSource": "4104f49f6ebfdbf00ad1706079ba340bd9b566c8",
+  "acceptedTree": "257856362ba9075b25bee52debf3efa35f3dfb77",
+  "carriedScopedReviewSource": "721bfd4825bfccd819be50172ed712023891f978",
+  "onlyChangesSinceScopedReview": [
+    "scripts/check-registry-ownership.mjs",
+    "scripts/check-registry-ownership.test.mjs"
+  ],
+  "threeDataPackageCiBlobsAndFourActualOwnerConsumerFiles": [
+    {
+      "path": "scripts/registry-ownership.json",
+      "blob": "7bee2f07b06ade07f7587c868afbe761972a4b8e",
+      "sha256": "f68cf0819176ebdd56f25ef3387b2a9fd3e014f40ade90ecb4dc7cca75699019",
+      "exactReviewedBytes": true
+    },
+    {
+      "path": "package.json",
+      "blob": "dd946b25b0ab2d5ae8cbb223e4586e02227adea1",
+      "sha256": "78d6a5775c0e97ca2b1760139a5d60dbf8a298fd62f0d58b232ad24bfc28ca38",
+      "exactReviewedBytes": true
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "blob": "baf92415c3c766a847a4fc60ee6ad5cb4dec1ca2",
+      "sha256": "4ab5e5b3aa91b3466ceafa1cd84f882ede5a21aeb083e96ca409cef0363fa91e",
+      "exactReviewedBytes": true
+    },
+    {
+      "path": "apps/api-strategy/src/context/frontmatter.ts",
+      "blob": "9d3564ce92fcc7a29d2f99bd1b1dcf379f1d49ba",
+      "sha256": "250a942a6b06f1529a02315b6bf07e3f7d1a872fdf6e70daecd0f69406353645",
+      "exactReviewedBytes": true
+    },
+    {
+      "path": "apps/api-strategy/src/context/context-import.service.ts",
+      "blob": "a4b24c925dd6a794378d2c0f15ce2fc97f363e2b",
+      "sha256": "d8640aa0099641e4f108ae86db56e234a4e3fdde0671d4b737d9a09052513e30",
+      "exactReviewedBytes": true
+    },
+    {
+      "path": "apps/api-strategy/src/context/context-documents.service.ts",
+      "blob": "6927bc8919b02baca90e75f8710698ada07bccaa",
+      "sha256": "39abf2099671088541ce94715a21231bdb93e8880353c583b9169f8e70187636",
+      "exactReviewedBytes": true
+    },
+    {
+      "path": "apps/api-strategy/src/context/steward.service.ts",
+      "blob": "9d41ae5eceba74e0fa0f0d43eb5197189d201f49",
+      "sha256": "7cf4f8a4a2dc3733d5138eb96d57ef8ade640ef35cb8fc91cac9d6529d5b64b6",
+      "exactReviewedBytes": true
+    }
+  ],
+  "unchangedWholePriorBaselineProtectionCarriedByExactTwoPathDiff": {
+    "outsideScopedSourcePaths": 21043,
+    "allApplications": 10506,
+    "schemaMigration": 603,
+    "allPriorDocsAndReceipts": 9364
+  },
+  "runtimeRoles": 4,
+  "runtimeConsumerServices": 3,
+  "directNamedExportConstDeclarations": 2,
+  "originalChecksumEntriesVerifiedUnchanged": 47,
+  "genericGuardGrammarAcceptance": false,
+  "applicationSourceExecuted": false,
+  "ciOrPackageManagerExecuted": false,
+  "nativeAcceptance": false
+}

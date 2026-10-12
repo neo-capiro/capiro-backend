@@ -1,0 +1,8 @@
+{
+  "kind": "Inspection-only command receipt; not a qualification test",
+  "command": "git status --short && git log -3 --oneline && git rev-parse HEAD && git cat-file -t 4104f49f6ebfdbf00ad1706079ba340bd9b566c8 && rg --files -g 'AGENTS.md' -g '*registry-control*' docs/cleanup-next-registry-control-wiring-review-20261012",
+  "exitCode": 1,
+  "reason": "Final rg filename filter found no matching names. The preceding read-only Git checks succeeded. Subsequent unfiltered enumeration confirmed the evidence files; workspace rg found no applicable capirov2 AGENTS.md.",
+  "rawOutput": "d39743634 docs(review): qualify existing vocabulary data and unchanged CI wiring\nc1066ab1f docs(review): preserve initial existing-owner data and CI readback\n6f60a2de9 Close unlisted barrel and import-equals ownership forms\nd39743634342b658ce133ae3711a77bc4263e20e\ncommit\n",
+  "sourceMutation": false
+}

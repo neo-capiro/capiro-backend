@@ -1,0 +1,2 @@
+Usage: node scripts/check-registry-ownership.mjs
+Inspect bounded canonical registry owners and reviewed source carriers.

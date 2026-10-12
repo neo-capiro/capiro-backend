@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "node",
+    "scripts/check-registry-ownership.mjs",
+    "--unknown"
+  ],
+  "source": "79cba71ca8359f9cac178ddc3314cb34c0d46da5",
+  "exitCode": 1,
+  "expected": true,
+  "applicationSourceExecuted": false,
+  "nativeAcceptance": false
+}
