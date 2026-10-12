@@ -1,0 +1,64 @@
+{
+  "source": "9a23cd7273028e97581b0605d321e69d0185d536",
+  "tree": "a75722610fcf567f6aca0294e534821c4eee5bbc",
+  "reviewSnapshotHead": "991ca2f88e0e2829e2ec31a33cdc2e195a870cf3",
+  "rootSourcePaths": [
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "sha256": "cae6f04eaa53075c350ef0f38e65b71100fbc4898ec61589ea757e180006b4c1"
+    },
+    {
+      "path": "package.json",
+      "sha256": "2384cad9cd99bf2b6af903144593198b3bd9110f627c86ed1eaa7e78764f2ccf"
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.mjs",
+      "sha256": "eeaf236aade7bf9576f76e183f11a51eb9e8aa8203139eeb070ea0f2a6dcd5a6"
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.test.mjs",
+      "sha256": "9b939dae53b0117c6fb67753d51d053fcc3c9201dabc396b70531751fbfc761b"
+    },
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "sha256": "b1c94c9407019101be0fd91764159bd56273ab7de2f5418ae14cb3d9f010c251"
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "sha256": "3e3c40a05d301a65dd72e1e0c3ad4d54234a6dfa97dfeb9d8dcc370c7f8f5677"
+    },
+    {
+      "path": "scripts/cleanup-runtime-equivalence.jest.cjs",
+      "sha256": "16bb7322aee00089c7ff17393fc1cbb125b345f5f66da7aa6a2399ee4708ad67"
+    },
+    {
+      "path": "scripts/duplicate-helper-names.txt",
+      "sha256": "f465c9783334023d1bc4a68ed507e606dbec7eafd8cb9403cc0165ab354d986c"
+    },
+    {
+      "path": "scripts/registry-ownership.json",
+      "sha256": "70b6c6653b208b93cc5863a7b4d22e3f6486a95235b8856141e48b65c47ddb63"
+    }
+  ],
+  "sourceEdits": false,
+  "e3EvidenceHashesUnchanged": true,
+  "rootUnitPass": 144,
+  "realFiles": 2047,
+  "e3FixtureReplayCases": 25,
+  "e3ReplayUnexpectedAccepts": 0,
+  "e3WholeMapReplayCases": 4,
+  "e3WholeMapAllRefuse": true,
+  "typedProfileAndWiringReplay": "PASS",
+  "newBoundedFixtureCases": 22,
+  "newUnexpectedAccepts": 5,
+  "newActualWholeMapCases": 3,
+  "newActualWholeMapUnexpectedAccepts": 3,
+  "independentAcceptance": "WITHHELD",
+  "pendingRepairs": [
+    "require callee erased wrappers",
+    "fail-closed supported static syntax budget exhaustion"
+  ],
+  "tangoApplicationAcceptanceExcluded": true,
+  "mutantExecution": false,
+  "providerNativeDatabasePmActions": false
+}

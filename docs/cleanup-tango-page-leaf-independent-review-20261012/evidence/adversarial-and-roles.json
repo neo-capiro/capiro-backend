@@ -1,0 +1,364 @@
+{
+  "source": "34bd52b6f49393f49732cf1f918002ba0893574d",
+  "helperControls": [
+    {
+      "client": "dibbs",
+      "label": "symbol",
+      "exactConstructorAndMessage": true,
+      "markerIdentityRetained": false
+    },
+    {
+      "client": "dibbs",
+      "label": "throwing toPrimitive",
+      "exactConstructorAndMessage": true,
+      "markerIdentityRetained": true
+    },
+    {
+      "client": "dibbs",
+      "variant": "stable get lookup",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "coerce:x-ratelimit-remaining",
+        "lookup:2",
+        "get:x-ratelimit-limit:1",
+        "coerce:x-ratelimit-limit",
+        "lookup:3",
+        "get:x-ratelimit-reset-in:2",
+        "coerce:x-ratelimit-reset-in",
+        "lookup:4",
+        "get:retry-after:3",
+        "coerce:retry-after",
+        "lookup:5",
+        "get:x-ratelimit-type:4"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "dibbs",
+      "variant": "coercion mutation",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "coerce:x-ratelimit-remaining",
+        "lookup:2",
+        "get:x-ratelimit-limit:1",
+        "coerce:x-ratelimit-limit",
+        "lookup:3",
+        "get:x-ratelimit-reset-in:2",
+        "coerce:x-ratelimit-reset-in",
+        "lookup:4",
+        "get:retry-after:3",
+        "coerce:retry-after",
+        "lookup:5",
+        "get:x-ratelimit-type:4"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "dibbs",
+      "variant": "get getter throws",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "coerce:x-ratelimit-remaining",
+        "lookup:2",
+        "get:x-ratelimit-limit:1",
+        "coerce:x-ratelimit-limit",
+        "lookup:3"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "dibbs",
+      "variant": "coercion throws",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "coerce:x-ratelimit-remaining"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "dibbs",
+      "variant": "symbol limit type",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "coerce:x-ratelimit-remaining",
+        "lookup:2",
+        "get:x-ratelimit-limit:1",
+        "coerce:x-ratelimit-limit",
+        "lookup:3",
+        "get:x-ratelimit-reset-in:2",
+        "coerce:x-ratelimit-reset-in",
+        "lookup:4",
+        "get:retry-after:3",
+        "coerce:retry-after",
+        "lookup:5",
+        "get:x-ratelimit-type:4"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "sbir",
+      "label": "symbol",
+      "exactConstructorAndMessage": true,
+      "markerIdentityRetained": false
+    },
+    {
+      "client": "sbir",
+      "label": "throwing toPrimitive",
+      "exactConstructorAndMessage": true,
+      "markerIdentityRetained": true
+    },
+    {
+      "client": "sbir",
+      "variant": "stable get lookup",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "coerce:x-ratelimit-remaining",
+        "lookup:2",
+        "get:x-ratelimit-limit:1",
+        "coerce:x-ratelimit-limit",
+        "lookup:3",
+        "get:x-ratelimit-reset-in:2",
+        "coerce:x-ratelimit-reset-in",
+        "lookup:4",
+        "get:retry-after:3",
+        "coerce:retry-after",
+        "lookup:5",
+        "get:x-ratelimit-type:4"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "sbir",
+      "variant": "coercion mutation",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "coerce:x-ratelimit-remaining",
+        "lookup:2",
+        "get:x-ratelimit-limit:1",
+        "coerce:x-ratelimit-limit",
+        "lookup:3",
+        "get:x-ratelimit-reset-in:2",
+        "coerce:x-ratelimit-reset-in",
+        "lookup:4",
+        "get:retry-after:3",
+        "coerce:retry-after",
+        "lookup:5",
+        "get:x-ratelimit-type:4"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "sbir",
+      "variant": "get getter throws",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "coerce:x-ratelimit-remaining",
+        "lookup:2",
+        "get:x-ratelimit-limit:1",
+        "coerce:x-ratelimit-limit",
+        "lookup:3"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "sbir",
+      "variant": "coercion throws",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "coerce:x-ratelimit-remaining"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "sbir",
+      "variant": "symbol limit type",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "coerce:x-ratelimit-remaining",
+        "lookup:2",
+        "get:x-ratelimit-limit:1",
+        "coerce:x-ratelimit-limit",
+        "lookup:3",
+        "get:x-ratelimit-reset-in:2",
+        "coerce:x-ratelimit-reset-in",
+        "lookup:4",
+        "get:retry-after:3",
+        "coerce:retry-after",
+        "lookup:5",
+        "get:x-ratelimit-type:4"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "subaward",
+      "label": "symbol",
+      "exactConstructorAndMessage": true,
+      "markerIdentityRetained": false
+    },
+    {
+      "client": "subaward",
+      "label": "throwing toPrimitive",
+      "exactConstructorAndMessage": true,
+      "markerIdentityRetained": true
+    },
+    {
+      "client": "subaward",
+      "variant": "stable get lookup",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "lookup:2",
+        "get:x-ratelimit-limit:0",
+        "lookup:3",
+        "get:x-ratelimit-reset-in:0",
+        "lookup:4",
+        "get:retry-after:0",
+        "coerce:x-ratelimit-remaining",
+        "coerce:x-ratelimit-limit",
+        "coerce:x-ratelimit-reset-in",
+        "coerce:retry-after",
+        "lookup:5",
+        "get:x-ratelimit-type:4"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "subaward",
+      "variant": "coercion mutation",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "lookup:2",
+        "get:x-ratelimit-limit:0",
+        "lookup:3",
+        "get:x-ratelimit-reset-in:0",
+        "lookup:4",
+        "get:retry-after:0",
+        "coerce:x-ratelimit-remaining",
+        "coerce:x-ratelimit-limit",
+        "coerce:x-ratelimit-reset-in",
+        "coerce:retry-after",
+        "lookup:5",
+        "get:x-ratelimit-type:4"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "subaward",
+      "variant": "get getter throws",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "lookup:2",
+        "get:x-ratelimit-limit:0",
+        "lookup:3"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "subaward",
+      "variant": "coercion throws",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "lookup:2",
+        "get:x-ratelimit-limit:0",
+        "lookup:3",
+        "get:x-ratelimit-reset-in:0",
+        "lookup:4",
+        "get:retry-after:0",
+        "coerce:x-ratelimit-remaining"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    },
+    {
+      "client": "subaward",
+      "variant": "symbol limit type",
+      "exactTrace": [
+        "lookup:1",
+        "get:x-ratelimit-remaining:0",
+        "lookup:2",
+        "get:x-ratelimit-limit:0",
+        "lookup:3",
+        "get:x-ratelimit-reset-in:0",
+        "lookup:4",
+        "get:retry-after:0",
+        "coerce:x-ratelimit-remaining",
+        "coerce:x-ratelimit-limit",
+        "coerce:x-ratelimit-reset-in",
+        "coerce:retry-after",
+        "lookup:5",
+        "get:x-ratelimit-type:4"
+      ],
+      "exactOutcome": true,
+      "sameHostErrorRealm": true
+    }
+  ],
+  "helperComparisons": 21,
+  "actualTangoProfileSourceFiles": 1879,
+  "actualProfileBaseline": {
+    "errors": [],
+    "profiles": 1,
+    "files": 1879
+  },
+  "finiteRoleRefusals": [
+    {
+      "name": "named duplicate",
+      "errors": [
+        "tango-rest-page-leaves: asCount must have one named module export (function) in apps/api/src/external/tango/tango-rest-page.ts"
+      ],
+      "mutantExecuted": false
+    },
+    {
+      "name": "wrong Subaward rate profile",
+      "errors": [
+        "tango-rest-page-leaves: carrier drift or missing declaration: apps/api/src/external/tango/tango-subaward.client.ts/TangoSubawardClient"
+      ],
+      "mutantExecuted": false
+    },
+    {
+      "name": "missing DIBBS owner import",
+      "errors": [
+        "tango-rest-page-leaves: apps/api/src/external/tango/tango-dibbs.client.ts/asCount: expected one runtime named import, found 0",
+        "tango-rest-page-leaves: apps/api/src/external/tango/tango-dibbs.client.ts/nextPageOf: expected one runtime named import, found 0",
+        "tango-rest-page-leaves: apps/api/src/external/tango/tango-dibbs.client.ts/rateOf: expected one runtime named import, found 0"
+      ],
+      "mutantExecuted": false
+    },
+    {
+      "name": "new unlisted owner consumer",
+      "errors": [
+        "tango-rest-page-leaves: unlisted owner import apps/api/src/external/tango/review-new-role.ts/asCount"
+      ],
+      "mutantExecuted": false
+    }
+  ],
+  "newProfileDefaultOrMissingOperandNotAcceptedByCallerCarrier": true,
+  "applicationMutantCodeExecuted": false,
+  "rootGenericGrammarAcceptance": false,
+  "providersDatabaseNetworkCalls": 0
+}

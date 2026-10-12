@@ -25,7 +25,8 @@ const digest = (value) => createHash('sha256').update(value).digest('hex');
 // No calls, property reads, coercion, module loading or source execution.
 function staticString(node, sf, checker, seen = new Set()) {
   const t = ts();
-  if (!node || seen.has(node) || seen.size > 128) return null;
+  if (!node || seen.has(node)) return null;
+  if (seen.size > 128) throw new Error('Static source syntax budget exceeded');
   seen = new Set(seen).add(node);
   if (t.isStringLiteralLike(node)) return node.text;
   if (t.isTemplateExpression(node)) {
@@ -66,9 +67,15 @@ function staticString(node, sf, checker, seen = new Set()) {
 
 function isRequireReference(node, sf, checker, seen = new Set()) {
   const t = ts();
-  if (!node || seen.has(node) || seen.size > 128) return false;
+  if (!node || seen.has(node)) return false;
+  if (seen.size > 128) throw new Error('Static source syntax budget exceeded');
   seen = new Set(seen).add(node);
-  if (t.isParenthesizedExpression(node))
+  if (
+    t.isParenthesizedExpression(node) ||
+    t.isAsExpression(node) ||
+    t.isTypeAssertionExpression(node) ||
+    t.isNonNullExpression(node)
+  )
     return isRequireReference(node.expression, sf, checker, seen);
   if (!t.isIdentifier(node)) return false;
   if (node.text === 'require') return true;
@@ -172,7 +179,12 @@ export function declarationDigest(source, name, kind, file = 'source.ts') {
   const t = ts();
   const sf = t.createSourceFile(file, source, t.ScriptTarget.Latest, true);
   if (sf.parseDiagnostics.length) return null;
-  const rows = declarations(sf).filter((row) => row.name === name && row.kind === kind);
+  let rows;
+  try {
+    rows = declarations(sf).filter((row) => row.name === name && row.kind === kind);
+  } catch {
+    return null;
+  }
   if (rows.length !== 1) return null;
   const printer = t.createPrinter({ removeComments: true, newLine: t.NewLineKind.LineFeed });
   return digest(printer.printNode(t.EmitHint.Unspecified, declarationEnvelope(rows[0].node), sf));
@@ -269,7 +281,12 @@ export function inspectRegistryOwnership(files, config) {
     }
     const sf = t.createSourceFile(file, source, t.ScriptTarget.Latest, true);
     if (sf.parseDiagnostics.length) errors.push(`${file}: source syntax error`);
-    parsed.set(file, { sf, rows: declarations(sf) });
+    try {
+      parsed.set(file, { sf, rows: declarations(sf) });
+    } catch {
+      errors.push(`${file}: bounded declaration inspection failed`);
+      parsed.set(file, { sf, rows: [] });
+    }
   }
   const ids = new Set();
   for (const profile of config.profiles) {
@@ -491,7 +508,11 @@ export function inspectRegistryOwnership(files, config) {
           errors.push(`${profile.id}: unsupported dynamic owner import in ${file}`);
         t.forEachChild(node, visit);
       }
-      visit(sf);
+      try {
+        visit(sf);
+      } catch {
+        errors.push(`${profile.id}: ${file}: bounded owner import inspection failed`);
+      }
     }
     const carrierKeys = new Set();
     for (const carrier of profile.carriers) {

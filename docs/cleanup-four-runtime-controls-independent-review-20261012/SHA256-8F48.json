@@ -1,0 +1,78 @@
+{
+  "files": [
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/ACCEPTANCE-8F48.json",
+      "sha256": "3385ea9b1beca83259dc39ead0941db96dfccb31655f8c0d5da0518357559c47"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/ACCEPTANCE-8F48.md",
+      "sha256": "9d497418f9cb88bd4272f1ca2b4b890ec4a6ecb5974cd8d528e26449b406fef0"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/adversarial-root-controls-8f48.json",
+      "sha256": "1723ba92976e8f49101da459bffe1503ba981049db8bfb386ad9fc9581a0db63"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/adversarial-root-controls-8f48.log",
+      "sha256": "6372bb8d36b6bfd77d8be7726bc20ea03fc4db7811a38321289850c8df212f4d"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/adversarial-root-controls-8f48.mjs",
+      "sha256": "190b48ae9ffdabed3520d399ad2f2149f923b55222a9a43afbcb4da818b2c9f2"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/bounded-parser-controls-8f48.json",
+      "sha256": "5e26ea40168724d04adc3d31a92043acff4a5f5015d10d199657494a2c086043"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/bounded-parser-controls-8f48.log",
+      "sha256": "bde060658a870c983d03f05435639322cafea6d66ab62967005b98d908bb771a"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/bounded-parser-controls-8f48.mjs",
+      "sha256": "58da7d52823dfcae467a907909d4cdebce44c31db705b94d7319fde69c56f8d8"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/cli-and-digest-8f48.json",
+      "sha256": "025a9989b49c88db6c3c79b95d5fd703ac9da855b407738b2abf3f1f36ad136c"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/cli-and-digest-8f48.log",
+      "sha256": "1eb78a36f2ea14ca683685f3dda2e411bb5b8beb2ec9c5d139c8594059657844"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/cli-and-digest-8f48.mjs",
+      "sha256": "0d157da9f16f7031051a43d6479023e3a7c0527f409feb16440f765055a30ea7"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/root-tests-8f48.log",
+      "sha256": "0f42c73f89b788a4530a85a2ed942cf932713ebcd2cdb75ed11d5bd9301ed70f"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/typed-interface-and-wiring-8f48.json",
+      "sha256": "eb981cdb7818490aa7c9a527257140ad43dde64f31b2ed23680955ecc0296143"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/typed-interface-and-wiring-8f48.log",
+      "sha256": "eb981cdb7818490aa7c9a527257140ad43dde64f31b2ed23680955ecc0296143"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/typed-interface-and-wiring-8f48.mjs",
+      "sha256": "f1b38e0352772a5ea7dcbb4630c20e5c3c46cbbb857e6e8436dc390243d18730"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/whole-map-parser-8f48.json",
+      "sha256": "96353893ff07937919484d8c5a9296836db4a6b130cdd5b5820c81a489d1f8c9"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/whole-map-parser-8f48.log",
+      "sha256": "2a03f4e20e77519da842dda445c934ab9886a8fe4c22a6e05b65c2de4c789e81"
+    },
+    {
+      "path": "docs/cleanup-four-runtime-controls-independent-review-20261012/evidence/whole-map-parser-8f48.mjs",
+      "sha256": "8b6dd2080511180906e1ed77728d4f9c7bf9d03ca51d3de272daa1eee06b8e6b"
+    }
+  ],
+  "manifestExcludesSelf": true,
+  "priorManifestsUnchanged": true
+}

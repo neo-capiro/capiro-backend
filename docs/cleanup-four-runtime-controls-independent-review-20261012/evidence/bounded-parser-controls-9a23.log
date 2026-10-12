@@ -1,0 +1,12 @@
+{
+  "cases": 22,
+  "unexpectedAccepts": [
+    "require alias as expression",
+    "require alias type assertion",
+    "require alias non-null expression",
+    "deep static key parenthesis",
+    "deep static module parenthesis"
+  ],
+  "unexpectedRejects": 0,
+  "sourceMutantsExecuted": false
+}
