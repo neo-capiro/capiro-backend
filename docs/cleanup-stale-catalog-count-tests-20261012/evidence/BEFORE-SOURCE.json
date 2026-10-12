@@ -1,0 +1,61 @@
+{
+  "base": "ab0fc946192f3f49ce9e94d66a3d3ac5cf7a94cf",
+  "tree": "1aba170aa516a31f70e4a63b57fb67e501caa795",
+  "rows": [
+    {
+      "path": "apps/workspace/test/cascade.spec.ts",
+      "blob": "2b9b82ca7c4e2c50c60bfdbf450984b0c08fe207",
+      "sha256": "3f5a444f632021bca7a5a8e3ac60b560c118289597403f78dd7921b2efd05ebd",
+      "bytes": 2205
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.service.ts",
+      "blob": "4e0d1544c731282e8c54c8d988b1e82c3a2b3911",
+      "sha256": "d6b684beea01c875de10fa88c8700a841db457e6d4ade0ba23d2dbd6e4a7ba21",
+      "bytes": 1967
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.config.ts",
+      "blob": "e9ab30fd797f80cc874be3371e6c8f02c2dcaf03",
+      "sha256": "411597caae641c0e70fc3c6bf25eb0c7813ca1e5ac4a9c52ec8b26431f378620",
+      "bytes": 11636
+    },
+    {
+      "path": "apps/workspace/src/cascade/workspace-product.registry.ts",
+      "blob": "2b1bb8c8ad41fbac5005d8e71e3ece66a507a23f",
+      "sha256": "8584e4d816647ee0a3861a14728485c4c9ddb43ec0ffd38088e643fa25b4a732",
+      "bytes": 8338
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "blob": "f5f7d6b6339ee9723dc921877cf6ff32a361886e",
+      "sha256": "4ea9a8e7764e45b62b5aae208ecb3c5342aeb030e8f08f940eb072a2b3a70501",
+      "bytes": 5974
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.ts",
+      "blob": "de6a0a41b4d82ef1672b895fd79e4682725bfed6",
+      "sha256": "c13a86d91dc6ade9147b3a4c4d4fa75b1d33873c03a4a3099826483d4e22b368",
+      "bytes": 472
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/delegated-tools.catalog.ts",
+      "blob": "63848bccbcfeb29ed4937aeccd1334578a110016",
+      "sha256": "167af226c673cedef323974743a8709be50c6a9405154634c9c9fb413ed0788b",
+      "bytes": 459
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/write-tools.catalog.ts",
+      "blob": "d97a15e76bd9b675ee71d87c55514a9b726ad528",
+      "sha256": "afbab529d35aff6f5affeb31c10d7820a9b0274a622034cebe9702dce358c876",
+      "bytes": 434
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "blob": "39ed5db53cf9599b72f9ddf1885568441b873217",
+      "sha256": "fde2cea920fcb64f3150bbe5849d2cfd438462edaf711634dc7ed48f0eba7d9a",
+      "bytes": 273692
+    }
+  ],
+  "nativeAuditBranchPreserved": "36cee23f7758f2c9dea93e17be05995cadf453d4"
+}

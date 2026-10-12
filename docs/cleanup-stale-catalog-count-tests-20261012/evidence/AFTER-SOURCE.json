@@ -1,0 +1,59 @@
+{
+  "source": "5a3c73f0b626a0d659d1a4fbbdb1ef37040310e6",
+  "rows": [
+    {
+      "path": "apps/workspace/test/cascade.spec.ts",
+      "sha256": "782870251eab85a057be6e3b74aacbc47ffe4e0158048a728f627a981074bddc",
+      "gitBlob": "ee43bed958a64f1b01b35b8c87d687641cdc5532",
+      "originalUnchanged": false
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.service.ts",
+      "sha256": "d6b684beea01c875de10fa88c8700a841db457e6d4ade0ba23d2dbd6e4a7ba21",
+      "gitBlob": "4e0d1544c731282e8c54c8d988b1e82c3a2b3911",
+      "originalUnchanged": true
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.config.ts",
+      "sha256": "411597caae641c0e70fc3c6bf25eb0c7813ca1e5ac4a9c52ec8b26431f378620",
+      "gitBlob": "e9ab30fd797f80cc874be3371e6c8f02c2dcaf03",
+      "originalUnchanged": true
+    },
+    {
+      "path": "apps/workspace/src/cascade/workspace-product.registry.ts",
+      "sha256": "8584e4d816647ee0a3861a14728485c4c9ddb43ec0ffd38088e643fa25b4a732",
+      "gitBlob": "2b1bb8c8ad41fbac5005d8e71e3ece66a507a23f",
+      "originalUnchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "sha256": "4ea9a8e7764e45b62b5aae208ecb3c5342aeb030e8f08f940eb072a2b3a70501",
+      "gitBlob": "f5f7d6b6339ee9723dc921877cf6ff32a361886e",
+      "originalUnchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.ts",
+      "sha256": "c13a86d91dc6ade9147b3a4c4d4fa75b1d33873c03a4a3099826483d4e22b368",
+      "gitBlob": "de6a0a41b4d82ef1672b895fd79e4682725bfed6",
+      "originalUnchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/delegated-tools.catalog.ts",
+      "sha256": "167af226c673cedef323974743a8709be50c6a9405154634c9c9fb413ed0788b",
+      "gitBlob": "63848bccbcfeb29ed4937aeccd1334578a110016",
+      "originalUnchanged": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/write-tools.catalog.ts",
+      "sha256": "afbab529d35aff6f5affeb31c10d7820a9b0274a622034cebe9702dce358c876",
+      "gitBlob": "d97a15e76bd9b675ee71d87c55514a9b726ad528",
+      "originalUnchanged": true
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "sha256": "fde2cea920fcb64f3150bbe5849d2cfd438462edaf711634dc7ed48f0eba7d9a",
+      "gitBlob": "39ed5db53cf9599b72f9ddf1885568441b873217",
+      "originalUnchanged": true
+    }
+  ]
+}

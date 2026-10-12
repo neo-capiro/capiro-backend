@@ -30,7 +30,7 @@ describe('CascadeService', () => {
 
   test('allLibraryProducts returns the 10 canonical products', () => {
     const all = svc.allLibraryProducts();
-    expect(all).toHaveLength(10);
+    expect(all).toHaveLength(11);
     expect(all).toContain('NDAA Authorization Request');
     expect(all).toContain('Strategy memo');
   });

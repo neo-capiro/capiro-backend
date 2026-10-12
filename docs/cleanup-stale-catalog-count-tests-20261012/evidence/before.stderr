@@ -1,0 +1,27 @@
+PASS apps/workspace/test/product-registry-characterization.spec.ts
+PASS apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts
+FAIL apps/workspace/test/cascade.spec.ts
+  ● CascadeService › allLibraryProducts returns the 10 canonical products
+
+    expect(received).toHaveLength(expected)
+
+    Expected length: 10
+    Received length: 11
+    Received array:  ["White paper", "NDAA Authorization Request", "Appropriations Justification", "CDS / Earmark Application", "Authorization Bill Language", "Report Language Request", "Meeting Brief & Advocacy", "Member letter", "Written testimony", "One-pager", …]
+
+      31 |   test('allLibraryProducts returns the 10 canonical products', () => {
+      32 |     const all = svc.allLibraryProducts();
+    > 33 |     expect(all).toHaveLength(10);
+         |                 ^
+      34 |     expect(all).toContain('NDAA Authorization Request');
+      35 |     expect(all).toContain('Strategy memo');
+      36 |   });
+
+      at Object.<anonymous> (apps/workspace/test/cascade.spec.ts:33:17)
+
+Test Suites: 1 failed, 2 passed, 3 total
+Tests:       1 failed, 126 passed, 127 total
+Snapshots:   0 total
+Time:        3.337 s
+Ran all test suites within paths "apps/workspace/test/cascade.spec.ts", "apps/workspace/test/product-registry-characterization.spec.ts", "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts".
+Test results written to: docs/cleanup-stale-catalog-count-tests-20261012/evidence/before-results.json

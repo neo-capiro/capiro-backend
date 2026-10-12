@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "node",
+    "apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "docs/cleanup-stale-catalog-count-tests-20261012/evidence/focused.jest.cjs",
+    "--runInBand",
+    "--runTestsByPath",
+    "apps/workspace/test/cascade.spec.ts",
+    "apps/workspace/test/product-registry-characterization.spec.ts",
+    "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+    "--json",
+    "--outputFile",
+    "<before/after-results.json>"
+  ],
+  "configuration": "actualunchangedcases/dependencies, ownboundedrunner; noapplicationbootstrap/DBsetup; sharedimportboundtoexactcurrentsource; testsnotreplaced",
+  "beforeExit": 1,
+  "afterExit": 0
+}

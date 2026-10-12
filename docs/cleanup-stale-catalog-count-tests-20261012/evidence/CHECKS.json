@@ -1,0 +1,10 @@
+{
+  "sourcePathDeltaExactlyOne": true,
+  "oneLiteralInverse": true,
+  "casesPreserved": 127,
+  "MeriSpecUnchanged": true,
+  "snapshotsOrSkipsAdded": false,
+  "applicationBehaviorEdited": false,
+  "nativeAuditBranchHead": "36cee23f7758f2c9dea93e17be05995cadf453d4",
+  "prodSourceCheckExit": 0
+}
