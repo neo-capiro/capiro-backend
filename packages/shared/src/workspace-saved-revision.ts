@@ -1,4 +1,4 @@
-import type { ResourceScopeTransaction } from './client-memory-wall.js';
+import { clientMemoryAllowed, type ResourceScopeTransaction } from './client-memory-wall.js';
 
 /** Workspace's bounded read/export ACL. Pending and unknown roles never grant access. */
 export function workspaceCanRead(role: string | null): boolean {
@@ -45,8 +45,9 @@ export async function workspaceSavedOutreachRevisionWithinTx(
     input.tenantId, input.clerkUserId, input.userId ?? null,
   );
   if (!member) unavailable();
-  const [draft] = await tx.$queryRawUnsafe<Array<{ ownerId: string; prospectId: string | null; config: unknown }>>(
-    `SELECT owner_id AS "ownerId",prospect_id::text AS "prospectId",config FROM ws_draft
+  await tx.$queryRawUnsafe(`SELECT set_config('app.current_user',$1,true)`, member!.userId);
+  const [draft] = await tx.$queryRawUnsafe<Array<{ ownerId: string; prospectId: string | null; config: unknown; client: string | null }>>(
+    `SELECT owner_id AS "ownerId",prospect_id::text AS "prospectId",config,client FROM ws_draft
      WHERE tenant_id=$1::uuid AND id=$2::uuid FOR SHARE`, input.tenantId, input.draftId,
   );
   if (!draft || draft.prospectId) unavailable();
@@ -90,6 +91,22 @@ export async function workspaceSavedOutreachRevisionWithinTx(
   if (currentClientId !== null && (typeof currentClientId !== 'string' || !UUID.test(currentClientId))) unavailable();
   if ((typeof clientId === 'string' ? clientId.toLowerCase() : null) !==
       (typeof currentClientId === 'string' ? currentClientId.toLowerCase() : null)) unavailable();
+  if (clientId === null && [cfg, object(draft!.config), { client: draft!.client }].some(hasLegacyClientHints)) unavailable();
+  if (typeof clientId === 'string') {
+    const [client] = await tx.$queryRawUnsafe<Array<{ memoryWall: boolean }>>(
+      `SELECT memory_wall AS "memoryWall" FROM clients WHERE tenant_id=$1::uuid
+       AND id=$2::uuid AND status::text<>'archived' FOR SHARE`, input.tenantId, clientId,
+    );
+    if (!client) unavailable();
+    if (client!.memoryWall) {
+      const grants = await tx.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM client_memory_access WHERE tenant_id=$1::uuid AND client_id=$2::uuid
+         AND user_id=$3::uuid FOR SHARE`, input.tenantId, clientId, member!.userId,
+      );
+      if (!grants.length) unavailable();
+    }
+    if (!(await clientMemoryAllowed(tx, input.tenantId, member!.userId, clientId))) unavailable();
+  }
   const documents = snap.documents;
   if (!Array.isArray(documents) || !documents.length || documents.length > 100) unavailable();
   const body = (documents as unknown[]).map((raw, index) => {
@@ -135,4 +152,11 @@ export function workspaceDocumentText(body: unknown, draftConfig: unknown): stri
     const text = typeof content[section] === 'string' ? workspaceHtmlToPlainText(content[section] as string) : '';
     return text ? `${section}\n${text}` : '';
   }).filter(Boolean).join('\n\n');
+}
+
+/** Legacy display/client-person steering never implies a firm-only source. */
+function hasLegacyClientHints(config: Record<string, unknown>): boolean {
+  return (typeof config.client === 'string' && !!config.client.trim()) ||
+    config.clientAssociated === true ||
+    (Array.isArray(config.clientPersons) && config.clientPersons.length > 0);
 }

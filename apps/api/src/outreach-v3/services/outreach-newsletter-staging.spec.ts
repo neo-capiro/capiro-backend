@@ -15,7 +15,7 @@ function harness(client = false) {
     tenant: true, member: true, ownerId: ctx.clerkUserId, role: 'viewer' as string | null,
     source: false, prospectId: null as string | null, versionExists: true, draftExists: true,
     memoryWall: true, grant: true, clientExists: true, authorized: true,
-    currentConfig: client ? { clientId } : {}, snapshot: structuredClone(snapshot) as any,
+    clientDisplay: null as string | null, currentConfig: client ? { clientId } : {}, snapshot: structuredClone(snapshot) as any,
     session: { id: sessionId, tenantId: ctx.tenantId, createdByUserId: ctx.userId, status: 'active', currentStateVersion: 1 },
     spec: createBlankCampaignSpecV1(), events: [] as any[], writes: 0,
   };
@@ -25,9 +25,13 @@ function harness(client = false) {
   const tx = {
     $queryRawUnsafe: jest.fn(async (text: string, ...params: unknown[]) => {
       sql.push({ text, params });
+      if (text.includes('set_config')) return [];
+      if (text.includes('SELECT (NOT c.memory_wall')) return [{ allowed: state.authorized }];
+      if (text.includes('FROM clients ')) return state.clientExists ? [{ memoryWall: state.memoryWall }] : [];
+      if (text.includes('FROM client_memory_access')) return state.grant ? [{ id: 'grant' }] : [];
       if (text.includes('FROM tenants ')) return state.tenant && params[0] === ctx.tenantId ? [{ id: ctx.tenantId }] : [];
       if (text.includes('FROM tenant_memberships')) return state.member && params[0] === ctx.tenantId && params[1] === ctx.clerkUserId && (params[2] == null || params[2] === ctx.userId) ? [{ userId: ctx.userId }] : [];
-      if (text.includes('FROM ws_draft')) return state.draftExists && params[1] === draftId ? [{ ownerId: state.ownerId, prospectId: state.prospectId, config: state.currentConfig }] : [];
+      if (text.includes('FROM ws_draft')) return state.draftExists && params[1] === draftId ? [{ ownerId: state.ownerId, prospectId: state.prospectId, config: state.currentConfig, client: state.clientDisplay }] : [];
       if (text.includes('FROM ws_source_action')) return state.source ? [{ sourceType: 'legiwatch_editorial' }] : [];
       if (text.includes('FROM ws_collaborator')) return state.role ? [{ role: state.role }] : [];
       if (text.includes('FROM ws_doc_version')) return state.versionExists && params[1] === draftId && params[2] === versionId ? [{ id: versionId, snapshot: state.snapshot, authorId: 'user_original', authorKind: 'person', createdAt: new Date('2026-10-12T00:00:00Z') }] : [];
@@ -174,6 +178,20 @@ describe('saved newsletter staging through canonical Workspace and Outreach owne
   it('canonicalizes snapshot object keys while retaining ordered arrays', () => {
     expect(hash({ b: 2, a: 1 })).toBe(hash({ a: 1, b: 2 })); expect(hash([1, 2])).not.toBe(hash([2, 1]));
     expect(workspaceCanRead(null)).toBe(false); expect(workspaceCanRead('alien')).toBe(false);
+  });
+  it.each(['draft display', 'saved display', 'current display', 'saved people', 'current association'])('refuses unresolved legacy %s client hints into firm', async (kind) => {
+    const h = harness();
+    if (kind === 'draft display') h.state.clientDisplay = 'Walled client';
+    if (kind === 'saved display') h.state.snapshot.config.client = 'Walled client';
+    if (kind === 'current display') h.state.currentConfig = { client: 'Walled client' } as any;
+    if (kind === 'saved people') h.state.snapshot.config.clientPersons = ['private contact'];
+    if (kind === 'current association') h.state.currentConfig = { clientAssociated: true } as any;
+    await expect(h.stage()).rejects.toMatchObject({ code: 'OUTREACH_REFERENCE_UNAUTHORIZED' });
+    expect(h.state.writes).toBe(0);
+  });
+  it('refuses the saved-revision chooser itself when canonical client authority is revoked', async () => {
+    const h = harness(true); h.state.grant = false;
+    await expect(workspaceSavedOutreachRevisionWithinTx(h.tx, { ...ctx, draftId, versionId })).rejects.toThrow();
   });
   it('requires exact version/draft/tenant binding in the Workspace owner seam', async () => {
     const h = harness(); await expect(workspaceSavedOutreachRevisionWithinTx(h.tx, { ...ctx, draftId, versionId: id(99) })).rejects.toThrow();
