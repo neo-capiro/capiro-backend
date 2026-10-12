@@ -1,0 +1,43 @@
+{
+  "source": "51cc812e0c371c170562bd6bb7711e50764af7cf",
+  "commands": [
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "docs/cleanup-native-prisma-artifact-guard-independent-review-20261012/evidence/same-four-replay.cjs"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "environment": {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC"
+      },
+      "completedToolSession": null,
+      "exitCode": null,
+      "aggregateShellExitCode": 0,
+      "qualification": "Individual replay Node exit not separately captured; outcome JSON asserted by separate exit0 verifier",
+      "stdoutSha256": "3377faa5e39853b89dc669c628f73d53bd1a84f058a01528536bf3653a01ce8a",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sqlExecuted": false
+    },
+    {
+      "argv": [
+        "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+        "docs/cleanup-native-prisma-artifact-guard-independent-review-20261012/evidence/verify-replay-and-source.cjs"
+      ],
+      "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+      "environment": {
+        "PATH": "/usr/bin:/bin",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC"
+      },
+      "completedToolSession": 69798,
+      "exitCode": 0,
+      "aggregateShellExitCode": 0,
+      "qualification": "Separate source/outcome assertion verifier completed exit0",
+      "stdoutSha256": "4163b0bfc549a50818f0c031e44615ebf4603854746402db83d13d9e4a7628ae",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sqlExecuted": false
+    }
+  ]
+}

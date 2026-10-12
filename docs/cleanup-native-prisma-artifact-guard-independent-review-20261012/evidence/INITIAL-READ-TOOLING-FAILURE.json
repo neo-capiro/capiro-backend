@@ -1,0 +1,8 @@
+{
+  "exitCode": 128,
+  "operation": "Read frozen diff then attempted a guessed test filename",
+  "stderr": "fatal: path 'docs/cleanup-native-prisma-owner-qualification-20261012/native-prisma-artifact-inventory.test.cjs' does not exist in '51cc812e0c371c170562bd6bb7711e50764af7cf'\n",
+  "actualTestFile": "artifact-guard.spec.cjs",
+  "testExecuted": false,
+  "fullOutput": "Original executor transcript retains the successful frozen diff and failed filename read"
+}

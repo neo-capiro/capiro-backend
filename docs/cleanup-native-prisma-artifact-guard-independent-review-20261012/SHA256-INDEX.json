@@ -1,0 +1,64 @@
+{
+  "acceptedSource": "51cc812e0c371c170562bd6bb7711e50764af7cf",
+  "sourceTree": "007c4555b74c69a813946583a3d0b6fc6ca4b07d",
+  "authorEvidence": "f4ed98ad00c1c9d29178f87aa24ea498c92d8466",
+  "independentSameFourPassed": 4,
+  "newNativeReplay": false,
+  "files": [
+    {
+      "path": "HANDOFF.md",
+      "bytes": 3059,
+      "sha256": "1482a0e18f6382c90ee057aa905638711c5752e05588ea38b99cf85ad6ee66cf"
+    },
+    {
+      "path": "evidence/ACCEPTANCE-AND-SOURCE.json",
+      "bytes": 1461,
+      "sha256": "5e5f8d34eb63aea86b3330c7213a09811c3ee4838038bc3e11a5e880e8b6e417"
+    },
+    {
+      "path": "evidence/COMMANDS.json",
+      "bytes": 1736,
+      "sha256": "e0c933ae678e6715251fd60550cf455f6ed62bf46c9d958e82099ddff5c1fc9c"
+    },
+    {
+      "path": "evidence/INITIAL-READ-TOOLING-FAILURE.json",
+      "bytes": 466,
+      "sha256": "988b72d41cbcc6c9cd3090f5f66a1deee25119183b0a9791bb5b8f20b81011ae"
+    },
+    {
+      "path": "evidence/same-four-replay.cjs",
+      "bytes": 2640,
+      "sha256": "54a716af194135967190664bd7f075285dcb2be3aea5e89fab285d04b6ed71e6"
+    },
+    {
+      "path": "evidence/same-four-replay.json",
+      "bytes": 874,
+      "sha256": "4acf4b5fea79b6e9a34b0715df7ca8fab02666dc0482799a1e801a86812849a4"
+    },
+    {
+      "path": "evidence/same-four-replay.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/same-four-replay.stdout.log",
+      "bytes": 654,
+      "sha256": "3377faa5e39853b89dc669c628f73d53bd1a84f058a01528536bf3653a01ce8a"
+    },
+    {
+      "path": "evidence/verify-replay-and-source.cjs",
+      "bytes": 5943,
+      "sha256": "ad20c5d6c8088119bef3b5b70470d4b9e50971ce8ae5ac3875740453193e0608"
+    },
+    {
+      "path": "evidence/verify-replay-and-source.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/verify-replay-and-source.stdout.log",
+      "bytes": 140,
+      "sha256": "4163b0bfc549a50818f0c031e44615ebf4603854746402db83d13d9e4a7628ae"
+    }
+  ]
+}
