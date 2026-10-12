@@ -1,0 +1,17 @@
+[
+  {
+    "manifest": "evidence/independent-review/SHA256SUMS.json",
+    "entries": 180,
+    "bad": []
+  },
+  {
+    "manifest": "evidence/cli-caller-independent/SHA256SUMS.json",
+    "entries": 19,
+    "bad": []
+  },
+  {
+    "manifest": "evidence/pe-strict-independent/SHA256SUMS.json",
+    "entries": 31,
+    "bad": []
+  }
+]

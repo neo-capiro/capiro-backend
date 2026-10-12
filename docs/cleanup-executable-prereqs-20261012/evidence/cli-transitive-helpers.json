@@ -1,0 +1,17 @@
+[
+  {
+    "path": "packages/meriv2-core/scripts/lib/eval-cli.ts",
+    "source": "03d85a40e390f8f52614aab20427a3a9433786bb",
+    "bytes": 1242
+  },
+  {
+    "path": "scripts/lib/engagement-local-cli.mjs",
+    "source": "03d85a40e390f8f52614aab20427a3a9433786bb",
+    "bytes": 1350
+  },
+  {
+    "path": "scripts/lib/phase8-db-wrapper-cli.mjs",
+    "source": "03d85a40e390f8f52614aab20427a3a9433786bb",
+    "bytes": 398
+  }
+]

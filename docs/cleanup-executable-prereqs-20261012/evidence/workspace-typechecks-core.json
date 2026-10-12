@@ -1,0 +1,26 @@
+{
+  "source": "5db091dac54bc05f4a97a1495c8e6df238547c4d",
+  "receipts": [
+    {
+      "package": "@capiro/api",
+      "path": "apps/api",
+      "declaredCommand": "tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit",
+      "source": "5db091dac54bc05f4a97a1495c8e6df238547c4d",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-cleanup-source-prereqs/node_modules/typescript/bin/tsc",
+            "--noEmit",
+            "--rootDir",
+            "."
+          ],
+          "exitCode": 2,
+          "log": "types-apps-api-0.log",
+          "seconds": 159.722
+        }
+      ],
+      "firstFailure": 0
+    }
+  ]
+}

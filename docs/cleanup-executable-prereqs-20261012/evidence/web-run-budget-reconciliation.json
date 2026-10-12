@@ -1,0 +1,14 @@
+{
+  "firstName": "web-full-corrected-runner",
+  "firstWholeCommandSeconds": 1800,
+  "firstResult": "timed out; no final aggregate JSON, no passing count inferred",
+  "secondName": "web-full-corrected-runner-long-budget",
+  "secondWholeCommandSeconds": 3600,
+  "reason": "canonical serial file runner exceeded diagnostic command budget; unresolved complete-suite check warrants a separately named run",
+  "sourceRunnerUnchanged": true,
+  "caseTimeoutMs": 20000,
+  "hookTimeoutMs": 20000,
+  "casesSkipsThresholdsOrSelectionChanged": false,
+  "priorFailurePreserved": true,
+  "nativeAcceptance": false
+}

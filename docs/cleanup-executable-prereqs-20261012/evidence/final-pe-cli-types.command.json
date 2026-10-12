@@ -1,0 +1,18 @@
+{
+  "name": "final-pe-cli-types",
+  "cwd": "/workspace/capirov2-prereqs-compiler/apps/api",
+  "argv": [
+    "node",
+    "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+    "-p",
+    "tsconfig.pe-scripts.json",
+    "--noEmit"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 15.318,
+  "measuredSource": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "final-pe-cli-types.log"
+}

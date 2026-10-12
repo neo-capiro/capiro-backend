@@ -1,0 +1,17 @@
+{
+  "name": "canonical-meri-release-fake-controls",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs",
+  "argv": [
+    "node",
+    "--test",
+    "scripts/lib/meri-release-policy.test.mjs",
+    "scripts/meri-release.test.mjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 0.606,
+  "measuredSource": "5db091dac54bc05f4a97a1495c8e6df238547c4d",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "canonical-meri-release-fake-controls.log"
+}

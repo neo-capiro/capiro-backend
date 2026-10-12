@@ -1,0 +1,16 @@
+{
+  "name": "shared-current-types",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs/packages/shared",
+  "argv": [
+    "node",
+    "/workspace/capirov2-cleanup-source-prereqs/node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 18.805,
+  "measuredSource": "08716024ed5d3592bfbd041e457e7c7a5050c4c9",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "shared-current-types.log"
+}

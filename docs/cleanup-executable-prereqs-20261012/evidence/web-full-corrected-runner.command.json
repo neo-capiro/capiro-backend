@@ -1,0 +1,23 @@
+{
+  "name": "web-full-corrected-runner",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs/apps/web",
+  "argv": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--pool=threads",
+    "--no-file-parallelism",
+    "--testTimeout=20000",
+    "--hookTimeout=20000",
+    "--reporter=json",
+    "--outputFile",
+    "/workspace/capirov2-cleanup-source-prereqs/docs/cleanup-executable-prereqs-20261012/evidence/web-full-corrected-runner.json"
+  ],
+  "exitCode": null,
+  "timedOut": true,
+  "seconds": 1800.252,
+  "measuredSource": "07d0e0b9ab62513a83e665aa67efcc54283a2382",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "web-full-corrected-runner.log"
+}

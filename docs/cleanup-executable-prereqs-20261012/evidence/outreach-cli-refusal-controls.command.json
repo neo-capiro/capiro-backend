@@ -1,0 +1,15 @@
+{
+  "name": "outreach-cli-refusal-controls",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs",
+  "argv": [
+    "node",
+    "scripts/cleanup-script-smoke/outreach-phase345-cli-controls.mjs"
+  ],
+  "exitCode": 1,
+  "timedOut": false,
+  "seconds": 1.599,
+  "measuredSource": "980740f6c1260d349e31da711cb6faacc0334f88",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "outreach-cli-refusal-controls.log"
+}

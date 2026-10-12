@@ -1,0 +1,6 @@
+{
+  "action": "selectively merge coverage lock entries",
+  "result": "Cannot find root node_modules/yaml; before any lock write",
+  "correction": "Resolve already installed pinned YAML package path; no installation/network command",
+  "lockModifiedByFailedAttempt": false
+}

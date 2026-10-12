@@ -1,0 +1,17 @@
+[
+  {
+    "path": "apps/api/scripts/lint-pe-scripts.ts",
+    "decision": "restore every canonical verification statement/import; retain only Usage/help/unknown/noargs print preflight",
+    "avoided": "published automatic-recovery and inspect-only-loader exceptions; no new helper exports or verifier exemptions"
+  },
+  {
+    "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+    "decision": "restore every canonical verification statement/import; retain only Usage/help/unknown/noargs print preflight",
+    "avoided": "published automatic-recovery and inspect-only-loader exceptions; no new helper exports or verifier exemptions"
+  },
+  {
+    "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+    "decision": "restore every canonical verification statement/import; retain only Usage/help/unknown/noargs print preflight",
+    "avoided": "published automatic-recovery and inspect-only-loader exceptions; no new helper exports or verifier exemptions"
+  }
+]

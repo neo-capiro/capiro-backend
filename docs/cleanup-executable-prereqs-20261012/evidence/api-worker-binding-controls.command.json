@@ -1,0 +1,15 @@
+{
+  "name": "api-worker-binding-controls",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs",
+  "argv": [
+    "node",
+    "apps/api/jest.worker-database-controls.cjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 0.116,
+  "measuredSource": "54c05b04c59e20a47bbdbaad20bc338643b92f8f",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "api-worker-binding-controls.log"
+}

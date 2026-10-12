@@ -1,0 +1,19 @@
+{
+  "name": "formatter-full-source",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs",
+  "argv": [
+    "node",
+    "node_modules/prettier/bin/prettier.cjs",
+    "--check",
+    "packages/shared/src/**/*.ts",
+    "packages/meriv2-core/src/**/*.ts",
+    "apps/meriv2-orchestrator/src/**/*.ts"
+  ],
+  "exitCode": 1,
+  "timedOut": false,
+  "seconds": 13.186,
+  "measuredSource": "35c64d5def5d2a4c920f3030e2f85067c8cd57d0",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "formatter-full-source.log"
+}

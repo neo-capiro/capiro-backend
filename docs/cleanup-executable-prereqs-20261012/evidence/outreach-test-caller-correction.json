@@ -1,0 +1,20 @@
+[
+  {
+    "path": "apps/api/package.json",
+    "beforeSha256": "3387cb07ca0d83b6c758b75fd8416d0c10065e18dd7a5109966464b626888f67",
+    "afterSha256": "cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff",
+    "change": "correct nonexistent test operand to existing canonical OutreachJobService unit spec"
+  },
+  {
+    "path": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+    "beforeSha256": "f50b2df915b2d484af8427d14461f97eaad35d5fb5246916d5e85933bef73bea",
+    "afterSha256": "516cdee5c9fb35bfdf35b04b03523e9eec827e860d1554c269858d8bc845bf0a",
+    "change": "correct nonexistent test operand to existing canonical OutreachJobService unit spec"
+  },
+  {
+    "path": "scripts/verify-outreach-v3-phase1-code.mjs",
+    "beforeSha256": "a54dc406bacdd9bf7a8405edb473907738727101faaf7cbf7b354dedf816edc6",
+    "afterSha256": "65b3a56ae33dd3c5cc495128cd74f8e845a9b35ffa230aa2dacd6f75c89774be",
+    "change": "correct nonexistent test operand to existing canonical OutreachJobService unit spec"
+  }
+]

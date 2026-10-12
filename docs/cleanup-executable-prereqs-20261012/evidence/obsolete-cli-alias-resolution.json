@@ -1,0 +1,41 @@
+{
+  "plan": "CleanUp1 \u00a72R4: missing anchors obsolete; do not recreate",
+  "removedAliases": [
+    {
+      "alias": "test:funding-opportunity-action-concurrency",
+      "command": "tsx scripts/test-funding-opportunity-action-concurrency.ts",
+      "operandMissing": true,
+      "publishedRemoval": true
+    },
+    {
+      "alias": "report:llm-overage",
+      "command": "tsx scripts/report-llm-overage.ts",
+      "operandMissing": true,
+      "publishedRemoval": true
+    },
+    {
+      "alias": "setup:stripe",
+      "command": "tsx scripts/setup-stripe.ts",
+      "operandMissing": true,
+      "publishedRemoval": true
+    },
+    {
+      "alias": "comp:existing-tenants",
+      "command": "tsx scripts/comp-existing-tenants.ts",
+      "operandMissing": true,
+      "publishedRemoval": true
+    }
+  ],
+  "syncAllRetainedCanonicalCommands": [
+    "tsx scripts/sync-congress.ts",
+    "tsx scripts/sync-sec-edgar.ts",
+    "tsx scripts/sync-fara.ts",
+    "tsx scripts/sync-bls.ts",
+    "tsx scripts/sync-census.ts",
+    "tsx scripts/sync-hearings.ts",
+    "tsx scripts/sync-rss-intel.ts"
+  ],
+  "missingReferencesOnlyHistoricalDocs": true,
+  "noLiveCodeOrCICallerFound": true,
+  "noTestCaseOrBackendFunctionRemoved": true
+}

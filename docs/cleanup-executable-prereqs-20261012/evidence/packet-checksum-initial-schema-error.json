@@ -1,0 +1,8 @@
+{
+  "step": "initial packet verification",
+  "result": "failed before packet checksum emission",
+  "error": "AttributeError: 'list' object has no attribute 'items'",
+  "cause": "independent reviewers use explicitly different checksum formats",
+  "sourceUntouched": true,
+  "originalChecksumsUnmodified": true
+}

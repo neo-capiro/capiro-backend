@@ -1,0 +1,16 @@
+{
+  "name": "canonical-contract-controls",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs",
+  "argv": [
+    "node",
+    "scripts/cleanup-script-smoke/contract-controls.mjs",
+    "--self-test"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 1.075,
+  "measuredSource": "54c05b04c59e20a47bbdbaad20bc338643b92f8f",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "canonical-contract-controls.log"
+}

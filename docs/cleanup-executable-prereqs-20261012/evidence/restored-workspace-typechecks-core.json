@@ -1,0 +1,167 @@
+{
+  "source": "de623f0e6dd1e34e24435bb93dd3851c615f7be1",
+  "receipts": [
+    {
+      "package": "@capiro/api",
+      "path": "apps/api",
+      "declaredCommand": "tsc --noEmit --rootDir . && tsc -p tsconfig.pe-phase-a.json --noEmit && tsc -p tsconfig.pe-phase-f.json --noEmit && tsc -p tsconfig.pe-phase-g.json --noEmit && tsc -p tsconfig.pe-scripts.json --noEmit && tsc -p tsconfig.pe-scripts-catalog.json --noEmit && tsc -p tsconfig.memory-governance-backfill.json --noEmit && tsc -p tsconfig.funding-opportunities.json --noEmit && tsc -p tsconfig.hearings.json --noEmit && tsc -p tsconfig.integration-smoke.json --noEmit && tsc -p tsconfig.budget-extraction-contract.json --noEmit && tsc -p tsconfig.budget-verification-v1.json --noEmit && tsc -p tsconfig.budget-parser-router.json --noEmit && tsc -p tsconfig.rdte-phase-4.json --noEmit && tsc -p tsconfig.engagement-phase3-fixtures.json --noEmit && tsx scripts/verify-pe-phase-a-safety.ts && tsc -p tsconfig.legiwatch-phase7.json --noEmit",
+      "source": "de623f0e6dd1e34e24435bb93dd3851c615f7be1",
+      "checks": [
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.pe-scripts.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-4.log",
+          "seconds": 13.402
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.pe-scripts-catalog.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-5.log",
+          "seconds": 15.702
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.memory-governance-backfill.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-6.log",
+          "seconds": 7.331
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.funding-opportunities.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-7.log",
+          "seconds": 20.111
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.hearings.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-8.log",
+          "seconds": 68.453
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.integration-smoke.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-9.log",
+          "seconds": 16.819
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.budget-extraction-contract.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-10.log",
+          "seconds": 2.911
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.budget-verification-v1.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-11.log",
+          "seconds": 13.01
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.budget-parser-router.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-12.log",
+          "seconds": 21.296
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.rdte-phase-4.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-13.log",
+          "seconds": 33.548
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.engagement-phase3-fixtures.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-14.log",
+          "seconds": 15.172
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/apps/api/node_modules/tsx/dist/cli.mjs",
+            "scripts/verify-pe-phase-a-safety.ts"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-15.log",
+          "seconds": 0.489
+        },
+        {
+          "argv": [
+            "node",
+            "/workspace/capirov2-prereqs-compiler/node_modules/typescript/bin/tsc",
+            "-p",
+            "tsconfig.legiwatch-phase7.json",
+            "--noEmit"
+          ],
+          "exitCode": 0,
+          "log": "restored-types-apps-api-16.log",
+          "seconds": 14.448
+        }
+      ]
+    }
+  ]
+}

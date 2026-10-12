@@ -1,0 +1,16 @@
+{
+  "name": "pe-canonical-cli-controls-corrected",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs",
+  "argv": [
+    "node",
+    "--test",
+    "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 4.481,
+  "measuredSource": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "pe-canonical-cli-controls-corrected.log"
+}

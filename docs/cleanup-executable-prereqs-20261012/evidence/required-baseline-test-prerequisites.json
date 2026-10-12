@@ -1,0 +1,20 @@
+{
+  "whyInScope": "Meri and Web full suites are required by original Cleanup acceptance. Fix only demonstrated stale expectations, retaining canonical production code.",
+  "catalog": {
+    "canonicalManifestCount": 139,
+    "oldExpectation": 138,
+    "allExistingNamesAndSetEqualityAssertionsRetained": true
+  },
+  "route": {
+    "oldName": "a lowercase pathname is not claimed and does not request a profile",
+    "newName": "an ASCII-lowercase pathname is claimed, requests the canonical uppercase id and keeps the original URL",
+    "productionRouteCaseFoldingUnchanged": true,
+    "oldCaseRenamedNotDeleted": true,
+    "addedNegativeCases": [
+      "reconciliation",
+      "whatever"
+    ],
+    "publishedSource": "03d85a40e390f8f52614aab20427a3a9433786bb"
+  },
+  "noSkipOnlyOrThresholdLowering": true
+}

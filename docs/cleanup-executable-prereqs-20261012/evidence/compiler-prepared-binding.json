@@ -1,0 +1,34 @@
+{
+  "source": "5db091dac54bc05f4a97a1495c8e6df238547c4d",
+  "checkout": "/workspace/capirov2-prereqs-compiler",
+  "bindings": {
+    "node_modules": "/workspace/capirov2/node_modules",
+    "apps/api/node_modules": "/workspace/capirov2-integrated-rc/apps/api/node_modules",
+    "packages/shared/node_modules": "/workspace/capirov2-integrated-rc/packages/shared/node_modules"
+  },
+  "sourceChecks": [
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "currentSha256": "d79006f5a5d24a64ea605e7d04ab8b69d1ced0c42292b7406564d71feadc8afa",
+      "preparedSourceSha256": "d79006f5a5d24a64ea605e7d04ab8b69d1ced0c42292b7406564d71feadc8afa",
+      "byteEqual": true,
+      "scope": "schema must match exactly; shared formatting has previously retained AST/JS semantics"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "currentSha256": "0b9644efe0f8f0125cab5527e41d8f85c00f6f11dc83647b6741b1d0ef720357",
+      "preparedSourceSha256": "54f5f522696eb619c974206ca12d91042b972355a790048a36ea9bb35c0a11f6",
+      "byteEqual": false,
+      "scope": "schema must match exactly; shared formatting has previously retained AST/JS semantics"
+    },
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "currentSha256": "f177cee24ac6a540ccc00d097caa69cd6cfc0d09ab3fe800395c6af6ae26b9b9",
+      "preparedSourceSha256": "6fcb81da835a33908c0be9564e91a661f64394b592375114d9f82e6dbb231db8",
+      "byteEqual": false,
+      "scope": "schema must match exactly; shared formatting has previously retained AST/JS semantics"
+    }
+  ],
+  "nativeGenerationExecuted": false,
+  "databaseExecuted": false
+}

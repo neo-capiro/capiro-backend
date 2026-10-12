@@ -1,0 +1,22 @@
+{
+  "source": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "additions": {
+    "packages": [
+      "@vitest/coverage-v8@2.1.9",
+      "test-exclude@7.0.2",
+      "magicast@0.3.5",
+      "istanbul-lib-source-maps@5.0.6",
+      "@ampproject/remapping@2.3.0"
+    ],
+    "snapshots": [
+      "@vitest/coverage-v8@2.1.9(vitest@2.1.9(@types/node@26.6.3)(jsdom@29.1.1(@noble/hashes@1.8.0))(lightningcss@1.32.0)(terser@5.46.2))",
+      "test-exclude@7.0.2",
+      "magicast@0.3.5",
+      "istanbul-lib-source-maps@5.0.6",
+      "@ampproject/remapping@2.3.0"
+    ]
+  },
+  "originalResolvedPackagesAndSnapshotsPreserved": true,
+  "apiStrategySharedDependencyPreserved": true,
+  "noPackageManagerInstallExecuted": true
+}

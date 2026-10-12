@@ -1,0 +1,22 @@
+{
+  "name": "meri-canonical-catalog-unit",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs/apps/meriv2-orchestrator",
+  "argv": [
+    "node",
+    "--require=/workspace/capirov2-cleanup-source-prereqs/docs/cleanup-source-gates-20261012/evidence/node-source-network-refusal-with-local-tsx-ipc.cjs",
+    "/workspace/capirov2-cleanup-source-prereqs/apps/api/node_modules/jest/bin/jest.js",
+    "--runInBand",
+    "--runTestsByPath",
+    "src/meri/full-chat-read-tools.catalog.spec.ts",
+    "--json",
+    "--outputFile",
+    "/workspace/capirov2-cleanup-source-prereqs/docs/cleanup-executable-prereqs-20261012/evidence/meri-canonical-catalog-unit.json"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 38.283,
+  "measuredSource": "af53df45db588af110f9b85a451824e4f9ad5ff9",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "meri-canonical-catalog-unit.log"
+}

@@ -1,0 +1,379 @@
+{
+  "source": "35c64d5def5d2a4c920f3030e2f85067c8cd57d0",
+  "missing": [
+    {
+      "path": "apps/api-strategy/src/seed.ts",
+      "import": "../generated/prisma-client/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "apps/api/scripts/verify-public-audio-policy.ts",
+      "import": "../../intel-api/generated/prisma-client/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "apps/api/scripts/verify-public-audio-policy.ts",
+      "import": "../../intel-api/generated/prisma-client/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "apps/defense-api/scripts/ingest-federal-funding.mjs",
+      "import": "../generated/prisma-client/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "apps/e2e/lib/ast-routes.mjs",
+      "import": "./pe-routes.js",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "apps/e2e/scripts/probe-static-contract.mjs",
+      "import": "./shared",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "apps/e2e/scripts/probe-static-contract.mjs",
+      "import": "...",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.spec.ts",
+      "import": "./api-tool-executor.repo",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/api-tool-executor.repo.spec.ts",
+      "import": "../request/request-credentials.store",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "import": "./full-chat-read-tools.catalog",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "import": "./delegated-tools.catalog",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/full-chat-read-tools.catalog.spec.ts",
+      "import": "./write-tools.catalog",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.spec.ts",
+      "import": "./in-editor-assistant.service",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.spec.ts",
+      "import": "../meri-registry.service",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.spec.ts",
+      "import": "../api-client-context.repo",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.spec.ts",
+      "import": "../api-tool-executor.repo",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/in-editor/in-editor-assistant.service.spec.ts",
+      "import": "../../request/request-credentials.store",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "apps/workspace/prisma/seed-workspace.ts",
+      "import": "../generated/prisma-client/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "infra/cdk/scripts/run-construct-tests.cjs",
+      "import": "../lib/constructs/example-construct",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "packages/defense-domain/scripts/package9-scorecard.mjs",
+      "import": "../dist/qualification/scorecard.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-package2-eval.ts",
+      "import": "./lib/eval-cli",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-package9-economics.ts",
+      "import": "./lib/eval-cli",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-replay-eval.ts",
+      "import": "./lib/eval-cli",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "packages/meriv2-core/scripts/repair-replay-eval.ts",
+      "import": "./lib/eval-cli",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "import": "../src/context/context-compiler.service.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "import": "../context/context-compiler.service.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "import": "../src/context/context-compiler.service.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "import": "../../context/context-compiler.service.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "import": "../../context/context-compiler.service.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "import": "../context/context-compiler.service.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "import": "../context/context-compiler.service.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "import": "../context/context-compiler.service.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "import": "../context/context-compiler.service.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/contract-controls.mjs",
+      "import": "./lib/usage.js",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/run-engagement-phase0-local.mjs",
+      "import": "./lib/engagement-local-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/run-engagement-phase1-local.mjs",
+      "import": "./lib/engagement-local-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/run-engagement-phase1-post-acceptance.mjs",
+      "import": "./lib/engagement-local-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/test-phase10b5-expected-source-resolution-domain.mjs",
+      "import": "../packages/defense-domain/dist/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "scripts/test-phase8-session10-schedule-domain.mjs",
+      "import": "../packages/defense-domain/dist/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "scripts/test-phase8-session11-domain.mjs",
+      "import": "../packages/defense-domain/dist/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "scripts/test-phase8-session6-federal-funding-domain.mjs",
+      "import": "../packages/defense-domain/dist/federal-funding/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "scripts/test-phase8-session7-lifecycle-domain.mjs",
+      "import": "../packages/defense-domain/dist/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "scripts/test-phase8-session8-discovery-domain.mjs",
+      "import": "../packages/defense-domain/dist/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "scripts/test-phase8-session8-publisher-native-domain.mjs",
+      "import": "../packages/defense-domain/dist/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "scripts/test-phase8-session9-provider-domain.mjs",
+      "import": "../packages/defense-domain/dist/index.js",
+      "introduced": false,
+      "generated": true
+    },
+    {
+      "path": "scripts/verify-engagement-phase1-background-final.mjs",
+      "import": "./lib/engagement-local-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-engagement-phase1-local.mjs",
+      "import": "./lib/engagement-local-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session10-db.mjs",
+      "import": "./lib/phase8-db-wrapper-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session11-db.mjs",
+      "import": "./lib/phase8-db-wrapper-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session11-integration.mjs",
+      "import": "./lib/phase8-db-wrapper-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session12-e2e-db.mjs",
+      "import": "./lib/phase8-db-wrapper-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session12-e2e.mjs",
+      "import": "./lib/phase8-db-wrapper-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session2-db.mjs",
+      "import": "./lib/phase8-db-wrapper-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session3-db.mjs",
+      "import": "./lib/phase8-db-wrapper-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session5.mjs",
+      "import": "./nvidia-batch.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session5.mjs",
+      "import": "./nvidia-real-batch.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session6-db.mjs",
+      "import": "./lib/phase8-db-wrapper-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session7-db.mjs",
+      "import": "./lib/phase8-db-wrapper-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session8-db.mjs",
+      "import": "./lib/phase8-db-wrapper-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session8.mjs",
+      "import": "./discovery/index.js",
+      "introduced": false,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session9-db.mjs",
+      "import": "./lib/phase8-db-wrapper-cli.mjs",
+      "introduced": true,
+      "generated": false
+    },
+    {
+      "path": "scripts/verify-phase8-session9.mjs",
+      "import": "./cross-domain/index.js",
+      "introduced": false,
+      "generated": false
+    }
+  ],
+  "checkedChangedPaths": 1040,
+  "syntax": "literalrelativeimport audit only"
+}

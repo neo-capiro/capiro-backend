@@ -1,0 +1,15 @@
+{
+  "name": "source-ast-imports-final",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs",
+  "argv": [
+    "node",
+    "docs/cleanup-executable-prereqs-20261012/evidence/audit-source-imports.cjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 3.063,
+  "measuredSource": "698af601b25ef8cc4d6d6a0fdf0b5a40a9082cf1",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "source-ast-imports-final.log"
+}

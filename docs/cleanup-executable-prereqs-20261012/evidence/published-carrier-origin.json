@@ -1,0 +1,3122 @@
+{
+  "source": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "selectiveSourceOnly": true,
+  "historicalImagesPreservedNotCurrentQualification": true,
+  "sourceBaselineArtifactsNotInvented": true,
+  "files": [
+    {
+      "path": "apps/e2e/.gitignore",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a5d8976b7fb4d5a3d86a872154909efbbd3534cf",
+      "sha256": "991ff3520f3278904335b59d728322a90817f3db33805c1cedc553dbc6c5a10f"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/actions.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6063b71211a9af25a9bd566ab176fc8ed567047a",
+      "sha256": "1eb2e621960196191bb0251893c19d2a00a3a510312631880cf0cec877bb29e9"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/admin_analyst_console.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d121b70b5924312a107ed493b1384486529faf5b",
+      "sha256": "d36ad14bf66c53138a4a9751a75cbe469a01ace4786757668141b46eefef6188"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/admin_program_element_match_queue.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7ae4bc22634e95e2283fd7f466fdbcf80be88e74",
+      "sha256": "139fb1fa9e2c06357902e1ef3ea1466e48cd0e9b16c9f4ad8722c82a7cbd1424"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/admin_program_element_reconciliation.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "fef1659408137ab56f7f96f1f408d5b98a74fab0",
+      "sha256": "00ed904695425838e8b85f806c88640b22da0e0c246589d019a82b4df9f45cd8"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/bills_hr_2027_1234.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e69e4ba698057883cf01d72d945ab7a5857cf48c",
+      "sha256": "7a82dbadd1b4a65f1aedbb9316f11f2e5274a1d1575f40c6b5f164c044e9b859"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/clients.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f43c63be71ce4f7b238d9f3f61a6a1eecfcdb033",
+      "sha256": "c426c3197bc460c7e83b8f2b64d33d9104662ab113d7a5c9d293637b288cfbf6"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/conditional_bills_bill360_enabled.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ef4b6f04f98c6fca3734b80c42e57b1ba694b843",
+      "sha256": "edd598ba87e750a86ad2e9858c5ab08b8eeca65e134c09391e931d141f1bf8f2"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/conditional_onboarding_subscribe_billing_enabled.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b3fbdcdb00f5af46652aaec6bb16583e64387265",
+      "sha256": "e4031b3764b1f6f1293661eddfc1a1c693899bc23da0233282d8fa4b9632113e"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/defense_budget_lifecycle.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5c5b29c8bd3fe04a7e47bd9e7c1e24f6e0f7422d",
+      "sha256": "e6a36edb9fff9db3085f9a2f104f748759c17a5ba20b87ee6dfc57efafa977dd"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/defense_budget_lifecycle_review_queue.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c3b3d192421b171b829c2cdb77e8ffb998a65f60",
+      "sha256": "bd6db6f74185640c6552d848b5e06128bb58c0c1642bfa0deb9db5306eac7fae"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/defense_budget_lifecycle_reviewed_partial.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "28deeb3b673ae0c38a46c16e763fb4683ad74d36",
+      "sha256": "c530ddb51c711647b8d05e5938222602158247db8a9dca768e45ed26a1c2dcd8"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_committee_staff.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "acf7c980b28858c8e4e6487ea20ba1ac19056391",
+      "sha256": "7a35a19e65eb4ba6c297bfc446b2d2f73bc43613d9068a6471a07de06531dce3"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_committees_visual_committee_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4950857dfe5950e2df15cebcdc73b232e91a5ae6",
+      "sha256": "e8fd0f6adcfc6013e1df2870dbb21e264cba67a695a8c212efb1af4bf33a64c9"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_congressional_staff.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "42fb1efb8d82d493dd4c3d2b7bbe7b4c5b5ea05d",
+      "sha256": "f2bc077e8101580ca4f95d06ca4c35638a8cd5ea8f7d3a73f1299a453b8e2c2f"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_department_of_war.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a0ac42b3932ceac18c05f313787ed84796868e0c",
+      "sha256": "aabcdaae04975c758d2712db88ef7167cb4ce992be791e651f84b88e6923b44a"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_districts_VA_08.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7b5d317114a2a51228afda5f5e2796895d230c59",
+      "sha256": "5d7625dcd8eefb6086b1a4e9123da789e4eec95860b351a417ea920e1e6cdeef"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_members_visual_member_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0b9e6c2dcda01e87c2e732ec20639a22166d2246",
+      "sha256": "2c9615c1537a2fc5e9e30b2f5614fb12efc1457869104e893dbabc7726f19ef4"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_people_visual_member_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0b9e6c2dcda01e87c2e732ec20639a22166d2246",
+      "sha256": "2c9615c1537a2fc5e9e30b2f5614fb12efc1457869104e893dbabc7726f19ef4"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_staff_visual_staff_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2fd4517e9773dd22bffda07e5bfd4d8ced43e33d",
+      "sha256": "e71f76a44296902c57cd002583e2cb673eb19952a296acd6f0d4a6a475e9510c"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_state_committees.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b78fc3b62b2f065ecaead3f6e3e55d0ab27cf197",
+      "sha256": "4a4f903f4010f2c4f2e3ffb4dbb3f053beb88657d4c641356f4662be1338e4a5"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_state_committees_visual_state_committee_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "23d54481f0ec12e0396fe2f83d62c3856550cca9",
+      "sha256": "30e472ed53dbcfde69611e0501a69adbe8882d58caec7f26eca23f03b5637af0"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_state_legislators.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "59fad6e607812965bb743a31277fd3987aa2196e",
+      "sha256": "37ecd5ade1e393abc3fc5a5de7325175ad0c257bc9efd100a547c34fa6ae6f00"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_state_legislators_ocd_person_2Fvisual_staff_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "05f976ac67357fc8252f0f261e0d194e2f621e20",
+      "sha256": "a6e13de76b2d3e97c8181767fd5907b2a646f940e74cddc193465c4e00f4d3ce"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/directory_state_legislators_visual_id_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "05f976ac67357fc8252f0f261e0d194e2f621e20",
+      "sha256": "a6e13de76b2d3e97c8181767fd5907b2a646f940e74cddc193465c4e00f4d3ce"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/engagement_meetings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "850a0e5e42ed5857708e9ed4d4ecac9a62f0eb26",
+      "sha256": "a35f5732ba52e94457eaca00f548519a027d976038a9b8fda4ddc22fce129d41"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/engagement_outreach.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "641b593b581ebeee8e92fd97b7a6d0b65860e401",
+      "sha256": "ecec78db1a43db861957ac06ca1fd4f38d669ebda18330d7bc332e61b23417a1"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/engagement_reports_period_current.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "68cb0221b5628a26d26c1e7b27045fde83490640",
+      "sha256": "20e64d8b6f7f9103afc69dac515ebba1ea5dc5553f22848cbec5820602b9b198"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/explorer.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ad6c97d93ad56abca678080d747e9176485087c6",
+      "sha256": "65e7bbba02b346ead099a3be7db4b339f9bc9ae4cb7fd13f9cf53b924bab401e"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/help.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c580c38794c2bdbc4e47517c5d62f6f360db726d",
+      "sha256": "928a4171b3da9041ca52d4379d4c2f1dda588f9d38dc3b12b5fe348014fdb411"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/intelligence_bills_hr_2027_1234.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f5cbef2bd3dd33a2689fc02a1aad8e7e9eb41301",
+      "sha256": "eb49a93fbc12f90acf7f17c4fe2ec2f61c7d311f6ae6a2bb4c2b5ab66da97289"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/intelligence_center.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7a5392ad7b9e720472639b2b372ef4b8c81a0aab",
+      "sha256": "db8d8b27e71ea919835137d534d5bd5dcee35f3b685df4446f421edc52c4396b"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/intelligence_changes.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "694664cc9e510f00341a66862efd9a261a3caeac",
+      "sha256": "249bed4ea0d7265899a3580fe307b3771c64406ae8e8ad00f3194adc4a6e16b8"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/intelligence_district_nexus.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "dbd22502f3636b7783d56ded539d453093a22bfd",
+      "sha256": "14a2124b858edf3310525ca77d9102491cd965dc230ce21bc79d0428796344ad"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/intelligence_federal_spending.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "15e91a30568d8868689e812b8c37c6b41fa0c107",
+      "sha256": "b7c23d72aba92b2356ca6eb732e6320b106b7b998805a6c7695540350d8a5d10"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/intelligence_graph.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "028ec982514291c85b105b45f24eb7fb9142b81c",
+      "sha256": "416046065c7708f4b9959b1104f12c661e19b4b02c0ccdab6d5d4403cb23d5a9"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/intelligence_hearing_watch_visual_id_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "fb9cc3f9b2e20b74747d6091d87d8d358e57a753",
+      "sha256": "088c89ca868be6ed4213935601d6b60a3d50666278cf6633ebbf6856e7556fa2"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/intelligence_hearing_watch_visual_session_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "fb9cc3f9b2e20b74747d6091d87d8d358e57a753",
+      "sha256": "088c89ca868be6ed4213935601d6b60a3d50666278cf6633ebbf6856e7556fa2"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/intelligence_issues_DEF.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d13390e05b9091e6ddc9de02ac5af621f9b61407",
+      "sha256": "0488b5c3512d63a8020b3f6fb3582a58b2d83b764db20851789ddf9e4d311f2a"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/intelligence_opportunities.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4ed55eb0fb397574b19cd1eb5c36545f3bb9293b",
+      "sha256": "3f94420803dc53bdebcc702781165c0ba9d791e7179df4979a342852e439e178"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/intelligence_opportunities_sam_gov_visual_opportunity_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4ed55eb0fb397574b19cd1eb5c36545f3bb9293b",
+      "sha256": "3f94420803dc53bdebcc702781165c0ba9d791e7179df4979a342852e439e178"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/legiwatch.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "10c3cf6160495b3895b0320bdb3b897bdc628928",
+      "sha256": "c4716acbf02cbf909bd6b44d9e8281917b0678fb755c059d891dc48dfdc2f5d1"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/legiwatch_committees_FL_visual_state_committee_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "43cb4cb988e3e2ee20217f46d003544ebb5cf2da",
+      "sha256": "ae55b0844ef42ca83b6c8d03287986138f0ee8d1d5fbfff0211afaec413bd970"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/legiwatch_committees_house_hasc.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "190ac65550fd49ccdf2c99c8f1804cf56bcfaa55",
+      "sha256": "f558b14d2c5952099ecff20e935471c09145852af07d4b79aea503664fae4421"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/legiwatch_hearings_visual_hearing_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c3878c39bac83e74762f200936135f74c98b0ef5",
+      "sha256": "bf1e761602f4ee44bfa472d9d2bac0341b63deff988afd6cece48ed4fd45c0f3"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/legiwatch_tab_committees_jurisdiction_FL.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c3c5250b7f86add612b0c1881978af8ea4c4c354",
+      "sha256": "91ee6c12aa02585e33d6879cabc037e4843bc62cd8421c58ca3ad98c5d3e4b21"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/legiwatch_tab_hearings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b803089b81585db42cbe9f54cf76e58db8a6cd73",
+      "sha256": "0e14492522152a9a610a9803f3fdc92f0de4e87ab202b24f86304fcd91d1cb97"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/onboarding_subscribe.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "62482415aca619e3c7d6c5d0be7adcaa2e43b4b7",
+      "sha256": "1155ee69a7506ca3c8fd3b41f1cfd8d90a4549aac5f00e97d62f38716dedfb55"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/planner.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ecc0a1a4f924ac37efdc2cc7c257e30dadd15608",
+      "sha256": "249f2d54d020af0ed7891d2eaaf1530ee36eefa5a519dcfbbbb65df3962d2495"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/planner_forms_visual_planner_token.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9967f7337ab9748ddc30ec3d08e787b5ab4f8785",
+      "sha256": "9d081dfaa8112ae596d74c8c4289772acb0441ff565f16face7e19f49c5a7bf7"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/portfolio.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f43c63be71ce4f7b238d9f3f61a6a1eecfcdb033",
+      "sha256": "c426c3197bc460c7e83b8f2b64d33d9104662ab113d7a5c9d293637b288cfbf6"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1179b445d388907b186071a817946993cdc0bdcd",
+      "sha256": "34f465a46e7362d7215e162a7fd4d08d94d12efc6abf8c60e7671aa2c6fe257d"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements_0605053A.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "bfca5859d947db175048bbcea5b81026c50e50c9",
+      "sha256": "53c5e38810e90e69bd83fbaa2cf1bc9d45aa8abadc7e73e22fc2ff6fc243fb39"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements_compare.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4ed3153408505fabb23e5d61efff4c8baff5ac33",
+      "sha256": "25b5322a5db5a346843b3b57be937799b47da9b39b4129203925546aeac7b5e9"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements_contacts.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "50acd013ed4874b620e6d5ef3f10afb873a8f8c8",
+      "sha256": "a0dd28a2b866a166f474773f4d94a6057682d82b8737e4dff3a9565db2b7e688"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements_coverage.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "913e55aa0452220d18e2e7e64ba5e6d10c54841e",
+      "sha256": "9d5a946fab696e04ee118c7ff5b05c730250a338f6ebf5de7d01451716f39376"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements_dest_actions.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a23d8258d6d503efe533b5e7a0c26a589a5143fb",
+      "sha256": "01cdbd73d9c1317e4134465783287f5fc0db94f8de44759d480ade842d7c5a01"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements_dest_congressional.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c1d4333287beb71b5c7fafeddc39ae872ef3aec2",
+      "sha256": "d0e0791c02509cdaec7300f32bd5acf84891ae9d83a114032c4a37727af38f52"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements_dest_explore.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5b88273d83f14dc284a6b8cf8b2e3e1798820caf",
+      "sha256": "8d85eef9ba994bd29c4fc661146ba5053399eeeb2c65571933045f8aff528373"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements_dest_movement.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "19be8ddbb55f7a2063f00c35229c0b7d3139d6f7",
+      "sha256": "04dc192c59ce8562dcce7713414497231009481064311a16798d972052355a00"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements_dest_portfolio.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "26e93cdb23cbfc983cad9948ca5411a6eb7ab297",
+      "sha256": "7f36b9d7403558b26c6d55863a309c09ca782e4988ed6a015cb0f00c214f1dd9"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements_mark_up_monitor.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e7af3ed02f4f5797a16bea6076365b771a010a4d",
+      "sha256": "8492f7b6365d0fee037ec21ec63d5ad541e290f32a6d8806c0180e664a30142f"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/program_elements_research.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c340878da134f6da4424ae1b6ef218c8c8d323db",
+      "sha256": "d6a4cd6aecc58573d2bb51381f0f395fb29f73ce29bdcaed33f576cba65523f9"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/radar.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "10c3cf6160495b3895b0320bdb3b897bdc628928",
+      "sha256": "c4716acbf02cbf909bd6b44d9e8281917b0678fb755c059d891dc48dfdc2f5d1"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/redirect_admin.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8ced2702899fb3e3ff3db1fc4764d71f7836ec17",
+      "sha256": "ce0e99c6bf206a06d8e044f28f8e8c9d39f5534d606ef7e40f44057be330f8eb"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/redirect_capiro_admin.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b0fefb1b3fa9f7ffbf70cc11e8f67ac9afdd7ca0",
+      "sha256": "530b8f52a664c3ae544c897a11aa1f371cc22bfa66595659b85d86e24906a02c"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/redirect_directory.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "42fb1efb8d82d493dd4c3d2b7bbe7b4c5b5ea05d",
+      "sha256": "f2bc077e8101580ca4f95d06ca4c35638a8cd5ea8f7d3a73f1299a453b8e2c2f"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/redirect_intelligence.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ad6c97d93ad56abca678080d747e9176485087c6",
+      "sha256": "65e7bbba02b346ead099a3be7db4b339f9bc9ae4cb7fd13f9cf53b924bab401e"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/redirect_intelligence_client_11111111_1111_4111_8111_111111111111.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f43c63be71ce4f7b238d9f3f61a6a1eecfcdb033",
+      "sha256": "c426c3197bc460c7e83b8f2b64d33d9104662ab113d7a5c9d293637b288cfbf6"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/redirect_intelligence_client_11111111_1111_4111_8111_111111111111_graph.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f43c63be71ce4f7b238d9f3f61a6a1eecfcdb033",
+      "sha256": "c426c3197bc460c7e83b8f2b64d33d9104662ab113d7a5c9d293637b288cfbf6"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/redirect_intelligence_hearing_watch.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b803089b81585db42cbe9f54cf76e58db8a6cd73",
+      "sha256": "0e14492522152a9a610a9803f3fdc92f0de4e87ab202b24f86304fcd91d1cb97"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/redirect_legiwatch.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b803089b81585db42cbe9f54cf76e58db8a6cd73",
+      "sha256": "0e14492522152a9a610a9803f3fdc92f0de4e87ab202b24f86304fcd91d1cb97"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/redirect_settings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0ddd7d90bb58426dbe6b7b2dfcff774e75a06bc0",
+      "sha256": "d226c6769ed07e4db1ba16088e1144c0c0433fe2c0573e0ed440cedf0b8d10bd"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/research_portfolios.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9b17cf0995c640ad65bc6d027555bc980c38d23d",
+      "sha256": "2bc450d9fc9cc435481290387dface24eeb3463548bb679212c984682df0d10a"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/research_portfolios_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "30c853e9f5901c55c0a66addbce7567cfa2439fc",
+      "sha256": "1894765cbacb829f2a2d6764c5165330efd34c80b41bd4e78dcd186669315290"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/reviews.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "296ac33fa2cc6f185a2bf45df94b1fea2e0224e4",
+      "sha256": "96374750d19df2c7015cebc4258f7d78d1a140298193b8fb98cec2b29d3b1497"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/root.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "54fcc5e609c6313c1af70763d5bad32946584779",
+      "sha256": "806d9f25a412eddfda0ad13c43b690cbb37cc6c7add3a670561c382285045658"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_ai_usage.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "18f71467c12b324ed42b56e3956d392084f6fac5",
+      "sha256": "466cccb3e095aa7d91fae0390b4b042b9b4f9485f80b9474b7accd856f5188bb"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_billing.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f3594150efc8f325243059b3e49ec1d3f03b8f6b",
+      "sha256": "f67a4adfc6da4ad161f011c8a32a5b2efc74bbd037932ebb20996d84162913c3"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_branding.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9f2e1ac271a2714c5259d06af7bbca1b51a3fc95",
+      "sha256": "61d0efeffc94c3bb4c35f2cf0bad9fa1b9d86365bd645a0e423345da4cbde347"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_broadcasts.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0a959b50dc54e57543971636ac1a602a67f083ab",
+      "sha256": "9e9e92313cbb7de033f2a82df0a36a68dd0e50f90a2225da5f2821c35c122ff3"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_clients.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "84cf7a61f2d1231e7a41ad118ac324a0cb0c2201",
+      "sha256": "a8e2a1b48d9dcd0322ae24cc01f98cabd0ea5b12a2f80b9202bc18d9b7d760b2"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_contact.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7a4e12445c47218bbcb1aaa78b6de541beb0f005",
+      "sha256": "c1f54e44fedc6e560a9a8491cf100f0151ec3df8fef19d68b59c947c16c4aa65"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_customers.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "25054ea3a8a9ec1b645198ee988ffe9580bad265",
+      "sha256": "52283805afab7e39c474eb2a921d9564b319f02346ba3944baa68679c9bfabea"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_integrations.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "71a1733392017541b6487d5d3c77365ad2ab794e",
+      "sha256": "54c63385048e4a702925536bcb372017909afdf8dbcdb7b1048be2b93afbfef4"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_intelligence_mappings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "309297826fd70d9609e5f4629536da4a1550c66e",
+      "sha256": "7e6814652912f272deb6cb3d9814649f8b45d68e4b70a2f97b2f21b2f2bf219c"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_memory.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1ee3e5cb76e97025e521b216242388f6f184ce9a",
+      "sha256": "05c1f2582eac327fc8b4f053d7fb45095095b667d56d228c021a7a69968bf654"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_personal.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0ddd7d90bb58426dbe6b7b2dfcff774e75a06bc0",
+      "sha256": "d226c6769ed07e4db1ba16088e1144c0c0433fe2c0573e0ed440cedf0b8d10bd"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_skills.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ec6511327f6a97669f9f162aed66f7beba5a2670",
+      "sha256": "b4a9b7b8709050dfe67773fffd30a7e0084924093ce0b85c0415dec571388278"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_team.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8ced2702899fb3e3ff3db1fc4764d71f7836ec17",
+      "sha256": "ce0e99c6bf206a06d8e044f28f8e8c9d39f5534d606ef7e40f44057be330f8eb"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/settings_tenants.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b0fefb1b3fa9f7ffbf70cc11e8f67ac9afdd7ca0",
+      "sha256": "530b8f52a664c3ae544c897a11aa1f371cc22bfa66595659b85d86e24906a02c"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "29819dc395e95dc958b6ad0c20eec75bf64a9ddf",
+      "sha256": "ac7af85f16db69edf4de736e8aed573157f3ce91e533683a809fabe7cd7b6d42"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "eeb9d9b83028153950f4c002ae2782fd0e04ab12",
+      "sha256": "5b7fb32e27c74fd5953f67e56bca527e5eb2f82d8a1f99578bffeca967db1b84"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_export.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d6521cc16f5f657e45cd707acf0960877ae21c8b",
+      "sha256": "f6ac561aa2b015a293d6d4ea9e2f8faac2025fd7c14edf53698f2bb2d94097bb"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_history.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3b9ebf037b2d49f430c6b85262da74af7468ef74",
+      "sha256": "31d231af5942e18e6d538492c3cee3d27b947dc4f081bcaf7b16de99016380b1"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_phases.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "66ea673b0b15f29d2e87258cbb43a036db25bf41",
+      "sha256": "fa9ac85fe4dfe2557eb0677fd059157a051c343e092521cc8cf3ff39625846df"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_agents_proposals.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f1aa6a42c97acc7f19ecf9b8d5f1d24f224b71a8",
+      "sha256": "7c3d16e4a3f731cfa90943152837b784bdfd7adab14fc7762f2d86fb8b54b0ac"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_agents_runs.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3fbadfa817fc98d33dba8646ec8a7ce6c38780cb",
+      "sha256": "a1f9214c72005debd3fd73227451b3a06bc1582519f78848c40c6b802022b01e"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_context.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "92e082f3cc0ba8c051aaa0af1dd0c512e1b7021c",
+      "sha256": "3dca9ab7f20940c0788c2e471d2a2f8c32f553d85d049f7cfbdc7f745a895b36"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_context_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "40b5d438120adfd4674f6f62671cf9faa9c46059",
+      "sha256": "eed0bee6e2d4c7c73cdeb45bbb3469a6a185f585e72ff689b67c760f982b5347"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_context_steward.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5f89d4b7372a54bb2541b178ef87a7b27b11a563",
+      "sha256": "bc544944855726ea2605c8e75abc90b549f49a3adf0806f1b4a111864e82e506"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_context_steward_visual_id_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3369fbeea7e988c479a18c576276c49d563f0cee",
+      "sha256": "b89d5f1bc68eafadf3cc8f5f867c91bdfa2d08e6e07e32744859d2246f2f17e7"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_context_upload.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "50147f6a1dde6ecbb9722743cea577e6c3608a65",
+      "sha256": "a50c74a589d870c18906c83e1b6ecd3375962e57861f664aafc707a2c1ce964b"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_new.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "845d71d7f89c8909a4abad6e072f2aa77ba7374e",
+      "sha256": "56f40c98715d65cfc9f2b886c8f55bf8655b7633f861945533d7124a3f0ee74d"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/strategies_phases.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "eb369cb5da07e70a446582cdf12cae8108921f25",
+      "sha256": "33eaaa587fc135dcabf1b8a2061a842bad08a8c76af40149046b09fa146ad217"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7fd595c560799bc1c9615fa3218f42c095b4c318",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "95f818341bd11784d533c3194d35cd704b15ee7f",
+      "sha256": "faa4ff26a08a4b5c4a41b7bb58f007a37077374a76d7e4ff2c2eede284b9b4cb"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_run.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "232d2774cfb1f33a256bbcc4ef1b08cc136012f3",
+      "sha256": "3ed567d9ee633a6c95736a673c1ebd6499423f87005e63664631cce7a62dac52"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace_documents.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7fd595c560799bc1c9615fa3218f42c095b4c318",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace_documents_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9201d4ff5f64c2dd98a9f13c966f0736eabdb88b",
+      "sha256": "bbb2837ff78512146994153d0ca1d2ca9cdf213eb8569e6182c7ca2628a16d50"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace_documents_new.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5e968229e7c8d0f16490c0c64998e74a08d0719c",
+      "sha256": "8d91a64e70ae4696ff9a284492dc8c67a040a64d7495f608b3045751ce871177"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace_library.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7fd595c560799bc1c9615fa3218f42c095b4c318",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace_new.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7fd595c560799bc1c9615fa3218f42c095b4c318",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace_setup.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7fd595c560799bc1c9615fa3218f42c095b4c318",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace_shares.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7fd595c560799bc1c9615fa3218f42c095b4c318",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace_studio.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7fd595c560799bc1c9615fa3218f42c095b4c318",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2"
+    },
+    {
+      "path": "apps/e2e/baselines/desktop-1440/workspace_studio_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7fd595c560799bc1c9615fa3218f42c095b4c318",
+      "sha256": "a574f4cd01e6ff21463935ae3dfb3941b11a910a04cf0a1372b26292804990c2"
+    },
+    {
+      "path": "apps/e2e/baselines/manifest.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2a6138ac5a4ce05ab9da67fac8228c91e9cd6c99",
+      "sha256": "c3484aa64fe4374d7cb3954265b82b9f6ba9cc1c53130e32465b202faface5fd"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/actions.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "01620a13d354b0e883ba36586cb7d1fc2568b698",
+      "sha256": "d7f265a1bc549f429abb840c35d04b240146f0af9c455a6e3df6c83fe58b857b"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/admin_analyst_console.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b3b4b82e61b0c73c8475da3ee736c64f9d5f8640",
+      "sha256": "2d959c7882c185ec336bca686e88a392a120c4e880c5f2272f6fed57518abbd9"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/admin_program_element_match_queue.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a338d27e8b3e06e13b128ad291c55acb2e07860e",
+      "sha256": "1d2fcbc010623a7b84aa7c86037c984a3e6e57df7682761eef0b279bc7114584"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/admin_program_element_reconciliation.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7ca666d322f94f761409412828a6b6a63b9f59ff",
+      "sha256": "e3debb2820374e8a8dcef2b97388cb5244d3171b6bc8823908dde7b65add35ee"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/bills_hr_2027_1234.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5ae8baf4dc94e725ec187324fa4aa0c8053b176f",
+      "sha256": "6af0acd0a0c5cd5a7f1043ba7966ee7023c9c819fc0079f47648e86dddbbc26e"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/clients.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "43c227eda120a977bf369fc8e3ae850417babdd5",
+      "sha256": "28bf8df5c8e00b2aca62340f10e8c947d0ff017d1fe5773ef069ee5b6698b750"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/conditional_bills_bill360_enabled.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a48752594571e83bf283934e9d3899f92aaf3bc3",
+      "sha256": "7f0f5a1c15773ac9030bb22ca7e2e9322c778b5671e3f9f0cb60ab5aba701996"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/conditional_onboarding_subscribe_billing_enabled.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0e3b3aac4352dfdd8e17536b3b3645a4f8f47b4b",
+      "sha256": "df682826d81516feb28e7f92d227e6edcc2e4cbeafbd3af7b7acc0b0d3de4307"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/defense_budget_lifecycle.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a4b35a348415eddb5d4cc728c1d55afb41da9c32",
+      "sha256": "b613a64df2a5a0ab5e610674fab3bdc685aef1f13514fb029f212a11480c1633"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/defense_budget_lifecycle_review_queue.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "55313542865f9b0aa212d2a3ab41013ae36192f1",
+      "sha256": "b07d95ef39a2db210970999902ffac9eee0a311b26ffa9730d6ee8845150a83f"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/defense_budget_lifecycle_reviewed_partial.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a9c747a32672ede9e38059832aba99be1099b4b3",
+      "sha256": "83f6c6c44726fef8621776d2c0ec21e885188920788b634674e5aac3672c9c03"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_committee_staff.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "163b47ce4ab8be5a957e4c2bd0bbe01e27ef6c0f",
+      "sha256": "db932526cfee742c1c780b4300eb755c5caf57ce0bd502e554c851a6199cf7c8"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_committees_visual_committee_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2541a55b48608fd5cd2673aeabf76bbfbf245ea4",
+      "sha256": "5505d836714c724e8850908f4e309b35ca1a53b60b578b1d4521a7dfb565c445"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_congressional_staff.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "79cd7259b6e3749ac69855cb49092d7ec3a97109",
+      "sha256": "fd4c186ea644d9a28d3740cf0001f2e6eb84e52b32d41e1bb92c265f683f702e"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_department_of_war.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "09395dc8059011963e2147bed77a49060f23ac6a",
+      "sha256": "52e10d2dd06694a4365a5000c8ca87b0680a072f7d7c3931ba8a47b45aa41493"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_districts_VA_08.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "42aa747bcafa3d09c82763fe4d048f0e3831f2fe",
+      "sha256": "29281ab027ff642a78d35b9cd496c664777ef47a938c2008eac284fa50c6c9fb"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_members_visual_member_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "51ed46e5a447b974dc23d3afb192df0134db9bd1",
+      "sha256": "13d0a3a2bbc64dc99833761a119ab8ceda7ed93f36d1321fca779984982e842f"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_people_visual_member_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "51ed46e5a447b974dc23d3afb192df0134db9bd1",
+      "sha256": "13d0a3a2bbc64dc99833761a119ab8ceda7ed93f36d1321fca779984982e842f"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_staff_visual_staff_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2f79ad05ddcf0be56780b02ad346dba645a6c3d9",
+      "sha256": "bd5b59c2fd645879f58e0e45ebf4f78a65b6d9d3f1ed2b4cd994e5e044627a53"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_state_committees.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7e3ab3511b831d313ac279dde3cf1a8c9d092a9f",
+      "sha256": "77143997169af8708e681276e5e15741169718ac849cb5519567837d39302534"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_state_committees_visual_state_committee_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1477376e919dd2ef56e6bad025bbe269449d14c2",
+      "sha256": "b6e876e050c7831ae73eb0c65a59a496c8f385c0410672c4d0c4f373603c1171"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_state_legislators.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1bf5974dc2abd506dec3207c8cbdc6bc33a35b3c",
+      "sha256": "766f06b82db55c2a70f0a25752ac555300415888d173461fea576fb990a26022"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_state_legislators_ocd_person_2Fvisual_staff_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "33a17f6cec9783be6d0b80f13344837d638a4e4b",
+      "sha256": "1eebc44f8087ca9ca68be90386b21da4ab2a95a6e4c79ad3585aee3da814fc68"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/directory_state_legislators_visual_id_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "33a17f6cec9783be6d0b80f13344837d638a4e4b",
+      "sha256": "1eebc44f8087ca9ca68be90386b21da4ab2a95a6e4c79ad3585aee3da814fc68"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/engagement_meetings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "31164d46c7093852137511fc064de5bc74b65804",
+      "sha256": "f545dd8ded5f40a149ac025ab741e2467929da6e6021f8d0c2951b4a27e175ed"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/engagement_outreach.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9b86e09f0a3afc993a9f56ca29e2d1a59f2f2517",
+      "sha256": "acefaaa6f8eee744cf8b93bb1cb987a97e81d49d148aa09fa9cc9f8e35a23f29"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/engagement_reports_period_current.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8e7380133e954b8b13ead6b6c369446d97b6e829",
+      "sha256": "326fbbf304de4d0abd38507acadc8f4bcffa69f19663ff2c79968ebd3fc240fe"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/explorer.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6eeb0cb2515355ce9e6b276877a5e01dc70fdb36",
+      "sha256": "92036650686091889975d56aa67ee10e0819ba62b27c4d877361011f5ad24dec"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/help.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f7ba3d36a00ccbc4190f86ff7cb90acbff9a12dd",
+      "sha256": "8098e0b0e7aa6b431c5640a3c995355cb97bc979164d93c9300c4baddc2a54c8"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/intelligence_bills_hr_2027_1234.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5ce14bcbad670cdeb93644a8339e7efddfa6ccb3",
+      "sha256": "1e58a9c68886712ed5ea5efe620e782d4c44906b3bf83d7858ad3c1e5749a957"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/intelligence_center.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5260a675721a8bddd7e5c596e13a4f9e52e84e24",
+      "sha256": "82cd2ec385ed0767eadbf1005ab478625f06b11483d27ed8bf09f1422ae113a9"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/intelligence_changes.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2b45f4bc3217357f75ceea771635e184aed261c6",
+      "sha256": "e7cbd2e845294aa8b5c51ce0eb6cb8c364277c150f2ad5bc6fd4f092a5356f17"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/intelligence_district_nexus.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b2e5b7bf5152c6f0941067670e56f42aec7cbac3",
+      "sha256": "b54be2ef605f91f591f1ea6f07bed7997b698e709594ac8a5209b64af5d518c4"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/intelligence_federal_spending.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "49c3c6186943ecc8a0b72c81f5e061afa7dc9630",
+      "sha256": "0093c796611f6e2708b29dd20ecc1efff58dfe4fd4323bcbfbbfd916b7dc370e"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/intelligence_graph.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "de5b255ec9fe592ab272496a1492273a3eba1eb5",
+      "sha256": "0ff7dc459ddafd6daa2aa299c57a186d8714a7fadf6cf6d3244bb462063b6533"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/intelligence_hearing_watch_visual_id_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "56f8d2b94740a8619d84f3af5a49af68e5c2b28d",
+      "sha256": "022309c05cb92dd56f59e3cdc9a5e1b412e4484b7816532ff937be89a61546cb"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/intelligence_hearing_watch_visual_session_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "56f8d2b94740a8619d84f3af5a49af68e5c2b28d",
+      "sha256": "022309c05cb92dd56f59e3cdc9a5e1b412e4484b7816532ff937be89a61546cb"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/intelligence_issues_DEF.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "28336105cfc8a65d1b71b972f8171283cb33dac7",
+      "sha256": "f0630df31a71c9a880bdd1d7c0adf729560bad211b6a7c5e9a0869f3a73f060b"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/intelligence_opportunities.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0977027949de58526487d8d3dc69baf95ae0a5e2",
+      "sha256": "2a3eb84f78e5b5855a5eef63327e94a9f262e9c912cd22fe64206a7d8acff472"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/intelligence_opportunities_sam_gov_visual_opportunity_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0977027949de58526487d8d3dc69baf95ae0a5e2",
+      "sha256": "2a3eb84f78e5b5855a5eef63327e94a9f262e9c912cd22fe64206a7d8acff472"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/legiwatch.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "907f2d6409bef1f0b3dd057179b9da20404fe81b",
+      "sha256": "d21dd6da3e40ddc55700b1cfa216ed809c65c912bb338ba5b117a368cc1093ba"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/legiwatch_committees_FL_visual_state_committee_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8ae0fccd8e9aa8e33e235876453ddce57f9ab81f",
+      "sha256": "5fdd0d50b588b4db0738716ff156302c431419dca07aef25839b99c8628fb92f"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/legiwatch_committees_house_hasc.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0db6debba97c50e65e39f3d48bde708603690dd0",
+      "sha256": "aab06697ad9629eb87a4767eda5f6d891699f89b265dc799e0e278403ee4d868"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/legiwatch_hearings_visual_hearing_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4b94abe0924a0216a5e2086ce70c298f6454765e",
+      "sha256": "2be8c47393031e2b2114a084cc9cdc4b3203eb4d3c594d3525534905a4b9e620"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/legiwatch_tab_committees_jurisdiction_FL.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2661524887133a00ca1b32d1e91fd161da7b7b4c",
+      "sha256": "44b6fb6f08c9b40724b9812f9ed2132a25f17bf512bf07cad642c01b3f3942eb"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/legiwatch_tab_hearings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b9a43488fb97a33f6238271f2bed695369a7cad3",
+      "sha256": "27e0e0005516ade3bd28219272c054f7bd99adfd090045f296c5849bd1991424"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/onboarding_subscribe.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "eec84188f251fe20922f926aff7f57c5fc9ddd12",
+      "sha256": "7c7bcddc45584c72794fb5a62553a0506a68f0a1ddba7a406ebf47b6206903e8"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/planner.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1803bf0fa068a6b701513191bebc2479057d0dfe",
+      "sha256": "2df659d158918c836d63a6cf0d48a402668a099cd148e36dfb9d5ae65b2508f9"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/planner_forms_visual_planner_token.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2ca717f6108da54dcc4d7441fd60f704771b8b6c",
+      "sha256": "968fca7b8fdf6768e1934b2ace92f30618beb9784350feaf81327fb8ed71f538"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/portfolio.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "43c227eda120a977bf369fc8e3ae850417babdd5",
+      "sha256": "28bf8df5c8e00b2aca62340f10e8c947d0ff017d1fe5773ef069ee5b6698b750"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ee289508e8bac2b11b5224c74ad8116b163ce7fe",
+      "sha256": "73bee2bb0b809810765b6f0c7abf9c7d13670e7ed90d08514edd3892faa20c7e"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements_0605053A.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "10ba79e76cc847880ac4015fa951c69ee7d9263c",
+      "sha256": "4bda4e9320b29f2dca1499b5ead43334751f97fef43427e330a733381b77ff91"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements_compare.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "948cdc1e964fbc829086f9467eee7f2eec42174a",
+      "sha256": "ba0b49790c6bb6cb18dc52bf19421e366c8e932b2b6814103f6cf0c295a24356"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements_contacts.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "500f751efea53d6a44fbb8fd06122f6d78796d68",
+      "sha256": "0512a52a4fc9c4e75f303bdbe4659718421d9a3f50817bf00a14b04ff3b40a53"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements_coverage.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3909c5b397a4e0f55a1e7025fe3dd8d25ee7508e",
+      "sha256": "9f56470b3de79c32a60ce63eb2f35324b653e6e590c0bcd3361673791610bbaa"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements_dest_actions.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4e4248b9f5ce22039f4b06dde4c266274ed50015",
+      "sha256": "15cb96a8a10b72228bd227c181a85262a6c7d8f23182ad5903f7a4b9a9e37f9c"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements_dest_congressional.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "59914a723a67c7a7df35f6ba690a592f8466cc0f",
+      "sha256": "aae29c23b761021eb08ffec46b6f989e3008daedd3a4c192e0896d4a904d51dd"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements_dest_explore.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ee289508e8bac2b11b5224c74ad8116b163ce7fe",
+      "sha256": "73bee2bb0b809810765b6f0c7abf9c7d13670e7ed90d08514edd3892faa20c7e"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements_dest_movement.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f0c4d8121d6b46f176d466ac93dcb934f8999ece",
+      "sha256": "88396ca75a0dba5345d37558eefd195bad63cec997c60ddcdc80e621420e0aff"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements_dest_portfolio.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1f56f9c63533019275437b58bb2e8870166b6854",
+      "sha256": "41cb9ec3fc98ec92ef42decd115a2791b349f6b9dde9ba1607bd457d5b9bed64"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements_mark_up_monitor.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a80a425771be9553312a1ca9832cc802d812020d",
+      "sha256": "20bd1f8cc77d06a78cb0044970b53e818c53e9f045ae31f38e17c64992937a0e"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/program_elements_research.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f9cd6373adb6b0e7107c246a5259fe71731dc598",
+      "sha256": "2abe3d1814d339c67e87434037e378603c512f4a0c0febf83d4bca96f9d15f25"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/radar.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "907f2d6409bef1f0b3dd057179b9da20404fe81b",
+      "sha256": "d21dd6da3e40ddc55700b1cfa216ed809c65c912bb338ba5b117a368cc1093ba"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/redirect_admin.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6247428be0f9021546fb356f1e84978492172ad5",
+      "sha256": "87855e1da4df289a068a01c1f182cce4af87b6426cc4e829af95440d05b1d556"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/redirect_capiro_admin.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a89b07625a700a8cc28d6d89331aea5ee29dfa8d",
+      "sha256": "7d64618212c417fb76b3225ca0f7a113ecdfc27978cd6a7d95560d81ca0ece13"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/redirect_directory.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "79cd7259b6e3749ac69855cb49092d7ec3a97109",
+      "sha256": "fd4c186ea644d9a28d3740cf0001f2e6eb84e52b32d41e1bb92c265f683f702e"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/redirect_intelligence.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6eeb0cb2515355ce9e6b276877a5e01dc70fdb36",
+      "sha256": "92036650686091889975d56aa67ee10e0819ba62b27c4d877361011f5ad24dec"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/redirect_intelligence_client_11111111_1111_4111_8111_111111111111.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "43c227eda120a977bf369fc8e3ae850417babdd5",
+      "sha256": "28bf8df5c8e00b2aca62340f10e8c947d0ff017d1fe5773ef069ee5b6698b750"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/redirect_intelligence_client_11111111_1111_4111_8111_111111111111_graph.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "43c227eda120a977bf369fc8e3ae850417babdd5",
+      "sha256": "28bf8df5c8e00b2aca62340f10e8c947d0ff017d1fe5773ef069ee5b6698b750"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/redirect_intelligence_hearing_watch.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b9a43488fb97a33f6238271f2bed695369a7cad3",
+      "sha256": "27e0e0005516ade3bd28219272c054f7bd99adfd090045f296c5849bd1991424"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/redirect_legiwatch.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b9a43488fb97a33f6238271f2bed695369a7cad3",
+      "sha256": "27e0e0005516ade3bd28219272c054f7bd99adfd090045f296c5849bd1991424"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/redirect_settings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "01d2feb4c821ab4f70eb6f0463284ba0d1b191f4",
+      "sha256": "ef4b2270534152b0b31320853e99763ea34b2ed117c254fa45f1e24055775111"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/research_portfolios.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5f5613b6dfb7f9291035038a066b6e21f435a6df",
+      "sha256": "b29f00c8f07669713b2474d64c99795cb4787df1bf6734b22416cc63847912fa"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/research_portfolios_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6789af4eb7d651fba002742c1859a697e962555b",
+      "sha256": "d4ec5b9dbcb3eaf4dac0e5f6dc797da933320a6e952937e27bf481f8a566afe8"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/reviews.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "89282dd86313e769c8b27a74b7ec524a4d2a86ad",
+      "sha256": "bde793e0aaf8403808bcfa60c70dfeeb5b37de411d495acd7f67234b73e47103"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/root.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "eec84188f251fe20922f926aff7f57c5fc9ddd12",
+      "sha256": "7c7bcddc45584c72794fb5a62553a0506a68f0a1ddba7a406ebf47b6206903e8"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_ai_usage.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b0f3c304cde6b64982be215b64784d66cbcd7566",
+      "sha256": "c53ff0f6763c7e6610538bfe6bcd30183c3ca4df91f400b3078fdceb441a88d2"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_billing.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "53eeaaadb104b57f44c9c26e37e36af6243ff839",
+      "sha256": "ed256b2237128987ac52f0d75c3d78f22791c3679dc145ef5427659ea0cce8e5"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_branding.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9d599dcfbe35740971c7d4cd4f864b59cc8ac317",
+      "sha256": "fc2e6e3c808978e742b2ac978e6fdc31ee54157070945bf0d325d10f9c8330aa"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_broadcasts.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "732b4e7b1dc4d114eab807a7fe6034cbf3b2da83",
+      "sha256": "96518ea717fba99e797e193013b492c9edfec417ef69aa7b9745103c83269c31"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_clients.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c6c1fed708fb2f605a062fad544cfdd9979e280b",
+      "sha256": "4244ff2396983403bc9d5821138286e35921644fdd55538f611f37a65f1e2cdf"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_contact.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2ff5e655324c49284384f0336a9653c1e8f259c0",
+      "sha256": "8c00b748723f6cb3bd4ba8225f05ed60225d6fab41c18155c86fdfa97183ace5"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_customers.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c2d29c97c98f559d34477732200afc3b33c4c422",
+      "sha256": "ddd1753a4e3d2cad6eb41e2702b9e4e4426d8cef78fd8f48c3db2c979c89d75d"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_integrations.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "44353596aabac44f116700c53e738869fe57c273",
+      "sha256": "d28ab4afbc3b7b1f202904f270412edf88190ccfad472a395993f20d59d2ad0c"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_intelligence_mappings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "113808e7d4839384f4a484b64c50ad97c1d75329",
+      "sha256": "cd9d8bf5fe8f3c3c7564d0977439ff7bfd2a51e1a9ce8f74c9ce721a4c253dae"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_memory.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "eaa57fbefadb823301fd1cf9ec4a4ef7ee4069f2",
+      "sha256": "389394a6c9b78c0ba8c2277e8b7e376a4c1e6c6f9eb5bacb08a23ff3cc52528b"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_personal.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "01d2feb4c821ab4f70eb6f0463284ba0d1b191f4",
+      "sha256": "ef4b2270534152b0b31320853e99763ea34b2ed117c254fa45f1e24055775111"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_skills.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c5b5101b34c40f7b8a038903d4f454bd2cfe7642",
+      "sha256": "a0fafc3f771a438d3f2af17144992b0f776690eec93b2e58bc1567532fc64529"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_team.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6247428be0f9021546fb356f1e84978492172ad5",
+      "sha256": "87855e1da4df289a068a01c1f182cce4af87b6426cc4e829af95440d05b1d556"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/settings_tenants.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a89b07625a700a8cc28d6d89331aea5ee29dfa8d",
+      "sha256": "7d64618212c417fb76b3225ca0f7a113ecdfc27978cd6a7d95560d81ca0ece13"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "275fb3faefa6f1bf3e07eeb10c9e2847b341e52b",
+      "sha256": "eb7b246bcdac5353376bf99a9adc0aef9326cdbe8b1edfe972bf8f12bd34da9f"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4f6a39a519667505e427995cd5d895108c8f435c",
+      "sha256": "3314d5b75bef02ef248fded6d63e07732bb9556bf8e611115f5928cd02c100f6"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_export.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "48118fbf6d689ba9ff3477abd5868642d7d94bb6",
+      "sha256": "9ab455d06dc60f3eee918878d88287705f4afbd899867e00bab0f64c0ff0d8ea"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_history.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1078127f62acc2d3a967eed65e2068589ff77fab",
+      "sha256": "136de66a2a621b83ca4288b12ad46f1332a36cd5b4714e4d98657d217260508e"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_phases.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "91461b187eedd7aa03e027f3a8d3c4d7eeb18ee0",
+      "sha256": "842d1c4ba33d812dbe9f38ea68409cbbde6cc6c1298d1523c2bd1b5acbbc2c5b"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_agents_proposals.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b4a06e9143e2b90149ddbabccfec07553c225e10",
+      "sha256": "aff2985f7ce9a5cf2fabdee8f06eb9ddea131bedc507e75af0be6d140d5ac4a8"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_agents_runs.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2efc8175bae363bca988dc26e3062e62ec88d522",
+      "sha256": "e320bf672ccf4d1f2a756f2e8d8aa965c92a53164d4a29b6c005ad8b83775fbe"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_context.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a377dd41f63e37d9be49528160eb54da97caea9c",
+      "sha256": "49765c9d94c8e96f3c95738ae6bf1790715102456b3e53a1d13162adccdf6ba4"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_context_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "bab15030593923d4626e8f9f101d3920229e2e3a",
+      "sha256": "fb5cbdcecd6423bdd631a3bcea8ce5e9b96a9296f0b0b2dc3a58d1ba34518138"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_context_steward.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "438c65e17a2e2d2984b579e76adadce17006e32f",
+      "sha256": "40c9d79930849191004931b5f78d6f5de7e36735cc5b30cb551510e25bbc69b1"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_context_steward_visual_id_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "92d6a1d91514fdcf1607e311d090432dba822932",
+      "sha256": "534d40a763fc8127531c1a5a9fc5792e57bc2cc982704ce87c457a8fba06f945"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_context_upload.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c16753feaa435ad0fc13dc3524e3a528920b5dd8",
+      "sha256": "4bdf12b75db7b66f9731b7cdc9d74ad431cfa296e084ffd33ff3e231f08353dd"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_new.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5bdc2f266142aa3503fd4724d0caae2bd2963ab3",
+      "sha256": "87f1559ecf2ad6cf17142a95c17ea3c3041adf4b5697f68b27b92f2b08c31601"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/strategies_phases.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d67bbfc25d977792929fd5fb54ab9960a4d81958",
+      "sha256": "94bacd433ad3d31b7e790a1fd67858c992c33f8eac02a53ff18d0a8cd3829505"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d4eadc52a7248ab6bb6b48808abb603940a45923",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "da8c6d7d2409f5290b9e6d68d45ed86fc7d7d2e1",
+      "sha256": "0560dcf88e7854ae7a179870faac381ac7d44be194fdc41515b6e4a1272f3ba2"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_run.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "da8c6d7d2409f5290b9e6d68d45ed86fc7d7d2e1",
+      "sha256": "0560dcf88e7854ae7a179870faac381ac7d44be194fdc41515b6e4a1272f3ba2"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace_documents.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d4eadc52a7248ab6bb6b48808abb603940a45923",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace_documents_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e0f8bae70557dafb513039dcfa57f552bdc5f2aa",
+      "sha256": "648ed9ee12898fcdff5985b3245c1d67f76e2cf9f28482ed44f7d90a75f7f20c"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace_documents_new.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "95843e19d9d9cd2c005aa5c1bcc45db3fa63c154",
+      "sha256": "24d0b67b1f2e208f53122bc366ace421feccbf109d673f1bbbcb694c6a6e1254"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace_library.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d4eadc52a7248ab6bb6b48808abb603940a45923",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace_new.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d4eadc52a7248ab6bb6b48808abb603940a45923",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace_setup.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d4eadc52a7248ab6bb6b48808abb603940a45923",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace_shares.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d4eadc52a7248ab6bb6b48808abb603940a45923",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace_studio.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d4eadc52a7248ab6bb6b48808abb603940a45923",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688"
+    },
+    {
+      "path": "apps/e2e/baselines/mobile-390/workspace_studio_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d4eadc52a7248ab6bb6b48808abb603940a45923",
+      "sha256": "1775900be29f96c25a3dd6a9620e70e4816364cd2fbdc4a5e6ce5b89d8df0688"
+    },
+    {
+      "path": "apps/e2e/baselines/source-manifest.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "bb6b5f62b6d70693f657f1d26bef478617860abb",
+      "sha256": "5d60e4d8528b56ab90020aea4c8abc496ff90dfa1aa81ba7a2952cdb977779f4"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/actions.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "eb3324ceb8b4e20850850a89ca993b0c841ea58e",
+      "sha256": "3f720bee54255411dcd32b7effd24381d37551330562d99a29e4b6013fd8099d"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/admin_analyst_console.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "93d0e6190ad2d425f191de1789009973314a1e19",
+      "sha256": "fb40ca82016cf20f6f9a25ed9f50fe6852b408623d493a11c230910cda569efa"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/admin_program_element_match_queue.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "33315154c20dd5b80e667ab21a7a7df4af076027",
+      "sha256": "778262a3dd3fdcec58db3f35b21301ec6ee1b3a32f4737251937a77a7e89d7fe"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/admin_program_element_reconciliation.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8d5cb16bff40c0ddc6aa10c04bbc2cfa34c75bf8",
+      "sha256": "bf4de613227caa8d222e6a839fc01c2bb240c9c8fb47fe51cdbc05494438e36c"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/bills_hr_2027_1234.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f97f9b1668e09bd33aa5a7c6628f0cde2b6d3c34",
+      "sha256": "dc9d56ecfb20fecf14feb5e1ce53f6cc5b6e8db207c009d1918840fe04168d90"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/clients.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c383049e4b3dc2c86eaa07a7e48394ca0cbdc193",
+      "sha256": "58c954447df151fe7c9d95f51c7dd9d26a100d4c0106e188082ec36e569beb38"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/conditional_bills_bill360_enabled.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "68b4e7db5709bf22066909410af31ca099a22693",
+      "sha256": "dde4acb98b3195f2d288a1c7d2bd1e74524b653c9b4f7f5f5cafaf9f2538fa98"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/conditional_onboarding_subscribe_billing_enabled.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "eae6a0ed2fc74bfb19f3441961601457d6bf8d97",
+      "sha256": "abc80e354d6386437fe634bdc9dd32b4e1776851e99d8d25f4a52bc304d75c80"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/defense_budget_lifecycle.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4d7011284c896aa213851fc9b898f5c0239d601b",
+      "sha256": "8a2b4009dbf395caa2c6bde80a26783b17e8aba509561af9c436008f63a7f302"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/defense_budget_lifecycle_review_queue.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1eb48d26ef35bd552a9131d07e9aec96be348c6f",
+      "sha256": "22e9e2115a7ba9e40af14c7ddbfdb719655ea045fb1249318b0907d8695d828d"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/defense_budget_lifecycle_reviewed_partial.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "12036d8f31ca2a4c01615bb113ff22d4f5720f6f",
+      "sha256": "25304e0f90f7f2d68af75f48054672a5bbe1ea6be229fd6907a6540344e8e301"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_committee_staff.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7b7c121cd3d36b4ed968139b37699413c73563ee",
+      "sha256": "cacc986120363e0260f1bcf43782d9c3eef790967d8df5da102dc93d1b0a94dc"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_committees_visual_committee_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9e154a9c7e28319bb35a730d7af078ed28754f8f",
+      "sha256": "e1d80dd82b06b22dbe7c58290da320f142ea58c1bb78cfdb47c1cd3e1bc4772d"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_congressional_staff.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8b865b0d8a9af46a83cef70bff01e901141a81d8",
+      "sha256": "7ce1e08d791913a4b096fcd903e0f17636fdf89d1608a6e8850a2894d7cb9280"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_department_of_war.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "231c8b22297c8e5592a4188d096ba86180e4dcc4",
+      "sha256": "753c06516997d4de267ff1b1dcc46ad10d02ab9ba34dcbbdb9daf16d376397ab"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_districts_VA_08.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "44d2ca428273582b0ca69991d6d4a5d8709eb0ae",
+      "sha256": "ed9c093ce9e336b9dc3035662c1f7b7ea57a18ddbedcfeca6990545ad68a8474"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_members_visual_member_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "62e914ae12d9f42d0c10dd754b9bd6e25949534d",
+      "sha256": "5dab491dd2bf63b52661578a7b1809c883de0a4d8311145bbe6089e96fa3d0a8"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_people_visual_member_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "62e914ae12d9f42d0c10dd754b9bd6e25949534d",
+      "sha256": "5dab491dd2bf63b52661578a7b1809c883de0a4d8311145bbe6089e96fa3d0a8"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_staff_visual_staff_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e5b7bddd4199fd768274477b60980d46fb200503",
+      "sha256": "124bcf86c5c470f02d153135e5d8bf129770a9217ab73aa3f064ae458fd16180"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_state_committees.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "07c40adb47298a1c7b38c11b30f43af0f4a2e210",
+      "sha256": "cf8bd28e5b4bb2ea0cb78131e14ef94a85b7e8bfe730e014088da47f4449d61f"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_state_committees_visual_state_committee_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c04fd587db46b48da2dd2788f1714e9abb808a22",
+      "sha256": "7d1138766c1819756cfa1d7cf2451f1a17c1a73de9d27dfeeecb148ff8baf3bc"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_state_legislators.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "74944a3bc090f8826fbc836638f1db7fca620254",
+      "sha256": "535accbee4d75d03671bf0f9806362a49427a57b89f8f43f360f7b493bb5ae12"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_state_legislators_ocd_person_2Fvisual_staff_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b78082b4351d26242e339a089ac0bed1492736f0",
+      "sha256": "9e42e3b16ca96fdc8de0b47efc6909532ce998d61153b3f3b0ca233008e467d8"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/directory_state_legislators_visual_id_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b78082b4351d26242e339a089ac0bed1492736f0",
+      "sha256": "9e42e3b16ca96fdc8de0b47efc6909532ce998d61153b3f3b0ca233008e467d8"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/engagement_meetings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6a347b5bdc66b9afd04b248c93e5f2ad15b9d250",
+      "sha256": "0e24268312d9bd44d02f57a18a240a20fda6750abfe48901ac4d6b5f77f68284"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/engagement_outreach.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7e985e6e85351f768d4df9bf4770bc8bbc65ee11",
+      "sha256": "8eaab57bfccf6c54571a1dcd3d42ebec36e569443dff2fe42b0d2b274fa84665"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/engagement_reports_period_current.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2c040f30a36f01177a8cee9c8a3c57eda97b2d9e",
+      "sha256": "27d21a130da055c85f058080584c3c87e7cc7ccde0edf322f99b71783469adde"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/explorer.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "50104b00c8ea99b88db11c19605533c4ce7f49fa",
+      "sha256": "88cc50ac4f32d82a8dd7cfa323762bc8ff78e1a9314e7ac6d2da1135312e45be"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/help.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c0709391f9fe9d57ef46befbcb46ee4edcd7a687",
+      "sha256": "838b681fab26f24909ea4f91578f458f8e78e6ade7b14a8b3c1625367b7fd40a"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/intelligence_bills_hr_2027_1234.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9a4bd22469fd1d790d213df6ce4353921775724a",
+      "sha256": "0f67e7f5e5952c31ed3844652b5dac16457141ef1cd4d9bf796b3817788fda27"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/intelligence_center.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "995be6de334d184402d403294826bb2f541f66ce",
+      "sha256": "322959ab96595274a74424c5f15abc0af1288f0e8a85ee5714befe27737799b5"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/intelligence_changes.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "dffdf2fc77358f64607a1e41ceaf5c7a6f2a205c",
+      "sha256": "6c138eb679e611050f1e6bfa028b9b83e86b4cbe6454269471480d2eb5f2d532"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/intelligence_district_nexus.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "07f99e891b411ad9e18bafdd6dcdcddf5a7834e8",
+      "sha256": "4b9c8de2f29a90d376d6c06e9d1895c3daf7c9690105c561b1483a12b1dc5308"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/intelligence_federal_spending.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "17b0ad477c9e1fbdf80c0250e110fc89be4cd2bc",
+      "sha256": "31b767309ea49b18a841176e5b0a1b33bdf917392fcc85a31c183ceb9fd497fa"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/intelligence_graph.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "12f60eb8a1973fe80b1d53b084d2ce8cd8960ed5",
+      "sha256": "c8509cd95875e1c0eb75e22b47afbe926cd2e14bcf1c7be0146507a991433fed"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/intelligence_hearing_watch_visual_id_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0e96a9e472d698230052165daf9627e9d2b6947e",
+      "sha256": "e1f3717da9c1d4707875deb2468bd239180bcfb694ac5986abf3cce9d8aafaa7"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/intelligence_hearing_watch_visual_session_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0e96a9e472d698230052165daf9627e9d2b6947e",
+      "sha256": "e1f3717da9c1d4707875deb2468bd239180bcfb694ac5986abf3cce9d8aafaa7"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/intelligence_issues_DEF.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "119cce5de25ff94a527b61d9b700bb63b3c68329",
+      "sha256": "54472e48d2c211d3130e0f5c23a4b1d72a8e21429af3435f7c6a3b0692a54ee3"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/intelligence_opportunities.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9e511f35c2027cdbef6a3646e09099e008eb2166",
+      "sha256": "d52771370e95482b81224e12e0512f410191bffa59abaa71552c35e5f8cc6045"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/intelligence_opportunities_sam_gov_visual_opportunity_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9e511f35c2027cdbef6a3646e09099e008eb2166",
+      "sha256": "d52771370e95482b81224e12e0512f410191bffa59abaa71552c35e5f8cc6045"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/legiwatch.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7afb96a9b04d1e520ddb983d93736cb722fff67b",
+      "sha256": "d609ba428765dd15eebdddc91c71a34568ab26b5dd4ab13b7c864b49e6b1d8d8"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/legiwatch_committees_FL_visual_state_committee_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "834ad5bec07ed1f4b3dcdca21a52ee8618703b93",
+      "sha256": "0e566d3d7a403a98502ddfa3797836c4e7155930ae4e041f8d22991adb3144ab"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/legiwatch_committees_house_hasc.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "aa78172e1e937662ec4dac902619f69abf237a49",
+      "sha256": "3dbc708af7bf050df05da4a8758682fa319325f34330f05ed5caf0a954b377a2"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/legiwatch_hearings_visual_hearing_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "188551e94019e55f1946366da334dee2f879bf0c",
+      "sha256": "587c2f28185ec2ffa451dc5f01ed9d2a3be3ae459e8a5c23fa69bf947e30e001"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/legiwatch_tab_committees_jurisdiction_FL.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "997d831fa1fb8f5f17283761b42e2907b835432d",
+      "sha256": "fbef29eb06f63567dbdc9e5bec1ac65f0e5fa6297a863513247144d926e01e81"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/legiwatch_tab_hearings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "272c5af94cb8169e39e0cf43307231b055ae5d3f",
+      "sha256": "18496cfa3eff11334230267b6e83db1088a967e1ed342ca0897555d598c9700a"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/onboarding_subscribe.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "44acd4d07ac12366ea217786dce24da1b7149d30",
+      "sha256": "8edb97c8bfb890087f77fee6546ae3b6cd46a1b5e44aa2bb93fe7dee8d7eabf1"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/planner.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "dae23317526b179d3835be831d0505421c5ab02a",
+      "sha256": "82eca938b4535085f7bd239813969cf653b572550d5d6998f5f765d295cd042e"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/planner_forms_visual_planner_token.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d59b4f5c2f292d9ce4f5023318c5d3f052314034",
+      "sha256": "13a3bac47a6fcb007d43092e1d2b58685cc3d13bf9b689f59fe156cd9f74dd51"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/portfolio.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c383049e4b3dc2c86eaa07a7e48394ca0cbdc193",
+      "sha256": "58c954447df151fe7c9d95f51c7dd9d26a100d4c0106e188082ec36e569beb38"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ee294cba481a68d91b950adce18a9e4c8003bb70",
+      "sha256": "c6d6e465a0b64cc4bbd979f803bdb68f30308feade87409de13cb4d43244792e"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements_0605053A.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5e4229e12a76fb108dd8aa99a692bf630cb4c8e1",
+      "sha256": "2236de4f3b3a0e87e779d806eae3008a6527de8af3cd292b2c3b150b6ffa3197"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements_compare.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4f763d8935ceb2e51031ca30f6436a4ee0a5beac",
+      "sha256": "fb83f77384c644ba6bc863d1acf7b20a5a009bfa80d6e2dc79474040b88266c5"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements_contacts.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4cb92b4f489c184d49dc60ddf4370785d2cd3275",
+      "sha256": "b5f8de5ae82d18a0bb3be19204bda63aecfccad3ded1077c8c4201fcf290df70"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements_coverage.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "796c808a66a1bbe201fae865d7947aee784a8204",
+      "sha256": "c10a05421202b1cfce6d7dde1379d81fb4ad8ed2be52e4164f768e1bf02f7ad7"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements_dest_actions.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e6bca46997be54e0e5dbe96bf6ff346f7fe69df5",
+      "sha256": "f293a48715d4e322048c56b7ec4ad4183cb5b57bab2422b81ffea922b09cd66a"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements_dest_congressional.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c10fb4279aa8bcb1cf16318acbd3d5a16015ba8b",
+      "sha256": "536e169e6e13b07109b410843d04b3dcefea6402d128cc621b9d4a5ff08e8026"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements_dest_explore.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ee294cba481a68d91b950adce18a9e4c8003bb70",
+      "sha256": "c6d6e465a0b64cc4bbd979f803bdb68f30308feade87409de13cb4d43244792e"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements_dest_movement.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b7b70d1f18e5d20944fdb19690b0c85b81be8076",
+      "sha256": "2e9d45c905d12b4eb6bb879cea2b99a55dbf68fe8eb59db9704203b01076cae2"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements_dest_portfolio.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "03e76bdbe0b198537a0465f08a3e93752046b8d1",
+      "sha256": "8e075f21f5fc3f665d030da6f336cfc566e50faf981b5538af2efa2d52eb9e8b"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements_mark_up_monitor.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5fe886f7ed132b852f33cf41a8cf612a9c4700ad",
+      "sha256": "e86fc1c49081c806808c3b2194e1b8cc847790ce2105c9f202539446ca557972"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/program_elements_research.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0d0d5b90cc1cb882e36bd2f213ddec1449ce02c0",
+      "sha256": "46acf6a6cf4ab37a53d68d9643d379bf927504cb3d583e5fe8377a83c044fc8d"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/radar.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7afb96a9b04d1e520ddb983d93736cb722fff67b",
+      "sha256": "d609ba428765dd15eebdddc91c71a34568ab26b5dd4ab13b7c864b49e6b1d8d8"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/redirect_admin.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e9b962ef2f5ef078202c437773bb0241cf7e5aa4",
+      "sha256": "1318a4b8887a81fa71674d55aedf188cb18124fe847657477bef899c87d9ff65"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/redirect_capiro_admin.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5a7783dc96346ebccbfa2f8705ef23c919df7d4e",
+      "sha256": "2be2aaf6812836c83439070207e36097e984366c02d45d8cb6ebc11cb8cd9120"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/redirect_directory.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8b865b0d8a9af46a83cef70bff01e901141a81d8",
+      "sha256": "7ce1e08d791913a4b096fcd903e0f17636fdf89d1608a6e8850a2894d7cb9280"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/redirect_intelligence.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "70a6b6488f9deef80d83b6b2121caef700078400",
+      "sha256": "15fa89823cb5990ec1a9988d4990c366101811a9f24430f695ace727b1b3b912"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/redirect_intelligence_client_11111111_1111_4111_8111_111111111111.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c383049e4b3dc2c86eaa07a7e48394ca0cbdc193",
+      "sha256": "58c954447df151fe7c9d95f51c7dd9d26a100d4c0106e188082ec36e569beb38"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/redirect_intelligence_client_11111111_1111_4111_8111_111111111111_graph.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c383049e4b3dc2c86eaa07a7e48394ca0cbdc193",
+      "sha256": "58c954447df151fe7c9d95f51c7dd9d26a100d4c0106e188082ec36e569beb38"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/redirect_intelligence_hearing_watch.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "272c5af94cb8169e39e0cf43307231b055ae5d3f",
+      "sha256": "18496cfa3eff11334230267b6e83db1088a967e1ed342ca0897555d598c9700a"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/redirect_legiwatch.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "272c5af94cb8169e39e0cf43307231b055ae5d3f",
+      "sha256": "18496cfa3eff11334230267b6e83db1088a967e1ed342ca0897555d598c9700a"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/redirect_settings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "835d5fe51ef0106546ff88195a5883a6457516fb",
+      "sha256": "3939cffdb1b6c2428f48c195304ef922a7b2cd7801c790c880c503fc6b534bdf"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/research_portfolios.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c7e46f93aa9e7661a33cf926113790039055f06a",
+      "sha256": "5ff916c22a6b03768950a38f650a23fcfbe68329a0ca9d7277ff4985ae45ebe4"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/research_portfolios_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "bf90b7dad2edf1251fdeef56e8e2df4013a15293",
+      "sha256": "71fc0642e1cc55e5bc8c34df7337870deb7a9a034635cd32315eea6c0783d1b7"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/reviews.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "802ef2f5452a7dfe4527ed34ed815725e399c4b0",
+      "sha256": "f2fd8b8bc72bad809b1f82a17f6396e054e5276fae0fd5a64eaaf362e9455f31"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/root.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7d799b4e165fad51a4e5c9d3e4a1113a4bedc5b1",
+      "sha256": "3c49ccbdb424ec37406ebf3458a49b44e40a8bc16a2b975e486a8d85dafb4a36"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_ai_usage.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c43d345a0ea78ba2f767b3aa56d099972512dd26",
+      "sha256": "9e1455978b5527cb8db596c91d270ff27563fce92a3110e6e37c3747a2874728"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_billing.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "53e68630d08b13105747511ee9f4a09a42427a38",
+      "sha256": "fd7f3982cf44de8af60a2ef683541cecf3cf891c68e710948fc247c7f497663b"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_branding.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f1fb11e8259b17f98b58632e655b24d252b3e9fe",
+      "sha256": "d26b4feaeeb3a724255b9db5811041971ab544389ed3be61f2dd31de67a0a88c"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_broadcasts.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "954c8df09dfefe8a02781dd8b72a963e2ccb7dd8",
+      "sha256": "71b7634b6d0a5f2cd14aab54257ed410f393ab5b21475da6e80b70feba162487"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_clients.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4078be45ed79b2156bc4368f40345e49162488b8",
+      "sha256": "c8aed18a66f4dfc6d3af378e675fcba1d162768a9a5ef99c37688ffc49c7266d"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_contact.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "295611f3364b01728d0e5a379b5ec1d706a289ae",
+      "sha256": "018cff67f64db6195e090f9ee5769aa8dd632a63427cc2ea4b8998b808d0f35a"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_customers.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8e6a100f1b094cb4429f2909baefa88e6932fe44",
+      "sha256": "597ce271b3090a8a4804274bccf2fe94387728d83072c06fb421916046c76dd7"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_integrations.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "db918d1db90de540d2f1a5bfd419a54888256868",
+      "sha256": "d6451ea11ffe7f25428742e9cfbc06662493df9b324284ecda73d07547cb2457"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_intelligence_mappings.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ea72ebaff75ffac02182f2b073bc64a25e2a2380",
+      "sha256": "a9f535411f309fddb742a86030c125b6f678ea03d994ff226ac11194a8a5c68e"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_memory.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d73e251796c9cebb75d6a186f53cf093142fba2f",
+      "sha256": "6ff8da14ee38b16d5df98136181633705b1db5d4ecc49852df296e5a04c24d13"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_personal.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "835d5fe51ef0106546ff88195a5883a6457516fb",
+      "sha256": "3939cffdb1b6c2428f48c195304ef922a7b2cd7801c790c880c503fc6b534bdf"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_skills.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3ec80df9ac1586992ead95b2802409e760fb7d0b",
+      "sha256": "73ddaaf04d5de594a607134d0c31a4f2baed1d5cfb3597fb7b559d93f769b846"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_team.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e9b962ef2f5ef078202c437773bb0241cf7e5aa4",
+      "sha256": "1318a4b8887a81fa71674d55aedf188cb18124fe847657477bef899c87d9ff65"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/settings_tenants.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5a7783dc96346ebccbfa2f8705ef23c919df7d4e",
+      "sha256": "2be2aaf6812836c83439070207e36097e984366c02d45d8cb6ebc11cb8cd9120"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5c3a7377e15c53da97edfef3868b33cc458f5ad5",
+      "sha256": "8a18ce885d1898008f10caea0272cd5939af3c8ded453026b466e2e6f3b33ee9"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6a7b88e49b607071c1dfae1b43a9dc206b502f35",
+      "sha256": "0a6fcd39ff348e7e753285406adc573baeb7745b0a082724a65c12535d0282a0"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_export.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b88929235255c54fd93e155ef6576508207c2a21",
+      "sha256": "679e7a4f507639eb189b23a6baa60d52163f333a1913c6bc901d2dc61ed71ea6"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_history.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2bd28bb729e87eb056458e1062e0b78fc966ceb8",
+      "sha256": "1f5d4a37e1a619fb9111b7e5f18511ab6dfdd44b974c75cc031c6649300e2bba"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_7f1c9a20_4d3e_4b8a_9c21_6e0f5a8b1d34_phases.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "719ea3eb66c76d24ce505df66053d68fe9fe916f",
+      "sha256": "a3c868e2cbc4b79da4c14d3e649363add95c6b8a2937cab3b8d2da54dd6f0fb2"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_agents_proposals.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "323128c9bb08f4877ffe73e289055c6a676b0eff",
+      "sha256": "4c99c99fc3a8b46d0ed08746491559922eb8cfaefe07677eb8e55997f246c4b6"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_agents_runs.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4265ed1162d3fc7288f8563ff89ba7fe8980b4a4",
+      "sha256": "700d708866d080ac8f75ab3af2ace0281356a7371a815d9b281c1540603d562e"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_context.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "70bf9efa340dc0895c6d03b568d7369c5c4b3044",
+      "sha256": "b8858945db909a09cdfae6ba9fc75acd00c86556d7e3b562a394fa54643acb22"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_context_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f59d89abd93c50983b8cf7b2ad33d9fa82367eae",
+      "sha256": "8035175409e1d3a1a8dd7b9108c56be833a8973e9afbea368ff01357c4ee8ccc"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_context_steward.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "63ebab453ed5314d1d71c94e90f5a530dea068e8",
+      "sha256": "d22057dee1d35efdb055b960f878345d2e9c803ea5fe9c7038a095553e924897"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_context_steward_visual_id_0001.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6d596451ffb07a98edca9a9f70dba09dd64e222a",
+      "sha256": "05cdb0f4b80b60fe8712ee3e76a6df3d46ff25f18428b538c012b51fd85b8320"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_context_upload.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0c4ee67ee075f539d4fe2684268e9e523e1f99eb",
+      "sha256": "821c5f47a2d0b7a0bbed5f05e58f2b34dfe423c6b453c7b3da4e344d6bdd6379"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_new.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b22b3335785bd9d69b90bc2d4e5ae5db59d9b4e5",
+      "sha256": "9cc545f0691ae93a0000e7af467466b6f782695f6ca33adab6749678b0a71d5b"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/strategies_phases.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5336de98b238ad30e816181d8d87917850b3b3f3",
+      "sha256": "4f691bf9a060904f06907ee79c8962a0713302ec637927ffe1102ff288fec5dd"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "56c0201fcab3f8a8c7132c3ba7daf468ff8b749c",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5bf099a688f8bba9ae36db29463310879dccdcb7",
+      "sha256": "eea8db695c41fa0bbcd66f055ba18e5c227587a608d41faf7318c804f38bca75"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_run.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5bf099a688f8bba9ae36db29463310879dccdcb7",
+      "sha256": "eea8db695c41fa0bbcd66f055ba18e5c227587a608d41faf7318c804f38bca75"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace_documents.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "56c0201fcab3f8a8c7132c3ba7daf468ff8b749c",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace_documents_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d08d4e2138c41e6401405ca8e46d2bf54115e6dd",
+      "sha256": "6b82897d923ff8c604279cd25454259c2e06c88642e95d37dfa1ebfcdc8acfb3"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace_documents_new.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "bb4ac30548df8cdf0d9d0d36ddee29d352426743",
+      "sha256": "c37c4215531949090517c5bceff727973c380138866da5610e8ec247825159c9"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace_library.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "56c0201fcab3f8a8c7132c3ba7daf468ff8b749c",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace_new.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "56c0201fcab3f8a8c7132c3ba7daf468ff8b749c",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace_setup.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "56c0201fcab3f8a8c7132c3ba7daf468ff8b749c",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace_shares.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "56c0201fcab3f8a8c7132c3ba7daf468ff8b749c",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace_studio.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "56c0201fcab3f8a8c7132c3ba7daf468ff8b749c",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4"
+    },
+    {
+      "path": "apps/e2e/baselines/tablet-1024/workspace_studio_d1e2f3a4_5b6c_4d1e_8f2a_9b0c1d2e3f40_9c8b7a60_1e2d_4c3b_8a5f_6d7e8a9b0c1d.png",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "56c0201fcab3f8a8c7132c3ba7daf468ff8b749c",
+      "sha256": "29584224666622fff799c7ebd4c443fe49b5c1d6dfc8478fa50c6ce96a57f3e4"
+    },
+    {
+      "path": "apps/e2e/lib/ast-routes.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8360bfbeeda77712f7586399eb06de5a7a9997c3",
+      "sha256": "cf25e45ce8d6c51730ef86acf1fe76ec2b3c252a3b99a7b5fd0017c9414378d4"
+    },
+    {
+      "path": "apps/e2e/lib/capture-obligations.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6c60fa59e171d3d765a15e378c652046fa4edfcc",
+      "sha256": "b05566c7a605eeb256f7b09821e8d5ed6c8f1fcc1d26e4aa4ce0c554804b9d12"
+    },
+    {
+      "path": "apps/e2e/lib/contract.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ca2953848b1830b34b77b191ad3c445665ab6113",
+      "sha256": "a2a34e6711d7f2953d3ec51d8a7ff98eb51c245714ec9d3bfd3ea0544f50fb39"
+    },
+    {
+      "path": "apps/e2e/lib/playwright-bridge.d.mts",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "41a02a554533a2683cd4f22afae10b126cf22554",
+      "sha256": "d9407487b7b90236326f9cb2b8f40ec76dcd97e4fab8f8a9533503d930e1c3e8"
+    },
+    {
+      "path": "apps/e2e/lib/playwright-bridge.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "27ce318aa5e069a092f035af456838387a5fdaa5",
+      "sha256": "7276974b3660cd06507eb0a166e8f54a55f8c973e60cc0b0a3208a738f58e492"
+    },
+    {
+      "path": "apps/e2e/lib/playwright-report.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "eec29cbb2a93be95662a0962567445a051e44eb9",
+      "sha256": "19464ca02c5ab8db38b10ee7ddbb095b37594c9a393362d640822863967666b8"
+    },
+    {
+      "path": "apps/e2e/lib/playwright-runtime.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "02d1988127eed91134635544bfbf855a943895ee",
+      "sha256": "ecf36432c438a72f7f24901a3d9c2d173f1d44ba995ae2d31c5e4575739dbcd7"
+    },
+    {
+      "path": "apps/e2e/lib/projects.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "27eb7d79aec282d003a08baa6d849fa8f40e4d7a",
+      "sha256": "89f1fe862015c8db0b33c1e139c08ccab88cff709b119b9022a1721f73268a24"
+    },
+    {
+      "path": "apps/e2e/lib/render-context-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "82f5de9128cd74d3ec24ca2ef31285851bc6c388",
+      "sha256": "34e7a3f92d6440fe82e3baeeadf7f93a02a330edf8d36181bb8a534f059da766"
+    },
+    {
+      "path": "apps/e2e/lib/render-context.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f8023e1a3fc3243b86b181d62db59293d6f27cb1",
+      "sha256": "5407651dff9fe15e7a93813792a3f25d442dce184ecbd15875ec39cff8096a03"
+    },
+    {
+      "path": "apps/e2e/lib/renderer-contract.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ac20e060fc84a8e6c11682916d0cc2bf7c19be88",
+      "sha256": "ff3fc51f7cc02cb1430eb17dd7ad22f0366fe001e9dcf1a4ac6d30e1a03799f1"
+    },
+    {
+      "path": "apps/e2e/lib/route-graph.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ed8e783ca098f8cd1572d54fed9ffee0257dd348",
+      "sha256": "3880dc6762ea3a39c3ed674aa8d4443e66c30c421ab3d22e191577ad514cd2be"
+    },
+    {
+      "path": "apps/e2e/lib/runtime-identity.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d9468d67d3bafabf567dd0e8365bee4d8a6334b2",
+      "sha256": "aab33a85f5b7589570a19d8be2209ffcd1c1814bcabc1543a7c28a10e405df74"
+    },
+    {
+      "path": "apps/e2e/lib/source-identity.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "59abe882dd5c40a28fba8a75dd915c688b1e2b25",
+      "sha256": "fae91297ad1ade631b5d77deaac8aa6f723605b6070cab62cf404898b72efeb1"
+    },
+    {
+      "path": "apps/e2e/lib/tar-validate.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "fcc0a1b85b9587dd9d0a8e418d7f1fb70b99a5ff",
+      "sha256": "283fd55b7271adb245adecfc18575f3b5c1ad7627c0689710d88ea9c3c1525fc"
+    },
+    {
+      "path": "apps/e2e/linux/Dockerfile",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a5f1fcc30f2b0f7ec244a3560ff2cdffbab08a70",
+      "sha256": "75ea6f78d68d17b3bfce8b1cbf88a552b51d5069fbc4fd138fdf7fabbd0c549f"
+    },
+    {
+      "path": "apps/e2e/linux/README.md",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "bfa17aa30b6071633be27be9c814e8970c4a572e",
+      "sha256": "d6c89c4e0f177648e15b3f9ff9b291657c333fdb85641041c35347e38ed80323"
+    },
+    {
+      "path": "apps/e2e/linux/container-capture.sh",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2e52e87bc1fab8cc13c3e4c189798452f78f9468",
+      "sha256": "c42717d30aba7abd7cd5ce314969e3ec2088833f7be239dbb5b8772a6112e6a6"
+    },
+    {
+      "path": "apps/e2e/linux/container-compare.sh",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a06fea73423ba6a40eb848ac9a45a1b2dc50fa4b",
+      "sha256": "31e7585417ff2d3618ffb9d62e5b54c24c70202fd3dd5db7ed2929b9293861b3"
+    },
+    {
+      "path": "apps/e2e/linux/container-regression.sh",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8ada81d6ff32122fba5f5a7dcca8a276a42c8827",
+      "sha256": "24648bc4cf79a22cd04aa1dbd258bf6dde249e7d23f62c55890f4d3ee3503279"
+    },
+    {
+      "path": "apps/e2e/linux/container-setup.sh",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d631e522d7ef119f68cc1795e78222b73a4cffa5",
+      "sha256": "ad02158c5be96a3789679609e43dc1eb3b35e3966afcad62b026bab0a9850d26"
+    },
+    {
+      "path": "apps/e2e/linux/lifecycle.sh",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7fa9fe2c94747936875c6a47ee530f0981358966",
+      "sha256": "ae7fa68f9280e3ccbaffcf767255961bbc8f25b2972baf014fe73981234c660f"
+    },
+    {
+      "path": "apps/e2e/linux/run-linux-capture.sh",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d12052b81162d46dc4d73886479134af756e23ef",
+      "sha256": "aec36f0c50b4b912dcace9b8644f9fbc599c2680c7334d26337e0cc68ee13bb0"
+    },
+    {
+      "path": "apps/e2e/linux/tests/capture-obligations-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6c02c9be366d8d3cee6da9c52140c6a9f08d8baf",
+      "sha256": "a2ac108b528a7e1d96aec5721584e28b7b45db34c79be71df759e6a5daa9cbb0"
+    },
+    {
+      "path": "apps/e2e/linux/tests/capture-output-fingerprint-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "85e315744dc630bc54140f5ad7afae7415e986c8",
+      "sha256": "0b81a48fa1e7538a843b7389bb5d977aac30827674eb48b654bf47a27269d8b2"
+    },
+    {
+      "path": "apps/e2e/linux/tests/lifecycle-controls.sh",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c7e24d025c02fdfa0a287243ed2da9318dc127cc",
+      "sha256": "35877221b6b288b647c8c29e037a5bce42fae797968c27567d51d159dea804db"
+    },
+    {
+      "path": "apps/e2e/linux/tests/regression-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "02bb265da7830585a6660382493874f497eddf7f",
+      "sha256": "d67006019360fb47a81cd6945f0b2dd80d012f47b76a64e2766b78af0244f9ac"
+    },
+    {
+      "path": "apps/e2e/linux/tests/route-inventory-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "27ce51b27ba98b37ca755b59a0d2a8838f407ccc",
+      "sha256": "1f01dd366d7617f93682b156873e5118e3c39f0d609fa99f4b906c65ec8583ad"
+    },
+    {
+      "path": "apps/e2e/linux/tests/route-sentinels-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "183275666a3f60d04b173eb51c054d56441ae475",
+      "sha256": "da948526e1271fa492eb4e5168843a7afeb4b970b86ae587746464cdfc5dbdf1"
+    },
+    {
+      "path": "apps/e2e/linux/tests/source-archive-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "464e1ad0ff3db08fceb1d11cf374e96aae379355",
+      "sha256": "1080f680b77f6511766199295bbafe7ed8236d43197441a5c279a3af944904bf"
+    },
+    {
+      "path": "apps/e2e/linux/tests/source-scope-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e5e39f73e0fd6c2ae25875878e775a176e62ecbf",
+      "sha256": "8afb367e5fa91ff516f3ee1e2f725ade272ef113f2191025eaae0772d3114bda"
+    },
+    {
+      "path": "apps/e2e/linux/validate-archive.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "358d5d123e0f4c00a761bffa9b2793cb3b385fda",
+      "sha256": "04a1ca58fe0fbe434d63fea2994f534f793412c305655a6c5334aed46895b0ae"
+    },
+    {
+      "path": "apps/e2e/linux/verify-provenance.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ab70271bd5e3b136cd6803088cb46bbe94e1e6ab",
+      "sha256": "c374797a528a67beddee59930978d188f6a7cdeceec44970b8beb04b10539387"
+    },
+    {
+      "path": "apps/e2e/package.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ada02f00848d03f4df7ea4552d42cd438b744e2c",
+      "sha256": "c914e888fa6e6ddd3447335575c9d003ed16b35814ab92b5c02eb912e66f54a8"
+    },
+    {
+      "path": "apps/e2e/playwright.config.ts",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0df1ec35a3d4dfe87630c59d518bbecbdea923e1",
+      "sha256": "4f0b6a669f3f80937fe1156324c1eeb6e5847d3931ac5d326cebce710473323e"
+    },
+    {
+      "path": "apps/e2e/probe-static-contract-results.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a89e9110b3e6432822ade195e12c487dfce306a0",
+      "sha256": "5de45996a146a7acb8a10eb457ba47f3104ea8f958d8fb5048308dd54779a0b6"
+    },
+    {
+      "path": "apps/e2e/redirect-source-proof.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f5035ce9baa352606d70b7d6a8420985f2bcedfc",
+      "sha256": "f571533c2d315e554f8b2519dcda18112bd14967600cbe6cbbb866ebbc04c517"
+    },
+    {
+      "path": "apps/e2e/route-content-observed.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ff11199c1b058d85b89d0ddef4661965228e1f56",
+      "sha256": "747ad969f95e94e191f78e4d6a408da85683eae99209a6083d671dda8364a1ea"
+    },
+    {
+      "path": "apps/e2e/route-content-unclean.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d7f41cfe0a07b30345f35fdaaeefe3216ba2fcd8",
+      "sha256": "90974057d3a6a2e0df4938179d7c4818403632c95d20c7ff4ac9af3ab256621a"
+    },
+    {
+      "path": "apps/e2e/route-identity-ledger.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "229d10426ebdf099ef456c66a5408f84627932fe",
+      "sha256": "10f53ccacc07defbdb7223b7096acfe03a65ab23508c7db14cfe7640957f85ef"
+    },
+    {
+      "path": "apps/e2e/route-sentinels.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3c88b2072290b8cdba7cac58c1b02e398a98d04e",
+      "sha256": "d34f5f1bbe602a212aa4947b0a7046000c6232fec1ad7492345acae1b7ded91d"
+    },
+    {
+      "path": "apps/e2e/route-sentinels.overlay.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f1512fdf1fc37ee8b82f049f0ec7f1184183ac11",
+      "sha256": "e4ebd6245cbdff4b8f989e17dcafec9d2ab9016d8f42518832f42b07e0cce150"
+    },
+    {
+      "path": "apps/e2e/routes.inventory.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8b0af22407ff64fdbb4774606ce9d5e76ca14a86",
+      "sha256": "4c3cf8e8fa90831f3782630ac713003359b3d83d71839c6282c8802f62d30886"
+    },
+    {
+      "path": "apps/e2e/scripts/build-route-inventory.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b0062232eba5575ad3203a3e10fde1f87868bf68",
+      "sha256": "8060c16720ca3cf3dc4aba6be84825173ad037fa7dfdcc36bbcd7497d067cd39"
+    },
+    {
+      "path": "apps/e2e/scripts/capture-baselines.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "bd1d2a2e523bb5abe6098d43d75a5b8e62f87bd6",
+      "sha256": "994b374f1adf3d11a6a392814c3a1c14f750511810b07c6162bacd159b7ee842"
+    },
+    {
+      "path": "apps/e2e/scripts/debug-capture.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "acf05bf9980b86fb0552f84aede25669a4e7679f",
+      "sha256": "b5fcc5ad7ad5da173693d0763cefd57384842194305c9cf636cf87a29d1a430a"
+    },
+    {
+      "path": "apps/e2e/scripts/discover-route-content.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5bd28789fb44306c7a2b4b7162496d06e94ff7c5",
+      "sha256": "09e4deca306be48931f9185bc7217245ef034d578cc75ddd848596a03e452376"
+    },
+    {
+      "path": "apps/e2e/scripts/fixture-discovery.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5f433bcd834a669c59735ac1a8dd9132d8cae624",
+      "sha256": "355d84909ada4bd0d663c78cea608192de51e60df119a7791de4f1dd33e2668f"
+    },
+    {
+      "path": "apps/e2e/scripts/gen-route-sentinels.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a23daf975624a8c26048f68b13abf2b33d8e8757",
+      "sha256": "020b39dff3f24ecadf05bacba4f02f656936e8626c5074974e48123671748e18"
+    },
+    {
+      "path": "apps/e2e/scripts/guard-route-coverage.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3f4ead6c99baee77057679ac99ce52ed5503cd2a",
+      "sha256": "29133e8f3a0038edc23f6bdd4c52b87927db379e42d01254665a34ab4a7fba2f"
+    },
+    {
+      "path": "apps/e2e/scripts/make-source-archive.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "81ab0bad48e517c5741a7fe0e0414217c4800985",
+      "sha256": "bf155c0378904d59c6b4f490cfcd8e8c1d4029fe97b4eee42fc1d7a8f4aa0707"
+    },
+    {
+      "path": "apps/e2e/scripts/probe-static-contract.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c0505f43036f60cd4b0b8d4039018c9512816b6a",
+      "sha256": "1d5656d7af1e6b65751bc8921cf6a9c42df1c84e46c510a2dcef966971ce19eb"
+    },
+    {
+      "path": "apps/e2e/scripts/regression.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e37c9ce9570be412a01b7049d696086023105747",
+      "sha256": "5e31f89db05f244f0f47272c5781b43482837eb8a9d049b37ee89ef99e55eb3e"
+    },
+    {
+      "path": "apps/e2e/scripts/repeat-zero-diff.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "26f994235805d7bd1e5cbf78a8eeb038d78f25f7",
+      "sha256": "4920f4e6d0afc86d9b292c43f279adb422be914580d54fdbd77fdf7555bb7c24"
+    },
+    {
+      "path": "apps/e2e/scripts/run-playwright.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8614d534c641de89389cd590a0cd6cdcb8874a38",
+      "sha256": "6a2383c03d96964709b2208b7260c8f9faab03309c2c0fa26facfd66194742e6"
+    },
+    {
+      "path": "apps/e2e/scripts/serve-routes-visual.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "afa07f7640e95b4cb3c66e167bb63453cf7f1393",
+      "sha256": "7218d38fd821f2054e4717f311df47ac5747e0c0c7bf056ec354ff16f6c8d9b2"
+    },
+    {
+      "path": "apps/e2e/scripts/typecheck.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9837e8e2c8c59c18510ddccc07d671615d4c280b",
+      "sha256": "03f879cf0e3d339221f7e5ac25361e4138dfed76d153358401ee925eb00533c3"
+    },
+    {
+      "path": "apps/e2e/smoke-onboard/onboard-smoke.spec.ts",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ec09606c8fa21709bd54bdc8d426b54d5325ef02",
+      "sha256": "11655f4616181a43aa18412900d0c23ceab4afaa65cfdd57ff6e4d3e66f24d69"
+    },
+    {
+      "path": "apps/e2e/smoke-onboard/playwright.onboard.config.ts",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8f3d28aac9c70ee2461a5a25196df7c793fde7c6",
+      "sha256": "939fd4e6d5c696a3a27668b454c9a891bb5d34ec121d400b9280238652dd06cf"
+    },
+    {
+      "path": "apps/e2e/tests/conditional.spec.ts",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "06242bd7da8192debf73c68d74d6738b2abee7a2",
+      "sha256": "3c9613269e4daae293a6c0fd717d6540c974abe6c4162402a8931dbac2602627"
+    },
+    {
+      "path": "apps/e2e/tests/routes.spec.ts",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d6c30097ac5cd562cb4cb6531990f185e301b72e",
+      "sha256": "87e576aa6adf5a7237b1314bdb8173594ff09771a3a7df155ec0d25fc8587b32"
+    },
+    {
+      "path": "apps/e2e/tests/smoke.spec.ts",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5909221e68b1ba2cfa6e1950ea3849486f34ce2f",
+      "sha256": "d17d43a033869f08feddd38ffef57cf86f9d4d8172c34fb264940ebbf10f6194"
+    },
+    {
+      "path": "apps/e2e/tsconfig.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6de4c1d929b97f1f646ebdaaf9cd93795c8ba730",
+      "sha256": "aa621b20837cc0d9bf15354c56da744bb318b22da2d0d2575a39e131667ac5b4"
+    },
+    {
+      "path": "scripts/cleanup-gates/coverage.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f7c4edbd706a3b55f26bf53a5ac53cf6a2b37671",
+      "sha256": "7452bab25155855bbf84269669d5f4d699f60339bbcc5dd4990258f1acfc3a1e"
+    },
+    {
+      "path": "scripts/cleanup-gates/gate-config.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2a25c7847aebf1fbb928510edc9967be90dd34e8",
+      "sha256": "b2f9d7766b4b4ed87825b624ff7fcf384121afdd310c133b393df3609e6b783c"
+    },
+    {
+      "path": "scripts/cleanup-gates/gate.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "86f5a927815c18b297282acbd1392b32e21c9d81",
+      "sha256": "de1a7ee899658acc28397207ea3f765d41f0b35f90c39a55c0ad8cf16b08322d"
+    },
+    {
+      "path": "scripts/cleanup-gates/guard-config.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "935b40841aeed2452781ff9cf7b04f2210bb504f",
+      "sha256": "92f2bbf0aa1cc5304b488f141cc6dd419b16610027b4a7da10e80868570ebf8f"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/cli.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1a8b032dd615628c695d5d6b4af9ad5905313cec",
+      "sha256": "e348d54e831ca9c0644f23b0eedad573027dbfc1b45948ad611b80d5686de830"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/metrics.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d4530adb242ee07445b42fb8297033fda04fedba",
+      "sha256": "3cf600c208ca74046e69b4384502ef555966fe1f680332a59e377f40be3372ad"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/pinned-visual.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f027f3e492bad294f6e215df08f22c0a16ab05af",
+      "sha256": "446a0f36fc272b025e28084e04dafe439247b48fa40fb6aafa8917ac1acce8dd"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/provenance.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5e8859174eb094ccc7238508ef447eacb48b991f",
+      "sha256": "0323e5442d46db0d22e8f1bf875c6ead3b17f5746b86281fcd19916e1b43033c"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/quirks.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "be9913e67cff239c09a00906c1aa32575fdfb795",
+      "sha256": "96e115c721f3074ae0fcccc68d4f91404e0205753414dcdea5696c3781ed78da"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/runner.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4066cc53763a84a6bb3f566a8a1a3a67283b3d16",
+      "sha256": "1ee3a2428b7337bf57487d526fa3b0309448143e3ace01d55438985c3495d622"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/scope.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3df4d92d4ea2563ed525686eb1ea9c4c87f002a8",
+      "sha256": "5557dfaf0043657d094d50cd8582cc8449e1f64ce6cc5c22a7ea035cc07d7dae"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/script-contract.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "84d491e6b1833e1725b8b96888437179dcef889e",
+      "sha256": "63021871f55bfadcb1196115ee8ed9d6e544e1ce9c9c0303b4978b049704db6e"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/smoke-evidence.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7a6e3bb1b5d0ae4b25cefc7764cafd0821ac1fb8",
+      "sha256": "1c5000ede0f48eb14de3970a5394e54a8b1c6afaa339aba5b9ae11c60bd84e0e"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/standalone-node.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "91f5f713f078549441b2ce6b398fc0e4e3499863",
+      "sha256": "b9118a6459969969779f685d1b9545a0de99f52ff340f6f08c224543678b82fe"
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/worktree.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d55d0506d7c0d477321db004c6fdb99b57a2b71b",
+      "sha256": "b627719402586533e20f27185a1a68176848dea3db4a9daf825ad32a9f409661"
+    },
+    {
+      "path": "scripts/cleanup-gates/pinned-visual-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4190ca488f5937b7ca56dd17a969bc7ba2070443",
+      "sha256": "a21192724704ad2caa58c0c5333b0e2ae4418d29699c00e46f8e5a15f29a48b9"
+    },
+    {
+      "path": "scripts/cleanup-gates/run-script-smoke.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "786a40c85fc1459c71afd727880dde68f3470377",
+      "sha256": "2af62a1ddc3eda9f8477d5846e875cef5020b2439fcf7a3fe9ca344324782d03"
+    },
+    {
+      "path": "scripts/cleanup-gates/standalone-node.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9d9b0477bf8ec24bdd9a3e529d82347bfdb4c510",
+      "sha256": "19c6839ad8056d819a57f4304bba72e0e596af450604d629ddf80cd597267878"
+    },
+    {
+      "path": "scripts/cleanup-gates/verify-baseline.fixtures.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a6dd1d2d973b47c09545e2b27b33ee4eed1ab400",
+      "sha256": "8a265fe3c28d34dd428ee36f0412f97b468606f71962adb21d615db80cbbdc0b"
+    },
+    {
+      "path": "scripts/cleanup-gates/verify-baseline.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "940bd670d98e04af85b9e4ebcce1a45ce979309b",
+      "sha256": "85db782d4bf6d1303083a30eb890663b5c3cfb3807620cb6cb617c7fca4185c5"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/Dockerfile.audit",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0457bdaf01ee64fefd069fa06e6f6bc04f5d6657",
+      "sha256": "f63df5590636e9552df8ebd964dbce2ab3bba3aeaaf8f922c56b8db252586fac"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/README.md",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "200a6c9c75ecc878f22b9c08f5d61193f27bcfdf",
+      "sha256": "3deef4bdf22b70cffb02f75f8282462d84806a64ce384c6037c47e63000af342"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/api-closeout-runner-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c87caa050a441f9cc89fc180a14663d37b5f9970",
+      "sha256": "edc095c03d7bdd48e0b011c8976b978c6832cb83ff346dbcc134032d5f506533"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/api-directory-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7b3a0efc81e59168341381860853ffe6f5eecf7e",
+      "sha256": "4976323c2dfa2b565fcba1edf4dae2f4d7a6be59bf6eca2cea6ab8d91d8c1f06"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/api-legacy-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "005550f47b96d647f4b8e255bf965d612a7efb40",
+      "sha256": "837e185982a0ce76ffa24c39b354da8d2f5b53412263a371c3723c3c8e464ef4"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/api-verifier-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4dc8e8861144f472e9ec110c8f340c7fe6348d68",
+      "sha256": "b038f8b7a6f83b86c24be90fbe119f7bbe67f2967757e5e76de33b706ad21e15"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/archive-staging-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "f7907dc1a4f227ec9f8ad22e3b0edb69f3a8f62f",
+      "sha256": "abfb490b82000eceb76d67ba192be3c78cc6defb6f0d1dfb6ec76253ead2062c"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/attempt-audit-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "bd85b320eb63bdb2eb7f63b936c0ff61d68b2c87",
+      "sha256": "076599ce0ac9de4bb4b2de1d47e5ea0c545678e8d1e4bff90503092c2b843b6f"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/attempt-audit.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "dcfdb42fdc51ed5d740786596a74e8972293914f",
+      "sha256": "ab3830152274b1ec98f7215728bce4777b74fd39e9abbca9f212a8ad560ec470"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/config-guard-codemod.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7a8150934d0f334a94d14406970af9da218cb459",
+      "sha256": "df6995fe36fd498214273bf155309517e2e23506449c540bb4263ede28578d75"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/config-guard-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7686895287290fe473e39a0b19d0563dd5c75ed5",
+      "sha256": "c287b4043c38071e97fe54a40f883788a0236c180bcd1ac6d05050ccd1b9146e"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/context-evidence-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "019031d173274e75f80a8b9ba242d0115962098a",
+      "sha256": "5d0358bac48febeefe07c858ac6c005dfa7eda5cad0019962f5f80da20422463"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/contract-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "942f54036f7d39e0a8d2d635a55715965d774174",
+      "sha256": "3bbd0911d58670b6fa7c0afd0ea71583540d3525704b03d20ab9ecb90a76af0d"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/contract.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c18e28f6e7345c70aa68f070902031c6e1b72aac",
+      "sha256": "4b6d0afd3f256a6a258f081c9a0290c45cd6db2398e20fd55ae702611c3618e9"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/coverage-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "67cc626acb171b084b8879f10ed18c7df1e45b72",
+      "sha256": "495fcb2219ff13c9985400f44b186acc2761a084847dc296ebecadd673ca7f63"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/defense-budget-verifier-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d123ba08278dd8be20301f4279788155aea35e3c",
+      "sha256": "884e8257c7d293e0bf3ab549226cfc9e0a121937a68994fed6c2887d6de1374c"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/diagnostic-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "15b294d1bf2f0327f7a9c740b8b065fd4e043276",
+      "sha256": "b191c870834af05d3aba08de53f6fc70854c627612ff10e6fd556ee973380441"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/discover.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9bc89c19e38c9b32c9f3ff97ebdb23ccb7be13f0",
+      "sha256": "e661da805950c7899a7690b7a73b95b9d4e8411a16dac8f13694b74f2cb1d753"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/discovery-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c8fe5faa8de98b3ec493a8c71dc69c95b91176bc",
+      "sha256": "261e2b9c741e51f9649bdc8fc5025fe4c60dd535c8256ea1288c1f481077f5a4"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/documented-contract.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "4bd7979c5a98202088c8d3ee2be77b593af3e1f5",
+      "sha256": "3fa4f2ea465e10c78a7a7164db6faa82558372e7afd2da3e844b6e326348a0c3"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/e2e-operation-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1eb10de3fefc746a34329e3a29768552e96b3374",
+      "sha256": "d52b086df0516a4e7bdc9a5b49622157cd9eca993186cd7fa98e87dd263891fa"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/emit-evidence.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3c84765d1305cc594ebae7440c6b5b8724c61f63",
+      "sha256": "3140d290ea7f87921e86027f2a15169d42447de186deda3f99cb700e8e7bd800"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/engagement-db-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "afe8c83bc192b19dccb9d09589342f424bf8dbb1",
+      "sha256": "e24219103b942f927fab0cc619ac730e410191e578cafb41f3a6bae61574b890"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/engagement-local-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "c8a172f30bde9e157b996ec8f0faa9954bbad591",
+      "sha256": "dcb03f7182b02191063f9d06f1b2aeda20a666a689b87551093136a04caffa00"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/fixtures/help-ignored.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1d00ad993732b85c6741809a5b7782a910fbc901",
+      "sha256": "bac29c576f2c2433fb688727f256be7ee85bd89069188431b8bf64a6f45c04df"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/fixtures/net-attempt.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "eb7dd3e0f6f043cbcc7ee8c4a1fad8777d19fbe3",
+      "sha256": "55a29b327927586e8e022665a16ffba085a9d60d90b6bffde10b78078489135d"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/fixtures/net-caught.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e77d3f62c37860e1fc41a3ceab3baa37b1f75a3d",
+      "sha256": "4045057b9353ab010469439654a979d98a06c12f8742eee5280969fedda51185"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/fixtures/write-attempt.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "50d900d6f938dbd97296e7f176e70b788d0708d9",
+      "sha256": "df4a18c19dfe2d6432cb1cedb510b25e46d8f82d417df97be4940f4adb34aa58"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/fixtures/write-caught.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8c66544f2f3b8feb6ba6117e95274d15ad8d8f61",
+      "sha256": "974792048430a4e40128448d5d78b96a2bfc97758d658a10def1a210faf20362"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/invocation-context.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5bef8df29d45abaa56924c752ffda6504ff35c31",
+      "sha256": "d0d9b115e411e2730db8c97077ef96617344b4abafaadf50a715b4897ebcac28"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/invocation-proof.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "68928e45213997fa6baf55a7c9a506b7c49029e8",
+      "sha256": "990f465faa143c547bfaf88bb4bce5e632c83d3a72a3a77d688ead706064fc15"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/isolation-lifecycle-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "88341f19e68f6be8448a908fa839bf76f24f35fe",
+      "sha256": "b091760f2b242cbd9a5e90f0170a33efa188dc4fe96feb329cfb7cebd5ac5654"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/isolation.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9287a14bdb21d520ff73b5631a2ec691a108716b",
+      "sha256": "1ba26c3618af13a85f3b3a342990458630262c5ae9d711a4ee68a412b6aa65f9"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/legiwatch-root-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "578c56dc32f21932b3b371834afd6313233fa8af",
+      "sha256": "d6a1af698f075cd16132e26d41676b688366251e614a298bd57361cd68a4b8d0"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/meriv2-eval-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3cd1a34b8b775e162b507dca3f776245dd656fe8",
+      "sha256": "f0853a1dfa1317369681ba2adf2b497fa7c160d4ae25caa413a3f270d007623a"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/outreach-phase345-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5606e45a34c0e8ca89e5bed76a1fedd1ae20133e",
+      "sha256": "8777a8fca0a1d478fff7a724bd73298f3e6fb9882ec499ec200055a79f13b02a"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/pe-closeout-run-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9bc7ee989c01d6d5b8ce2bf47681242326485c6c",
+      "sha256": "f271ebfed8b9b4c6a047d801ed23f5799a065c650a405203ea19a526af6524b5"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "395b729a6298c5ffce3acb7050b933d489e51a81",
+      "sha256": "c83069bbe428e5ad2f700227441245b941a0e4feacd1a6092d9e3316057a079e"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/pe-static-verifier-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5184737835affc7557fb42ea5b9d6c1382235ba2",
+      "sha256": "7ab8b3a279176a93ee3c6dcc6bbe19962fd6ac31a51a21a01ce07b9b2751a2c1"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/phase26-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "444ecf852ccd1ff5a635b3a0a5f6d7f8584a83f4",
+      "sha256": "e1793aeb745207b30dbb66c4a8db9daea3d384c273c698d37d2bd419f85faa99"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/phase3-config-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "26142db1bc77c0879bb993874ce005bf33248874",
+      "sha256": "85895d1db7a9d75ce6bcccd065a25591dd2988600732c5d283108f1a5cc42ad6"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/phase8-corpus-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "67448ae2afe23ad2878c35833adf0c421d78e7a0",
+      "sha256": "493c192efb60375d4f5e5fd937fc0d822958042be0db257264f3dd00b61f3f63"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/phase8-db-wrapper-cli-controls.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "bac19927d4388a62f361779ffce890c426befb58",
+      "sha256": "d619db5291b21612154bf80f57989a0083dfedf040ad521eda8493168e2bbacb"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/phase8-wave5-database-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "cd3122169b33e63e68af2f59c08e7e105d90fd99",
+      "sha256": "a94ab58a2e659c8886e2f4d4367ed3193fa271ad08a6e0f3524ea01db9d4b7e4"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/prove-boundary.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7f37787f1e0d9a33772290aef23c1ae5aed1117d",
+      "sha256": "12e3f3fd000b69ccf2ead49d48175bb484ad2266a9cccdea782ce67a5e891bf9"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/root-code-verifier-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "caf22139aecbdcfedd20a0a7495fdd31ce059526",
+      "sha256": "b09cb7f7a82c6bb4389db46581cbd1773d1199405de23a2b64224d0f7235b1ac"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/run-smoke.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5077d7a315330c4268d9d93ba542ac8be14759fc",
+      "sha256": "ed994517e0a12667e106f994f168c4b6e6b674c91cc3e18ea73f1e462c985dd0"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/runtime-evidence-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2d4a70e53dce694b1cad03f922f7ca883d5c58dc",
+      "sha256": "3703a63990740e81545237a9622714bd6d95092218107d79651fb472d91fb966"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/seed-entrypoint-cli-contracts.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "2180526eba0cabbddef67f11b45ab4d7177d1d3a",
+      "sha256": "e4155a1edd816a4e62ffa875f2f6054723cf13810bd62cabcaa45dfb3adfde92"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/tar-materialize.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e653a96846474c7ae8d20e577196d757f0941971",
+      "sha256": "e1bd646686d122a0bf46c22fb6d16b5578159cc8bf6e1312d9123d763bb3cb6f"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/tar-validate.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "fcc0a1b85b9587dd9d0a8e418d7f1fb70b99a5ff",
+      "sha256": "283fd55b7271adb245adecfc18575f3b5c1ad7627c0689710d88ea9c3c1525fc"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/ts-runtime-lifecycle-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "d87c3521ad730f5791637d5d3b649ab132c2104b",
+      "sha256": "e59384e09141922323af17e1c8f8f3f2a3faeeaf76c36a0ad3bc9a5cc7dda5b6"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/ts-runtime.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "371c3d7bc1e190c6e6f73c70d8837c2ae852a35b",
+      "sha256": "637b11fe964aeba88d750e671d21e3d13f2ccb1306f33f136e7185ae6b852cdc"
+    },
+    {
+      "path": "scripts/cleanup-script-smoke/web-visual-cli-controls.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b43d430ff6b8e17ae25cf01a34c3d35f6520c6e3",
+      "sha256": "a7261d97bfbd8cc1dc776fe4b5ce47345105d39edc8400c627cd8471f3e1dd22"
+    },
+    {
+      "path": "scripts/test-proof/README.md",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3458279412d8664971ded4d83fa35df064d71cd4",
+      "sha256": "25ef414c1ca89af89458dfc0f2d9f7048dcb40a62b34e4a4becdab1eebd7c87f"
+    },
+    {
+      "path": "scripts/test-proof/adapters.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3ce58f71cd997a994870b2580e25031c0026632d",
+      "sha256": "cdf64bc531d8cab8539bc2527c96c0b54e3b568459dcc6a718d432a982a04aa4"
+    },
+    {
+      "path": "scripts/test-proof/cli.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "3487260b56465f83bfb9170202f384b05e9ffc03",
+      "sha256": "50a3d14b263748e2e259c6b9473c24fbbe58d98594290a8b8c76f03062a3b6d5"
+    },
+    {
+      "path": "scripts/test-proof/diff.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "5874e7619ad94df32dc60b52b572740fc9453f56",
+      "sha256": "d2cd9cf625f0611c51fa7617abad6bf6eac0774df39abf021a03069697dc47cc"
+    },
+    {
+      "path": "scripts/test-proof/discovery.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "1896abab4f4b858fee494a911ab8b0e9434b09e1",
+      "sha256": "8d9795f932d80fa9e6149fcbe59fc2b420b87b10b41263010677ddaeeff01606"
+    },
+    {
+      "path": "scripts/test-proof/fixtures/jest-report-passing.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "8dddcc87ce9184fb39faf12b33f7e969fede110b",
+      "sha256": "142f3f310a7dfef8338c97ba42cb094bf2b26414315b0f0ecd166dbb744823c7"
+    },
+    {
+      "path": "scripts/test-proof/fixtures/jest-report.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6ca5d4ffc19de5ee07994b158f1b0b3e9ddea967",
+      "sha256": "3acd62e74817441ee6dc88a5a382060a27f4374fc0b5274197f31b62540fdbb3"
+    },
+    {
+      "path": "scripts/test-proof/fixtures/node-test-events.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6b762f7799b07bcf5cf125e06405a7b13e48ebd5",
+      "sha256": "a80927479c20c02b7c907510f0967e2eaa1221be570ced006e7d99cbcb591eb0"
+    },
+    {
+      "path": "scripts/test-proof/fixtures/playwright-list.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e96071b1ec3d681d2f9809c0f2886160e777969b",
+      "sha256": "fe5a93d5beae5d523635f67f7a907a0e6e63f1d7493c28f91feb4ca7e0e27501"
+    },
+    {
+      "path": "scripts/test-proof/fixtures/pytest-collect.txt",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "6b1fa15ad37a7cf39c0f16495dd50ba7c4b304c8",
+      "sha256": "aca60a19970fae7bb1d0a2efab85aad09bb81c6c78087f383c120f67bd05a40b"
+    },
+    {
+      "path": "scripts/test-proof/fixtures/vitest-report.json",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "67113aa16de2c06921dacc5eac59b640ae39e079",
+      "sha256": "6b25eae8a05d305974fe8090c76564f4cb74ddbf57f8e0bacdda3b1e0b85678b"
+    },
+    {
+      "path": "scripts/test-proof/lib/adapters.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ccf59adddb08bb70b2c317f864835ef7873e5fbb",
+      "sha256": "0793b65244efe762bc7be3fef034507a88909cb49c40998177929274d3142771"
+    },
+    {
+      "path": "scripts/test-proof/lib/args.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "bb2f29652bb1938d07e59992f0d517b8dd3832fc",
+      "sha256": "80bf1d811d2b4449025f5c59a1a232ab6200adfdc81f2009d005dbc680474fb8"
+    },
+    {
+      "path": "scripts/test-proof/lib/diff.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a78d06b77a5bcc4244016359b3b17b1745cca797",
+      "sha256": "386240c5d223fd35855a0066b2d2fd3d85ad3228b15d6e65719ef058136bfafb"
+    },
+    {
+      "path": "scripts/test-proof/lib/discovery.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "34c4725d49d0a5659f7175a5f67d85a1934a5b11",
+      "sha256": "3be47dffbc809e5576960a0f38bd807ebb34d1fdc0632b02891512c9562abad9"
+    },
+    {
+      "path": "scripts/test-proof/lib/dump.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "0aa756fad7fdd6ca808878f91efbb19153c0f479",
+      "sha256": "1e86005b03cdd0998ad4f71bb765758ace4b6bd1c304a5f0b01a98f371e2e793"
+    },
+    {
+      "path": "scripts/test-proof/lib/importer.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "37b4a0db6a259e1687ed9d9a02d9a80084ceb94c",
+      "sha256": "f3e003d6c2e6bcd752a19cfda88a6e663441b45b81a1ba5db30ff204662f174b"
+    },
+    {
+      "path": "scripts/test-proof/lib/native-child.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "db380f06a6364e7e53a49b1e2308026b058b6a5f",
+      "sha256": "5a52c3a6513abc9fa1258fe857468417947acbe486e3ebbc5b543b36aac18dc3"
+    },
+    {
+      "path": "scripts/test-proof/lib/paths.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "7cd2a1328c1b1ee31fed0e98c8cbbf92a96a4ef7",
+      "sha256": "4d91425955ce7c7d1772c903d9c1c899028692e2d32e75da65e5a5e868b74ada"
+    },
+    {
+      "path": "scripts/test-proof/lib/schema.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "fbe3ee42327ad86b73465a43513bf55e0a1a533b",
+      "sha256": "346d878c24c5ac2829fec0dd552aabde630c5899d4a9515973def29daa9958f0"
+    },
+    {
+      "path": "scripts/test-proof/lib/validate.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b256751d94cd8d5c3dadc8741fcbb639d30fc463",
+      "sha256": "af5a4d74f832e15391a126c91a8fbd7fcbe7a1d52fcecd6657eb0ab3ad2a5536"
+    },
+    {
+      "path": "scripts/test-proof/node-test-reporter.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "876f48da79fcbd89ee3af19ef5a7aeb281623627",
+      "sha256": "f88fa8fc098bfacc68fd03febe1b81d430a556db131a30ac2f84ef510425bfef"
+    },
+    {
+      "path": "scripts/test-proof/reporter.test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ab6b28516b9b336a3ecc96e82f9ea3454aeaaa92",
+      "sha256": "a04db9287a8357395ca09745b72d38de9adc6c2661a194d369325aad5f6db366"
+    },
+    {
+      "path": "scripts/test-proof/run-cdk-constructs.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "a187c585b12f1f4ee9eebf7ad63e55e6b01424c3",
+      "sha256": "0272af784d936f54abe7e4a77e96dd88f855b673cb54454374b3d004b5af650e"
+    },
+    {
+      "path": "scripts/test-proof/run-fixtures.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "94c7f8089109c8d431317d45419b2120b8624723",
+      "sha256": "3080d603eacd176b4800eec4c8c334be2aaeabb4f64f99660d77024cc0db94e1"
+    },
+    {
+      "path": "scripts/test-proof/run-node-test.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "b2dfc9c10945883a9a5bea3ee5d4d876f0e83930",
+      "sha256": "1f1eeb283a49501f9203a5e54f57537747abc68dcd7bc337a8461f55d7aba32d"
+    },
+    {
+      "path": "scripts/dump-test-names.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "ae02b23548b917420949d2ed01cb7554ed4cbcfb",
+      "sha256": "45b4ab32024439c78f83e222f7fa72daeb8da0fec81ae59db8ffd3f2cc9a7a0f"
+    },
+    {
+      "path": "scripts/diff-test-names.mjs",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e6e43fdf77e315094b90092a68f53c7d41781e68",
+      "sha256": "c7b9130d49a949cb85a0b29603b0479273b1dee487c4c0153466d7317f32aeb8"
+    },
+    {
+      "path": ".github/workflows/architecture-guards.yml",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "9cda09b23b68388ba4b537895355dd1668abd4d1",
+      "sha256": "e1f3143c7af7863f713286ee843addc4c93acd45705871508e628a3c38fccbf2"
+    },
+    {
+      "path": ".github/workflows/defense-budget-parser-ci.yml",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "152f0076e1051a7196f5115378e4bf128edec317",
+      "sha256": "44a217e3403a191b57dd3a054cc20618654776b797e35cbe4089bad9978b665f"
+    },
+    {
+      "path": ".github/workflows/cleanup1-gate.yml",
+      "originSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "gitBlob": "e85d1c1ff89694dfda19db70f63b5bbccdb32d6b",
+      "sha256": "36da0eda3c63e92a05fc3ae61d323e80ea9987224c1608e7b74aae64762356e2"
+    }
+  ]
+}

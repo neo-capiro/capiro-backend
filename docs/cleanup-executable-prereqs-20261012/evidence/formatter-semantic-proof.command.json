@@ -1,0 +1,15 @@
+{
+  "name": "formatter-semantic-proof",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs",
+  "argv": [
+    "node",
+    "docs/cleanup-executable-prereqs-20261012/evidence/formatter-source-equivalence.cjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 4.678,
+  "measuredSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "formatter-semantic-proof.log"
+}

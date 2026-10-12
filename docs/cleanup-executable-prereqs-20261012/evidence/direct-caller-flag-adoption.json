@@ -1,0 +1,33 @@
+[
+  {
+    "before": "exec ./node_modules/.bin/tsx scripts/bootstrap-roles.ts \"$@\"",
+    "after": "exec ./node_modules/.bin/tsx scripts/bootstrap-roles.ts --run \"$@\"",
+    "origin": "published03 exact flag-only insertion"
+  },
+  {
+    "before": "prepopulate-all) shift; exec ./node_modules/.bin/tsx scripts/prepopulate-all.ts \"$@\" ;;",
+    "after": "prepopulate-all) shift; exec ./node_modules/.bin/tsx scripts/prepopulate-all.ts --run \"$@\" ;;",
+    "origin": "published03 exact flag-only insertion"
+  },
+  {
+    "before": "import-dow-directory) exec ./node_modules/.bin/tsx scripts/import-stanford-dow-directory.ts ;;",
+    "after": "import-dow-directory) exec ./node_modules/.bin/tsx scripts/import-stanford-dow-directory.ts --import ;;",
+    "origin": "published03 exact flag-only insertion"
+  },
+  {
+    "before": "import-dow-directory-v6) exec ./node_modules/.bin/tsx scripts/import-dow-directory-v6.ts ;;",
+    "after": "import-dow-directory-v6) exec ./node_modules/.bin/tsx scripts/import-dow-directory-v6.ts --import ;;",
+    "origin": "published03 exact flag-only insertion"
+  },
+  {
+    "before": "verify-defense-budget-packages) shift; exec ./node_modules/.bin/tsx scripts/verify-defense-budget-packages.ts \"$@\" ;;",
+    "after": "verify-defense-budget-packages) shift; exec ./node_modules/.bin/tsx scripts/verify-defense-budget-packages.ts --verify \"$@\" ;;",
+    "origin": "published03 exact flag-only insertion"
+  },
+  {
+    "path": ".github/workflows/meriv2-phase19-browser-acceptance.yml",
+    "before": "run: pnpm --filter @capiro/api exec tsx scripts/seed-meriv2-phase19-browser-fixtures.ts",
+    "after": "run: pnpm --filter @capiro/api exec tsx scripts/seed-meriv2-phase19-browser-fixtures.ts --run",
+    "origin": "published exact flag-only workflow insertion"
+  }
+]

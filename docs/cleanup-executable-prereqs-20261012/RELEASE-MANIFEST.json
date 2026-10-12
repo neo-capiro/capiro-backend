@@ -1,0 +1,54 @@
+{
+  "reviewedImplementation": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+  "reviewedImplementationTree": "0c4aa78cb3d81697b5e57d1e1b546f893e56360d",
+  "base": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "baseTree": "60033662b40ba380dae4a032fca7b02251479cba",
+  "mainVerified": "4be13b0b1ed0f2f3fa014040eedbb2fc2c27dace",
+  "branch": "codex/rebuild-cleanup-executable-prereqs-20261012",
+  "publicationEnvelope": "Exact final head/tree are recorded in PR body and external publication receipt; no self-reference fabricated",
+  "reviews": [
+    {
+      "scope": "carrier/config",
+      "evidenceCommit": "22dfb780864ad22a8dbc1c9a70d97625462901d5",
+      "source": "5db091dac54bc05f4a97a1495c8e6df238547c4d"
+    },
+    {
+      "scope": "CLI/callers",
+      "evidenceCommit": "6ce3ee8d468fe842c82f9eb1f8b2807dda4a1be3",
+      "source": "5db091dac54bc05f4a97a1495c8e6df238547c4d"
+    },
+    {
+      "scope": "strict PE restoration",
+      "evidenceCommit": "156604adadf220d76dad56ca90452014ac7a98f1",
+      "source": "de623f0e6dd1e34e24435bb93dd3851c615f7be1"
+    },
+    {
+      "scope": "final truthful PE boundary/test",
+      "evidenceCommit": "943640754f8387fb09290e21e688efddb75c98f7",
+      "source": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12"
+    }
+  ],
+  "originalCarrier": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "inheritedPacketsUntouched": [
+    "docs/rebuild-integrated-rc-20261012",
+    "docs/cleanup-source-gates-20261012"
+  ],
+  "executableSourceManifest": "evidence/executable-source-manifest-final.json",
+  "sourcePolicyBaselineFailures": [
+    "lint-pe-scripts strict migration-history refusal",
+    "verify-pe-migration-guards strict migration-history refusal",
+    "verify-pe-phase-e-exact-sha four existing facade marker refusals"
+  ],
+  "pendingChecks": [
+    "complete Web serial runner long-budget report"
+  ],
+  "nativeAcceptance": false,
+  "operationsExcluded": [
+    "database/SQL/migrations/PGlite",
+    "native Prisma downloads/generation",
+    "cloud/AWS/providers/uploads/messages/paid models",
+    "customer mutations/credentials/permissions/security-network changes",
+    "main merge/deploy",
+    "unpublished EngagementService reporting owner"
+  ]
+}

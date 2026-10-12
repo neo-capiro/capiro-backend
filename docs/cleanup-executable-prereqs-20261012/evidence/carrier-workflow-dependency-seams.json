@@ -1,0 +1,29 @@
+{
+  "source": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "files": [
+    {
+      "path": "scripts/ci/record-visual-environment.mjs",
+      "source": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "sha256": "1a1190aee91ba3b63255ba8b48a1a18f124c63da525c831a16ecc86df36cabf9"
+    },
+    {
+      "path": "scripts/ci/bootstrap-disposable-databases.sh",
+      "source": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "sha256": "b8430c9756ccb08a6a126833766d21e806ddb2b57ca64c329095322c067c0a5d"
+    },
+    {
+      "path": "apps/api/jest.worker-database.cjs",
+      "source": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "sha256": "3da640a20f09c14764dbb33eeda2b15bb65ddf21ffbdef048e220bf0ec6ae5f7"
+    },
+    {
+      "path": "apps/api/jest.worker-database-controls.cjs",
+      "source": "03d85a40e390f8f52614aab20427a3a9433786bb",
+      "sha256": "e3b3e982437e90bf6ac88d062cb91305e11fe43a3a66bfe8668c092009d2dff6"
+    }
+  ],
+  "workerSetupOptInOnly": true,
+  "noDatabaseOrBootstrapExecuted": true,
+  "existingJestTestPatternsAndTransformsPreserved": true,
+  "nativeWorkerPoolCoherencePendingSourceResolution": true
+}

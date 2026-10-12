@@ -1,0 +1,12 @@
+[
+  {
+    "path": ".github/workflows/knowledge-phase5-ci.yml",
+    "before": "        run: pnpm --filter @capiro/api exec tsx scripts/verify-canonical-backfill-checkpoint-resume.ts",
+    "after": "        run: pnpm --filter @capiro/api exec tsx scripts/verify-canonical-backfill-checkpoint-resume.ts --verify"
+  },
+  {
+    "path": "docs/plans/krisp-notetaker-pilot.md",
+    "before": "- `pnpm --filter @capiro/api exec tsx scripts/verify-krisp-notetaker-db.ts` uses an",
+    "after": "- `pnpm --filter @capiro/api exec tsx scripts/verify-krisp-notetaker-db.ts --verify` uses an"
+  }
+]

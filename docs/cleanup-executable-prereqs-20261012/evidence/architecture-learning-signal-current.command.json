@@ -1,0 +1,15 @@
+{
+  "name": "architecture-learning-signal-current",
+  "cwd": "/workspace/capirov2-cleanup-source-prereqs",
+  "argv": [
+    "node",
+    "scripts/check-learning-signal-new-bypasses.mjs"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "seconds": 2.318,
+  "measuredSource": "08716024ed5d3592bfbd041e457e7c7a5050c4c9",
+  "targetIntegratedSource": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "nativeAcceptance": false,
+  "outputFile": "architecture-learning-signal-current.log"
+}
