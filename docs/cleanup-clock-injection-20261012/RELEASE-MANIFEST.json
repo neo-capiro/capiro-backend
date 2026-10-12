@@ -50,5 +50,8 @@
   "nativeAcceptance": false,
   "fullCleanup1Acceptance": false,
   "widerCleanup4Acceptance": false,
-  "publicationHeadTree": "PR body and external publication receipt; subsequent commits evidence/docs only"
+  "publicationHeadTree": "PR body and external publication receipt; subsequent commits evidence/docs only",
+  "packetIndependentAudit": "874988e4e02af1af79c60c07f925a4b75d22ba59",
+  "packetAuditSnapshot": "c958b794357bedcbd8d0b71e0ecbd45e2de7b64b",
+  "packetAuditDigest": "f2121b82b18084260b2afb6de5abaec00d82ce13c03f333934efc2aad54711ff"
 }
