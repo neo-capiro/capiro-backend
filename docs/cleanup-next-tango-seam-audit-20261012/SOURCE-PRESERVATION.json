@@ -1,0 +1,147 @@
+{
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "tree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "files": [
+    {
+      "path": "apps/api/src/external/tango/tango-dibbs.client.ts",
+      "sha256": "905ba33964b001aa66c19c60df883c51976145887cd2b725e67c2e0ea0fd28c8",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-sbir.client.ts",
+      "sha256": "cf914eb4de8f76397d017d4f78932a8b6d5a75f0a76386f89339a7689eb9b766",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-subaward.client.ts",
+      "sha256": "33a5629fb6b8ea83e4e5cf3cbf7b5b69e7b6cf27601392a081abfd32f68a39c1",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-subaward.types.ts",
+      "sha256": "c72f7e7a1d8bc33aea350ece8c2726b8120a1f500fe29d14717b57cd24a4bd6f",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango.errors.ts",
+      "sha256": "1bc33cbf04cd2a89a016ee7275f2959851a52bd98248fe210ce0ce5b36a24f4f",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango.client.ts",
+      "sha256": "29a649c067110d1f964eca0a9eee6dd846b4a97d006194c3d2b733a4579ff663",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango.module.ts",
+      "sha256": "7871fb86217175cee11781d50c7d71b5b8b418622f294805256ee00df1fef62e",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-resilience.service.ts",
+      "sha256": "f2fe071eb4a819d80291c62e364d607b157261ac09742e69d71d1651b3680184",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-capability-probe.service.ts",
+      "sha256": "493623601bbfca7b705327a3dbbcd2e2986ecd8d866eb56cd316a71ca277698f",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-dibbs.ts",
+      "sha256": "593ff5406d16287d10cb7998d41c3e61e9872b85b2624b41152855e2de195b23",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-sbir.ts",
+      "sha256": "b61ce082f90359edf0dae49c74bba1f132576fe7e94932139b989f10c1de4fb2",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-subawards.ts",
+      "sha256": "1142e46ec95282460a3c5687ded17e106cf799987fe1e8883a6506260570711e",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/scripts/diag-tango-capabilities.ts",
+      "sha256": "4a12fae895cf3216949e9711da648c864d8984eed1e99fcaf5b7896e63b1aa75",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/scripts/diag-tango-contract-capture.ts",
+      "sha256": "02c89fe1f5343a9fff1cfdf0fb9894790e78158279e9b2a7df4eea849420f732",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/config/config.schema.ts",
+      "sha256": "8f98802e64d7b87eaf7c1187a9dd6533788bdcd7424bc4ee49d8ae9c4f2a72e9",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-sbir.client.spec.ts",
+      "sha256": "3f0fa4352e46144b967cd0a53f96ddddecffd6a25f56c4c8c7b6cfe527a60992",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-subaward.client.spec.ts",
+      "sha256": "d78a4fe5039ef3561f265b2ed35d3a587af302eda78ebbb85e42d2bca80cb307",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/src/external/tango/tango-capability-probe.service.spec.ts",
+      "sha256": "30bf50b2c191339f215c7ca9f3733b6ceba77f9adb91ddfb87f01d827a67f41a",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-dibbs.spec.ts",
+      "sha256": "72d9857e99ec3695cf40dc74858453c1fc14a4963d434e2fdb7903bb9b674844",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-sbir.spec.ts",
+      "sha256": "e5240f20ceda2bd749b364a25a4521aab4407a91f56a9832cb549b212c1aef9e",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-subawards.spec.ts",
+      "sha256": "b1aef1731a943e7f914848240b710866fa4487ba76b960108488a57a2cf81ef7",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/scripts/diag-tango-contract-capture.spec.ts",
+      "sha256": "f4e1fb1d5c68b8ca772c5006850906e6a5b4806e699e1a207933e3eb3c92581c",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/scripts/entrypoint-dispatcher.inc",
+      "sha256": "1fe4a130fc99a0813e90b8247dc8bac97b4352cf5e051e0e8c4dea5c497fbecf",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "apps/api/package.json",
+      "sha256": "cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "package.json",
+      "sha256": "91d180ac38e42ab6168bcf1c8e6c55dc3ce6e04243ee5229a32cf845ee7692d2",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "sha256": "7e85a280c3db09cb295b0125c51a2d2c977b05ec05600288746d33d0de996fbd",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "docs/plans/CleanUp4.md",
+      "sha256": "eccda8048174bf51100be10dd6cda0c0ee94062fb47b3890e21915a6d89bf130",
+      "matchesFrozenSource": true
+    },
+    {
+      "path": "docs/plans/CleanUp2.md",
+      "sha256": "020c69304d63eefed205487d41bd35e857e401ef591640c7e1a9c55f1818d2f9",
+      "matchesFrozenSource": true
+    }
+  ],
+  "productionDiffEmpty": true
+}

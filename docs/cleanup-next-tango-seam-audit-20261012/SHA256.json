@@ -1,0 +1,69 @@
+{
+  "files": [
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/AUDIT.md",
+      "sha256": "b0704737bd71785003f97ca90db35d71178a4535686dc0041cbc05aea9fb1e7a"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/RECEIPT.json",
+      "sha256": "fb5682ccfd439ef86e41e21cdf1cb4e30015f6d5e7a983e2732921dbf61c2c04"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/SOURCE-PRESERVATION.json",
+      "sha256": "dc8d2f695fa909db8826898ddfcd84d3084d63434a82c87bcd2d11e6b1a99d3f"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/independent-review-capacity.json",
+      "sha256": "d04afd97dd9524cfb0e565e0f3b57f0667327d6a4c1cd278e36c8fab2114b6ca"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/leaf-source-inventory.json",
+      "sha256": "c021a938ee904a7816cd51da8a37f5c200b01f50bce600f8f1f45b7cd2e1801c"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/original-envelope-profiles-first-failure.log",
+      "sha256": "1ab96acef7d86da30bbf0b7e7567f6597cbadbb898eb5c558f4b44f1790b5c0d"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/original-envelope-profiles-first-failure.mjs",
+      "sha256": "ce861917a364868865eefe34d9b62fd25a264b6211e09d99bb8e32979e662385"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/original-envelope-profiles.json",
+      "sha256": "3c5406b921bee032b196b34c40f8e9c6223af97bb24c194c17f0271649146bb4"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/original-envelope-profiles.log",
+      "sha256": "09a8662a946756e3a3cf0094835267c341dc6bb12faf03ba16548db1f0d6c696"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/original-envelope-profiles.mjs",
+      "sha256": "7ec45f128d1737b43c6d2b9c0521b15ca6196decaeb49000f7c6fc9cd3bbc73d"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/original-leaf-differential-before-profile-probes.json",
+      "sha256": "d7d67077e8b75082e2d0a01f66899e5d251397830613eec857338b4a16294d10"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/original-leaf-differential-before-profile-probes.log",
+      "sha256": "ab5f022b5b94cd599c7b7d6461a2a8672c9becc0382e634b827a8208d5a77422"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/original-leaf-differential-before-profile-probes.mjs",
+      "sha256": "8ed82e67f877efc7fcd605ad4dd4bcb79e6b010ece5a9d03baeae0f27d2dd288"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/original-leaf-differential.json",
+      "sha256": "ea73af4f72d141e486b622925e339e3773a2ee366937fe782b726f3b531c112a"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/original-leaf-differential.log",
+      "sha256": "f69ec48c8d59091311156ccb6322ecd71fa57f9bf0d5d0f1468dda7975178856"
+    },
+    {
+      "path": "docs/cleanup-next-tango-seam-audit-20261012/evidence/original-leaf-differential.mjs",
+      "sha256": "99d8f9098d7ae36c49d2a605506532ce50f15fa8fc15eee8dac05ee108f8a877"
+    }
+  ],
+  "manifestExcludesSelf": true
+}

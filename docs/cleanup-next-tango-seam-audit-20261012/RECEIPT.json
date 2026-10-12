@@ -1,0 +1,46 @@
+{
+  "scope": "Read-only Core Tango pure parsing seam audit; no candidate implementation acceptance",
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "tree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "worktree": "/workspace/capirov2-cleanup-tango-seam-audit",
+  "branch": "codex/cleanup-next-tango-seam-audit-20261012",
+  "productionSourceEdits": false,
+  "sourcePreservedFiles": 28,
+  "leafMainCases": 68,
+  "leafMainExecutions": 204,
+  "profileProbeCases": 3,
+  "profileProbeExecutions": 9,
+  "envelopeCases": 18,
+  "envelopeExecutions": 54,
+  "totalOriginalFragmentExecutions": 267,
+  "providerCalls": false,
+  "constructorFetchOrTimerExecution": false,
+  "nativeDatabaseMigrationOperations": false,
+  "futureApplicationPaths": [
+    "apps/api/src/external/tango/tango-dibbs.client.ts",
+    "apps/api/src/external/tango/tango-sbir.client.ts",
+    "apps/api/src/external/tango/tango-subaward.client.ts",
+    "apps/api/src/external/tango/tango-rest-page.ts",
+    "apps/api/src/external/tango/tango-rest-page.spec.ts"
+  ],
+  "rateProfiles": {
+    "dibbs": "interleaved",
+    "sbir": "interleaved",
+    "subaward": "captured"
+  },
+  "canonicalDeclarationTargetLines": 109,
+  "priorPreliminaryLineEstimate": 123,
+  "priorEstimateCorrected": true,
+  "independentReviewAcceptance": false,
+  "remainingGates": [
+    "parent retirement map / source coordination before app edits",
+    "profile-preserving candidate implementation",
+    "same-change root-owned data ratchet / CI",
+    "independent candidate review and relevant fake-transport tests / strict checks"
+  ],
+  "retainedFailures": [
+    "evidence/original-envelope-profiles-first-failure.mjs",
+    "evidence/original-envelope-profiles-first-failure.log",
+    "evidence/independent-review-capacity.json"
+  ]
+}
