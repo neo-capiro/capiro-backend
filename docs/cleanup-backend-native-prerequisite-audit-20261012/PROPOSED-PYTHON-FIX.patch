@@ -1,0 +1,109 @@
+--- a/apps/defense-budget-parser/src/capiro_defense_budget_parser/docling_engine.py
++++ b/apps/defense-budget-parser/src/capiro_defense_budget_parser/docling_engine.py
+@@ -70,11 +70,13 @@
+ 
+     DOCLING_PACKAGE_VERSION: str | None = getattr(docling, '__version__', 'unknown')
+ except ImportError:
+-    docling = None  # type: ignore[assignment]
++    docling = None
+     DOCLING_PACKAGE_VERSION = None
+ 
+ ENGINE_VERSION = (
+-    f'docling-{DOCLING_PACKAGE_VERSION}-cpu' if DOCLING_PACKAGE_VERSION is not None else ENGINE_UNAVAILABLE
++    f'docling-{DOCLING_PACKAGE_VERSION}-cpu'
++    if DOCLING_PACKAGE_VERSION is not None
++    else ENGINE_UNAVAILABLE
+ )
+ 
+ # ------------------------------------------------------------------ #
+--- a/apps/defense-budget-parser/src/capiro_defense_budget_parser/paddleocr_engine.py
++++ b/apps/defense-budget-parser/src/capiro_defense_budget_parser/paddleocr_engine.py
+@@ -164,7 +164,7 @@
+     Apache-2.0 posture. `pypdfium2` needs no external system binary (unlike
+     `pdf2image`, which shells out to poppler-utils).
+     """
+-    import pypdfium2 as pdfium
++    import pypdfium2 as pdfium  # type: ignore[import-untyped]
+ 
+     pdf = pdfium.PdfDocument(str(pdf_path))
+     try:
+@@ -194,7 +194,7 @@
+     without PaddleOCR installed (e.g. for config/validation tests).
+     """
+     try:
+-        from paddleocr import PaddleOCR
++        from paddleocr import PaddleOCR  # type: ignore[import-not-found]
+     except ImportError as e:
+         raise RuntimeError(
+             'PaddleOCR is not installed. Install with: pip install paddleocr paddlepaddle'
+@@ -401,9 +401,7 @@
+     # Bare integers of 1-3 digits are codes/line numbers here, not
+     # thousands-of-dollars amounts; comma-grouped or decimal amounts
+     # always qualify regardless of magnitude.
+-    if ',' not in stripped and '.' not in stripped and len(digits) <= 3:
+-        return False
+-    return True
++    return not (',' not in stripped and '.' not in stripped and len(digits) <= 3)
+ 
+ 
+ def find_pe_funding_association(
+--- a/apps/defense-budget-parser/tests/test_docling_engine.py
++++ b/apps/defense-budget-parser/tests/test_docling_engine.py
+@@ -434,7 +434,9 @@
+         RuntimeError it was written to raise -- an unguarded crash instead
+         of a clean, catchable refusal."""
+         if DOCLING_PACKAGE_VERSION is not None:
+-            pytest.skip('docling is installed in this environment; NameError regression not reproducible here')
++            pytest.skip(
++                'docling is installed in this environment; NameError regression not reproducible here'
++            )
+         with pytest.raises(RuntimeError, match='Docling is not installed'):
+             _create_docling_converter(get_default_config())
+ 
+--- a/apps/defense-budget-parser/tests/test_paddleocr_engine.py
++++ b/apps/defense-budget-parser/tests/test_paddleocr_engine.py
+@@ -50,11 +50,11 @@
+     _extract_tokens,
+     _nearest_column_index,
+     compute_config_sha256,
++    find_pe_funding_association,
+     get_default_config,
++    is_funding_value_text,
+     process_page_with_paddleocr,
+     reconstruct_page_structure,
+-    find_pe_funding_association,
+-    is_funding_value_text,
+     run_paddleocr_engine,
+     validate_config,
+ )
+@@ -909,13 +909,13 @@
+         assert "-name '._*'" in body
+         assert '-ne 1' in body  # candidate-count gate
+         # Traversal / absolute-path rejection
+-        assert '\.\.' in body
++        assert r'\.\.' in body
+ 
+     def test_bake_model_script_rejects_traversal_archive(self, tmp_path: Path):
+         """Live negative control: an archive containing a `../` member must
+         make bake_model.sh exit non-zero without writing model files."""
++        import subprocess
+         import tarfile
+-        import subprocess
+ 
+         script = (
+             Path(__file__).resolve().parents[2]
+--- a/apps/defense-budget-parser/tests/test_pdfplumber_engine.py
++++ b/apps/defense-budget-parser/tests/test_pdfplumber_engine.py
+@@ -463,8 +463,10 @@
+                         size=10.0, fontname='ArialMT'),
+             self._word('Ordinary body text line two at the normal size.', 340.0, 350.0, 36.0, 300.0,
+                         size=10.0, fontname='ArialMT'),
+-            self._word('Ordinary body text line three at the normal size.', 360.0, 370.0, 36.0, 300.0,
+-                        size=10.0, fontname='ArialMT'),
++            self._word(
++                'Ordinary body text line three at the normal size.',
++                360.0, 370.0, 36.0, 300.0, size=10.0, fontname='ArialMT',
++            ),
+         ]
+         result = self._run_with_words(tmp_path, words)
+         blocks_by_text = {b.text: b.blockType for b in result.pages[0].blocks}

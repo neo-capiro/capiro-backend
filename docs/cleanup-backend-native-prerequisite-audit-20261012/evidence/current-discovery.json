@@ -1,0 +1,387 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "packageRunnerDiscoveryOnly": true,
+  "runnerOrTargetCommandsExecuted": false,
+  "targets": [
+    {
+      "package": "@capiro/api",
+      "packageDir": "apps/api",
+      "runner": "jest",
+      "tier": "test",
+      "command": "node --experimental-vm-modules node_modules/jest/bin/jest.js --forceExit",
+      "source": "package.json#scripts.test"
+    },
+    {
+      "package": "@capiro/api-strategy",
+      "packageDir": "apps/api-strategy",
+      "runner": "jest",
+      "tier": "test",
+      "command": "jest --detectOpenHandles --forceExit",
+      "source": "package.json#scripts.test"
+    },
+    {
+      "package": "@capiro/defense-api",
+      "packageDir": "apps/defense-api",
+      "runner": "node:test",
+      "tier": "test",
+      "command": "tsx --test src/**/*.spec.ts",
+      "source": "package.json#scripts.test"
+    },
+    {
+      "package": "capiro-defense-budget-parser",
+      "packageDir": "apps/defense-budget-parser",
+      "runner": "pytest",
+      "tier": "pytest-collect",
+      "command": "uv run pytest",
+      "source": "pyproject.toml"
+    },
+    {
+      "package": "@capiro/e2e",
+      "packageDir": "apps/e2e",
+      "runner": "playwright",
+      "tier": "playwright-list",
+      "command": "playwright test --list --reporter=json",
+      "source": "playwright.config"
+    },
+    {
+      "package": "@capiro/e2e",
+      "packageDir": "apps/e2e",
+      "runner": "playwright",
+      "tier": "test",
+      "command": "node scripts/run-playwright.mjs test",
+      "source": "package.json#scripts.test",
+      "adapter": "e2e-playwright-wrapper",
+      "adapterNote": "Bespoke ESM launcher (apps/e2e/scripts/run-playwright.mjs) that resolves the SHARED EXTERNAL @playwright/test runtime (fail-closed, never a monorepo dependency) and runs the real visual suite; the command carries no raw runner token, so discovery would otherwise report it as unsupported scope. lib/adapters.mjs routes this target back through that SAME launcher with `--list --reporter=json`, so the external pinned CLI resolution and the package’s own Playwright config are preserved verbatim, and the canonical Playwright JSON parser keeps every per-test case identity AND its project multiplicity."
+    },
+    {
+      "package": "@capiro/intel-api",
+      "packageDir": "apps/intel-api",
+      "runner": "jest",
+      "tier": "test",
+      "command": "jest --detectOpenHandles --forceExit",
+      "source": "package.json#scripts.test"
+    },
+    {
+      "package": "@capiro/meriv2-orchestrator",
+      "packageDir": "apps/meriv2-orchestrator",
+      "runner": "jest",
+      "tier": "test",
+      "command": "jest --detectOpenHandles --forceExit",
+      "source": "package.json#scripts.test"
+    },
+    {
+      "package": "@capiro/onboard-api",
+      "packageDir": "apps/onboard-api",
+      "runner": "jest",
+      "tier": "test",
+      "command": "jest --detectOpenHandles --forceExit",
+      "source": "package.json#scripts.test"
+    },
+    {
+      "package": "@capiro/onboard-web",
+      "packageDir": "apps/onboard-web",
+      "runner": "vitest",
+      "tier": "test",
+      "command": "vitest run",
+      "source": "package.json#scripts.test"
+    },
+    {
+      "package": "@capiro/web",
+      "packageDir": "apps/web",
+      "runner": "vitest",
+      "tier": "test",
+      "command": "vitest run --pool=threads --no-file-parallelism --testTimeout=20000 --hookTimeout=20000",
+      "source": "package.json#scripts.test"
+    },
+    {
+      "package": "@capiro/workspace",
+      "packageDir": "apps/workspace",
+      "runner": "jest",
+      "tier": "test",
+      "command": "jest --detectOpenHandles --forceExit",
+      "source": "package.json#scripts.test"
+    },
+    {
+      "package": "@capiro/infra-cdk",
+      "packageDir": "infra/cdk",
+      "runner": "node:test",
+      "tier": "test:constructs",
+      "command": "node scripts/run-construct-tests.cjs",
+      "source": "package.json#scripts.test",
+      "adapter": "cdk-constructs",
+      "adapterNote": "Bespoke CommonJS driver that runs the node:test partition of infra/cdk/test via `node --require ts-node/register/transpile-only --test <spec>`. The specs are CommonJS with extensionless relative imports, so ts-node/register is required (plain --test misloads them as ESM). scripts/test-proof/run-cdk-constructs.mjs reuses the driver's own --list partition and the canonical node:test reporter, preserving the real spec classification and every test identity."
+    },
+    {
+      "package": "@capiro/infra-cdk",
+      "packageDir": "infra/cdk",
+      "runner": "jest",
+      "tier": "test:jest",
+      "command": "jest -c jest.jest-style.config.cjs",
+      "source": "package.json#scripts.test"
+    },
+    {
+      "package": "@capiro/auth",
+      "packageDir": "packages/auth",
+      "runner": "jest",
+      "tier": "test",
+      "command": "jest --detectOpenHandles --forceExit",
+      "source": "package.json#scripts.test"
+    },
+    {
+      "package": "@capiro/meriv2-core",
+      "packageDir": "packages/meriv2-core",
+      "runner": "jest",
+      "tier": "test",
+      "command": "jest --detectOpenHandles --forceExit",
+      "source": "package.json#scripts.test"
+    }
+  ],
+  "scope": {
+    "root": "/tmp/capirov2-cleanup-strategy-template-independent-review",
+    "discoveredPackages": [
+      "@capiro/api",
+      "@capiro/api-strategy",
+      "@capiro/clio-sandbox",
+      "@capiro/defense-api",
+      "@capiro/e2e",
+      "@capiro/intel-api",
+      "@capiro/meriv2-orchestrator",
+      "@capiro/onboard-api",
+      "@capiro/onboard-web",
+      "@capiro/web",
+      "@capiro/workspace",
+      "@capiro/infra-cdk",
+      "@capiro/auth",
+      "@capiro/defense-client",
+      "@capiro/defense-contracts",
+      "@capiro/defense-domain",
+      "@capiro/meriv2-core",
+      "@capiro/shared",
+      "@capiro/strategy-verifier",
+      "capiro-defense-budget-parser"
+    ],
+    "aggregators": [
+      {
+        "package": "capiro",
+        "command": "turbo run test",
+        "reason": "delegates to turbo; not a leaf suite"
+      }
+    ],
+    "noTestScript": [
+      {
+        "package": "@capiro/clio-sandbox",
+        "packageDir": "apps/clio-sandbox"
+      },
+      {
+        "package": "@capiro/defense-client",
+        "packageDir": "packages/defense-client"
+      },
+      {
+        "package": "@capiro/defense-contracts",
+        "packageDir": "packages/defense-contracts"
+      },
+      {
+        "package": "@capiro/defense-domain",
+        "packageDir": "packages/defense-domain"
+      },
+      {
+        "package": "@capiro/shared",
+        "packageDir": "packages/shared"
+      },
+      {
+        "package": "@capiro/strategy-verifier",
+        "packageDir": "packages/strategy-verifier"
+      }
+    ],
+    "pythonApps": [
+      {
+        "package": "capiro-defense-budget-parser",
+        "packageDir": "apps/defense-budget-parser"
+      }
+    ],
+    "playwrightApps": [
+      {
+        "package": "@capiro/e2e",
+        "packageDir": "apps/e2e"
+      }
+    ],
+    "unsupported": [],
+    "notes": []
+  },
+  "packages": [
+    {
+      "package": "@capiro/api",
+      "packageDir": "apps/api",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/api-strategy",
+      "packageDir": "apps/api-strategy",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/defense-api",
+      "packageDir": "apps/defense-api",
+      "runners": [
+        "node:test"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "capiro-defense-budget-parser",
+      "packageDir": "apps/defense-budget-parser",
+      "runners": [
+        "pytest"
+      ],
+      "tiers": [
+        "pytest-collect"
+      ]
+    },
+    {
+      "package": "@capiro/e2e",
+      "packageDir": "apps/e2e",
+      "runners": [
+        "playwright"
+      ],
+      "tiers": [
+        "playwright-list",
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/intel-api",
+      "packageDir": "apps/intel-api",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/meriv2-orchestrator",
+      "packageDir": "apps/meriv2-orchestrator",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/onboard-api",
+      "packageDir": "apps/onboard-api",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/onboard-web",
+      "packageDir": "apps/onboard-web",
+      "runners": [
+        "vitest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/web",
+      "packageDir": "apps/web",
+      "runners": [
+        "vitest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/workspace",
+      "packageDir": "apps/workspace",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/infra-cdk",
+      "packageDir": "infra/cdk",
+      "runners": [
+        "jest",
+        "node:test"
+      ],
+      "tiers": [
+        "test:constructs",
+        "test:jest"
+      ]
+    },
+    {
+      "package": "@capiro/auth",
+      "packageDir": "packages/auth",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/meriv2-core",
+      "packageDir": "packages/meriv2-core",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    }
+  ],
+  "testBearingPackages": [
+    "@capiro/api",
+    "@capiro/api-strategy",
+    "@capiro/defense-api",
+    "capiro-defense-budget-parser",
+    "@capiro/e2e",
+    "@capiro/intel-api",
+    "@capiro/meriv2-orchestrator",
+    "@capiro/onboard-api",
+    "@capiro/onboard-web",
+    "@capiro/web",
+    "@capiro/workspace",
+    "@capiro/infra-cdk",
+    "@capiro/auth",
+    "@capiro/meriv2-core"
+  ],
+  "unexplainedUnsupported": [],
+  "pythonApps": [
+    {
+      "package": "capiro-defense-budget-parser",
+      "packageDir": "apps/defense-budget-parser"
+    }
+  ],
+  "playwrightApps": [
+    {
+      "package": "@capiro/e2e",
+      "packageDir": "apps/e2e"
+    }
+  ],
+  "ok": true,
+  "problems": []
+}

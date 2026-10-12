@@ -1,0 +1,33 @@
+✔ backend-owned fixture preserves the complete immutable Core blob and byte identity (7.491434ms)
+✔ the exact Core JSON workload, route ownership and classifications remain present (7.068169ms)
+✔ existing API reader changes exactly one literal while preserving all six case identities and all assertions (1.239225ms)
+✔ qualification rejects fixture bytes, case bodies and reader-path drift without importing the API suite (3.287988ms)
+✔ scope requires exactly one explicit run and at most one known scope (1.946983ms)
+✔ full plans preserve current caller arrays and arbitrary newer steps (1.853163ms)
+✔ backend scopes retain every current step/options/order and scope only the inherited prerequisite (2.489602ms)
+✔ frontend scopes retain matching inherited qualification and whitespace, with no local API command (0.634445ms)
+✔ nested scope selection refuses duplicate/missing run or pre-scoped and wrong aliases before callback (0.332147ms)
+✔ all nine completion values are distinct and scoped failures cannot emit a full completion (0.392173ms)
+✔ invalid plan identities fail before injected runner, callback errors stop immediately (0.458622ms)
+✔ phase1 noargs/help/invalid flags stop before every fake file/command/env effect (21.470374ms)
+✔ phase1 current full command/read/env/exit trace equals the frozen original under both platforms (12.913233ms)
+✔ phase1 scoped actual wrapper selects matching nested alias/argv and marks only that scope (3.344788ms)
+✔ phase1 full and scoped subprocess failures retain original actual-exit policy and stop (4.757287ms)
+✔ phase3 noargs/help/invalid flags stop before every fake file/command/env effect (10.643019ms)
+✔ phase3 current full command/read/env/exit trace equals the frozen original under both platforms (11.698546ms)
+✔ phase3 scoped actual wrapper selects matching nested alias/argv and marks only that scope (2.367967ms)
+✔ phase3 full and scoped subprocess failures retain original actual-exit policy and stop (4.160165ms)
+✔ phase4 noargs/help/invalid flags stop before every fake file/command/env effect (9.603867ms)
+✔ phase4 current full command/read/env/exit trace equals the frozen original under both platforms (8.306434ms)
+✔ phase4 scoped actual wrapper selects matching nested alias/argv and marks only that scope (2.494393ms)
+✔ phase4 full and scoped subprocess failures retain original actual-exit policy and stop (6.101559ms)
+✔ Phase1/3 full source arrays retain every current operand/environment expression byte-exact (0.865114ms)
+✔ Phase4 all original source/catalog/route/scope predicates remain, frontend alone skips the backend envelope (5.215804ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 287.721134

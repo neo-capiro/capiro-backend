@@ -1,0 +1,528 @@
+[
+  {
+    "path": "scripts/verify-engagement-phase1-code.mjs",
+    "exists": false
+  },
+  {
+    "path": "scripts/verify-engagement-phase3-code.mjs",
+    "sha256": "2029f17a3ad869a1448f8fd7aa68c565f9ab501884c776bc356bada7c98d1188",
+    "matches": [
+      {
+        "line": 5,
+        "text": "import { execFileSync, spawn, spawnSync } from 'node:child_process';"
+      },
+      {
+        "line": 40,
+        "text": "    const originMain = execFileSync('git', ['rev-parse', 'origin/main'], {"
+      },
+      {
+        "line": 44,
+        "text": "    const mergeBase = execFileSync('git', ['merge-base', originMain, PHASE3_SCOPE_END], {"
+      },
+      {
+        "line": 52,
+        "text": "    execFileSync('git', ['merge-base', '--is-ancestor', ACCEPTED_PHASE2_HEAD, mergeBase], {"
+      },
+      {
+        "line": 214,
+        "text": "  const result = spawnSync(command, args, {"
+      },
+      {
+        "line": 234,
+        "text": "  const child = spawn(command, args, {"
+      },
+      {
+        "line": 255,
+        "text": "    spawnSync(process.execPath, ['-e', 'Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5000)'], {"
+      },
+      {
+        "line": 262,
+        "text": "    spawnSync('taskkill.exe', ['/F', '/T', '/PID', String(child.pid)], {"
+      }
+    ]
+  },
+  {
+    "path": "scripts/verify-outreach-v3-phase1-code.mjs",
+    "sha256": "e8e3d548417572c8a49857bbd1039c7a4282bc71608a6a99502188cb769204bd",
+    "matches": [
+      {
+        "line": 3,
+        "text": "import { spawnSync } from 'node:child_process';"
+      },
+      {
+        "line": 37,
+        "text": "    const verify = spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], {"
+      },
+      {
+        "line": 42,
+        "text": "    const mergeBase = spawnSync('git', ['merge-base', ref, 'HEAD'], { cwd: ROOT, encoding: 'utf8' });"
+      },
+      {
+        "line": 102,
+        "text": "  const result = spawnSync(command, args, {"
+      }
+    ]
+  },
+  {
+    "path": "scripts/verify-outreach-v3-phase3-code.mjs",
+    "sha256": "13d6c4987261fda7aaa506e53137a19641a73403fcf19693cd5f9913eb893bc3",
+    "matches": [
+      {
+        "line": 3,
+        "text": "import { execFileSync, spawnSync } from 'node:child_process';"
+      },
+      {
+        "line": 34,
+        "text": "    const originMain = execFileSync('git', ['rev-parse', 'origin/main'], {"
+      },
+      {
+        "line": 38,
+        "text": "    const head = execFileSync('git', ['rev-parse', 'HEAD'], {"
+      },
+      {
+        "line": 42,
+        "text": "    const mergeBase = execFileSync('git', ['merge-base', originMain, head], {"
+      },
+      {
+        "line": 59,
+        "text": "const DUMMY_DATABASE_URL = 'postgresql://phase3:phase3@127.0.0.1:1/phase3?schema=public';"
+      },
+      {
+        "line": 67,
+        "text": "  'src/outreach-v3/reasoning/openai-outreach-reasoning.provider.spec.ts',"
+      },
+      {
+        "line": 87,
+        "text": "    ['-C', 'apps/api', 'exec', 'prisma', 'generate', '--schema', 'prisma/schema.prisma'],"
+      },
+      {
+        "line": 88,
+        "text": "    { DATABASE_URL: DUMMY_DATABASE_URL },"
+      },
+      {
+        "line": 112,
+        "text": "      'prisma',"
+      },
+      {
+        "line": 115,
+        "text": "      'prisma/outreach-v3-phase3/schema.prisma',"
+      },
+      {
+        "line": 117,
+        "text": "    { DATABASE_URL: DUMMY_DATABASE_URL },"
+      },
+      {
+        "line": 146,
+        "text": "  const result = spawnSync(command, args, {"
+      }
+    ]
+  },
+  {
+    "path": "scripts/verify-outreach-v3-phase4-code.mjs",
+    "sha256": "ceabc0b16c7bfeb0e8087c625ee9b33591732880b783296196de4cfc1bfb4ce5",
+    "matches": [
+      {
+        "line": 3,
+        "text": "import { spawnSync } from 'node:child_process';"
+      },
+      {
+        "line": 37,
+        "text": "  const result = spawnSync(command, args, {"
+      },
+      {
+        "line": 50,
+        "text": "  const result = spawnSync(command, args, {"
+      },
+      {
+        "line": 101,
+        "text": "    assert(!path.includes('/prisma/migrations/'), `phase4-migration:${path}`);"
+      }
+    ]
+  },
+  {
+    "path": "scripts/ci/additional-disposable-bootstrap.test.mjs",
+    "sha256": "23d9c65dc48ff877a0aa1310fcb5d4fb58e241c54bb6a692a9bfb0fe8502de2d",
+    "matches": [
+      {
+        "line": 4,
+        "text": "import { spawnSync } from 'node:child_process';"
+      },
+      {
+        "line": 18,
+        "text": "    const query = \"SELECT oid,rolsuper,rolinherit,rolcreaterole,rolcreatedb,rolcanlogin,rolreplication,rolbypassrls FROM pg_roles WHERE rolname='capiro_worker'\";"
+      },
+      {
+        "line": 24,
+        "text": "    assert.deepEqual((await db.query(\"SELECT rolname FROM pg_roles WHERE rolname LIKE 'capiro_%'\")).rows, [{rolname:'capiro_worker'}]);"
+      },
+      {
+        "line": 28,
+        "text": "for (const flag of ['LOGIN', 'SUPERUSER', 'CREATEDB', 'CREATEROLE', 'INHERIT', 'BYPASSRLS', 'REPLICATION']) {"
+      },
+      {
+        "line": 32,
+        "text": "      await db.exec(`CREATE ROLE capiro_worker NOLOGIN NOINHERIT; ALTER ROLE capiro_worker ${flag};`);"
+      },
+      {
+        "line": 33,
+        "text": "      const before = (await db.query(\"SELECT * FROM pg_roles WHERE rolname='capiro_worker'\")).rows;"
+      },
+      {
+        "line": 35,
+        "text": "      assert.deepEqual((await db.query(\"SELECT * FROM pg_roles WHERE rolname='capiro_worker'\")).rows, before);"
+      },
+      {
+        "line": 40,
+        "text": "for (const grant of ['GRANT capiro_worker TO holder', 'GRANT holder TO capiro_worker']) {"
+      },
+      {
+        "line": 44,
+        "text": "      await db.exec('CREATE ROLE capiro_worker NOLOGIN NOINHERIT; CREATE ROLE holder NOLOGIN NOINHERIT;');"
+      },
+      {
+        "line": 73,
+        "text": "  const result = spawnSync('bash',[funding],{encoding:'utf8',env:{...process.env,"
+      },
+      {
+        "line": 75,
+        "text": "    GITHUB_ACTIONS:'true', CI:'true', CI_DISPOSABLE_POSTGRES:'1',"
+      },
+      {
+        "line": 76,
+        "text": "    CI_POSTGRES_ADMIN_DATABASE_URL:'postgresql://postgres:postgres@127.0.0.1:5486/postgres?schema=public',"
+      },
+      {
+        "line": 98,
+        "text": "  assert.doesNotMatch(log,/ROLE_PREREQUISITE|MIGRATE|CREATE ROLE|ALTER ROLE|CREATE DATABASE/);"
+      },
+      {
+        "line": 108,
+        "text": "  assert.match(block[1],/rolname='capiro_worker'/);"
+      },
+      {
+        "line": 109,
+        "text": "  assert.doesNotMatch(block[1],/fixture_psql|run_sql|prerequisite\\.sql|CREATE ROLE/);"
+      },
+      {
+        "line": 110,
+        "text": "  assert.match(source,/external rehearsal requires an existing safe capiro_worker prerequisite/);"
+      },
+      {
+        "line": 111,
+        "text": "  assert.ok(source.indexOf('disposable-capiro-worker-prerequisite.sql')<source.indexOf('npx prisma migrate deploy'));"
+      },
+      {
+        "line": 113,
+        "text": "    const r=spawnSync('bash',['-n',file],{encoding:'utf8'});"
+      }
+    ]
+  },
+  {
+    "path": "scripts/ci/remaining-rehearsal-bootstrap.test.mjs",
+    "sha256": "319f32299c31f3d1291eb0631a6dd14f313b60d7721c4b83f1ca21f252839b7d",
+    "matches": [
+      {
+        "line": 4,
+        "text": "import { spawnSync } from 'node:child_process';"
+      },
+      {
+        "line": 24,
+        "text": "if [[ \"$body\" == *\"CREATE ROLE capiro_worker\"* ]]; then"
+      },
+      {
+        "line": 33,
+        "text": "    path.join(dir, 'docker'),"
+      },
+      {
+        "line": 72,
+        "text": "  if (mode.startsWith('owned')) delete env.REHEARSAL_DATABASE_URL;"
+      },
+      {
+        "line": 73,
+        "text": "  else env.REHEARSAL_DATABASE_URL = 'postgresql://fixture:fixture@invalid.invalid/owned_test';"
+      },
+      {
+        "line": 74,
+        "text": "  const result = spawnSync("
+      },
+      {
+        "line": 106,
+        "text": "    assert.match(result.stderr, /existing safe capiro_worker/);"
+      },
+      {
+        "line": 111,
+        "text": "    const r = spawnSync("
+      }
+    ]
+  },
+  {
+    "path": "apps/api/src/memory/memory-embedding-lifecycle.postgres.spec.ts",
+    "sha256": "7126af04da64f8adb5e05e19523636033372a8ee74fb5a7f5994e63a7b806597",
+    "matches": [
+      {
+        "line": 5,
+        "text": "import { Prisma } from '@prisma/client';"
+      },
+      {
+        "line": 10,
+        "text": "import { getDefaultEmbeddingProvider } from '../embeddings/embedding-provider.factory.js';"
+      },
+      {
+        "line": 11,
+        "text": "import type { EmbeddingProvider } from '../embeddings/embedding-provider.js';"
+      },
+      {
+        "line": 13,
+        "text": "jest.mock('../embeddings/embedding-provider.factory.js', () => ({"
+      },
+      {
+        "line": 18,
+        "text": "const suite = configPath ? describe : describe.skip;"
+      },
+      {
+        "line": 119,
+        "text": "    const prisma = {"
+      },
+      {
+        "line": 135,
+        "text": "      prisma as never,"
+      },
+      {
+        "line": 141,
+        "text": "    jest.mocked(getDefaultEmbeddingProvider).mockReturnValue({"
+      },
+      {
+        "line": 142,
+        "text": "      metadata: { provider: 'test', model: 'local-test', modelVersion: '1', dimensions: 1024 },"
+      },
+      {
+        "line": 178,
+        "text": "  test('already revoked canonical source is not sent to the provider or re-embedded', async () => {"
+      },
+      {
+        "line": 189,
+        "text": "  test('revoke committed while the provider is paused cannot recreate a deleted embedding', async () => {"
+      },
+      {
+        "line": 206,
+        "text": "  test('eligible canonical source still embeds and a stable second run does not call the provider', async () => {"
+      },
+      {
+        "line": 231,
+        "text": "  ])('pre-provider eligibility excludes %s', async (change) => {"
+      },
+      {
+        "line": 261,
+        "text": "  ])('source change during provider discards stale vector: %s', async (change) => {"
+      },
+      {
+        "line": 272,
+        "text": "  test('source deleted during provider cannot leave an orphan embedding', async () => {"
+      },
+      {
+        "line": 306,
+        "text": "  test('matching-hash scope-only correction still locks the current source and needs no provider', async () => {"
+      },
+      {
+        "line": 338,
+        "text": "  test('real expiry crossing during the provider call blocks writing without any source update', async () => {"
+      },
+      {
+        "line": 506,
+        "text": "      await db.query(\"UPDATE context_embeddings SET content_hash='force-provider-update'\");"
+      }
+    ]
+  },
+  {
+    "path": "apps/api/src/meri/meri-research-provider-budget.pg.spec.ts",
+    "sha256": "561106753dc45a298a065601793860b69543b2e6bd0ea5ff546fe448a50f6ba6",
+    "matches": [
+      {
+        "line": 17,
+        "text": "  tenantSlug: 'provider-budget',"
+      },
+      {
+        "line": 30,
+        "text": "  process.env.MERI_RESEARCH_BUDGET_POSTGRES_CONFIG ||"
+      },
+      {
+        "line": 32,
+        "text": "const describeLocal = existsSync(configPath) ? describe : describe.skip;"
+      },
+      {
+        "line": 55,
+        "text": "    provider: string;"
+      },
+      {
+        "line": 68,
+        "text": "    provider: 'openai',"
+      },
+      {
+        "line": 76,
+        "text": "describeLocal('research provider budget \u2014 native PostgreSQL production CAS', () => {"
+      },
+      {
+        "line": 86,
+        "text": "    pool = new Pool({"
+      },
+      {
+        "line": 106,
+        "text": "    schemaName = `meri_provider_budget_${randomUUID().replaceAll('-', '')}`;"
+      },
+      {
+        "line": 127,
+        "text": "    const prisma = {"
+      },
+      {
+        "line": 182,
+        "text": "      prisma as never,"
+      },
+      {
+        "line": 241,
+        "text": "      provider: input.provider,"
+      },
+      {
+        "line": 266,
+        "text": "      'research_provider_budget_operation_recovery_required',"
+      },
+      {
+        "line": 281,
+        "text": "      provider: 'jev',"
+      },
+      {
+        "line": 305,
+        "text": "    await expect(reserve(binding('late'))).rejects.toThrow('research_provider_budget_deadline');"
+      }
+    ]
+  },
+  {
+    "path": "apps/api/test/e2e/defense-budget-intelligence.e2e.spec.ts",
+    "sha256": "8fdfb97768082ab2d8e21440ccc8b135d7dff40dbbc39ccdca08e2252acbf38c",
+    "matches": [
+      {
+        "line": 43,
+        "text": "  sha256OfBuffer,"
+      },
+      {
+        "line": 98,
+        "text": "  role: 'capiro_admin',"
+      },
+      {
+        "line": 109,
+        "text": " * withTenant; global graph tables are unfiltered. Returns the store handle + the prisma"
+      },
+      {
+        "line": 144,
+        "text": "  const prisma: Record<string, any> = {"
+      },
+      {
+        "line": 152,
+        "text": "        return await fn(prisma);"
+      },
+      {
+        "line": 157,
+        "text": "    $transaction: async <T>(fn: (tx: unknown) => Promise<T>): Promise<T> => fn(prisma),"
+      },
+      {
+        "line": 165,
+        "text": "            if (where.sha256 !== undefined && d.sha256 !== where.sha256) return false;"
+      },
+      {
+        "line": 412,
+        "text": "  return { store, prisma };"
+      },
+      {
+        "line": 433,
+        "text": "    const { store, prisma } = makeStore();"
+      },
+      {
+        "line": 436,
+        "text": "    // \u2500\u2500 \u00a727.1 \u2014 SourceDocument with a sha256 (Step 0.1) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+      },
+      {
+        "line": 442,
+        "text": "    const sha = sha256OfBuffer(artifactBytes);"
+      },
+      {
+        "line": 443,
+        "text": "    const sdResult = await upsertSourceDocument(prisma as never, {"
+      },
+      {
+        "line": 445,
+        "text": "      sha256: sha,"
+      },
+      {
+        "line": 455,
+        "text": "    // ASSERT \u00a727.1: stored with a real sha256."
+      },
+      {
+        "line": 458,
+        "text": "    expect(sdResult.document.sha256).toBe(sha);"
+      },
+      {
+        "line": 459,
+        "text": "    expect(sdResult.document.sha256).toMatch(/^[0-9a-f]{64}$/);"
+      },
+      {
+        "line": 463,
+        "text": "    const again = await upsertSourceDocument(prisma as never, {"
+      },
+      {
+        "line": 465,
+        "text": "      sha256: sha,"
+      },
+      {
+        "line": 484,
+        "text": "    const extractionRows = await prisma.programElementSource.findMany({ where: { peCode: PE } });"
+      },
+      {
+        "line": 508,
+        "text": "    const recon = await checkBudgetReconciliation(prisma as never, control);"
+      },
+      {
+        "line": 553,
+        "text": "    prisma.programElementDelta = {"
+      },
+      {
+        "line": 589,
+        "text": "    const candidateMatch = await prisma.peProgramMatch.create({"
+      },
+      {
+        "line": 605,
+        "text": "    const programsService = new ProgramsService(prisma as never, matcher);"
+      },
+      {
+        "line": 641,
+        "text": "    const personnelRead = new AcquisitionPersonnelReadService(prisma as never);"
+      },
+      {
+        "line": 663,
+        "text": "    const generator = new ActionRecommendationService(prisma as never, relevanceService as never);"
+      },
+      {
+        "line": 728,
+        "text": "    await prisma.peProgramMatch.create({"
+      },
+      {
+        "line": 744,
+        "text": "    prisma.programElementDelta = { findMany: async () => [delta2] };"
+      },
+      {
+        "line": 750,
+        "text": "    await new ActionRecommendationService(prisma as never, relevance2 as never).generate();"
+      },
+      {
+        "line": 764,
+        "text": "    const coverage = new CoverageGapService(prisma as never);"
+      },
+      {
+        "line": 790,
+        "text": "    const readWrite = new ActionRecommendationReadService(prisma as never);"
+      }
+    ]
+  },
+  {
+    "path": "apps/e2e/linux/pinned-image.txt",
+    "exists": false
+  }
+]

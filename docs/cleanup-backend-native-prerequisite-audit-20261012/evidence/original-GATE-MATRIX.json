@@ -1,0 +1,143 @@
+{
+  "referenceCleanupSource": "03d85a40e390f8f52614aab20427a3a9433786bb",
+  "plan": "docs/plans/CleanUp1.md \u00a710",
+  "evaluatedParent": "243248e726243c44bd4b9d24fd1ed220da18c56a",
+  "acceptedRepair": "a0947f47ff8146cd986dd23b5e95d489aba855cf",
+  "fullReleaseAcceptance": false,
+  "criteria": [
+    {
+      "id": "step0",
+      "criterion": "\u00a72 Step0 fresh discovery",
+      "status": "SOURCE PASS / RELEASE OPEN",
+      "detail": "13 discovered test-bearing packages, zero unsupported runners. Parsed YAML/coverage/CLI divergence receipts attached; native name dumps and complete clean source run pending.",
+      "releaseAccepted": false
+    },
+    {
+      "id": "cleanFullGate",
+      "criterion": "Frozen install and full gate from clean checkout",
+      "status": "BLOCKED: SOURCE + ENVIRONMENT + NATIVE",
+      "detail": "Root gate carrier/commands absent; pnpm11.25.0 differs from pinned9.12.0; full database, pinned visual and Python gate unavailable in source-only scope.",
+      "releaseAccepted": false
+    },
+    {
+      "id": "pythonCI",
+      "criterion": "Python gate and ruff/mypy/pytest CI",
+      "status": "BLOCKED: SOURCE + ENVIRONMENT",
+      "detail": "Parser CI workflow absent. Python3.12.14 exists; frozen dev tools pytest/pytest_cov/ruff/mypy absent; no sync/install performed.",
+      "releaseAccepted": false
+    },
+    {
+      "id": "architectureCI",
+      "criterion": "Four architecture guards run and pass in CI",
+      "status": "SOURCE CHECKS PASS / CI SOURCE GAP",
+      "detail": "All four guards pass locally; only context guard has actual YAML run wiring. Three other guards unwired.",
+      "releaseAccepted": false
+    },
+    {
+      "id": "directCI",
+      "criterion": "Direct Core/Web/Defense test CI steps",
+      "status": "INHERITED SOURCE GAP",
+      "detail": "No direct package test step in current ci-pr.yml for these three; Strategy direct step exists.",
+      "releaseAccepted": false
+    },
+    {
+      "id": "routeBaselines",
+      "criterion": "Every current route has enforced committed baseline",
+      "status": "BLOCKED: SOURCE + RUNTIME",
+      "detail": "E2E package, route guard and baseline manifest absent in RC; no current pinned capture executed.",
+      "releaseAccepted": false
+    },
+    {
+      "id": "baselineManifest",
+      "criterion": "Capture hash/SHA/purpose manifest",
+      "status": "INHERITED SOURCE GAP",
+      "detail": "Manifest absent; historical original Cleanup baseline and controls remain reference evidence only.",
+      "releaseAccepted": false
+    },
+    {
+      "id": "visualThreeRepeats",
+      "criterion": "Three identical-source zero-diff visual runs",
+      "status": "UNRUN RUNTIME",
+      "detail": "No current pinned image/source archive capture, host-derived context or three repeats. No baseline updated.",
+      "releaseAccepted": false
+    },
+    {
+      "id": "coverage",
+      "criterion": "Immutable coverage baseline without thresholds",
+      "status": "INHERITED SOURCE GAP",
+      "detail": "Baseline absent plus four missing test:coverage scripts. Original historical verifier passes on2392; it does not accept RC.",
+      "releaseAccepted": false
+    },
+    {
+      "id": "baselineFailures",
+      "criterion": "Every baseline failure repaired and verified; no quarantine",
+      "status": "EXISTING BASELINE FAILURES OPEN",
+      "detail": "47 unchanged formatter failures, Meri catalog count failure and PE pathname exact-main baseline failure remain red. Artifact candidate failure stays red with an environment-dependent timing classification and explicitly inferred causation; main original assertion passes. No unrelated repair or quarantine.",
+      "releaseAccepted": false
+    },
+    {
+      "id": "casePreservation",
+      "criterion": "Cross-runner case/status proof; no removed cases/new skips",
+      "status": "SOURCE DELTA PASS / FULL PROOF OPEN",
+      "detail": "This delta edits no tests, skip/only, snapshots or assertions. Full original cross-runner case-name/status/failure proof remains unrun; source/partial counts do not substitute.",
+      "releaseAccepted": false
+    }
+  ],
+  "sourceGaps": {
+    "inheritedMissingSourceCarrier": [
+      "scripts/cleanup-gates/gate.mjs",
+      "docs/plans/cleanup1-coverage-baseline.json",
+      "scripts/cleanup-gates/verify-baseline.mjs",
+      "scripts/test-proof/run-fixtures.mjs",
+      "scripts/cleanup-gates/pinned-visual-controls.mjs",
+      "apps/e2e/lib/render-context-controls.mjs",
+      "scripts/cleanup-gates/standalone-node.test.mjs",
+      "apps/e2e/package.json",
+      "apps/e2e/scripts/guard-route-coverage.mjs",
+      "apps/e2e/baselines/manifest.json",
+      ".github/workflows/defense-budget-parser-ci.yml"
+    ],
+    "inheritedCoverageScriptProblems": [
+      "coverage target @capiro/api has no test:coverage script \u2014 it cannot produce the required measurement",
+      "coverage target @capiro/web has no test:coverage script \u2014 it cannot produce the required measurement",
+      "coverage target @capiro/workspace has no test:coverage script \u2014 it cannot produce the required measurement",
+      "coverage target @capiro/onboard-web has no test:coverage script \u2014 it cannot produce the required measurement"
+    ],
+    "directCI": {
+      "api": [],
+      "apiStrategy": [
+        {
+          "job": "verify",
+          "name": "Test api-strategy",
+          "run": "pnpm --filter @capiro/api-strategy test"
+        }
+      ],
+      "web": [],
+      "defense": []
+    },
+    "guardCI": [
+      {
+        "guard": "scripts/check-context-plane-new-bypasses.mjs",
+        "workflows": [
+          "context-plane-architecture-guard.yml"
+        ]
+      },
+      {
+        "guard": "scripts/check-evaluation-new-bypasses.mjs",
+        "workflows": []
+      },
+      {
+        "guard": "scripts/check-learning-signal-new-bypasses.mjs",
+        "workflows": []
+      },
+      {
+        "guard": "scripts/check-quality-telemetry-new-bypasses.mjs",
+        "workflows": []
+      }
+    ]
+  },
+  "unrunOwnedRuntimeEvidence": [
+    "apps/e2e/reports/regression-evidence.json",
+    "docs/plans/cleanup1-script-smoke-evidence.json"
+  ]
+}

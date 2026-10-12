@@ -1,0 +1,2 @@
+PASS core: exact schema validation, invalid control rejected, isolated two-target native-bearing client generation/copy
+PASS workspace: exact schema validation, invalid control rejected, isolated two-target native-bearing client generation/copy

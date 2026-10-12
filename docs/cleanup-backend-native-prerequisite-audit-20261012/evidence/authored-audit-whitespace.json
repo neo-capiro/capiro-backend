@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "git",
+    "diff",
+    "--check",
+    "--",
+    "docs/cleanup-backend-native-prerequisite-audit-20261012/AUDIT.md"
+  ],
+  "exit": 0,
+  "stdout": "",
+  "stderr": "",
+  "qualification": "authoredmarkdownonly;priorno-indexexit1recordsfiledifferencewithnodiagnostics;rawlogsnotrewrittenorblanketaccepted"
+}

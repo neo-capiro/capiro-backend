@@ -1,0 +1,47 @@
+{
+  "executorSession": 67517,
+  "executorExit": 0,
+  "nativeBearingOutputs": 2,
+  "emittedFileCount": 42,
+  "probeProcesses": [
+    {
+      "pid": 448812,
+      "generatorChild": false,
+      "probes": []
+    },
+    {
+      "pid": 451584,
+      "generatorChild": false,
+      "probes": []
+    }
+  ],
+  "networkProbeCount": 0,
+  "inetLines": [],
+  "connectLines": [
+    "451584 connect(17, {sa_family=AF_UNIX, sun_path=\"/var/run/nscd/socket\"}, 110) = -1 ENOENT (No such file or directory)",
+    "451584 connect(17, {sa_family=AF_UNIX, sun_path=\"/var/run/nscd/socket\"}, 110) = -1 ENOENT (No such file or directory)",
+    "451628 connect(19, {sa_family=AF_UNIX, sun_path=\"/var/run/nscd/socket\"}, 110) = -1 ENOENT (No such file or directory)",
+    "451628 connect(19, {sa_family=AF_UNIX, sun_path=\"/var/run/nscd/socket\"}, 110) = -1 ENOENT (No such file or directory)",
+    "451769 connect(19, {sa_family=AF_UNIX, sun_path=\"/var/run/nscd/socket\"}, 110) = -1 ENOENT (No such file or directory)",
+    "451769 connect(19, {sa_family=AF_UNIX, sun_path=\"/var/run/nscd/socket\"}, 110) = -1 ENOENT (No such file or directory)"
+  ],
+  "execveLines": [
+    "451584 execve(\"/usr/bin/env\", [\"/usr/bin/env\", \"-i\", \"PATH=/usr/bin:/bin\", \"XDG_CACHE_HOME=/tmp/capirov2-loc\"..., \"/opt/codex/runtimes/codex-primar\"..., \"--require\", \"./docs/cleanup-backend-native-pr\"..., \"./docs/cleanup-backend-native-pr\"...], 0x7ffdf2482f80 /* 63 vars */) = 0",
+    "451584 execve(\"/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node\", [\"/opt/codex/runtimes/codex-primar\"..., \"--require\", \"./docs/cleanup-backend-native-pr\"..., \"./docs/cleanup-backend-native-pr\"...], 0x5638a29a7e10 /* 2 vars */) = 0",
+    "451628 execve(\"/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node\", [\"/opt/codex/runtimes/codex-primar\"..., \"--max-old-space-size=8096\", \"--require\", \"/tmp/capirov2-cleanup-strategy-t\"..., \"/workspace/capirov2/node_modules\"...], 0x28c99bb0 /* 5 vars */) = 0",
+    "451769 execve(\"/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node\", [\"/opt/codex/runtimes/codex-primar\"..., \"--max-old-space-size=8096\", \"--require\", \"/tmp/capirov2-cleanup-strategy-t\"..., \"/workspace/capirov2/node_modules\"...], 0x28d22740 /* 5 vars */) = 0"
+  ],
+  "writeOrMutationSyscalls": 60,
+  "absoluteWritePathsOutsideOwnedOutput": [
+    "451584 openat(AT_FDCWD, \"/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/evidence/offline-generation-receipt.json\", O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC, 0666) = 18"
+  ],
+  "queryLibraryFileOpenCount": 24,
+  "queryLibraryFileOpenQualification": "Copies/hashes open files as data; no process.dlopen/client require requested or allowed. File opens alone do not establish engine execution.",
+  "traceSha256": "35e46f58d13391fbbe03f39e47ec239c3bdc23a937e60142fe677ed4523610d6",
+  "sourceSchemaOutputUnchanged": true,
+  "nativeArm64LibraryNotExecuted": true,
+  "limits": "strace of this own offlinegeneration is not the complete container/smoke inventory, DB qualification or OS containment proof.",
+  "allowedPacketReceiptWrite": "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/evidence/offline-generation-receipt.json",
+  "unapprovedAbsoluteWritePathLines": [],
+  "childForkEnvironmentNote": "Official options contain PATH/XDG_CACHE_HOME plus PRISMA_GENERATOR_INVOCATION. Node fork execve additionally appends its internal NODE_CHANNEL_FD/NODE_CHANNEL_SERIALIZATION_MODE IPC transport fields; no credential/datasource environment was supplied."
+}

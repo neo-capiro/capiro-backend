@@ -1,0 +1,7 @@
+{
+  "executorSession": 75950,
+  "executorExit": 2,
+  "failure": "officialcoverage7.15.3 wheel TCP timeout after UV three automatic retries; initial sanitizedenv omitted existing proxytransport",
+  "installSelection": "lockedbase+devonly",
+  "globalEnvironmentModified": false
+}

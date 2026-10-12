@@ -1,0 +1,78 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.14, pytest-8.4.2, pluggy-1.6.0
+cachedir: /tmp/capirov2-local-native-prerequisite-20261012/pytest-cache
+rootdir: /tmp/capirov2-cleanup-strategy-template-independent-review/apps/defense-budget-parser
+configfile: pyproject.toml
+testpaths: tests
+plugins: cov-5.0.0
+collected 283 items
+
+tests/test_authorization_provision_extractor.py .........                [  3%]
+tests/test_camelot_engine.py ......................                      [ 10%]
+tests/test_cli.py ..............                                         [ 15%]
+tests/test_contracts.py ................................................ [ 32%]
+                                                                         [ 32%]
+tests/test_docling_engine.py .......................                     [ 40%]
+tests/test_hacd_stage_extractor.py ...........                           [ 44%]
+tests/test_hasc_stage_extractor.py ...........                           [ 48%]
+tests/test_ndaa_conference_stage_extractor.py .........                  [ 51%]
+tests/test_paddleocr_engine.py ......................................... [ 66%]
+...........................                                              [ 75%]
+tests/test_pdf_profile.py ..................                             [ 82%]
+tests/test_pdfplumber_engine.py .............................            [ 92%]
+tests/test_sacd_stage_extractor.py ............                          [ 96%]
+tests/test_sasc_stage_extractor.py .........                             [100%]
+
+=============================== warnings summary ===============================
+tests/test_paddleocr_engine.py:912
+  /tmp/capirov2-cleanup-strategy-template-independent-review/apps/defense-budget-parser/tests/test_paddleocr_engine.py:912: SyntaxWarning: invalid escape sequence '\.'
+    assert '\.\.' in body
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/evidence/python-junit.xml -
+
+---------- coverage: platform linux, python 3.12.14-final-0 ----------
+Name                                                                               Stmts   Miss Branch BrPart  Cover
+--------------------------------------------------------------------------------------------------------------------
+src/capiro_defense_budget_parser/__init__.py                                           1      0      0      0   100%
+src/capiro_defense_budget_parser/camelot_engine.py                                   160     34     50     10    74%
+src/capiro_defense_budget_parser/canonical_json.py                                    28      6     16      6    73%
+src/capiro_defense_budget_parser/cli.py                                              134     22     42     11    79%
+src/capiro_defense_budget_parser/contracts.py                                        198      3     30      4    97%
+src/capiro_defense_budget_parser/docling_engine.py                                   262     70    102     25    67%
+src/capiro_defense_budget_parser/engine_versions.py                                   12      0      0      0   100%
+src/capiro_defense_budget_parser/extractors/__init__.py                                0      0      0      0   100%
+src/capiro_defense_budget_parser/extractors/stages/__init__.py                         0      0      0      0   100%
+src/capiro_defense_budget_parser/extractors/stages/common/__init__.py                  2      0      0      0   100%
+src/capiro_defense_budget_parser/extractors/stages/common/congressional_table.py     116      5      8      2    93%
+src/capiro_defense_budget_parser/extractors/stages/hacd/__init__.py                    2      0      0      0   100%
+src/capiro_defense_budget_parser/extractors/stages/hacd/extractor.py                  90     12     48     14    81%
+src/capiro_defense_budget_parser/extractors/stages/hacd/semantics.py                 184     30    100     20    79%
+src/capiro_defense_budget_parser/extractors/stages/hasc/__init__.py                    2      0      0      0   100%
+src/capiro_defense_budget_parser/extractors/stages/hasc/extractor.py                  91     13     46     14    80%
+src/capiro_defense_budget_parser/extractors/stages/hasc/semantics.py                 170     24     92     20    82%
+src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/__init__.py         3      0      0      0   100%
+src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/contracts.py      135     12     26     12    85%
+src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/extractor.py       99     14     50     16    80%
+src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/language.py        74      9     18      5    83%
+src/capiro_defense_budget_parser/extractors/stages/ndaa_conference/semantics.py      176     46     94     28    67%
+src/capiro_defense_budget_parser/extractors/stages/provisions/__init__.py              2      0      0      0   100%
+src/capiro_defense_budget_parser/extractors/stages/provisions/contracts.py           180     11     22     11    89%
+src/capiro_defense_budget_parser/extractors/stages/provisions/extractor.py            81      6     20      4    90%
+src/capiro_defense_budget_parser/extractors/stages/provisions/semantics.py           105      5     56      8    92%
+src/capiro_defense_budget_parser/extractors/stages/sacd/__init__.py                    2      0      0      0   100%
+src/capiro_defense_budget_parser/extractors/stages/sacd/extractor.py                 136     14     56     12    86%
+src/capiro_defense_budget_parser/extractors/stages/sacd/semantics.py                 200     25    102     17    83%
+src/capiro_defense_budget_parser/extractors/stages/sasc/__init__.py                    2      0      0      0   100%
+src/capiro_defense_budget_parser/extractors/stages/sasc/extractor.py                 115     14     48     12    84%
+src/capiro_defense_budget_parser/extractors/stages/sasc/semantics.py                 172     46     90     26    66%
+src/capiro_defense_budget_parser/normalize.py                                         40     40     16      0     0%
+src/capiro_defense_budget_parser/paddleocr_engine.py                                 277     36     92     12    86%
+src/capiro_defense_budget_parser/pdf_profile.py                                      129     34     24      1    73%
+src/capiro_defense_budget_parser/pdfplumber_engine.py                                184     38     60     10    77%
+src/capiro_defense_budget_parser/profile_contract.py                                  39      4     10      4    84%
+--------------------------------------------------------------------------------------------------------------------
+TOTAL                                                                               3603    573   1318    304    79%
+Coverage JSON written to file /tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/evidence/python-coverage.json
+
+======================= 283 passed, 1 warning in 12.96s ========================

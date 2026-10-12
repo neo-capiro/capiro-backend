@@ -1,0 +1,58 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "schemas": [
+    {
+      "path": "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/api/prisma/schema.prisma",
+      "exists": true,
+      "bytes": 979560,
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb"
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-strategy-template-independent-review/apps/workspace/prisma/schema.prisma",
+      "exists": true,
+      "bytes": 41761,
+      "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02"
+    },
+    {
+      "path": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/.prisma/client/schema.prisma",
+      "exists": true,
+      "bytes": 969925,
+      "sha256": "69ced004c4582ef9a4b611f6d97f4768fd014ac69d98290b2d30b07f07d4c700",
+      "matchesCurrentCoreSchema": false,
+      "matchesCurrentWorkspaceSchema": false
+    },
+    {
+      "path": "/workspace/capirov2/apps/workspace/generated/prisma-client/schema.prisma",
+      "exists": true,
+      "bytes": 32762,
+      "sha256": "fcaca466895372c929723cdb403a9d5752314ce2151404c1e2d69793ecfa05a2",
+      "matchesCurrentCoreSchema": false,
+      "matchesCurrentWorkspaceSchema": false
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/.enginefree/core-client/schema.prisma",
+      "exists": true,
+      "bytes": 979560,
+      "sha256": "215556bd82b97f0be84d7f97da7f19a5a25bace97dc54b1a550cab2039a740fb",
+      "matchesCurrentCoreSchema": true,
+      "matchesCurrentWorkspaceSchema": false
+    },
+    {
+      "path": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion/apps/workspace/generated/prisma-client/schema.prisma",
+      "exists": true,
+      "bytes": 41761,
+      "sha256": "e67b41d7e5105937c201cab382e222817009dd8ec4843d045af2c754d756fa02",
+      "matchesCurrentCoreSchema": false,
+      "matchesCurrentWorkspaceSchema": true
+    }
+  ],
+  "pinnedOwnedPnpm": {
+    "path": "/tmp/capirov2-local-qualification-corepack-20261012/v1/pnpm/9.12.0/bin/pnpm.cjs",
+    "exists": true,
+    "sha256": "2651efc8bc13e7d797dc8bb88b552eb5d657c700381db9aee587fdea5c5888d5",
+    "exit": 0,
+    "stdout": "9.12.0\n",
+    "stderr": ""
+  },
+  "caveat": "Schema equality only is not generator options/engine compatibility/native PG acceptance. Existing stale cache is not a current generated client."
+}

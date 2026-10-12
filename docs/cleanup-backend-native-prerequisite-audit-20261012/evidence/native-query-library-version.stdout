@@ -1,0 +1,20 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "filename": "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/libquery_engine-debian-openssl-3.0.x.so.node",
+  "sha256": "35860a5c0fb2f79e7b38c40747c4d212318d97e1910ca528b133c802716de0b8",
+  "exports": [
+    "version",
+    "debugPanic",
+    "ColumnType",
+    "QueryEngine"
+  ],
+  "version": {
+    "commit": "605197351a3c8bdd595af2d2a9bc3025bca48ea2",
+    "version": "0.1.0"
+  },
+  "probes": [],
+  "clientRequiredOrInstantiated": false,
+  "queryEngineConstructed": false,
+  "connectOrQueryCalled": false,
+  "qualification": "Native host NAPI addon loading and version only; no ARM64 execution, SQL/database/client/runtime qualification."
+}

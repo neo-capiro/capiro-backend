@@ -1,0 +1,26 @@
+{
+  "wrongRelativeSourceReadsRetained": [
+    {
+      "command": "sed apps/defense-budget-parser/tests/test_paddleocr_engine.py from app cwd",
+      "exit": 2,
+      "output": "sed: cannot read apps/defense-budget-parser/tests/test_paddleocr_engine.py: No such file or directory",
+      "effect": "following && UV command not executed; corrected source read before launch"
+    },
+    {
+      "command": "cat nonexistent python dry-run files after that read",
+      "exit": 1,
+      "effect": "no UV operation executed"
+    },
+    {
+      "paths": [
+        "apps/e2e/linux/pinned-image.txt",
+        "apps/e2e/linux/image-ref.txt",
+        "scripts/engagement-phase1-qualification-plan.mjs",
+        "scripts/ci/additional-disposable-bootstrap.sh",
+        "scripts/ci/remaining-rehearsal-bootstrap.sh"
+      ],
+      "effect": "guessed read operands absent; corrected canonical CI/image/helper/test source only, no operation"
+    }
+  ],
+  "qualification": "Read-only path mistakes, not production acceptance failures; original operative RED logs are separately retained as exact bytes."
+}

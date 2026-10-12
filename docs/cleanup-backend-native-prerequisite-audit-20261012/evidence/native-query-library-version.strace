@@ -1,0 +1,136 @@
+455911 execve("/usr/bin/env", ["/usr/bin/env", "-i", "PATH=/usr/bin:/bin", "XDG_CACHE_HOME=/tmp/capirov2-loc"..., "/opt/codex/runtimes/codex-primar"..., "./docs/cleanup-backend-native-pr"...], 0x7ffef005b2c0 /* 63 vars */) = 0
+455911 access("/etc/ld.so.preload", R_OK) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/locale-archive", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/share/locale/locale.alias", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_IDENTIFICATION", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_IDENTIFICATION", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_MEASUREMENT", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_MEASUREMENT", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_TELEPHONE", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_TELEPHONE", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_ADDRESS", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_ADDRESS", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_NAME", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_NAME", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_PAPER", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_PAPER", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_MESSAGES", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_MESSAGES", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_MESSAGES/SYS_LC_MESSAGES", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_MONETARY", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_MONETARY", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_COLLATE", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_COLLATE", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_TIME", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_TIME", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_NUMERIC", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_NUMERIC", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.UTF-8/LC_CTYPE", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/usr/lib/locale/C.utf8/LC_CTYPE", O_RDONLY|O_CLOEXEC) = 3
+455911 execve("/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node", ["/opt/codex/runtimes/codex-primar"..., "./docs/cleanup-backend-native-pr"...], 0x56060b3e3e10 /* 2 vars */) = 0
+455911 access("/etc/ld.so.preload", R_OK) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libdl.so.2", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libstdc++.so.6", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libm.so.6", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libgcc_s.so.1", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libpthread.so.0", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+455911 openat(AT_FDCWD, "/etc/ssl/openssl.cnf", O_RDONLY) = 3
+455911 openat(AT_FDCWD, "/proc/version_signature", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb88a430990, parent_tid=0x7fb88a430990, exit_signal=0, stack=0x7fb889c30000, stack_size=0x7ffdc0, tls=0x7fb88a4306c0} => {parent_tid=[455912]}, 88) = 455912
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb889c2f990, parent_tid=0x7fb889c2f990, exit_signal=0, stack=0x7fb88942f000, stack_size=0x7ffdc0, tls=0x7fb889c2f6c0} => {parent_tid=[455913]}, 88) = 455913
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb88942e990, parent_tid=0x7fb88942e990, exit_signal=0, stack=0x7fb888c2e000, stack_size=0x7ffdc0, tls=0x7fb88942e6c0} => {parent_tid=[455914]}, 88) = 455914
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb888c2d990, parent_tid=0x7fb888c2d990, exit_signal=0, stack=0x7fb88842d000, stack_size=0x7ffdc0, tls=0x7fb888c2d6c0} => {parent_tid=[455915]}, 88) = 455915
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb883fff990, parent_tid=0x7fb883fff990, exit_signal=0, stack=0x7fb8837ff000, stack_size=0x7ffdc0, tls=0x7fb883fff6c0} => {parent_tid=[455916]}, 88) = 455916
+455911 openat(AT_FDCWD, "/proc/self/maps", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/proc/self/cgroup", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/sys/fs/cgroup//memory.max", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/sys/fs/cgroup//memory.high", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/proc/meminfo", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/proc/self/maps", O_RDONLY) = 17
+455911 openat(AT_FDCWD, "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node", O_RDONLY) = 17
+455911 readlink("/proc/self/exe", "/opt/codex/runtimes/codex-primar"..., 8191) = 68
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb8883ac990, parent_tid=0x7fb8883ac990, exit_signal=0, stack=0x7fb8883a4000, stack_size=0x7dc0, tls=0x7fb8883ac6c0} => {parent_tid=[455917]}, 88) = 455917
+455911 getcwd("/tmp/capirov2-cleanup-strategy-template-independent-review", 4096) = 59
+455911 statx(AT_FDCWD, "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/evidence/native-query-library-version.cjs", AT_STATX_SYNC_AS_STAT, STATX_ALL, {stx_mask=STATX_ALL|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0600, stx_size=2383, ...}) = 0
+455911 statx(AT_FDCWD, "/tmp", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_ALL|STATX_MNT_ID, stx_attributes=STATX_ATTR_MOUNT_ROOT, stx_mode=S_IFDIR|S_ISVTX|0777, stx_size=4240, ...}) = 0
+455911 statx(AT_FDCWD, "/tmp/capirov2-cleanup-strategy-template-independent-review", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_ALL|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFDIR|0700, stx_size=900, ...}) = 0
+455911 statx(AT_FDCWD, "/tmp/capirov2-cleanup-strategy-template-independent-review/docs", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_ALL|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFDIR|0700, stx_size=2460, ...}) = 0
+455911 statx(AT_FDCWD, "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_ALL|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFDIR|0700, stx_size=80, ...}) = 0
+455911 statx(AT_FDCWD, "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/evidence", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_ALL|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFDIR|0700, stx_size=1180, ...}) = 0
+455911 statx(AT_FDCWD, "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/evidence/native-query-library-version.cjs", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_ALL|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFREG|0600, stx_size=2383, ...}) = 0
+455911 openat(AT_FDCWD, "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/evidence/native-query-library-version.cjs", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/libquery_engine-debian-openssl-3.0.x.so.node", O_RDONLY|O_CLOEXEC) = 17
+455911 statx(17, "", AT_STATX_SYNC_AS_STAT|AT_EMPTY_PATH, STATX_ALL, {stx_mask=STATX_TYPE|STATX_MODE|STATX_NLINK|STATX_UID|STATX_GID|STATX_MTIME|STATX_CTIME|STATX_INO|STATX_SIZE|STATX_BLOCKS|STATX_MNT_ID, stx_attributes=STATX_ATTR_IMMUTABLE|STATX_ATTR_DAX, stx_mode=S_IFREG|0711, stx_size=16161048, ...}) = 0
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb84a885990, parent_tid=0x7fb84a885990, exit_signal=0, stack=0x7fb84a085000, stack_size=0x7ffdc0, tls=0x7fb84a8856c0} => {parent_tid=[455918]}, 88) = 455918
+455911 openat(AT_FDCWD, "/etc/resolv.conf", O_RDONLY) = 17
+455911 openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY) = 17
+455911 openat(AT_FDCWD, "/etc/netsvc.conf", O_RDONLY) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/etc/svc.conf", O_RDONLY) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/sys/devices/system/cpu/cpu0/tsc_freq_khz", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/evidence/package.json", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-backend-native-prerequisite-audit-20261012/package.json", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/package.json", O_RDONLY|O_CLOEXEC) = -1 ENOENT (No such file or directory)
+455911 openat(AT_FDCWD, "/tmp/capirov2-cleanup-strategy-template-independent-review/package.json", O_RDONLY|O_CLOEXEC) = 17
+455911 statx(AT_FDCWD, "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/libquery_engine-debian-openssl-3.0.x.so.node", AT_STATX_SYNC_AS_STAT, STATX_ALL, {stx_mask=STATX_TYPE|STATX_MODE|STATX_NLINK|STATX_UID|STATX_GID|STATX_MTIME|STATX_CTIME|STATX_INO|STATX_SIZE|STATX_BLOCKS|STATX_MNT_ID, stx_attributes=STATX_ATTR_IMMUTABLE|STATX_ATTR_DAX, stx_mode=S_IFREG|0711, stx_size=16161048, ...}) = 0
+455911 statx(AT_FDCWD, "/workspace", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_ALL|STATX_MNT_ID, stx_attributes=STATX_ATTR_MOUNT_ROOT, stx_mode=S_IFDIR|0755, stx_size=4096, ...}) = 0
+455911 statx(AT_FDCWD, "/workspace/capirov2", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_ALL|STATX_MNT_ID, stx_attributes=0, stx_mode=S_IFDIR|0700, stx_size=4096, ...}) = 0
+455911 statx(AT_FDCWD, "/workspace/capirov2/node_modules", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_TYPE|STATX_MODE|STATX_NLINK|STATX_UID|STATX_GID|STATX_MTIME|STATX_CTIME|STATX_INO|STATX_SIZE|STATX_BLOCKS|STATX_MNT_ID, stx_attributes=STATX_ATTR_IMMUTABLE, stx_mode=S_IFDIR|0700, stx_size=207, ...}) = 0
+455911 statx(AT_FDCWD, "/workspace/capirov2/node_modules/.pnpm", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_TYPE|STATX_MODE|STATX_NLINK|STATX_UID|STATX_GID|STATX_MTIME|STATX_CTIME|STATX_INO|STATX_SIZE|STATX_BLOCKS|STATX_MNT_ID, stx_attributes=STATX_ATTR_IMMUTABLE, stx_mode=S_IFDIR|0700, stx_size=75904, ...}) = 0
+455911 statx(AT_FDCWD, "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_TYPE|STATX_MODE|STATX_NLINK|STATX_UID|STATX_GID|STATX_MTIME|STATX_CTIME|STATX_INO|STATX_SIZE|STATX_BLOCKS|STATX_MNT_ID, stx_attributes=STATX_ATTR_IMMUTABLE, stx_mode=S_IFDIR|0700, stx_size=51, ...}) = 0
+455911 statx(AT_FDCWD, "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_TYPE|STATX_MODE|STATX_NLINK|STATX_UID|STATX_GID|STATX_MTIME|STATX_CTIME|STATX_INO|STATX_SIZE|STATX_BLOCKS|STATX_MNT_ID, stx_attributes=STATX_ATTR_IMMUTABLE, stx_mode=S_IFDIR|0700, stx_size=46, ...}) = 0
+455911 statx(AT_FDCWD, "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_TYPE|STATX_MODE|STATX_NLINK|STATX_UID|STATX_GID|STATX_MTIME|STATX_CTIME|STATX_INO|STATX_SIZE|STATX_BLOCKS|STATX_MNT_ID, stx_attributes=STATX_ATTR_IMMUTABLE, stx_mode=S_IFDIR|0700, stx_size=138, ...}) = 0
+455911 statx(AT_FDCWD, "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_TYPE|STATX_MODE|STATX_NLINK|STATX_UID|STATX_GID|STATX_MTIME|STATX_CTIME|STATX_INO|STATX_SIZE|STATX_BLOCKS|STATX_MNT_ID, stx_attributes=STATX_ATTR_IMMUTABLE, stx_mode=S_IFDIR|0700, stx_size=228, ...}) = 0
+455911 statx(AT_FDCWD, "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/libquery_engine-debian-openssl-3.0.x.so.node", AT_STATX_SYNC_AS_STAT|AT_SYMLINK_NOFOLLOW, STATX_ALL, {stx_mask=STATX_TYPE|STATX_MODE|STATX_NLINK|STATX_UID|STATX_GID|STATX_MTIME|STATX_CTIME|STATX_INO|STATX_SIZE|STATX_BLOCKS|STATX_MNT_ID, stx_attributes=STATX_ATTR_IMMUTABLE|STATX_ATTR_DAX, stx_mode=S_IFREG|0711, stx_size=16161048, ...}) = 0
+455911 openat(AT_FDCWD, "/workspace/capirov2/node_modules/.pnpm/@prisma+engines@5.22.0/node_modules/@prisma/engines/libquery_engine-debian-openssl-3.0.x.so.node", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libssl.so.3", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libcrypto.so.3", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/librt.so.1", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libz.so.1", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/lib/x86_64-linux-gnu/libzstd.so.1", O_RDONLY|O_CLOEXEC) = 17
+455918 exit(0)                          = ?
+455918 +++ exited with 0 +++
+455911 openat(AT_FDCWD, "/proc/self/cgroup", O_RDONLY|O_CLOEXEC) = 17
+455911 openat(AT_FDCWD, "/proc/self/mountinfo", O_RDONLY|O_CLOEXEC) = 17
+455911 socketpair(AF_UNIX, SOCK_STREAM|SOCK_CLOEXEC|SOCK_NONBLOCK, 0, [20, 21]) = 0
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb84b1b5990, parent_tid=0x7fb84b1b5990, exit_signal=0, stack=0x7fb84afb5000, stack_size=0x1ffdc0, tls=0x7fb84b1b56c0} => {parent_tid=[455919]}, 88) = 455919
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb84afb4990, parent_tid=0x7fb84afb4990, exit_signal=0, stack=0x7fb84adb4000, stack_size=0x1ffdc0, tls=0x7fb84afb46c0} => {parent_tid=[455920]}, 88) = 455920
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb84adb3990, parent_tid=0x7fb84adb3990, exit_signal=0, stack=0x7fb84abb3000, stack_size=0x1ffdc0, tls=0x7fb84adb36c0} => {parent_tid=[455921]}, 88) = 455921
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb84abb2990, parent_tid=0x7fb84abb2990, exit_signal=0, stack=0x7fb84a9b2000, stack_size=0x1ffdc0, tls=0x7fb84abb26c0} => {parent_tid=[455923]}, 88) = 455923
+455911 clone3({flags=CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_THREAD|CLONE_SYSVSEM|CLONE_SETTLS|CLONE_PARENT_SETTID|CLONE_CHILD_CLEARTID, child_tid=0x7fb848dff990, parent_tid=0x7fb848dff990, exit_signal=0, stack=0x7fb848bff000, stack_size=0x1ffdc0, tls=0x7fb848dff6c0} <unfinished ...>
+455923 openat(AT_FDCWD, "/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC) = 23
+455911 <... clone3 resumed> => {parent_tid=[455924]}, 88) = 455924
+455924 openat(AT_FDCWD, "/sys/devices/system/cpu/online", O_RDONLY|O_CLOEXEC) = 23
+455919 exit(0 <unfinished ...>
+455924 exit(0)                          = ?
+455919 <... exit resumed>)              = ?
+455921 exit(0 <unfinished ...>
+455924 +++ exited with 0 +++
+455921 <... exit resumed>)              = ?
+455919 +++ exited with 0 +++
+455921 +++ exited with 0 +++
+455923 exit(0)                          = ?
+455923 +++ exited with 0 +++
+455920 exit(0)                          = ?
+455920 +++ exited with 0 +++
+455915 exit(0)                          = ?
+455916 exit(0 <unfinished ...>
+455915 +++ exited with 0 +++
+455913 exit(0 <unfinished ...>
+455916 <... exit resumed>)              = ?
+455913 <... exit resumed>)              = ?
+455916 +++ exited with 0 +++
+455913 +++ exited with 0 +++
+455912 exit(0)                          = ?
+455912 +++ exited with 0 +++
+455914 exit(0)                          = ?
+455914 +++ exited with 0 +++
+455911 exit_group(0)                    = ?
+455917 +++ exited with 0 +++
+455911 +++ exited with 0 +++
