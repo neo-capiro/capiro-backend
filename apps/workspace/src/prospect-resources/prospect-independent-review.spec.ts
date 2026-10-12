@@ -167,7 +167,7 @@ describe('independent prospect Workspace lifecycle and alternate-path controls',
   });
   it('rejects public-share idempotency replay before looking up or returning token metadata', async () => {
     const h = fixture(); const lookup = jest.fn(async () => ({ id: 'old-public-share' }));
-    const service = new ShareLinkService({ ...h.prisma, wsShareLink: { findFirst: lookup } } as never);
+    const service = new ShareLinkService({ ...h.prisma, wsShareLink: { findFirst: lookup } } as never, {} as never);
     await expect(service.createShareLink(tenant, draftId, owner, { idempotencyKey: 'repeat' })).rejects.toMatchObject({ status: 403 });
     expect(lookup).not.toHaveBeenCalled();
   });
