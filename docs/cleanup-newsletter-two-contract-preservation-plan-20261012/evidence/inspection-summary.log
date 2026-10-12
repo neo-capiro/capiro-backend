@@ -1,0 +1,35 @@
+{
+  "heads": {
+    "C": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "W": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda",
+    "Q": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+    "four": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+    "assessment": "7286700fb80c43ec66e1330bed7b5c64b10804e0"
+  },
+  "trees": {
+    "C": "ce817706a72b7f096cf3e112f28ec355153e5653",
+    "W": "d7907c0d9e8f6feb1a79dab3ba02e91050379e18",
+    "Q": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+    "four": "d5a1acd33391ae681159c271f6a72602c6338055",
+    "assessment": "a3d1acd826bac6479d21ad233d6b71ba21e754fc"
+  },
+  "bindings": 91,
+  "exact27": true,
+  "ownedRuntime": 25,
+  "ownedTests": 19,
+  "routeBodies": "67/67",
+  "missingCResolved": [
+    {
+      "path": "apps/workspace/src/newsletters/newsletter.service.ts",
+      "module": "../../generated/prisma-client/index.js"
+    }
+  ],
+  "AGENTS": {
+    "C": [],
+    "W": [],
+    "Q": [],
+    "four": [],
+    "assessment": []
+  },
+  "readCommands": 328
+}

@@ -1,0 +1,3577 @@
+{
+  "scope": "Read-only schema/lock/static asset/consumer text; no frontend edits, source modules/routes/providers executed or migration/dependency install",
+  "heads": {
+    "C": "1e99f0921b207318c6d2abf03927b5c4daa5768b",
+    "W": "193703e34f2bedbb69d87d6a8ee303f65ab8dbda",
+    "Q": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+    "four": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+    "assessment": "7286700fb80c43ec66e1330bed7b5c64b10804e0"
+  },
+  "trees": {
+    "C": "ce817706a72b7f096cf3e112f28ec355153e5653",
+    "W": "d7907c0d9e8f6feb1a79dab3ba02e91050379e18",
+    "Q": "6c11b1094aadcbf6645e759204f72b6f87c8982a",
+    "four": "d5a1acd33391ae681159c271f6a72602c6338055",
+    "assessment": "a3d1acd826bac6479d21ad233d6b71ba21e754fc"
+  },
+  "schemaOverlap": [
+    {
+      "path": "apps/workspace/prisma/schema.prisma",
+      "heads": {
+        "C": [
+          {
+            "name": "WsNewsletterDocument",
+            "present": true,
+            "sha256": "1e66e5f197194e16aadd30fbae694649a8e6b0b16b4533778e1644f812a84fdb",
+            "source": "model WsNewsletterDocument {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  name String\n  revision Int @default(1)\n  status String @default(\"draft\")\n  config Json\n  design Json\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n  comments WsNewsletterComment[]\n  stages WsNewsletterStage[]\n  reviewers WsNewsletterReviewer[]\n  invitations WsNewsletterInvitation[]\n  @@unique([id, tenantId], map: \"ws_newsletter_document_tenant_key\")\n  @@index([tenantId, ownerId, updatedAt])\n  @@map(\"ws_newsletter_document\")\n}"
+          },
+          {
+            "name": "WsNewsletterBrandKit",
+            "present": true,
+            "sha256": "97a69ebaa5561556c393eaa0e557f51f4dbe2f1915f3c5c5a5e853b811fd1203",
+            "source": "model WsNewsletterBrandKit {\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  revision Int @default(1)\n  payload Json\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n  @@id([tenantId, ownerId])\n  @@map(\"ws_newsletter_brand_kit\")\n}"
+          },
+          {
+            "name": "WsNewsletterReviewer",
+            "present": true,
+            "sha256": "724a64cd785606b5166aae922d514909103cbc729e448f143409ae6d75555571",
+            "source": "model WsNewsletterReviewer {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  userId String @map(\"user_id\")\n  role String @default(\"commenter\")\n  notifications String @default(\"mentions\")\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  document WsNewsletterDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)\n  @@unique([documentId, userId])\n  @@index([tenantId, userId])\n  @@map(\"ws_newsletter_reviewer\")\n}"
+          },
+          {
+            "name": "WsNewsletterLibraryItem",
+            "present": true,
+            "sha256": "b82f11bb0c77e9a23e2f7715d245ffe2ebbf536fecb23b335bb9fe00ee8997d7",
+            "source": "model WsNewsletterLibraryItem {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  kind String\n  name String\n  folder String @default(\"\")\n  payload Json\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  updatedAt DateTime @updatedAt @map(\"updated_at\")\n  @@index([tenantId, ownerId, kind])\n  @@map(\"ws_newsletter_library_item\")\n}"
+          },
+          {
+            "name": "WsNewsletterInvitation",
+            "present": true,
+            "sha256": "89c378b9aa59dec3c1acddf3eaf3f507076bfdf422bf4ea1b5dcbee74220d906",
+            "source": "model WsNewsletterInvitation {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  authorId String @map(\"author_id\")\n  requestKey String @map(\"request_key\") @db.Uuid\n  email String @db.VarChar(320)\n  role String\n  message String\n  accountRole String @default(\"member\") @map(\"account_role\")\n  sourceClientIds String[] @default([]) @map(\"source_client_ids\") @db.Uuid\n  recipientId String? @map(\"recipient_id\")\n  activatedAt DateTime? @map(\"activated_at\")\n  cancelledAt DateTime? @map(\"cancelled_at\")\n  expiresAt DateTime @map(\"expires_at\")\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  document WsNewsletterDocument @relation(fields: [documentId, tenantId], references: [id, tenantId], onDelete: Cascade, map: \"ws_newsletter_invitation_document_scope_fkey\")\n  @@unique([tenantId, authorId, requestKey], map: \"ws_newsletter_invitation_request_key\")\n  @@index([tenantId, documentId, email])\n  @@index([activatedAt, createdAt])\n  @@map(\"ws_newsletter_invitation\")\n}"
+          },
+          {
+            "name": "WsNewsletterComment",
+            "present": true,
+            "sha256": "2d017dc26fd539638fcd724040ec7c78bec03a866635bfedd28f2c9e7296b9d3",
+            "source": "model WsNewsletterComment {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  authorId String @map(\"author_id\")\n  blockId String? @map(\"block_id\")\n  parentId String? @map(\"parent_id\") @db.Uuid\n  message String\n  resolved Boolean @default(false)\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  document WsNewsletterDocument @relation(fields:[documentId], references:[id], onDelete:Cascade)\n  watchers WsNewsletterThreadWatcher[]\n  emailRequests WsNewsletterReviewEmailRequest[] @relation(\"NewsletterEmailComment\")\n  rootEmailRequests WsNewsletterReviewEmailRequest[] @relation(\"NewsletterEmailRoot\")\n  @@unique([id, tenantId, documentId], map: \"ws_newsletter_comment_scope_key\")\n  @@index([tenantId, documentId, createdAt])\n  @@map(\"ws_newsletter_comment\")\n}"
+          },
+          {
+            "name": "WsNewsletterThreadWatcher",
+            "present": true,
+            "sha256": "404dbc73db0fdac8f8ce48f468499e5d4ad520fb8023e60e0fdd6dda539bc4a8",
+            "source": "model WsNewsletterThreadWatcher {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  rootId String @map(\"root_id\") @db.Uuid\n  userId String @map(\"user_id\")\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  root WsNewsletterComment @relation(fields: [rootId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: \"ws_newsletter_thread_watcher_root_scope_fkey\")\n  @@unique([rootId, userId])\n  @@index([tenantId, documentId])\n  @@map(\"ws_newsletter_thread_watcher\")\n}"
+          },
+          {
+            "name": "WsNewsletterReviewEmailRequest",
+            "present": true,
+            "sha256": "9c50d73359d4a5989bb9fff2d3f92d5b60321efd4941b88c6d01bb22cc7f184c",
+            "source": "model WsNewsletterReviewEmailRequest {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  rootId String @map(\"root_id\") @db.Uuid\n  commentId String @map(\"comment_id\") @db.Uuid\n  recipientId String @map(\"recipient_id\")\n  sourceClientIds String[] @default([]) @map(\"source_client_ids\") @db.Uuid\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  comment WsNewsletterComment @relation(\"NewsletterEmailComment\", fields: [commentId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: \"ws_newsletter_review_email_request_comment_scope_fkey\")\n  root WsNewsletterComment @relation(\"NewsletterEmailRoot\", fields: [rootId, tenantId, documentId], references: [id, tenantId, documentId], onDelete: Cascade, map: \"ws_newsletter_review_email_request_root_scope_fkey\")\n  @@unique([commentId, recipientId])\n  @@index([createdAt])\n  @@index([tenantId, documentId])\n  @@map(\"ws_newsletter_review_email_request\")\n}"
+          },
+          {
+            "name": "WsNewsletterAsset",
+            "present": true,
+            "sha256": "d60650aa8012f0909ab3896e95d71d831e5dfe60211cf8a12e226e7ec616e554",
+            "source": "model WsNewsletterAsset {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  name String\n  token String @unique\n  mimeType String @map(\"mime_type\")\n  file Bytes\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  deletedAt DateTime? @map(\"deleted_at\")\n  revisionRootId String? @map(\"revision_root_id\") @db.Uuid\n  revisionParentId String? @map(\"revision_parent_id\") @db.Uuid\n  revisionNumber Int @default(1) @map(\"revision_number\")\n  currentRevision Boolean @default(true) @map(\"current_revision\")\n  revisionRoot WsNewsletterAsset? @relation(\"NewsletterImageRoot\", fields: [revisionRootId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, onUpdate: NoAction, map: \"ws_newsletter_asset_revision_root_scope_fkey\")\n  revisions WsNewsletterAsset[] @relation(\"NewsletterImageRoot\")\n  revisionParent WsNewsletterAsset? @relation(\"NewsletterImageParent\", fields: [revisionParentId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, onUpdate: NoAction, map: \"ws_newsletter_asset_revision_parent_scope_fkey\")\n  derivedImages WsNewsletterAsset[] @relation(\"NewsletterImageParent\")\n  folderId String? @map(\"folder_id\") @db.Uuid\n  folder WsNewsletterAssetFolder? @relation(fields: [folderId, tenantId, ownerId], references: [id, tenantId, ownerId], onDelete: NoAction, map: \"ws_newsletter_asset_folder_scope_fkey\")\n  @@index([tenantId, ownerId])\n  @@index([tenantId, ownerId, folderId])\n  @@unique([id, tenantId, ownerId], map: \"ws_newsletter_asset_scope_key\")\n  @@unique([revisionRootId, revisionNumber], map: \"ws_newsletter_asset_revision_number_key\")\n  @@index([tenantId, ownerId, currentRevision, deletedAt])\n  @@map(\"ws_newsletter_asset\")\n}"
+          },
+          {
+            "name": "WsNewsletterAssetFolder",
+            "present": true,
+            "sha256": "5ddcd5a6bf8b7b71af41e9a6edace455c83842eaf2b90d6db3195501b04fcb11",
+            "source": "model WsNewsletterAssetFolder {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  name String\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  assets WsNewsletterAsset[]\n  @@unique([id, tenantId, ownerId], map: \"ws_newsletter_asset_folder_scope_key\")\n  @@index([tenantId, ownerId])\n  @@map(\"ws_newsletter_asset_folder\")\n}"
+          },
+          {
+            "name": "WsNewsletterStage",
+            "present": true,
+            "sha256": "b0795be8350dc676535ec4a42e67e256fbfc0ab37207a94c25441c5cb64c326c",
+            "source": "model WsNewsletterStage {\n  id String @id @default(uuid()) @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  ownerId String @map(\"owner_id\")\n  revision Int\n  name String\n  config Json\n  design Json\n  html String\n  plainText String @map(\"plain_text\")\n  createdAt DateTime @default(now()) @map(\"created_at\")\n  document WsNewsletterDocument @relation(fields:[documentId], references:[id], onDelete:Restrict)\n  @@unique([documentId, revision, ownerId])\n  @@index([tenantId, ownerId, createdAt])\n  @@map(\"ws_newsletter_stage\")\n}"
+          },
+          {
+            "name": "WsNotificationKind",
+            "present": true,
+            "sha256": "947f36e354f43e0c627a120c65e42a294f93c2ce160a60687d2b6909c24014b1",
+            "source": "enum WsNotificationKind {\n  collab_invite\n  collab_accepted\n  collab_declined\n  newsletter_review\n  newsletter_comment\n\n  @@map(\"ws_notification_kind\")\n}"
+          },
+          {
+            "name": "WsNotification",
+            "present": true,
+            "sha256": "160ed7107384360d3233ed28c2cb950ac60adbd40b3c43c719d03ad0ed7674ca",
+            "source": "model WsNotification {\n  id             String             @id @default(uuid()) @db.Uuid\n  tenantId       String             @map(\"tenant_id\") @db.Uuid\n  recipientId    String             @map(\"recipient_id\")\n  kind           WsNotificationKind\n  draftId        String?            @map(\"draft_id\") @db.Uuid\n  collaboratorId String?            @map(\"collaborator_id\") @db.Uuid\n  actorName      String?            @map(\"actor_name\")\n  draftTitle     String?            @map(\"draft_title\")\n  newsletterId   String?            @map(\"newsletter_id\") @db.Uuid\n  role           WsRole?\n  message        String\n  read           Boolean            @default(false)\n  actionable     Boolean            @default(false)\n  createdAt      DateTime           @default(now()) @map(\"created_at\")\n\n  @@index([tenantId, recipientId])\n  @@index([recipientId, read])\n  @@map(\"ws_notification\")\n}"
+          },
+          {
+            "name": "WsDocVersion",
+            "present": true,
+            "sha256": "bb534f78577656aaaa41b704c9e1f569ad6bdb356f526817b267417174c0d221",
+            "source": "model WsDocVersion {\n  id         String       @id @default(uuid()) @db.Uuid\n  tenantId   String       @map(\"tenant_id\") @db.Uuid\n  draftId    String       @map(\"draft_id\") @db.Uuid\n  // Human label (\"Edited The ask\", \"Drafted Problem statement\"). Optional.\n  label      String?\n  // Clerk user id of the author (engine doesn't own the user table). For a\n  // Meri-authored version this is the user who triggered the save.\n  authorId   String       @map(\"author_id\")\n  authorKind WsAuthorKind @default(person) @map(\"author_kind\")\n  // Full draft state at save time: { docTitle, config, documents: [{id,name,\n  // ordinal,body}], ask }.\n  snapshot   Json         @default(\"{}\")\n  createdAt  DateTime     @default(now()) @map(\"created_at\")\n\n  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)\n\n  @@index([tenantId])\n  @@index([draftId])\n  @@index([draftId, createdAt])\n  @@map(\"ws_doc_version\")\n}"
+          },
+          {
+            "name": "WsDraft",
+            "present": true,
+            "sha256": "c9ee140ef997c9462efa6c7880ad6b44a494995bd6791a626e11587423da2623",
+            "source": "model WsDraft {\n  id        String      @id @default(uuid()) @db.Uuid\n  tenantId  String      @map(\"tenant_id\") @db.Uuid\n  // Owner identity is the Clerk user id (e.g. \"user_2abc...\"). The engine does\n  // not own the Capiro user table, so it stores the verified Clerk subject\n  // rather than a Capiro user UUID. (Resolved by TenantGuard from the JWT.)\n  ownerId   String      @map(\"owner_id\")\n  // Clerk user id of whoever last edited (autosaved) the draft; null for legacy\n  // rows → the UI falls back to the owner. Same id-space as ownerId.\n  lastEditedById String? @map(\"last_edited_by_id\")\n  docTitle  String      @map(\"doc_title\")\n  // Cascade hot-fields (promoted from config for indexed filtering).\n  industry  String?\n  product   String?\n  client    String?\n  status    WsDocStatus @default(draft)\n  // Packet derivation (handoff §12.10): isPacket = coverLetter || documents>1.\n  isPacket  Boolean     @default(false) @map(\"is_packet\")\n  docCount  Int         @default(1) @map(\"doc_count\")\n  // Dollar ask (handoff §12.11): { amount, pb, delta } for funding products,\n  // else null. Human-set + lobbyist-gated; never auto-populated.\n  ask       Json?\n  // The full engine config (industry, product, pathways[], committees[],\n  // personalize, officeAssociated, offices[], selectedTemplate, sections[],\n  // pages, tone, linkedData[], anonymize, coverLetter, letterhead, ...).\n  config    Json        @default(\"{}\")\n  createdAt DateTime    @default(now()) @map(\"created_at\")\n  updatedAt DateTime    @updatedAt @map(\"updated_at\")\n\n  documents     WsDocument[]\n  context       WsContextItem[]\n  versions      WsDocVersion[]\n  editLock      WsEditLock?\n  collaborators WsCollaborator[]\n  agentMessages WsAgentMessage[]\n  proposals     WsAgentProposal[]\n  approvalRequests WsApprovalRequest[]\n  shareLinks    WsShareLink[]\n  guestComments WsGuestComment[]\n\n  @@index([tenantId])\n  @@index([tenantId, ownerId])\n  @@index([tenantId, updatedAt])\n\n  // Two-step Max draft flow (PR #964).\n  intakes         WsIntake[]\n  generationRuns  WsGenerationRun[]\n  @@map(\"ws_draft\")\n}"
+          }
+        ],
+        "Q": [
+          {
+            "name": "WsNewsletterDocument",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterBrandKit",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterReviewer",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterLibraryItem",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterInvitation",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterComment",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterThreadWatcher",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterReviewEmailRequest",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterAsset",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterAssetFolder",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterStage",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNotificationKind",
+            "present": true,
+            "sha256": "dcfc185ccf993e6eb69a6f7d33ec65c076efff3cd5db37d39f5acae361ed6693",
+            "source": "enum WsNotificationKind {\n  collab_invite\n  collab_accepted\n  collab_declined\n\n  @@map(\"ws_notification_kind\")\n}"
+          },
+          {
+            "name": "WsNotification",
+            "present": true,
+            "sha256": "a9c1585f7c8707ec8c691b12fb2c96eaac6cbf10fe48221d9dbb5bae3f064926",
+            "source": "model WsNotification {\n  id             String             @id @default(uuid()) @db.Uuid\n  tenantId       String             @map(\"tenant_id\") @db.Uuid\n  recipientId    String             @map(\"recipient_id\")\n  kind           WsNotificationKind\n  draftId        String?            @map(\"draft_id\") @db.Uuid\n  collaboratorId String?            @map(\"collaborator_id\") @db.Uuid\n  actorName      String?            @map(\"actor_name\")\n  draftTitle     String?            @map(\"draft_title\")\n  role           WsRole?\n  message        String\n  read           Boolean            @default(false)\n  actionable     Boolean            @default(false)\n  createdAt      DateTime           @default(now()) @map(\"created_at\")\n\n  @@index([tenantId, recipientId])\n  @@index([recipientId, read])\n  @@map(\"ws_notification\")\n}"
+          },
+          {
+            "name": "WsDocVersion",
+            "present": true,
+            "sha256": "bb534f78577656aaaa41b704c9e1f569ad6bdb356f526817b267417174c0d221",
+            "source": "model WsDocVersion {\n  id         String       @id @default(uuid()) @db.Uuid\n  tenantId   String       @map(\"tenant_id\") @db.Uuid\n  draftId    String       @map(\"draft_id\") @db.Uuid\n  // Human label (\"Edited The ask\", \"Drafted Problem statement\"). Optional.\n  label      String?\n  // Clerk user id of the author (engine doesn't own the user table). For a\n  // Meri-authored version this is the user who triggered the save.\n  authorId   String       @map(\"author_id\")\n  authorKind WsAuthorKind @default(person) @map(\"author_kind\")\n  // Full draft state at save time: { docTitle, config, documents: [{id,name,\n  // ordinal,body}], ask }.\n  snapshot   Json         @default(\"{}\")\n  createdAt  DateTime     @default(now()) @map(\"created_at\")\n\n  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)\n\n  @@index([tenantId])\n  @@index([draftId])\n  @@index([draftId, createdAt])\n  @@map(\"ws_doc_version\")\n}"
+          },
+          {
+            "name": "WsDraft",
+            "present": true,
+            "sha256": "f0e9328d2bdec1087aa7bbc9bf0242fd9d2a4934531284425e09a3100e2f1e1b",
+            "source": "model WsDraft {\n  id        String      @id @default(uuid()) @db.Uuid\n  tenantId  String      @map(\"tenant_id\") @db.Uuid\n  // Owner identity is the Clerk user id (e.g. \"user_2abc...\"). The engine does\n  // not own the Capiro user table, so it stores the verified Clerk subject\n  // rather than a Capiro user UUID. (Resolved by TenantGuard from the JWT.)\n  ownerId   String      @map(\"owner_id\")\n  // Clerk user id of whoever last edited (autosaved) the draft; null for legacy\n  // rows → the UI falls back to the owner. Same id-space as ownerId.\n  lastEditedById String? @map(\"last_edited_by_id\")\n  docTitle  String      @map(\"doc_title\")\n  // Cascade hot-fields (promoted from config for indexed filtering).\n  industry  String?\n  product   String?\n  client    String?\n  // Canonical immutable Core origin; free-text client never grants authority.\n  prospectId String? @map(\"prospect_id\") @db.Uuid\n  status    WsDocStatus @default(draft)\n  // Packet derivation (handoff §12.10): isPacket = coverLetter || documents>1.\n  isPacket  Boolean     @default(false) @map(\"is_packet\")\n  docCount  Int         @default(1) @map(\"doc_count\")\n  // Dollar ask (handoff §12.11): { amount, pb, delta } for funding products,\n  // else null. Human-set + lobbyist-gated; never auto-populated.\n  ask       Json?\n  // The full engine config (industry, product, pathways[], committees[],\n  // personalize, officeAssociated, offices[], selectedTemplate, sections[],\n  // pages, tone, linkedData[], anonymize, coverLetter, letterhead, ...).\n  config    Json        @default(\"{}\")\n  createdAt DateTime    @default(now()) @map(\"created_at\")\n  updatedAt DateTime    @updatedAt @map(\"updated_at\")\n\n  documents     WsDocument[]\n  context       WsContextItem[]\n  versions      WsDocVersion[]\n  editLock      WsEditLock?\n  collaborators WsCollaborator[]\n  agentMessages WsAgentMessage[]\n  proposals     WsAgentProposal[]\n  approvalRequests WsApprovalRequest[]\n  shareLinks    WsShareLink[]\n  guestComments WsGuestComment[]\n\n  @@index([tenantId])\n  @@index([tenantId, prospectId, updatedAt], map: \"ws_draft_prospect_idx\")\n  @@index([tenantId, ownerId])\n  @@index([tenantId, updatedAt])\n\n  // Two-step Max draft flow (PR #964).\n  intakes         WsIntake[]\n  generationRuns  WsGenerationRun[]\n  @@map(\"ws_draft\")\n}"
+          }
+        ],
+        "four": [
+          {
+            "name": "WsNewsletterDocument",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterBrandKit",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterReviewer",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterLibraryItem",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterInvitation",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterComment",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterThreadWatcher",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterReviewEmailRequest",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterAsset",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterAssetFolder",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNewsletterStage",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "WsNotificationKind",
+            "present": true,
+            "sha256": "dcfc185ccf993e6eb69a6f7d33ec65c076efff3cd5db37d39f5acae361ed6693",
+            "source": "enum WsNotificationKind {\n  collab_invite\n  collab_accepted\n  collab_declined\n\n  @@map(\"ws_notification_kind\")\n}"
+          },
+          {
+            "name": "WsNotification",
+            "present": true,
+            "sha256": "a9c1585f7c8707ec8c691b12fb2c96eaac6cbf10fe48221d9dbb5bae3f064926",
+            "source": "model WsNotification {\n  id             String             @id @default(uuid()) @db.Uuid\n  tenantId       String             @map(\"tenant_id\") @db.Uuid\n  recipientId    String             @map(\"recipient_id\")\n  kind           WsNotificationKind\n  draftId        String?            @map(\"draft_id\") @db.Uuid\n  collaboratorId String?            @map(\"collaborator_id\") @db.Uuid\n  actorName      String?            @map(\"actor_name\")\n  draftTitle     String?            @map(\"draft_title\")\n  role           WsRole?\n  message        String\n  read           Boolean            @default(false)\n  actionable     Boolean            @default(false)\n  createdAt      DateTime           @default(now()) @map(\"created_at\")\n\n  @@index([tenantId, recipientId])\n  @@index([recipientId, read])\n  @@map(\"ws_notification\")\n}"
+          },
+          {
+            "name": "WsDocVersion",
+            "present": true,
+            "sha256": "bb534f78577656aaaa41b704c9e1f569ad6bdb356f526817b267417174c0d221",
+            "source": "model WsDocVersion {\n  id         String       @id @default(uuid()) @db.Uuid\n  tenantId   String       @map(\"tenant_id\") @db.Uuid\n  draftId    String       @map(\"draft_id\") @db.Uuid\n  // Human label (\"Edited The ask\", \"Drafted Problem statement\"). Optional.\n  label      String?\n  // Clerk user id of the author (engine doesn't own the user table). For a\n  // Meri-authored version this is the user who triggered the save.\n  authorId   String       @map(\"author_id\")\n  authorKind WsAuthorKind @default(person) @map(\"author_kind\")\n  // Full draft state at save time: { docTitle, config, documents: [{id,name,\n  // ordinal,body}], ask }.\n  snapshot   Json         @default(\"{}\")\n  createdAt  DateTime     @default(now()) @map(\"created_at\")\n\n  draft WsDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)\n\n  @@index([tenantId])\n  @@index([draftId])\n  @@index([draftId, createdAt])\n  @@map(\"ws_doc_version\")\n}"
+          },
+          {
+            "name": "WsDraft",
+            "present": true,
+            "sha256": "f0e9328d2bdec1087aa7bbc9bf0242fd9d2a4934531284425e09a3100e2f1e1b",
+            "source": "model WsDraft {\n  id        String      @id @default(uuid()) @db.Uuid\n  tenantId  String      @map(\"tenant_id\") @db.Uuid\n  // Owner identity is the Clerk user id (e.g. \"user_2abc...\"). The engine does\n  // not own the Capiro user table, so it stores the verified Clerk subject\n  // rather than a Capiro user UUID. (Resolved by TenantGuard from the JWT.)\n  ownerId   String      @map(\"owner_id\")\n  // Clerk user id of whoever last edited (autosaved) the draft; null for legacy\n  // rows → the UI falls back to the owner. Same id-space as ownerId.\n  lastEditedById String? @map(\"last_edited_by_id\")\n  docTitle  String      @map(\"doc_title\")\n  // Cascade hot-fields (promoted from config for indexed filtering).\n  industry  String?\n  product   String?\n  client    String?\n  // Canonical immutable Core origin; free-text client never grants authority.\n  prospectId String? @map(\"prospect_id\") @db.Uuid\n  status    WsDocStatus @default(draft)\n  // Packet derivation (handoff §12.10): isPacket = coverLetter || documents>1.\n  isPacket  Boolean     @default(false) @map(\"is_packet\")\n  docCount  Int         @default(1) @map(\"doc_count\")\n  // Dollar ask (handoff §12.11): { amount, pb, delta } for funding products,\n  // else null. Human-set + lobbyist-gated; never auto-populated.\n  ask       Json?\n  // The full engine config (industry, product, pathways[], committees[],\n  // personalize, officeAssociated, offices[], selectedTemplate, sections[],\n  // pages, tone, linkedData[], anonymize, coverLetter, letterhead, ...).\n  config    Json        @default(\"{}\")\n  createdAt DateTime    @default(now()) @map(\"created_at\")\n  updatedAt DateTime    @updatedAt @map(\"updated_at\")\n\n  documents     WsDocument[]\n  context       WsContextItem[]\n  versions      WsDocVersion[]\n  editLock      WsEditLock?\n  collaborators WsCollaborator[]\n  agentMessages WsAgentMessage[]\n  proposals     WsAgentProposal[]\n  approvalRequests WsApprovalRequest[]\n  shareLinks    WsShareLink[]\n  guestComments WsGuestComment[]\n\n  @@index([tenantId])\n  @@index([tenantId, prospectId, updatedAt], map: \"ws_draft_prospect_idx\")\n  @@index([tenantId, ownerId])\n  @@index([tenantId, updatedAt])\n\n  // Two-step Max draft flow (PR #964).\n  intakes         WsIntake[]\n  generationRuns  WsGenerationRun[]\n  @@map(\"ws_draft\")\n}"
+          }
+        ]
+      }
+    },
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "heads": {
+        "C": [
+          {
+            "name": "OutreachDraftVersion",
+            "present": true,
+            "sha256": "6fe1999609d5ed71daa645622a43a87d0171196183b63ca627f10a0e6e66a1a0",
+            "source": "model OutreachDraftVersion {\n  id                String   @id @default(uuid()) @db.Uuid\n  tenantId          String   @map(\"tenant_id\") @db.Uuid\n  artifactId        String   @map(\"artifact_id\") @db.Uuid\n  version           Int\n  /// The version this one was edited/improved/reverted FROM; null for a fresh generation.\n  sourceVersionId   String?  @map(\"source_version_id\") @db.Uuid\n  subject           String   @db.Text\n  body              String   @db.Text\n  /// Set only by the server-side Workspace newsletter importer. Generic edits\n  /// use the default outreach format and cannot inherit this authority.\n  contentFormat     String   @default(\"outreach\") @map(\"content_format\") @db.VarChar(32)\n  newsletterStageId String?  @map(\"newsletter_stage_id\") @db.Uuid\n  /// sha256 of subject+body — what the audit verdict and any approval attach to.\n  contentHash       String   @map(\"content_hash\") @db.VarChar(80)\n  /// 'generated' | 'manually_authored' | 'generation_failed'\n  generationStatus  String   @map(\"generation_status\") @db.VarChar(32)\n  /// 'not_required' | 'pending' | 'passed' | 'warning' | 'held' | 'unavailable'\n  auditStatus       String   @map(\"audit_status\") @db.VarChar(32)\n  /// 'not_required' | 'pending' | 'approved' | 'rejected'\n  approvalStatus    String   @map(\"approval_status\") @db.VarChar(32)\n  /// The AuditorMode this verdict ran under ('shadow' | 'annotate' | 'enforce').\n  auditMode         String?  @map(\"audit_mode\") @db.VarChar(16)\n  /// runAuditor decision, or 'audit_unavailable' when a control itself failed.\n  auditDecision     String?  @map(\"audit_decision\") @db.VarChar(32)\n  auditFindings     Json?    @map(\"audit_findings_jsonb\")\n  /// The structured auditor ledger entries this exact text was judged against.\n  auditLedger       Json     @default(\"[]\") @map(\"audit_ledger_jsonb\")\n  reviewRequestId   String?  @map(\"review_request_id\") @db.Uuid\n  contextPacketId   String?  @map(\"context_packet_id\") @db.Uuid\n  provider          String?  @db.VarChar(32)\n  model             String?  @db.VarChar(160)\n  promptSpecVersion String?  @map(\"prompt_spec_version\") @db.VarChar(32)\n  createdByUserId   String   @map(\"created_by_user_id\") @db.Uuid\n  createdAt         DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n\n  tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)\n  artifact        OutreachDraftArtifact  @relation(fields: [artifactId], references: [id], onDelete: Cascade)\n  sourceVersion   OutreachDraftVersion?  @relation(\"OutreachDraftVersionLineage\", fields: [sourceVersionId], references: [id], onDelete: SetNull)\n  derivedVersions OutreachDraftVersion[] @relation(\"OutreachDraftVersionLineage\")\n  reviewRequest   ReviewRequest?         @relation(fields: [reviewRequestId], references: [id], onDelete: SetNull)\n  contextPacket   ContextPacket?         @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)\n  createdBy       User                   @relation(\"OutreachDraftVersionAuthor\", fields: [createdByUserId], references: [id], onDelete: Restrict)\n  deliveries      OutreachDelivery[]\n\n  @@unique([artifactId, version], map: \"outreach_draft_versions_artifact_version\")\n  @@index([tenantId, auditStatus, approvalStatus], map: \"outreach_draft_versions_tenant_audit_approval_idx\")\n  @@map(\"outreach_draft_versions\")\n}"
+          },
+          {
+            "name": "NewsletterRecipientAccess",
+            "present": true,
+            "sha256": "673e0f1171d348663416c42bd51b39c0ef4de4d20c5f3de95e00cb40b913e70a",
+            "source": "model NewsletterRecipientAccess {\n  id             String   @id @default(uuid()) @db.Uuid\n  tenantId       String   @map(\"tenant_id\") @db.Uuid\n  userId         String   @map(\"user_id\") @db.Uuid\n  stageId        String   @map(\"stage_id\") @db.Uuid\n  outreachRecordId String @map(\"outreach_record_id\") @db.Uuid\n  draftVersionId String?  @map(\"draft_version_id\") @db.Uuid\n  token          String   @unique @db.VarChar(64)\n  email          String   @db.VarChar(320)\n  html           String   @db.Text\n  surveyAnswers  Json     @default(\"{}\") @map(\"survey_answers\")\n  createdAt      DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n  @@index([tenantId, userId, outreachRecordId])\n  @@map(\"newsletter_recipient_access\")\n}"
+          },
+          {
+            "name": "NewsletterReviewEmailDelivery",
+            "present": true,
+            "sha256": "0be83bf7d7463aa081685be7c19926c1c880541ff4b530a02df528acad36c422",
+            "source": "model NewsletterReviewEmailDelivery {\n  id String @id @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  commentId String @map(\"comment_id\") @db.Uuid\n  recipientId String @map(\"recipient_id\")\n  status String @db.VarChar(32)\n  messageId String? @map(\"message_id\")\n  errorCode String? @map(\"error_code\") @db.VarChar(64)\n  createdAt DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n  updatedAt DateTime @default(now()) @map(\"updated_at\") @db.Timestamptz(6)\n  @@index([tenantId, createdAt])\n  @@index([status, updatedAt])\n  @@map(\"newsletter_review_email_deliveries\")\n}"
+          },
+          {
+            "name": "NewsletterSubscription",
+            "present": true,
+            "sha256": "d928b28faf4b4d51859211977cbc34ab7edeaadc7d0f70112dd5bcda6771b8c5",
+            "source": "model NewsletterSubscription {\n  id             String   @id @default(uuid()) @db.Uuid\n  tenantId       String   @map(\"tenant_id\") @db.Uuid\n  userId         String   @map(\"user_id\") @db.Uuid\n  email          String   @db.VarChar(320)\n  unsubscribedAt DateTime? @map(\"unsubscribed_at\") @db.Timestamptz(6)\n  @@unique([tenantId, userId, email])\n  @@map(\"newsletter_subscriptions\")\n}"
+          },
+          {
+            "name": "NewsletterAccountInvitation",
+            "present": true,
+            "sha256": "aece354456c302a6d52a1cd3ce2a6c3277c34cc47aeaac98bbba48cb0e16881c",
+            "source": "model NewsletterAccountInvitation {\n  id String @id @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  authorId String @map(\"author_id\")\n  email String @db.VarChar(320)\n  organizationId String @map(\"organization_id\")\n  accountRole String @map(\"account_role\")\n  status String @db.VarChar(32)\n  providerInvitationId String? @map(\"provider_invitation_id\")\n  providerRole String? @map(\"provider_role\")\n  attemptedAt DateTime? @map(\"attempted_at\") @db.Timestamptz(6)\n  attemptKind String? @map(\"attempt_kind\")\n  leaseId String? @map(\"lease_id\") @db.Uuid\n  errorCode String? @map(\"error_code\") @db.VarChar(64)\n  createdAt DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n  updatedAt DateTime @default(now()) @map(\"updated_at\") @db.Timestamptz(6)\n  @@index([tenantId, email, organizationId])\n  @@index([tenantId, documentId])\n  @@map(\"newsletter_account_invitations\")\n}"
+          },
+          {
+            "name": "NewsletterInvitationEmailDelivery",
+            "present": true,
+            "sha256": "610b74a39e6df7fb72936955ff8ebe8adf2ee922eac45b8345be5d004382b52e",
+            "source": "model NewsletterInvitationEmailDelivery {\n  id String @id @db.Uuid\n  tenantId String @map(\"tenant_id\") @db.Uuid\n  documentId String @map(\"document_id\") @db.Uuid\n  recipientId String @map(\"recipient_id\")\n  status String @db.VarChar(32)\n  messageId String? @map(\"message_id\")\n  errorCode String? @map(\"error_code\") @db.VarChar(64)\n  createdAt DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n  updatedAt DateTime @default(now()) @map(\"updated_at\") @db.Timestamptz(6)\n  @@index([tenantId, createdAt])\n  @@index([status, updatedAt])\n  @@map(\"newsletter_invitation_email_deliveries\")\n}"
+          }
+        ],
+        "Q": [
+          {
+            "name": "OutreachDraftVersion",
+            "present": true,
+            "sha256": "2641af004dba29f5145f06a86a304a3456c0c0c9d431e69007807c5281bc2c80",
+            "source": "model OutreachDraftVersion {\n  id                String   @id @default(uuid()) @db.Uuid\n  tenantId          String   @map(\"tenant_id\") @db.Uuid\n  artifactId        String   @map(\"artifact_id\") @db.Uuid\n  version           Int\n  /// The version this one was edited/improved/reverted FROM; null for a fresh generation.\n  sourceVersionId   String?  @map(\"source_version_id\") @db.Uuid\n  subject           String   @db.Text\n  body              String   @db.Text\n  /// sha256 of subject+body — what the audit verdict and any approval attach to.\n  contentHash       String   @map(\"content_hash\") @db.VarChar(80)\n  /// 'generated' | 'manually_authored' | 'generation_failed'\n  generationStatus  String   @map(\"generation_status\") @db.VarChar(32)\n  /// 'not_required' | 'pending' | 'passed' | 'warning' | 'held' | 'unavailable'\n  auditStatus       String   @map(\"audit_status\") @db.VarChar(32)\n  /// 'not_required' | 'pending' | 'approved' | 'rejected'\n  approvalStatus    String   @map(\"approval_status\") @db.VarChar(32)\n  /// The AuditorMode this verdict ran under ('shadow' | 'annotate' | 'enforce').\n  auditMode         String?  @map(\"audit_mode\") @db.VarChar(16)\n  /// runAuditor decision, or 'audit_unavailable' when a control itself failed.\n  auditDecision     String?  @map(\"audit_decision\") @db.VarChar(32)\n  auditFindings     Json?    @map(\"audit_findings_jsonb\")\n  /// The structured auditor ledger entries this exact text was judged against.\n  auditLedger       Json     @default(\"[]\") @map(\"audit_ledger_jsonb\")\n  reviewRequestId   String?  @map(\"review_request_id\") @db.Uuid\n  contextPacketId   String?  @map(\"context_packet_id\") @db.Uuid\n  provider          String?  @db.VarChar(32)\n  model             String?  @db.VarChar(160)\n  promptSpecVersion String?  @map(\"prompt_spec_version\") @db.VarChar(32)\n  createdByUserId   String   @map(\"created_by_user_id\") @db.Uuid\n  createdAt         DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n\n  tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)\n  artifact        OutreachDraftArtifact  @relation(fields: [artifactId], references: [id], onDelete: Cascade)\n  sourceVersion   OutreachDraftVersion?  @relation(\"OutreachDraftVersionLineage\", fields: [sourceVersionId], references: [id], onDelete: SetNull)\n  derivedVersions OutreachDraftVersion[] @relation(\"OutreachDraftVersionLineage\")\n  reviewRequest   ReviewRequest?         @relation(fields: [reviewRequestId], references: [id], onDelete: SetNull)\n  contextPacket   ContextPacket?         @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)\n  createdBy       User                   @relation(\"OutreachDraftVersionAuthor\", fields: [createdByUserId], references: [id], onDelete: Restrict)\n  deliveries      OutreachDelivery[]\n\n  @@unique([artifactId, version], map: \"outreach_draft_versions_artifact_version\")\n  @@index([tenantId, auditStatus, approvalStatus], map: \"outreach_draft_versions_tenant_audit_approval_idx\")\n  @@map(\"outreach_draft_versions\")\n}"
+          },
+          {
+            "name": "NewsletterRecipientAccess",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "NewsletterReviewEmailDelivery",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "NewsletterSubscription",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "NewsletterAccountInvitation",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "NewsletterInvitationEmailDelivery",
+            "present": false,
+            "sha256": null,
+            "source": null
+          }
+        ],
+        "four": [
+          {
+            "name": "OutreachDraftVersion",
+            "present": true,
+            "sha256": "2641af004dba29f5145f06a86a304a3456c0c0c9d431e69007807c5281bc2c80",
+            "source": "model OutreachDraftVersion {\n  id                String   @id @default(uuid()) @db.Uuid\n  tenantId          String   @map(\"tenant_id\") @db.Uuid\n  artifactId        String   @map(\"artifact_id\") @db.Uuid\n  version           Int\n  /// The version this one was edited/improved/reverted FROM; null for a fresh generation.\n  sourceVersionId   String?  @map(\"source_version_id\") @db.Uuid\n  subject           String   @db.Text\n  body              String   @db.Text\n  /// sha256 of subject+body — what the audit verdict and any approval attach to.\n  contentHash       String   @map(\"content_hash\") @db.VarChar(80)\n  /// 'generated' | 'manually_authored' | 'generation_failed'\n  generationStatus  String   @map(\"generation_status\") @db.VarChar(32)\n  /// 'not_required' | 'pending' | 'passed' | 'warning' | 'held' | 'unavailable'\n  auditStatus       String   @map(\"audit_status\") @db.VarChar(32)\n  /// 'not_required' | 'pending' | 'approved' | 'rejected'\n  approvalStatus    String   @map(\"approval_status\") @db.VarChar(32)\n  /// The AuditorMode this verdict ran under ('shadow' | 'annotate' | 'enforce').\n  auditMode         String?  @map(\"audit_mode\") @db.VarChar(16)\n  /// runAuditor decision, or 'audit_unavailable' when a control itself failed.\n  auditDecision     String?  @map(\"audit_decision\") @db.VarChar(32)\n  auditFindings     Json?    @map(\"audit_findings_jsonb\")\n  /// The structured auditor ledger entries this exact text was judged against.\n  auditLedger       Json     @default(\"[]\") @map(\"audit_ledger_jsonb\")\n  reviewRequestId   String?  @map(\"review_request_id\") @db.Uuid\n  contextPacketId   String?  @map(\"context_packet_id\") @db.Uuid\n  provider          String?  @db.VarChar(32)\n  model             String?  @db.VarChar(160)\n  promptSpecVersion String?  @map(\"prompt_spec_version\") @db.VarChar(32)\n  createdByUserId   String   @map(\"created_by_user_id\") @db.Uuid\n  createdAt         DateTime @default(now()) @map(\"created_at\") @db.Timestamptz(6)\n\n  tenant          Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)\n  artifact        OutreachDraftArtifact  @relation(fields: [artifactId], references: [id], onDelete: Cascade)\n  sourceVersion   OutreachDraftVersion?  @relation(\"OutreachDraftVersionLineage\", fields: [sourceVersionId], references: [id], onDelete: SetNull)\n  derivedVersions OutreachDraftVersion[] @relation(\"OutreachDraftVersionLineage\")\n  reviewRequest   ReviewRequest?         @relation(fields: [reviewRequestId], references: [id], onDelete: SetNull)\n  contextPacket   ContextPacket?         @relation(fields: [contextPacketId], references: [id], onDelete: SetNull)\n  createdBy       User                   @relation(\"OutreachDraftVersionAuthor\", fields: [createdByUserId], references: [id], onDelete: Restrict)\n  deliveries      OutreachDelivery[]\n\n  @@unique([artifactId, version], map: \"outreach_draft_versions_artifact_version\")\n  @@index([tenantId, auditStatus, approvalStatus], map: \"outreach_draft_versions_tenant_audit_approval_idx\")\n  @@map(\"outreach_draft_versions\")\n}"
+          },
+          {
+            "name": "NewsletterRecipientAccess",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "NewsletterReviewEmailDelivery",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "NewsletterSubscription",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "NewsletterAccountInvitation",
+            "present": false,
+            "sha256": null,
+            "source": null
+          },
+          {
+            "name": "NewsletterInvitationEmailDelivery",
+            "present": false,
+            "sha256": null,
+            "source": null
+          }
+        ]
+      }
+    }
+  ],
+  "workspaceLockImporter": {
+    "C": {
+      "lockBlob": "501eda5fd56321733b198cdd8df18a33941e4b3d",
+      "lockSha256": "f13f155b17c83564261e5560f3d26ac36fc6715cd1f6d7c166425818a39cb720",
+      "sourceBlock": "  apps/workspace:\n    dependencies:\n      '@capiro/auth':\n        specifier: workspace:*\n        version: link:../../packages/auth\n      '@capiro/meriv2-core':\n        specifier: workspace:*\n        version: link:../../packages/meriv2-core\n      '@capiro/shared':\n        specifier: workspace:*\n        version: link:../../packages/shared\n      '@clerk/backend':\n        specifier: ^1.13.5\n        version: 1.34.0(react-dom@18.3.1(react@19.3.0))(react@19.3.0)(svix@1.92.2)\n      '@nestjs/common':\n        specifier: ^10.4.4\n        version: 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)\n      '@nestjs/config':\n        specifier: ^3.2.3\n        version: 3.3.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)\n      '@nestjs/core':\n        specifier: ^10.4.4\n        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(@nestjs/websockets@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)\n      '@nestjs/platform-express':\n        specifier: ^10.4.4\n        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)\n      '@prisma/client':\n        specifier: ^5.20.0\n        version: 5.22.0(prisma@5.22.0)\n      class-transformer:\n        specifier: ^0.5.1\n        version: 0.5.1\n      class-validator:\n        specifier: ^0.15.1\n        version: 0.15.1\n      docx:\n        specifier: ^9.7.2\n        version: 9.7.2\n      express:\n        specifier: ^4.21.0\n        version: 4.22.1\n      htmlparser2:\n        specifier: 8.0.2\n        version: 8.0.2\n      pdfkit:\n        specifier: ^0.20.2\n        version: 0.20.2\n      reflect-metadata:\n        specifier: ^0.2.2\n        version: 0.2.2\n      rxjs:\n        specifier: ^7.8.1\n        version: 7.8.2\n      sanitize-html:\n        specifier: 2.17.7\n        version: 2.17.7\n      sharp:\n        specifier: 0.35.5\n        version: 0.35.5(@types/node@20.19.39)\n    devDependencies:\n      '@jest/globals':\n        specifier: ^29.7.0\n        version: 29.7.0\n      '@nestjs/cli':\n        specifier: ^10.4.5\n        version: 10.4.9(@swc/core@1.16.2(@swc/helpers@0.5.23))\n      '@nestjs/schematics':\n        specifier: ^10.1.4\n        version: 10.2.3(chokidar@3.6.0)(typescript@5.9.3)\n      '@nestjs/testing':\n        specifier: ^10.4.4\n        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(@nestjs/platform-express@10.4.22)\n      '@types/express':\n        specifier: ^4.17.21\n        version: 4.17.25\n      '@types/jest':\n        specifier: ^29.5.13\n        version: 29.5.14\n      '@types/node':\n        specifier: ^20.16.10\n        version: 20.19.39\n      '@types/pdfkit':\n        specifier: ^0.17.6\n        version: 0.17.6\n      '@types/sanitize-html':\n        specifier: ^2.16.1\n        version: 2.16.1\n      '@types/supertest':\n        specifier: ^7.2.1\n        version: 7.2.1\n      jest:\n        specifier: ^29.7.0\n        version: 29.7.0(@types/node@20.19.39)(ts-node@10.9.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@types/node@20.19.39)(typescript@5.9.3))\n      prisma:\n        specifier: ^5.20.0\n        version: 5.22.0\n      supertest:\n        specifier: ^7.3.0\n        version: 7.3.0\n      ts-jest:\n        specifier: ^29.4.14\n        version: 29.4.14(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.39)(ts-node@10.9.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@types/node@20.19.39)(typescript@5.9.3)))(typescript@5.9.3)\n      tsx:\n        specifier: ^4.23.15\n        version: 4.23.15\n      typescript:\n        specifier: ^5.5.4\n        version: 5.9.3\n\n",
+      "meaning": "Raw exact Workspace importer block; no dependency resolver/install invoked"
+    },
+    "Q": {
+      "lockBlob": "23f47e92d6045164a0919f3141824918ca1b5acd",
+      "lockSha256": "f841bff5262239f499b8f3dbf2bbb4dbd971987ed8a09826bf8ffde541eb519f",
+      "sourceBlock": "  apps/workspace:\n    dependencies:\n      '@capiro/auth':\n        specifier: workspace:*\n        version: link:../../packages/auth\n      '@capiro/meriv2-core':\n        specifier: workspace:*\n        version: link:../../packages/meriv2-core\n      '@capiro/shared':\n        specifier: workspace:*\n        version: link:../../packages/shared\n      '@clerk/backend':\n        specifier: ^1.13.5\n        version: 1.34.0(react-dom@18.3.1(react@19.3.0))(react@19.3.0)(svix@1.92.2)\n      '@nestjs/common':\n        specifier: ^10.4.4\n        version: 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)\n      '@nestjs/config':\n        specifier: ^3.2.3\n        version: 3.3.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)\n      '@nestjs/core':\n        specifier: ^10.4.4\n        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(@nestjs/websockets@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)\n      '@nestjs/platform-express':\n        specifier: ^10.4.4\n        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)\n      '@prisma/client':\n        specifier: ^5.20.0\n        version: 5.22.0(prisma@5.22.0)\n      class-transformer:\n        specifier: ^0.5.1\n        version: 0.5.1\n      class-validator:\n        specifier: ^0.15.1\n        version: 0.15.1\n      docx:\n        specifier: ^9.7.2\n        version: 9.7.2\n      express:\n        specifier: ^4.21.0\n        version: 4.22.1\n      pdfkit:\n        specifier: ^0.20.2\n        version: 0.20.2\n      reflect-metadata:\n        specifier: ^0.2.2\n        version: 0.2.2\n      rxjs:\n        specifier: ^7.8.1\n        version: 7.8.2\n    devDependencies:\n      '@jest/globals':\n        specifier: ^29.7.0\n        version: 29.7.0\n      '@nestjs/cli':\n        specifier: ^10.4.5\n        version: 10.4.9(@swc/core@1.16.2(@swc/helpers@0.5.23))\n      '@nestjs/schematics':\n        specifier: ^10.1.4\n        version: 10.2.3(chokidar@3.6.0)(typescript@5.9.3)\n      '@nestjs/testing':\n        specifier: ^10.4.4\n        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(@nestjs/platform-express@10.4.22)\n      '@types/express':\n        specifier: ^4.17.21\n        version: 4.17.25\n      '@types/jest':\n        specifier: ^29.5.13\n        version: 29.5.14\n      '@types/node':\n        specifier: ^20.16.10\n        version: 20.19.39\n      '@types/pdfkit':\n        specifier: ^0.17.6\n        version: 0.17.6\n      '@types/supertest':\n        specifier: ^7.2.1\n        version: 7.2.1\n      jest:\n        specifier: ^29.7.0\n        version: 29.7.0(@types/node@20.19.39)(ts-node@10.9.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@types/node@20.19.39)(typescript@5.9.3))\n      prisma:\n        specifier: ^5.20.0\n        version: 5.22.0\n      supertest:\n        specifier: ^7.3.0\n        version: 7.3.0\n      ts-jest:\n        specifier: ^29.4.14\n        version: 29.4.14(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.39)(ts-node@10.9.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@types/node@20.19.39)(typescript@5.9.3)))(typescript@5.9.3)\n      tsx:\n        specifier: ^4.23.15\n        version: 4.23.15\n      typescript:\n        specifier: ^5.5.4\n        version: 5.9.3\n\n",
+      "meaning": "Raw exact Workspace importer block; no dependency resolver/install invoked"
+    },
+    "four": {
+      "lockBlob": "23f47e92d6045164a0919f3141824918ca1b5acd",
+      "lockSha256": "f841bff5262239f499b8f3dbf2bbb4dbd971987ed8a09826bf8ffde541eb519f",
+      "sourceBlock": "  apps/workspace:\n    dependencies:\n      '@capiro/auth':\n        specifier: workspace:*\n        version: link:../../packages/auth\n      '@capiro/meriv2-core':\n        specifier: workspace:*\n        version: link:../../packages/meriv2-core\n      '@capiro/shared':\n        specifier: workspace:*\n        version: link:../../packages/shared\n      '@clerk/backend':\n        specifier: ^1.13.5\n        version: 1.34.0(react-dom@18.3.1(react@19.3.0))(react@19.3.0)(svix@1.92.2)\n      '@nestjs/common':\n        specifier: ^10.4.4\n        version: 10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)\n      '@nestjs/config':\n        specifier: ^3.2.3\n        version: 3.3.0(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(rxjs@7.8.2)\n      '@nestjs/core':\n        specifier: ^10.4.4\n        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@10.4.22)(@nestjs/websockets@10.4.22)(reflect-metadata@0.2.2)(rxjs@7.8.2)\n      '@nestjs/platform-express':\n        specifier: ^10.4.4\n        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)\n      '@prisma/client':\n        specifier: ^5.20.0\n        version: 5.22.0(prisma@5.22.0)\n      class-transformer:\n        specifier: ^0.5.1\n        version: 0.5.1\n      class-validator:\n        specifier: ^0.15.1\n        version: 0.15.1\n      docx:\n        specifier: ^9.7.2\n        version: 9.7.2\n      express:\n        specifier: ^4.21.0\n        version: 4.22.1\n      pdfkit:\n        specifier: ^0.20.2\n        version: 0.20.2\n      reflect-metadata:\n        specifier: ^0.2.2\n        version: 0.2.2\n      rxjs:\n        specifier: ^7.8.1\n        version: 7.8.2\n    devDependencies:\n      '@jest/globals':\n        specifier: ^29.7.0\n        version: 29.7.0\n      '@nestjs/cli':\n        specifier: ^10.4.5\n        version: 10.4.9(@swc/core@1.16.2(@swc/helpers@0.5.23))\n      '@nestjs/schematics':\n        specifier: ^10.1.4\n        version: 10.2.3(chokidar@3.6.0)(typescript@5.9.3)\n      '@nestjs/testing':\n        specifier: ^10.4.4\n        version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(@nestjs/platform-express@10.4.22)\n      '@types/express':\n        specifier: ^4.17.21\n        version: 4.17.25\n      '@types/jest':\n        specifier: ^29.5.13\n        version: 29.5.14\n      '@types/node':\n        specifier: ^20.16.10\n        version: 20.19.39\n      '@types/pdfkit':\n        specifier: ^0.17.6\n        version: 0.17.6\n      '@types/supertest':\n        specifier: ^7.2.1\n        version: 7.2.1\n      jest:\n        specifier: ^29.7.0\n        version: 29.7.0(@types/node@20.19.39)(ts-node@10.9.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@types/node@20.19.39)(typescript@5.9.3))\n      prisma:\n        specifier: ^5.20.0\n        version: 5.22.0\n      supertest:\n        specifier: ^7.3.0\n        version: 7.3.0\n      ts-jest:\n        specifier: ^29.4.14\n        version: 29.4.14(@babel/core@7.29.0)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.29.0))(jest-util@29.7.0)(jest@29.7.0(@types/node@20.19.39)(ts-node@10.9.2(@swc/core@1.16.2(@swc/helpers@0.5.23))(@types/node@20.19.39)(typescript@5.9.3)))(typescript@5.9.3)\n      tsx:\n        specifier: ^4.23.15\n        version: 4.23.15\n      typescript:\n        specifier: ^5.5.4\n        version: 5.9.3\n\n",
+      "meaning": "Raw exact Workspace importer block; no dependency resolver/install invoked"
+    }
+  },
+  "frontendPreservation": {
+    "pathFilter": "C apps/web paths containing newsletter; this is a precise named family, not full Web dependency/build closure",
+    "count": 262,
+    "kindCounts": {
+      "static-asset": 179,
+      "other": 1,
+      "test": 37,
+      "runtime-ts": 43,
+      "stylesheet": 2
+    },
+    "CEqualsW": 261,
+    "rows": [
+      {
+        "path": "apps/web/public/newsletter/capitol.png",
+        "C": "cebcd54d90c9056ba5707fe502a09f4a329d3cb7",
+        "Q": null,
+        "four": null,
+        "W": "cebcd54d90c9056ba5707fe502a09f4a329d3cb7",
+        "CEqualsW": true,
+        "sha256": "f354a71c6fce886271809b0c5c73c7e0ee6012d73558bc23b5f5375756565312",
+        "bytes": 31192,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/capitol.svg",
+        "C": "73f25d45b29f5b023e00788c9ba10569ddb8bb2e",
+        "Q": null,
+        "four": null,
+        "W": "73f25d45b29f5b023e00788c9ba10569ddb8bb2e",
+        "CEqualsW": true,
+        "sha256": "65221548aa001bf52618eac9e4109e1cd644af431932457d0d59e8921e33e7a9",
+        "bytes": 1333,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/newsroom.png",
+        "C": "da62db86f5f0ccaf87d3e6a9b8745a40990b0a3e",
+        "Q": null,
+        "four": null,
+        "W": "da62db86f5f0ccaf87d3e6a9b8745a40990b0a3e",
+        "CEqualsW": true,
+        "sha256": "169ade838cad34c618a6647adb4c6b6f07a5fb40bddd5ab111d53cf443ab8531",
+        "bytes": 55820,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/newsroom.svg",
+        "C": "9ed7052c6f65bd6b5d603aa0ba5af47587d2db51",
+        "Q": null,
+        "four": null,
+        "W": "9ed7052c6f65bd6b5d603aa0ba5af47587d2db51",
+        "CEqualsW": true,
+        "sha256": "a38871eedf905dcf79932e9b59f5beb9b94743af9054915d84702bf9368189dd",
+        "bytes": 992,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/policy-desk.png",
+        "C": "273d8477db1f72f613a9f53ef7339ac0f07b195a",
+        "Q": null,
+        "four": null,
+        "W": "273d8477db1f72f613a9f53ef7339ac0f07b195a",
+        "CEqualsW": true,
+        "sha256": "05d2175fb65fc3307bf8ae6a7e851fae617029887b90ba81910fbb0c78b15556",
+        "bytes": 27879,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/policy-desk.svg",
+        "C": "e807f7e4ad7d82383dc1de1553a65381c8f31826",
+        "Q": null,
+        "four": null,
+        "W": "e807f7e4ad7d82383dc1de1553a65381c8f31826",
+        "CEqualsW": true,
+        "sha256": "d1cd4dc690d7ae35954b28ea9f4d1a2a9e2e3d1b010737025da96673f7b674db",
+        "bytes": 1089,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-bluesky-color-white.png",
+        "C": "9cbc4d422c6276096b26cd28e7f5ebd9dbc4e3dd",
+        "Q": null,
+        "four": null,
+        "W": "9cbc4d422c6276096b26cd28e7f5ebd9dbc4e3dd",
+        "CEqualsW": true,
+        "sha256": "0b3c385b4f08354f562f3b5bda38ae02f6872fb6252cc4e1fb16ff5985180e9c",
+        "bytes": 2310,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-bluesky-color.png",
+        "C": "cc20b3895777237ea87efbd7da18e50005dd1089",
+        "Q": null,
+        "four": null,
+        "W": "cc20b3895777237ea87efbd7da18e50005dd1089",
+        "CEqualsW": true,
+        "sha256": "57ea6baf35376dbf032b50720ae35514f483f6ae93b7a374f13d31d2b93e86f4",
+        "bytes": 1650,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-bluesky-dark-white.png",
+        "C": "f796318cb061de2b182e5ca4591ce00f67fb5a65",
+        "Q": null,
+        "four": null,
+        "W": "f796318cb061de2b182e5ca4591ce00f67fb5a65",
+        "CEqualsW": true,
+        "sha256": "86a6518fb25adfebf24583fb6434c760efc1283b0bb1ce44742ee54bc90d0667",
+        "bytes": 2446,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-bluesky-dark.png",
+        "C": "64c982b7b14ee6c1631a8b2c786dcc59908b5d17",
+        "Q": null,
+        "four": null,
+        "W": "64c982b7b14ee6c1631a8b2c786dcc59908b5d17",
+        "CEqualsW": true,
+        "sha256": "bfbf1edd9f6fe91a314b265a5424906bddd7d34648a7e5a3ddc72e05d60f857c",
+        "bytes": 1662,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-bluesky-gray-black.png",
+        "C": "66af27d8a771d22e4ceb0d9a3ac3cb271f81eafb",
+        "Q": null,
+        "four": null,
+        "W": "66af27d8a771d22e4ceb0d9a3ac3cb271f81eafb",
+        "CEqualsW": true,
+        "sha256": "203ffa95129c9f29487b84b06361ca697492bfebd4459bc6af5831edbfa9886f",
+        "bytes": 2357,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-bluesky-gray.png",
+        "C": "ec51088fa371653ab9d4422b8d01c23e1b634285",
+        "Q": null,
+        "four": null,
+        "W": "ec51088fa371653ab9d4422b8d01c23e1b634285",
+        "CEqualsW": true,
+        "sha256": "76425ad7fc9033efaf257403f9f4ec4ae1f05e976168b6144a4c0ea8d159d4f7",
+        "bytes": 1654,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-bluesky-light-black.png",
+        "C": "715fe711912105ae60cbaa2afd11252d17d4d444",
+        "Q": null,
+        "four": null,
+        "W": "715fe711912105ae60cbaa2afd11252d17d4d444",
+        "CEqualsW": true,
+        "sha256": "d1dfedff3f6f3d8593495fdac0a001499d9bfc994c86de0249982c78e30b09af",
+        "bytes": 2321,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-bluesky-light.png",
+        "C": "d2b6dba355034e9088aaa1acb7bac3e52dcca61e",
+        "Q": null,
+        "four": null,
+        "W": "d2b6dba355034e9088aaa1acb7bac3e52dcca61e",
+        "CEqualsW": true,
+        "sha256": "1f2b6591af5c8d287dd14cc96cd0f1e4f2524cc1d0c0ae63dc92914cc19dd92a",
+        "bytes": 1447,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-discord-color-white.png",
+        "C": "af6a62558fa7f0fa6d16e1ce2930212fda4f8f0c",
+        "Q": null,
+        "four": null,
+        "W": "af6a62558fa7f0fa6d16e1ce2930212fda4f8f0c",
+        "CEqualsW": true,
+        "sha256": "89308182c2c88a3fd1071fe21daeb51e451b69452b76dc2b916505807108ce17",
+        "bytes": 2482,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-discord-color.png",
+        "C": "7981cefb48b95f70cdf855a067020c674c390efc",
+        "Q": null,
+        "four": null,
+        "W": "7981cefb48b95f70cdf855a067020c674c390efc",
+        "CEqualsW": true,
+        "sha256": "e520edcab7e85eff28476a342f6ee1eec0bc54ded5045142be8ec582968c1bca",
+        "bytes": 1821,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-discord-dark-white.png",
+        "C": "cd9dca13b875997fe07b2eef953bf326b7ed4659",
+        "Q": null,
+        "four": null,
+        "W": "cd9dca13b875997fe07b2eef953bf326b7ed4659",
+        "CEqualsW": true,
+        "sha256": "a5265c9d8a43d808cadaad971740ead1782c5c2951aecda9a7bf2049f49dbd2b",
+        "bytes": 2409,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-discord-dark.png",
+        "C": "04dc76de0fb5689a4641499f6db1c71a09e2f9a7",
+        "Q": null,
+        "four": null,
+        "W": "04dc76de0fb5689a4641499f6db1c71a09e2f9a7",
+        "CEqualsW": true,
+        "sha256": "639681083e279b079c287e39e37bde0023e25f3a7f3165f753cd612035d85a7b",
+        "bytes": 1629,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-discord-gray-black.png",
+        "C": "06f611382f891e3eb740bead666a49c585c25683",
+        "Q": null,
+        "four": null,
+        "W": "06f611382f891e3eb740bead666a49c585c25683",
+        "CEqualsW": true,
+        "sha256": "94b821a5ae06e7a802518054e376ac6abfca924b15c7dca32d58cb0945255a4d",
+        "bytes": 2291,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-discord-gray.png",
+        "C": "8139b9aa7e8e84924da62e114f0eb43fe3e4d012",
+        "Q": null,
+        "four": null,
+        "W": "8139b9aa7e8e84924da62e114f0eb43fe3e4d012",
+        "CEqualsW": true,
+        "sha256": "85a1018cb0056569143f7c0603c1473264209a7d4ca883ddd129bcd36920a368",
+        "bytes": 1643,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-discord-light-black.png",
+        "C": "e2fedb9661b3bdba0b5bb11dd8d1fc4b46aaf769",
+        "Q": null,
+        "four": null,
+        "W": "e2fedb9661b3bdba0b5bb11dd8d1fc4b46aaf769",
+        "CEqualsW": true,
+        "sha256": "5f1c0fa5d40ed182f43b289a34bdd95f2286c1083bfe479756b2fda02c93063d",
+        "bytes": 2269,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-discord-light.png",
+        "C": "c3aa7bb2ecd91e90895ac361ef13d3b4208a6b0f",
+        "Q": null,
+        "four": null,
+        "W": "c3aa7bb2ecd91e90895ac361ef13d3b4208a6b0f",
+        "CEqualsW": true,
+        "sha256": "7d273df8dce52a3ddab7ffd3addbb8820541fa688f0ab2d39f9142a538db7ef5",
+        "bytes": 1456,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-email-color-white.png",
+        "C": "ed57ec26aad0f7a43608aa13bc382e57dcb0ac91",
+        "Q": null,
+        "four": null,
+        "W": "ed57ec26aad0f7a43608aa13bc382e57dcb0ac91",
+        "CEqualsW": true,
+        "sha256": "f3f485f210e365dc3bd61af79eb6c1a821c66669497aa1dc6155d5cee70b3fed",
+        "bytes": 2138,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-email-color.png",
+        "C": "6991128b52d76cd98ba58946318bd35d25c60f07",
+        "Q": null,
+        "four": null,
+        "W": "6991128b52d76cd98ba58946318bd35d25c60f07",
+        "CEqualsW": true,
+        "sha256": "129499f19fcf77754570e6a5fb24f7bc19437f5d4de37fca61a4dc2a5133ee30",
+        "bytes": 1308,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-email-dark-white.png",
+        "C": "f71e59800706159ed2cd517be1159d212f83d7f5",
+        "Q": null,
+        "four": null,
+        "W": "f71e59800706159ed2cd517be1159d212f83d7f5",
+        "CEqualsW": true,
+        "sha256": "4d4b7385e60e04cebb4841dfb1b13b7fb8481f0ca8a299c6fad567c92fa7bce3",
+        "bytes": 1983,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-email-dark.png",
+        "C": "dbb5b09344151e2d1adcb12b61f89ca48061533b",
+        "Q": null,
+        "four": null,
+        "W": "dbb5b09344151e2d1adcb12b61f89ca48061533b",
+        "CEqualsW": true,
+        "sha256": "c87d68267772106228730761e35f0fd29748c1f6a5a5037e79896992d92e2a55",
+        "bytes": 1160,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-email-gray-black.png",
+        "C": "3a9227c6ab2891ee4beaa4067923b6e0c9b7a99a",
+        "Q": null,
+        "four": null,
+        "W": "3a9227c6ab2891ee4beaa4067923b6e0c9b7a99a",
+        "CEqualsW": true,
+        "sha256": "103b83fe42945603c2c1746a105b3159f7d51074e6cc402981fb020bd4c80a4e",
+        "bytes": 1948,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-email-gray.png",
+        "C": "298b27f897064d5043273b655fcd6c621485cd42",
+        "Q": null,
+        "four": null,
+        "W": "298b27f897064d5043273b655fcd6c621485cd42",
+        "CEqualsW": true,
+        "sha256": "3e0f768fe342cf452d2613592142ed948d549a7e7632bb2e72c3ba93d60cc002",
+        "bytes": 1172,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-email-light-black.png",
+        "C": "7bd30c937fbd453257cda0bddf9290af6b127436",
+        "Q": null,
+        "four": null,
+        "W": "7bd30c937fbd453257cda0bddf9290af6b127436",
+        "CEqualsW": true,
+        "sha256": "6dae9248027e8144a17c93b5462b5be54985094ab7dde5e062a44ccde2668a17",
+        "bytes": 1817,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-email-light.png",
+        "C": "38c8409358124c31ff18a786c3358d83f8325ce4",
+        "Q": null,
+        "four": null,
+        "W": "38c8409358124c31ff18a786c3358d83f8325ce4",
+        "CEqualsW": true,
+        "sha256": "e5c4ac1468785680e45d5fa3d6543f85f533bd6ea9729c7e2b7784eef2fc0293",
+        "bytes": 1019,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-facebook-color-white.png",
+        "C": "c9e525fd896f34b0e89676dfc237573d0b794eca",
+        "Q": null,
+        "four": null,
+        "W": "c9e525fd896f34b0e89676dfc237573d0b794eca",
+        "CEqualsW": true,
+        "sha256": "67d9a8abfb21af6e7a446be59553ac118ae1253f0ba157c669cba2e17dce8282",
+        "bytes": 1867,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-facebook-color.png",
+        "C": "5ff3a0127caf7d665b05a9169ec1d18bb1d3a94b",
+        "Q": null,
+        "four": null,
+        "W": "5ff3a0127caf7d665b05a9169ec1d18bb1d3a94b",
+        "CEqualsW": true,
+        "sha256": "6663e43fa3f23efa7152cfa793d4282a0ac753e622b0ccea2cfe12725dea45d7",
+        "bytes": 790,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-facebook-dark-white.png",
+        "C": "40adb6bbbaad3d1bba1ae7a20789c28efc6ebc32",
+        "Q": null,
+        "four": null,
+        "W": "40adb6bbbaad3d1bba1ae7a20789c28efc6ebc32",
+        "CEqualsW": true,
+        "sha256": "381250bbe91c193a66fc455126018444ce43d53b0fdc4bfbbfbbea038c2a2735",
+        "bytes": 1717,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-facebook-dark.png",
+        "C": "31923f446c181e2c18d6f0b2a198630bd247f6d3",
+        "Q": null,
+        "four": null,
+        "W": "31923f446c181e2c18d6f0b2a198630bd247f6d3",
+        "CEqualsW": true,
+        "sha256": "b2b692659f3cad58a8065b38d43144ab7c4fbb6ead5a077c48631afdd56d7782",
+        "bytes": 715,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-facebook-gray-black.png",
+        "C": "e05b135af11a2b88af0137d1fd4d211d12e95050",
+        "Q": null,
+        "four": null,
+        "W": "e05b135af11a2b88af0137d1fd4d211d12e95050",
+        "CEqualsW": true,
+        "sha256": "e0235b9f6d9b9359c9db866f44bb6fd088010a164d7110ddbb7b950f7526aabe",
+        "bytes": 1706,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-facebook-gray.png",
+        "C": "34368c9850677871af94fc8ac2534776cdb276f4",
+        "Q": null,
+        "four": null,
+        "W": "34368c9850677871af94fc8ac2534776cdb276f4",
+        "CEqualsW": true,
+        "sha256": "a915c51ce0e63b14750736ec079a1080a827019aba960bcd77a72460b1a253ed",
+        "bytes": 731,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-facebook-light-black.png",
+        "C": "da0dd14ba4fdfba6f9216ae1b46a7d4a74bcc5a6",
+        "Q": null,
+        "four": null,
+        "W": "da0dd14ba4fdfba6f9216ae1b46a7d4a74bcc5a6",
+        "CEqualsW": true,
+        "sha256": "c6a3d59cbcaeaf779d0819333afea1241244fcb52662d16137158b7053abdce3",
+        "bytes": 1556,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-facebook-light.png",
+        "C": "c4e162a205dd82cae6d36579264787b6a0f5b49c",
+        "Q": null,
+        "four": null,
+        "W": "c4e162a205dd82cae6d36579264787b6a0f5b49c",
+        "CEqualsW": true,
+        "sha256": "dc08d9cff42fde4e541e9030ba0fed335d6c3d11e449910dfd85d72c6f8e4935",
+        "bytes": 625,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-forward-color-white.png",
+        "C": "ed57ec26aad0f7a43608aa13bc382e57dcb0ac91",
+        "Q": null,
+        "four": null,
+        "W": "ed57ec26aad0f7a43608aa13bc382e57dcb0ac91",
+        "CEqualsW": true,
+        "sha256": "f3f485f210e365dc3bd61af79eb6c1a821c66669497aa1dc6155d5cee70b3fed",
+        "bytes": 2138,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-forward-color.png",
+        "C": "6991128b52d76cd98ba58946318bd35d25c60f07",
+        "Q": null,
+        "four": null,
+        "W": "6991128b52d76cd98ba58946318bd35d25c60f07",
+        "CEqualsW": true,
+        "sha256": "129499f19fcf77754570e6a5fb24f7bc19437f5d4de37fca61a4dc2a5133ee30",
+        "bytes": 1308,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-forward-dark-white.png",
+        "C": "f71e59800706159ed2cd517be1159d212f83d7f5",
+        "Q": null,
+        "four": null,
+        "W": "f71e59800706159ed2cd517be1159d212f83d7f5",
+        "CEqualsW": true,
+        "sha256": "4d4b7385e60e04cebb4841dfb1b13b7fb8481f0ca8a299c6fad567c92fa7bce3",
+        "bytes": 1983,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-forward-dark.png",
+        "C": "dbb5b09344151e2d1adcb12b61f89ca48061533b",
+        "Q": null,
+        "four": null,
+        "W": "dbb5b09344151e2d1adcb12b61f89ca48061533b",
+        "CEqualsW": true,
+        "sha256": "c87d68267772106228730761e35f0fd29748c1f6a5a5037e79896992d92e2a55",
+        "bytes": 1160,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-forward-gray-black.png",
+        "C": "3a9227c6ab2891ee4beaa4067923b6e0c9b7a99a",
+        "Q": null,
+        "four": null,
+        "W": "3a9227c6ab2891ee4beaa4067923b6e0c9b7a99a",
+        "CEqualsW": true,
+        "sha256": "103b83fe42945603c2c1746a105b3159f7d51074e6cc402981fb020bd4c80a4e",
+        "bytes": 1948,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-forward-gray.png",
+        "C": "298b27f897064d5043273b655fcd6c621485cd42",
+        "Q": null,
+        "four": null,
+        "W": "298b27f897064d5043273b655fcd6c621485cd42",
+        "CEqualsW": true,
+        "sha256": "3e0f768fe342cf452d2613592142ed948d549a7e7632bb2e72c3ba93d60cc002",
+        "bytes": 1172,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-forward-light-black.png",
+        "C": "7bd30c937fbd453257cda0bddf9290af6b127436",
+        "Q": null,
+        "four": null,
+        "W": "7bd30c937fbd453257cda0bddf9290af6b127436",
+        "CEqualsW": true,
+        "sha256": "6dae9248027e8144a17c93b5462b5be54985094ab7dde5e062a44ccde2668a17",
+        "bytes": 1817,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-forward-light.png",
+        "C": "38c8409358124c31ff18a786c3358d83f8325ce4",
+        "Q": null,
+        "four": null,
+        "W": "38c8409358124c31ff18a786c3358d83f8325ce4",
+        "CEqualsW": true,
+        "sha256": "e5c4ac1468785680e45d5fa3d6543f85f533bd6ea9729c7e2b7784eef2fc0293",
+        "bytes": 1019,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-icons-attribution.txt",
+        "C": "5de712e2355b9246c070f14c345068920f0ca18e",
+        "Q": null,
+        "four": null,
+        "W": "5de712e2355b9246c070f14c345068920f0ca18e",
+        "CEqualsW": true,
+        "sha256": "3aadf1580c4a90dfac6895616a13241759ad253615091782edcd07b444f924a0",
+        "bytes": 508,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-icons-license.txt",
+        "C": "69403b25cdc6beb4fa65d13858e9e7aee7e2c672",
+        "Q": null,
+        "four": null,
+        "W": "69403b25cdc6beb4fa65d13858e9e7aee7e2c672",
+        "CEqualsW": true,
+        "sha256": "20c6f40715a567c97b80f6944beb8bb325835cab47ea7dcab89ee3b8e077eced",
+        "bytes": 7427,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instagram-color-white.png",
+        "C": "95be9e0978c5ceb588db83cd302887f1594b902c",
+        "Q": null,
+        "four": null,
+        "W": "95be9e0978c5ceb588db83cd302887f1594b902c",
+        "CEqualsW": true,
+        "sha256": "6b4e3b573b57848ea163ae403a62ebeb5bf01367d10997ff593beae9de38a4ef",
+        "bytes": 2890,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instagram-color.png",
+        "C": "a84a17b7c62d926ce78523e4e741468c9fa7cf61",
+        "Q": null,
+        "four": null,
+        "W": "a84a17b7c62d926ce78523e4e741468c9fa7cf61",
+        "CEqualsW": true,
+        "sha256": "90dae07d0fdea7d5c1d5cd4b778978be8103f84827ea18b597734a59561f13fc",
+        "bytes": 2376,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instagram-dark-white.png",
+        "C": "dd3c9a35d6ac31b2a4f71343172995c353fe40e7",
+        "Q": null,
+        "four": null,
+        "W": "dd3c9a35d6ac31b2a4f71343172995c353fe40e7",
+        "CEqualsW": true,
+        "sha256": "fb9bc16551337004984abc9236c31cda5e6e94f868a911f666a8d68bd9450568",
+        "bytes": 2785,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instagram-dark.png",
+        "C": "4d18bf8278247a0a66b5b900422ce83caea37b2e",
+        "Q": null,
+        "four": null,
+        "W": "4d18bf8278247a0a66b5b900422ce83caea37b2e",
+        "CEqualsW": true,
+        "sha256": "4855c6de2962e3a101d293af1abded13491bd96ceb9f234d6293028e88e9faa5",
+        "bytes": 2113,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instagram-gray-black.png",
+        "C": "1d2bf9ec5c7610fb352ccd3ace5a29c5f94554ca",
+        "Q": null,
+        "four": null,
+        "W": "1d2bf9ec5c7610fb352ccd3ace5a29c5f94554ca",
+        "CEqualsW": true,
+        "sha256": "595de397df837eca6f2c14955c63d205fdb34a0fac33a6b07454da9051d311fd",
+        "bytes": 2566,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instagram-gray.png",
+        "C": "a688a7bb1f665312fdba9fdb42f998cc04e7901f",
+        "Q": null,
+        "four": null,
+        "W": "a688a7bb1f665312fdba9fdb42f998cc04e7901f",
+        "CEqualsW": true,
+        "sha256": "84ec1f1bc9fd7b93f9dd1a4343471b374071b517e188c9cfa0681b7819d1c084",
+        "bytes": 2128,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instagram-light-black.png",
+        "C": "c1cade8a65816145d1d1ebe0fab6fb0e595a3b00",
+        "Q": null,
+        "four": null,
+        "W": "c1cade8a65816145d1d1ebe0fab6fb0e595a3b00",
+        "CEqualsW": true,
+        "sha256": "01d4a8feefd19c1f1f8dd11c2cb88e9bc2a645c5eaeb5bc94b2a20f73d082d28",
+        "bytes": 2646,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instagram-light.png",
+        "C": "9ae122f36ab1db0c3e18a2e2f321acdb986ee2db",
+        "Q": null,
+        "four": null,
+        "W": "9ae122f36ab1db0c3e18a2e2f321acdb986ee2db",
+        "CEqualsW": true,
+        "sha256": "879a9b410dfd0a3e15c51d839295025cec90c44c70573f8ef5f83662bc887ecf",
+        "bytes": 1886,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instapaper-color-white.png",
+        "C": "a8b383500a120fca1c3468be1fdbfe632fd0b457",
+        "Q": null,
+        "four": null,
+        "W": "a8b383500a120fca1c3468be1fdbfe632fd0b457",
+        "CEqualsW": true,
+        "sha256": "cbe7a103b05095eaf9355f7078b67c75dfa83aef91b57baab97cfd115a2a645c",
+        "bytes": 1411,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instapaper-color.png",
+        "C": "cab56ae3e7490fb79f9efb2f3866a2fcce014d37",
+        "Q": null,
+        "four": null,
+        "W": "cab56ae3e7490fb79f9efb2f3866a2fcce014d37",
+        "CEqualsW": true,
+        "sha256": "d6d0d6f3e773667754e5eea4bef60fcdcdee20eff8482d45d63a394898876116",
+        "bytes": 315,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instapaper-dark-white.png",
+        "C": "a8b383500a120fca1c3468be1fdbfe632fd0b457",
+        "Q": null,
+        "four": null,
+        "W": "a8b383500a120fca1c3468be1fdbfe632fd0b457",
+        "CEqualsW": true,
+        "sha256": "cbe7a103b05095eaf9355f7078b67c75dfa83aef91b57baab97cfd115a2a645c",
+        "bytes": 1411,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instapaper-dark.png",
+        "C": "cab56ae3e7490fb79f9efb2f3866a2fcce014d37",
+        "Q": null,
+        "four": null,
+        "W": "cab56ae3e7490fb79f9efb2f3866a2fcce014d37",
+        "CEqualsW": true,
+        "sha256": "d6d0d6f3e773667754e5eea4bef60fcdcdee20eff8482d45d63a394898876116",
+        "bytes": 315,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instapaper-gray-black.png",
+        "C": "554a9223adf28ce61dbec035671fce04df5caeba",
+        "Q": null,
+        "four": null,
+        "W": "554a9223adf28ce61dbec035671fce04df5caeba",
+        "CEqualsW": true,
+        "sha256": "b203e0b47e8921ad9125bbac2ece6efc1f3294ee1d4478bfd8e802058a1d4306",
+        "bytes": 1425,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instapaper-gray.png",
+        "C": "175e1cc0b5bfffa3a6d5dd2e666eb3d5302ddc6f",
+        "Q": null,
+        "four": null,
+        "W": "175e1cc0b5bfffa3a6d5dd2e666eb3d5302ddc6f",
+        "CEqualsW": true,
+        "sha256": "3e9d5a4fa581f7cad89a2529ef773eada5b83cf3e60a060e972da4f6c67f9f57",
+        "bytes": 315,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instapaper-light-black.png",
+        "C": "b04d633306b50587de75f9d32cad3b5107787a2b",
+        "Q": null,
+        "four": null,
+        "W": "b04d633306b50587de75f9d32cad3b5107787a2b",
+        "CEqualsW": true,
+        "sha256": "627cf0469dae946737183e43876292b45cbb04e1746adedfd891722c1db2aecd",
+        "bytes": 1247,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-instapaper-light.png",
+        "C": "f43badc71f31c70906e915805b253581f79d1123",
+        "Q": null,
+        "four": null,
+        "W": "f43badc71f31c70906e915805b253581f79d1123",
+        "CEqualsW": true,
+        "sha256": "a693bdb89c13930c8987578871b7e999e8ff2fda7bff6e4761fabe539bb74e79",
+        "bytes": 289,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-linkedin-color-white.png",
+        "C": "6643bdc158e1fecdd8bb91772e56e5a9e12b52c3",
+        "Q": null,
+        "four": null,
+        "W": "6643bdc158e1fecdd8bb91772e56e5a9e12b52c3",
+        "CEqualsW": true,
+        "sha256": "bc6a22e4e0ec5c8bfbc36b5350c571331930e9c560c7f349185a5de64c34af5a",
+        "bytes": 2053,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-linkedin-color.png",
+        "C": "54c8eb14888fee6461ab7db53d463bcec1552729",
+        "Q": null,
+        "four": null,
+        "W": "54c8eb14888fee6461ab7db53d463bcec1552729",
+        "CEqualsW": true,
+        "sha256": "22b3688ae09f67ebde18d5704f0ec2c280fd66b30e3ade93663f563feb0176d3",
+        "bytes": 963,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-linkedin-dark-white.png",
+        "C": "8d215b8d116ca477cd5a954683686b96ec7efa76",
+        "Q": null,
+        "four": null,
+        "W": "8d215b8d116ca477cd5a954683686b96ec7efa76",
+        "CEqualsW": true,
+        "sha256": "a00056e733d43d567df49d92d9cf390d988f6f29099e8e03c1ee52bd6bc964cb",
+        "bytes": 1897,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-linkedin-dark.png",
+        "C": "fc0421a7ca73d640d0abb0d42d1d19fbb6f3eb7e",
+        "Q": null,
+        "four": null,
+        "W": "fc0421a7ca73d640d0abb0d42d1d19fbb6f3eb7e",
+        "CEqualsW": true,
+        "sha256": "65c9ea02b894763b15403f854a5465ceb40184ff519b90d086b8d0b11195ed99",
+        "bytes": 854,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-linkedin-gray-black.png",
+        "C": "cbd2e7e08e20e2f28fdad125919fd392eaf11642",
+        "Q": null,
+        "four": null,
+        "W": "cbd2e7e08e20e2f28fdad125919fd392eaf11642",
+        "CEqualsW": true,
+        "sha256": "7b5e16d9d1cb223727a6307973054c7fa7cbae1fce6fb3f8cb5c73ec56f48fa6",
+        "bytes": 1877,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-linkedin-gray.png",
+        "C": "b2634462f50cc3fbec0cc38e2b1597f61a0ce9eb",
+        "Q": null,
+        "four": null,
+        "W": "b2634462f50cc3fbec0cc38e2b1597f61a0ce9eb",
+        "CEqualsW": true,
+        "sha256": "90e23ed7ea81bc7ec815cf4ce879d2de4352bd217dec3d10d64292f3b0370c9d",
+        "bytes": 861,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-linkedin-light-black.png",
+        "C": "855fb90c46c050695e1c0e8276607a61aa263564",
+        "Q": null,
+        "four": null,
+        "W": "855fb90c46c050695e1c0e8276607a61aa263564",
+        "CEqualsW": true,
+        "sha256": "c1d74753b0e8e601b0204f017e1caae1643ded51bf28761ea5ce63580fc64af4",
+        "bytes": 1749,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-linkedin-light.png",
+        "C": "abe14a2a68224d791fc44677ce0b9ec6123bb444",
+        "Q": null,
+        "four": null,
+        "W": "abe14a2a68224d791fc44677ce0b9ec6123bb444",
+        "CEqualsW": true,
+        "sha256": "41695e34c6ef8ca47ad2346cb1570a978d685513120899ba49d508305f00f5aa",
+        "bytes": 747,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-patreon-color-white.png",
+        "C": "7a17c4242cb56ed696285b88a2b4860f70fdaa8d",
+        "Q": null,
+        "four": null,
+        "W": "7a17c4242cb56ed696285b88a2b4860f70fdaa8d",
+        "CEqualsW": true,
+        "sha256": "1d0ead9a6caf784c669fea3f39c37b492d1a1d33b1f1412b2a09007a166f9d3c",
+        "bytes": 2075,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-patreon-color.png",
+        "C": "0f8c12883648f27cd54ea510b53f8e8065d9f522",
+        "Q": null,
+        "four": null,
+        "W": "0f8c12883648f27cd54ea510b53f8e8065d9f522",
+        "CEqualsW": true,
+        "sha256": "2867ee10d25439468a0cca99a6c17bd97f55cfc72f542b34c155f71e52823a92",
+        "bytes": 1197,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-patreon-dark-white.png",
+        "C": "7a17c4242cb56ed696285b88a2b4860f70fdaa8d",
+        "Q": null,
+        "four": null,
+        "W": "7a17c4242cb56ed696285b88a2b4860f70fdaa8d",
+        "CEqualsW": true,
+        "sha256": "1d0ead9a6caf784c669fea3f39c37b492d1a1d33b1f1412b2a09007a166f9d3c",
+        "bytes": 2075,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-patreon-dark.png",
+        "C": "0f8c12883648f27cd54ea510b53f8e8065d9f522",
+        "Q": null,
+        "four": null,
+        "W": "0f8c12883648f27cd54ea510b53f8e8065d9f522",
+        "CEqualsW": true,
+        "sha256": "2867ee10d25439468a0cca99a6c17bd97f55cfc72f542b34c155f71e52823a92",
+        "bytes": 1197,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-patreon-gray-black.png",
+        "C": "71bcf6849d69cb6f1d66722bf1007ca61341e4f8",
+        "Q": null,
+        "four": null,
+        "W": "71bcf6849d69cb6f1d66722bf1007ca61341e4f8",
+        "CEqualsW": true,
+        "sha256": "6a858ab503828e066f991193a93481268548c2a77e4fbb91d0e73a2300ac4598",
+        "bytes": 2051,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-patreon-gray.png",
+        "C": "3f091427d0820642c2821b379fa5d06392bc5b89",
+        "Q": null,
+        "four": null,
+        "W": "3f091427d0820642c2821b379fa5d06392bc5b89",
+        "CEqualsW": true,
+        "sha256": "e70ab6a706e93accb4e48d8f07b5d2f829199474d650611eacccc69749343937",
+        "bytes": 1219,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-patreon-light-black.png",
+        "C": "c0372b540bcac4c6687c1a981ca8d1aea644e058",
+        "Q": null,
+        "four": null,
+        "W": "c0372b540bcac4c6687c1a981ca8d1aea644e058",
+        "CEqualsW": true,
+        "sha256": "19978bf302dfb5af8ff2d265b624f289b14c15730b4533b78ebe2d3a95386e79",
+        "bytes": 1938,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-patreon-light.png",
+        "C": "9880af1d70fd430c1a615b7c6de807525f832a77",
+        "Q": null,
+        "four": null,
+        "W": "9880af1d70fd430c1a615b7c6de807525f832a77",
+        "CEqualsW": true,
+        "sha256": "a3332592c641c17b65ecda9aa22824f1e8ec93eb22b31ccc1433298b63acec21",
+        "bytes": 1055,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-pinterest-color-white.png",
+        "C": "170dd56cb818fe3a8e026ddcde4d9e407d4fed65",
+        "Q": null,
+        "four": null,
+        "W": "170dd56cb818fe3a8e026ddcde4d9e407d4fed65",
+        "CEqualsW": true,
+        "sha256": "09c83407f18ef32e5fad185f4ddc2ecbbb25cf5dbb8e872963b026c44bd55b11",
+        "bytes": 2700,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-pinterest-color.png",
+        "C": "68b0d004d39e901ccd854aea73f6391297e90d31",
+        "Q": null,
+        "four": null,
+        "W": "68b0d004d39e901ccd854aea73f6391297e90d31",
+        "CEqualsW": true,
+        "sha256": "d332b9eb060dbda2fbfc3425d79e6ab03ca437cfdb646977c3ac15ea75d07e49",
+        "bytes": 1923,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-pinterest-dark-white.png",
+        "C": "1242eb6a993da7ff65926aa776a868531de079df",
+        "Q": null,
+        "four": null,
+        "W": "1242eb6a993da7ff65926aa776a868531de079df",
+        "CEqualsW": true,
+        "sha256": "29076f169ca1822edf14e8adf1f187c32df3fd254ad5020dda57e92c978dc9fd",
+        "bytes": 2601,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-pinterest-dark.png",
+        "C": "94c28b4c755a46f1bfd097c8f295da63fc901d38",
+        "Q": null,
+        "four": null,
+        "W": "94c28b4c755a46f1bfd097c8f295da63fc901d38",
+        "CEqualsW": true,
+        "sha256": "5b9189168c0142122a31fe9f47bac9d0e6289d7e86c4be7155b1f483d48d7bc0",
+        "bytes": 1813,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-pinterest-gray-black.png",
+        "C": "4b9fb8782efe1e44813daa89ea9eb790b411c6bd",
+        "Q": null,
+        "four": null,
+        "W": "4b9fb8782efe1e44813daa89ea9eb790b411c6bd",
+        "CEqualsW": true,
+        "sha256": "c92728fa6a4642748fe69c0d1a6d0e05068489b4d81f01c68e9ed7c25bfbcd50",
+        "bytes": 2446,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-pinterest-gray.png",
+        "C": "55fe6e840da3973955b130c40bd494174e57f9fb",
+        "Q": null,
+        "four": null,
+        "W": "55fe6e840da3973955b130c40bd494174e57f9fb",
+        "CEqualsW": true,
+        "sha256": "1db3c76a12fa9c126b13ad0bafa7fa03f728dee316dc9022d25ab56ada0efd4d",
+        "bytes": 1826,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-pinterest-light-black.png",
+        "C": "89521f62741b5090eb0b84835ed3d5ed53160b21",
+        "Q": null,
+        "four": null,
+        "W": "89521f62741b5090eb0b84835ed3d5ed53160b21",
+        "CEqualsW": true,
+        "sha256": "0a4b385853c343b6089267e3d199d9a03ee02faaffb4a013a81993010b7cbaf3",
+        "bytes": 2458,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-pinterest-light.png",
+        "C": "7d0059831637829f97813f52e720e03e2da12662",
+        "Q": null,
+        "four": null,
+        "W": "7d0059831637829f97813f52e720e03e2da12662",
+        "CEqualsW": true,
+        "sha256": "610a19bc386a34d04b851d061add3fcf3b6d0f8a682b0fde4841db46f529956b",
+        "bytes": 1625,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-reddit-color-white.png",
+        "C": "d8051bae90bc948c214abcde73f79dab88a54bf5",
+        "Q": null,
+        "four": null,
+        "W": "d8051bae90bc948c214abcde73f79dab88a54bf5",
+        "CEqualsW": true,
+        "sha256": "8ebb780420ca7715ec77e6dc0609a1a484d927f00d1cb1d33da91e9b7826cee1",
+        "bytes": 2396,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-reddit-color.png",
+        "C": "a379ba8caefc53a2acad8e6ae038c56c6d0d4e8e",
+        "Q": null,
+        "four": null,
+        "W": "a379ba8caefc53a2acad8e6ae038c56c6d0d4e8e",
+        "CEqualsW": true,
+        "sha256": "bb07a5506a9b40e9864413ad2717a3593004fc0120ed1bd74723df0ab9bd1e31",
+        "bytes": 1791,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-reddit-dark-white.png",
+        "C": "4f5258174f6ce5fa48650bd8f89fb101af978785",
+        "Q": null,
+        "four": null,
+        "W": "4f5258174f6ce5fa48650bd8f89fb101af978785",
+        "CEqualsW": true,
+        "sha256": "d282b968b603233c5efcaa372ef764c177647e40b8cf8a41b4f859c962b474c5",
+        "bytes": 2525,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-reddit-dark.png",
+        "C": "ee5f252e979e88600ddd5720ccebb043235b5cf1",
+        "Q": null,
+        "four": null,
+        "W": "ee5f252e979e88600ddd5720ccebb043235b5cf1",
+        "CEqualsW": true,
+        "sha256": "1bcd68d60a4c3cbb59e93e21320a790c530c284e27100f9eaca47c6d23efcda5",
+        "bytes": 1806,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-reddit-gray-black.png",
+        "C": "40b2a7acd5a2a9d381b845321fac09242f2fae86",
+        "Q": null,
+        "four": null,
+        "W": "40b2a7acd5a2a9d381b845321fac09242f2fae86",
+        "CEqualsW": true,
+        "sha256": "b34c380e12cd9bc2f929a724c27e4f81d0916893d833ab7f6b5be8e5e0a8dcf2",
+        "bytes": 2391,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-reddit-gray.png",
+        "C": "24014097f1a8cf1158c336bf8db6ca98ced913b2",
+        "Q": null,
+        "four": null,
+        "W": "24014097f1a8cf1158c336bf8db6ca98ced913b2",
+        "CEqualsW": true,
+        "sha256": "c73f5c8e8da0b23d8536c9f82149939397ef5c29dadbe8e484c186660a2349f1",
+        "bytes": 1812,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-reddit-light-black.png",
+        "C": "c77523c176806955177b3ae9077512454224908a",
+        "Q": null,
+        "four": null,
+        "W": "c77523c176806955177b3ae9077512454224908a",
+        "CEqualsW": true,
+        "sha256": "38749ea14339cb782ec95662e07c7525cec8a828242fd0e3e842c2a92dc20d66",
+        "bytes": 2371,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-reddit-light.png",
+        "C": "76390638f171bae229f18f1e42b935fe8a937353",
+        "Q": null,
+        "four": null,
+        "W": "76390638f171bae229f18f1e42b935fe8a937353",
+        "CEqualsW": true,
+        "sha256": "9a7aaa38579d9b1c3db920349143af7de2c7651d8cfd6e2e47f83169d4b2b812",
+        "bytes": 1614,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-snapchat-color-white.png",
+        "C": "e923ac212a2d98738bd2b0c5fd40769f9e1d4f83",
+        "Q": null,
+        "four": null,
+        "W": "e923ac212a2d98738bd2b0c5fd40769f9e1d4f83",
+        "CEqualsW": true,
+        "sha256": "4c3e03644f4362512307b10b1fdbfe676e5b9c67d63967187d03765afaea9cae",
+        "bytes": 2761,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-snapchat-color.png",
+        "C": "784d664dc36f567497a3a5a00f09638030ebbe1c",
+        "Q": null,
+        "four": null,
+        "W": "784d664dc36f567497a3a5a00f09638030ebbe1c",
+        "CEqualsW": true,
+        "sha256": "6dd67be1b3b71fba5f961e3902ced9ff84b77edf6cd4a2636a718898dcb7da40",
+        "bytes": 2127,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-snapchat-dark-white.png",
+        "C": "dc0c7b14206fa0cc350e73ae45aa5da932298fde",
+        "Q": null,
+        "four": null,
+        "W": "dc0c7b14206fa0cc350e73ae45aa5da932298fde",
+        "CEqualsW": true,
+        "sha256": "4fcd3770e1b4b9140e49571bbfb168e40f1da9d2d7de1a62c3456583a4aeaac1",
+        "bytes": 2756,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-snapchat-dark.png",
+        "C": "b4397cf99b226a33851461d941db806def8604d6",
+        "Q": null,
+        "four": null,
+        "W": "b4397cf99b226a33851461d941db806def8604d6",
+        "CEqualsW": true,
+        "sha256": "419ac155675fdb991444a492242104d4991bd5b3cdcfd78aceae6167b42ce206",
+        "bytes": 2024,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-snapchat-gray-black.png",
+        "C": "2fd06145e4baf3c79213727a09f295c4a8d8452b",
+        "Q": null,
+        "four": null,
+        "W": "2fd06145e4baf3c79213727a09f295c4a8d8452b",
+        "CEqualsW": true,
+        "sha256": "e8657e854432e6035b9148636ad853384f9cfb01d634698ab3827e1b6a08babd",
+        "bytes": 2568,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-snapchat-gray.png",
+        "C": "f43a287bbea3dbf962f7ec95a689bcf993bdc1d1",
+        "Q": null,
+        "four": null,
+        "W": "f43a287bbea3dbf962f7ec95a689bcf993bdc1d1",
+        "CEqualsW": true,
+        "sha256": "efc444fee08156bbbb01ebe0c7d9cad3ab7462086dc562e131911bcae86fe82c",
+        "bytes": 2031,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-snapchat-light-black.png",
+        "C": "bdd052467bc68623b192e035af04918df96c2879",
+        "Q": null,
+        "four": null,
+        "W": "bdd052467bc68623b192e035af04918df96c2879",
+        "CEqualsW": true,
+        "sha256": "6e71bb3d70fd141456ed210b05bd21d82bb107d15a81ba007eb06c3cc068542f",
+        "bytes": 2606,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-snapchat-light.png",
+        "C": "52ec30411dc7ef1713429c322c00ea488f04e4f0",
+        "Q": null,
+        "four": null,
+        "W": "52ec30411dc7ef1713429c322c00ea488f04e4f0",
+        "CEqualsW": true,
+        "sha256": "fb4c46fc46330efd3e6a6b958a1b4ce84911e78e659d2c88a535388b2d065f4c",
+        "bytes": 1773,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-spotify-color-white.png",
+        "C": "e84288d8974f947adcc6cba37d5150114e7caec9",
+        "Q": null,
+        "four": null,
+        "W": "e84288d8974f947adcc6cba37d5150114e7caec9",
+        "CEqualsW": true,
+        "sha256": "0a14961f567bb7e467a9f559e1bbad512818459eb0325b862f13c773215afb3d",
+        "bytes": 2858,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-spotify-color.png",
+        "C": "26388b755a570f473dca3f2649a97d56fa571608",
+        "Q": null,
+        "four": null,
+        "W": "26388b755a570f473dca3f2649a97d56fa571608",
+        "CEqualsW": true,
+        "sha256": "faf6fc4c2befe5f381bbbddcbb62b5cadb320f3f7ac862acba7809e6c130e786",
+        "bytes": 2312,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-spotify-dark-white.png",
+        "C": "07c5522a87a8c59db464030d3a59e5cc922c2dc4",
+        "Q": null,
+        "four": null,
+        "W": "07c5522a87a8c59db464030d3a59e5cc922c2dc4",
+        "CEqualsW": true,
+        "sha256": "9b34ce740aa681e1034917352830a34e53b0e94244415756cc09cf85d51bbcd9",
+        "bytes": 2701,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-spotify-dark.png",
+        "C": "2fc549bffe8d5dc6eacfd2485770cfabbef90331",
+        "Q": null,
+        "four": null,
+        "W": "2fc549bffe8d5dc6eacfd2485770cfabbef90331",
+        "CEqualsW": true,
+        "sha256": "1cd04c75ec6dd796c2e0981505f92b5a0b3349201d8ddd33489a7192df12ac23",
+        "bytes": 2054,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-spotify-gray-black.png",
+        "C": "8d70335261ae2815a3ff8948ae90fcb662b28c23",
+        "Q": null,
+        "four": null,
+        "W": "8d70335261ae2815a3ff8948ae90fcb662b28c23",
+        "CEqualsW": true,
+        "sha256": "fecd7eba0eaecaf5ce943e7e2162a93f670ff4abaaa54eb48a9a93235b4cc5e8",
+        "bytes": 2549,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-spotify-gray.png",
+        "C": "646874280aa1c62a9d8ee816a6f2c530a562115d",
+        "Q": null,
+        "four": null,
+        "W": "646874280aa1c62a9d8ee816a6f2c530a562115d",
+        "CEqualsW": true,
+        "sha256": "023b7a412119e973162ac0466e8c5cd16ab97d6be35ddab451dba6e1e110ef06",
+        "bytes": 2048,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-spotify-light-black.png",
+        "C": "f57ba4c02093285a54b7db8b041aea684e01110f",
+        "Q": null,
+        "four": null,
+        "W": "f57ba4c02093285a54b7db8b041aea684e01110f",
+        "CEqualsW": true,
+        "sha256": "73f495e7d2c6b27783eed95102245dcf562307513ff2d236aea0fe9b63711176",
+        "bytes": 2580,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-spotify-light.png",
+        "C": "099916ec53ba114fc3e3f8603bf41e65040d0971",
+        "Q": null,
+        "four": null,
+        "W": "099916ec53ba114fc3e3f8603bf41e65040d0971",
+        "CEqualsW": true,
+        "sha256": "321c78f5663a946573db55449de497adfb86843b59e2841e2020a8f611007997",
+        "bytes": 1819,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-telegram-color-white.png",
+        "C": "20fe3a1edd177de7c0e9549af718bc2d46f67caf",
+        "Q": null,
+        "four": null,
+        "W": "20fe3a1edd177de7c0e9549af718bc2d46f67caf",
+        "CEqualsW": true,
+        "sha256": "8188660492814077392a66e8ce94f32fd0ad6b13acad9c655e839a69229e33ee",
+        "bytes": 2505,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-telegram-color.png",
+        "C": "60a5da33a9f8be118bebe980de7b37ce3dbe530f",
+        "Q": null,
+        "four": null,
+        "W": "60a5da33a9f8be118bebe980de7b37ce3dbe530f",
+        "CEqualsW": true,
+        "sha256": "0672d630debab71a45918790cd16ea39918c10682d794663e29f2feccd525cc1",
+        "bytes": 1918,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-telegram-dark-white.png",
+        "C": "c77dc53103ec57a5f6bdb55927f4be8eeeb7cb63",
+        "Q": null,
+        "four": null,
+        "W": "c77dc53103ec57a5f6bdb55927f4be8eeeb7cb63",
+        "CEqualsW": true,
+        "sha256": "779bf0a3d24b2e41e7d7396fce98c819f739041fa68472307f3eee1fdc7d8bbe",
+        "bytes": 2428,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-telegram-dark.png",
+        "C": "e7001bd975dd41d768b370b51df817ae87d0929c",
+        "Q": null,
+        "four": null,
+        "W": "e7001bd975dd41d768b370b51df817ae87d0929c",
+        "CEqualsW": true,
+        "sha256": "361d75b65a3e29ef05b26690b2354d2ab6c0042175a43967893c6a93dc38618d",
+        "bytes": 1727,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-telegram-gray-black.png",
+        "C": "9632bbbf8fb021ec736e994c858f25412ac197e0",
+        "Q": null,
+        "four": null,
+        "W": "9632bbbf8fb021ec736e994c858f25412ac197e0",
+        "CEqualsW": true,
+        "sha256": "7cfd91ad58ec2c44a10240d126a3c054cd6a58116812f491bf432977ac27827b",
+        "bytes": 2325,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-telegram-gray.png",
+        "C": "2071c233002b1bf30bc19d423b5dc5560b0d5609",
+        "Q": null,
+        "four": null,
+        "W": "2071c233002b1bf30bc19d423b5dc5560b0d5609",
+        "CEqualsW": true,
+        "sha256": "5db15741d51610d6371527f95aa073c716c6c07a5d89c343b5043778b1f68f41",
+        "bytes": 1728,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-telegram-light-black.png",
+        "C": "e18fed3d04f681773a89e0898f7eb73baac1cf70",
+        "Q": null,
+        "four": null,
+        "W": "e18fed3d04f681773a89e0898f7eb73baac1cf70",
+        "CEqualsW": true,
+        "sha256": "ea6d9aef5608dbf03881e16b6bfe706995c2193217318d83b539b76783be0cf7",
+        "bytes": 2305,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-telegram-light.png",
+        "C": "30fbb9fcca8bd1ef16f1286ff39fc183be919160",
+        "Q": null,
+        "four": null,
+        "W": "30fbb9fcca8bd1ef16f1286ff39fc183be919160",
+        "CEqualsW": true,
+        "sha256": "7b516a39e95f1c742abc01bd2146ecede9aae62d4a23d7c3ada76b1a56cbe9b5",
+        "bytes": 1529,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-threads-color-white.png",
+        "C": "5849993b59c485880c4e99138b429d848442ff39",
+        "Q": null,
+        "four": null,
+        "W": "5849993b59c485880c4e99138b429d848442ff39",
+        "CEqualsW": true,
+        "sha256": "52f61238831c578b315ba29cd80c82968ef45264226fda2fb4f1956b175bdf89",
+        "bytes": 2906,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-threads-color.png",
+        "C": "cc595c85eeb3c8018f69b24149a72629d9f4fe4d",
+        "Q": null,
+        "four": null,
+        "W": "cc595c85eeb3c8018f69b24149a72629d9f4fe4d",
+        "CEqualsW": true,
+        "sha256": "1a7f413b1eb6b0b2fc1f61c3f029967dd5362f958ee7e1dff7462a3778ca712a",
+        "bytes": 2254,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-threads-dark-white.png",
+        "C": "5849993b59c485880c4e99138b429d848442ff39",
+        "Q": null,
+        "four": null,
+        "W": "5849993b59c485880c4e99138b429d848442ff39",
+        "CEqualsW": true,
+        "sha256": "52f61238831c578b315ba29cd80c82968ef45264226fda2fb4f1956b175bdf89",
+        "bytes": 2906,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-threads-dark.png",
+        "C": "cc595c85eeb3c8018f69b24149a72629d9f4fe4d",
+        "Q": null,
+        "four": null,
+        "W": "cc595c85eeb3c8018f69b24149a72629d9f4fe4d",
+        "CEqualsW": true,
+        "sha256": "1a7f413b1eb6b0b2fc1f61c3f029967dd5362f958ee7e1dff7462a3778ca712a",
+        "bytes": 2254,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-threads-gray-black.png",
+        "C": "51e372f5215360575f1e4025b57fdcf9764d765a",
+        "Q": null,
+        "four": null,
+        "W": "51e372f5215360575f1e4025b57fdcf9764d765a",
+        "CEqualsW": true,
+        "sha256": "5cba0b1abee34a73dcf931f2c7bcd207b99eac5ea394e76654cdd222bf045b2b",
+        "bytes": 2733,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-threads-gray.png",
+        "C": "c317b5f17a2573ee4e2d035a4b7b09c066503c1f",
+        "Q": null,
+        "four": null,
+        "W": "c317b5f17a2573ee4e2d035a4b7b09c066503c1f",
+        "CEqualsW": true,
+        "sha256": "3b8f2f24cc39bcecef7f2ce688846e970c95983ddccdee69e3584568d5fdef7f",
+        "bytes": 2253,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-threads-light-black.png",
+        "C": "0caffebbe466c839836a1e9b38c8a924501a3383",
+        "Q": null,
+        "four": null,
+        "W": "0caffebbe466c839836a1e9b38c8a924501a3383",
+        "CEqualsW": true,
+        "sha256": "0901e05135bc72682e3f02e4dfcdacc4aef078689fa342a9a1a20129e5724262",
+        "bytes": 2775,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-threads-light.png",
+        "C": "7aabb2579ca7e2faffbf8187e35ab49544ab2fd6",
+        "Q": null,
+        "four": null,
+        "W": "7aabb2579ca7e2faffbf8187e35ab49544ab2fd6",
+        "CEqualsW": true,
+        "sha256": "4038d5e1898506d856ec1bbb7b2e3d7ad73647039dc66c57563db67f33fe6d0f",
+        "bytes": 2013,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-tiktok-color-white.png",
+        "C": "c8b1fdc8943966cbba08b437aa819bde2ef7e7f4",
+        "Q": null,
+        "four": null,
+        "W": "c8b1fdc8943966cbba08b437aa819bde2ef7e7f4",
+        "CEqualsW": true,
+        "sha256": "635b18d8be4700147ba9ef750c71ae038f2acc5ac2a2eeaef99abba5e993b08a",
+        "bytes": 2141,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-tiktok-color.png",
+        "C": "9900ee3f6368d4696e6ca3b241635bb46ff59e63",
+        "Q": null,
+        "four": null,
+        "W": "9900ee3f6368d4696e6ca3b241635bb46ff59e63",
+        "CEqualsW": true,
+        "sha256": "f11f5655e22ba636c967173bdad3e35f1cef9fa2f90699e12739dc2737c73c14",
+        "bytes": 1276,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-tiktok-dark-white.png",
+        "C": "c8b1fdc8943966cbba08b437aa819bde2ef7e7f4",
+        "Q": null,
+        "four": null,
+        "W": "c8b1fdc8943966cbba08b437aa819bde2ef7e7f4",
+        "CEqualsW": true,
+        "sha256": "635b18d8be4700147ba9ef750c71ae038f2acc5ac2a2eeaef99abba5e993b08a",
+        "bytes": 2141,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-tiktok-dark.png",
+        "C": "9900ee3f6368d4696e6ca3b241635bb46ff59e63",
+        "Q": null,
+        "four": null,
+        "W": "9900ee3f6368d4696e6ca3b241635bb46ff59e63",
+        "CEqualsW": true,
+        "sha256": "f11f5655e22ba636c967173bdad3e35f1cef9fa2f90699e12739dc2737c73c14",
+        "bytes": 1276,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-tiktok-gray-black.png",
+        "C": "fb1775b3e65686f4c690dee63f696e044856c11d",
+        "Q": null,
+        "four": null,
+        "W": "fb1775b3e65686f4c690dee63f696e044856c11d",
+        "CEqualsW": true,
+        "sha256": "1bff7d2710e9cb57ef398b51cc9534a026dce4b2a85b45af9bad25471540ba6f",
+        "bytes": 2072,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-tiktok-gray.png",
+        "C": "0e433bcb0faaaf89abc207acb6df15f1643cc51e",
+        "Q": null,
+        "four": null,
+        "W": "0e433bcb0faaaf89abc207acb6df15f1643cc51e",
+        "CEqualsW": true,
+        "sha256": "b790a48b9d78cdea4b7d2bf509654d807bdd798ac5f346854f423f839545317d",
+        "bytes": 1295,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-tiktok-light-black.png",
+        "C": "c947b846cc7b0fca5ad863c0812e5a4dee0148f1",
+        "Q": null,
+        "four": null,
+        "W": "c947b846cc7b0fca5ad863c0812e5a4dee0148f1",
+        "CEqualsW": true,
+        "sha256": "6ec67c4bb8cc4aed5566386c1044ce47532092f8e40f0ab0671a8e9ef637d11e",
+        "bytes": 1974,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-tiktok-light.png",
+        "C": "0ee89d7f04cc0afeb3389f5b5543dd84f820bc7a",
+        "Q": null,
+        "four": null,
+        "W": "0ee89d7f04cc0afeb3389f5b5543dd84f820bc7a",
+        "CEqualsW": true,
+        "sha256": "081fc38b655739c30376a3b061a2e889065e28d59ae42801261c0cb1df43f45c",
+        "bytes": 1151,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitch-color-white.png",
+        "C": "4d2ee18bfc729d772283b8ec0513dde9392ba63a",
+        "Q": null,
+        "four": null,
+        "W": "4d2ee18bfc729d772283b8ec0513dde9392ba63a",
+        "CEqualsW": true,
+        "sha256": "3fcbeb94f93f6dd9ee56e0d780d002ae862e6bd3e1fe089a75513d74430f748b",
+        "bytes": 1989,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitch-color.png",
+        "C": "6f01526138a186f6de963e8440482fb9b4df83c9",
+        "Q": null,
+        "four": null,
+        "W": "6f01526138a186f6de963e8440482fb9b4df83c9",
+        "CEqualsW": true,
+        "sha256": "c3fcc913d05a197adda61cfd9087a176b786ee7e6d39c369d25ca8a9c6b8b2fc",
+        "bytes": 1086,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitch-dark-white.png",
+        "C": "87e8b562110b49a24525827f869864f20397a235",
+        "Q": null,
+        "four": null,
+        "W": "87e8b562110b49a24525827f869864f20397a235",
+        "CEqualsW": true,
+        "sha256": "73490bf0008bb4e39f513aed7e278457880b1b0c7235e858317a87df30283f3c",
+        "bytes": 1984,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitch-dark.png",
+        "C": "32fd5ee41604c392ae34e69178b0b8c0dbc8e9c3",
+        "Q": null,
+        "four": null,
+        "W": "32fd5ee41604c392ae34e69178b0b8c0dbc8e9c3",
+        "CEqualsW": true,
+        "sha256": "3e7c9efe6125e8cd4a4e68178e52f548bb490109f269d8916ea0dc3093d3aab4",
+        "bytes": 1023,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitch-gray-black.png",
+        "C": "01da933cc5c5ed2a8c8f2b3dd4a35063f6a70fce",
+        "Q": null,
+        "four": null,
+        "W": "01da933cc5c5ed2a8c8f2b3dd4a35063f6a70fce",
+        "CEqualsW": true,
+        "sha256": "a0d10b9c6d0b4cbbe263df299934863ef79e50594d3c5085215e6ec827e3703c",
+        "bytes": 1942,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitch-gray.png",
+        "C": "2f9f0cf41b6208f9ffa7c3e660c2018bb199d132",
+        "Q": null,
+        "four": null,
+        "W": "2f9f0cf41b6208f9ffa7c3e660c2018bb199d132",
+        "CEqualsW": true,
+        "sha256": "af2ecaabe264d33839e2f5cb2e9e2e827b0c75b17a41092fe5b8c269e761f3ec",
+        "bytes": 1033,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitch-light-black.png",
+        "C": "1dbf856feea35de9b6fffd70cdf23b8eb2ba48ab",
+        "Q": null,
+        "four": null,
+        "W": "1dbf856feea35de9b6fffd70cdf23b8eb2ba48ab",
+        "CEqualsW": true,
+        "sha256": "b6386bcb4bca3338191ea4ccfc6578b621c3ec19deac616dc38902d98958e010",
+        "bytes": 1790,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitch-light.png",
+        "C": "5509d42abf1eb5dbde2f736d6003dc08640b7536",
+        "Q": null,
+        "four": null,
+        "W": "5509d42abf1eb5dbde2f736d6003dc08640b7536",
+        "CEqualsW": true,
+        "sha256": "844b9b9dbb58a426f457bfc2e112e3c37173f3c2e51e783f44573a5e810ede7b",
+        "bytes": 917,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitter-color-white.png",
+        "C": "32796fd2eca68c7b83aad6695202626a30925fb7",
+        "Q": null,
+        "four": null,
+        "W": "32796fd2eca68c7b83aad6695202626a30925fb7",
+        "CEqualsW": true,
+        "sha256": "8cf9471dabc3e27b79924ede2d4757d89644baa4eb73ed3f7369dfb3c366b4b6",
+        "bytes": 2527,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitter-color.png",
+        "C": "5a74d3b8f5787a5176521600d38023ea59fff97c",
+        "Q": null,
+        "four": null,
+        "W": "5a74d3b8f5787a5176521600d38023ea59fff97c",
+        "CEqualsW": true,
+        "sha256": "c5af90126682de59e86bbcd20f19202656f33af7d65436b73e2f3b9375e2e57d",
+        "bytes": 1566,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitter-dark-white.png",
+        "C": "32796fd2eca68c7b83aad6695202626a30925fb7",
+        "Q": null,
+        "four": null,
+        "W": "32796fd2eca68c7b83aad6695202626a30925fb7",
+        "CEqualsW": true,
+        "sha256": "8cf9471dabc3e27b79924ede2d4757d89644baa4eb73ed3f7369dfb3c366b4b6",
+        "bytes": 2527,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitter-dark.png",
+        "C": "5a74d3b8f5787a5176521600d38023ea59fff97c",
+        "Q": null,
+        "four": null,
+        "W": "5a74d3b8f5787a5176521600d38023ea59fff97c",
+        "CEqualsW": true,
+        "sha256": "c5af90126682de59e86bbcd20f19202656f33af7d65436b73e2f3b9375e2e57d",
+        "bytes": 1566,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitter-gray-black.png",
+        "C": "94326c611da3185959c9fe7413e9e6fc6c09cae9",
+        "Q": null,
+        "four": null,
+        "W": "94326c611da3185959c9fe7413e9e6fc6c09cae9",
+        "CEqualsW": true,
+        "sha256": "58e6c576494f4f3345bb2bdc565c1434eb015eaeac7afbc427266d0671078cbe",
+        "bytes": 2350,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitter-gray.png",
+        "C": "44f9f5e4827e56fd618c673c9c135752d8fc7be4",
+        "Q": null,
+        "four": null,
+        "W": "44f9f5e4827e56fd618c673c9c135752d8fc7be4",
+        "CEqualsW": true,
+        "sha256": "f9596ef2e94b26695d47a3476550f9337d6643d18cb0a6bd769647a13e5dd405",
+        "bytes": 1598,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitter-light-black.png",
+        "C": "55343c6c0c18c1abe254d22d5c95152dd7df4d5c",
+        "Q": null,
+        "four": null,
+        "W": "55343c6c0c18c1abe254d22d5c95152dd7df4d5c",
+        "CEqualsW": true,
+        "sha256": "169bcb508869e16479d1dd10937cb3b1e04f369245ce2a2d9ef97d56458163b3",
+        "bytes": 2381,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-twitter-light.png",
+        "C": "b0e7af6d059ea285e9430a3f09820c5bd2ce5e65",
+        "Q": null,
+        "four": null,
+        "W": "b0e7af6d059ea285e9430a3f09820c5bd2ce5e65",
+        "CEqualsW": true,
+        "sha256": "d19ef5a522cb75e1f93daf1affe24461e95d6b1aaef093704411b1ffa077915e",
+        "bytes": 1382,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-update.png",
+        "C": "115a6a7ec2f212161b2e5f609abc408fe970c7a1",
+        "Q": null,
+        "four": null,
+        "W": "115a6a7ec2f212161b2e5f609abc408fe970c7a1",
+        "CEqualsW": true,
+        "sha256": "6d60daba33551a9011e94329ba6cb7f11de119e9273bd386a8719d03e3b616f0",
+        "bytes": 40618,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-update.svg",
+        "C": "1a1aeee066b358ff9dbf4381563a72bfe77aaf88",
+        "Q": null,
+        "four": null,
+        "W": "1a1aeee066b358ff9dbf4381563a72bfe77aaf88",
+        "CEqualsW": true,
+        "sha256": "cb903be6b9a58d8beffd148b911805619ce3b99f9ca30c1895e76bfd412702ec",
+        "bytes": 890,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-website-color-white.png",
+        "C": "8a86b3cb67b41c1c9c13af1bfb1523159f5016fd",
+        "Q": null,
+        "four": null,
+        "W": "8a86b3cb67b41c1c9c13af1bfb1523159f5016fd",
+        "CEqualsW": true,
+        "sha256": "5eb25284801c33ab0a7206ece87c9a82a12ea649a939b5f36608bdfaa456d363",
+        "bytes": 3008,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-website-color.png",
+        "C": "d0a68b40ac2d7cf62f2c6df29aa5d8ca126b0248",
+        "Q": null,
+        "four": null,
+        "W": "d0a68b40ac2d7cf62f2c6df29aa5d8ca126b0248",
+        "CEqualsW": true,
+        "sha256": "b02e1d565a3356075c325eed876fd53fe3e303efe4f4b4b16f043fb589406579",
+        "bytes": 2221,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-website-dark-white.png",
+        "C": "b31d50a5685e4391c903503f069287d8dc9a7ba3",
+        "Q": null,
+        "four": null,
+        "W": "b31d50a5685e4391c903503f069287d8dc9a7ba3",
+        "CEqualsW": true,
+        "sha256": "a00719634fbc3100faa492a0b262ec8190c9c55d60f687f49d6498faae9cacf5",
+        "bytes": 2855,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-website-dark.png",
+        "C": "80ea079ac7f4eb93037f8bd72e88d2ac5b794af9",
+        "Q": null,
+        "four": null,
+        "W": "80ea079ac7f4eb93037f8bd72e88d2ac5b794af9",
+        "CEqualsW": true,
+        "sha256": "a8e5fe6990557c8f7992ddaa01235b2d7c26cb1860440bd80c7a67d1806737a0",
+        "bytes": 1947,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-website-gray-black.png",
+        "C": "874d42386d59024ce6af2b050333298fa1b075b1",
+        "Q": null,
+        "four": null,
+        "W": "874d42386d59024ce6af2b050333298fa1b075b1",
+        "CEqualsW": true,
+        "sha256": "fdaca027657315c4c7922b51400a91a52bdbc6acbba6e824165e3e670d7b3efd",
+        "bytes": 2582,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-website-gray.png",
+        "C": "688b249ccb583b4981309431696e05c56889de14",
+        "Q": null,
+        "four": null,
+        "W": "688b249ccb583b4981309431696e05c56889de14",
+        "CEqualsW": true,
+        "sha256": "8db22bf3683e8c900b3d4757c45f3a552981643ecf07a7c2fae180f6adb81b37",
+        "bytes": 1977,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-website-light-black.png",
+        "C": "e9b15ae28b2ec5d949f52491f37a6cd53dd1a861",
+        "Q": null,
+        "four": null,
+        "W": "e9b15ae28b2ec5d949f52491f37a6cd53dd1a861",
+        "CEqualsW": true,
+        "sha256": "7fa75984c010b0db34b2aeacee79d074a77b6020f1d620f8781b5fcaf3d06868",
+        "bytes": 2725,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-website-light.png",
+        "C": "30182eac564620b0249e4eb7c1a66c6b9ded79ab",
+        "Q": null,
+        "four": null,
+        "W": "30182eac564620b0249e4eb7c1a66c6b9ded79ab",
+        "CEqualsW": true,
+        "sha256": "29a36e11fada8a0cc25173eb80d635725107f65cd27807611371cc742d769a55",
+        "bytes": 1738,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-whatsapp-color-white.png",
+        "C": "c6d33bee2abb9bc734bbbdca536dfde03cd337e9",
+        "Q": null,
+        "four": null,
+        "W": "c6d33bee2abb9bc734bbbdca536dfde03cd337e9",
+        "CEqualsW": true,
+        "sha256": "c0d3ed1110d5927cbe7fc5490b092b93f18078d8325045a2f31fc1d60f0663d6",
+        "bytes": 2973,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-whatsapp-color.png",
+        "C": "f35247ff0d7b7cd4faaa816f8ddacf9cfb2f10d9",
+        "Q": null,
+        "four": null,
+        "W": "f35247ff0d7b7cd4faaa816f8ddacf9cfb2f10d9",
+        "CEqualsW": true,
+        "sha256": "69cc25e5b3f22e7b6e70f576729ba01cdcb505a6d9346f1f6a39aee5ecc17cf1",
+        "bytes": 2367,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-whatsapp-dark-white.png",
+        "C": "6a4413a1ea159c7f1519e0507b6de56f881ef367",
+        "Q": null,
+        "four": null,
+        "W": "6a4413a1ea159c7f1519e0507b6de56f881ef367",
+        "CEqualsW": true,
+        "sha256": "283768ab2cad7c26a9d8a447fc9ec40b2ce7e971a94321c012aa7e4b7b0a8d8f",
+        "bytes": 2858,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-whatsapp-dark.png",
+        "C": "bbfd8957b1e42ba351c2774d81700a9847174e22",
+        "Q": null,
+        "four": null,
+        "W": "bbfd8957b1e42ba351c2774d81700a9847174e22",
+        "CEqualsW": true,
+        "sha256": "f0e518ada18fe673c6ea281cf148aea13c0291c2bab796a5fbb0923bd076776e",
+        "bytes": 2138,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-whatsapp-gray-black.png",
+        "C": "13a1ae21a0c147138c872cc951c8a326308671b1",
+        "Q": null,
+        "four": null,
+        "W": "13a1ae21a0c147138c872cc951c8a326308671b1",
+        "CEqualsW": true,
+        "sha256": "955d3c09b6bcdd1d7ff5d2d26516b8e1219a65195ce0f76d6df4a62f38deb2d8",
+        "bytes": 2664,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-whatsapp-gray.png",
+        "C": "64b1d27675e2b2b2580b567892ac9ddb14ff3625",
+        "Q": null,
+        "four": null,
+        "W": "64b1d27675e2b2b2580b567892ac9ddb14ff3625",
+        "CEqualsW": true,
+        "sha256": "c5284c7baeb9d296b63d1f9c3a4a0acea71242283e81152a3c38f718474e33c9",
+        "bytes": 2146,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-whatsapp-light-black.png",
+        "C": "c464af610c21896099f0a8cc55020f517fc80f60",
+        "Q": null,
+        "four": null,
+        "W": "c464af610c21896099f0a8cc55020f517fc80f60",
+        "CEqualsW": true,
+        "sha256": "196883d58b0c63f339b957f4a97099d855f3b59fad8c1d1a6b43f94f9a4cfa44",
+        "bytes": 2708,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-whatsapp-light.png",
+        "C": "96c91a91a854357686d14ebc920c2c57ef4a72d1",
+        "Q": null,
+        "four": null,
+        "W": "96c91a91a854357686d14ebc920c2c57ef4a72d1",
+        "CEqualsW": true,
+        "sha256": "e78dd49e46b3703ee9c9a8b1c553142b9089c02f0204c733203d19455009354c",
+        "bytes": 1897,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-youtube-color-white.png",
+        "C": "6b19db2a732a6eacadf4f75438db5fca33b53f8d",
+        "Q": null,
+        "four": null,
+        "W": "6b19db2a732a6eacadf4f75438db5fca33b53f8d",
+        "CEqualsW": true,
+        "sha256": "2cb48501e44360174080667cb6b00b6c384f482f6d72fd128db8d7fc89ee4e19",
+        "bytes": 1757,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-youtube-color.png",
+        "C": "fd4ce005d8de35ef0a966186b714d1594691ba3f",
+        "Q": null,
+        "four": null,
+        "W": "fd4ce005d8de35ef0a966186b714d1594691ba3f",
+        "CEqualsW": true,
+        "sha256": "744dd35066821a0b93021453deef00f11a5c4dccb1b0bfc3fa4e15640dac93fe",
+        "bytes": 1005,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-youtube-dark-white.png",
+        "C": "7919a71b8dc79ead2526505d8e0d35c767c34baf",
+        "Q": null,
+        "four": null,
+        "W": "7919a71b8dc79ead2526505d8e0d35c767c34baf",
+        "CEqualsW": true,
+        "sha256": "127f85e20ce0d08b921c8a23170a224b5bf8efcd96db86b0aa731b69e6b9ebf9",
+        "bytes": 1987,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-youtube-dark.png",
+        "C": "1d041314fb3de2118d83c11044e1706936f5cd5b",
+        "Q": null,
+        "four": null,
+        "W": "1d041314fb3de2118d83c11044e1706936f5cd5b",
+        "CEqualsW": true,
+        "sha256": "01bc77686cd48999b53e418d37e5a07d01d1831d0cd5e5347caef84cd071b8f7",
+        "bytes": 1152,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-youtube-gray-black.png",
+        "C": "2386f1e1b4a111da0b3a682562721503eff7257e",
+        "Q": null,
+        "four": null,
+        "W": "2386f1e1b4a111da0b3a682562721503eff7257e",
+        "CEqualsW": true,
+        "sha256": "b080ce553ec883e7a4e8ac139155875f0069781e1fdba9a228ddf72fc0186c62",
+        "bytes": 1915,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-youtube-gray.png",
+        "C": "5618d902d7942f1661dd0a45ccfbcebf79197507",
+        "Q": null,
+        "four": null,
+        "W": "5618d902d7942f1661dd0a45ccfbcebf79197507",
+        "CEqualsW": true,
+        "sha256": "767feb2c16bd877e9dd92d735cd996fffec657fdbfd64198c5cee759759cd7b6",
+        "bytes": 1151,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-youtube-light-black.png",
+        "C": "5feaa1d611705c4cc8cf2546baf3dc1295859948",
+        "Q": null,
+        "four": null,
+        "W": "5feaa1d611705c4cc8cf2546baf3dc1295859948",
+        "CEqualsW": true,
+        "sha256": "aa140b6595e6ad2db58263675f4e7983f608f504c53c775009cd91942229c804",
+        "bytes": 1831,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/social-youtube-light.png",
+        "C": "1e309556052514a0fa0ef38c231242f8d222119f",
+        "Q": null,
+        "four": null,
+        "W": "1e309556052514a0fa0ef38c231242f8d222119f",
+        "CEqualsW": true,
+        "sha256": "3f84d9aea44d27b323d6b2b26529e3cd03fdd8b9ae7506065876e92b3fe4057f",
+        "bytes": 998,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/public/newsletter/template-preview.svg",
+        "C": "fc807f6848353ead90d50d957956d403d8e1f33f",
+        "Q": null,
+        "four": null,
+        "W": "fc807f6848353ead90d50d957956d403d8e1f33f",
+        "CEqualsW": true,
+        "sha256": "90a97966db5b54dec83b99ec89da208245669b2a3a0cc1af248a14e9388dd1cd",
+        "bytes": 1885,
+        "kind": "static-asset"
+      },
+      {
+        "path": "apps/web/scripts/generate-newsletter-social-icons.mjs",
+        "C": "3e4c564359590bc0fe620b70593c68fd2ae3eff6",
+        "Q": null,
+        "four": null,
+        "W": "3e4c564359590bc0fe620b70593c68fd2ae3eff6",
+        "CEqualsW": true,
+        "sha256": "41b418e2722b70a873865857705f7c2b1d29640d9bd1ce0641f174f44af1ab33",
+        "bytes": 4443,
+        "kind": "other"
+      },
+      {
+        "path": "apps/web/src/pages/engagement/outreach/NewsletterOutreach.test.tsx",
+        "C": "37404cc426ab83a5ce4c3c002cbf1e772003b5c4",
+        "Q": null,
+        "four": null,
+        "W": "37404cc426ab83a5ce4c3c002cbf1e772003b5c4",
+        "CEqualsW": true,
+        "sha256": "3729a76170729e832883e0e294276a54bb510d355ef924e51d0853444d7bd5d2",
+        "bytes": 12430,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/pages/engagement/outreach/NewsletterOutreach.tsx",
+        "C": "8e16079ecc2313d52ebb662129ca9d731324d510",
+        "Q": null,
+        "four": null,
+        "W": "8e16079ecc2313d52ebb662129ca9d731324d510",
+        "CEqualsW": true,
+        "sha256": "5962b492b9e6b178adbfbac1fe3a808ef4092e3f6c3eddafb2fc5814fd258a04",
+        "bytes": 22366,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/pages/engagement/outreach/newsletter-outreach.css",
+        "C": "f10a013165c5760f959c852721d250716e31cd92",
+        "Q": null,
+        "four": null,
+        "W": "f10a013165c5760f959c852721d250716e31cd92",
+        "CEqualsW": true,
+        "sha256": "69ed2d0b32310f10e1a54109e64e2691652e4e827ccc21d2f7d8e6faf559d4fa",
+        "bytes": 2942,
+        "kind": "stylesheet"
+      },
+      {
+        "path": "apps/web/src/pages/engagement/outreach/v2/StepRecipientsSelect.newsletter.test.tsx",
+        "C": "dc1e2789beaf057c657a45b90d1a5666297da4af",
+        "Q": null,
+        "four": null,
+        "W": "dc1e2789beaf057c657a45b90d1a5666297da4af",
+        "CEqualsW": true,
+        "sha256": "643239970ff7b09c3611ee77b4c7d5955b3d28ee1469ce6ca65a5391891655f4",
+        "bytes": 2990,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterAdvancedImageEditor.test.tsx",
+        "C": "89340ab39484753fd7643a68a6daa00ba5c15e2a",
+        "Q": null,
+        "four": null,
+        "W": "89340ab39484753fd7643a68a6daa00ba5c15e2a",
+        "CEqualsW": true,
+        "sha256": "be28a3ba89b2ca0de97b22e83078315d15d89d1f471a7770925160b2faa1b39a",
+        "bytes": 7221,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterAdvancedImageEditor.tsx",
+        "C": "7eb4cba5a351892e77c8e38527c7eb4a04d4bc0f",
+        "Q": null,
+        "four": null,
+        "W": "7eb4cba5a351892e77c8e38527c7eb4a04d4bc0f",
+        "CEqualsW": true,
+        "sha256": "2298f304d0530354954cbec1170d14dab2e153873169aa4848bb4bca8e0efbda",
+        "bytes": 7212,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterApps.test.tsx",
+        "C": "941e52aac81f0abe768fcddabe49c009b6a29eda",
+        "Q": null,
+        "four": null,
+        "W": "941e52aac81f0abe768fcddabe49c009b6a29eda",
+        "CEqualsW": true,
+        "sha256": "7db8a97ba024219d880c8e85a2ae0f6d32d1a64c08893905129a6dd237ff59ce",
+        "bytes": 8045,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterApps.tsx",
+        "C": "6be0480976c4686fbddb6af8c9123d6aac7c507f",
+        "Q": null,
+        "four": null,
+        "W": "6be0480976c4686fbddb6af8c9123d6aac7c507f",
+        "CEqualsW": true,
+        "sha256": "84fc970435a13209b864df0ed64aa56e54f039e801706ad38256358020c55377",
+        "bytes": 8637,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterAssetDetails.test.tsx",
+        "C": "ecd92a42ebe434d4f3477fa470e6247d73e1cd23",
+        "Q": null,
+        "four": null,
+        "W": "ecd92a42ebe434d4f3477fa470e6247d73e1cd23",
+        "CEqualsW": true,
+        "sha256": "225be598cb98ba7c3319f4d68f90d8b81d502d24204c2ca82096c039de4da1f4",
+        "bytes": 5113,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterAssetDetails.tsx",
+        "C": "32e981e4d4f7dbec18c14b189cf71fb51e58262a",
+        "Q": null,
+        "four": null,
+        "W": "32e981e4d4f7dbec18c14b189cf71fb51e58262a",
+        "CEqualsW": true,
+        "sha256": "08a44d7c88aaf90310e27d34a0d2d395a43977ca70c08443cfc2de4f97ddfabe",
+        "bytes": 7079,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterAssetFolders.tsx",
+        "C": "6139df0ca28351b3796da592258b29c2f9c856b4",
+        "Q": null,
+        "four": null,
+        "W": "6139df0ca28351b3796da592258b29c2f9c856b4",
+        "CEqualsW": true,
+        "sha256": "15cae77da5e1dbc27e9aae41a838aacbeb4aa7c82609a7d932530dc1daf27230",
+        "bytes": 9961,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterAssetRevisions.tsx",
+        "C": "e3f0f87882a1e3b186be0b349a893dc9feb8eb70",
+        "Q": null,
+        "four": null,
+        "W": "e3f0f87882a1e3b186be0b349a893dc9feb8eb70",
+        "CEqualsW": true,
+        "sha256": "f7e43573dbb217c225bdcaade7643a4614bd9f47f32534c14aa641d06a32c109",
+        "bytes": 3462,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterBrandKit.test.tsx",
+        "C": "2d4168f986075878f3ddef8b2f013669f94902de",
+        "Q": null,
+        "four": null,
+        "W": "2d4168f986075878f3ddef8b2f013669f94902de",
+        "CEqualsW": true,
+        "sha256": "1e56bc0154b240fdb1dd2b57010011e7d69bd1e9ae7ce6d3bc73eb1d6d6f094a",
+        "bytes": 5914,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterBrandKit.tsx",
+        "C": "2bd8fd5e35030649860295c4fbaecc274e8d650c",
+        "Q": null,
+        "four": null,
+        "W": "2bd8fd5e35030649860295c4fbaecc274e8d650c",
+        "CEqualsW": true,
+        "sha256": "d7ae5ae1d26330c8e693624e29726c430beffdaa5828a2cc0c7f48d910d78146",
+        "bytes": 23560,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterBundledImage.test.ts",
+        "C": "c0bc6c0ffdccbfb2397c53e0380259fd65ecb18d",
+        "Q": null,
+        "four": null,
+        "W": "c0bc6c0ffdccbfb2397c53e0380259fd65ecb18d",
+        "CEqualsW": true,
+        "sha256": "0c66c83456018b43b1896f0a8db13f67f9f6e0cb38de586481db3294686f0e3a",
+        "bytes": 2285,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterComments.test.tsx",
+        "C": "8acf2aecdb7d72a7800f7702e56f807977e8c7d5",
+        "Q": null,
+        "four": null,
+        "W": "8acf2aecdb7d72a7800f7702e56f807977e8c7d5",
+        "CEqualsW": true,
+        "sha256": "5475471aca7b3de9f9ee49d8f2f1ecf9a81c9175f9c9afdd37a29cefb9f534a4",
+        "bytes": 25318,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterComments.tsx",
+        "C": "d23c4da5f367539037be843a0410d0abf7169aa1",
+        "Q": null,
+        "four": null,
+        "W": "d23c4da5f367539037be843a0410d0abf7169aa1",
+        "CEqualsW": true,
+        "sha256": "9a89cf7f95d73eee224cda8d20882d0ee9d02272cb1823375b9a54aa0c0d863a",
+        "bytes": 22618,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterContentStudio.test.tsx",
+        "C": "214dbac91e0ace21b4e1164ff0d713df8ed58198",
+        "Q": null,
+        "four": null,
+        "W": "214dbac91e0ace21b4e1164ff0d713df8ed58198",
+        "CEqualsW": true,
+        "sha256": "c5734da5e1876eb89001e26dc23d477342b489a31fbcdddcde2d9099e6a9d16d",
+        "bytes": 28698,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterContentStudio.tsx",
+        "C": "7dfede55db60516966f458c4e0accaf382512312",
+        "Q": null,
+        "four": null,
+        "W": "7dfede55db60516966f458c4e0accaf382512312",
+        "CEqualsW": true,
+        "sha256": "ade74bd192ed7e8dd2492209180aafbe429306e35023ad87a8df5902982b8c87",
+        "bytes": 25585,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterCreation.tsx",
+        "C": "bbc61fbcf210ccc510e1d4020bb81aed5d67547d",
+        "Q": null,
+        "four": null,
+        "W": "bbc61fbcf210ccc510e1d4020bb81aed5d67547d",
+        "CEqualsW": true,
+        "sha256": "4ee2d544ed1d260fd9ff64ccdb72a332f3e8bfa19996e46241b0493205d181ca",
+        "bytes": 265,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterEditor.test.tsx",
+        "C": "902bbe86edd13a659b8cb231fd27425e1b36b33d",
+        "Q": null,
+        "four": null,
+        "W": "a315b682643e13eb12fd9a384f87c8d16b3f0cc4",
+        "CEqualsW": false,
+        "sha256": "82f9617bae59807020e04b84ced4d0e44b4cf5b67dc8b01d067e37448e8a331d",
+        "bytes": 59700,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterEditor.tsx",
+        "C": "a279b6bde38f3e1a2a22f7145dc9c042930b8caa",
+        "Q": null,
+        "four": null,
+        "W": "a279b6bde38f3e1a2a22f7145dc9c042930b8caa",
+        "CEqualsW": true,
+        "sha256": "8041b051d2e2fa288a7af33bb177297d6e0b298930fdc8291768c354be6da587",
+        "bytes": 135143,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterFontPicker.test.tsx",
+        "C": "d2b91899ec0769440288e710efc4ccdd1c39ca1e",
+        "Q": null,
+        "four": null,
+        "W": "d2b91899ec0769440288e710efc4ccdd1c39ca1e",
+        "CEqualsW": true,
+        "sha256": "f88b313cb83f734976e792021d6c9f68754169a2e12ae95b40bd29af3f478564",
+        "bytes": 2212,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterFontPicker.tsx",
+        "C": "45f7e72226fa78ca4abe786538616da47d073c70",
+        "Q": null,
+        "four": null,
+        "W": "45f7e72226fa78ca4abe786538616da47d073c70",
+        "CEqualsW": true,
+        "sha256": "cd11420a1bead012662e7731e785ab703cb57414cf8f75948a44cc416e5099a6",
+        "bytes": 6561,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageAi.test.tsx",
+        "C": "5402ed313f2c2ac1b86cdee36327a2c8634edffd",
+        "Q": null,
+        "four": null,
+        "W": "5402ed313f2c2ac1b86cdee36327a2c8634edffd",
+        "CEqualsW": true,
+        "sha256": "b6b369bbf86e7f942bfbd6d8b2b4f0c1ec26dcfb7da3a7f0647f372b0955a2de",
+        "bytes": 5352,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageAi.tsx",
+        "C": "842f8192d12a0ea5e8755757abcd7e7c59988f5a",
+        "Q": null,
+        "four": null,
+        "W": "842f8192d12a0ea5e8755757abcd7e7c59988f5a",
+        "CEqualsW": true,
+        "sha256": "3756dfda17d4244ea5a0284441dc9653189185c177c5f8c1aba5fcf7646feb88",
+        "bytes": 5661,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageAltText.test.tsx",
+        "C": "5bec8b06af01a5ceede766dedd0b622142642d53",
+        "Q": null,
+        "four": null,
+        "W": "5bec8b06af01a5ceede766dedd0b622142642d53",
+        "CEqualsW": true,
+        "sha256": "2747b22e96e6e49d059638750613a930e766b1ca0f5896ba5270ad423e799e2b",
+        "bytes": 4353,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageAltText.tsx",
+        "C": "3c785923707b40675ac79f5aab05cc187202a958",
+        "Q": null,
+        "four": null,
+        "W": "3c785923707b40675ac79f5aab05cc187202a958",
+        "CEqualsW": true,
+        "sha256": "a3a0db77f3a722458a334d01ea76ce318290cf65d070bdc3416921a041323914",
+        "bytes": 3154,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageControls.tsx",
+        "C": "fc093df961ecc1d4f85c96fd7819794c9375b8c5",
+        "Q": null,
+        "four": null,
+        "W": "fc093df961ecc1d4f85c96fd7819794c9375b8c5",
+        "CEqualsW": true,
+        "sha256": "a020311211b14ccfdfb70f36d3cf3e7c8c645babce165ef2ac9adfc82ce871aa",
+        "bytes": 4612,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageCropOverlay.test.tsx",
+        "C": "4f1ad9062e6942a4c86db982abe04cc2923abdc0",
+        "Q": null,
+        "four": null,
+        "W": "4f1ad9062e6942a4c86db982abe04cc2923abdc0",
+        "CEqualsW": true,
+        "sha256": "0c16ef140345912a64a8ae3fb5081f2a01a0ec537251b12297793ccb19b361a1",
+        "bytes": 3434,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageCropOverlay.tsx",
+        "C": "74313249bb593b8b6a2fb5b926027377105ce8ba",
+        "Q": null,
+        "four": null,
+        "W": "74313249bb593b8b6a2fb5b926027377105ce8ba",
+        "CEqualsW": true,
+        "sha256": "398bcae5c30f1027886df854502d522c5337199d17f5d85223887cd6e45eb104",
+        "bytes": 6809,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageEditor.test.tsx",
+        "C": "56a0b628d49fe8440cc2e63873f51393d6a32fbd",
+        "Q": null,
+        "four": null,
+        "W": "56a0b628d49fe8440cc2e63873f51393d6a32fbd",
+        "CEqualsW": true,
+        "sha256": "d09745faf165d42f46db326ba3f7b413f1f1b2c18fa5fce2c235abac20a9bb72",
+        "bytes": 10865,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageEditor.tsx",
+        "C": "51248a9b05fac8e4b9feb3eb7bccabe3b5431316",
+        "Q": null,
+        "four": null,
+        "W": "51248a9b05fac8e4b9feb3eb7bccabe3b5431316",
+        "CEqualsW": true,
+        "sha256": "e2b1a87f66ff0d77d428bb6ff1c62963a3474fa04311049a6ded2d3cffd18d38",
+        "bytes": 34144,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageFocusOverlay.test.tsx",
+        "C": "eed1326a78ed51f34a705f53949f426fd7f117ab",
+        "Q": null,
+        "four": null,
+        "W": "eed1326a78ed51f34a705f53949f426fd7f117ab",
+        "CEqualsW": true,
+        "sha256": "665b674ecb188fc532603488bb6ed73b9e535b921ef2cadd8082c71f95c5c5ca",
+        "bytes": 3238,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageFocusOverlay.tsx",
+        "C": "5f38fca81fbfab65532c9c75b8056fb389c347cc",
+        "Q": null,
+        "four": null,
+        "W": "5f38fca81fbfab65532c9c75b8056fb389c347cc",
+        "CEqualsW": true,
+        "sha256": "a21410b5ed658782a47c2821206df992f5011f55a694968af95117bbbf58082c",
+        "bytes": 6337,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageReplaceMenu.test.tsx",
+        "C": "8bf3b7aed68daef203d92a9f8f6f0897e23b2521",
+        "Q": null,
+        "four": null,
+        "W": "8bf3b7aed68daef203d92a9f8f6f0897e23b2521",
+        "CEqualsW": true,
+        "sha256": "53db38a98400c0ad42758b06448133c4febe568fd9ed1213f133125c3a0ea14f",
+        "bytes": 2770,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageReplaceMenu.tsx",
+        "C": "23639502bdc2b084c154cbaa7149f9ddf187774c",
+        "Q": null,
+        "four": null,
+        "W": "23639502bdc2b084c154cbaa7149f9ddf187774c",
+        "CEqualsW": true,
+        "sha256": "817d1a14a1be9733fcb777c03791be8d58d3bdb89aaadc1c83068c81d96003de",
+        "bytes": 3678,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageRotationRuler.tsx",
+        "C": "5906c9bb30c2c3b94ccbcd236fabe0ebda7a648e",
+        "Q": null,
+        "four": null,
+        "W": "5906c9bb30c2c3b94ccbcd236fabe0ebda7a648e",
+        "CEqualsW": true,
+        "sha256": "f47d74dfc81f2280831d1f797f26649aa385d8dd00a48dbfa6adbd7abefc2438",
+        "bytes": 2114,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageTextOverlay.test.tsx",
+        "C": "1f4c0012d5356e08955b170719e65fc1730cee97",
+        "Q": null,
+        "four": null,
+        "W": "1f4c0012d5356e08955b170719e65fc1730cee97",
+        "CEqualsW": true,
+        "sha256": "2870ba029cb2156fe790eba3e73bec5820d0c8bd097c0abe475b3f4d5170b36f",
+        "bytes": 4863,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterImageTextOverlay.tsx",
+        "C": "850f9199bd7778d49805da0f1f4c964fefd16584",
+        "Q": null,
+        "four": null,
+        "W": "850f9199bd7778d49805da0f1f4c964fefd16584",
+        "CEqualsW": true,
+        "sha256": "91789438ff130362f92c42ff517eaf3be099fee656b629995dc9477c9f15c3eb",
+        "bytes": 14226,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterLinkChecker.test.tsx",
+        "C": "5cf1782179f08c921a85deab06ee02f1b961acdd",
+        "Q": null,
+        "four": null,
+        "W": "5cf1782179f08c921a85deab06ee02f1b961acdd",
+        "CEqualsW": true,
+        "sha256": "8884f5f9f84cafca4c827b50605e3481644e509a2ea359fab1403935066eb974",
+        "bytes": 6466,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterLinkChecker.tsx",
+        "C": "c131e8be4367f71dc51af4ff5f5bd5d1cc35ec17",
+        "Q": null,
+        "four": null,
+        "W": "c131e8be4367f71dc51af4ff5f5bd5d1cc35ec17",
+        "CEqualsW": true,
+        "sha256": "7ef48f2335da7dd9ee9fd9da1ab5ccd0a6382f2a3d848655e129074efdc1d53b",
+        "bytes": 10040,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterQuickCrop.test.tsx",
+        "C": "f5cc988bf5bbcb21682e6d9c74cf0f41d88a54ef",
+        "Q": null,
+        "four": null,
+        "W": "f5cc988bf5bbcb21682e6d9c74cf0f41d88a54ef",
+        "CEqualsW": true,
+        "sha256": "e38c45b0eafcdbd97956920ed49143db7b2824d8df8d62953349e8f976aedbdd",
+        "bytes": 13684,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterQuickCrop.tsx",
+        "C": "9bfd86e7bc538f46d93d6ab37b90b2d6f51dcf2b",
+        "Q": null,
+        "four": null,
+        "W": "9bfd86e7bc538f46d93d6ab37b90b2d6f51dcf2b",
+        "CEqualsW": true,
+        "sha256": "a5cb31a31cfade84a60fd783df03f89ecafa0e59dafe68247dbe006913df510e",
+        "bytes": 13079,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterReview.test.tsx",
+        "C": "d16d3c34b3bec65f1cf61db5091ada6675747515",
+        "Q": null,
+        "four": null,
+        "W": "d16d3c34b3bec65f1cf61db5091ada6675747515",
+        "CEqualsW": true,
+        "sha256": "10c333cf5103f1cfa1133ee045022532704e3a1b029a581e2e2e4f7e3a15d567",
+        "bytes": 1496,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterReview.tsx",
+        "C": "f61a9d17382e16bf78d374393794364f8c2a71b2",
+        "Q": null,
+        "four": null,
+        "W": "f61a9d17382e16bf78d374393794364f8c2a71b2",
+        "CEqualsW": true,
+        "sha256": "93630762c0e7e1747ec9415580cdc7ff693abd0b2e73053df759f56726c2ddcd",
+        "bytes": 2267,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterSocialControls.test.tsx",
+        "C": "cfa0459015491a8c2cf35f126afd9159e263ad38",
+        "Q": null,
+        "four": null,
+        "W": "cfa0459015491a8c2cf35f126afd9159e263ad38",
+        "CEqualsW": true,
+        "sha256": "9ae50d08b7795ff43f0ee3279eb0b83f7a49344771138d19f6d38d65901b6973",
+        "bytes": 12261,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterSocialControls.tsx",
+        "C": "9e4eb1691940c2de9bd1a6d2431675f84930606e",
+        "Q": null,
+        "four": null,
+        "W": "9e4eb1691940c2de9bd1a6d2431675f84930606e",
+        "CEqualsW": true,
+        "sha256": "1a97b7902220a8000aeec7f631786ed2e4e8b1b8fb5aa4d3f311799438b065ff",
+        "bytes": 9687,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterSocialShareContent.tsx",
+        "C": "8bd324b71c105689c717721ac8aed07defb2c973",
+        "Q": null,
+        "four": null,
+        "W": "8bd324b71c105689c717721ac8aed07defb2c973",
+        "CEqualsW": true,
+        "sha256": "707b87fb1004a2100cf0bb4d5ff3f91fae041387a681a911d3d599e425241b8f",
+        "bytes": 5927,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterStockImages.test.tsx",
+        "C": "0d40de68af097c8828a9cf439574e8e9a011a4df",
+        "Q": null,
+        "four": null,
+        "W": "0d40de68af097c8828a9cf439574e8e9a011a4df",
+        "CEqualsW": true,
+        "sha256": "46f939eee14cf7a4caedf85c03878960624dac5300e75a1262b94b17a97c3f6c",
+        "bytes": 8215,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterStockImages.tsx",
+        "C": "48b15063807cf1b64e0ba2b9c4c567c9567342c6",
+        "Q": null,
+        "four": null,
+        "W": "48b15063807cf1b64e0ba2b9c4c567c9567342c6",
+        "CEqualsW": true,
+        "sha256": "8e2c0feffcd1eb448b73e44b180a2bde3cc9a5b566db95995184fd7b324ddabf",
+        "bytes": 10616,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterSurvey.test.tsx",
+        "C": "862e2bb784dc9d5a77decd218c273e56a1f54938",
+        "Q": null,
+        "four": null,
+        "W": "862e2bb784dc9d5a77decd218c273e56a1f54938",
+        "CEqualsW": true,
+        "sha256": "f54561412271b0eb6884706dcfb5bac2eeddf0ef464b8ba8ee95e86461f8c071",
+        "bytes": 22327,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterSurveyBuilder.tsx",
+        "C": "52c5fb071036c8d17903d21e2f4fd9c606bbbeca",
+        "Q": null,
+        "four": null,
+        "W": "52c5fb071036c8d17903d21e2f4fd9c606bbbeca",
+        "CEqualsW": true,
+        "sha256": "6fc54f5c249c061f517e0fe557ab6f60d6b2a921c997d8316b9625bcaa0c5bd1",
+        "bytes": 24668,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterSurveyDesign.tsx",
+        "C": "9d6a774c60066ee9ddd6b62fbe6e5aa78542b98b",
+        "Q": null,
+        "four": null,
+        "W": "9d6a774c60066ee9ddd6b62fbe6e5aa78542b98b",
+        "CEqualsW": true,
+        "sha256": "d1029cfffcd5e5c91cc446dbe48b25f94b49999046a81f06e26797d72a5246d7",
+        "bytes": 13409,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterSurveyMedia.test.tsx",
+        "C": "c32f9c2683ae764489873bce2884b55b1f5505df",
+        "Q": null,
+        "four": null,
+        "W": "c32f9c2683ae764489873bce2884b55b1f5505df",
+        "CEqualsW": true,
+        "sha256": "e2fa1c94a56f3783aee2519b99343deaa3e7c3d3978aa4051012918ba24939a9",
+        "bytes": 7793,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterSurveyMedia.tsx",
+        "C": "7a05dbb094e0174c97c1ea567d95da8a43dc84d4",
+        "Q": null,
+        "four": null,
+        "W": "7a05dbb094e0174c97c1ea567d95da8a43dc84d4",
+        "CEqualsW": true,
+        "sha256": "652a2c56eef1b4658c036e1ba7a47d58554ae9caed5cd0d6f0f2496eb0f91411",
+        "bytes": 5394,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterSurveyPreview.test.tsx",
+        "C": "9a4621100d2eebca6e526c716d34a29ec3904197",
+        "Q": null,
+        "four": null,
+        "W": "9a4621100d2eebca6e526c716d34a29ec3904197",
+        "CEqualsW": true,
+        "sha256": "f1482319871adfe4e539c9a72e6a2c6cb7eaeef7f848a5815dcf26493e2401e0",
+        "bytes": 5721,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterSurveyPreview.tsx",
+        "C": "9eddfe047b5e64fa692c52d1ca70d5a658a8870a",
+        "Q": null,
+        "four": null,
+        "W": "9eddfe047b5e64fa692c52d1ca70d5a658a8870a",
+        "CEqualsW": true,
+        "sha256": "daafb2e3c34f6457259171fb73343f0142fe52d9b15b494eba2fe9928682659b",
+        "bytes": 6159,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterTemplateChooser.test.tsx",
+        "C": "09c38baa503844148be9e3d6808a599e2ca75196",
+        "Q": null,
+        "four": null,
+        "W": "09c38baa503844148be9e3d6808a599e2ca75196",
+        "CEqualsW": true,
+        "sha256": "2d9b1fa7de85b29be6c162dee20fe48de0b45ab508abeaa14a046b09237a3dff",
+        "bytes": 3823,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterTemplateChooser.tsx",
+        "C": "47e81cf9ac78a03852b18a46affc77ca1c80198e",
+        "Q": null,
+        "four": null,
+        "W": "47e81cf9ac78a03852b18a46affc77ca1c80198e",
+        "CEqualsW": true,
+        "sha256": "d50a86e7a51a38868a8736064a7e13740fb078238c1b8ed11f21698365001ac7",
+        "bytes": 10547,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterThreadNotifications.tsx",
+        "C": "b130061babfa55b3e49a2e50c00151708c035d92",
+        "Q": null,
+        "four": null,
+        "W": "b130061babfa55b3e49a2e50c00151708c035d92",
+        "CEqualsW": true,
+        "sha256": "0eb5910c0396155698b8f027c8abe88c16a6d01caf5c16d2dcc441abad671d87",
+        "bytes": 4408,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterVideoDesign.test.tsx",
+        "C": "d50a7047c8f4509bc9663486f735541292c460b0",
+        "Q": null,
+        "four": null,
+        "W": "d50a7047c8f4509bc9663486f735541292c460b0",
+        "CEqualsW": true,
+        "sha256": "6568bd1968be1a0729985eedfa151ca0863b57ad1cc17f379613c68f9b7c7389",
+        "bytes": 8765,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterVideoDesign.tsx",
+        "C": "ffc5ff461d3a9532bf49049fa34df71728792993",
+        "Q": null,
+        "four": null,
+        "W": "ffc5ff461d3a9532bf49049fa34df71728792993",
+        "CEqualsW": true,
+        "sha256": "1941fd805f6f5729ece5569dba9c320733f46326dc25b0b5d0509bfec26ab2ca",
+        "bytes": 10815,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterVideoUrlControl.test.tsx",
+        "C": "13154fcd07dae76c17ecf5ae0cb3ee264c60e250",
+        "Q": null,
+        "four": null,
+        "W": "13154fcd07dae76c17ecf5ae0cb3ee264c60e250",
+        "CEqualsW": true,
+        "sha256": "1c2944975ed1422310b9750803db8149f17650439a75e7749613db90ac84cf7a",
+        "bytes": 4550,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/NewsletterVideoUrlControl.tsx",
+        "C": "2ac64c5c8adeb8c478f7af17cd54b50ed0665ad0",
+        "Q": null,
+        "four": null,
+        "W": "2ac64c5c8adeb8c478f7af17cd54b50ed0665ad0",
+        "CEqualsW": true,
+        "sha256": "d9a49f6c6007505dc0ccb76df97f704099156f57ce5a8092174367d9b09c03e1",
+        "bytes": 3290,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/api.account-invitations.test.ts",
+        "C": "b3292f60559840a5c3b919a75400847f9876eb93",
+        "Q": null,
+        "four": null,
+        "W": "b3292f60559840a5c3b919a75400847f9876eb93",
+        "CEqualsW": true,
+        "sha256": "f2db42327262512c3f3f6bf21f41dff7b837364ac310f88086321174a48b12f5",
+        "bytes": 965,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/api.image-revisions.test.ts",
+        "C": "e0ac145801e3791889d82db8c9f0ceb18fe7a420",
+        "Q": null,
+        "four": null,
+        "W": "e0ac145801e3791889d82db8c9f0ceb18fe7a420",
+        "CEqualsW": true,
+        "sha256": "f1887edb8b22770f422892c0ec9dbd42addc0a7869b13038e1990a2bbf104897",
+        "bytes": 2190,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/api.ts",
+        "C": "7aad2c2f3e3df7d4535cd917d93de1375e1c5412",
+        "Q": null,
+        "four": null,
+        "W": "7aad2c2f3e3df7d4535cd917d93de1375e1c5412",
+        "CEqualsW": true,
+        "sha256": "8ac4128acea79c92a6287a1b410fc65e9f76078bc60cc3e32122ecae5bcfa1e5",
+        "bytes": 15407,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/brand-context.tsx",
+        "C": "4a09c64d97515c7ab2137e6ba74b48440544e944",
+        "Q": null,
+        "four": null,
+        "W": "4a09c64d97515c7ab2137e6ba74b48440544e944",
+        "CEqualsW": true,
+        "sha256": "e0be2e0450cf4e531648c0d6efbc8dcf2c3adc98bd83f65c253e5db8cbbeabf5",
+        "bytes": 971,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/controls.tsx",
+        "C": "10519bff5da506413a351b76446dfec9590be417",
+        "Q": null,
+        "four": null,
+        "W": "10519bff5da506413a351b76446dfec9590be417",
+        "CEqualsW": true,
+        "sha256": "33724c2cb8317415586b5b96e8f5348c915b41616b203b63e1b59812b691fec9",
+        "bytes": 20255,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/image-editor-crop.test.ts",
+        "C": "598fed54612d09de1f106017608bd89a84b2bac7",
+        "Q": null,
+        "four": null,
+        "W": "598fed54612d09de1f106017608bd89a84b2bac7",
+        "CEqualsW": true,
+        "sha256": "1a8c37016730db915097c702099aa9ec4c84879b123e534674ba1cf6c66787c2",
+        "bytes": 4982,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/image-editor-crop.ts",
+        "C": "77c99ae2ca59886d444ca4bf83e86169775304fc",
+        "Q": null,
+        "four": null,
+        "W": "77c99ae2ca59886d444ca4bf83e86169775304fc",
+        "CEqualsW": true,
+        "sha256": "c0fe5799ee6835ab60f77691a389655fc3b212d97aaff8e1fa720a4aad73e458",
+        "bytes": 4074,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/image-editor-fonts.test.ts",
+        "C": "98970c0432b6aa5acda95595efe036f9f545bbb2",
+        "Q": null,
+        "four": null,
+        "W": "98970c0432b6aa5acda95595efe036f9f545bbb2",
+        "CEqualsW": true,
+        "sha256": "e185f89a38c289fcd9cc34a50bdd427c1898359d1aa1fb4c6cada64a713978b5",
+        "bytes": 2532,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/image-editor-text.test.ts",
+        "C": "86f55fd40d4cb575442b7c936c411c0525ddf399",
+        "Q": null,
+        "four": null,
+        "W": "86f55fd40d4cb575442b7c936c411c0525ddf399",
+        "CEqualsW": true,
+        "sha256": "47e350a604541b1cf566059e0d561c913dc5552100544bafccc594c2386f9186",
+        "bytes": 1833,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/image-editor.test.ts",
+        "C": "1e6590381215c941dcf3ace8ffbbd1782c1a5dee",
+        "Q": null,
+        "four": null,
+        "W": "1e6590381215c941dcf3ace8ffbbd1782c1a5dee",
+        "CEqualsW": true,
+        "sha256": "1b3cf78ea32e9a9bd988da9ab941f3ef3218b4ed5632014992fab89861fcbe56",
+        "bytes": 1204,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/image-editor.ts",
+        "C": "3caa82e82cd153ac5e86bbbae0396f80230c7de1",
+        "Q": null,
+        "four": null,
+        "W": "3caa82e82cd153ac5e86bbbae0396f80230c7de1",
+        "CEqualsW": true,
+        "sha256": "80b6fc75e089c031148004fe6b2cf2bf4cdb420043bde5d307b59ebf38048ea1",
+        "bytes": 18360,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/model.test.ts",
+        "C": "baae1b8448579229b3077cf37c641c7575007f6b",
+        "Q": null,
+        "four": null,
+        "W": "baae1b8448579229b3077cf37c641c7575007f6b",
+        "CEqualsW": true,
+        "sha256": "6e84912628849e061d2a85aa96dfed121ce6ca5fe43dac352e7f30af9cae04b5",
+        "bytes": 1381,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/model.ts",
+        "C": "56dd78f57a47c726ff6e47ab22abc3178f5fa61f",
+        "Q": null,
+        "four": null,
+        "W": "56dd78f57a47c726ff6e47ab22abc3178f5fa61f",
+        "CEqualsW": true,
+        "sha256": "e329c449060797f276265b7990f4f8eb1b59914a6c2c8bc00b4027fb9e605586",
+        "bytes": 9774,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/newsletter-links.test.ts",
+        "C": "1e22876dde2d38a93f6bdaf55261a67a02d2929e",
+        "Q": null,
+        "four": null,
+        "W": "1e22876dde2d38a93f6bdaf55261a67a02d2929e",
+        "CEqualsW": true,
+        "sha256": "d086d3532483fea0e2c9d30858619a8a7716df0f38fa0fc74217ad0cc4763964",
+        "bytes": 6305,
+        "kind": "test"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/newsletter-links.ts",
+        "C": "407d15bc88a5dfd9003d7363431eacfbeb7b0206",
+        "Q": null,
+        "four": null,
+        "W": "407d15bc88a5dfd9003d7363431eacfbeb7b0206",
+        "CEqualsW": true,
+        "sha256": "6e31c4e2041ea96e70cb65da01e0aa12065a0e58886356e078453409215a05f6",
+        "bytes": 6031,
+        "kind": "runtime-ts"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/newsletter.css",
+        "C": "d52b1392b8ceccf5864783ff9b7b75e38e5d0a76",
+        "Q": null,
+        "four": null,
+        "W": "d52b1392b8ceccf5864783ff9b7b75e38e5d0a76",
+        "CEqualsW": true,
+        "sha256": "81ef24b7abbee605a7b7aa5c520adb161f801d4aaa5938fcb1954f8ed52bb3b3",
+        "bytes": 55397,
+        "kind": "stylesheet"
+      },
+      {
+        "path": "apps/web/src/vnext/pages/workspace/newsletters/useNewsletterSurveySave.ts",
+        "C": "8034c4066ead7272bd5959305fb2307505eedcf0",
+        "Q": null,
+        "four": null,
+        "W": "8034c4066ead7272bd5959305fb2307505eedcf0",
+        "CEqualsW": true,
+        "sha256": "df44ee676e569f74c77b40b7cd564d4f17b66de714e8658679855821eefdc5be",
+        "bytes": 4749,
+        "kind": "runtime-ts"
+      }
+    ]
+  },
+  "rendererUrlSites": [
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "line": 170,
+      "kind": "StringLiteral",
+      "source": "'/newsletter/$1.png'"
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "line": 268,
+      "kind": "StringLiteral",
+      "source": "'/newsletter/'"
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "line": 287,
+      "kind": "StringLiteral",
+      "source": "'/newsletter/'"
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "line": 375,
+      "kind": "TemplateExpression",
+      "source": "`<div style=\"${css};text-align:${style.align || 'center'}\">${items\n          .map((item, index) => {\n            const platform = share\n              ? item.platform || 'website'\n              : newsletterSocialPlatform(item as NewsletterBlock['items'][number]);\n            const iconUrl = `${options.publicUrl?.replace(/\\/$/, '') || ''}/newsletter/social-${platform}-${settings.iconStyle}.png`;\n            const target = block.openNewTab ? ' target=\"_blank\" rel=\"noopener noreferrer\"' : '';\n            const icon =\n              settings.display !== 'text'\n                ? `<img class=\"nl-social-icon\" src=\"${newsletterEscape(iconUrl)}\" alt=\"${settings.display === 'icon' ? newsletterEscape(item.label || platform) : ''}\" width=\"${size}\" height=\"${size}\" style=\"display:inline-block;vertical-align:middle;width:${size}px;height:${size}px;border:0\">`\n                : '';\n            const label =\n              settings.display !== 'icon'\n                ? `<span class=\"nl-social-label\" style=\"padding-left:${icon ? 8 : 0}px;vertical-align:middle\">${text(item.label || platform)}</span>`\n                : '';\n            const last = index === items.length - 1;\n            const tag = share && !item.url ? 'span' : 'a';\n            const destination =\n              tag === 'a' ? ` href=\"${link(item.url)}\"${target}` : ' aria-disabled=\"true\"';\n            return `<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" class=\"nl-social-item${last ? ' nl-social-last' : ''}\" style=\"${socialItemLayout(last ? { ...settings.desktop, spacing: 0 } : settings.desktop, style.align || 'center')}\"><tr><td style=\"padding:0;vertical-align:middle\"><${tag}${destination} style=\"${newsletterStyleCss(socialTextStyle(style))};color:${style.color || design.styles.link.color};text-decoration:none\">${icon}${label}</${tag}></td></tr></table>`;\n          })\n          .join('')}</div>`"
+    },
+    {
+      "path": "packages/shared/src/newsletter-render.ts",
+      "line": 380,
+      "kind": "TemplateExpression",
+      "source": "`${options.publicUrl?.replace(/\\/$/, '') || ''}/newsletter/social-${platform}-${settings.iconStyle}.png`"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "line": 979,
+      "kind": "StringLiteral",
+      "source": "'/newsletter/capitol.png'"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "line": 1012,
+      "kind": "StringLiteral",
+      "source": "'/newsletter/policy-desk.png'"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "line": 1020,
+      "kind": "StringLiteral",
+      "source": "'/newsletter/newsroom.png'"
+    },
+    {
+      "path": "packages/shared/src/newsletter.ts",
+      "line": 1042,
+      "kind": "StringLiteral",
+      "source": "'/newsletter/social-update.png'"
+    }
+  ],
+  "frontendRequests": [
+    {
+      "path": "apps/web/src/vnext/pages/workspace/newsletters/api.ts",
+      "blob": "7aad2c2f3e3df7d4535cd917d93de1375e1c5412",
+      "lines": [
+        {
+          "line": 15,
+          "text": "} from '@capiro/shared/newsletter';"
+        },
+        {
+          "line": 16,
+          "text": "export const NEWSLETTER_BASE = '/workspace-api/newsletters';"
+        },
+        {
+          "line": 109,
+          "text": "          `/workspace/newsletter-account-invitations/${encodeURIComponent(invitationId)}/dispatch`,"
+        },
+        {
+          "line": 117,
+          "text": "          `/workspace/newsletter-account-invitations/${encodeURIComponent(invitationId)}`,"
+        },
+        {
+          "line": 229,
+          "text": "      const sourceToken = newsletterImageToken(sourceUrl);"
+        },
+        {
+          "line": 261,
+          "text": "      const sourceToken = sourceUrl ? newsletterImageToken(sourceUrl) : null;"
+        },
+        {
+          "line": 279,
+          "text": "      const sourceToken = sourceUrl ? newsletterImageToken(sourceUrl) : null;"
+        },
+        {
+          "line": 370,
+          "text": "export function newsletterImageToken(url: string): string | null {"
+        },
+        {
+          "line": 374,
+          "text": "      parsed.pathname.match(/^\\/workspace-api\\/newsletters\\/assets\\/file\\/([a-f0-9]{64})$/)?.[1] ||"
+        },
+        {
+          "line": 433,
+          "text": "export function newsletterError(error: unknown): string {"
+        }
+      ]
+    },
+    {
+      "path": "apps/web/src/pages/engagement/outreach/NewsletterOutreach.tsx",
+      "blob": "8e16079ecc2313d52ebb662129ca9d731324d510",
+      "lines": [
+        {
+          "line": 4,
+          "text": "import type { NewsletterCampaignConfig, NewsletterDesign } from '@capiro/shared/newsletter';"
+        },
+        {
+          "line": 14,
+          "text": "import './newsletter-outreach.css';"
+        },
+        {
+          "line": 65,
+          "text": "export function newsletterDestinations(targets: OutreachTarget[]) {"
+        },
+        {
+          "line": 66,
+          "text": "  // A newsletter group is a source of individual contacts, rather than the"
+        },
+        {
+          "line": 147,
+          "text": "  const id = params.get('newsletter');"
+        },
+        {
+          "line": 148,
+          "text": "  const stageId = params.get('newsletterStage');"
+        },
+        {
+          "line": 167,
+          "text": "    queryKey: ['newsletter-outreach', scope, id, stageId],"
+        },
+        {
+          "line": 172,
+          "text": "            `/api/engagement/newsletters/${encodeURIComponent(id)}`,"
+        },
+        {
+          "line": 175,
+          "text": "            `/api/engagement/newsletters/stages/${encodeURIComponent(stageId ?? '')}/open`,"
+        },
+        {
+          "line": 185,
+          "text": "      navigate(`/engagement/outreach?newsletter=${encodeURIComponent(row.id)}`, { replace: true });"
+        },
+        {
+          "line": 203,
+          "text": "    queryKey: ['engagement-integrations', 'newsletter', scope],"
+        },
+        {
+          "line": 214,
+          "text": "  const destinations = useMemo(() => newsletterDestinations(targets), [targets]);"
+        },
+        {
+          "line": 216,
+          "text": "    queryKey: ['newsletter-send-intent', scope, intentId],"
+        },
+        {
+          "line": 221,
+          "text": "          `/api/engagement/outreach/send-intents/${encodeURIComponent(intentId!)}`,"
+        },
+        {
+          "line": 232,
+          "text": "    queryKey: ['newsletter-test-intent', scope, selectedTest?.id],"
+        },
+        {
+          "line": 238,
+          "text": "          `/api/engagement/outreach/send-intents/${encodeURIComponent(selectedTest!.id)}`,"
+        },
+        {
+          "line": 261,
+          "text": "        `/api/engagement/newsletters/${record.id}/prepare`,"
+        },
+        {
+          "line": 300,
+          "text": "        `/api/engagement/newsletters/${record.id}/${test ? 'test' : 'send'}`,"
+        },
+        {
+          "line": 327,
+          "text": "      <section className=\"newsletter-outreach\" role=\"alert\">"
+        },
+        {
+          "line": 333,
+          "text": "  if (!record) return <p role=\"status\">Opening your staged newsletter…</p>;"
+        },
+        {
+          "line": 336,
+          "text": "    <section className=\"newsletter-outreach\">"
+        },
+        {
+          "line": 346,
+          "text": "        <Link to={`/workspace/newsletters/${record.stage.documentId}`}>Edit in Workspace</Link>"
+        },
+        {
+          "line": 362,
+          "text": "        <p className=\"newsletter-outreach-error\" role=\"alert\">"
+        },
+        {
+          "line": 374,
+          "text": "          <div className=\"newsletter-outreach-fields\">"
+        },
+        {
+          "line": 414,
+          "text": "            deliveryMode=\"newsletter\""
+        },
+        {
+          "line": 434,
+          "text": "              {busy ? 'Preparing preview…' : 'Preview newsletter'}"
+        },
+        {
+          "line": 440,
+          "text": "          <div className=\"newsletter-outreach-previewbar\">"
+        },
+        {
+          "line": 477,
+          "text": "            <aside className=\"newsletter-outreach-test\" aria-label=\"Test email status\">"
+        },
+        {
+          "line": 525,
+          "text": "              className={`newsletter-outreach-frame ${device}`}"
+        },
+        {
+          "line": 539,
+          "text": "          <h2>{intentId ? 'Newsletter delivery' : 'Send newsletter'}</h2>"
+        },
+        {
+          "line": 568,
+          "text": "                      await api.post(`/api/engagement/outreach/send-intents/${intentId}/cancel`);"
+        },
+        {
+          "line": 592,
+          "text": "                Your newsletter is saved. Sending uses the content and destinations shown in the"
+        },
+        {
+          "line": 599,
+          "text": "                  {busy ? 'Queuing newsletter…' : `Send to ${versions.length} destinations`}"
+        }
+      ]
+    }
+  ]
+}

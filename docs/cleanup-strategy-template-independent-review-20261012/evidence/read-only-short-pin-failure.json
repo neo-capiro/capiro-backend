@@ -1,0 +1,6 @@
+{
+  "command": "git diff --stat 991 ffb6660b517f554aa8702eb23b16c2b0389399e8",
+  "exitCode": 128,
+  "output": "fatal: ambiguous argument '991': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]\n",
+  "correction": "Use the exact supplied inherited pin 991ca2f88e0e2829e2ec31a33cdc2e195a870cf3. Read-only failure; no source action."
+}

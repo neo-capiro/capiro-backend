@@ -1,0 +1,52 @@
+{
+  "source": "8834c1d76659b343fb37c60733fa1dd618a06db9",
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "paths": [
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/steward/context-import-prompt.ts",
+      "sha256": "95e5e002bb1f219cb9591f7916dd5f5ed46c7ad012508c1823bdb62a61d2b614",
+      "byteExactBase": true
+    },
+    {
+      "path": "apps/meriv2-orchestrator/src/meri/strategy/strategy-prompt.ts",
+      "sha256": "91157a20ed49662009b18f37168e25cb689e2483bbfe8acbf8473653004f7be4",
+      "byteExactBase": true
+    },
+    {
+      "path": "apps/web/src/vnext/pages/strategies/context/context-categories.ts",
+      "sha256": "36653ff8ecda0c0175ffbfabb73b164e30d6e55350c3b9dd60d59604646ea377",
+      "byteExactBase": true
+    },
+    {
+      "path": "apps/api-strategy/src/context/steward.service.ts",
+      "sha256": "7cf4f8a4a2dc3733d5138eb96d57ef8ade640ef35cb8fc91cac9d6529d5b64b6",
+      "byteExactBase": true
+    },
+    {
+      "path": "apps/api-strategy/src/context/context-import.service.ts",
+      "sha256": "d8640aa0099641e4f108ae86db56e234a4e3fdde0671d4b737d9a09052513e30",
+      "byteExactBase": true
+    },
+    {
+      "path": "apps/api-strategy/src/context/context-documents.service.ts",
+      "sha256": "39abf2099671088541ce94715a21231bdb93e8880353c583b9169f8e70187636",
+      "byteExactBase": true
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-snapshot.service.ts",
+      "sha256": "18010ab952bcdbd4d13825cdb5711e0fe085b6fad3e6929a452c4733865ec18e",
+      "byteExactBase": true
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-content.ts",
+      "sha256": "9e41c78d5d7830595336e2ad2fcc27815d3fccbb1f9bb49bc2aff2935c0dec32",
+      "byteExactBase": true
+    },
+    {
+      "path": "apps/api-strategy/src/reports/dto/report-export.dto.ts",
+      "sha256": "63fe6d0c6abf40bad4127caebc34534a7856da8dd733c8c4d91b1a2f9fffe500",
+      "byteExactBase": true
+    }
+  ],
+  "modulesExecuted": false
+}

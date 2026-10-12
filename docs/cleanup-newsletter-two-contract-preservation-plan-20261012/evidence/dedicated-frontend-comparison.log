@@ -1,0 +1,47 @@
+{
+  "dedicated": {
+    "head": "4a1614886fd98bb42d529f1ef59b3d01d7ff9173",
+    "tree": "16c0b62901859aa4ff3f2ea01856aa13e13c65cd",
+    "recursiveCount": 4939,
+    "truncated": false
+  },
+  "count": 262,
+  "samePath": 0,
+  "exactBlob": 0,
+  "passed": 8,
+  "total": 8,
+  "checks": [
+    {
+      "name": "Full immutable Git commit→tree binding, no tree truncation",
+      "passed": true
+    },
+    {
+      "name": "All262 original family paths absent at same path",
+      "passed": true
+    },
+    {
+      "name": "No renamed exact original blob anywhere in complete tree",
+      "passed": true
+    },
+    {
+      "name": "Every11 selected source read matches immutable tree Git blob",
+      "passed": true
+    },
+    {
+      "name": "Explicit module route leads to catalog and screen",
+      "passed": true
+    },
+    {
+      "name": "Dedicated newsletter workflow uses WorkspaceDraft and saved version/session handoff",
+      "passed": true
+    },
+    {
+      "name": "Frozen wire exactQsaved-version route/request, no legacy C stage alias",
+      "passed": true
+    },
+    {
+      "name": "Dedicated Next standalone build has no asset rewrites",
+      "passed": true
+    }
+  ]
+}

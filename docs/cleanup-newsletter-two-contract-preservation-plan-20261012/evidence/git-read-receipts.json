@@ -1,0 +1,2959 @@
+[
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b^{tree}"
+    ],
+    "bytes": 41,
+    "sha256": "f53fb760b14cdcc8b17d0d8d4faa379701b4b8641bf32860470fe9cb5a5f8d39"
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "193703e34f2bedbb69d87d6a8ee303f65ab8dbda^{tree}"
+    ],
+    "bytes": 41,
+    "sha256": "29f8c3c4a0cad997f55a2d7d12ab1a83629a1570662ba6ee3f96d47769c6b8da"
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa^{tree}"
+    ],
+    "bytes": 41,
+    "sha256": "1895499bd5f51b66fe653276394565b183857ab0b4c3bc347672e2356f58af0c"
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e^{tree}"
+    ],
+    "bytes": 41,
+    "sha256": "5ccab792b9ca7334a438b3d4e89d00271d406d82da3ae0f055abda1f1251943e"
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "7286700fb80c43ec66e1330bed7b5c64b10804e0^{tree}"
+    ],
+    "bytes": 41,
+    "sha256": "2553358e8c6fc9bfa467695e2234e2dbd0dbea2b1a80036c3d15ded9c28ccf7e"
+  },
+  {
+    "argv": [
+      "git",
+      "ls-tree",
+      "-r",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b"
+    ],
+    "bytes": 2411423,
+    "sha256": "6c13929cf4a4cc3ef23c1a886ef5fe30313cc55f4c1fce4b525ba7f4035ccbbd"
+  },
+  {
+    "argv": [
+      "git",
+      "ls-tree",
+      "-r",
+      "193703e34f2bedbb69d87d6a8ee303f65ab8dbda"
+    ],
+    "bytes": 2409889,
+    "sha256": "fb5b1acf7f865c83f9511e0e834b68ef7e309e37db0665046bf77490be7d4200"
+  },
+  {
+    "argv": [
+      "git",
+      "ls-tree",
+      "-r",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa"
+    ],
+    "bytes": 2769306,
+    "sha256": "80b23af41996e2555a1a13d76b50149d3cad3c2155f78506a9853b90fc6a080a"
+  },
+  {
+    "argv": [
+      "git",
+      "ls-tree",
+      "-r",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e"
+    ],
+    "bytes": 2794694,
+    "sha256": "e936268947643386dc1fa8eb101174f3e166665320bc48f60ad277ce64ef6a79"
+  },
+  {
+    "argv": [
+      "git",
+      "ls-tree",
+      "-r",
+      "7286700fb80c43ec66e1330bed7b5c64b10804e0"
+    ],
+    "bytes": 2774627,
+    "sha256": "8da66e4e00cb25def3601a1767087b68575a9cfb9dec064ddf899bd6c4c1ede7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7286700fb80c43ec66e1330bed7b5c64b10804e0:docs/cleanup-newsletter-divergence-assessment-20261012/evidence/owner-history-and-source-manifest.json"
+    ],
+    "bytes": 39047,
+    "sha256": "5dc4270ebe0ba97d2924b4836a8fbd9515f83143f078914b6c3f7d4945aa31ff"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7286700fb80c43ec66e1330bed7b5c64b10804e0:docs/cleanup-newsletter-divergence-assessment-20261012/evidence/shared-and-owner-import-map.json"
+    ],
+    "bytes": 20648,
+    "sha256": "850cdc45a22cdbe67748ea4c10afdca3ae1f042746845089b62b0330551d9d6e"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7286700fb80c43ec66e1330bed7b5c64b10804e0:docs/cleanup-newsletter-divergence-assessment-20261012/evidence/route-owner-contracts.json"
+    ],
+    "bytes": 63844,
+    "sha256": "8d17e3e93a7fe510920182b0451d909c804164ddfee87b0db805ef9a5b187b39"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7286700fb80c43ec66e1330bed7b5c64b10804e0:docs/cleanup-newsletter-divergence-assessment-20261012/evidence/migration-graph-and-source-inventory.json"
+    ],
+    "bytes": 62081,
+    "sha256": "98fb25c9f5d6a582e87816231c5cc8dcc3c8fb598f677b517dc665f456837589"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql"
+    ],
+    "bytes": 2048,
+    "sha256": "20e1550263c32f39d49e5956c41e08af891aeb71b45c11b5d23e853074e51b07"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql"
+    ],
+    "bytes": 1421,
+    "sha256": "0b1f4a2f560a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql"
+    ],
+    "bytes": 1289,
+    "sha256": "27242c9b201631547a48cf3d951b77355bc54a9a4b056a2bc5341f6cec18f066"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql"
+    ],
+    "bytes": 1656,
+    "sha256": "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d07"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261006210000_workspace_newsletters/migration.sql"
+    ],
+    "bytes": 3625,
+    "sha256": "2b094e84eb8912c0001b07468307b156806f2f0cb2da5475d93b8ab95aa27f15"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007020000_newsletter_review/migration.sql"
+    ],
+    "bytes": 1050,
+    "sha256": "668a11dcc44d064d00391b2eb0bcafe58439b24e881d81003006f8ae360b52d6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007030000_newsletter_brand_kit/migration.sql"
+    ],
+    "bytes": 435,
+    "sha256": "efa87b12853b5fc9da4142cbd7534c593b75a505b0c24c2be09aa541bc27e85c"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007040000_newsletter_asset_library_deletion/migration.sql"
+    ],
+    "bytes": 235,
+    "sha256": "256490ed5730926a529f8016f1cfdc9099790e520b8c0cc53b428e577fca7c50"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007050000_newsletter_asset_folders/migration.sql"
+    ],
+    "bytes": 1135,
+    "sha256": "3c5c21d1678b4b2e33b073f1aeeba84ae1df4648bc7cdfd7c4749114d427b134"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007060000_newsletter_image_revisions/migration.sql"
+    ],
+    "bytes": 1536,
+    "sha256": "0d7553bfed297caf6c80cb46add65ba1fe97af9c0c178c95a7d4178cebf0718c"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007070000_newsletter_thread_email/migration.sql"
+    ],
+    "bytes": 2074,
+    "sha256": "af4e0632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007080000_newsletter_author_access/migration.sql"
+    ],
+    "bytes": 758,
+    "sha256": "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd6707f4439acb0ef2ea"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007090000_newsletter_email_invitations/migration.sql"
+    ],
+    "bytes": 1495,
+    "sha256": "f33ed9f54c464c53c0440be1e2025c67ec20872e5e1cfef2d77b1f9c2f58cedb"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007100000_newsletter_account_role/migration.sql"
+    ],
+    "bytes": 139,
+    "sha256": "02e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.service.ts"
+    ],
+    "bytes": 24560,
+    "sha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts"
+    ],
+    "bytes": 1184,
+    "sha256": "464b36704e1873a174d128c17bbc9e22da7022a0a787a8b617de0ef2fc62924b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-invitation.service.ts"
+    ],
+    "bytes": 18800,
+    "sha256": "e755819df1d28b5eb29c9a2b16136004afe5aaa6b78111b1f848cf5b45e73945"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.module.ts"
+    ],
+    "bytes": 1459,
+    "sha256": "c9d861cc86e65b40a486755ab23b4afa034bfd0d13c918845701ce31083b79e6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.service.ts"
+    ],
+    "bytes": 86320,
+    "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.controller.ts"
+    ],
+    "bytes": 1568,
+    "sha256": "946a493ee1690f0cfffc563e399d402bafcd8c39b35984d7531defa5d3087d6d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter.ts"
+    ],
+    "bytes": 36470,
+    "sha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-render.ts"
+    ],
+    "bytes": 30096,
+    "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-fonts.ts"
+    ],
+    "bytes": 5766,
+    "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-fonts.catalog.ts"
+    ],
+    "bytes": 94631,
+    "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-social-share.ts"
+    ],
+    "bytes": 2068,
+    "sha256": "ddaeebbda2901158ccd809a2ec2c7e7515d213af043bef9524e1f707cb3e57a0"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/prisma/schema.prisma"
+    ],
+    "bytes": 971848,
+    "sha256": "892bec9beec7955cb943ff27de3434eaa7a70ee0b40eadb197486201a6bc2242"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/schema.prisma"
+    ],
+    "bytes": 41302,
+    "sha256": "698edbf021795478fab7882596495d4faf3ce0e59d6594fd59fc6e6b0494430e"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/package.json"
+    ],
+    "bytes": 3761,
+    "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/index.ts"
+    ],
+    "bytes": 273389,
+    "sha256": "1a713331de044768f7bd8631db4762a08a3c3541a1bbc064c67bbff46fc9a75f"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-review-email.worker.ts"
+    ],
+    "bytes": 13298,
+    "sha256": "897e7db69fb520ca87615e106111b9ee5e45109a4834ccf04826ccb71cd10851"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts"
+    ],
+    "bytes": 12863,
+    "sha256": "f308487c769416c4d3c36a1d2f67b42629b04e783ca72b11e629d00cab7f2243"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-provider.ts"
+    ],
+    "bytes": 2303,
+    "sha256": "761779b680801e6f5fbdedaaacc75855300c8012cf5fd4e8f88cade431398b96"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/workspace-collab.module.ts"
+    ],
+    "bytes": 1151,
+    "sha256": "f7d23a87591a80c4be68613d11d8406401124db2ff0f9f8a270b21e0f14e0229"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-source-access.ts"
+    ],
+    "bytes": 1748,
+    "sha256": "ecd579acea11a6f284925f2eb98025e630d8b9da233742462d6149ad54f73bf3"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/outreach-draft.service.ts"
+    ],
+    "bytes": 42736,
+    "sha256": "ade0c51123d2875c45a84ab2c2ad9425853b719681a1ba9a33f4f53848be11e0"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/outreach-send-intent.service.ts"
+    ],
+    "bytes": 68308,
+    "sha256": "5aa47a65828f274ddd6a493be3fb210b543e9141aab1798bb9a1b8102fbcf724"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/engagement.module.ts"
+    ],
+    "bytes": 12222,
+    "sha256": "3fccedc262de3619749d53c187d401488166858829ea6e78967be66c0f78aea7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts"
+    ],
+    "bytes": 5752,
+    "sha256": "0e24effe12ea407d7a44650724b86c34324fc81ddbb9a12ec0559e478b317ae5"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/app.module.ts"
+    ],
+    "bytes": 9137,
+    "sha256": "33e55218ba9d66487caebe3d6ca7b97bbf190fcca281690c268fe12061df1bcc"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement-api.app.module.ts"
+    ],
+    "bytes": 4412,
+    "sha256": "4cbde413677717948e1404ea591df64d41db31e733a7a80dc145d03ef90dd95e"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/tenant/tenant-context.middleware.ts"
+    ],
+    "bytes": 23173,
+    "sha256": "25f51b1d894370b6d735822001e06345360f213475eaece21d1c1fd403d61b1f"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/config/config.schema.ts"
+    ],
+    "bytes": 76323,
+    "sha256": "b4f96e0700a883e5d98cab2307fe1c1081d1afec4dff1b823040f53b336cb039"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/app.module.ts"
+    ],
+    "bytes": 3192,
+    "sha256": "0b59032e19a24df33bddd32f69d2e04fc65281b8000209abb2d77f1836688800"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/hillday/hillday-source.service.ts"
+    ],
+    "bytes": 24864,
+    "sha256": "13d33b71b42e07d69e4905ba37bde18eb0de36437064ef876fb788dc62503d2b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-image.service.ts"
+    ],
+    "bytes": 7900,
+    "sha256": "2635bd3e4988be42e47bf3c3173e0b78e2df6bd2561bc0b6c31565384651462e"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.service.ts"
+    ],
+    "bytes": 5816,
+    "sha256": "1949db0e43379df9e142f41cfe97e4b4a20e0410ec636a378336e67dde5c0f27"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-html-check.service.ts"
+    ],
+    "bytes": 4286,
+    "sha256": "ab1b272e7ed57883191f219d51500994c62c5e1137dc833f7a37a79a317d41fd"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-asset-import.service.ts"
+    ],
+    "bytes": 11931,
+    "sha256": "54b771e0c7c87e2ed36571d9f2fe4b76532f4943c07c0c5de80dd4ed117e08ac"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-link-preview.service.ts"
+    ],
+    "bytes": 3006,
+    "sha256": "b97e2576af793606dc4715d189b8a4dfee613a9cb501b0a1ba319cc564a05881"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-video.service.ts"
+    ],
+    "bytes": 4550,
+    "sha256": "ae82b80aaf087c1319b8c969ece7b984870c3184dd76ced2a6a7f7bf0709bf30"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/generation/ai-credential.service.ts"
+    ],
+    "bytes": 5905,
+    "sha256": "1c7e28f660382abbd400a8f0e6e0fd9b3dbc734be732bb49f4b8f03a909c29f9"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/notifications/notifications.service.ts"
+    ],
+    "bytes": 3201,
+    "sha256": "4d8d851747d3011e358eb4ea64e8eea842ba08c68eb87142b2c176a25b4e946a"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-validation.ts"
+    ],
+    "bytes": 27451,
+    "sha256": "7a025425e72fe406ec86e22385ddbb53e8d39baa3dc4a419050f989a7c79286d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-brand-validation.ts"
+    ],
+    "bytes": 7029,
+    "sha256": "49ae585d9368b780d429fa80871347f5f6079a2d1555418b3518d4560b283967"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.service.spec.ts"
+    ],
+    "bytes": 14420,
+    "sha256": "701b62d22496e3a2d338b1be259be8054322121d58411e7e2be3c6036db79052"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/outreach-send-intent.service.spec.ts"
+    ],
+    "bytes": 58956,
+    "sha256": "990b03048d1689b821cd5a5e01d06ebea4a5735ff6b51921a700bba66ca7a0e4"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-provider.spec.ts"
+    ],
+    "bytes": 3068,
+    "sha256": "34e90203f190c8671f755bf95c1286df28dca1eec6e807e8d05d0afcfcdf4fea"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts"
+    ],
+    "bytes": 8201,
+    "sha256": "0c1e871a419b8e1ab30c87e78642da51fb7df2c370c14709bb8a4d7ef106b6f6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts"
+    ],
+    "bytes": 8093,
+    "sha256": "76d98ef7a226209d4587b1ff64864f6d3ee7c76c4e3c581c5b7dfef2946d23c2"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts"
+    ],
+    "bytes": 6876,
+    "sha256": "42a7a81d1e7e3fe1f4e9e518127856c950f69cf126322a5f0c52566e11c25a04"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-asset-import.spec.ts"
+    ],
+    "bytes": 11558,
+    "sha256": "23abe3fae4f902495e507d499bb80c1049405190c1a76d651d6e54d46ecc18e6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-assets.spec.ts"
+    ],
+    "bytes": 8251,
+    "sha256": "e9f0dbd6f71e034b2f8a1fa8938b0bf88f1a1a1c04d5e68fc59a27aab8109f1f"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-brand.spec.ts"
+    ],
+    "bytes": 7658,
+    "sha256": "c094e8f76d370af48b247d0e980e9e0e5beb45643f386c9299bb189f3c87f965"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-fonts.spec.ts"
+    ],
+    "bytes": 2785,
+    "sha256": "4aadc0c4863debd4b48f5fd490d3a4f35f602b9474482d93059797e0f3112533"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-html-check.spec.ts"
+    ],
+    "bytes": 4971,
+    "sha256": "be89fd54421e3a32c8af0d1cfe09b78e63dccc2cad64d676ce909e4f7bffe241"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts"
+    ],
+    "bytes": 6367,
+    "sha256": "5fc4118e099f35a4df9cd1e6f509e96d663d6e55ac05edf9987f6b08611da9c4"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-image.spec.ts"
+    ],
+    "bytes": 7641,
+    "sha256": "d897771f677513e038b037572a3fd4590e2008ca6d224ba674d4b5a4cf0698f0"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts"
+    ],
+    "bytes": 3890,
+    "sha256": "a50d5a1027fed540a90e9270a03103e736969cdf4c5f8147ef2739e87f2f8093"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-social-share.spec.ts"
+    ],
+    "bytes": 6057,
+    "sha256": "07307f4a9909800d543f38b0388e76cfaae53a7f955c1bca6d7f50a7f30bd96b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-social.spec.ts"
+    ],
+    "bytes": 3004,
+    "sha256": "c76e977df3220c80d9abdeddbccd429603b2ebf210d9dfbe201305cdd3033705"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.spec.ts"
+    ],
+    "bytes": 9684,
+    "sha256": "95cedd27f2dddaea01dabe633bc9f2fe5729bef6a162ab52df73e8c6c54d877a"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-survey.spec.ts"
+    ],
+    "bytes": 15787,
+    "sha256": "b3cf26e0eb4a50a609239f8b396e1d245fc6d19cece31613ff15ec5c70dad0de"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-video.spec.ts"
+    ],
+    "bytes": 10762,
+    "sha256": "b54edd6dfaacc7ba6552e053894be0ccff374dca163b649ea1d8fbec84d1564a"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.spec.ts"
+    ],
+    "bytes": 38553,
+    "sha256": "cf9d1bd1152ae6665c6f534c436be3772319f4b1869b3e386228976e96ad731d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/outreach-v3/api/outreach-v3-state.controller.ts"
+    ],
+    "bytes": 5849,
+    "sha256": "02721dc813f0a7ce2fa48490491ff01414e1673959e6fabe0daecdc52afc146b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/outreach-v3/services/outreach-command-engine.service.ts"
+    ],
+    "bytes": 14241,
+    "sha256": "097a547049ada46871b9a81e492d41f8217a3068221042dcea35d66fe3313bdf"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/versions/versions.controller.ts"
+    ],
+    "bytes": 1441,
+    "sha256": "a4f329dc5934c787a49a0d3756f7f853b205aa372ab735eec7373470e402e210"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/versions/versions.service.ts"
+    ],
+    "bytes": 5438,
+    "sha256": "42e95d5330289d7ca2b457aa78da0f176116160db83da16ee760c6e6c1dca3b7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/notifications/notifications.module.ts"
+    ],
+    "bytes": 431,
+    "sha256": "62c2ddc5ef15281f6a540f1d02270d65a8c0b968f01505ba8a2861dff24b211d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/prisma/prisma.service.ts"
+    ],
+    "bytes": 1572,
+    "sha256": "5376472ccce33b1c9b6881a528355cd557e3e466119ca89cc2086a60e7bca746"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/prisma/prisma.service.ts"
+    ],
+    "bytes": 12476,
+    "sha256": "fb3886df5f2732a0412342627a3a6156f159718913479cdc2325fa602bfdd86e"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/tenant-admin/tenant-admin.service.ts"
+    ],
+    "bytes": 19334,
+    "sha256": "1a0d1dea46bdda0a169604cebbdb4d21342c0afaf10e4831567787f8b50dade5"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/tenant-admin/tenant-admin.module.ts"
+    ],
+    "bytes": 331,
+    "sha256": "1704239943445d28027efc6c5819fb057b1d2ef78656036a636dd431c8297244"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/auth/clerk.service.ts"
+    ],
+    "bytes": 5848,
+    "sha256": "89b76502f62155fcf05544a78e19f554a1c89635b62c2b8757ce862ab9ed0daf"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/package.json"
+    ],
+    "bytes": 1673,
+    "sha256": "0ba41a5f6ac0985cac1ec3e0bf9d9f1eb75c85371c2db05634fcb55072c9a77b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/package.json"
+    ],
+    "bytes": 28510,
+    "sha256": "eef990b42d61e376adcbaacd4ebf3326b71219e5469e5b4b4c7ee0b300031678"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/prisma/migrations/20261007010000_newsletter_outreach_format/migration.sql"
+    ],
+    "bytes": 2048,
+    "sha256": "20e1550263c32f39d49e5956c41e08af891aeb71b45c11b5d23e853074e51b07"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/prisma/migrations/20261007020000_newsletter_review_email_delivery/migration.sql"
+    ],
+    "bytes": 1421,
+    "sha256": "0b1f4a2f560a983afff2483167c2a99ebc9a6430acab81fec72cb483b0b17c3b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/prisma/migrations/20261007030000_newsletter_invitation_email_delivery/migration.sql"
+    ],
+    "bytes": 1289,
+    "sha256": "27242c9b201631547a48cf3d951b77355bc54a9a4b056a2bc5341f6cec18f066"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/prisma/migrations/20261007040000_newsletter_account_invitations/migration.sql"
+    ],
+    "bytes": 1656,
+    "sha256": "d9466d8bd25d3b719f9a64bd4224d03b125c3892fde98be6e57da3683cc58d07"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261006210000_workspace_newsletters/migration.sql"
+    ],
+    "bytes": 3625,
+    "sha256": "2b094e84eb8912c0001b07468307b156806f2f0cb2da5475d93b8ab95aa27f15"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007020000_newsletter_review/migration.sql"
+    ],
+    "bytes": 1050,
+    "sha256": "668a11dcc44d064d00391b2eb0bcafe58439b24e881d81003006f8ae360b52d6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007030000_newsletter_brand_kit/migration.sql"
+    ],
+    "bytes": 435,
+    "sha256": "efa87b12853b5fc9da4142cbd7534c593b75a505b0c24c2be09aa541bc27e85c"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007040000_newsletter_asset_library_deletion/migration.sql"
+    ],
+    "bytes": 235,
+    "sha256": "256490ed5730926a529f8016f1cfdc9099790e520b8c0cc53b428e577fca7c50"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007050000_newsletter_asset_folders/migration.sql"
+    ],
+    "bytes": 1135,
+    "sha256": "3c5c21d1678b4b2e33b073f1aeeba84ae1df4648bc7cdfd7c4749114d427b134"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007060000_newsletter_image_revisions/migration.sql"
+    ],
+    "bytes": 1536,
+    "sha256": "0d7553bfed297caf6c80cb46add65ba1fe97af9c0c178c95a7d4178cebf0718c"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007070000_newsletter_thread_email/migration.sql"
+    ],
+    "bytes": 2074,
+    "sha256": "af4e0632d5cfa3c2ce69c3b664c82df5d0b24b6248997589f254933f2bb42b45"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007080000_newsletter_author_access/migration.sql"
+    ],
+    "bytes": 758,
+    "sha256": "381a3b645c192f2e1f8ddd754876497e52a4a321aefabd6707f4439acb0ef2ea"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007090000_newsletter_email_invitations/migration.sql"
+    ],
+    "bytes": 1495,
+    "sha256": "f33ed9f54c464c53c0440be1e2025c67ec20872e5e1cfef2d77b1f9c2f58cedb"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/migrations/20261007100000_newsletter_account_role/migration.sql"
+    ],
+    "bytes": 139,
+    "sha256": "02e1905c401323c8bbaaf0c443d667e76bb08e854e9c2d9e82c0468125337719"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.service.ts"
+    ],
+    "bytes": 24560,
+    "sha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts"
+    ],
+    "bytes": 1184,
+    "sha256": "464b36704e1873a174d128c17bbc9e22da7022a0a787a8b617de0ef2fc62924b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-invitation.service.ts"
+    ],
+    "bytes": 18800,
+    "sha256": "e755819df1d28b5eb29c9a2b16136004afe5aaa6b78111b1f848cf5b45e73945"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.module.ts"
+    ],
+    "bytes": 1459,
+    "sha256": "c9d861cc86e65b40a486755ab23b4afa034bfd0d13c918845701ce31083b79e6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.service.ts"
+    ],
+    "bytes": 86320,
+    "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.controller.ts"
+    ],
+    "bytes": 1568,
+    "sha256": "946a493ee1690f0cfffc563e399d402bafcd8c39b35984d7531defa5d3087d6d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter.ts"
+    ],
+    "bytes": 36470,
+    "sha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-render.ts"
+    ],
+    "bytes": 30096,
+    "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-fonts.ts"
+    ],
+    "bytes": 5766,
+    "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-fonts.catalog.ts"
+    ],
+    "bytes": 94631,
+    "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-social-share.ts"
+    ],
+    "bytes": 2068,
+    "sha256": "ddaeebbda2901158ccd809a2ec2c7e7515d213af043bef9524e1f707cb3e57a0"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.service.ts"
+    ],
+    "bytes": 24560,
+    "sha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-source-access.ts"
+    ],
+    "bytes": 1748,
+    "sha256": "ecd579acea11a6f284925f2eb98025e630d8b9da233742462d6149ad54f73bf3"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts"
+    ],
+    "bytes": 1184,
+    "sha256": "464b36704e1873a174d128c17bbc9e22da7022a0a787a8b617de0ef2fc62924b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-invitation.service.ts"
+    ],
+    "bytes": 18800,
+    "sha256": "e755819df1d28b5eb29c9a2b16136004afe5aaa6b78111b1f848cf5b45e73945"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-provider.ts"
+    ],
+    "bytes": 2303,
+    "sha256": "761779b680801e6f5fbdedaaacc75855300c8012cf5fd4e8f88cade431398b96"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts"
+    ],
+    "bytes": 12863,
+    "sha256": "f308487c769416c4d3c36a1d2f67b42629b04e783ca72b11e629d00cab7f2243"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-review-email.worker.ts"
+    ],
+    "bytes": 13298,
+    "sha256": "897e7db69fb520ca87615e106111b9ee5e45109a4834ccf04826ccb71cd10851"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-asset-import.service.ts"
+    ],
+    "bytes": 11931,
+    "sha256": "54b771e0c7c87e2ed36571d9f2fe4b76532f4943c07c0c5de80dd4ed117e08ac"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-brand-validation.ts"
+    ],
+    "bytes": 7029,
+    "sha256": "49ae585d9368b780d429fa80871347f5f6079a2d1555418b3518d4560b283967"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-html-check.service.ts"
+    ],
+    "bytes": 4286,
+    "sha256": "ab1b272e7ed57883191f219d51500994c62c5e1137dc833f7a37a79a317d41fd"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-image.service.ts"
+    ],
+    "bytes": 7900,
+    "sha256": "2635bd3e4988be42e47bf3c3173e0b78e2df6bd2561bc0b6c31565384651462e"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-link-preview.service.ts"
+    ],
+    "bytes": 3006,
+    "sha256": "b97e2576af793606dc4715d189b8a4dfee613a9cb501b0a1ba319cc564a05881"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.controller.ts"
+    ],
+    "bytes": 1568,
+    "sha256": "946a493ee1690f0cfffc563e399d402bafcd8c39b35984d7531defa5d3087d6d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.service.ts"
+    ],
+    "bytes": 5816,
+    "sha256": "1949db0e43379df9e142f41cfe97e4b4a20e0410ec636a378336e67dde5c0f27"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-validation.ts"
+    ],
+    "bytes": 27451,
+    "sha256": "7a025425e72fe406ec86e22385ddbb53e8d39baa3dc4a419050f989a7c79286d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-video.service.ts"
+    ],
+    "bytes": 4550,
+    "sha256": "ae82b80aaf087c1319b8c969ece7b984870c3184dd76ced2a6a7f7bf0709bf30"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.module.ts"
+    ],
+    "bytes": 1459,
+    "sha256": "c9d861cc86e65b40a486755ab23b4afa034bfd0d13c918845701ce31083b79e6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.service.ts"
+    ],
+    "bytes": 86320,
+    "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-fonts.catalog.ts"
+    ],
+    "bytes": 94631,
+    "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-fonts.ts"
+    ],
+    "bytes": 5766,
+    "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-render.ts"
+    ],
+    "bytes": 30096,
+    "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-social-share.ts"
+    ],
+    "bytes": 2068,
+    "sha256": "ddaeebbda2901158ccd809a2ec2c7e7515d213af043bef9524e1f707cb3e57a0"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter.ts"
+    ],
+    "bytes": 36470,
+    "sha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/package.json"
+    ],
+    "bytes": 3761,
+    "sha256": "3ec63a174f34c80651c3ca3b7e82132857dabccaf94018bb7ff996a1b4297ddf"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:packages/shared/package.json"
+    ],
+    "bytes": 3206,
+    "sha256": "7000ebf657c84db68ab6e47a9c585f74463ba4bbcb902280174e457a0443cee6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:packages/shared/package.json"
+    ],
+    "bytes": 3206,
+    "sha256": "7000ebf657c84db68ab6e47a9c585f74463ba4bbcb902280174e457a0443cee6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/package.json"
+    ],
+    "bytes": 28510,
+    "sha256": "eef990b42d61e376adcbaacd4ebf3326b71219e5469e5b4b4c7ee0b300031678"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/package.json"
+    ],
+    "bytes": 28581,
+    "sha256": "cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/package.json"
+    ],
+    "bytes": 28581,
+    "sha256": "cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/package.json"
+    ],
+    "bytes": 1673,
+    "sha256": "0ba41a5f6ac0985cac1ec3e0bf9d9f1eb75c85371c2db05634fcb55072c9a77b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/workspace/package.json"
+    ],
+    "bytes": 1697,
+    "sha256": "4d90d5d98d2ba83af404a33ff95b7db4fb65a914ddbcc725927946b3b4b8dad2"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/workspace/package.json"
+    ],
+    "bytes": 1697,
+    "sha256": "4d90d5d98d2ba83af404a33ff95b7db4fb65a914ddbcc725927946b3b4b8dad2"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/prisma/schema.prisma"
+    ],
+    "bytes": 41302,
+    "sha256": "698edbf021795478fab7882596495d4faf3ce0e59d6594fd59fc6e6b0494430e"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/workspace/prisma/schema.prisma"
+    ],
+    "bytes": 33510,
+    "sha256": "09b8269440dfb1c5ad9b881a68f27207029290d5bcb297f5745392fadcc077db"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/workspace/prisma/schema.prisma"
+    ],
+    "bytes": 33510,
+    "sha256": "09b8269440dfb1c5ad9b881a68f27207029290d5bcb297f5745392fadcc077db"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/prisma/schema.prisma"
+    ],
+    "bytes": 971848,
+    "sha256": "892bec9beec7955cb943ff27de3434eaa7a70ee0b40eadb197486201a6bc2242"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/prisma/schema.prisma"
+    ],
+    "bytes": 975974,
+    "sha256": "d79006f5a5d24a64ea605e7d04ab8b69d1ced0c42292b7406564d71feadc8afa"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/prisma/schema.prisma"
+    ],
+    "bytes": 975974,
+    "sha256": "d79006f5a5d24a64ea605e7d04ab8b69d1ced0c42292b7406564d71feadc8afa"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.service.ts"
+    ],
+    "bytes": 24560,
+    "sha256": "4f597a33ea80da2634535a52293826d80aeaff5718024fa6410d79698f6197e7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-source-access.ts"
+    ],
+    "bytes": 1748,
+    "sha256": "ecd579acea11a6f284925f2eb98025e630d8b9da233742462d6149ad54f73bf3"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts"
+    ],
+    "bytes": 1184,
+    "sha256": "464b36704e1873a174d128c17bbc9e22da7022a0a787a8b617de0ef2fc62924b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-invitation.service.ts"
+    ],
+    "bytes": 18800,
+    "sha256": "e755819df1d28b5eb29c9a2b16136004afe5aaa6b78111b1f848cf5b45e73945"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-provider.ts"
+    ],
+    "bytes": 2303,
+    "sha256": "761779b680801e6f5fbdedaaacc75855300c8012cf5fd4e8f88cade431398b96"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-invitation-email.worker.ts"
+    ],
+    "bytes": 12863,
+    "sha256": "f308487c769416c4d3c36a1d2f67b42629b04e783ca72b11e629d00cab7f2243"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-review-email.worker.ts"
+    ],
+    "bytes": 13298,
+    "sha256": "897e7db69fb520ca87615e106111b9ee5e45109a4834ccf04826ccb71cd10851"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-asset-import.service.ts"
+    ],
+    "bytes": 11931,
+    "sha256": "54b771e0c7c87e2ed36571d9f2fe4b76532f4943c07c0c5de80dd4ed117e08ac"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-brand-validation.ts"
+    ],
+    "bytes": 7029,
+    "sha256": "49ae585d9368b780d429fa80871347f5f6079a2d1555418b3518d4560b283967"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-html-check.service.ts"
+    ],
+    "bytes": 4286,
+    "sha256": "ab1b272e7ed57883191f219d51500994c62c5e1137dc833f7a37a79a317d41fd"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-image.service.ts"
+    ],
+    "bytes": 7900,
+    "sha256": "2635bd3e4988be42e47bf3c3173e0b78e2df6bd2561bc0b6c31565384651462e"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-link-preview.service.ts"
+    ],
+    "bytes": 3006,
+    "sha256": "b97e2576af793606dc4715d189b8a4dfee613a9cb501b0a1ba319cc564a05881"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.controller.ts"
+    ],
+    "bytes": 1568,
+    "sha256": "946a493ee1690f0cfffc563e399d402bafcd8c39b35984d7531defa5d3087d6d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.service.ts"
+    ],
+    "bytes": 5816,
+    "sha256": "1949db0e43379df9e142f41cfe97e4b4a20e0410ec636a378336e67dde5c0f27"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-validation.ts"
+    ],
+    "bytes": 27451,
+    "sha256": "7a025425e72fe406ec86e22385ddbb53e8d39baa3dc4a419050f989a7c79286d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-video.service.ts"
+    ],
+    "bytes": 4550,
+    "sha256": "ae82b80aaf087c1319b8c969ece7b984870c3184dd76ced2a6a7f7bf0709bf30"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.module.ts"
+    ],
+    "bytes": 1459,
+    "sha256": "c9d861cc86e65b40a486755ab23b4afa034bfd0d13c918845701ce31083b79e6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.service.ts"
+    ],
+    "bytes": 86320,
+    "sha256": "4a2d4c6234dd12bda4b787ed52211d405728c81e6b824afbaaefe382a7977583"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-fonts.catalog.ts"
+    ],
+    "bytes": 94631,
+    "sha256": "7360c71bdfaedf091171ff704bdd1e38c68605614dda06c30dbf7958a0dedf1f"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-fonts.ts"
+    ],
+    "bytes": 5766,
+    "sha256": "56db91870105d8268ad8f1699ad04a3c60062f45b4738ae8b4c892f3e58d4825"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-render.ts"
+    ],
+    "bytes": 30096,
+    "sha256": "b143df93036c87dbce9dc49a0e01f1f4bd3a7b6cf562b64608940bdea97c3f3c"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter-social-share.ts"
+    ],
+    "bytes": 2068,
+    "sha256": "ddaeebbda2901158ccd809a2ec2c7e7515d213af043bef9524e1f707cb3e57a0"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:packages/shared/src/newsletter.ts"
+    ],
+    "bytes": 36470,
+    "sha256": "f586855ffb43f7b4a014b0e27c8ae6be342fb843cb656a58b520b0ac1706c796"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/engagement.service.ts"
+    ],
+    "bytes": 499134,
+    "sha256": "2ed5548a1edc5b34742d6889085e02047f0f82d667c288a7c3f4ac64e45c9d81"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/src/engagement/engagement.service.ts"
+    ],
+    "bytes": 506538,
+    "sha256": "78770fac56ac51c3af48674d07ea6b735490785dd73684265e54e861958cd3f9"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/src/engagement/engagement.service.ts"
+    ],
+    "bytes": 506538,
+    "sha256": "78770fac56ac51c3af48674d07ea6b735490785dd73684265e54e861958cd3f9"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/outreach-draft.service.ts"
+    ],
+    "bytes": 42736,
+    "sha256": "ade0c51123d2875c45a84ab2c2ad9425853b719681a1ba9a33f4f53848be11e0"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/src/engagement/outreach-draft.service.ts"
+    ],
+    "bytes": 41077,
+    "sha256": "7677904ffc0cad75fbf7e7d67e0df8ba78b1da80ce7af67f846bfe356fd727c2"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/src/engagement/outreach-draft.service.ts"
+    ],
+    "bytes": 41077,
+    "sha256": "7677904ffc0cad75fbf7e7d67e0df8ba78b1da80ce7af67f846bfe356fd727c2"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/outreach-send-intent.service.ts"
+    ],
+    "bytes": 68308,
+    "sha256": "5aa47a65828f274ddd6a493be3fb210b543e9141aab1798bb9a1b8102fbcf724"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/src/engagement/outreach-send-intent.service.ts"
+    ],
+    "bytes": 64247,
+    "sha256": "aaf1d5c04d0b03dc4a74c70946823d5a20bb8945c196ced13457deb58bfcf485"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/src/engagement/outreach-send-intent.service.ts"
+    ],
+    "bytes": 64247,
+    "sha256": "aaf1d5c04d0b03dc4a74c70946823d5a20bb8945c196ced13457deb58bfcf485"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/hillday/hillday-source.service.ts"
+    ],
+    "bytes": 24864,
+    "sha256": "13d33b71b42e07d69e4905ba37bde18eb0de36437064ef876fb788dc62503d2b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/workspace/src/hillday/hillday-source.service.ts"
+    ],
+    "bytes": 22478,
+    "sha256": "34befeb97cf4fe35a780af69d8cfc5fdcd78b607e312ca9c78c6f471bedd9e8e"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/workspace/src/hillday/hillday-source.service.ts"
+    ],
+    "bytes": 22478,
+    "sha256": "34befeb97cf4fe35a780af69d8cfc5fdcd78b607e312ca9c78c6f471bedd9e8e"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/generation/ai-credential.service.ts"
+    ],
+    "bytes": 5905,
+    "sha256": "1c7e28f660382abbd400a8f0e6e0fd9b3dbc734be732bb49f4b8f03a909c29f9"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/workspace/src/generation/ai-credential.service.ts"
+    ],
+    "bytes": 4384,
+    "sha256": "af4c1ec24c32bbea1940780ee626b0d37502f449892ad578f921d826db3746f1"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/workspace/src/generation/ai-credential.service.ts"
+    ],
+    "bytes": 4384,
+    "sha256": "af4c1ec24c32bbea1940780ee626b0d37502f449892ad578f921d826db3746f1"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/notifications/notifications.service.ts"
+    ],
+    "bytes": 3201,
+    "sha256": "4d8d851747d3011e358eb4ea64e8eea842ba08c68eb87142b2c176a25b4e946a"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/workspace/src/notifications/notifications.service.ts"
+    ],
+    "bytes": 4213,
+    "sha256": "5f7e04e1f56befd65e9a2ca6896cd729a20a8c299731dd6737d8624ad32e5d06"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/workspace/src/notifications/notifications.service.ts"
+    ],
+    "bytes": 4213,
+    "sha256": "5f7e04e1f56befd65e9a2ca6896cd729a20a8c299731dd6737d8624ad32e5d06"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/tenant-admin/tenant-admin.service.ts"
+    ],
+    "bytes": 19334,
+    "sha256": "1a0d1dea46bdda0a169604cebbdb4d21342c0afaf10e4831567787f8b50dade5"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/src/tenant-admin/tenant-admin.service.ts"
+    ],
+    "bytes": 19334,
+    "sha256": "1a0d1dea46bdda0a169604cebbdb4d21342c0afaf10e4831567787f8b50dade5"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/src/tenant-admin/tenant-admin.service.ts"
+    ],
+    "bytes": 19334,
+    "sha256": "1a0d1dea46bdda0a169604cebbdb4d21342c0afaf10e4831567787f8b50dade5"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.controller.ts"
+    ],
+    "bytes": 5292,
+    "sha256": "c7395dd8d1805d73ff5de5a82fdb83a5f4a85b855349cf607c68cdb3dd4b592d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts"
+    ],
+    "bytes": 1184,
+    "sha256": "464b36704e1873a174d128c17bbc9e22da7022a0a787a8b617de0ef2fc62924b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-invitation.controller.ts"
+    ],
+    "bytes": 1184,
+    "sha256": "464b36704e1873a174d128c17bbc9e22da7022a0a787a8b617de0ef2fc62924b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.controller.ts"
+    ],
+    "bytes": 16288,
+    "sha256": "ae8a6453c04d0bab8ea81d717415c3747dbee0edc4d5eff9299df3e97fa576c7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.controller.ts"
+    ],
+    "bytes": 1568,
+    "sha256": "946a493ee1690f0cfffc563e399d402bafcd8c39b35984d7531defa5d3087d6d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.controller.ts"
+    ],
+    "bytes": 1568,
+    "sha256": "946a493ee1690f0cfffc563e399d402bafcd8c39b35984d7531defa5d3087d6d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.controller.ts"
+    ],
+    "bytes": 1568,
+    "sha256": "946a493ee1690f0cfffc563e399d402bafcd8c39b35984d7531defa5d3087d6d"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/app.module.ts"
+    ],
+    "bytes": 3192,
+    "sha256": "0b59032e19a24df33bddd32f69d2e04fc65281b8000209abb2d77f1836688800"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/workspace/src/app.module.ts"
+    ],
+    "bytes": 3099,
+    "sha256": "ce29ff353b7884e75ff74b66e3d0aebe0e0ad27a805122e2f699dfe74456891b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/workspace/src/app.module.ts"
+    ],
+    "bytes": 3099,
+    "sha256": "ce29ff353b7884e75ff74b66e3d0aebe0e0ad27a805122e2f699dfe74456891b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/main.ts"
+    ],
+    "bytes": 3544,
+    "sha256": "b807798f1ac421df9b8db8c1c3f317ab3efffcab9b2d73babeb26c9f63dfe952"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/workspace/src/main.ts"
+    ],
+    "bytes": 3544,
+    "sha256": "b807798f1ac421df9b8db8c1c3f317ab3efffcab9b2d73babeb26c9f63dfe952"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/workspace/src/main.ts"
+    ],
+    "bytes": 3544,
+    "sha256": "b807798f1ac421df9b8db8c1c3f317ab3efffcab9b2d73babeb26c9f63dfe952"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/engagement.module.ts"
+    ],
+    "bytes": 12222,
+    "sha256": "3fccedc262de3619749d53c187d401488166858829ea6e78967be66c0f78aea7"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/src/engagement/engagement.module.ts"
+    ],
+    "bytes": 11943,
+    "sha256": "3b0ccae51cc6f3ae87175d255a79efa1420dcbb51ff4cd5e9e103b51ffefc643"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/src/engagement/engagement.module.ts"
+    ],
+    "bytes": 11943,
+    "sha256": "3b0ccae51cc6f3ae87175d255a79efa1420dcbb51ff4cd5e9e103b51ffefc643"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/workspace-collab.module.ts"
+    ],
+    "bytes": 1151,
+    "sha256": "f7d23a87591a80c4be68613d11d8406401124db2ff0f9f8a270b21e0f14e0229"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/src/workspace-collab/workspace-collab.module.ts"
+    ],
+    "bytes": 402,
+    "sha256": "b983230e9403e0aabd08f43fd7232a202800e0f908cbbf5b9a0e602ebe569c49"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/src/workspace-collab/workspace-collab.module.ts"
+    ],
+    "bytes": 402,
+    "sha256": "b983230e9403e0aabd08f43fd7232a202800e0f908cbbf5b9a0e602ebe569c49"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/app.module.ts"
+    ],
+    "bytes": 9137,
+    "sha256": "33e55218ba9d66487caebe3d6ca7b97bbf190fcca281690c268fe12061df1bcc"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/src/app.module.ts"
+    ],
+    "bytes": 8964,
+    "sha256": "00c6da9894f4c0b2bb2f9b29201aea0d5bd01d5a5c605fe1cfc53439a8fe5afc"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/src/app.module.ts"
+    ],
+    "bytes": 8964,
+    "sha256": "00c6da9894f4c0b2bb2f9b29201aea0d5bd01d5a5c605fe1cfc53439a8fe5afc"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement-api.app.module.ts"
+    ],
+    "bytes": 4412,
+    "sha256": "4cbde413677717948e1404ea591df64d41db31e733a7a80dc145d03ef90dd95e"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/src/engagement-api.app.module.ts"
+    ],
+    "bytes": 4239,
+    "sha256": "501212cf274296f691f5018c3f769bd1394be68a5e0d36dcbc41ebf4a02bb66a"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/src/engagement-api.app.module.ts"
+    ],
+    "bytes": 4239,
+    "sha256": "501212cf274296f691f5018c3f769bd1394be68a5e0d36dcbc41ebf4a02bb66a"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/tenant/tenant-context.middleware.ts"
+    ],
+    "bytes": 23173,
+    "sha256": "25f51b1d894370b6d735822001e06345360f213475eaece21d1c1fd403d61b1f"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/src/tenant/tenant-context.middleware.ts"
+    ],
+    "bytes": 22931,
+    "sha256": "dabb24d3ab31777aeee64cd2b943ca8d256a89cd2f3e7196b90b06bc3945b346"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/src/tenant/tenant-context.middleware.ts"
+    ],
+    "bytes": 22931,
+    "sha256": "dabb24d3ab31777aeee64cd2b943ca8d256a89cd2f3e7196b90b06bc3945b346"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/config/config.schema.ts"
+    ],
+    "bytes": 76323,
+    "sha256": "b4f96e0700a883e5d98cab2307fe1c1081d1afec4dff1b823040f53b336cb039"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/src/config/config.schema.ts"
+    ],
+    "bytes": 75844,
+    "sha256": "8f98802e64d7b87eaf7c1187a9dd6533788bdcd7424bc4ee49d8ae9c4f2a72e9"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/src/config/config.schema.ts"
+    ],
+    "bytes": 75844,
+    "sha256": "8f98802e64d7b87eaf7c1187a9dd6533788bdcd7424bc4ee49d8ae9c4f2a72e9"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts"
+    ],
+    "bytes": 5752,
+    "sha256": "0e24effe12ea407d7a44650724b86c34324fc81ddbb9a12ec0559e478b317ae5"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "802bbd0b2c510a44e46a9952d8127e7edc55aaaa:apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts"
+    ],
+    "bytes": 5614,
+    "sha256": "b1ee9a1af2436d37be8cce468241812b36d2956bf63d5bb13e9f852181893b03"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "7ea444c74a5637577aa0eb3cb99cb420b5f8223e:apps/api/src/engagement/runtime/engagement-runtime-route-policy.ts"
+    ],
+    "bytes": 5614,
+    "sha256": "b1ee9a1af2436d37be8cce468241812b36d2956bf63d5bb13e9f852181893b03"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/engagement/newsletter-outreach.service.spec.ts"
+    ],
+    "bytes": 14420,
+    "sha256": "701b62d22496e3a2d338b1be259be8054322121d58411e7e2be3c6036db79052"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-account-provider.spec.ts"
+    ],
+    "bytes": 3068,
+    "sha256": "34e90203f190c8671f755bf95c1286df28dca1eec6e807e8d05d0afcfcdf4fea"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-invitation-email.worker.spec.ts"
+    ],
+    "bytes": 8201,
+    "sha256": "0c1e871a419b8e1ab30c87e78642da51fb7df2c370c14709bb8a4d7ef106b6f6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/api/src/workspace-collab/newsletter-review-email.worker.spec.ts"
+    ],
+    "bytes": 8093,
+    "sha256": "76d98ef7a226209d4587b1ff64864f6d3ee7c76c4e3c581c5b7dfef2946d23c2"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-asset-folders.spec.ts"
+    ],
+    "bytes": 6876,
+    "sha256": "42a7a81d1e7e3fe1f4e9e518127856c950f69cf126322a5f0c52566e11c25a04"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-asset-import.spec.ts"
+    ],
+    "bytes": 11558,
+    "sha256": "23abe3fae4f902495e507d499bb80c1049405190c1a76d651d6e54d46ecc18e6"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-assets.spec.ts"
+    ],
+    "bytes": 8251,
+    "sha256": "e9f0dbd6f71e034b2f8a1fa8938b0bf88f1a1a1c04d5e68fc59a27aab8109f1f"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-brand.spec.ts"
+    ],
+    "bytes": 7658,
+    "sha256": "c094e8f76d370af48b247d0e980e9e0e5beb45643f386c9299bb189f3c87f965"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-fonts.spec.ts"
+    ],
+    "bytes": 2785,
+    "sha256": "4aadc0c4863debd4b48f5fd490d3a4f35f602b9474482d93059797e0f3112533"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-html-check.spec.ts"
+    ],
+    "bytes": 4971,
+    "sha256": "be89fd54421e3a32c8af0d1cfe09b78e63dccc2cad64d676ce909e4f7bffe241"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts"
+    ],
+    "bytes": 6367,
+    "sha256": "5fc4118e099f35a4df9cd1e6f509e96d663d6e55ac05edf9987f6b08611da9c4"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-image.spec.ts"
+    ],
+    "bytes": 7641,
+    "sha256": "d897771f677513e038b037572a3fd4590e2008ca6d224ba674d4b5a4cf0698f0"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-link-preview.service.spec.ts"
+    ],
+    "bytes": 3890,
+    "sha256": "a50d5a1027fed540a90e9270a03103e736969cdf4c5f8147ef2739e87f2f8093"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-social-share.spec.ts"
+    ],
+    "bytes": 6057,
+    "sha256": "07307f4a9909800d543f38b0388e76cfaae53a7f955c1bca6d7f50a7f30bd96b"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-social.spec.ts"
+    ],
+    "bytes": 3004,
+    "sha256": "c76e977df3220c80d9abdeddbccd429603b2ebf210d9dfbe201305cdd3033705"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-stock-image.spec.ts"
+    ],
+    "bytes": 9684,
+    "sha256": "95cedd27f2dddaea01dabe633bc9f2fe5729bef6a162ab52df73e8c6c54d877a"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-survey.spec.ts"
+    ],
+    "bytes": 15787,
+    "sha256": "b3cf26e0eb4a50a609239f8b396e1d245fc6d19cece31613ff15ec5c70dad0de"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter-video.spec.ts"
+    ],
+    "bytes": 10762,
+    "sha256": "b54edd6dfaacc7ba6552e053894be0ccff374dca163b649ea1d8fbec84d1564a"
+  },
+  {
+    "argv": [
+      "git",
+      "show",
+      "1e99f0921b207318c6d2abf03927b5c4daa5768b:apps/workspace/src/newsletters/newsletter.spec.ts"
+    ],
+    "bytes": 38553,
+    "sha256": "cf9d1bd1152ae6665c6f534c436be3772319f4b1869b3e386228976e96ad731d"
+  }
+]
