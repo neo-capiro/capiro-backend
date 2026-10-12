@@ -16,6 +16,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   ParseIntPipe,
   ParseUUIDPipe,
@@ -33,6 +34,7 @@ import { OutreachCommandEngineService } from '../services/outreach-command-engin
 import { OutreachCommandProposalService } from '../services/outreach-command-proposal.service.js';
 import { OutreachV3StateGuard } from './outreach-v3-state.guard.js';
 import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
+import { ObjectiveDestinationQueryDto } from '../../clients/objectives/objective-destination.js';
 
 class CreateOutreachV3SessionDto {
   @IsOptional()
@@ -149,6 +151,16 @@ export class OutreachV3StateController {
     @Param('sessionId', ParseUUIDPipe) sessionId: string,
   ) {
     return this.sessions.archiveSession(ctx, sessionId);
+  }
+
+  @Header('Cache-Control', 'private, no-store')
+  @Get('sessions/:sessionId/objective-destination')
+  getObjectiveDestination(
+    @CurrentTenant() ctx: TenantContext,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @Query() query: ObjectiveDestinationQueryDto,
+  ) {
+    return this.sessions.getObjectiveDestination(ctx, sessionId, query);
   }
 
   @Post('sessions/:sessionId/commands')

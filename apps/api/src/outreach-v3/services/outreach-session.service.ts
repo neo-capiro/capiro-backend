@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type { TenantContext } from '@capiro/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import {
@@ -17,12 +17,18 @@ import {
   PHASE5_OUTREACH_FEATURE_AVAILABILITY,
 } from '../state/outreach-readiness.contract.js';
 import { assertOutreachContextSponsorIsolation } from '../context/outreach-context-sponsor-policy.js';
+import { ClientObjectivesService } from '../../clients/objectives/objectives.service.js';
+import {
+  normalizeObjectiveDestination,
+  type ObjectiveDestinationQueryDto,
+} from '../../clients/objectives/objective-destination.js';
 
 @Injectable()
 export class OutreachSessionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly repository: OutreachStateRepository,
+    private readonly objectives: ClientObjectivesService,
   ) {}
 
   async createSession(ctx: TenantContext, input?: { title?: string | null }) {
@@ -80,12 +86,53 @@ export class OutreachSessionService {
         session.currentStateVersion,
       );
       const spec = this.parseAndVerifyVersion(version);
-      const pendingProposalCount = await this.repository.countPendingProposals(
+      const pendingProposalCount = await this.repository.countPendingProposals(tx, ctx, session.id);
+      return {
+        session,
+        currentStateVersion: version.version,
+        spec,
+        specHash: version.specHash,
+        readiness: deriveOutreachReadiness(spec, PHASE5_OUTREACH_FEATURE_AVAILABILITY),
+        pendingProposalCount,
+      };
+    });
+  }
+
+  async getObjectiveDestination(
+    ctx: TenantContext,
+    sessionId: string,
+    input: ObjectiveDestinationQueryDto,
+  ) {
+    const binding = normalizeObjectiveDestination(input);
+    return this.prisma.withTenantUser(ctx.tenantId, ctx.userId, async (tx) => {
+      // Serialize sponsor edits and archive with resolution. Never trust a
+      // binding previously returned to the browser as destination authority.
+      const session = await this.repository.lockOwnedSession(tx, ctx, sessionId);
+      if (session.status !== 'active' || session.archivedAt !== null)
+        throw new NotFoundException('Objective destination not found');
+      const revision = await this.objectives.requireDestinationRevisionWithinTx(tx, ctx, binding);
+      const version = await this.repository.loadStateVersion(
         tx,
         ctx,
         session.id,
+        session.currentStateVersion,
       );
+      const spec = this.parseAndVerifyVersion(version);
+      // Multi-client and firm scopes grant no same-client destination authority.
+      if (
+        spec.sponsor.kind !== 'client' ||
+        spec.sponsor.clientRefs.length !== 1 ||
+        spec.sponsor.clientRefs[0].clientId.toLowerCase() !== binding.clientId
+      )
+        throw new NotFoundException('Objective destination not found');
+      const pendingProposalCount = await this.repository.countPendingProposals(tx, ctx, session.id);
       return {
+        destination: {
+          kind: 'outreach_session' as const,
+          resourceId: session.id,
+          ...revision,
+          destinationStateVersion: version.version,
+        },
         session,
         currentStateVersion: version.version,
         spec,

@@ -15,6 +15,7 @@ import { StarterTemplateSeeder } from '../templates/starter-template-seeder.js';
 import { OutreachV3StateController } from './outreach-v3-state.controller.js';
 import { OutreachV3StateGuard } from './outreach-v3-state.guard.js';
 import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
+import { ClientObjectivesService } from '../../clients/objectives/objectives.service.js';
 
 @Module({
   imports: [PrismaModule, CapabilitiesModule],
@@ -26,6 +27,7 @@ import { OutreachV3ExceptionFilter } from './outreach-v3-exception.filter.js';
       useExisting: OutreachAuditedStateRepository,
     },
     OutreachSessionService,
+    ClientObjectivesService,
     OutreachCommandEngineService,
     OutreachCommandProposalService,
     OutreachStateVersionGuardService,
