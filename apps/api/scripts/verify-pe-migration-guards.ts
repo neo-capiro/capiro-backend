@@ -1,5 +1,5 @@
 /**
- * @cleanup-smoke noArgsExit=0 helpExit=0
+ * @cleanup-smoke noArgsExit=1 helpExit=0
  * Executable migration guards for PE permanent release gate (K4).
  *
  * Offline (always):
@@ -143,4 +143,9 @@ function main(): void {
   console.log('PE_MIGRATION_GUARDS_OK');
 }
 
-main();
+try {
+  main();
+} catch (error) {
+  console.error(`PE_MIGRATION_GUARDS_FAILED: ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+}

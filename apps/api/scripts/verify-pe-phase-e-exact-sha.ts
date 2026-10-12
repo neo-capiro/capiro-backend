@@ -1,5 +1,5 @@
 /**
- * @cleanup-smoke noArgsExit=0 helpExit=0
+ * @cleanup-smoke noArgsExit=1 helpExit=0
  * Phase E static verifier: every PE dollar loader must import the exact-SHA
  * contract and gate --commit on --approved-sha256. No DB or vendor calls.
  */

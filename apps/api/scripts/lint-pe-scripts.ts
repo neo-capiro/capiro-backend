@@ -1,5 +1,5 @@
 /**
- * @cleanup-smoke noArgsExit=0 helpExit=0
+ * @cleanup-smoke noArgsExit=1 helpExit=0
  * Static lint for PE production scripts (Phase K / closeout Phase 8).
  *
  * Does not require ESLint binary path stability across platforms. Enforces:
@@ -111,4 +111,9 @@ function main(): void {
   console.log('PE_LINT_SCRIPTS_OK');
 }
 
-main();
+try {
+  main();
+} catch (error) {
+  console.error(`PE_LINT_SCRIPTS_FAILED: ${error instanceof Error ? error.message : String(error)}`);
+  process.exit(1);
+}
