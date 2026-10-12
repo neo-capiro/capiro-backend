@@ -1,0 +1,135 @@
+{
+  "proposedProductionPaths": [
+    {
+      "path": "apps/workspace/src/cascade/workspace-product.registry.ts",
+      "status": "new, NOT IMPLEMENTED",
+      "role": "11 descriptors own metadata, sections, pages, list membership and independent projection ranks; derived mutable compatibility maps/lists and typed preset-name references"
+    },
+    {
+      "path": "apps/workspace/src/cascade/cascade.config.ts",
+      "status": "existing, MUST AWAIT RETIREMENT MAP",
+      "role": "retain public const aliases/interfaces and WSC method bodies; redirect six initializers and19CASCADE primitive name references only; preserve all other data/ordering/shape"
+    },
+    {
+      "path": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "status": "new, NOT IMPLEMENTED",
+      "role": "green before conversion: pinned full catalog/order/default/fallback/error/reference/mutation profile"
+    },
+    {
+      "path": "apps/workspace/test/fixtures/product-registry-before.json",
+      "status": "new immutable golden, NOT IMPLEMENTED",
+      "role": "frozen6a4 old-source values/profile; expected outputs must never be regenerated from the post-conversion registry"
+    },
+    {
+      "path": "apps/workspace/test/cascade.spec.ts",
+      "status": "existing7cases unchanged in this audit",
+      "role": "preserve original11-vs10 RED; root owns any separate explicit stale expectation reconciliation using Q-LIB-A, with no product removal"
+    }
+  ],
+  "mustRemainUnchangedProductionCallers": [
+    "apps/workspace/src/cascade/cascade.service.ts",
+    "apps/workspace/src/cascade/cascade.controller.ts",
+    "apps/workspace/src/cascade/cascade.module.ts",
+    "apps/workspace/src/generation/generation.service.ts",
+    "apps/workspace/src/checks/checks.service.ts",
+    "apps/workspace/src/drafts/drafts.service.ts",
+    "apps/workspace/src/drafts/dto/draft.dto.ts"
+  ],
+  "compatibilityAliases": [
+    "UNIVERSAL_PRODUCTS",
+    "CANONICAL_PRODUCTS",
+    "FUNDING_PRODUCTS",
+    "PRODUCT_META",
+    "SUGGESTED_SECTIONS",
+    "SUGGESTED_PAGES"
+  ],
+  "preservedOtherExports": [
+    "CASCADE",
+    "INDUSTRY_DATA",
+    "SECTION_LIBRARY",
+    "WSC",
+    "sectionSpecFor",
+    "CascadeProduct",
+    "CascadeIndustry",
+    "ProductMeta",
+    "IndustryDatum",
+    "SectionSpec"
+  ],
+  "projectionOrders": {
+    "PRODUCT_META": [
+      "White paper",
+      "Appropriations Justification",
+      "NDAA Authorization Request",
+      "Meeting Brief & Advocacy",
+      "CDS / Earmark Application",
+      "Authorization Bill Language",
+      "Report Language Request",
+      "Member letter",
+      "Strategy memo",
+      "Written testimony",
+      "One-pager"
+    ],
+    "SUGGESTED_SECTIONS": [
+      "NDAA Authorization Request",
+      "Appropriations Justification",
+      "CDS / Earmark Application",
+      "Authorization Bill Language",
+      "Report Language Request",
+      "Meeting Brief & Advocacy",
+      "Member letter",
+      "Written testimony",
+      "One-pager",
+      "Strategy memo",
+      "White paper"
+    ],
+    "SUGGESTED_PAGES": [
+      "White paper",
+      "Appropriations Justification",
+      "NDAA Authorization Request",
+      "Meeting Brief & Advocacy",
+      "Strategy memo",
+      "Member letter",
+      "Written testimony",
+      "One-pager",
+      "CDS / Earmark Application",
+      "Authorization Bill Language",
+      "Report Language Request"
+    ]
+  },
+  "rankFields": "CANONICAL_PRODUCTS, UNIVERSAL_PRODUCTS, FUNDING_PRODUCTS, PRODUCT_META, SUGGESTED_SECTIONS, SUGGESTED_PAGES: zero-based original rank or null for nonmembers",
+  "rootOwnedRatchetDependencies": [
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "status": "plan-required; absent at auditbase; root prototype9c7bd2de under independent review, outside this source audit"
+    },
+    {
+      "path": "scripts/registry-ownership-boundaries.json",
+      "status": "proposed data path; root decides actual schema/path; no profile data added here"
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "status": "root-owned adversarial validation; no changes here"
+    },
+    {
+      "path": "package.json",
+      "status": "root-owned finite gate alias, same-change seam obligation"
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "status": "root-owned pure gate wiring, same-change seam obligation"
+    },
+    {
+      "path": "docs/plans/cleanup4-progress.md",
+      "status": "root-owned boundedsource posture; no full Cleanup1/4 acceptance"
+    }
+  ],
+  "D2LaterOptionalSlice": [
+    "apps/workspace/src/cascade/section-spec.registry.ts",
+    "apps/workspace/src/cascade/cascade.config.ts",
+    "apps/workspace/test/section-spec-characterization.spec.ts"
+  ],
+  "securityOrProductChangesProposed": false,
+  "frontendConsumptionRequested": false,
+  "productionImplementationAuthorizedByThisAudit": false,
+  "retirementCoordination": "Parent ownership/retirement file map pending. Root coordination is required before dependent production edits; this audit supplies a finite contract only."
+}

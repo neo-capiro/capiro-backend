@@ -1,0 +1,19 @@
+{
+  "AUDIT.md": "ce6ba5d75f2f93a8ef9ce5a9ba85ff1ea0a29a9ad7985197f060579fa1d1c592",
+  "PROPOSED-FILE-MAP.json": "380f812f1357924029ddf806ce1a108f25a67990ea7dd7bb483b6a3847aace00",
+  "SOURCE-MANIFEST.json": "df1bc5e1cb315b2a6f410de96da638f091be3ded0cc9ffbe26e2d2cd7e74c230",
+  "evidence/callers-and-ordered-rules.json": "49402c65d830ee4e45d2a064eb988b48293e21c7f0b24eccfbe753bafddd7a2a",
+  "evidence/cascade-baseline.jest.cjs": "636ac5ac6729b7f51ebb42e4c668a3835ad8c56a91dc3dce39374dd390cb8791",
+  "evidence/cascade-original-red.json": "527725a649f6f2bafea9ab6658893597c0b079205d9a7a5eeb0a0e8159702c5c",
+  "evidence/cascade-original-red.stderr.log": "c89f3c81b82348fa3c6bea2104577e67f9fd18c28623ddabb8e0aa40412a7971",
+  "evidence/cascade-original-red.stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "evidence/command-receipts.json": "96efe2503c5fc0cb908e0507d05a674eb93ee52b13860d29a35c23e312513b9f",
+  "evidence/inert-nest.cjs": "768bd32213a9e4e02032b0f40e23aeebc7ac45c0f3fb5d616fdde23760a1635c",
+  "evidence/original-cascade.config.ts": "3a32a9d94d87ffd08448a6259d1b81214ac28d6ef918e0487ae608c412428341",
+  "evidence/original-cascade.service.ts": "d6b684beea01c875de10fa88c8700a841db457e6d4ade0ba23d2dbd6e4a7ba21",
+  "evidence/original-cascade.spec.ts": "3f5a444f632021bca7a5a8e3ac60b560c118289597403f78dd7921b2efd05ebd",
+  "evidence/original-source-snapshots.json": "99cacca48616f2f0a87f1dceffb72b89c5a0db2dd2c7d251f0d44683bafd6adc",
+  "evidence/product-projection-probe.cjs": "876cd32ffb6cd8c90b83101e1a50da7fd62588726f1fde06be76a3f46a637066",
+  "evidence/product-projection-probe.json": "ece2f89077bde33e4fa3b0f96b7576ca745b6c2cf44603c55e5a39a896eb6585",
+  "evidence/product-projection-probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
