@@ -1,0 +1,93 @@
+{
+  "base": "61e9b467295235829e7d8097368ce41b0434818a",
+  "baseTree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "candidateSourceHead": "f3fab43ab8e01a066f56559fabb273969f01f1ff",
+  "candidateSourceTree": "fe6b66770b98fb394d5aa9db48f94499e6d65145",
+  "changedSourcePaths": [
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/docling_engine.py",
+      "beforeSha256": "73e35a8505d4655e68f6d29dc0a48482c73055cc52f59456094731599e6fda0b",
+      "sha256": "453f9d8c71bb34a62120c93c6effd2a2c2d58d2a04db7244f29a2c2cecbdbd93",
+      "acceptedSource": "ab0fc946192f3f49ce9e94d66a3d3ac5cf7a94cf",
+      "acceptedTree": "1aba170aa516a31f70e4a63b57fb67e501caa795",
+      "independentReview": "96c1db880f1b8f8ed0edf65a0abf5073baeeb1f7",
+      "independentReviewTree": "6b398fbe649f4e3f9b583021e0908296218c7814"
+    },
+    {
+      "path": "apps/defense-budget-parser/src/capiro_defense_budget_parser/paddleocr_engine.py",
+      "beforeSha256": "1f5fd2238a26b56446e3a360e156e3e4b3b0436a6333825306fad7dcde46ee7f",
+      "sha256": "9438c6e2603cc2740dbd766438095d7314ba7402b022e7a5cc9886021cae4c51",
+      "acceptedSource": "ab0fc946192f3f49ce9e94d66a3d3ac5cf7a94cf",
+      "acceptedTree": "1aba170aa516a31f70e4a63b57fb67e501caa795",
+      "independentReview": "96c1db880f1b8f8ed0edf65a0abf5073baeeb1f7",
+      "independentReviewTree": "6b398fbe649f4e3f9b583021e0908296218c7814"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_docling_engine.py",
+      "beforeSha256": "837d93944822e0d3d9258fc749cb9f1019661a609042865404a6eb5b4fb4cf7f",
+      "sha256": "2358ef6c326740930b5e62aedde9d0e0a31170b7eeae845ae81bdf764f378302",
+      "acceptedSource": "ab0fc946192f3f49ce9e94d66a3d3ac5cf7a94cf",
+      "acceptedTree": "1aba170aa516a31f70e4a63b57fb67e501caa795",
+      "independentReview": "96c1db880f1b8f8ed0edf65a0abf5073baeeb1f7",
+      "independentReviewTree": "6b398fbe649f4e3f9b583021e0908296218c7814"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_paddleocr_engine.py",
+      "beforeSha256": "2c73080fd7ce1a9907af107a06eaa964b84c3fc10a5b63ee2af88af1511d6bc6",
+      "sha256": "df841cb45e68276c9de5835268834373bfc3d1a86a8e26ba7334489db8060ee3",
+      "acceptedSource": "ab0fc946192f3f49ce9e94d66a3d3ac5cf7a94cf",
+      "acceptedTree": "1aba170aa516a31f70e4a63b57fb67e501caa795",
+      "independentReview": "96c1db880f1b8f8ed0edf65a0abf5073baeeb1f7",
+      "independentReviewTree": "6b398fbe649f4e3f9b583021e0908296218c7814"
+    },
+    {
+      "path": "apps/defense-budget-parser/tests/test_pdfplumber_engine.py",
+      "beforeSha256": "d7564f2c8da2d616306c0ecf35ba9c9102b6e414cea4635b697224d91fdb3d94",
+      "sha256": "2f357f507326b5bc67f9b5b65f2d3b6a1d826b3cb8ca23c6368b4275e3e49430",
+      "acceptedSource": "ab0fc946192f3f49ce9e94d66a3d3ac5cf7a94cf",
+      "acceptedTree": "1aba170aa516a31f70e4a63b57fb67e501caa795",
+      "independentReview": "96c1db880f1b8f8ed0edf65a0abf5073baeeb1f7",
+      "independentReviewTree": "6b398fbe649f4e3f9b583021e0908296218c7814"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-image-revisions.spec.ts",
+      "beforeSha256": "5fc4118e099f35a4df9cd1e6f509e96d663d6e55ac05edf9987f6b08611da9c4",
+      "sha256": "ff63434570ead06988fbefe91a39bb6eea6c4c810a544191909af79d609dc05e",
+      "acceptedSource": "e2f04d1a0d0f035a4f2fbf6e502323915c4240ba",
+      "acceptedTree": "47c35bfbb15353e5b88c47d17199dd9f40860cad",
+      "independentReview": "2c9192959662507302424f63eaa5f522876894e2",
+      "independentReviewTree": "12d803adb232fc03822d863b46a50c59d7b3c464"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-stock-image.spec.ts",
+      "beforeSha256": "95cedd27f2dddaea01dabe633bc9f2fe5729bef6a162ab52df73e8c6c54d877a",
+      "sha256": "b150934b6af76333b8d273833b4a15d3dfe8ea8d7595925ba94ac1fd6159da87",
+      "acceptedSource": "e2f04d1a0d0f035a4f2fbf6e502323915c4240ba",
+      "acceptedTree": "47c35bfbb15353e5b88c47d17199dd9f40860cad",
+      "independentReview": "2c9192959662507302424f63eaa5f522876894e2",
+      "independentReviewTree": "12d803adb232fc03822d863b46a50c59d7b3c464"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-survey.spec.ts",
+      "beforeSha256": "b3cf26e0eb4a50a609239f8b396e1d245fc6d19cece31613ff15ec5c70dad0de",
+      "sha256": "f1fe4fb7f22aacff1a5214dc42cfe1662f4b1108d9c9417c2e07e703ce69b6d9",
+      "acceptedSource": "e2f04d1a0d0f035a4f2fbf6e502323915c4240ba",
+      "acceptedTree": "47c35bfbb15353e5b88c47d17199dd9f40860cad",
+      "independentReview": "2c9192959662507302424f63eaa5f522876894e2",
+      "independentReviewTree": "12d803adb232fc03822d863b46a50c59d7b3c464"
+    },
+    {
+      "path": "apps/workspace/test/cascade.spec.ts",
+      "beforeSha256": "3f5a444f632021bca7a5a8e3ac60b560c118289597403f78dd7921b2efd05ebd",
+      "sha256": "782870251eab85a057be6e3b74aacbc47ffe4e0158048a728f627a981074bddc",
+      "acceptedSource": "5a3c73f0b626a0d659d1a4fbbdb1ef37040310e6",
+      "acceptedTree": "df6fa9ccf56959552eaf68f82e4c7942abc3d00a",
+      "independentReview": "96c1db880f1b8f8ed0edf65a0abf5073baeeb1f7",
+      "independentReviewTree": "6b398fbe649f4e3f9b583021e0908296218c7814"
+    }
+  ],
+  "allOtherTrackedNonDocsUnchanged": 11757,
+  "preservedSchemaAndMigrationPaths": 617,
+  "schemaMigrationNonDocs": 609,
+  "scope": "Three newsletter specs, five reviewed Python paths, one Cascade count literal; no package/lock/CI/contract/schema changes"
+}

@@ -1,0 +1,102 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "checks": [
+    {
+      "label": "Shared production build",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/shared-standard-build.log",
+      "logBytes": 125,
+      "logSha256": "d1e6f6bb62b8927f6169af5e6904e70074ea9773294d3b8cbd224476b7651f7c"
+    },
+    {
+      "label": "Auth production build",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/auth-standard-build.log",
+      "logBytes": 121,
+      "logSha256": "07f2fc6ba856579d02688563b3dc0dbae584d91e82f1fee3ac03e00a412be8c9"
+    },
+    {
+      "label": "Meri Core production build",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/meri-core-standard-build.log",
+      "logBytes": 135,
+      "logSha256": "61ada442e5691428593d3a8b8aca30bafe21a73230df3cd1a4f002494091d5b2"
+    },
+    {
+      "label": "Workspace standard typecheck first missing cache links",
+      "exitCode": 2,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/workspace-standard-typecheck.log",
+      "logBytes": 1064,
+      "logSha256": "55161bfe6a4e3a049b570615f5aad4a928d62f5226c2c204d40882fcad704615"
+    },
+    {
+      "label": "Workspace standard typecheck repaired host",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/workspace-standard-typecheck-host-repaired.log",
+      "logBytes": 123,
+      "logSha256": "4ee19efb54495d0a73dac1d1605e2f6ff38a39ebe26f5ee29d1e412871a18736"
+    },
+    {
+      "label": "Workspace production build",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/workspace-standard-build.log",
+      "logBytes": 117,
+      "logSha256": "af2a955fecfd388e5a3190603c7ff53b727f240abe4841b5bc0ab94cd17d3d2d"
+    },
+    {
+      "label": "Meri Core first operator path typo",
+      "exitCode": 1,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/meri-core-standard-build-first.log",
+      "logBytes": 803,
+      "logSha256": "371fa722e5023e4387e91fdf77a308cee6ec9e47d9a5f3c6e572afd9e79d4e01"
+    },
+    {
+      "label": "Four runtime source guards and config regression suite",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/local-root-guards.tap",
+      "logBytes": 20403,
+      "logSha256": "670ca7a163fa233f8a947916903971b8aabaaf65e13f76087f3de0684acb6bbf"
+    },
+    {
+      "label": "Tango actual root alias",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/tango-runtime-gate.log",
+      "logBytes": 808,
+      "logSha256": "5bf551ff78367a66b8125a1a4de6833ead0d4d86b447d01371c3831616bf16d3"
+    },
+    {
+      "label": "context-plane architecture guard",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/context-plane-architecture-guard.log",
+      "logBytes": 1347,
+      "logSha256": "03b1f4aa7152266895990381118af39d27fb1b97cec998183c9b80d527ca3673"
+    },
+    {
+      "label": "evaluation architecture guard",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/evaluation-architecture-guard.log",
+      "logBytes": 1424,
+      "logSha256": "4bcdb6f9c5e556014c97aa1ef28473c0271a143597b5198b65758c401f8c32bb"
+    },
+    {
+      "label": "learning-signal architecture guard",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/learning-signal-architecture-guard.log",
+      "logBytes": 1293,
+      "logSha256": "06a0510284f8b2058334eb4276737a0885ec0137f984e27c2ddf8ad6d20b73f0"
+    },
+    {
+      "label": "quality-telemetry architecture guard",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/quality-telemetry-architecture-guard.log",
+      "logBytes": 1270,
+      "logSha256": "21ffb3beaed9e61aec50b83312c574f406e2fec64b1457b71793e03798fd1223"
+    }
+  ],
+  "rootTests": 267,
+  "tangoCases": 237,
+  "pinnedPnpm": "9.12.0",
+  "node": "24.19.0",
+  "workspaceHostCleanInstallClaim": false,
+  "productionBodyOrLockChanged": false
+}

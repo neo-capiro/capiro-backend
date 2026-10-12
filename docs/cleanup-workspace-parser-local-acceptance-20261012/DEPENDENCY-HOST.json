@@ -1,0 +1,33 @@
+{
+  "parserPath": "/tmp/capirov2-workspace-parser-acceptance-cache-20261012/htmlparser2-8.0.2/package",
+  "exactLockedDirectDependencies": [
+    {
+      "package": "domelementtype",
+      "lockedVersion": "2.3.0",
+      "target": "/workspace/capirov2/node_modules/.pnpm/domelementtype@2.3.0/node_modules/domelementtype",
+      "packageJsonSha256": "4ddf28a1e60ae7ec15f62cda0d72eb06bcae05b3819942d971c841b7cc0b6930"
+    },
+    {
+      "package": "domhandler",
+      "lockedVersion": "5.0.3",
+      "target": "/workspace/capirov2/node_modules/.pnpm/domhandler@5.0.3/node_modules/domhandler",
+      "packageJsonSha256": "cbb42a446eef285863e04158c7f269e0e7b8e868c1042d6845e996d760f7376c"
+    },
+    {
+      "package": "domutils",
+      "lockedVersion": "3.2.2",
+      "target": "/workspace/capirov2/node_modules/.pnpm/domutils@3.2.2/node_modules/domutils",
+      "packageJsonSha256": "9a04689cc67f52e9f7323e0dd4d18c8cbe68744c3373ad524d133ddf12bf99ab"
+    },
+    {
+      "package": "entities",
+      "lockedVersion": "4.5.0",
+      "target": "/workspace/capirov2/node_modules/.pnpm/entities@4.5.0/node_modules/entities",
+      "packageJsonSha256": "c92f657f679669a91bc32cd98f0b4812b3f4a9c6f3b3af3022a70cb25b7efc7c"
+    }
+  ],
+  "workspaceIsolatedNodeModules": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/workspace/node_modules",
+  "generatedDeclarationsReusedFromVerifiedAuthorOutputs": true,
+  "sharedCacheEdited": false,
+  "applicationSourceOrLockChanged": false
+}

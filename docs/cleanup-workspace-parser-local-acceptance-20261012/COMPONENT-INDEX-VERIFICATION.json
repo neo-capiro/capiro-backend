@@ -1,0 +1,42 @@
+[
+  {
+    "index": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/SHA256-INDEX.json",
+    "checkedEntries": 30,
+    "allPass": true
+  },
+  {
+    "index": "docs/cleanup-newsletter-mocked-local-acceptance-20261012/SHA256-INDEX.json",
+    "checkedEntries": 52,
+    "allPass": true
+  },
+  {
+    "index": "docs/cleanup-runtime-characterization-61e9-20261012/SHA256.json",
+    "checkedEntries": 17,
+    "allPass": true
+  },
+  {
+    "index": "docs/cleanup-newsletter-mocked-fixture-independent-review-20261012/SHA256-INDEX.json",
+    "checkedEntries": 25,
+    "allPass": true
+  },
+  {
+    "index": "docs/cleanup-python-quality-independent-review-20261012/SHA256-INDEX.json",
+    "checkedEntries": 20,
+    "allPass": true
+  },
+  {
+    "index": "docs/cleanup-core-canonical-typechain-probe-20261012/SHA256-INDEX.json",
+    "checkedEntries": 18,
+    "allPass": true
+  },
+  {
+    "index": "docs/cleanup-backend-native-prerequisite-audit-20261012/SHA256SUMS",
+    "checkedEntries": 69,
+    "allPass": true
+  },
+  {
+    "index": "docs/cleanup-stale-catalog-count-tests-20261012/SHA256SUMS",
+    "checkedEntries": 16,
+    "allPass": true
+  }
+]

@@ -1,0 +1,13 @@
+
+> capiro@0.0.0 gate:cleanup4:tango-page-leaves /tmp/capirov2-cleanup-meri-reviewed-runtime-conversion
+> pnpm --filter @capiro/api exec jest --config ../../scripts/cleanup-runtime-equivalence.jest.cjs --runInBand --runTestsByPath src/external/tango/tango-rest-page.spec.ts src/external/tango/tango-sbir.client.spec.ts src/external/tango/tango-subaward.client.spec.ts
+
+PASS src/external/tango/tango-sbir.client.spec.ts
+PASS src/external/tango/tango-rest-page.spec.ts
+PASS src/external/tango/tango-subaward.client.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       237 passed, 237 total
+Snapshots:   0 total
+Time:        2.655 s
+Ran all test suites within paths "src/external/tango/tango-rest-page.spec.ts", "src/external/tango/tango-sbir.client.spec.ts", "src/external/tango/tango-subaward.client.spec.ts".

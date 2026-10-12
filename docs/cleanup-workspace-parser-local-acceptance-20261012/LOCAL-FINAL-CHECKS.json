@@ -1,0 +1,48 @@
+{
+  "originalLocalChecksUnmodified": "LOCAL-CHECKS.json",
+  "checks": [
+    {
+      "label": "Workspace final spec typecheck",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/workspace-final-spec-typecheck.log",
+      "bytes": 123,
+      "sha256": "4ee19efb54495d0a73dac1d1605e2f6ff38a39ebe26f5ee29d1e412871a18736"
+    },
+    {
+      "label": "Python proposed format remaining E501",
+      "exitCode": 1,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/python-ruff-repaired.log",
+      "bytes": 508,
+      "sha256": "2e9d09833b8102e0cd5f1b6b635b466e69c31b51282f706e101913e0c3c10f4d"
+    },
+    {
+      "label": "Python final Ruff",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/python-ruff-final.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "label": "Python repaired mypy37",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/python-mypy-repaired.log",
+      "bytes": 44,
+      "sha256": "34df9cf38736563d4bb02e64b66effac851acb546ad0a3c3761547e25bbe3570"
+    },
+    {
+      "label": "Python final pytest283",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/python-pytest-final.log",
+      "bytes": 6887,
+      "sha256": "2686a19366ac734bd2545f86191793b741ce9dcd5e47c0520c1bfc533b419696"
+    },
+    {
+      "label": "Current exact CI formatter scope",
+      "exitCode": 0,
+      "log": "docs/cleanup-workspace-parser-local-acceptance-20261012/evidence/ci-format-scope-current.log",
+      "bytes": 66,
+      "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    }
+  ],
+  "canonicalCoreTypecheck": "../cleanup-core-canonical-typechain-probe-20261012/evidence/result.json"
+}

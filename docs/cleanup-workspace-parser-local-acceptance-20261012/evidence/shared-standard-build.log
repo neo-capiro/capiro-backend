@@ -1,0 +1,4 @@
+
+> @capiro/shared@0.0.0 build /tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/shared
+> tsc -p tsconfig.json
+

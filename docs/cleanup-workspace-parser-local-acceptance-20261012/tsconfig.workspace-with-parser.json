@@ -1,0 +1,15 @@
+{
+  "extends": "../cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.workspace-source.final-host.json",
+  "compilerOptions": {
+    "paths": {
+      "@capiro/shared": ["packages/shared/src/index.ts"],
+      "@capiro/shared/*": ["packages/shared/src/*"],
+      "@capiro/auth": ["packages/auth/src/index.ts"],
+      "@capiro/meriv2-core": ["packages/meriv2-core/src/index.ts"],
+      "@capiro/meriv2-core/*": ["packages/meriv2-core/src/*"],
+      "pdfkit": ["/workspace/capirov2/apps/workspace/node_modules/@types/pdfkit/index.d.ts"],
+      "sharp": ["/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp/lib/index.d.ts"],
+      "htmlparser2": ["/tmp/capirov2-workspace-parser-acceptance-cache-20261012/htmlparser2-8.0.2/package/lib/index.d.ts"]
+    }
+  }
+}

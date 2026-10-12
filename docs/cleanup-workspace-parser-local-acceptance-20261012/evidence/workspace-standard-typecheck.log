@@ -1,0 +1,13 @@
+
+> @capiro/workspace@0.0.0 typecheck /tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/workspace
+> tsc --noEmit
+
+src/newsletters/newsletter-link-preview.service.ts(3,26): error TS2307: Cannot find module 'sanitize-html' or its corresponding type declarations.
+src/newsletters/newsletter-validation.ts(2,26): error TS2307: Cannot find module 'sanitize-html' or its corresponding type declarations.
+src/newsletters/newsletter-validation.ts(79,11): error TS7006: Parameter '_tag' implicitly has an 'any' type.
+src/newsletters/newsletter-validation.ts(79,17): error TS7006: Parameter 'attrs' implicitly has an 'any' type.
+src/newsletters/newsletter-video.service.ts(2,19): error TS2307: Cannot find module 'sharp' or its corresponding type declarations.
+src/newsletters/newsletter-video.spec.ts(2,19): error TS2307: Cannot find module 'sharp' or its corresponding type declarations.
+/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/workspace:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @capiro/workspace@0.0.0 typecheck: `tsc --noEmit`
+Exit status 2

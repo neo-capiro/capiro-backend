@@ -1,0 +1,63 @@
+{
+  "ownedWorkspacePackageLinks": [
+    {
+      "link": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/workspace/node_modules/@capiro/shared",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/shared"
+    },
+    {
+      "link": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/workspace/node_modules/@capiro/auth",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/auth"
+    },
+    {
+      "link": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/apps/workspace/node_modules/@capiro/meriv2-core",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/meriv2-core"
+    },
+    {
+      "link": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/auth/node_modules/@capiro/shared",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/shared"
+    },
+    {
+      "link": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/auth/node_modules/@capiro/auth",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/auth"
+    },
+    {
+      "link": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/auth/node_modules/@capiro/meriv2-core",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/meriv2-core"
+    },
+    {
+      "link": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/meriv2-core/node_modules/@capiro/shared",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/shared"
+    },
+    {
+      "link": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/meriv2-core/node_modules/@capiro/auth",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/auth"
+    },
+    {
+      "link": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/meriv2-core/node_modules/@capiro/meriv2-core",
+      "target": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/packages/meriv2-core"
+    }
+  ],
+  "foreignNodeModulesEdited": false,
+  "sourceOrLockEdited": false,
+  "missingRestoredDependencyLinksAdded": [
+    {
+      "package": "sanitize-html",
+      "version": "2.17.7",
+      "target": "/workspace/capirov2/node_modules/.pnpm/sanitize-html@2.17.7/node_modules/sanitize-html",
+      "link": "apps/workspace/node_modules/sanitize-html"
+    },
+    {
+      "package": "sharp",
+      "version": "0.35.5",
+      "target": "/workspace/capirov2/node_modules/.pnpm/sharp@0.35.5_@types+node@26.6.3/node_modules/sharp",
+      "link": "apps/workspace/node_modules/sharp"
+    },
+    {
+      "package": "@types/sanitize-html",
+      "version": "2.16.1",
+      "target": "/workspace/capirov2/node_modules/.pnpm/@types+sanitize-html@2.16.1/node_modules/@types/sanitize-html",
+      "link": "apps/workspace/node_modules/@types/sanitize-html"
+    }
+  ],
+  "sharpCachedPeerTypesContext": "26.6.3; package version0.35.5 retained, pinned importer peer20.19.39 not a clean-install claim"
+}

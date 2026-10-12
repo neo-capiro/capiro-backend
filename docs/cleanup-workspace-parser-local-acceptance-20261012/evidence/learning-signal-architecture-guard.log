@@ -1,0 +1,14 @@
+OK: diff-scoped bypass/promotion check passed
+OK: repo-wide learningSignal census: zero out-of-module consumers
+OK: repo-wide learning-implementation census: no active-memory WRITE anywhere, no candidate-surface reference outside the one approved 27B file
+OK: LearningSignal.tenantId present — auto-covered by PrismaService tenant-scope + tenant-scope-guard.spec.ts
+OK: LearningSignal model has no vector/embedding column
+OK: proposed_memory_layer CHECK constraint lists exactly the five frozen SteeringLayer values
+OK: memory.learning_signal.requires_review exists and precedes memory.personal.auto_commit (never auto-commits regardless of scope)
+OK: candidate-generation idempotency guard present: unique index scoped to source_type = 'learning_signal_capture'
+OK: learning_signal_candidate_outcome eligibility CHECK constraint present
+OK: learning-signal-memory-conflict.service.ts queries memory_items read-only (SELECT present, no mutation verb)
+OK: proposeSaveMemory INSERT sets contradicts_memory_item_id/conflict_status (Phase 27C conflict flags are live, not a no-op)
+OK: decideLearningSignalCandidate exists on ImmutableMemoryVersionService and is unreferenced anywhere under apps/api/src/learning/ or packages/meriv2-core/src/learning/
+
+learning-signal architecture guard passed.
