@@ -1,0 +1,25 @@
+PASS apps/api/src/clients/clients.memory-access-lock-order.spec.ts
+  ClientsService.setMemoryAccess client-first lock contract (exact method fragment)
+    ✓ binds tenant and client as separate parameters in the first transaction operation (4 ms)
+    ✓ awaits the lock before any client, membership, roster, audit or mutation operation (1 ms)
+    ✓ an absent tenant/client lock row retains 404 and stops before all owner reads and writes (1 ms)
+    ✓ a lock error propagates unchanged before any owner operation
+    ✓ preserves the original findFirst absence 404 after a successful lock
+    ✓ foreign-tenant membership still rejects the complete request before roster writes or audit
+    ✓ preserves replace-set writes, actor/tenant audit, sorted snapshots and ordered deduplicated return
+    ✓ an unchanged flag and roster still audit but do not write client or grants (1 ms)
+    ✓ an empty complete roster removes every prior grant and retains the self-grant audit evidence (1 ms)
+    ✓ preserves error propagation and stops later operations when client fails (1 ms)
+    ✓ preserves error propagation and stops later operations when members fails
+    ✓ preserves error propagation and stops later operations when roster fails (1 ms)
+    ✓ preserves error propagation and stops later operations when add fails
+    ✓ preserves error propagation and stops later operations when remove fails
+    ✓ preserves error propagation and stops later operations when update fails
+    ✓ preserves error propagation and stops later operations when audit fails
+
+Test Suites: 1 passed, 1 total
+Tests:       16 passed, 16 total
+Snapshots:   0 total
+Time:        1.093 s
+Ran all test suites.
+Test results written to: docs/cleanup-client-memory-access-lock-order-20261012/evidence/02-candidate-jest.json

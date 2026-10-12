@@ -1,0 +1,56 @@
+{
+  "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "source": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "sourceTree": "20f6c336489913c6f4c16a98f2a16fed4847ecd4",
+  "sourceFiles": [
+    {
+      "path": "apps/api/src/clients/clients.service.ts",
+      "blob": "dbc180fe215e58b64f2d101f4aba56b20095309f",
+      "sha256": "1d854d3fa4080d2ff613741d3a607285a2e88e28a13f55358a8c508cfddc9dec",
+      "bytes": 70294
+    },
+    {
+      "path": "apps/api/src/clients/clients.memory-access-lock-order.spec.ts",
+      "blob": "5f4358f265e1313887d1002b43f08fbd2db5a4eb",
+      "sha256": "233c230fbfd5a29cd943c083b8a48f64783dda1c4c93a2bba972bf2d903cbe5c",
+      "bytes": 11688
+    }
+  ],
+  "unchangedBindings": [
+    {
+      "path": "apps/api/prisma/schema.prisma",
+      "blob": "42065a1749144afec30b1aa56ea5d865dac847bf",
+      "equalBase": true
+    },
+    {
+      "path": "apps/api/src/clients/clients.controller.ts",
+      "blob": "54be4e4148352309522eb1632ca2e3750940dcb9",
+      "equalBase": true
+    },
+    {
+      "path": "apps/api/src/prisma/prisma.service.ts",
+      "blob": "677810b805210533034bf268a6c26014311cda1d",
+      "equalBase": true
+    },
+    {
+      "path": "apps/api/src/memory/memory-wall.helpers.ts",
+      "blob": "ebddafd1bd32a56c0c57326ce77f5db3b934d1cc",
+      "equalBase": true
+    },
+    {
+      "path": "apps/api/src/memory/synthetic-approved-memory.helpers.ts",
+      "blob": "21a803c96f94b31079239e1a01060ac7c10c343e",
+      "equalBase": true
+    },
+    {
+      "path": "apps/api/src/memory/memory-authorization.service.ts",
+      "blob": "926d5a2cc08833c4ab4e27ea718128252477df96",
+      "equalBase": true
+    }
+  ],
+  "productionPathsChanged": 1,
+  "newTestPaths": 1,
+  "databaseExecution": false,
+  "independentReview": "pending",
+  "nativeQualification": "plan only; not executed by author"
+}

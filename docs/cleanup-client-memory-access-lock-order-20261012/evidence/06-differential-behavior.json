@@ -1,0 +1,3237 @@
+{
+  "sourceHead": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "baseline": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "typescriptVersion": "5.9.3",
+  "compared": 18,
+  "passed": 18,
+  "rows": [
+    {
+      "name": "replace-deduplicate-sorted-audit",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "u2",
+              "u1"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "u2",
+              "u1"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "no-op-roster-and-wall",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "u2",
+              "u1"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "u2",
+              "u1"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "clear-all-self-grant",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": []
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "actor-current",
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "actor-current",
+                    "old"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": []
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": []
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": []
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "actor-current",
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "actor-current",
+                    "old"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": []
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": []
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "empty-wall-only",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": []
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": []
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": []
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": []
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": []
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": []
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": []
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": []
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "add-only",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "u2",
+              "u1"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "u2",
+              "u1"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "remove-only",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "u1"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "u1"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "self-grant",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "actor-current"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "actor-current",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old",
+                    "u1"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "actor-current"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "actor-current"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "actor-current"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "actor-current",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old",
+                    "u1"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "actor-current"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "actor-current"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "preserve-first-request-order",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "u1",
+              "u2"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": true,
+            "grantedUserIds": [
+              "u1",
+              "u2"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "toggle-wall-off",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": false
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": false,
+            "grantedUserIds": [
+              "u2",
+              "u1"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": false
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "result": {
+            "clientId": "client-current",
+            "memoryWall": false,
+            "grantedUserIds": [
+              "u2",
+              "u1"
+            ]
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "foreign-member-reject",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "Cannot grant memory access to non-members of this tenant: u2",
+            "status": 400
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "Cannot grant memory access to non-members of this tenant: u2",
+            "status": 400
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "client-missing",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "Client not found",
+            "status": 404
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "Client not found",
+            "status": 404
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "client-error",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic client",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic client",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "members-error",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic members",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic members",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "roster-error",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic roster",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic roster",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "add-error",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic add",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic add",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "remove-error",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic remove",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic remove",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "update-error",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic update",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic update",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      }
+    },
+    {
+      "name": "audit-error",
+      "equal": true,
+      "before": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic audit",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      },
+      "after": {
+        "events": [
+          {
+            "name": "tenant",
+            "args": "tenant-current"
+          },
+          {
+            "name": "client",
+            "args": {
+              "where": {
+                "id": "client-current",
+                "tenantId": "tenant-current"
+              },
+              "select": {
+                "id": true,
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "members",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "userId": {
+                  "in": [
+                    "u2",
+                    "u1"
+                  ]
+                }
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "roster",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current"
+              },
+              "select": {
+                "userId": true
+              }
+            }
+          },
+          {
+            "name": "add",
+            "args": {
+              "data": [
+                {
+                  "tenantId": "tenant-current",
+                  "clientId": "client-current",
+                  "userId": "u2",
+                  "grantedBy": "actor-current"
+                }
+              ]
+            }
+          },
+          {
+            "name": "remove",
+            "args": {
+              "where": {
+                "tenantId": "tenant-current",
+                "clientId": "client-current",
+                "userId": {
+                  "in": [
+                    "old"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "name": "update",
+            "args": {
+              "where": {
+                "id": "client-current"
+              },
+              "data": {
+                "memoryWall": true
+              }
+            }
+          },
+          {
+            "name": "audit",
+            "args": {
+              "data": {
+                "tenantId": "tenant-current",
+                "actorUserId": "actor-current",
+                "actorRole": "user_admin",
+                "action": "client.memory_wall.update",
+                "entityType": "client",
+                "entityId": "client-current",
+                "before": {
+                  "memoryWall": false,
+                  "grantedUserIds": [
+                    "old",
+                    "u1"
+                  ]
+                },
+                "after": {
+                  "memoryWall": true,
+                  "grantedUserIds": [
+                    "u1",
+                    "u2"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "outcome": {
+          "error": {
+            "message": "synthetic audit",
+            "status": null
+          }
+        },
+        "inputUnchanged": true
+      }
+    }
+  ],
+  "nativePrisma": false,
+  "databaseOperations": false
+}

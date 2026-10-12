@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "node",
+    "/workspace/capirov2/apps/api/node_modules/typescript/bin/tsc",
+    "--noEmit",
+    "--strict",
+    "--noUncheckedIndexedAccess",
+    "--skipLibCheck",
+    "--target",
+    "ES2022",
+    "--module",
+    "commonjs",
+    "--esModuleInterop",
+    "--types",
+    "node,jest",
+    "--typeRoots",
+    "apps/api/node_modules/@types",
+    "apps/api/src/clients/clients.memory-access-lock-order.spec.ts"
+  ],
+  "envKeys": [
+    "NODE_OPTIONS",
+    "PATH"
+  ],
+  "exit": 0
+}

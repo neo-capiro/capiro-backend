@@ -1,0 +1,128 @@
+[
+  {
+    "mutation": "tenant-unbound",
+    "command": [
+      "node",
+      "--require",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/lock-source-mutation-preload.cjs",
+      "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+      "--config",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/focused.jest.cjs",
+      "--runInBand",
+      "--json",
+      "--outputFile",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-tenant-unbound.json"
+    ],
+    "exit": 1,
+    "total": 16,
+    "failed": 1,
+    "passed": 15,
+    "refused": true,
+    "sourceFileEdited": false
+  },
+  {
+    "mutation": "actor-instead-client",
+    "command": [
+      "node",
+      "--require",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/lock-source-mutation-preload.cjs",
+      "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+      "--config",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/focused.jest.cjs",
+      "--runInBand",
+      "--json",
+      "--outputFile",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-actor-instead-client.json"
+    ],
+    "exit": 1,
+    "total": 16,
+    "failed": 1,
+    "passed": 15,
+    "refused": true,
+    "sourceFileEdited": false
+  },
+  {
+    "mutation": "share-instead-update",
+    "command": [
+      "node",
+      "--require",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/lock-source-mutation-preload.cjs",
+      "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+      "--config",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/focused.jest.cjs",
+      "--runInBand",
+      "--json",
+      "--outputFile",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-share-instead-update.json"
+    ],
+    "exit": 1,
+    "total": 16,
+    "failed": 1,
+    "passed": 15,
+    "refused": true,
+    "sourceFileEdited": false
+  },
+  {
+    "mutation": "wrong-table",
+    "command": [
+      "node",
+      "--require",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/lock-source-mutation-preload.cjs",
+      "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+      "--config",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/focused.jest.cjs",
+      "--runInBand",
+      "--json",
+      "--outputFile",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-wrong-table.json"
+    ],
+    "exit": 1,
+    "total": 16,
+    "failed": 1,
+    "passed": 15,
+    "refused": true,
+    "sourceFileEdited": false
+  },
+  {
+    "mutation": "no-absence-guard",
+    "command": [
+      "node",
+      "--require",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/lock-source-mutation-preload.cjs",
+      "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+      "--config",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/focused.jest.cjs",
+      "--runInBand",
+      "--json",
+      "--outputFile",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-no-absence-guard.json"
+    ],
+    "exit": 1,
+    "total": 16,
+    "failed": 1,
+    "passed": 15,
+    "refused": true,
+    "sourceFileEdited": false
+  },
+  {
+    "mutation": "grant-read-before-lock",
+    "command": [
+      "node",
+      "--require",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/lock-source-mutation-preload.cjs",
+      "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+      "--config",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/focused.jest.cjs",
+      "--runInBand",
+      "--json",
+      "--outputFile",
+      "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-grant-read-before-lock.json"
+    ],
+    "exit": 1,
+    "total": 16,
+    "failed": 14,
+    "passed": 2,
+    "refused": true,
+    "sourceFileEdited": false
+  }
+]

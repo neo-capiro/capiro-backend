@@ -1,0 +1,24 @@
+{
+  "base": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "argv": [
+    "node",
+    "--require",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/strict-source-read-refusal.cjs",
+    "/workspace/capirov2/apps/api/node_modules/jest/bin/jest.js",
+    "--config",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/focused.jest.cjs",
+    "--runInBand",
+    "--json",
+    "--outputFile",
+    "/tmp/capirov2-cleanup-strategy-template-independent-review/docs/cleanup-client-memory-access-lock-order-20261012/evidence/01-before-jest.json"
+  ],
+  "envKeys": [
+    "CI",
+    "LANG",
+    "NODE_OPTIONS",
+    "PATH",
+    "TMPDIR",
+    "TZ"
+  ],
+  "exit": 1
+}
