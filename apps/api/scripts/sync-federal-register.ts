@@ -372,7 +372,8 @@ async function main() {
           stats: {
             schemaVersion: 1,
             scope: 'publication_window',
-            incrementalCheckpointEligible: !SINCE_OVERRIDE,
+            incrementalCheckpointEligible:
+              !SINCE_OVERRIDE && complete && observedNumbers.size === totalDocs && errored === 0,
             publicationFrom: startDate,
             expectedDocuments: totalDocs,
             observedDocuments: observedNumbers.size,
