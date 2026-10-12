@@ -11,13 +11,17 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync, writeSync } from 'node:fs';
 import * as path from 'node:path';
 import { runVerifierProcess } from './lib/engagement-verifier-process';
+import { engagementPhase1Scope, engagementPhase1Marker, engagementPhase1QualificationPlan, type EngagementPhase1Scope } from './engagement-phase1-qualification-plan';
 
-const USAGE = 'Usage: tsx scripts/verify-engagement-phase1-runtime.ts (--run | --help)';
+const USAGE = 'Usage: tsx scripts/verify-engagement-phase1-runtime.ts (--run [--backend-only | --frontend-only] | --help)';
 if (process.argv.length === 3 && process.argv[2] === '--help') {
   console.log(USAGE);
   process.exit(0);
 }
-if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+let SCOPE: EngagementPhase1Scope;
+try {
+  SCOPE = engagementPhase1Scope(process.argv.slice(2));
+} catch {
   console.error(USAGE);
   process.exit(2);
 }
@@ -170,91 +174,26 @@ async function main(): Promise<void> {
   }
   console.log(`Engagement Phase 1 DB-free closeout: ${head.stdout.trim()}`);
 
-  await run('Locked dependency install', 'pnpm', ['install', '--frozen-lockfile']);
-  for (const pkg of [
-    '@capiro/api',
-    '@capiro/intel-api',
-    '@capiro/workspace',
-    '@capiro/onboard-api',
-    '@capiro/api-strategy',
-  ]) {
-    await run(`Generate Prisma client: ${pkg}`, 'pnpm', [
-      '--filter',
-      pkg,
-      'exec',
-      'prisma',
-      'generate',
-    ]);
+  for (const step of engagementPhase1QualificationPlan(SCOPE, GIT, TEST_TARGETS)) {
+    if (step.kind === 'command') {
+      await run(step.label, step.command, step.args, REPO_ROOT, step.env ?? {});
+    } else if (step.kind === 'required-file') {
+      assertFile(step.relativePath);
+    } else {
+      assertNoWebPreviewRouting();
+    }
   }
-
-  for (const pkg of [
-    '@capiro/shared',
-    '@capiro/defense-contracts',
-    '@capiro/defense-domain',
-    '@capiro/auth',
-    // The web typecheck below imports it; not every calling workflow builds it.
-    '@capiro/strategy-verifier',
-    '@capiro/meriv2-core',
-  ]) {
-    await run(`Build workspace package: ${pkg}`, 'pnpm', ['--filter', pkg, 'run', 'build']);
-  }
-
-  await run('Phase 0 contract prerequisite', 'pnpm', [
-    '--filter',
-    '@capiro/api',
-    'run',
-    'verify:engagement-phase-0',
-  ]);
-  await run(
-    'Phase 1 manifests, runtime, route, timer, provider, bootstrap, health, and image-entrypoint tests',
-    'pnpm',
-    // In-band on a 6 GB heap. In-band at 4 GB ran out of memory; a 1 GB
-    // idle limit restarts the worker after every suite (~30 s ts-jest reload
-    // each), which pushed this step past Phase 2's 25-minute Phase 1 deadline.
-    ['--filter', '@capiro/api', 'exec', 'jest', '--runInBand', '--forceExit', ...TEST_TARGETS],
-    REPO_ROOT,
-    { NODE_OPTIONS: '--max-old-space-size=6144' },
-  );
-  await run('Build API entrypoints', 'pnpm', ['--filter', '@capiro/api', 'run', 'build']);
-
-  assertFile('apps/api/dist/main.js');
-  assertFile('apps/api/dist/engagement-main.js');
-  assertFile('apps/engagement-api/Dockerfile');
-  assertFile('apps/engagement-api/scripts/entrypoint.sh');
-
-  // The complete monorepo typecheck may contain unrelated main-branch failures;
-  // Phase 1 gates the production API and web type surfaces it can affect.
-  await run('API production typecheck', 'pnpm', [
-    '--filter',
-    '@capiro/api',
-    'exec',
-    'tsc',
-    '-p',
-    'tsconfig.build.json',
-    '--noEmit',
-  ]);
-  await run('Web typecheck', 'pnpm', ['--filter', '@capiro/web', 'run', 'typecheck']);
-  await run('Web regression suite', 'pnpm', ['--filter', '@capiro/web', 'test']);
-  assertNoWebPreviewRouting();
-  await run('Committed diff whitespace validation', GIT, [
-    'diff',
-    '--check',
-    'origin/main...HEAD',
-    '--',
-    '.',
-    ':(exclude)docs/plans/**/*.md',
-  ]);
 
   // Write COMPLETE unbuffered so redirected nested logs see it before Windows
   // process teardown can hang the parent (stdbuf alone is not enough for Node).
-  writeSync(1, '\nENGAGEMENT_PHASE1_DB_FREE_COMPLETE\n');
+  writeSync(1, `\n${engagementPhase1Marker(SCOPE, 'complete')}\n`);
   // All checks have completed; exit explicitly so nested Windows callers do
   // not remain alive on teardown handles after the completion marker.
   process.exit(0);
 }
 
 void main().catch((error) => {
-  writeSync(2, '\nENGAGEMENT_PHASE1_DB_FREE_FAILED\n');
+  writeSync(2, `\n${engagementPhase1Marker(SCOPE, 'failed')}\n`);
   console.error(error instanceof Error ? (error.stack ?? error.message) : String(error));
   process.exit(1);
 });
