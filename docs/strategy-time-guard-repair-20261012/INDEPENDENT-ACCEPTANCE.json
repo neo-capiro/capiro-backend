@@ -1,0 +1,77 @@
+{
+  "acceptedSource": "c00c86917af2da637c2183fd078f4390fe0ac361",
+  "acceptedTree": "c7ccd8cb80528c3cedaeead92e5c3babcfbdf158",
+  "independentEvidenceCommit": "0e756bf87b860f981951cfc97dd6e77a7d882e13",
+  "independentEvidenceTree": "9eeb2e87b2e5f313e7331d04b8904ff0634d42b7",
+  "independentReceipt": "docs/clock-rng-final-independent-review-20261012/ACCEPTANCE-C00.json",
+  "independentReceiptSha256": "2df897f50796d8fd6e0bf2f82d344412ec5071a200f605ef01e602c91cea363c",
+  "independentChecksumEntriesVerified": 73,
+  "productionPathsVerified": {
+    "scripts/check-strategy-time-bypasses.mjs": {
+      "blob": "383aa5737f1df694de972299fc07c7930ce4cae9",
+      "sha256": "d048004ece22ef06b1cd8106e0dd1ffb5177270eb9a5ce6ca2b72f6bc9b888c5"
+    },
+    "scripts/check-strategy-time-bypasses.test.mjs": {
+      "blob": "b18dad0fd4aaa54bfe860bc1746eb2bbfe1148c2",
+      "sha256": "37aa6e2f391477e50cc31e43aec47dc304ec643925e2388ef224216340face60"
+    },
+    "scripts/strategy-time-boundaries.json": {
+      "blob": "fe5371e38485e570ec53a93e54430d63b8e793e8",
+      "sha256": "fb7665bd53162ec74f6ca6ed9377e1987894da5a20389131de66067787eddf14"
+    }
+  },
+  "earlierAuthorEvidenceHashesPreserved": true,
+  "authorEvidenceCommit": "6a556ed72529381ec14a3a6ce163829e819984dd",
+  "authorEvidenceTree": "adb04ec93a236f86366cce7eacd0083b057da34b",
+  "independentAcceptance": {
+    "acceptedSource": "c00c86917af2da637c2183fd078f4390fe0ac361",
+    "acceptedTree": "c7ccd8cb80528c3cedaeead92e5c3babcfbdf158",
+    "integrationExactPacketBlobs": "b3e02fb8f056ab3481b5153bf1a1b2fe3a7d4a7d",
+    "integrationTree": "62bbe8e9c2fae921ae1a59a7ca9e582c7dfb8dc0",
+    "scope": "Clock/RNG18-source-path slice and declared bounded static grammar",
+    "sourceTests": {
+      "permanent": {
+        "pass": 84,
+        "fail": 0,
+        "priorReportedCaseNamesRetained": 84
+      },
+      "sourceScan": 169,
+      "wholeMapRefusals": {
+        "original": 21,
+        "providerShadows": 3,
+        "moduleProvenance": 1,
+        "pass": 25
+      },
+      "actualProviderRoleImportRefusals": 21,
+      "legitimateProviderPositives": 2,
+      "strictTypeDiagnostics": 0,
+      "runtimeExtensions": [
+        "ts",
+        "cts",
+        "mts",
+        "tsx"
+      ]
+    },
+    "exactEqualityCarries": {
+      "originalSource": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+      "nonGuardPacketPaths": 15,
+      "runtimeControls": 17,
+      "requiredNestInjectionControls": 4,
+      "parsedCIAndPackage": true,
+      "originalDataFields": true,
+      "originalAllowanceRows": 119,
+      "deferredAmbientSamples": 123
+    },
+    "allPreviousChecksumEntriesPreserved": 49,
+    "reviewerRuntimeEdits": 0,
+    "mutantsExecuted": false,
+    "moduleGraphContainmentClaim": false,
+    "nativeAcceptance": false,
+    "fullCleanup1Acceptance": false,
+    "widerCleanup4Acceptance": false,
+    "remainingConcreteBoundedSourceBlockers": []
+  },
+  "rootOwnsIntegrationAndPublication": true,
+  "newSourceEdits": false,
+  "nativeAcceptance": false
+}
