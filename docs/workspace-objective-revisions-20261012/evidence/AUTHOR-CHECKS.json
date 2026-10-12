@@ -1,0 +1,70 @@
+{
+  "source": "490076ab8a9a5db72eda97b0d576a81e87f81cbb",
+  "tree": "bfb8195babb0a25863a2ccde0e050b2ebc2a9c95",
+  "kind": "source-only; native database unqualified",
+  "checks": [
+    {
+      "command": "shared tsc build",
+      "exitCode": 0,
+      "log": "author-shared-build.log"
+    },
+    {
+      "command": "Workspace primary tsc --noEmit",
+      "exitCode": 0,
+      "log": "author-workspace-typecheck.log"
+    },
+    {
+      "command": "Workspace nest build",
+      "exitCode": 0,
+      "log": "author-workspace-nest-build.log"
+    },
+    {
+      "command": "Jest4 suites90/90",
+      "exitCode": 0,
+      "log": "author-tests-mapper-rerun.log"
+    },
+    {
+      "command": "Portable actual owner/HTTP suite51/51",
+      "exitCode": 0,
+      "log": "author-portable-owner-http.log"
+    }
+  ],
+  "sourcePaths": [
+    {
+      "path": "apps/workspace/src/versions/dto/objective-destination.dto.ts",
+      "gitBlob": "ec6994391b02175a0b6d4e536dc6a22396473c6c",
+      "sha256": "87bf408f0d759c3c0617c4e2c4c521570f7521b6935d4e83658b85c3ac3a743e"
+    },
+    {
+      "path": "apps/workspace/src/versions/objective-destination.spec.ts",
+      "gitBlob": "8cb4e78420216fe0045a7c0868c495623d0edfd0",
+      "sha256": "1ccb3a75ed2cf2809d161a5e9c290aa9b008b8f7b2b6660451c49fdbedd84260"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.controller.ts",
+      "gitBlob": "ee3b7b5ca6462ef29ad447e339dc30c4d1150ee1",
+      "sha256": "7a99f929d14d0fa13771d5436eeb1dd614fddf495938b5e334fc0d52d8686353"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.service.ts",
+      "gitBlob": "403fa2ab75555daad73a379a9ef7a7980ba7fe31",
+      "sha256": "bd7a9496a1f2099100f90e472fa75f8cad26eb3053fed9921bac8c21d77daafd"
+    },
+    {
+      "path": "packages/shared/src/client-objective-destination.ts",
+      "gitBlob": "767a11ddff2ff43a39cdf572029b40a4976facac",
+      "sha256": "a7fafdf28c55cb9af93b2faf5fbb4b824023622cc68b08501e0d367dcf4a5443"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "gitBlob": "c9f3a056b94de58b5777f50bec1f9a2659954591",
+      "sha256": "54f5f522696eb619c974206ca12d91042b972355a790048a36ea9bb35c0a11f6"
+    }
+  ],
+  "independentReviewAccepted": true,
+  "independentCases": 82,
+  "independentCombinedCases": 133,
+  "sixSourcePathsVerified": true,
+  "twoPublishedSeamsVerified": true,
+  "tenReviewEvidenceFilesVerified": true
+}

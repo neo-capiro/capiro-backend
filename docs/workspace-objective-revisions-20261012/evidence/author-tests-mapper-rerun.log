@@ -1,0 +1,10 @@
+PASS src/prospect-resources/prospect-draft-access.spec.ts (8.765 s)
+PASS src/prospect-resources/prospect-independent-review.spec.ts
+PASS src/documents/documents.service.spec.ts
+PASS src/versions/objective-destination.spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       90 passed, 90 total
+Snapshots:   0 total
+Time:        10.989 s
+Ran all test suites matching /src\/versions\/objective-destination.spec.ts|src\/documents\/documents.service.spec.ts|src\/prospect-resources\/prospect-independent-review.spec.ts|src\/prospect-resources\/prospect-draft-access.spec.ts/i.

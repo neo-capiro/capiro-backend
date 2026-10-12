@@ -1,0 +1,106 @@
+{
+  "source": "490076ab8a9a5db72eda97b0d576a81e87f81cbb",
+  "tree": "bfb8195babb0a25863a2ccde0e050b2ebc2a9c95",
+  "files": [
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/AUTHOR-CHECKS.json",
+      "sha256": "9346656ab5d424d1f97a20b7f2486f3a7f7bf9e3073c38618e7dff13f75f8d50"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/author-jest-config.cjs",
+      "sha256": "1af48f7c178b519f3b6624142bb9d7e465dd4f5e5fc9e19d1ffc23d8f936500a"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/author-portable-owner-http.log",
+      "sha256": "18f2741feca884bac7ab122bb39842522358dc76f0272e8f987fda4726ae131e"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/author-shared-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/author-test-setup-error.log",
+      "sha256": "cc168a78cce34b78e05a9812a31fa458a64bd37b3dd83bf5f7b69119e3c5e513"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/author-tests-initial.log",
+      "sha256": "05bdf3d2d3a088dd8db07bc118a5f7028ac01b42c852fbbe986b908a9d1fd556"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/author-tests-mapper-rerun.log",
+      "sha256": "0cc41dde985facf6a359a9b58ac713f4919ef38cf67c57ae1fb11af5ec1a3419"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/author-tests-rerun.log",
+      "sha256": "1115e160d9c38d8b959de19cb89463bd83a802cfaf27177090850a2a38956fd3"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/author-workspace-nest-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/author-workspace-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/helper-provenance.json",
+      "sha256": "403168fd2e30df6d8492b59e52963e2e06923bceba897daf4abee4ffe00d4669"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/independent-review/RECEIPT.json",
+      "sha256": "2340c03b1197aeb926f0083bdc556ff1dbf81ccfda3fde24ff78efb9cceb7396"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/independent-review/REVIEW.md",
+      "sha256": "eaaff020a07c546bef17c227f7583d2550fbbaef80f07565a58fb345e8eb94b1"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/independent-review/SHA256SUMS.json",
+      "sha256": "c101fbbe4c87c7b759dbf9c0bfee58ed754a662adc35c3a23e9e7a95322ed3ec"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/independent-review/combined-final.json",
+      "sha256": "f540f1db4e0984fbd1ae5e91976fdf32837d6ea62c75d1bbe73dd4bb4e8b2183"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/independent-review/combined-final.log",
+      "sha256": "a784d84a37f9baad645fbaa707cfde5085ceacee08df22a0f5957340fd2414cd"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/independent-review/independent-confirmed-gaps.json",
+      "sha256": "cab6b71e31c2716b8d8b1ab10faaac55d67334845f34da2163fee935966e3f9c"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/independent-review/independent-confirmed-gaps.log",
+      "sha256": "7257cd2c6b58c8c21237368d2c0cd063d2f387e59e682688886fb785f700ecac"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/independent-review/independent-initial.json",
+      "sha256": "d3f93d3b74d4cc4b76737514d3acbdc6960adb1def603c6e1515abc35e307142"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/independent-review/independent-initial.log",
+      "sha256": "c017daf3c5947e8c9b970db14ba1c44d5dbb5a47fddf01b99c23bad41e6e6800"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/independent-review/independent.spec.ts",
+      "sha256": "23624d10103e90ab2b31cd45eac243ef3122f0f2d3c12a3386bc42dd4c14c9a2"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/independent-review/jest.cjs",
+      "sha256": "5097d0e231dd069370b5e32cf861e8cfc7bc511f10e48f1d4680385c8460b666"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/investigation.json",
+      "sha256": "f8c116e95cdedddeff3162cade31cf5eb55d2a59aa6c99346acf801c7cb2dd4b"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/pr2401-publication-base.json",
+      "sha256": "3f1a48ba53ceabcfef66efe3c985cc8401e0322e8e09e806c75ec9bda29f57cf"
+    },
+    {
+      "path": "docs/workspace-objective-revisions-20261012/evidence/remote-main-reference.json",
+      "sha256": "baa8ad00c6571ed74281d3f40b5d9ddb60682191f6909a5edc2e8fad1e258db1"
+    }
+  ]
+}

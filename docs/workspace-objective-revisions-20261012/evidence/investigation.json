@@ -1,0 +1,78 @@
+{
+  "scope": "read-only bounded investigation, no implementation",
+  "publishedWorkspaceHead": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+  "publishedWorkspaceTree": "188d94ee4cda563a6543468544fd7d1f9885b3f8",
+  "publishedObjectiveHead": "30fa58467238542ff2b98137844ea02a3225e545",
+  "canonicalKind": "workspace_saved_revision",
+  "paths": [
+    {
+      "path": "packages/shared/src/workspace-saved-revision.ts",
+      "gitBlob": "c388618b7d618c0b3314fcb6bea77a2e0c205076",
+      "sha256": "6fcb81da835a33908c0be9564e91a661f64394b592375114d9f82e6dbb231db8"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.service.ts",
+      "gitBlob": "6943fa216ed2492f1683b43ae97956f601f3be62",
+      "sha256": "f25179ba031f91b0e547a7cac27159e4b6b59d81b4cac6d1a4811ad5e0c0bf5c"
+    },
+    {
+      "path": "apps/workspace/src/versions/versions.controller.ts",
+      "gitBlob": "55fd4241250d9facd347d5b240f186cf27cafdc9",
+      "sha256": "9cad107f2cd3efbb528f57acdd1f99fcbe8c2de133d586349c48751d391c4b1e"
+    },
+    {
+      "path": "apps/workspace/src/auth/tenant-context.ts",
+      "gitBlob": "24f1986d78af374a0d7c947dd183fff4a07cf5bd",
+      "sha256": "c239f86fc779d12516660bfb222310ecd58836403ecfbff5d8db0956768ee86f"
+    },
+    {
+      "path": "apps/workspace/src/main.ts",
+      "gitBlob": "1949e2913bb4126c4d6c6591fd0fcfa25ace1f14",
+      "sha256": "b807798f1ac421df9b8db8c1c3f317ab3efffcab9b2d73babeb26c9f63dfe952"
+    }
+  ],
+  "plannedAuthority": "existing Workspace saved revision owner first, nonnull canonical same-client check, published current Objective helper in same transaction",
+  "blockedOn": "Objective shared helper published and independently reviewed source; no unpublished source consumption",
+  "excluded": [
+    "free-text-only client identity",
+    "prospect drafts",
+    "all ws_source_action origin receipts",
+    "creation/persistent association",
+    "new store/service/migration",
+    "providers/database execution"
+  ],
+  "publishedObjective2402Blocker": {
+    "source": "30fa58467238542ff2b98137844ea02a3225e545",
+    "migration": "apps/api/prisma/migrations/20281011010000_client_objectives/migration.sql",
+    "issue": "FOR SHARE against immutable client_objective_revisions requires UPDATE; published migration explicitly revokes UPDATE",
+    "officialReference": "https://www.postgresql.org/docs/15/sql-select.html",
+    "ownerResponse": "confirmed; upcoming helper removes revision row lock, keeps mutable Objective lock, no permission change; await independently reviewed publication"
+  },
+  "independentDesignConclusions": {
+    "viable": true,
+    "unresolvedProductChoice": null,
+    "newRoute": "GET /workspace-api/drafts/:draftId/versions/:versionId/objective-destination?clientId&objectiveId&objectiveVersion",
+    "clientCheckBeforeObjective": "Require nonnull owner-selected canonical revision client equal normalized query client before Objective revision authority, to avoid cross-client stale-version disclosure",
+    "response": "exact saved snapshot/hash/hashFormat/original author/time/projection plus literal workspace_saved_revision destination with version UUID, draft UUID and current canonical Objective revision; no invented destinationStateVersion",
+    "cache": "Cache-Control: private, no-store",
+    "readOnly": "No source/objective/receipt/command mutation; binding is observation, not capability or persistent association",
+    "helperConsumption": "Only eventual independently reviewed published shared helper file + additive export, preserving byte/Git blob/SHA equality; no Core ORM ownership"
+  },
+  "inheritedNativeRace": {
+    "source": "3c20f798c731403ffe2bbb6fa75dcb1bbf80bb16",
+    "file": "apps/api/src/clients/clients.service.ts",
+    "gitBlob": "c2bc995104db4762be078f42b00232ea1790029c",
+    "sha256": "0b04f5e819b86c68993627520cf41dd03524b7f66c3c4dd3751f537c630f352b",
+    "schedule": "Reader client SHARE; writer grant DELETE; reader waits grant SHARE; writer waits client UPDATE when toggling wall and removing grants",
+    "impact": "Potential deadlock and fail-closed transaction abort; source reader order inherited from published2401 and Objective2402, not a new authorization bypass",
+    "qualification": "Native exact flag-toggle plus grant-removal/concurrent resolver race; retain infrastructure error semantics and safe fresh-read retry guidance; no DB executed or unrelated writer change"
+  },
+  "correctedObjectivePublication": {
+    "pr": 2402,
+    "head": "4a784b58a0d41251ae6d7dea75a9b4858abc8665",
+    "tree": "3e04cc68d00373632d4bc86c935d37e672b2d221",
+    "sourceStatus": "published owner report; preserved original30fa history",
+    "permissionCorrection": "Immutable revision plain SELECT with live Objective lock; no grants changed",
+    "workspaceConsumption": "await next independently reviewed published shared helper only"
+  }
+}
