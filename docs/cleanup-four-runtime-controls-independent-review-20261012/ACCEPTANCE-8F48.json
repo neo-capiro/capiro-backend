@@ -1,0 +1,91 @@
+{
+  "acceptedSource": "8f48604aa1cefdb3e420026633ce8e1f2ca95953",
+  "acceptedTree": "262e71c44310aa0898c7c618aab3a0fabc245153",
+  "scope": "ROOT generic guard/data/test/runner/package/CI only; authored Tango application independently excluded",
+  "sourcePaths": [
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "sha256": "cae6f04eaa53075c350ef0f38e65b71100fbc4898ec61589ea757e180006b4c1",
+      "mode": "100644",
+      "blob": "76e9225f1f0f1944fe9088c3ec79b527a1055e08"
+    },
+    {
+      "path": "package.json",
+      "sha256": "2384cad9cd99bf2b6af903144593198b3bd9110f627c86ed1eaa7e78764f2ccf",
+      "mode": "100644",
+      "blob": "68d694287508467e4eacebea551130a8f4109b6d"
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.mjs",
+      "sha256": "eeaf236aade7bf9576f76e183f11a51eb9e8aa8203139eeb070ea0f2a6dcd5a6",
+      "mode": "100644",
+      "blob": "24ffb4c6e0a58fe3cc0f118eb600613ae2f91872"
+    },
+    {
+      "path": "scripts/check-duplicate-helpers.test.mjs",
+      "sha256": "9b939dae53b0117c6fb67753d51d053fcc3c9201dabc396b70531751fbfc761b",
+      "mode": "100644",
+      "blob": "fc802086ed11b731acf90ee97e5d3c8786cdc3ad"
+    },
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "sha256": "c48c499d6dbb79d67e20bdd57526cfe4900ef09a4321fbc5004cff79581a637f",
+      "mode": "100644",
+      "blob": "41c3a36027814df988fc208e79beecd351b59b07"
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "sha256": "2bc2b995d25640708353f4317e43fab6202403f1a24ac9d15855d74dd6a66619",
+      "mode": "100644",
+      "blob": "618e55535da5f9a56ba470dd8195ded9135f275c"
+    },
+    {
+      "path": "scripts/cleanup-runtime-equivalence.jest.cjs",
+      "sha256": "16bb7322aee00089c7ff17393fc1cbb125b345f5f66da7aa6a2399ee4708ad67",
+      "mode": "100644",
+      "blob": "80c16954796a00453a595700d9a2ebe64cb2f930"
+    },
+    {
+      "path": "scripts/duplicate-helper-names.txt",
+      "sha256": "f465c9783334023d1bc4a68ed507e606dbec7eafd8cb9403cc0165ab354d986c",
+      "mode": "100644",
+      "blob": "44637f3d1e6cbf5489bd7727232aa7e0faa8b20f"
+    },
+    {
+      "path": "scripts/registry-ownership.json",
+      "sha256": "70b6c6653b208b93cc5863a7b4d22e3f6486a95235b8856141e48b65c47ddb63",
+      "mode": "100644",
+      "blob": "fb2cbc7d04c7715c5619d4efd957ada6f40155c0"
+    }
+  ],
+  "sourcePathCount": 9,
+  "rootControlTests": 149,
+  "rootControlFailures": 0,
+  "fixtureReplayCases": 25,
+  "fixtureReplayAllExpected": true,
+  "originalWholeMapCases": 4,
+  "originalWholeMapAllRefuse": true,
+  "additionalBoundedCases": 22,
+  "additionalBoundedAllExpected": true,
+  "newWholeMapCases": 3,
+  "newWholeMapAllRefuse": true,
+  "sourceFiles": 2047,
+  "profiles": 2,
+  "helperInventory": 3,
+  "typeAndRunnerCiReplay": "PASS",
+  "cliCases": 8,
+  "additionalErrorRefusalCases": 3,
+  "declarationDigestBudgetSyntaxFailuresReturnNull": true,
+  "e3And9aEvidenceHashesPreserved": true,
+  "sourceEdits": false,
+  "mutantExecution": false,
+  "appSuiteOrPmExecuted": false,
+  "providerNativeDbCloudSecurityOps": false,
+  "independentAcceptance": "ACCEPT bounded root scope",
+  "limits": [
+    "No arbitrary JS/OS/runtime/module-graph containment",
+    "Unknown runtime expressions and semantic/renamed copies outside finite source ratchet",
+    "require spelling treated conservatively as loader",
+    "Application and native/full gates separately owned"
+  ]
+}

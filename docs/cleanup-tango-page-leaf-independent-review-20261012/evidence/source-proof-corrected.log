@@ -1,0 +1,63 @@
+{
+  "acceptedApplicationSource": "34bd52b6f49393f49732cf1f918002ba0893574d",
+  "tree": "bde461631aea971158fdd5c9b287860aeff061e1",
+  "originalBase": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "exactApplicationAuthorAncestor": "6d243a1393b8736544e1d216cf2bd141595dd315",
+  "appPaths": [
+    "apps/api/src/external/tango/tango-dibbs.client.ts",
+    "apps/api/src/external/tango/tango-rest-page.spec.ts",
+    "apps/api/src/external/tango/tango-rest-page.ts",
+    "apps/api/src/external/tango/tango-sbir.client.ts",
+    "apps/api/src/external/tango/tango-subaward.client.ts"
+  ],
+  "rows": [
+    {
+      "owner": "dibbs",
+      "path": "apps/api/src/external/tango/tango-dibbs.client.ts",
+      "profile": "interleaved",
+      "profileOperands": 2,
+      "classesByteExactAfterOnlyProfileOperands": [
+        "TangoDibbsHttpError",
+        "TangoDibbsEnvelopeError",
+        "TangoDibbsClient"
+      ],
+      "originalSha256": "905ba33964b001aa66c19c60df883c51976145887cd2b725e67c2e0ea0fd28c8",
+      "candidateSha256": "50dfeda0178913b8718eb36d7c4e76f9e7058e6e066306b37ddac0ea13bb0269"
+    },
+    {
+      "owner": "sbir",
+      "path": "apps/api/src/external/tango/tango-sbir.client.ts",
+      "profile": "interleaved",
+      "profileOperands": 2,
+      "classesByteExactAfterOnlyProfileOperands": [
+        "TangoSbirHttpError",
+        "TangoSbirEnvelopeError",
+        "TangoSbirClient"
+      ],
+      "originalSha256": "cf914eb4de8f76397d017d4f78932a8b6d5a75f0a76386f89339a7689eb9b766",
+      "candidateSha256": "1414e9afedb5930fdbd3f35b848e08b54c7fae47b817e0997c848d392a7c5bbd"
+    },
+    {
+      "owner": "subaward",
+      "path": "apps/api/src/external/tango/tango-subaward.client.ts",
+      "profile": "captured",
+      "profileOperands": 1,
+      "classesByteExactAfterOnlyProfileOperands": [
+        "TangoSubawardHttpError",
+        "TangoSubawardClient"
+      ],
+      "originalSha256": "33a5629fb6b8ea83e4e5cf3cbf7b5b69e7b6cf27601392a081abfd32f68a39c1",
+      "candidateSha256": "08453fe5638a18a5319d1e505bfc3290e05ebff8aa66963d966d50ef6bfe8c78"
+    }
+  ],
+  "completeClassBodiesTransportAuthDeadlineRetryRedactionAndErrorIdentitiesExact": true,
+  "onlyChangesOutsideClasses": "Remove nine original pure functions; add three canonical imports; drop unused Subaward rate type",
+  "exactOriginalErrorsAndExistingTests": [
+    "apps/api/src/external/tango/tango.errors.ts",
+    "apps/api/src/external/tango/tango-sbir.client.spec.ts",
+    "apps/api/src/external/tango/tango-subaward.client.spec.ts"
+  ],
+  "authorPacketHashesVerified": 24,
+  "rootNineControlPathsApplicationAcceptance": false,
+  "actualProviderOrDatabaseCalls": 0
+}

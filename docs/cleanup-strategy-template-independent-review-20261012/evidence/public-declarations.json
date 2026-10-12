@@ -1,0 +1,23 @@
+{
+  "base": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "reviewedSource": "8834c1d76659b343fb37c60733fa1dd618a06db9",
+  "cachedTypeScript": "5.9.3",
+  "strict": true,
+  "noUncheckedIndexedAccess": true,
+  "oldAndCandidateDiagnostics": 0,
+  "declarationRows": [
+    {
+      "file": "frontmatter.d.ts",
+      "oldAndCurrentDeclarationBytesEqual": true,
+      "sha256": "cfbb78da59ec8b93e9d83940f1ba3aafc61b0a96368e5ca697ca6170cfe16981"
+    },
+    {
+      "file": "report-context.d.ts",
+      "oldAndCurrentDeclarationBytesEqual": true,
+      "sha256": "196dc672416986fe72740dc5149287f3f7b61c08a6d9f5df5361850367878b89"
+    }
+  ],
+  "outputScope": "Emit captured in memory; only two compared declarations written in independent evidence directory",
+  "configuredFullStrategyTypecheckOrNativeAcceptance": false,
+  "productionModulesExecuted": false
+}

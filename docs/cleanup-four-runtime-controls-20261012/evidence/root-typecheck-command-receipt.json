@@ -1,0 +1,15 @@
+{
+  "initial": {
+    "command": "node node_modules/typescript/bin/tsc -p apps/api/tsconfig.json --noEmit --incremental false --typeRoots /workspace/capirov2-cleanup-reviewed-source-composition/apps/api/node_modules/@types",
+    "exit": 134,
+    "verdict": "heap exhaustion; no semantic typing acceptance",
+    "log": "root-api-full-cached-typecheck.log"
+  },
+  "final": {
+    "command": "node --max-old-space-size=8192 node_modules/typescript/bin/tsc -p apps/api/tsconfig.json --noEmit --incremental false --typeRoots /workspace/capirov2-cleanup-reviewed-source-composition/apps/api/node_modules/@types",
+    "exit": 0,
+    "log": "root-api-full-cached-typecheck-8gb.log",
+    "sameFiveApplicationSourceBlobsAsReviewed": "6d243a1393b8736544e1d216cf2bd141595dd315",
+    "noEngineGenerateDownloadDatabaseProviderOrMigrationExecution": true
+  }
+}

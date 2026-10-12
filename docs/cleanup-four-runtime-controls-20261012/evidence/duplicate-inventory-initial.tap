@@ -1,0 +1,24 @@
+✔ binds every owned function once while excluding metadata values (3.072244ms)
+✔ refuses missing row (0.219444ms)
+✔ refuses duplicate row (0.162557ms)
+✔ refuses renamed row (0.151666ms)
+✔ refuses wrong owner (0.134152ms)
+✔ refuses variable presented as helper (0.092857ms)
+✔ refuses extra columns (0.140767ms)
+✔ refuses space separated row (0.084145ms)
+✔ refuses duplicate owned function (0.185051ms)
+✔ refuses new function without inventory (0.303022ms)
+✔ refuses empty ownership (0.146694ms)
+✔ refuses invalid profile (0.074511ms)
+✔ refuses invalid symbols (0.108542ms)
+✔ refuses invalid inventory type (0.670763ms)
+✔ refuses invalid configuration (0.084522ms)
+✔ retains CRLF and comment support without accepting data with whitespace (0.142982ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 120.467673
