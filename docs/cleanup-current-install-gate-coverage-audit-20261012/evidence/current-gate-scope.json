@@ -1,0 +1,213 @@
+{
+  "packages": [
+    {
+      "package": "@capiro/api",
+      "packageDir": "apps/api",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/api-strategy",
+      "packageDir": "apps/api-strategy",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/defense-api",
+      "packageDir": "apps/defense-api",
+      "runners": [
+        "node:test"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "capiro-defense-budget-parser",
+      "packageDir": "apps/defense-budget-parser",
+      "runners": [
+        "pytest"
+      ],
+      "tiers": [
+        "pytest-collect"
+      ]
+    },
+    {
+      "package": "@capiro/e2e",
+      "packageDir": "apps/e2e",
+      "runners": [
+        "playwright"
+      ],
+      "tiers": [
+        "playwright-list",
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/intel-api",
+      "packageDir": "apps/intel-api",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/meriv2-orchestrator",
+      "packageDir": "apps/meriv2-orchestrator",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/onboard-api",
+      "packageDir": "apps/onboard-api",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/onboard-web",
+      "packageDir": "apps/onboard-web",
+      "runners": [
+        "vitest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/web",
+      "packageDir": "apps/web",
+      "runners": [
+        "vitest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/workspace",
+      "packageDir": "apps/workspace",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/infra-cdk",
+      "packageDir": "infra/cdk",
+      "runners": [
+        "jest",
+        "node:test"
+      ],
+      "tiers": [
+        "test:constructs",
+        "test:jest"
+      ]
+    },
+    {
+      "package": "@capiro/auth",
+      "packageDir": "packages/auth",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    },
+    {
+      "package": "@capiro/meriv2-core",
+      "packageDir": "packages/meriv2-core",
+      "runners": [
+        "jest"
+      ],
+      "tiers": [
+        "test"
+      ]
+    }
+  ],
+  "testBearingPackages": [
+    "@capiro/api",
+    "@capiro/api-strategy",
+    "@capiro/defense-api",
+    "capiro-defense-budget-parser",
+    "@capiro/e2e",
+    "@capiro/intel-api",
+    "@capiro/meriv2-orchestrator",
+    "@capiro/onboard-api",
+    "@capiro/onboard-web",
+    "@capiro/web",
+    "@capiro/workspace",
+    "@capiro/infra-cdk",
+    "@capiro/auth",
+    "@capiro/meriv2-core"
+  ],
+  "python": [
+    {
+      "package": "capiro-defense-budget-parser",
+      "packageDir": "apps/defense-budget-parser"
+    }
+  ],
+  "playwright": [
+    {
+      "package": "@capiro/e2e",
+      "packageDir": "apps/e2e"
+    }
+  ],
+  "scopeOk": true,
+  "problems": [],
+  "coverage": {
+    "required": [
+      {
+        "package": "@capiro/api",
+        "packageDir": "apps/api",
+        "runner": "jest",
+        "reportName": "coverage/coverage-summary.json"
+      },
+      {
+        "package": "@capiro/web",
+        "packageDir": "apps/web",
+        "runner": "vitest",
+        "reportName": "coverage/coverage-summary.json"
+      },
+      {
+        "package": "@capiro/workspace",
+        "packageDir": "apps/workspace",
+        "runner": "jest",
+        "reportName": "coverage/coverage-summary.json"
+      },
+      {
+        "package": "@capiro/onboard-web",
+        "packageDir": "apps/onboard-web",
+        "runner": "vitest",
+        "reportName": "coverage/coverage-summary.json"
+      },
+      {
+        "package": "capiro-defense-budget-parser",
+        "packageDir": "apps/defense-budget-parser",
+        "runner": "pytest-cov",
+        "reportName": "coverage.json"
+      }
+    ],
+    "extra": [],
+    "problems": []
+  }
+}

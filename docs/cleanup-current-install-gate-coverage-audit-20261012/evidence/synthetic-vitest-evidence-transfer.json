@@ -1,0 +1,77 @@
+{
+  "files": [
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/subject.ts",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/subject.ts",
+      "sha256": "8893bf579396a41897f6dd6099be9b9f96e2f71a8ea35c1d6bfd7b4b2ac7d1a8",
+      "exact": true
+    },
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/subject.spec.ts",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/subject.spec.ts",
+      "sha256": "a8c0346ae69be1682b0729479b2a641970f5493bcfefa63e422c1ecbc4c30412",
+      "exact": true
+    },
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/vitest.config.mjs",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/vitest.config.mjs",
+      "sha256": "f984e62c67db080a9794bd0eeb3c02a76cc85610edfecff91abb078fc7b5be87",
+      "exact": true
+    },
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/package.json",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/package.json",
+      "sha256": "609158e6c5fbc237939fa3ddf7faab80ab690bdc0c8d584414a885130103c4e8",
+      "exact": true
+    },
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/results.json",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/results.json",
+      "sha256": "4bcb54f1f4f86faa26edc693611844ab644d073f77ca3cfbc57b0c850a3c917b",
+      "exact": true
+    },
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/run-attempt-1.log",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/run-attempt-1.log",
+      "sha256": "763c779c94a113851c261be2618d08037176b7e53e589dbc66366150daa10d46",
+      "exact": true
+    },
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/run-attempt-2.log",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/run-attempt-2.log",
+      "sha256": "e71ce377ebbdd9064f7b8fcec5ecaa3aa9c2464568ee1793d137be3fbea0038a",
+      "exact": true
+    },
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/run-attempt-3.log",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/run-attempt-3.log",
+      "sha256": "6e74080f0f85191c7e6e011fff74ca0f580c70e30c3c3cf915238ffb0d9a51cc",
+      "exact": true
+    },
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/operation-receipts.jsonl",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/operation-receipts.jsonl",
+      "sha256": "8e0271ac6429e9a77689f0cb5589b431410af7a6cf2ee524f483c27743f70a42",
+      "exact": true
+    },
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/refuser-negative-controls.log",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/refuser-negative-controls.log",
+      "sha256": "84ed0eb20b4821e5ce0a07f6a2e2fbb9851a71a375f376db51655fd6cd3c080e",
+      "exact": true
+    },
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/coverage/coverage-summary.json",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/coverage/coverage-summary.json",
+      "sha256": "a9eaaf874a63347c6a068fc246619f047c79e6c954a62ac1b3cde4d3c5d1726e",
+      "exact": true
+    },
+    {
+      "source": "/tmp/capiro-vitest-v8-toolchain-277-20261012/coverage/coverage-final.json",
+      "evidence": "docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/synthetic-vitest/coverage/coverage-final.json",
+      "sha256": "bf24e7dc419ca54dedeead3ba808203762448fcec72eee92232ab61e30dd4fed",
+      "exact": true
+    }
+  ],
+  "packagePhysicalCopyBoundSeparately": "synthetic-provider-layout-copy.json"
+}

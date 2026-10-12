@@ -1,0 +1,16 @@
+{
+  "capturedAtUTC": "2026-10-12T23:34:56.678935+00:00",
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "sourceTree": "b7b33bfa38bccf69aa1a94dd2942add016bf19d3",
+  "trackedSourceChanges": 0,
+  "privateUntrackedDependencyBindingsExcluded": [
+    "node_modules",
+    "apps/api/node_modules",
+    "apps/api-strategy/node_modules",
+    "apps/workspace/node_modules",
+    "packages/auth/node_modules",
+    "packages/meriv2-core/node_modules"
+  ],
+  "onlyOwnedNewEvidenceDirectory": "docs/cleanup-current-install-gate-coverage-audit-20261012",
+  "rawResultsPreserved": true
+}

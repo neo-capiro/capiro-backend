@@ -1,0 +1,281 @@
+{
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "privateRoot": "/tmp/capiro-coverage-provider-cache-277-20261012",
+  "privateBytesUsed": 1054806,
+  "capBytes": 5242880,
+  "records": [
+    {
+      "name": "@vitest/coverage-v8",
+      "version": "2.1.9",
+      "url": "https://registry.npmjs.org/@vitest/coverage-v8/-/coverage-v8-2.1.9.tgz",
+      "expectedIntegrity": "sha512-Z2cOr0ksM00MpEfyVE8KXIYPEcBFxdbLSs56L8PO0QQMxt/6bDj45uQfxoc96v05KW3clk7vvgP0qfDit9DmfQ==",
+      "status": 200,
+      "finalUrl": "https://registry.npmjs.org/@vitest/coverage-v8/-/coverage-v8-2.1.9.tgz",
+      "contentLength": "28339",
+      "tarballBytes": 28339,
+      "tarballSha256": "0fcbf02b10a618beb535eb62c2cb015b3d86e4d7ff84ba6ba01169689321c753",
+      "actualIntegrity": "sha512-Z2cOr0ksM00MpEfyVE8KXIYPEcBFxdbLSs56L8PO0QQMxt/6bDj45uQfxoc96v05KW3clk7vvgP0qfDit9DmfQ==",
+      "integrityVerifiedBeforeExtraction": true,
+      "privatePackageDir": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9",
+      "packageJsonSha256": "329ffcbfa9cb704f4ff94bc3987290fe2aab3bd9dfd6ecb0c01fd58f9a73af44",
+      "entries": [
+        {
+          "path": "dist/browser.js",
+          "bytes": 1281,
+          "tarMode": "0o644",
+          "sha256": "e9dd80b1de35defadadbcdee19e0a63c48d78905948fb3e2801cde1bd0c2049f"
+        },
+        {
+          "path": "dist/index.js",
+          "bytes": 1202,
+          "tarMode": "0o644",
+          "sha256": "8233e412b40b6927f973fbaad5b6fb2fec9a2861867d910d5359127365787fb9"
+        },
+        {
+          "path": "dist/load-provider-Bl5rgjsL.js",
+          "bytes": 214,
+          "tarMode": "0o644",
+          "sha256": "b501051c8d1570660c01df98325a2dfc806761f2f78b95907e9b7371675580ef"
+        },
+        {
+          "path": "dist/provider.js",
+          "bytes": 105964,
+          "tarMode": "0o644",
+          "sha256": "e8b8f2c6c332726e384a769511e002bf5eeab67a2e79740d1fcfea5f4c5fcd2e"
+        },
+        {
+          "path": "package.json",
+          "bytes": 2128,
+          "tarMode": "0o644",
+          "sha256": "329ffcbfa9cb704f4ff94bc3987290fe2aab3bd9dfd6ecb0c01fd58f9a73af44"
+        },
+        {
+          "path": "dist/browser.d.ts",
+          "bytes": 417,
+          "tarMode": "0o644",
+          "sha256": "6c3a916b1be9e564d002a39e9646eb144ab4833603e5e193dfe2e5f198ee2e4d"
+        },
+        {
+          "path": "dist/index.d.ts",
+          "bytes": 462,
+          "tarMode": "0o644",
+          "sha256": "8eb8d9aa43532b3261fbcdbf4f6e77364f8a4fe12580687cddd8bd4c9fcc1b2b"
+        },
+        {
+          "path": "dist/provider.d.ts",
+          "bytes": 933,
+          "tarMode": "0o644",
+          "sha256": "dbb0c7a21467822baaf061f6d35a22e70f1f45bf7936ceb0aa8c14430dfa1e60"
+        },
+        {
+          "path": "LICENSE",
+          "bytes": 1076,
+          "tarMode": "0o644",
+          "sha256": "ddc110f3b89cc397cee99d3d64c4f746928b7a3bac02fed15101eb4d367079f6"
+        }
+      ],
+      "lifecycleScripts": {},
+      "lifecycleExecuted": false,
+      "nativeFilesFound": false,
+      "statusOutcome": "retrieved-and-verified"
+    },
+    {
+      "name": "@ampproject/remapping",
+      "version": "2.3.0",
+      "url": "https://registry.npmjs.org/@ampproject/remapping/-/remapping-2.3.0.tgz",
+      "expectedIntegrity": "sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==",
+      "status": 200,
+      "finalUrl": "https://registry.npmjs.org/@ampproject/remapping/-/remapping-2.3.0.tgz",
+      "contentLength": "15562",
+      "tarballBytes": 15562,
+      "tarballSha256": "f8bf712008656c5abc83dd859463cba3193c76f4cd1fe8ad3637f7ae18bfd368",
+      "actualIntegrity": "sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==",
+      "integrityVerifiedBeforeExtraction": true,
+      "privatePackageDir": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@ampproject+remapping@2.3.0",
+      "packageJsonSha256": "d7adce7c898a226d04cce02982864a724ba2a710efd5a0e42a3da49dcec84f5a",
+      "entries": [
+        {
+          "path": "LICENSE",
+          "bytes": 11358,
+          "tarMode": "0o644",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "dist/remapping.umd.js",
+          "bytes": 9726,
+          "tarMode": "0o644",
+          "sha256": "1b7ce6aa4e0b93113b5dc94ac32b65e3347bd85095fb3116dd60d5d982e00cf7"
+        },
+        {
+          "path": "package.json",
+          "bytes": 2233,
+          "tarMode": "0o644",
+          "sha256": "d7adce7c898a226d04cce02982864a724ba2a710efd5a0e42a3da49dcec84f5a"
+        },
+        {
+          "path": "dist/remapping.mjs.map",
+          "bytes": 17410,
+          "tarMode": "0o644",
+          "sha256": "19c76f516ee73c9441f5711ba0fa64286580cbeb58621e7bd0c4346165ece341"
+        },
+        {
+          "path": "dist/remapping.umd.js.map",
+          "bytes": 17578,
+          "tarMode": "0o644",
+          "sha256": "822720cdcf680b6b004d18de605d995cd5336ddb6360f34685b378e9a5930fa2"
+        },
+        {
+          "path": "README.md",
+          "bytes": 7304,
+          "tarMode": "0o644",
+          "sha256": "49880d43910d924efe5c39c4256bb59c3f0ad4d0d12a9bb430c0e541359b0efd"
+        },
+        {
+          "path": "dist/remapping.mjs",
+          "bytes": 8538,
+          "tarMode": "0o644",
+          "sha256": "9d9c8d4f592c4e7dabaf993ec546e054a5303491fb7e2b9de67cdb167defd00e"
+        },
+        {
+          "path": "dist/types/build-source-map-tree.d.ts",
+          "bytes": 799,
+          "tarMode": "0o644",
+          "sha256": "4733ac0c4b3fb1552a564b88234ee3c65826c49fae01625469f5dca39ab80ed4"
+        },
+        {
+          "path": "dist/types/remapping.d.ts",
+          "bytes": 1094,
+          "tarMode": "0o644",
+          "sha256": "26d8b621bb763f18d6de5ae0e6ca6da5410139eea590f47568c6fbc7dde578b2"
+        },
+        {
+          "path": "dist/types/source-map-tree.d.ts",
+          "bytes": 1675,
+          "tarMode": "0o644",
+          "sha256": "27afd8b7b257383099760b327b374a49797adb78065773e69405966e270b22f5"
+        },
+        {
+          "path": "dist/types/source-map.d.ts",
+          "bytes": 623,
+          "tarMode": "0o644",
+          "sha256": "471b4ea77ea47cafe2ac77fa09f30a77f3a466f873137a62fe51ba47c8a0356c"
+        },
+        {
+          "path": "dist/types/types.d.ts",
+          "bytes": 608,
+          "tarMode": "0o644",
+          "sha256": "0b9f83e2dc7bc4f175b78afcec74daac0b8ddeb5998c2e68e40be95f8621c2ad"
+        }
+      ],
+      "lifecycleScripts": {},
+      "lifecycleExecuted": false,
+      "nativeFilesFound": false,
+      "statusOutcome": "retrieved-and-verified"
+    },
+    {
+      "name": "istanbul-lib-source-maps",
+      "version": "5.0.6",
+      "url": "https://registry.npmjs.org/istanbul-lib-source-maps/-/istanbul-lib-source-maps-5.0.6.tgz",
+      "expectedIntegrity": "sha512-yg2d+Em4KizZC5niWhQaIomgf5WlL4vOOjZ5xGCmF8SnPE/mDWWXgvRExdcpCgh9lLRRa1/fSYp2ymmbJ1pI+A==",
+      "status": 200,
+      "finalUrl": "https://registry.npmjs.org/istanbul-lib-source-maps/-/istanbul-lib-source-maps-5.0.6.tgz",
+      "contentLength": "9710",
+      "tarballBytes": 9710,
+      "tarballSha256": "edd298e71ebf12ef7dded4826ba2cb0cbb58c911db0bb7c50efaf27dc80e04b4",
+      "actualIntegrity": "sha512-yg2d+Em4KizZC5niWhQaIomgf5WlL4vOOjZ5xGCmF8SnPE/mDWWXgvRExdcpCgh9lLRRa1/fSYp2ymmbJ1pI+A==",
+      "integrityVerifiedBeforeExtraction": true,
+      "privatePackageDir": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/istanbul-lib-source-maps@5.0.6",
+      "packageJsonSha256": "1fb514a476933dd856734b58a41f55c5a3e9d922aa4620af39ccd49dbb852bda",
+      "entries": [
+        {
+          "path": "LICENSE",
+          "bytes": 1483,
+          "tarMode": "0o644",
+          "sha256": "b661867c1d66a1b71ee3a6109159874334cd5c182a80d1bcc7353b5a4c6823c6"
+        },
+        {
+          "path": "lib/get-mapping.js",
+          "bytes": 5850,
+          "tarMode": "0o644",
+          "sha256": "d1834a6f6e1428458d8e81884daf01a650f701e0b41601befad208ff0e3a32f7"
+        },
+        {
+          "path": "index.js",
+          "bytes": 320,
+          "tarMode": "0o644",
+          "sha256": "375b9b523c60806205a0283986a0ad5fe350809ba6493b4912f5d6053d7b9067"
+        },
+        {
+          "path": "lib/map-store.js",
+          "bytes": 7424,
+          "tarMode": "0o644",
+          "sha256": "820d7524a7fbcf2918c6fd63622d9d16306b0de53e51150c0712a06215265540"
+        },
+        {
+          "path": "lib/mapped.js",
+          "bytes": 2832,
+          "tarMode": "0o644",
+          "sha256": "dfadca6ccf613a08478b0a35dce27b6a5d7229677ec6793061ab2336c50c93ad"
+        },
+        {
+          "path": "lib/pathutils.js",
+          "bytes": 537,
+          "tarMode": "0o644",
+          "sha256": "1ea8eae11a5ecc11c6f3232de7735fea2ccba6ee24d08fee505badba40765a04"
+        },
+        {
+          "path": "lib/transform-utils.js",
+          "bytes": 478,
+          "tarMode": "0o644",
+          "sha256": "972e59df9780e913979b12e5100270bbf60e32a98db4fc671ade600c26f0cf4a"
+        },
+        {
+          "path": "lib/transformer.js",
+          "bytes": 4953,
+          "tarMode": "0o644",
+          "sha256": "cbb3a4447f8519b48af4f779e0a0c2158f072d79a9ff3a2d561d03cbc7ed2d48"
+        },
+        {
+          "path": "package.json",
+          "bytes": 996,
+          "tarMode": "0o644",
+          "sha256": "1fb514a476933dd856734b58a41f55c5a3e9d922aa4620af39ccd49dbb852bda"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "bytes": 12398,
+          "tarMode": "0o644",
+          "sha256": "ce5116bb8a143a66edc73d16190637872b3bc0fe7f2405f750e221c5fb8225e1"
+        },
+        {
+          "path": "README.md",
+          "bytes": 454,
+          "tarMode": "0o644",
+          "sha256": "b790f936bd13359c97464964dd20b1d002d5cdffefec09739a86e3b47b62eb4c"
+        }
+      ],
+      "lifecycleScripts": {},
+      "lifecycleExecuted": false,
+      "nativeFilesFound": false,
+      "statusOutcome": "retrieved-and-verified"
+    },
+    {
+      "name": "magicast",
+      "version": "0.3.5",
+      "url": "https://registry.npmjs.org/magicast/-/magicast-0.3.5.tgz",
+      "expectedIntegrity": "sha512-L0WhttDl+2BOsybvEOLK7fW3UA0OQ0IQ2d6Zl2x/a6vVRs3bAY0ECOSHHeL5jD+SbOpOCUEi0y1DgHEn9Qn1AQ==",
+      "status": 200,
+      "finalUrl": "https://registry.npmjs.org/magicast/-/magicast-0.3.5.tgz",
+      "contentLength": "122103",
+      "tarballBytes": 122103,
+      "tarballSha256": "7c17f542f7cccd669db3fc90d7357ff1149d695010a93410ae06284d121b43db",
+      "actualIntegrity": "sha512-L0WhttDl+2BOsybvEOLK7fW3UA0OQ0IQ2d6Zl2x/a6vVRs3bAY0ECOSHHeL5jD+SbOpOCUEi0y1DgHEn9Qn1AQ==",
+      "integrityVerifiedBeforeExtraction": true,
+      "statusOutcome": "failed",
+      "errorType": "AssertionError",
+      "error": "Unexpected lifecycle hook; package not activated"
+    }
+  ],
+  "noInstallerOrLifecycle": true,
+  "noSourceLockGlobalChanges": true
+}

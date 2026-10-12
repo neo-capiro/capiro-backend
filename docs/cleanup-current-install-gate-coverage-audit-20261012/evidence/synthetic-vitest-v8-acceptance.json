@@ -1,0 +1,165 @@
+{
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "status": "PASS",
+  "tests": {
+    "files": 1,
+    "passed": 3,
+    "failed": 0
+  },
+  "provider": "v8",
+  "providerVersion": "2.1.9",
+  "typescriptSourceMapOriginalPath": "/tmp/capiro-vitest-v8-toolchain-277-20261012/subject.ts",
+  "metrics": {
+    "lines": {
+      "total": 5,
+      "covered": 5,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 5,
+      "covered": 5,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 1,
+      "covered": 1,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 4,
+      "covered": 4,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": "Unknown"
+    }
+  },
+  "negativeRefusalControls": 4,
+  "permittedProcesses": "Exact read-only CPU probes, existing cached esbuild0.21.5 executable and explicit tinypool1.1.1 local workers only.",
+  "canonicalSourceConfigLockChanges": 0,
+  "sourceProviderBytesChanged": 0,
+  "defaultAppGraphRun": false,
+  "fiveTargetCoverageFloorAccepted": false,
+  "outputBytes": 123439,
+  "outputCapBytes": 1048576,
+  "files": [
+    {
+      "path": "coverage/coverage-final.json",
+      "bytes": 1452,
+      "sha256": "bf24e7dc419ca54dedeead3ba808203762448fcec72eee92232ab61e30dd4fed"
+    },
+    {
+      "path": "coverage/coverage-summary.json",
+      "bytes": 599,
+      "sha256": "a9eaaf874a63347c6a068fc246619f047c79e6c954a62ac1b3cde4d3c5d1726e"
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/LICENSE",
+      "bytes": 1076,
+      "sha256": "ddc110f3b89cc397cee99d3d64c4f746928b7a3bac02fed15101eb4d367079f6"
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/browser.d.ts",
+      "bytes": 417,
+      "sha256": "6c3a916b1be9e564d002a39e9646eb144ab4833603e5e193dfe2e5f198ee2e4d"
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/browser.js",
+      "bytes": 1281,
+      "sha256": "e9dd80b1de35defadadbcdee19e0a63c48d78905948fb3e2801cde1bd0c2049f"
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/index.d.ts",
+      "bytes": 462,
+      "sha256": "8eb8d9aa43532b3261fbcdbf4f6e77364f8a4fe12580687cddd8bd4c9fcc1b2b"
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/index.js",
+      "bytes": 1202,
+      "sha256": "8233e412b40b6927f973fbaad5b6fb2fec9a2861867d910d5359127365787fb9"
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/load-provider-Bl5rgjsL.js",
+      "bytes": 214,
+      "sha256": "b501051c8d1570660c01df98325a2dfc806761f2f78b95907e9b7371675580ef"
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/provider.d.ts",
+      "bytes": 933,
+      "sha256": "dbb0c7a21467822baaf061f6d35a22e70f1f45bf7936ceb0aa8c14430dfa1e60"
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/provider.js",
+      "bytes": 105964,
+      "sha256": "e8b8f2c6c332726e384a769511e002bf5eeab67a2e79740d1fcfea5f4c5fcd2e"
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/package.json",
+      "bytes": 2128,
+      "sha256": "329ffcbfa9cb704f4ff94bc3987290fe2aab3bd9dfd6ecb0c01fd58f9a73af44"
+    },
+    {
+      "path": "operation-receipts.jsonl",
+      "bytes": 3325,
+      "sha256": "8e0271ac6429e9a77689f0cb5589b431410af7a6cf2ee524f483c27743f70a42"
+    },
+    {
+      "path": "package.json",
+      "bytes": 42,
+      "sha256": "609158e6c5fbc237939fa3ddf7faab80ab690bdc0c8d584414a885130103c4e8"
+    },
+    {
+      "path": "refuser-negative-controls.log",
+      "bytes": 173,
+      "sha256": "84ed0eb20b4821e5ce0a07f6a2e2fbb9851a71a375f376db51655fd6cd3c080e"
+    },
+    {
+      "path": "results.json",
+      "bytes": 1357,
+      "sha256": "4bcb54f1f4f86faa26edc693611844ab644d073f77ca3cfbc57b0c850a3c917b"
+    },
+    {
+      "path": "run-attempt-1.log",
+      "bytes": 67,
+      "sha256": "763c779c94a113851c261be2618d08037176b7e53e589dbc66366150daa10d46"
+    },
+    {
+      "path": "run-attempt-2.log",
+      "bytes": 1261,
+      "sha256": "e71ce377ebbdd9064f7b8fcec5ecaa3aa9c2464568ee1793d137be3fbea0038a"
+    },
+    {
+      "path": "run-attempt-3.log",
+      "bytes": 552,
+      "sha256": "6e74080f0f85191c7e6e011fff74ca0f580c70e30c3c3cf915238ffb0d9a51cc"
+    },
+    {
+      "path": "subject.spec.ts",
+      "bytes": 362,
+      "sha256": "a8c0346ae69be1682b0729479b2a641970f5493bcfefa63e422c1ecbc4c30412"
+    },
+    {
+      "path": "subject.ts",
+      "bytes": 141,
+      "sha256": "8893bf579396a41897f6dd6099be9b9f96e2f71a8ea35c1d6bfd7b4b2ac7d1a8"
+    },
+    {
+      "path": "vite-cache/vitest/results.json",
+      "bytes": 98,
+      "sha256": "1b296b72a77fc9d086268add8ba46966498e41a2e6b904b342fe207dfaa510fe"
+    },
+    {
+      "path": "vitest.config.mjs",
+      "bytes": 333,
+      "sha256": "f984e62c67db080a9794bd0eeb3c02a76cc85610edfecff91abb078fc7b5be87"
+    }
+  ],
+  "limitations": "Standard JS network/process tripwires and audited pure import closure; not a claim of arbitrary OS/network containment."
+}

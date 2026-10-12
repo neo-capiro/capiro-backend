@@ -1,0 +1,23 @@
+{
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "command": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "/workspace/capirov2/apps/web/node_modules/vitest/vitest.mjs",
+    "run",
+    "--root",
+    "/tmp/capiro-vitest-v8-toolchain-277-20261012",
+    "--config",
+    "/tmp/capiro-vitest-v8-toolchain-277-20261012/vitest.config.mjs",
+    "--coverage",
+    "--reporter=json",
+    "--outputFile",
+    "/tmp/capiro-vitest-v8-toolchain-277-20261012/results.json"
+  ],
+  "cwd": "/tmp/capiro-vitest-v8-toolchain-277-20261012",
+  "removedOtelKeys": [],
+  "preload": "--require /tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/vitest-local-refuser.cjs",
+  "outputCapBytes": 1048576,
+  "diagnosticToolchainOnly": true,
+  "canonicalCoverageFloorWritten": false,
+  "defaultAppGraphRun": false
+}

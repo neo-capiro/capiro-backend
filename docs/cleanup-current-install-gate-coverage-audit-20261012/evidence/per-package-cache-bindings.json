@@ -1,0 +1,283 @@
+[
+  {
+    "packageDir": "packages/meriv2-core",
+    "cacheNodeModulesExists": true,
+    "worktreeNodeModulesExists": false,
+    "cachedManifestBindings": [
+      {
+        "name": "jest",
+        "version": "29.7.0",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest"
+      },
+      {
+        "name": "ts-jest",
+        "version": "29.4.14",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest"
+      },
+      {
+        "name": "typescript",
+        "version": "5.9.3",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      {
+        "name": "@capiro/shared",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/shared"
+      },
+      {
+        "name": "tsx",
+        "version": "4.23.15",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx"
+      },
+      {
+        "name": "@opentelemetry/api",
+        "version": "1.9.1",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/@opentelemetry+api@1.9.1/node_modules/@opentelemetry/api"
+      },
+      {
+        "name": "@opentelemetry/exporter-trace-otlp-http",
+        "version": "0.222.0",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/@opentelemetry+exporter-trace-otlp-http@0.222.0_@opentelemetry+api@1.9.1/node_modules/@opentelemetry/exporter-trace-otlp-http"
+      }
+    ]
+  },
+  {
+    "packageDir": "packages/auth",
+    "cacheNodeModulesExists": true,
+    "worktreeNodeModulesExists": false,
+    "cachedManifestBindings": [
+      {
+        "name": "jest",
+        "version": "29.7.0",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest"
+      },
+      {
+        "name": "ts-jest",
+        "version": "29.4.14",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest"
+      },
+      {
+        "name": "typescript",
+        "version": "5.9.3",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      }
+    ]
+  },
+  {
+    "packageDir": "apps/meriv2-orchestrator",
+    "cacheNodeModulesExists": true,
+    "worktreeNodeModulesExists": false,
+    "cachedManifestBindings": [
+      {
+        "name": "jest",
+        "version": "29.7.0",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest"
+      },
+      {
+        "name": "ts-jest",
+        "version": "29.4.14",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest"
+      },
+      {
+        "name": "typescript",
+        "version": "5.9.3",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      {
+        "name": "@capiro/shared",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/shared"
+      },
+      {
+        "name": "@capiro/auth",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/auth"
+      },
+      {
+        "name": "@capiro/meriv2-core",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/meriv2-core"
+      },
+      {
+        "name": "@prisma/client",
+        "version": "5.22.0",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client"
+      },
+      {
+        "name": "tsx",
+        "version": "4.23.15",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx"
+      }
+    ]
+  },
+  {
+    "packageDir": "apps/onboard-web",
+    "cacheNodeModulesExists": true,
+    "worktreeNodeModulesExists": false,
+    "cachedManifestBindings": [
+      {
+        "name": "typescript",
+        "version": "5.9.3",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      {
+        "name": "vitest",
+        "version": "2.1.9",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/vitest@2.1.9_@types+node@26.6.3_jsdom@29.1.1_@noble+hashes@1.8.0__lightningcss@1.32.0_terser@5.46.2/node_modules/vitest"
+      },
+      {
+        "name": "@capiro/shared",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/shared"
+      }
+    ]
+  },
+  {
+    "packageDir": "apps/web",
+    "cacheNodeModulesExists": true,
+    "worktreeNodeModulesExists": false,
+    "cachedManifestBindings": [
+      {
+        "name": "typescript",
+        "version": "5.9.3",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      {
+        "name": "vitest",
+        "version": "2.1.9",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/vitest@2.1.9_@types+node@26.6.3_jsdom@29.1.1_@noble+hashes@1.8.0__lightningcss@1.32.0_terser@5.46.2/node_modules/vitest"
+      },
+      {
+        "name": "@capiro/shared",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/shared"
+      }
+    ]
+  },
+  {
+    "packageDir": "apps/api",
+    "cacheNodeModulesExists": true,
+    "worktreeNodeModulesExists": true,
+    "cachedManifestBindings": [
+      {
+        "name": "jest",
+        "version": "29.7.0",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest"
+      },
+      {
+        "name": "ts-jest",
+        "version": "29.4.14",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest"
+      },
+      {
+        "name": "typescript",
+        "version": "5.9.3",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      {
+        "name": "@capiro/shared",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/shared"
+      },
+      {
+        "name": "@capiro/meriv2-core",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/meriv2-core"
+      },
+      {
+        "name": "@prisma/client",
+        "version": "5.22.0",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client"
+      },
+      {
+        "name": "tsx",
+        "version": "4.23.15",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx"
+      }
+    ]
+  },
+  {
+    "packageDir": "apps/workspace",
+    "cacheNodeModulesExists": true,
+    "worktreeNodeModulesExists": true,
+    "cachedManifestBindings": [
+      {
+        "name": "jest",
+        "version": "29.7.0",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest"
+      },
+      {
+        "name": "ts-jest",
+        "version": "29.4.14",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest"
+      },
+      {
+        "name": "typescript",
+        "version": "5.9.3",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      {
+        "name": "@capiro/shared",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/shared"
+      },
+      {
+        "name": "@capiro/auth",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/auth"
+      },
+      {
+        "name": "@capiro/meriv2-core",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/meriv2-core"
+      },
+      {
+        "name": "@prisma/client",
+        "version": "5.22.0",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client"
+      },
+      {
+        "name": "tsx",
+        "version": "4.23.15",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx"
+      }
+    ]
+  },
+  {
+    "packageDir": "apps/api-strategy",
+    "cacheNodeModulesExists": true,
+    "worktreeNodeModulesExists": true,
+    "cachedManifestBindings": [
+      {
+        "name": "jest",
+        "version": "29.7.0",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/jest@29.7.0_@types+node@20.19.39_ts-node@10.9.2_@swc+core@1.16.2_@swc+helpers@0.5.23__@types+_gpltlg3ix7ppqa5mu256p7rgei/node_modules/jest"
+      },
+      {
+        "name": "ts-jest",
+        "version": "29.4.14",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/ts-jest@29.4.14_@babel+core@7.29.0_@jest+transform@29.7.0_@jest+types@29.6.3_babel-jest@29.7._eacgnhqsafuhrzzt5bagvqkm5y/node_modules/ts-jest"
+      },
+      {
+        "name": "typescript",
+        "version": "5.9.3",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/typescript@5.9.3/node_modules/typescript"
+      },
+      {
+        "name": "@capiro/auth",
+        "version": "0.0.0",
+        "realPackageDir": "/workspace/capirov2/packages/auth"
+      },
+      {
+        "name": "@prisma/client",
+        "version": "5.22.0",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/@prisma+client@5.22.0_prisma@5.22.0/node_modules/@prisma/client"
+      },
+      {
+        "name": "tsx",
+        "version": "4.23.15",
+        "realPackageDir": "/workspace/capirov2/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx"
+      }
+    ]
+  }
+]

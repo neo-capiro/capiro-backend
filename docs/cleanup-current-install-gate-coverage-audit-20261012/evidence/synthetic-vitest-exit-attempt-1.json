@@ -1,0 +1,34 @@
+{
+  "status": 1,
+  "signal": null,
+  "error": null,
+  "outputBytes": 1532,
+  "outputCapBytes": 1048576,
+  "capMet": true,
+  "files": [
+    {
+      "path": "operation-receipts.jsonl",
+      "bytes": 587
+    },
+    {
+      "path": "package.json",
+      "bytes": 42
+    },
+    {
+      "path": "run-attempt-1.log",
+      "bytes": 67
+    },
+    {
+      "path": "subject.spec.ts",
+      "bytes": 362
+    },
+    {
+      "path": "subject.ts",
+      "bytes": 141
+    },
+    {
+      "path": "vitest.config.mjs",
+      "bytes": 333
+    }
+  ]
+}

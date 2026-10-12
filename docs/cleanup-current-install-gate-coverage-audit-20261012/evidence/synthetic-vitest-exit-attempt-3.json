@@ -1,0 +1,94 @@
+{
+  "status": 0,
+  "signal": null,
+  "error": null,
+  "outputBytes": 122852,
+  "outputCapBytes": 1048576,
+  "capMet": true,
+  "files": [
+    {
+      "path": "coverage/coverage-final.json",
+      "bytes": 1452
+    },
+    {
+      "path": "coverage/coverage-summary.json",
+      "bytes": 599
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/LICENSE",
+      "bytes": 1076
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/browser.d.ts",
+      "bytes": 417
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/browser.js",
+      "bytes": 1281
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/index.d.ts",
+      "bytes": 462
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/index.js",
+      "bytes": 1202
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/load-provider-Bl5rgjsL.js",
+      "bytes": 214
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/provider.d.ts",
+      "bytes": 933
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/dist/provider.js",
+      "bytes": 105964
+    },
+    {
+      "path": "node_modules/@vitest/coverage-v8/package.json",
+      "bytes": 2128
+    },
+    {
+      "path": "operation-receipts.jsonl",
+      "bytes": 2911
+    },
+    {
+      "path": "package.json",
+      "bytes": 42
+    },
+    {
+      "path": "results.json",
+      "bytes": 1357
+    },
+    {
+      "path": "run-attempt-1.log",
+      "bytes": 67
+    },
+    {
+      "path": "run-attempt-2.log",
+      "bytes": 1261
+    },
+    {
+      "path": "run-attempt-3.log",
+      "bytes": 552
+    },
+    {
+      "path": "subject.spec.ts",
+      "bytes": 362
+    },
+    {
+      "path": "subject.ts",
+      "bytes": 141
+    },
+    {
+      "path": "vite-cache/vitest/results.json",
+      "bytes": 98
+    },
+    {
+      "path": "vitest.config.mjs",
+      "bytes": 333
+    }
+  ]
+}

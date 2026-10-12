@@ -1,0 +1,507 @@
+{
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "lockSha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba",
+  "records": [
+    {
+      "name": "@vitest/coverage-v8",
+      "version": "2.1.9",
+      "url": "https://registry.npmjs.org/@vitest/coverage-v8/-/coverage-v8-2.1.9.tgz",
+      "expectedIntegrity": "sha512-Z2cOr0ksM00MpEfyVE8KXIYPEcBFxdbLSs56L8PO0QQMxt/6bDj45uQfxoc96v05KW3clk7vvgP0qfDit9DmfQ==",
+      "status": 200,
+      "finalUrl": "https://registry.npmjs.org/@vitest/coverage-v8/-/coverage-v8-2.1.9.tgz",
+      "retainedOriginalGET": true,
+      "actualIntegrity": "sha512-Z2cOr0ksM00MpEfyVE8KXIYPEcBFxdbLSs56L8PO0QQMxt/6bDj45uQfxoc96v05KW3clk7vvgP0qfDit9DmfQ==",
+      "tarballBytes": 28339,
+      "tarballSha256": "0fcbf02b10a618beb535eb62c2cb015b3d86e4d7ff84ba6ba01169689321c753",
+      "integrityVerifiedBeforeExtraction": true,
+      "privatePackageDir": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9",
+      "entries": [
+        {
+          "path": "dist/browser.js",
+          "bytes": 1281,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "e9dd80b1de35defadadbcdee19e0a63c48d78905948fb3e2801cde1bd0c2049f"
+        },
+        {
+          "path": "dist/index.js",
+          "bytes": 1202,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "8233e412b40b6927f973fbaad5b6fb2fec9a2861867d910d5359127365787fb9"
+        },
+        {
+          "path": "dist/load-provider-Bl5rgjsL.js",
+          "bytes": 214,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "b501051c8d1570660c01df98325a2dfc806761f2f78b95907e9b7371675580ef"
+        },
+        {
+          "path": "dist/provider.js",
+          "bytes": 105964,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "e8b8f2c6c332726e384a769511e002bf5eeab67a2e79740d1fcfea5f4c5fcd2e"
+        },
+        {
+          "path": "package.json",
+          "bytes": 2128,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "329ffcbfa9cb704f4ff94bc3987290fe2aab3bd9dfd6ecb0c01fd58f9a73af44"
+        },
+        {
+          "path": "dist/browser.d.ts",
+          "bytes": 417,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "6c3a916b1be9e564d002a39e9646eb144ab4833603e5e193dfe2e5f198ee2e4d"
+        },
+        {
+          "path": "dist/index.d.ts",
+          "bytes": 462,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "8eb8d9aa43532b3261fbcdbf4f6e77364f8a4fe12580687cddd8bd4c9fcc1b2b"
+        },
+        {
+          "path": "dist/provider.d.ts",
+          "bytes": 933,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "dbb0c7a21467822baaf061f6d35a22e70f1f45bf7936ceb0aa8c14430dfa1e60"
+        },
+        {
+          "path": "LICENSE",
+          "bytes": 1076,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "ddc110f3b89cc397cee99d3d64c4f746928b7a3bac02fed15101eb4d367079f6"
+        }
+      ],
+      "packageJsonSha256": "329ffcbfa9cb704f4ff94bc3987290fe2aab3bd9dfd6ecb0c01fd58f9a73af44",
+      "lifecycleScriptsDeclared": {},
+      "lifecycleExecuted": false,
+      "statusOutcome": "retrieved-verified-not-installed"
+    },
+    {
+      "name": "@ampproject/remapping",
+      "version": "2.3.0",
+      "url": "https://registry.npmjs.org/@ampproject/remapping/-/remapping-2.3.0.tgz",
+      "expectedIntegrity": "sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==",
+      "status": 200,
+      "finalUrl": "https://registry.npmjs.org/@ampproject/remapping/-/remapping-2.3.0.tgz",
+      "retainedOriginalGET": true,
+      "actualIntegrity": "sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==",
+      "tarballBytes": 15562,
+      "tarballSha256": "f8bf712008656c5abc83dd859463cba3193c76f4cd1fe8ad3637f7ae18bfd368",
+      "integrityVerifiedBeforeExtraction": true,
+      "privatePackageDir": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@ampproject+remapping@2.3.0",
+      "entries": [
+        {
+          "path": "LICENSE",
+          "bytes": 11358,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "dist/remapping.umd.js",
+          "bytes": 9726,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "1b7ce6aa4e0b93113b5dc94ac32b65e3347bd85095fb3116dd60d5d982e00cf7"
+        },
+        {
+          "path": "package.json",
+          "bytes": 2233,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "d7adce7c898a226d04cce02982864a724ba2a710efd5a0e42a3da49dcec84f5a"
+        },
+        {
+          "path": "dist/remapping.mjs.map",
+          "bytes": 17410,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "19c76f516ee73c9441f5711ba0fa64286580cbeb58621e7bd0c4346165ece341"
+        },
+        {
+          "path": "dist/remapping.umd.js.map",
+          "bytes": 17578,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "822720cdcf680b6b004d18de605d995cd5336ddb6360f34685b378e9a5930fa2"
+        },
+        {
+          "path": "README.md",
+          "bytes": 7304,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "49880d43910d924efe5c39c4256bb59c3f0ad4d0d12a9bb430c0e541359b0efd"
+        },
+        {
+          "path": "dist/remapping.mjs",
+          "bytes": 8538,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "9d9c8d4f592c4e7dabaf993ec546e054a5303491fb7e2b9de67cdb167defd00e"
+        },
+        {
+          "path": "dist/types/build-source-map-tree.d.ts",
+          "bytes": 799,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "4733ac0c4b3fb1552a564b88234ee3c65826c49fae01625469f5dca39ab80ed4"
+        },
+        {
+          "path": "dist/types/remapping.d.ts",
+          "bytes": 1094,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "26d8b621bb763f18d6de5ae0e6ca6da5410139eea590f47568c6fbc7dde578b2"
+        },
+        {
+          "path": "dist/types/source-map-tree.d.ts",
+          "bytes": 1675,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "27afd8b7b257383099760b327b374a49797adb78065773e69405966e270b22f5"
+        },
+        {
+          "path": "dist/types/source-map.d.ts",
+          "bytes": 623,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "471b4ea77ea47cafe2ac77fa09f30a77f3a466f873137a62fe51ba47c8a0356c"
+        },
+        {
+          "path": "dist/types/types.d.ts",
+          "bytes": 608,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "0b9f83e2dc7bc4f175b78afcec74daac0b8ddeb5998c2e68e40be95f8621c2ad"
+        }
+      ],
+      "packageJsonSha256": "d7adce7c898a226d04cce02982864a724ba2a710efd5a0e42a3da49dcec84f5a",
+      "lifecycleScriptsDeclared": {},
+      "lifecycleExecuted": false,
+      "statusOutcome": "retrieved-verified-not-installed"
+    },
+    {
+      "name": "istanbul-lib-source-maps",
+      "version": "5.0.6",
+      "url": "https://registry.npmjs.org/istanbul-lib-source-maps/-/istanbul-lib-source-maps-5.0.6.tgz",
+      "expectedIntegrity": "sha512-yg2d+Em4KizZC5niWhQaIomgf5WlL4vOOjZ5xGCmF8SnPE/mDWWXgvRExdcpCgh9lLRRa1/fSYp2ymmbJ1pI+A==",
+      "status": 200,
+      "finalUrl": "https://registry.npmjs.org/istanbul-lib-source-maps/-/istanbul-lib-source-maps-5.0.6.tgz",
+      "retainedOriginalGET": true,
+      "actualIntegrity": "sha512-yg2d+Em4KizZC5niWhQaIomgf5WlL4vOOjZ5xGCmF8SnPE/mDWWXgvRExdcpCgh9lLRRa1/fSYp2ymmbJ1pI+A==",
+      "tarballBytes": 9710,
+      "tarballSha256": "edd298e71ebf12ef7dded4826ba2cb0cbb58c911db0bb7c50efaf27dc80e04b4",
+      "integrityVerifiedBeforeExtraction": true,
+      "privatePackageDir": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/istanbul-lib-source-maps@5.0.6",
+      "entries": [
+        {
+          "path": "LICENSE",
+          "bytes": 1483,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "b661867c1d66a1b71ee3a6109159874334cd5c182a80d1bcc7353b5a4c6823c6"
+        },
+        {
+          "path": "lib/get-mapping.js",
+          "bytes": 5850,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "d1834a6f6e1428458d8e81884daf01a650f701e0b41601befad208ff0e3a32f7"
+        },
+        {
+          "path": "index.js",
+          "bytes": 320,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "375b9b523c60806205a0283986a0ad5fe350809ba6493b4912f5d6053d7b9067"
+        },
+        {
+          "path": "lib/map-store.js",
+          "bytes": 7424,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "820d7524a7fbcf2918c6fd63622d9d16306b0de53e51150c0712a06215265540"
+        },
+        {
+          "path": "lib/mapped.js",
+          "bytes": 2832,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "dfadca6ccf613a08478b0a35dce27b6a5d7229677ec6793061ab2336c50c93ad"
+        },
+        {
+          "path": "lib/pathutils.js",
+          "bytes": 537,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "1ea8eae11a5ecc11c6f3232de7735fea2ccba6ee24d08fee505badba40765a04"
+        },
+        {
+          "path": "lib/transform-utils.js",
+          "bytes": 478,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "972e59df9780e913979b12e5100270bbf60e32a98db4fc671ade600c26f0cf4a"
+        },
+        {
+          "path": "lib/transformer.js",
+          "bytes": 4953,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "cbb3a4447f8519b48af4f779e0a0c2158f072d79a9ff3a2d561d03cbc7ed2d48"
+        },
+        {
+          "path": "package.json",
+          "bytes": 996,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "1fb514a476933dd856734b58a41f55c5a3e9d922aa4620af39ccd49dbb852bda"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "bytes": 12398,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "ce5116bb8a143a66edc73d16190637872b3bc0fe7f2405f750e221c5fb8225e1"
+        },
+        {
+          "path": "README.md",
+          "bytes": 454,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "b790f936bd13359c97464964dd20b1d002d5cdffefec09739a86e3b47b62eb4c"
+        }
+      ],
+      "packageJsonSha256": "1fb514a476933dd856734b58a41f55c5a3e9d922aa4620af39ccd49dbb852bda",
+      "lifecycleScriptsDeclared": {},
+      "lifecycleExecuted": false,
+      "statusOutcome": "retrieved-verified-not-installed"
+    },
+    {
+      "name": "magicast",
+      "version": "0.3.5",
+      "url": "https://registry.npmjs.org/magicast/-/magicast-0.3.5.tgz",
+      "expectedIntegrity": "sha512-L0WhttDl+2BOsybvEOLK7fW3UA0OQ0IQ2d6Zl2x/a6vVRs3bAY0ECOSHHeL5jD+SbOpOCUEi0y1DgHEn9Qn1AQ==",
+      "status": 200,
+      "finalUrl": "https://registry.npmjs.org/magicast/-/magicast-0.3.5.tgz",
+      "retainedOriginalGET": true,
+      "actualIntegrity": "sha512-L0WhttDl+2BOsybvEOLK7fW3UA0OQ0IQ2d6Zl2x/a6vVRs3bAY0ECOSHHeL5jD+SbOpOCUEi0y1DgHEn9Qn1AQ==",
+      "tarballBytes": 122103,
+      "tarballSha256": "7c17f542f7cccd669db3fc90d7357ff1149d695010a93410ae06284d121b43db",
+      "integrityVerifiedBeforeExtraction": true,
+      "privatePackageDir": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/magicast@0.3.5",
+      "entries": [
+        {
+          "path": "LICENSE",
+          "bytes": 1120,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "7917b04272f3f7c11f9fb89716742747a77f5906ebe5a81e70cbd090b8c7f961"
+        },
+        {
+          "path": "dist/helpers.cjs",
+          "bytes": 5202,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "8ff1817b915bb37a1d091af76a8f98c6b7ff86775581054b47aaf2665f79ef03"
+        },
+        {
+          "path": "dist/index.cjs",
+          "bytes": 293703,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "26b38ba26f111b3dd3c8ed8b74b4ea2389d47b945cf05100d3ce152e8f2fbec6"
+        },
+        {
+          "path": "dist/helpers.d.cts",
+          "bytes": 2520,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "3f2e7a33e0fc31eb3f27223d3ff262320f71bbc4cb98c5ad08b7671c1e3df136"
+        },
+        {
+          "path": "dist/index.d.cts",
+          "bytes": 2315,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "e795af4cad0a4629c06fa9d1750335fb38889b28342e9c6e429a07a86d7fdb7e"
+        },
+        {
+          "path": "dist/shared/magicast.54e2233d.d.cts",
+          "bytes": 9247,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "f98ad7b60778ea67073e86707007609713623b5dd161e6bf3fb278b96cdb9d04"
+        },
+        {
+          "path": "package.json",
+          "bytes": 2685,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "e03702bae8c0a4088db87da491dc77fcff6f91e2ef9804f34739d81a051ed76c"
+        },
+        {
+          "path": "README.md",
+          "bytes": 5875,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "592eb881d0e2d1d77a6538bac54b7f391de4dc8930741203f1db0679cc6c3a85"
+        },
+        {
+          "path": "dist/helpers.mjs",
+          "bytes": 4953,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "39654aeac8ff3227d20da7936b303a322e3717de88a84c723c30090ac89b47ca"
+        },
+        {
+          "path": "dist/index.mjs",
+          "bytes": 292928,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "2fe6dddb7909c68a4c514655c0064ccec3657028703bf81da72c594bbc10bef4"
+        },
+        {
+          "path": "dist/helpers.d.mts",
+          "bytes": 2520,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "95c2c659f464cfe4a93cdcb06d44899926f79bf5a5f829f14b32cff6cc33b0dd"
+        },
+        {
+          "path": "dist/index.d.mts",
+          "bytes": 2315,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "0010890efdcc1f964c19ecbbd4c86a7f2c04eaef7f2cf1a11ec1276d0644e6b5"
+        },
+        {
+          "path": "dist/shared/magicast.54e2233d.d.mts",
+          "bytes": 9247,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "f98ad7b60778ea67073e86707007609713623b5dd161e6bf3fb278b96cdb9d04"
+        },
+        {
+          "path": "dist/helpers.d.ts",
+          "bytes": 2519,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "4c19be3ab41b5cbb447ff90b27f1b5288f8a0a404a058626970cd06530d127f7"
+        },
+        {
+          "path": "helpers.d.ts",
+          "bytes": 35,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "40eb7f9ea50f034b0d9e74c833bc7484bf8d9e7c2f64c6f4c03c48571c46204c"
+        },
+        {
+          "path": "dist/index.d.ts",
+          "bytes": 2313,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "f3148f133ed88bc9be88190bf7ac3ae6942429e185fce0352017bb1ead014690"
+        },
+        {
+          "path": "dist/shared/magicast.54e2233d.d.ts",
+          "bytes": 9247,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "f98ad7b60778ea67073e86707007609713623b5dd161e6bf3fb278b96cdb9d04"
+        }
+      ],
+      "packageJsonSha256": "e03702bae8c0a4088db87da491dc77fcff6f91e2ef9804f34739d81a051ed76c",
+      "lifecycleScriptsDeclared": {
+        "prepare": "esno ./scripts/vendor.ts",
+        "prepack": "pnpm run build"
+      },
+      "lifecycleExecuted": false,
+      "statusOutcome": "retrieved-verified-not-installed"
+    },
+    {
+      "name": "test-exclude",
+      "version": "7.0.2",
+      "url": "https://registry.npmjs.org/test-exclude/-/test-exclude-7.0.2.tgz",
+      "expectedIntegrity": "sha512-u9E6A+ZDYdp7a4WnarkXPZOx8Ilz46+kby6p1yZ8zsGTz9gYa6FIS7lj2oezzNKmtdyyJNNmmXDppga5GB7kSw==",
+      "status": 200,
+      "finalUrl": "https://registry.npmjs.org/test-exclude/-/test-exclude-7.0.2.tgz",
+      "contentLength": "4189",
+      "actualIntegrity": "sha512-u9E6A+ZDYdp7a4WnarkXPZOx8Ilz46+kby6p1yZ8zsGTz9gYa6FIS7lj2oezzNKmtdyyJNNmmXDppga5GB7kSw==",
+      "tarballBytes": 4189,
+      "tarballSha256": "ec1b661a6d045069d8b0ef88e0f729510df91ec3d9de6d4addd234cf199fb5c7",
+      "integrityVerifiedBeforeExtraction": true,
+      "privatePackageDir": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/test-exclude@7.0.2",
+      "entries": [
+        {
+          "path": "index.js",
+          "bytes": 5195,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "68df7c9a7a9ef715f8821e52eb1c8a525b905e80f6937f484546644c50058132"
+        },
+        {
+          "path": "is-outside-dir-posix.js",
+          "bytes": 147,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "c629e1a0848a19c910dac7ec67046016a66d7ca9b916855833eeef463341205e"
+        },
+        {
+          "path": "is-outside-dir-win32.js",
+          "bytes": 271,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "5d0c888f88ab6fbc3e818b99401eae322805e8ba9062e0907174ea4b4549df96"
+        },
+        {
+          "path": "is-outside-dir.js",
+          "bytes": 174,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "00925f6b22e20be00e270c49e5ae14d62ee634942c338c5b993b7a042e8fdf2c"
+        },
+        {
+          "path": "package.json",
+          "bytes": 908,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "964a1cb3aa110c1bc871d62403c736bcc5cd897290b8c552deb552553b15c3dc"
+        },
+        {
+          "path": "README.md",
+          "bytes": 4035,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "eb9f56bebd9f58686ce98078db459fe0b0f3669a37d63989dacf8a05856bf7b8"
+        },
+        {
+          "path": "LICENSE.txt",
+          "bytes": 731,
+          "tarMode": "0o644",
+          "physicalMode": "0o600",
+          "sha256": "365496ca1f56da40b23c9815fc40fa9005847b2f8f8fd1c1a4929ef25ec8cd1d"
+        }
+      ],
+      "packageJsonSha256": "964a1cb3aa110c1bc871d62403c736bcc5cd897290b8c552deb552553b15c3dc",
+      "lifecycleScriptsDeclared": {},
+      "lifecycleExecuted": false,
+      "statusOutcome": "retrieved-verified-not-installed"
+    }
+  ],
+  "privateRoot": "/tmp/capiro-coverage-provider-cache-277-20261012",
+  "privateBytesUsed": 1070456,
+  "capBytes": 5242880,
+  "noInstallerOrLifecycle": true,
+  "noSourceLockGlobalChanges": true,
+  "initialFailureRetained": "locked-coverage-provider-retrieval.json"
+}

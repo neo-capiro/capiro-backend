@@ -1,0 +1,12 @@
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+1 !== 0
+
+    at /tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/verify-private-coverage-provider.cjs:9:341 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

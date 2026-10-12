@@ -1,0 +1,6 @@
+{
+  "status": "failed-before-package-activation",
+  "error": "KeyError: dependencies",
+  "cause": "Graph missing summary nodes omit dependency data; full nodes array owns exact dependency edges.",
+  "partialDirectoryOnly": "/tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/node_modules"
+}

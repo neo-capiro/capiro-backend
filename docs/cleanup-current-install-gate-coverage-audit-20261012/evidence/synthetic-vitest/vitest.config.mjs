@@ -1,0 +1,1 @@
+export default { cacheDir: "./vite-cache", test: { include: ["subject.spec.ts"], pool: "forks", poolOptions: { forks: { singleFork: true } }, minWorkers: 1, maxWorkers: 1, coverage: { enabled: true, provider: "v8", all: true, include: ["subject.ts"], reporter: ["json-summary", "json", "text"], reportsDirectory: "./coverage" } } };

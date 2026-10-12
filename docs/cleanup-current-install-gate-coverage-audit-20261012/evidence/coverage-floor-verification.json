@@ -1,0 +1,11 @@
+{
+  "baseline": "docs/plans/cleanup1-coverage-baseline.json",
+  "baselineFileSha256": null,
+  "kind": "historical-floor",
+  "head": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "expectSha": null,
+  "ok": false,
+  "problems": [
+    "baseline not found: docs/plans/cleanup1-coverage-baseline.json"
+  ]
+}

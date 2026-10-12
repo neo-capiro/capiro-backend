@@ -1,0 +1,1873 @@
+{
+  "sourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "sourceTree": "b7b33bfa38bccf69aa1a94dd2942add016bf19d3",
+  "files": [
+    {
+      "path": "package.json",
+      "exists": true,
+      "blob": "564a9b83c0e92a0aa27998565cf6c3e1543aa160",
+      "bytes": 13793,
+      "sha256": "cdf66b87a4aee12a9363a5e2a8ee7438e652257e5d8213518f23fbd3c965e7c7",
+      "sourceExact": true
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "exists": true,
+      "blob": "08d78e3dbca937f82ada2eb344b961477e9dfc58",
+      "bytes": 728135,
+      "sha256": "ee1e9d1758ffa0fe45e5b8fb58294083cc57850a1984b035f99fb54747b6ddba",
+      "sourceExact": true
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "exists": true,
+      "blob": "a04e37e5fb1774c83b3d8007b60f69cf44d769d5",
+      "bytes": 54,
+      "sha256": "d60a0f353c3a1ad1909e928324a367b956c573178eba98e8004342d43517ab4d",
+      "sourceExact": true
+    },
+    {
+      "path": "turbo.json",
+      "exists": true,
+      "blob": "d27fafa866b273697a299ab4a9c03b9b18ae56bf",
+      "bytes": 406,
+      "sha256": "f6ce78011df24f37454e56fbcb2af9082f71902be0366d5382e711c5881b2c8b",
+      "sourceExact": true
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "exists": true,
+      "blob": "2890d40278d4987b8cced7333397d435a3902da4",
+      "bytes": 17465,
+      "sha256": "1b3302488e86ab3fae0e5f4a04443aa1c0c9dcaaad17adea40fc4af87d009128",
+      "sourceExact": true
+    },
+    {
+      "path": "scripts/cleanup-gates/gate.mjs",
+      "exists": true,
+      "blob": "86f5a927815c18b297282acbd1392b32e21c9d81",
+      "bytes": 35979,
+      "sha256": "de1a7ee899658acc28397207ea3f765d41f0b35f90c39a55c0ad8cf16b08322d",
+      "sourceExact": true
+    },
+    {
+      "path": "scripts/cleanup-gates/gate-config.mjs",
+      "exists": true,
+      "blob": "2a25c7847aebf1fbb928510edc9967be90dd34e8",
+      "bytes": 17633,
+      "sha256": "b2f9d7766b4b4ed87825b624ff7fcf384121afdd310c133b393df3609e6b783c",
+      "sourceExact": true
+    },
+    {
+      "path": "scripts/cleanup-gates/coverage.mjs",
+      "exists": true,
+      "blob": "f7c4edbd706a3b55f26bf53a5ac53cf6a2b37671",
+      "bytes": 10028,
+      "sha256": "7452bab25155855bbf84269669d5f4d699f60339bbcc5dd4990258f1acfc3a1e",
+      "sourceExact": true
+    },
+    {
+      "path": "scripts/cleanup-gates/verify-baseline.mjs",
+      "exists": true,
+      "blob": "940bd670d98e04af85b9e4ebcce1a45ce979309b",
+      "bytes": 16103,
+      "sha256": "85db782d4bf6d1303083a30eb890663b5c3cfb3807620cb6cb617c7fca4185c5",
+      "sourceExact": true
+    },
+    {
+      "path": "scripts/cleanup-gates/guard-config.test.mjs",
+      "exists": true,
+      "blob": "935b40841aeed2452781ff9cf7b04f2210bb504f",
+      "bytes": 74992,
+      "sha256": "92f2bbf0aa1cc5304b488f141cc6dd419b16610027b4a7da10e80868570ebf8f",
+      "sourceExact": true
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/runner.mjs",
+      "exists": true,
+      "blob": "4066cc53763a84a6bb3f566a8a1a3a67283b3d16",
+      "bytes": 3924,
+      "sha256": "1ee3a2428b7337bf57487d526fa3b0309448143e3ace01d55438985c3495d622",
+      "sourceExact": true
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/provenance.mjs",
+      "exists": true,
+      "blob": "5e8859174eb094ccc7238508ef447eacb48b991f",
+      "bytes": 5192,
+      "sha256": "0323e5442d46db0d22e8f1bf875c6ead3b17f5746b86281fcd19916e1b43033c",
+      "sourceExact": true
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/metrics.mjs",
+      "exists": true,
+      "blob": "d4530adb242ee07445b42fb8297033fda04fedba",
+      "bytes": 6330,
+      "sha256": "3cf600c208ca74046e69b4384502ef555966fe1f680332a59e377f40be3372ad",
+      "sourceExact": true
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/pinned-visual.mjs",
+      "exists": true,
+      "blob": "f027f3e492bad294f6e215df08f22c0a16ab05af",
+      "bytes": 32560,
+      "sha256": "446a0f36fc272b025e28084e04dafe439247b48fa40fb6aafa8917ac1acce8dd",
+      "sourceExact": true
+    },
+    {
+      "path": "scripts/cleanup-gates/lib/smoke-evidence.mjs",
+      "exists": true,
+      "blob": "7a6e3bb1b5d0ae4b25cefc7764cafd0821ac1fb8",
+      "bytes": 100954,
+      "sha256": "1c5000ede0f48eb14de3970a5394e54a8b1c6afaa339aba5b9ae11c60bd84e0e",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/api/package.json",
+      "exists": true,
+      "blob": "982391287e8ff83cef048a7d2e98ae169bdbb133",
+      "bytes": 28581,
+      "sha256": "cb0ade4fbb794c20b1c0e7779c1f61e2de927a3ba9ad138f5088d25b1dce88ff",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/api/jest.config.cjs",
+      "exists": true,
+      "blob": "00998e78899becc7dc52818f3f81c2cb88f46f39",
+      "bytes": 6357,
+      "sha256": "94f1692af740ef12a085d86b7d19ece1bed2fbaa84709ad4a1fbd6f0d8ff7d95",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/api/jest.worker-database.cjs",
+      "exists": true,
+      "blob": "63a7e587aab3ddec30f0a01a06f5f7e5b70be9cd",
+      "bytes": 12850,
+      "sha256": "3da640a20f09c14764dbb33eeda2b15bb65ddf21ffbdef048e220bf0ec6ae5f7",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/api/jest.worker-database-controls.cjs",
+      "exists": true,
+      "blob": "eaa7d98748f833e9bd06de28804b999c82d2150e",
+      "bytes": 13431,
+      "sha256": "e3b3e982437e90bf6ac88d062cb91305e11fe43a3a66bfe8668c092009d2dff6",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/workspace/package.json",
+      "exists": true,
+      "blob": "c4ef8a3c3a39f2877e759141c987929ff785ca51",
+      "bytes": 1818,
+      "sha256": "2dea1a1dc1f42f6af253637a4c400cdd91af5fcf6ae23d9fa5ce569df0315417",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/workspace/jest.config.cjs",
+      "exists": true,
+      "blob": "de20edec8f91ec8ce2af7d5f7e987937194cd937",
+      "bytes": 2932,
+      "sha256": "b3e3b78ec78fd51120beb65faf93c603803f900dd16a7618a8669e90a6e2a670",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/workspace/test/jest.setup.ts",
+      "exists": false
+    },
+    {
+      "path": "apps/web/package.json",
+      "exists": true,
+      "blob": "f6ff939f15e33fa1f4a9e2268e701c66b01741c7",
+      "bytes": 2250,
+      "sha256": "a4ffe437457263846283ee7b8eebd4f920ad6bd37ebd60fff8240bb92c3c1bff",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/web/vitest.config.ts",
+      "exists": true,
+      "blob": "e5c86bffe6e3618760648454131f16e93b2e8e12",
+      "bytes": 1030,
+      "sha256": "86491c750e719b178f884d042f0ac14ece5717cb8c137889dce1d4f12ae7ee29",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/onboard-web/package.json",
+      "exists": true,
+      "blob": "6465a55d9d163027811e180ce37c69180b38cf59",
+      "bytes": 1028,
+      "sha256": "b0c4a57ae7fe63907fd3e1d55549282a357420e8f6a1b583355e8c3183d4f24e",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/onboard-web/vitest.config.ts",
+      "exists": true,
+      "blob": "92ef254daf8f229f123ccf0e1f1e85ab7b4f0270",
+      "bytes": 555,
+      "sha256": "b130ca7ae9960a0876877905c35c389d3ebd71c19802e13dd227f7e14e72407d",
+      "sourceExact": true
+    },
+    {
+      "path": "packages/meriv2-core/package.json",
+      "exists": true,
+      "blob": "b8469e8303f277ccf029180d011174e0a5e63e44",
+      "bytes": 4392,
+      "sha256": "468631f15a8c46f6cbc60d85ccc86cb5ebfb88d9ecacd6b2749757127aca950d",
+      "sourceExact": true
+    },
+    {
+      "path": "packages/meriv2-core/jest.config.cjs",
+      "exists": true,
+      "blob": "4516684889bb6e9fa59a27f197c962127e747955",
+      "bytes": 566,
+      "sha256": "76f843ab3cacd2fb3d2c3f7a17171eccff296e3863cee1dba04bf2f7775bf6b9",
+      "sourceExact": true
+    },
+    {
+      "path": "packages/meriv2-core/tsconfig.json",
+      "exists": true,
+      "blob": "c6d60ebe84565ed0fea35aff4f94886c2b7557e9",
+      "bytes": 333,
+      "sha256": "5b42e7299a11a416282e65b78cb44dc1a9658e3348d97ad00729b0fa25c8d145",
+      "sourceExact": true
+    },
+    {
+      "path": "packages/meriv2-core/src/observability/meri-otel.spec.ts",
+      "exists": true,
+      "blob": "7655ae5ee728eeb1bcf66c02fa32be5c84582d14",
+      "bytes": 11932,
+      "sha256": "a1dbdcf86d2d547d4887b87da33fd33c50322138f0c92f915ab2e01c0e647513",
+      "sourceExact": true
+    },
+    {
+      "path": "packages/meriv2-core/src/observability/meri-otel-http.fixture.cjs",
+      "exists": true,
+      "blob": "b67fc9436698753dc95c244c746246c1678c438d",
+      "bytes": 2323,
+      "sha256": "1ca74c4f0f05be60061a2c58d531e98a4e76978737c51e7bf35fd2bd934a2f77",
+      "sourceExact": true
+    },
+    {
+      "path": "packages/auth/package.json",
+      "exists": true,
+      "blob": "12b92ec6bd14dfa4ba1159a940e8046f7a903c08",
+      "bytes": 820,
+      "sha256": "8b5a075eada39a5ba9ca9388006ee9aeacde910e0fd771c3fa58df5f70b5bb73",
+      "sourceExact": true
+    },
+    {
+      "path": "packages/auth/jest.config.cjs",
+      "exists": true,
+      "blob": "25d655ec45d4b59efc8edca0ccde27783ec58a1f",
+      "bytes": 657,
+      "sha256": "4908641abd2fc4e59a8bab90ba9ad03ce37b8d88faf7413f06270398930c1014",
+      "sourceExact": true
+    },
+    {
+      "path": "packages/auth/src/tenant.guard.spec.ts",
+      "exists": true,
+      "blob": "524dd8a260ddc159111127b3bf3f4a4d880bff7f",
+      "bytes": 9834,
+      "sha256": "1d1db9b1f0bb891789eaee0f114191c1e4e6a847604cc0c27de4cc9ebbf198ae",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/workspace/jest.setup.ts",
+      "exists": true,
+      "blob": "ce2e11302a6b8c71d09a30698bf6ddb9d27f055d",
+      "bytes": 1323,
+      "sha256": "21083faf31b5622a442da5429839e03a9a74fa61832d0d6a20bf91d0eb808c1f",
+      "sourceExact": true
+    },
+    {
+      "path": "apps/api/jest.setup.ts",
+      "exists": true,
+      "blob": "75f042fb3b96b7d4fbbcbc10f2d131198319d789",
+      "bytes": 2580,
+      "sha256": "0ecbfb2a53e9154e3d5677b68467e0e8b82563dec4fa1b71fa98c14d230c6475",
+      "sourceExact": true
+    }
+  ],
+  "fullPackageGitMetadata": [
+    {
+      "path": "packages/meriv2-core/jest.config.cjs",
+      "mode": "100644",
+      "blob": "4516684889bb6e9fa59a27f197c962127e747955"
+    },
+    {
+      "path": "packages/meriv2-core/package.json",
+      "mode": "100644",
+      "blob": "b8469e8303f277ccf029180d011174e0a5e63e44"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/canary-report.ts",
+      "mode": "100644",
+      "blob": "c1c053293e48ecee32bf9766c29e95cbf224a83c"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-bd-gate-eval.ts",
+      "mode": "100644",
+      "blob": "7691fce95fa6db4544751e1e1f14cba4001c1ab4"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-package2-eval.ts",
+      "mode": "100644",
+      "blob": "e9d85973c7466e20e28ffff06fa553b427ab5751"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-package9-economics.ts",
+      "mode": "100644",
+      "blob": "0ecf60b84c61f5cb55d9926509123e77ccf03252"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-replay-eval.ts",
+      "mode": "100644",
+      "blob": "c8a0edce1a9cd6cccdcf076af6172a7114ee6612"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-shadow-report.ts",
+      "mode": "100644",
+      "blob": "ce84b0f25afb8a2ea43990251e42688e5277a62a"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/lib/eval-cli.ts",
+      "mode": "100644",
+      "blob": "d51a3ad2258af274dc40db14707a1f45d864d896"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/repair-replay-eval.ts",
+      "mode": "100644",
+      "blob": "8bb12cd85aedb9f2db90f1d5d527454f9745c247"
+    },
+    {
+      "path": "packages/meriv2-core/src/alerts/alert.spec.ts",
+      "mode": "100644",
+      "blob": "b9fcd43320543b73bf0bca7748ad768abe899b68"
+    },
+    {
+      "path": "packages/meriv2-core/src/alerts/alert.ts",
+      "mode": "100644",
+      "blob": "683740735ac80472117b0c01a308fbffa59e6427"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/assurance-persistence.spec.ts",
+      "mode": "100644",
+      "blob": "e68b7fdc029929b52e5c24e8199fc9e50a2bf5e9"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/assurance.spec.ts",
+      "mode": "100644",
+      "blob": "a637812ec48fc204c7377ed36623fabe8a7ddec6"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/checks.ts",
+      "mode": "100644",
+      "blob": "44003621a62e1bfa13bef7375836055624b28a59"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/claim-ledger.ts",
+      "mode": "100644",
+      "blob": "e7c5eb75953449fd2d3883bb3391a046a8e6c17e"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/control-metrics.spec.ts",
+      "mode": "100644",
+      "blob": "41831601cc6b47fcc66b62f5a31cc8f9809c796c"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/control-metrics.ts",
+      "mode": "100644",
+      "blob": "742bfe63ab2c949247e0d2ac167abccfc072d69b"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/deterministic-evaluation.ts",
+      "mode": "100644",
+      "blob": "b88f087956606d36ebd300483c463a1fae08e1bf"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/envelope.spec.ts",
+      "mode": "100644",
+      "blob": "74a0fdfed3c6b8108776388de99c8c4ea1f883fa"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/envelope.ts",
+      "mode": "100644",
+      "blob": "1f5134911753d377e5b92426b4c39b7d41e23a8c"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/eval-gate-wiring.spec.ts",
+      "mode": "100644",
+      "blob": "199d9a9968f2b6baf365dd2f807f7f1a3fe59110"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/eval-gate.ts",
+      "mode": "100644",
+      "blob": "cde86d663fcbd2042bb5522256d3fc7b982af665"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-dates.ts",
+      "mode": "100644",
+      "blob": "fcf5e5a7a6ba17d5dc0bd378374478e106a4cf20"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-plan.spec.ts",
+      "mode": "100644",
+      "blob": "4d5e8ce90a5d284dcf16655c263e1289fd8e90e4"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-plan.ts",
+      "mode": "100644",
+      "blob": "b5e2ba695a231fd736a38468e52ab46dbd7e03e5"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-profile-control.spec.ts",
+      "mode": "100644",
+      "blob": "a25d627bf35f77c43b51a26553109d22bb526ff0"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/evidence-profile-control.ts",
+      "mode": "100644",
+      "blob": "1a8941cba5a041ca6b96327eb63a0c060a1500cc"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/exact-comparison.ts",
+      "mode": "100644",
+      "blob": "690b8d990e85e76b10d2ed23c61917edc91cacf9"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/feedback-fixtures.ts",
+      "mode": "100644",
+      "blob": "a4384c9aa8bb5eb80794cdfc59a631be768b39e4"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/freshness-exact.spec.ts",
+      "mode": "100644",
+      "blob": "21aad8a3d26930a01801e8e6e9ceaafb145ce596"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/freshness.ts",
+      "mode": "100644",
+      "blob": "5d684dd31646cd62a01d1523744b499a35726f50"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/generation.ts",
+      "mode": "100644",
+      "blob": "635519543361bc102c94ba08f8dcf70673f63238"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/index.ts",
+      "mode": "100644",
+      "blob": "bd1696511ab1cb8c3aac30471375cd46c1c10458"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/observability.ts",
+      "mode": "100644",
+      "blob": "9dd48c75b4ec33f09ede2b4be50b76c6debf32cd"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/operating-frame.ts",
+      "mode": "100644",
+      "blob": "cd2371ea53efb62d8a3248ccb30d5f823b868954"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/policy-pack.ts",
+      "mode": "100644",
+      "blob": "8bd9ce4fcafc9e7b2acc4cdb1ec2c10a25024de3"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/prompt-block.ts",
+      "mode": "100644",
+      "blob": "dcbe671972f2869382bf3cd979d186792203ba0e"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/recommendation.ts",
+      "mode": "100644",
+      "blob": "9f479cade957a9019f8b02fbb41b83c7ad8e3d31"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/release-switch.spec.ts",
+      "mode": "100644",
+      "blob": "80fd108f4adebe8e1a71173ae5146320bb8b7b35"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/request-scope.spec.ts",
+      "mode": "100644",
+      "blob": "db167fcbc918eb1f01044c8a2065e033bb7ddc0f"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/request-scope.ts",
+      "mode": "100644",
+      "blob": "df00efc35998c6a3856c3899b4dc96e2c906ac6e"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/risk-gate.ts",
+      "mode": "100644",
+      "blob": "b9ef67aeb246b95580ed43223b8af512b286b75d"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/rollout.spec.ts",
+      "mode": "100644",
+      "blob": "af3ba4da16ac2c1416ba14e67550f38da14e074c"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/rollout.ts",
+      "mode": "100644",
+      "blob": "377f83b1b571c90b79015082f10c9be50f7cfa0f"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/tool-ledger-adapter.spec.ts",
+      "mode": "100644",
+      "blob": "36334035c9f93ea114671661c282655aa8d87498"
+    },
+    {
+      "path": "packages/meriv2-core/src/assurance/tool-ledger-adapter.ts",
+      "mode": "100644",
+      "blob": "c39a0753a1519562844cc716c1ba4474f9c64b27"
+    },
+    {
+      "path": "packages/meriv2-core/src/canary/canary-report-cli.spec.ts",
+      "mode": "100644",
+      "blob": "6bd3e67d6f5d45cd9d0d5bf6739ee3f358a4ead9"
+    },
+    {
+      "path": "packages/meriv2-core/src/canary/canary-report.spec.ts",
+      "mode": "100644",
+      "blob": "5fae2dd2435754f63cee0505aec4684673879503"
+    },
+    {
+      "path": "packages/meriv2-core/src/canary/canary-report.ts",
+      "mode": "100644",
+      "blob": "ae1066527e898901a6ee213352a365174c935e43"
+    },
+    {
+      "path": "packages/meriv2-core/src/canary/limits.ts",
+      "mode": "100644",
+      "blob": "ba0aa2ac01223ab7994e474bd44b955432826214"
+    },
+    {
+      "path": "packages/meriv2-core/src/compliance/action-approval.spec.ts",
+      "mode": "100644",
+      "blob": "ee12194d8e9ece5e8f6f9f423063fd248cb47d5b"
+    },
+    {
+      "path": "packages/meriv2-core/src/compliance/action-approval.ts",
+      "mode": "100644",
+      "blob": "a62c5da083738e9f1a4645a01a00f1787213e01b"
+    },
+    {
+      "path": "packages/meriv2-core/src/compliance/approval-gate.spec.ts",
+      "mode": "100644",
+      "blob": "7f2b2ef6816167752a455b48a76c70bdcdf4fd39"
+    },
+    {
+      "path": "packages/meriv2-core/src/compliance/approval-gate.ts",
+      "mode": "100644",
+      "blob": "feb865c0e6219efd455d4952bd193cba24fc61c9"
+    },
+    {
+      "path": "packages/meriv2-core/src/compliance/compliance-rules.spec.ts",
+      "mode": "100644",
+      "blob": "cee5d0b18097a589d0fb7e6c3bea987a67cae95d"
+    },
+    {
+      "path": "packages/meriv2-core/src/compliance/compliance-rules.ts",
+      "mode": "100644",
+      "blob": "2159b57753f63795b7c175cc8480038a67026033"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.spec.ts",
+      "mode": "100644",
+      "blob": "4006b30aaa1e0b76290cb8c4c6e45ee1a981aef1"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/capture-evidence-receipt.ts",
+      "mode": "100644",
+      "blob": "511d8a56d03a3fe7d5a457177b5ba87f062bc671"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/case12-setup-binding.spec.ts",
+      "mode": "100644",
+      "blob": "2c6e57e711a60078bb59553dbcbbbd228aa277dd"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/case12-setup-binding.ts",
+      "mode": "100644",
+      "blob": "44b4e3af75af37d288d792dc004f289ac7800b00"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler-v2.spec.ts",
+      "mode": "100644",
+      "blob": "d69cf9827c057498ec1f4931210a575d0ecdc597"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler.spec.ts",
+      "mode": "100644",
+      "blob": "6e5dd83a85f3cd6f9000d41fc90c126f737950bb"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/compiler.ts",
+      "mode": "100644",
+      "blob": "9a75aa58e14d573530886480e85f4490a3e98532"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/context-release-switch.spec.ts",
+      "mode": "100644",
+      "blob": "ddc6895d4b98ac3111f9ebf323cdb325f09c6c97"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/context-release-switch.ts",
+      "mode": "100644",
+      "blob": "d734f446340cfeebd3d38d17bab292b2c1696922"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/context-rollout.spec.ts",
+      "mode": "100644",
+      "blob": "71114585169a250e44c8478a24e0692061f62d74"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/context-rollout.ts",
+      "mode": "100644",
+      "blob": "cd037472e4770794e6213942a4af53fa349c9d9d"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/contract.ts",
+      "mode": "100644",
+      "blob": "ea9d046b78d3d4ba08b1b1660a778dbc55dd1a1c"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/coverage-aware-packet.spec.ts",
+      "mode": "100644",
+      "blob": "83809f27451e279fa94643a755d0013deed63b76"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/coverage-aware-packet.ts",
+      "mode": "100644",
+      "blob": "8f58cab23c633e150a7ea364eb764511fbf84931"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/firm-identity-admission.spec.ts",
+      "mode": "100644",
+      "blob": "926ba3fd2877f21098da2853fcfb4527f7821db9"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-artifact-capture.spec.ts",
+      "mode": "100644",
+      "blob": "b279196fe6542abfabed8ecd89176868d797e4fe"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-artifact-capture.ts",
+      "mode": "100644",
+      "blob": "f93409cf33b0a6fb8bb787ad60d16b9aba8c7484"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-columns.ts",
+      "mode": "100644",
+      "blob": "454dcd3bc79a91f4ba88bfeb9d772ad0d2649fc7"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.spec.ts",
+      "mode": "100644",
+      "blob": "151a0021e8171725cf901562660ef348bbf856ee"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/governed-evidence-auth.ts",
+      "mode": "100644",
+      "blob": "bf2cde4b4ee136f029ea718811686d0448031c36"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/layers.ts",
+      "mode": "100644",
+      "blob": "d205c0e0a5e0a20bf6982704610c0d00c3656814"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.spec.ts",
+      "mode": "100644",
+      "blob": "e831ba87eed95d2e33fe3da2919fa71b2bd8e1ea"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/memory-capture-source.ts",
+      "mode": "100644",
+      "blob": "6036b36b2b5efa26dea14b942c7de2098c48cac6"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/meri-explicit-subject.ts",
+      "mode": "100644",
+      "blob": "eac47e640650f3be72c88c87d7fca4b3f322fee2"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/operation-enforcement.spec.ts",
+      "mode": "100644",
+      "blob": "848a6165e880d153c736f2907df1de074a3823be"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/operation-enforcement.ts",
+      "mode": "100644",
+      "blob": "895b6f4fe90032da46eff4b453bd91cb1d3f73b2"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/research-plan-execution.spec.ts",
+      "mode": "100644",
+      "blob": "ac75dc2f68d5455e0cf0eeec8f44ed4fe0221e19"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/research-plan-execution.ts",
+      "mode": "100644",
+      "blob": "72959c71ba7a22227b52566cc751844c038ccc10"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/semantic-clock.spec.ts",
+      "mode": "100644",
+      "blob": "9d8836d76c6a04f1a25c60ef50aed564bb377df4"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/server-readonly-capture.ts",
+      "mode": "100644",
+      "blob": "9a74a6f07f559050ddbdb3a69c19fe415c729432"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/surface-policy.ts",
+      "mode": "100644",
+      "blob": "5430e1f1408a0a66471893867e67afc6b52b9a17"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/synthetic-read-budget.ts",
+      "mode": "100644",
+      "blob": "578548721e23d56929657f53bc82beed30527cb4"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/token-budget.spec.ts",
+      "mode": "100644",
+      "blob": "f860f40911a352ca9e1eeb10d8adeaf1846d3c9f"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/token-budget.ts",
+      "mode": "100644",
+      "blob": "c70114825bb035c8e6901a1b5b07606d78e5558d"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/truthful-compiler.spec.ts",
+      "mode": "100644",
+      "blob": "e855cfbf2e5a7b8458607fdc2fd14bc903c663a2"
+    },
+    {
+      "path": "packages/meriv2-core/src/context/truthful-compiler.ts",
+      "mode": "100644",
+      "blob": "3ad6dbddc3b48212f3fe23c226c2a79ed11d68d5"
+    },
+    {
+      "path": "packages/meriv2-core/src/domain/domain-primer.spec.ts",
+      "mode": "100644",
+      "blob": "f9f77fae0d6d50675431ba90e52efe630fd751c1"
+    },
+    {
+      "path": "packages/meriv2-core/src/domain/domain-primer.ts",
+      "mode": "100644",
+      "blob": "bdb0fb09ab0a1176246f7ee820fc70cf1657d7fa"
+    },
+    {
+      "path": "packages/meriv2-core/src/domain/government-affairs-output.ts",
+      "mode": "100644",
+      "blob": "63e5c7a16215bf90be48c00f4bccda6dd25dddb4"
+    },
+    {
+      "path": "packages/meriv2-core/src/evaluation/contract.spec.ts",
+      "mode": "100644",
+      "blob": "6d13aea3dc10a86a5acf13cb0df073cbcb6de12d"
+    },
+    {
+      "path": "packages/meriv2-core/src/evaluation/contract.ts",
+      "mode": "100644",
+      "blob": "7d9aa9e0e16ca99e571b968c50bb8b5e019f1dc2"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/__fixtures__/claim-inventory-v1.json",
+      "mode": "100644",
+      "blob": "bd73eab07f222f322071aa98c43539c0cb84e184"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/auditor-golden.spec.ts",
+      "mode": "100644",
+      "blob": "b13b2262dbbd2ccabc240fdea31a50a54a7a8487"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/auditor.spec.ts",
+      "mode": "100644",
+      "blob": "322187511dc961585c99968e4c0aa385e7357993"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/auditor.ts",
+      "mode": "100644",
+      "blob": "8996e452ad09fbca08b418305f1882363031ed00"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/claim-gate.spec.ts",
+      "mode": "100644",
+      "blob": "5ac1be1b5e798d7c41a828a3e90b8f6359977ef4"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/claim-gate.ts",
+      "mode": "100644",
+      "blob": "f150024be18da5f88da6b997a3ca9d45b8ba397a"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/claim-inventory-fixture.spec.ts",
+      "mode": "100644",
+      "blob": "f7098a0c326c715ada13762c268cc2b5d39f5bff"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/claim-inventory.spec.ts",
+      "mode": "100644",
+      "blob": "6ea79a76e6cc03afd2fbf554f187fcd787746d4a"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/claim-inventory.ts",
+      "mode": "100644",
+      "blob": "038bebf1391a665316a80a5fb0e2560a5ffdc4dc"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/claim-map.spec.ts",
+      "mode": "100644",
+      "blob": "826cb72cac62d535a1ed768d85513a910cd8aa60"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/claim-map.ts",
+      "mode": "100644",
+      "blob": "dcb1976f5b39bbc8091d99e3746b0fa5de7490b3"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/evidence.spec.ts",
+      "mode": "100644",
+      "blob": "bc0212247b030fb5a5392dcb3b9694c64e1308cf"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/evidence.ts",
+      "mode": "100644",
+      "blob": "d450581d70a5d4b80c6cee448c5734ac365754e1"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/exact-source.spec.ts",
+      "mode": "100644",
+      "blob": "bf16de2bc2e5e0fa5a27b18ac2d65af1661abaa3"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/exact-source.ts",
+      "mode": "100644",
+      "blob": "1062727a108a2d80d9ed284b0273a3b73ed80b68"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/grounded-json.spec.ts",
+      "mode": "100644",
+      "blob": "709f6b1e26083a9f5de20f81b67097b219a65641"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/grounded-json.ts",
+      "mode": "100644",
+      "blob": "a069d5e34350f4904e4178f9361045a133206bce"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/match-label-extractor.spec.ts",
+      "mode": "100644",
+      "blob": "7ea3eb17cd3f2820cee9550d6c97f67bc6d87688"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/match-label-extractor.ts",
+      "mode": "100644",
+      "blob": "b3a7ba6c884bfcdb8b99a251b865fb14d03de958"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/match-label.spec.ts",
+      "mode": "100644",
+      "blob": "6652d2a3b2bf1e26023098f41ec664489272f2a9"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/match-label.ts",
+      "mode": "100644",
+      "blob": "8f29d39b8d560da04dd81d6aefee49a07be0d4a5"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/skeptic-audit.spec.ts",
+      "mode": "100644",
+      "blob": "239f8bf52355e115d4b620b393f8b6fd4d870a93"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/skeptic-audit.ts",
+      "mode": "100644",
+      "blob": "38de0682aafc4f422d6fd4077e5c9e0b54109d3c"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/skeptic.spec.ts",
+      "mode": "100644",
+      "blob": "d8945a77d05787e4a3ee2b4f772b5cbed972433a"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/skeptic.ts",
+      "mode": "100644",
+      "blob": "89b833b57a140e8064fc7edf391a95c1e942ae1d"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/status-provenance.spec.ts",
+      "mode": "100644",
+      "blob": "7979205e1e5e1513f73d95ae4b5e07dda87e6dd8"
+    },
+    {
+      "path": "packages/meriv2-core/src/grounding/status-provenance.ts",
+      "mode": "100644",
+      "blob": "2ba4385f88b894c2fc529ca27e1048c5a0c92ab5"
+    },
+    {
+      "path": "packages/meriv2-core/src/ids/canonical-ids.spec.ts",
+      "mode": "100644",
+      "blob": "f0b6b2269700049ed48bf7e245cc5affd35130d1"
+    },
+    {
+      "path": "packages/meriv2-core/src/ids/canonical-ids.ts",
+      "mode": "100644",
+      "blob": "902c5828f79fc490ab9c9f43caa1873334bfe9aa"
+    },
+    {
+      "path": "packages/meriv2-core/src/index.ts",
+      "mode": "100644",
+      "blob": "1a61bff5df2880e728559b42045c01b49b683e8a"
+    },
+    {
+      "path": "packages/meriv2-core/src/intent/action-intent.spec.ts",
+      "mode": "100644",
+      "blob": "15daca5887aa9a1d09a464a56f07cfec058e4133"
+    },
+    {
+      "path": "packages/meriv2-core/src/intent/action-intent.ts",
+      "mode": "100644",
+      "blob": "20ccbeb9ae05734a1650a45b9fdf92d26a6347d1"
+    },
+    {
+      "path": "packages/meriv2-core/src/intent/intent-router.spec.ts",
+      "mode": "100644",
+      "blob": "b7d9486423fd1294be7af3056e69ad9a218fa4b8"
+    },
+    {
+      "path": "packages/meriv2-core/src/intent/intent-router.ts",
+      "mode": "100644",
+      "blob": "8904d4ee6003def41ed82da2d864f2352781582e"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/__fixtures__/bd-claim-replay-v1.json",
+      "mode": "100644",
+      "blob": "4b1f1afe2fa208184cb54b3559b99dd7025f0fa6"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/__fixtures__/package2-task-evaluation-v1.json",
+      "mode": "100644",
+      "blob": "40b97f2ffef904ae50a12094ceb4015769483626"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/__fixtures__/package9-economics-proposed-v1.json",
+      "mode": "100644",
+      "blob": "3e9c80daf25950a49aab01a5f187e6f5bcf04b8e"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/__fixtures__/recorded-choice-response.v1.json",
+      "mode": "100644",
+      "blob": "f4b308fa1faf4553baad49c63be2070f345b9664"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/__fixtures__/stage0-claim-evidence-v1.json",
+      "mode": "100644",
+      "blob": "90192e922c6af0d29a08ae9f558591ee0a875376"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-claim-question.spec.ts",
+      "mode": "100644",
+      "blob": "fc6de58a0a4e1b66285cc45c76ac32b999e14753"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-claim-question.ts",
+      "mode": "100644",
+      "blob": "e8555e21b773f68b4306de3ed71ab63362acef1f"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-claim-replay.spec.ts",
+      "mode": "100644",
+      "blob": "a965ec72507910f95b2699ef6fbf9d8f6525e3e2"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-entity-question.spec.ts",
+      "mode": "100644",
+      "blob": "e0cf2dd28308cc3dca2f0f4343c8e2d1f6d607fa"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-entity-question.ts",
+      "mode": "100644",
+      "blob": "aa1d339740dca798cf558048b7f2048d27b9d067"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-fixture-schema.spec.ts",
+      "mode": "100644",
+      "blob": "d4f23a23a23317275cbb67e09684ff0a392a2b95"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-fixture-schema.ts",
+      "mode": "100644",
+      "blob": "e938bcca1d7ca97ade28a2d9c69d1e8f19759cfb"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-signal-question.spec.ts",
+      "mode": "100644",
+      "blob": "cef70960caf238c899edd89c8048ab0405f1e581"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/bd-signal-question.ts",
+      "mode": "100644",
+      "blob": "82a8fbfa72277b67619684d99b69c9b47523a984"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/calibrated-cascade.spec.ts",
+      "mode": "100644",
+      "blob": "d8958305c65165674fe6d5393c6bffb6d9d0d8d3"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/calibrated-cascade.ts",
+      "mode": "100644",
+      "blob": "5c64769ae27142bce8bc08803142c04afff3a5da"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/claim-support-question.spec.ts",
+      "mode": "100644",
+      "blob": "01c013557a86ee4313418955c4c64e51deeee084"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/claim-support-question.ts",
+      "mode": "100644",
+      "blob": "362639f3decf93f9ac30b52277483ff02427d096"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/client-fit-provider.spec.ts",
+      "mode": "100644",
+      "blob": "f01f729990698bad69238dcd68f2d89cfb6f3bda"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/client-fit-provider.ts",
+      "mode": "100644",
+      "blob": "b52558d3601842c119eafdf0abe7a1b3f62a5018"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/client-fit-question.spec.ts",
+      "mode": "100644",
+      "blob": "61961980200e6954cc649516ad6625555a4692fb"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/client-fit-question.ts",
+      "mode": "100644",
+      "blob": "5d6041fd1e80c6cd90772fcaab9ab2e493e15489"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/decision-cache.spec.ts",
+      "mode": "100644",
+      "blob": "9b89c3751c89745f006904cf46a00cd6ef9ccf36"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/decision-cache.ts",
+      "mode": "100644",
+      "blob": "f52e1364557b82b354b7f283e3e30740bec4529a"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/decision-contract.ts",
+      "mode": "100644",
+      "blob": "822f88a0b6916fd20f0742eab21c2250e174e6ce"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/bd-task-gate.spec.ts",
+      "mode": "100644",
+      "blob": "330485c490e03798651de49e126211292c6564d6"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/bd-task-gate.ts",
+      "mode": "100644",
+      "blob": "6c5df58cf04f89e4f79f114cce29317b4ee0e9ce"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/calibration.spec.ts",
+      "mode": "100644",
+      "blob": "ccb97bace5549ae7189217c45b50ea7ecc6a54a0"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/calibration.ts",
+      "mode": "100644",
+      "blob": "289f584e805907e64dbb140f96b470413eb83c97"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/jev-shadow-report-cli.spec.ts",
+      "mode": "100644",
+      "blob": "d3b490bc470042010403403cab6e326f8a308532"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/package9-economics.spec.ts",
+      "mode": "100644",
+      "blob": "a17071baf9ee85703ecf71a97817e403b7827b98"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/package9-economics.ts",
+      "mode": "100644",
+      "blob": "a6c5cc87790c0a909103e5490564ca9c063b359a"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/shadow-events.spec.ts",
+      "mode": "100644",
+      "blob": "df260ad0d08656d8d2b60ee5c3b9dddd4bf2056a"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/shadow-events.ts",
+      "mode": "100644",
+      "blob": "2db62f8bb6017f6536073c9a5e4612cea2714344"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/shadow-report.spec.ts",
+      "mode": "100644",
+      "blob": "6da4f91f6aced2032c59ab58fec51c9eb598caaa"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/shadow-report.ts",
+      "mode": "100644",
+      "blob": "30701fec4b47d560a5be13bf9c3d7ce090f960a2"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/task-paired-evaluation.spec.ts",
+      "mode": "100644",
+      "blob": "da48d7be8cafdb19cafab678999410a82fe39c24"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evaluation/task-paired-evaluation.ts",
+      "mode": "100644",
+      "blob": "f6ac32a5a709dc5603390fcc6393a8365eaccd8b"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evidence-envelope.spec.ts",
+      "mode": "100644",
+      "blob": "87623ef6c06c1c8046733ca3454fa605ae8a7d50"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evidence-envelope.ts",
+      "mode": "100644",
+      "blob": "744bc17494432d25571cb163cd0cafe7d2021993"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evidence-selection-question.spec.ts",
+      "mode": "100644",
+      "blob": "7b7d6100fd554b38e9e6beb067d826f0773b1817"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/evidence-selection-question.ts",
+      "mode": "100644",
+      "blob": "cdf865af00d449d9233632ab9efbfc3afad7221f"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/fixture-schema.ts",
+      "mode": "100644",
+      "blob": "1f202939adb204dc8ee4c1369581f78d9c5d0911"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/import-boundary.spec.ts",
+      "mode": "100644",
+      "blob": "25e7a2b7a503bb7b8949fa81b2859c47ad1e25ad"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/index.ts",
+      "mode": "100644",
+      "blob": "f1ab7d421877ad4a9c0550c06ec812f169b2b148"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/jev-client.spec.ts",
+      "mode": "100644",
+      "blob": "508767cb4074cad5dc6db6bd6b7660e0403ef299"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/jev-client.ts",
+      "mode": "100644",
+      "blob": "0d26a92d827ef3ecaa71abe81f37f643106adc1e"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/jev-config.spec.ts",
+      "mode": "100644",
+      "blob": "55c3991211043fc95725f1e1581277ecae25606e"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/jev-config.ts",
+      "mode": "100644",
+      "blob": "d428c08fc7d199a1c8d83287c6f39ebc8be12dbb"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/jev-decision-provider.ts",
+      "mode": "100644",
+      "blob": "0b4301332b2f0a09c7de42a6eaaa8c8a710c69ac"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/mention-scope-question.spec.ts",
+      "mode": "100644",
+      "blob": "20dae13ceaf2f752c2b0e9da724a3550653bdb7a"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/mention-scope-question.ts",
+      "mode": "100644",
+      "blob": "e402f4925d98a68b2195f7418a2de12e68973289"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/program-identity-question.spec.ts",
+      "mode": "100644",
+      "blob": "0d251c420bc98deff2fe11009ad441bc728b0570"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/program-identity-question.ts",
+      "mode": "100644",
+      "blob": "b0f934547f8ead98181d94d5fb82c37e7f7fa265"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/replay/paired-evaluation.ts",
+      "mode": "100644",
+      "blob": "45b62f520a48eeef401976b6456f406e6b6f8975"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/replay/recorded-decision-store.ts",
+      "mode": "100644",
+      "blob": "fdfca6bfba0852315e200b1844f90adce705c4e8"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/replay/recording-decision-provider.ts",
+      "mode": "100644",
+      "blob": "65b34700c1e720e87cf3598586be2790fa395cee"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/replay/replay-decision-provider.ts",
+      "mode": "100644",
+      "blob": "454863ce4668ee36711b26a9e471991b12fae1a8"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/replay/replay.spec.ts",
+      "mode": "100644",
+      "blob": "ee839fec3d1f720a508e18b7f41bb08aa4b9b6cf"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/skeptic-adapter.spec.ts",
+      "mode": "100644",
+      "blob": "a6e1dfe393f93c27ffd0d033df366ba672befb96"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/skeptic-adapter.ts",
+      "mode": "100644",
+      "blob": "95eeb3dda065cd8febdd834771d4501f4b3a0e14"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/status-selection-question.spec.ts",
+      "mode": "100644",
+      "blob": "6cb39114138ac631359fbdd50417718e635f4800"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/status-selection-question.ts",
+      "mode": "100644",
+      "blob": "e166a5d55bc5c7c10fb399aac1ae38c57047bc03"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/task-choice-provider.spec.ts",
+      "mode": "100644",
+      "blob": "1c81376529c43eb17ead3515be2e3c6e6200d0e3"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/task-choice-provider.ts",
+      "mode": "100644",
+      "blob": "1e04cfabffa53184b64a74cd220794c4252f9621"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/task-evaluation-fixture.spec.ts",
+      "mode": "100644",
+      "blob": "01a83d3a825584f4b9204d0400448cc823d1d87a"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/task-evaluation-fixture.ts",
+      "mode": "100644",
+      "blob": "d2aefa4b906abe7474b10760f8b5ef44ee3cd3af"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/task-registry.spec.ts",
+      "mode": "100644",
+      "blob": "45d3abd8fcb06f600019fa827625a89d1de364a8"
+    },
+    {
+      "path": "packages/meriv2-core/src/jev/task-registry.ts",
+      "mode": "100644",
+      "blob": "1ff53e48749ba4ef9b93a55780ff2b4b0013ade5"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/candidate-contract.spec.ts",
+      "mode": "100644",
+      "blob": "5e59cb834e677ae728f7b7e17702f9842189a014"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/candidate-contract.ts",
+      "mode": "100644",
+      "blob": "b2a6ff6a9f7cee8517e4cd1ad99af64cbd75dc02"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/conflict-contract.spec.ts",
+      "mode": "100644",
+      "blob": "a1243247a47629f71f2d12568db90331cc33b062"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/conflict-contract.ts",
+      "mode": "100644",
+      "blob": "f4e1af8c76b237f59f190d4d8931356ddbd6c0bf"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/contract.spec.ts",
+      "mode": "100644",
+      "blob": "02e217b129b6fd82b25e98fc9ea04e2eb70ecabe"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/contract.ts",
+      "mode": "100644",
+      "blob": "c98ff167fa8f16f05fa907415d7d4355fab8a8b4"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/rollout.spec.ts",
+      "mode": "100644",
+      "blob": "51b069bc545cfeeae503f768baef23870fbf3d8d"
+    },
+    {
+      "path": "packages/meriv2-core/src/learning/rollout.ts",
+      "mode": "100644",
+      "blob": "9e191424b9c050a0f8386fe8163bbc2cc64e350b"
+    },
+    {
+      "path": "packages/meriv2-core/src/llm/llm-client.spec.ts",
+      "mode": "100644",
+      "blob": "39bc6d0fc178cc74f8721348af12d0db2075000a"
+    },
+    {
+      "path": "packages/meriv2-core/src/llm/llm-client.ts",
+      "mode": "100644",
+      "blob": "2b3ba13bcce0d0df346ef22413447878c92bfea1"
+    },
+    {
+      "path": "packages/meriv2-core/src/llm/openai-responses-adapter.ts",
+      "mode": "100644",
+      "blob": "349f2e8b8c76e453113c6a37d9d2420e5cd4b87d"
+    },
+    {
+      "path": "packages/meriv2-core/src/llm/quality-model-upgrade.spec.ts",
+      "mode": "100644",
+      "blob": "1097dd87bd5e1d8a747fa0e36e8f6d4eda32eb9d"
+    },
+    {
+      "path": "packages/meriv2-core/src/memory/governance-rollout.ts",
+      "mode": "100644",
+      "blob": "3eceecb92d0333085ad4c3ac1e930bd0cf687710"
+    },
+    {
+      "path": "packages/meriv2-core/src/memory/governance.spec.ts",
+      "mode": "100644",
+      "blob": "b96d7c14ceced123a2a586bbc56e0133d97cb137"
+    },
+    {
+      "path": "packages/meriv2-core/src/memory/governance.ts",
+      "mode": "100644",
+      "blob": "4173d82146a4aa29e61ac04d3409a9200a1512ca"
+    },
+    {
+      "path": "packages/meriv2-core/src/observability/meri-joined-telemetry.spec.ts",
+      "mode": "100644",
+      "blob": "32cbc96b5f944e8ca9696e2f5c59c13d31511157"
+    },
+    {
+      "path": "packages/meriv2-core/src/observability/meri-joined-telemetry.ts",
+      "mode": "100644",
+      "blob": "0771e1fd3acca377d0b32d1fb94e094494df4dfd"
+    },
+    {
+      "path": "packages/meriv2-core/src/observability/meri-otel-http.fixture.cjs",
+      "mode": "100644",
+      "blob": "b67fc9436698753dc95c244c746246c1678c438d"
+    },
+    {
+      "path": "packages/meriv2-core/src/observability/meri-otel.spec.ts",
+      "mode": "100644",
+      "blob": "7655ae5ee728eeb1bcf66c02fa32be5c84582d14"
+    },
+    {
+      "path": "packages/meriv2-core/src/observability/meri-otel.ts",
+      "mode": "100644",
+      "blob": "a60f57ea2bbb1d2ad4e7eaf12f66a93124416965"
+    },
+    {
+      "path": "packages/meriv2-core/src/quality-telemetry/contract.spec.ts",
+      "mode": "100644",
+      "blob": "d0591487f28234f9ab2e9f53960eb75e2fd9205d"
+    },
+    {
+      "path": "packages/meriv2-core/src/quality-telemetry/contract.ts",
+      "mode": "100644",
+      "blob": "edf928f6e77f0e1cddebbf2047afb59b652923e6"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/in-editor-tools.ts",
+      "mode": "100644",
+      "blob": "4d08a725b386383dd9769cc21b87064c99ec1ae7"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/tool-execution-control.ts",
+      "mode": "100644",
+      "blob": "b828fd982686cb66bd6e98239066ddc40af3a0cf"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/tool-execution-metadata.spec.ts",
+      "mode": "100644",
+      "blob": "b98a1d66b8223df030b3fa565a8a0e4a1c6507df"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/tool-execution-metadata.ts",
+      "mode": "100644",
+      "blob": "aefa65c8059a16e585ba5a48ea86f7d1e5fcb641"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/tool-registry.spec.ts",
+      "mode": "100644",
+      "blob": "512def6f30d566181f55be326a23a98f326e99cc"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/tool-registry.ts",
+      "mode": "100644",
+      "blob": "ee439ed61eb9d0aef467bce291a7b15604b6939a"
+    },
+    {
+      "path": "packages/meriv2-core/src/registry/types.ts",
+      "mode": "100644",
+      "blob": "e5844472b190847c6cd0e16d0a7990242a6ea1bf"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/__fixtures__/repair-scenarios-v1.json",
+      "mode": "100644",
+      "blob": "cfadfef673c06c390adbe53a62c9a84ec7cc286b"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/assemble.ts",
+      "mode": "100644",
+      "blob": "bafd472a6f4829920cc4b1c884cf5ac38f97c6b7"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/index.ts",
+      "mode": "100644",
+      "blob": "ea80cef31eb383be7ca2f1aa11908720f36ba66f"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/plan-remedy.ts",
+      "mode": "100644",
+      "blob": "093adf3558ffb0057c052d38f77d5b1b00b7d1e1"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/recheck.ts",
+      "mode": "100644",
+      "blob": "063b93113ac22aba6299b3873dd31c7d7c9b33eb"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/repair-loop.spec.ts",
+      "mode": "100644",
+      "blob": "a87935684aa025946c79dc113a8ff78d69e83382"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/revise.ts",
+      "mode": "100644",
+      "blob": "656963270c3c2b4ab6f8801ffdc7ba975015b075"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/run-repair.ts",
+      "mode": "100644",
+      "blob": "f9b29aafc90d928bc39584cb077c5a1382a639f2"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/tool-executor.ts",
+      "mode": "100644",
+      "blob": "77f58c46b3c641fe9e9cdbb4b8ef1c75c70374b8"
+    },
+    {
+      "path": "packages/meriv2-core/src/repair/types.ts",
+      "mode": "100644",
+      "blob": "68737f10a7f2c47796f182236986bee00a94234f"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/auto-correction.spec.ts",
+      "mode": "100644",
+      "blob": "2d13592e11b4b9cb30f280401c4eb5a520ac52fd"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/auto-correction.ts",
+      "mode": "100644",
+      "blob": "fe08eb3aa34b879312c2dbb988c6a5a754151ee0"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/capability-rollout.spec.ts",
+      "mode": "100644",
+      "blob": "33b4d30623d958a3d6e4f4680b47db0b935ab684"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/capability-rollout.ts",
+      "mode": "100644",
+      "blob": "8836646b4501fe0ee04e7f60f9b2c032cfc72c90"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/claim-assessment.spec.ts",
+      "mode": "100644",
+      "blob": "29dbca41714e0263ba1062503b5d9bebf0724020"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/claim-assessment.ts",
+      "mode": "100644",
+      "blob": "cbfdd2ea615b6188f3c612802705826e862062fb"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/coverage-retrieval.spec.ts",
+      "mode": "100644",
+      "blob": "2b298fd4b00e9e39c7e39910711baf4550b259de"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/coverage-retrieval.ts",
+      "mode": "100644",
+      "blob": "b8c9538a2dfa09d2b376d591b66c6f7d40cff627"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/evidence-accuracy.ts",
+      "mode": "100644",
+      "blob": "af2aa6b6ceafb25fd928819aac0c824d185f5fbb"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/evidence-profiles.spec.ts",
+      "mode": "100644",
+      "blob": "a9091e5daff85379fdcd92ab96464257cb995024"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/evidence-profiles.ts",
+      "mode": "100644",
+      "blob": "61a2679ac969476aad55b586401d46e5c281644f"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/jev-cache.spec.ts",
+      "mode": "100644",
+      "blob": "43d50951cd6a5f4e2b64fb2fe844e827d93e34a6"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/jev-cache.ts",
+      "mode": "100644",
+      "blob": "9da1d46f3f2dfadc63c747fc0eb2780e0963c6c4"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/match-label.spec.ts",
+      "mode": "100644",
+      "blob": "ff136b772938bb62dd55b4a5dac67093484398ec"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/match-label.ts",
+      "mode": "100644",
+      "blob": "3cd55cfdc5a841d5f50c4a82082471462731569a"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/passage-selection.spec.ts",
+      "mode": "100644",
+      "blob": "ee2c56dcb634f8162cd0239c4bdcf95f570f46c7"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/passage-selection.ts",
+      "mode": "100644",
+      "blob": "0ad9f2f43f7d52a363f8a9015d07a42288f17043"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/status-provenance.spec.ts",
+      "mode": "100644",
+      "blob": "e73bbb5cac06c8abdbe79abb011e49ac62ffad8e"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/status-provenance.ts",
+      "mode": "100644",
+      "blob": "9e6e7c5b7de03794f001d7b6b38e88c017aa3b49"
+    },
+    {
+      "path": "packages/meriv2-core/src/rollout/tokens.ts",
+      "mode": "100644",
+      "blob": "7dcba1405857b40757a0786ac159058ac6cdf42c"
+    },
+    {
+      "path": "packages/meriv2-core/src/scoping/cross-tenant-parity.spec.ts",
+      "mode": "100644",
+      "blob": "e2c0f465282aaedb818939aaedeac635e3788b7d"
+    },
+    {
+      "path": "packages/meriv2-core/src/scoping/scoping-wrapper.spec.ts",
+      "mode": "100644",
+      "blob": "b19d40c6073163e8fb0542ad8862045f4cef71c4"
+    },
+    {
+      "path": "packages/meriv2-core/src/scoping/scoping-wrapper.ts",
+      "mode": "100644",
+      "blob": "bb79184aa26e63ed84433f896e537923dd5d477c"
+    },
+    {
+      "path": "packages/meriv2-core/src/security/tool-result-wrap.spec.ts",
+      "mode": "100644",
+      "blob": "a7f0ae81a07d0027c39f9c76473add49cefba960"
+    },
+    {
+      "path": "packages/meriv2-core/src/security/tool-result-wrap.ts",
+      "mode": "100644",
+      "blob": "fce6f70b3b39cccf1be949b58911a9c45cc293bb"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/client/get-client-context.spec.ts",
+      "mode": "100644",
+      "blob": "734a6a7dd35809ca0d3871d67f1e12d4ab75f740"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/client/get-client-context.ts",
+      "mode": "100644",
+      "blob": "59c0f8d7ef0e38799bab766e4e62fd259104949f"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/delegated/delegated-tool.spec.ts",
+      "mode": "100644",
+      "blob": "222ae1fa3e41f95f965053c92f491dff27ea8e3a"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/delegated/delegated-tool.ts",
+      "mode": "100644",
+      "blob": "a423a5d49f7c57110f0c3a8e28d01dfd639a83dd"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/hearing/generate-editorial-brief.ts",
+      "mode": "100644",
+      "blob": "f8dcf33c1bfb886813fc455df8197c5e54362c47"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/hearing/generate-post-hearing-summary.ts",
+      "mode": "100644",
+      "blob": "1f40ec16714e8e9402da3c852adda2969c38aab3"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/hearing/generate-published-record-brief.ts",
+      "mode": "100644",
+      "blob": "4cec87992e23735ec0e18113f1010c798758d263"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/hearing/hearing-tools.spec.ts",
+      "mode": "100644",
+      "blob": "993493e2651a05c1b9baf44a5c7bc0fd1a7d1d08"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/hearing/published-record-brief.spec.ts",
+      "mode": "100644",
+      "blob": "05e2f580fc3cfe8ddcd9e90c1f4a7065edbc77a2"
+    },
+    {
+      "path": "packages/meriv2-core/src/tools/hearing/tag-live-policy-mentions.ts",
+      "mode": "100644",
+      "blob": "cd9dd2c8ee5b5c2d7c0f6b6c3b3a60e3765d4510"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/confidence.spec.ts",
+      "mode": "100644",
+      "blob": "c54c2add09adc1b2557f5a616def8f1e85935acd"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/confidence.ts",
+      "mode": "100644",
+      "blob": "44987f52511118958669afe3b70a14e56df5f35b"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/grounding-sources.spec.ts",
+      "mode": "100644",
+      "blob": "01549fdf17ce7d402fb87017dd1b49396a787a8e"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/grounding-sources.ts",
+      "mode": "100644",
+      "blob": "cb93709b57626244d5af3aa2b7c321b342a9250d"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/pe-structural.spec.ts",
+      "mode": "100644",
+      "blob": "9e4469017be4c768ecfd82f838199c35883d1c75"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/pe-structural.ts",
+      "mode": "100644",
+      "blob": "8c94995b23c3f395f3d289214e928f0c67d853c2"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/verifier-claims.spec.ts",
+      "mode": "100644",
+      "blob": "e0a7bb6f223ee5d9ab8a09b7c4c1486df0ad0e0f"
+    },
+    {
+      "path": "packages/meriv2-core/src/verifier/verifier-claims.ts",
+      "mode": "100644",
+      "blob": "06dc2e5304b7ec150aa7d0fc0bd0bb3e3ccdbba3"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/assurance/golden-fixtures.ts",
+      "mode": "100644",
+      "blob": "8ce3be70e496fb74648aeeb46fa26c224d9245de"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/assurance/government-affairs-assurance.eval.ts",
+      "mode": "100644",
+      "blob": "9f058a9b79dee268b2382861833a538237065cd1"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/compliance/gate-enforcement.eval.ts",
+      "mode": "100644",
+      "blob": "4eb75507129cde72ed983300dfd7518db9b8b134"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/entity/entity-grounding.eval.ts",
+      "mode": "100644",
+      "blob": "72748e54ccb8440503087f9d79fb974eca05d3f4"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/grounding/claim-grounding.eval.ts",
+      "mode": "100644",
+      "blob": "ea282693d5ec9d7b235b68c890c2cd12199d4729"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/leakage/cross-tenant-leakage.eval.ts",
+      "mode": "100644",
+      "blob": "ba2be433f526cf7b44493c7f8005fbd4103fd143"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/legislation/bill-status.eval.ts",
+      "mode": "100644",
+      "blob": "76a649bd318820e6f05d3e0554c328737b07b756"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/legislation/committee-roster.eval.ts",
+      "mode": "100644",
+      "blob": "20b44b065b53a2e6a97c9a8fd20db1159265139c"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/legislation/federal-state-mixed.eval.ts",
+      "mode": "100644",
+      "blob": "d79fb3a6f3ed5c6cc6d7c1c520e999276dc64373"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/legislation/multi-state-comparison.eval.ts",
+      "mode": "100644",
+      "blob": "04d59098112f39b8e56ab30e9644bc1214712eb0"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/legislation/state-bill-status.eval.ts",
+      "mode": "100644",
+      "blob": "57e2e14b9565fcc0e1652c1f7d1bc5ec36020696"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/legislation/state-rule-status.eval.ts",
+      "mode": "100644",
+      "blob": "fc99c89e5ee3e7539cb10482926a58ff23ea7914"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/persist-run.ts",
+      "mode": "100644",
+      "blob": "6bb3ef25822616b6de5d33c2699ec8a63c8546c8"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/run-evals.ts",
+      "mode": "100644",
+      "blob": "a4f4815cc640c691db420ebeb013c068254b9d04"
+    },
+    {
+      "path": "packages/meriv2-core/test/evals/types.ts",
+      "mode": "100644",
+      "blob": "45454ab05db536124460ae69c1a0783bba2bcba3"
+    },
+    {
+      "path": "packages/meriv2-core/test/parity/README.md",
+      "mode": "100644",
+      "blob": "2445b1a9885a241802547d12cdc129627d9d4481"
+    },
+    {
+      "path": "packages/meriv2-core/test/parity/diff.spec.ts",
+      "mode": "100644",
+      "blob": "191e198998f1c242d6de94d14bf90d2710b971a6"
+    },
+    {
+      "path": "packages/meriv2-core/test/parity/diff.ts",
+      "mode": "100644",
+      "blob": "a5482c26dc4aacdf454236a9ade4bd28d1729ad8"
+    },
+    {
+      "path": "packages/meriv2-core/test/parity/fixtures.ts",
+      "mode": "100644",
+      "blob": "6810d29c3df913ba393d2d1da818795da6f85eef"
+    },
+    {
+      "path": "packages/meriv2-core/test/parity/parity.ts",
+      "mode": "100644",
+      "blob": "c03d1ad743cb8b6e792c62f20a65b8ac60790790"
+    },
+    {
+      "path": "packages/meriv2-core/tsconfig.json",
+      "mode": "100644",
+      "blob": "c6d60ebe84565ed0fea35aff4f94886c2b7557e9"
+    },
+    {
+      "path": "packages/auth/jest.config.cjs",
+      "mode": "100644",
+      "blob": "25d655ec45d4b59efc8edca0ccde27783ec58a1f"
+    },
+    {
+      "path": "packages/auth/jest.setup.ts",
+      "mode": "100644",
+      "blob": "ec2350d7d7c6e2bbbf9c91a11540c5743937a8d7"
+    },
+    {
+      "path": "packages/auth/package.json",
+      "mode": "100644",
+      "blob": "12b92ec6bd14dfa4ba1159a940e8046f7a903c08"
+    },
+    {
+      "path": "packages/auth/src/auth.module.ts",
+      "mode": "100644",
+      "blob": "a3d8ee22840f9f54abc8fb535f0c9fcb9046f394"
+    },
+    {
+      "path": "packages/auth/src/clerk.service.ts",
+      "mode": "100644",
+      "blob": "f2964d04bf93ff46ac5b5a55bc13404da2c13b2c"
+    },
+    {
+      "path": "packages/auth/src/current-tenant.decorator.ts",
+      "mode": "100644",
+      "blob": "c5aa0ffa71a8169e42b035094f22654d42c03e80"
+    },
+    {
+      "path": "packages/auth/src/index.ts",
+      "mode": "100644",
+      "blob": "e0af21286efd555c27b697caeb1be87ce1db8a46"
+    },
+    {
+      "path": "packages/auth/src/org-tenant-resolver.ts",
+      "mode": "100644",
+      "blob": "c07c553ecd70e0e15c238353bbaeed9c71bbd861"
+    },
+    {
+      "path": "packages/auth/src/tenant-context.ts",
+      "mode": "100644",
+      "blob": "e40ac52d27f0f8cd23d65b92c0a34a20175331d4"
+    },
+    {
+      "path": "packages/auth/src/tenant.guard.spec.ts",
+      "mode": "100644",
+      "blob": "524dd8a260ddc159111127b3bf3f4a4d880bff7f"
+    },
+    {
+      "path": "packages/auth/src/tenant.guard.ts",
+      "mode": "100644",
+      "blob": "0b3903659b92c20337b44a3d4da0dca2916fc927"
+    },
+    {
+      "path": "packages/auth/tsconfig.json",
+      "mode": "100644",
+      "blob": "7069a40a273757ed9abe4c8eda8d7b9ebd4f6912"
+    }
+  ],
+  "protectedReportingBodyRead": false
+}

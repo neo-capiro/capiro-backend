@@ -1,0 +1,15 @@
+const cp=require('node:child_process');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.resolve(__dirname,'../../..');
+const evidence=__dirname;
+const env={...process.env};
+const removedKeys=Object.keys(env).filter(k=>/^OTEL_/i.test(k));
+for(const k of removedKeys)delete env[k];
+const args=['/workspace/capirov2/packages/meriv2-core/node_modules/jest/bin/jest.js','--config','jest.config.cjs','--runInBand','--no-cache','--json','--outputFile',path.join(evidence,'meri-full-test-results.json'),'--cacheDirectory',path.join(evidence,'meri-jest-cache')];
+fs.writeFileSync(path.join(evidence,'meri-full-command.json'),JSON.stringify({sourceHead:'277053c8196dc1be4789c42ea304b0de0553fe00',cwd:path.join(root,'packages/meriv2-core'),command:[process.execPath,...args],removedEnvironmentKeys:removedKeys,removedEnvironmentValuesDisclosed:false,canonicalConfig:true,coverage:false,networkScope:'Only existing explicit self-created loopback OTLP fixture; no paid-model, database, native engine or install commands.'},null,2)+'\n');
+const out=fs.openSync(path.join(evidence,'meri-full-suite.log'),'wx');
+const p=cp.spawnSync(process.execPath,args,{cwd:path.join(root,'packages/meriv2-core'),env,stdio:['ignore',out,out],timeout:600000});
+fs.closeSync(out);
+fs.writeFileSync(path.join(evidence,'meri-full-exit.json'),JSON.stringify({status:p.status,signal:p.signal,error:p.error?{name:p.error.name,message:p.error.message}:null},null,2)+'\n');
+process.exitCode=p.status??1;

@@ -1,0 +1,10 @@
+{
+  "deniedCalls": 1,
+  "attempted": [
+    {
+      "operation": "node:child_process.execSync",
+      "stack": "Error\n    at Object.require [as execSync] (/tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/verify-private-coverage-provider-attempt-2.cjs:8:337)\n    at exec (file:///workspace/capirov2/node_modules/.pnpm/tinypool@1.1.1/node_modules/tinypool/dist/index.js:16:30)\n    at file:///workspace/capirov2/node_modules/.pnpm/tinypool@1.1.1/node_modules/tinypool/dist/index.js:30:19\n    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)\n    at async node:internal/modules/esm/loader:643:26\n    at async loadProvider (file:///tmp/capiro-coverage-provider-cache-277-20261012/packages/@vitest+coverage-v8@2.1.9/dist/load-provider-Bl5rgjsL.js:3:34)\n    at async /tmp/capirov2-four-runtime-controls-review/docs/cleanup-current-install-gate-coverage-audit-20261012/evidence/verify-private-coverage-provider-attempt-2.cjs:9:230"
+    }
+  ],
+  "providerLoaded": true
+}
