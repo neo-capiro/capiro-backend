@@ -1,0 +1,119 @@
+{
+  "authorHead": "ed43dbb5bad37763688a9553680253f9b756fca1",
+  "authorTree": "a11b987ee629d316a7074cd0587716216137599f",
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "originalParserSourceSlicesAndAuthorVmResultsExact": true,
+  "cases": 18,
+  "clients": 3,
+  "vmOriginalExecutions": 54,
+  "coherentOriginalExecutions": 54,
+  "sameResults": 50,
+  "authoredMessageDifferences": [
+    {
+      "client": "dibbs",
+      "label": "changing results getter",
+      "parserSha256": "210001c134a60ed512b823d0073ea929344b11f567292c9ed4c3428d1db0b110",
+      "authored": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsHttpError",
+            "status": 0,
+            "message": "TypeError: parsed.results.filter is not a function",
+            "rate": null
+          }
+        }
+      },
+      "coherent": {
+        "result": {
+          "threw": {
+            "name": "TangoDibbsHttpError",
+            "status": 0,
+            "message": "parsed.results.filter is not a function",
+            "rate": null
+          }
+        }
+      },
+      "equal": false
+    },
+    {
+      "client": "sbir",
+      "label": "changing results getter",
+      "parserSha256": "c845a572049a9316c02073a08c6c909b7659814e3ce9d4c3ac9f1be43c5cb257",
+      "authored": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirHttpError",
+            "status": 0,
+            "message": "TypeError: parsed.results.filter is not a function",
+            "rate": null
+          }
+        }
+      },
+      "coherent": {
+        "result": {
+          "threw": {
+            "name": "TangoSbirHttpError",
+            "status": 0,
+            "message": "parsed.results.filter is not a function",
+            "rate": null
+          }
+        }
+      },
+      "equal": false
+    },
+    {
+      "client": "subaward",
+      "label": "null",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "authored": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "TypeError: Cannot read properties of null (reading 'results')"
+          }
+        }
+      },
+      "coherent": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "Cannot read properties of null (reading 'results')"
+          }
+        }
+      },
+      "equal": false
+    },
+    {
+      "client": "subaward",
+      "label": "changing results getter",
+      "parserSha256": "c9ec7d7b251d5c2a4385c088c973b11b4ca9661fb01c9c6d73029d8176f83959",
+      "authored": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "TypeError: parsed.results.filter is not a function"
+          }
+        }
+      },
+      "coherent": {
+        "result": {
+          "threw": {
+            "name": "TangoSubawardHttpError",
+            "status": 0,
+            "message": "parsed.results.filter is not a function"
+          }
+        }
+      },
+      "equal": false
+    }
+  ],
+  "explanation": "The authored VM binds host Error but engine-generated property/call TypeErrors inherit the VM intrinsic Error; instanceof host Error is false and String(error) adds a TypeError prefix. Original production source in one realm uses error.message.",
+  "remainingEvidenceBlocker": "Four authored malformed-envelope error messages are realm artifacts; qualify or supplement before using them as authoritative preconversion golden decisions.",
+  "productionImplementationAccepted": false,
+  "clientConstructorExecuted": false,
+  "clientFetchOrTimerOrProviderExecuted": false,
+  "nativeAcceptance": false
+}

@@ -1,0 +1,274 @@
+{
+  "authorHead": "ed43dbb5bad37763688a9553680253f9b756fca1",
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "records": [
+    {
+      "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+      "functions": [
+        {
+          "name": "asCount",
+          "startLine": 135,
+          "endLine": 138,
+          "lines": 4,
+          "sha256": "1b739ac92c41f9360ee753ccbd01d113bbe327f309fafad922ab3c5cd6af3c07"
+        },
+        {
+          "name": "nextPageOf",
+          "startLine": 148,
+          "endLine": 157,
+          "lines": 10,
+          "sha256": "1ed9245111d0e5112b7c2ac98e8e0eb10b7d0dc9195413c6b6c44f62977e24ab"
+        },
+        {
+          "name": "rateOf",
+          "startLine": 159,
+          "endLine": 179,
+          "lines": 21,
+          "sha256": "b232d92df5df03026b00e41f7614cef8474c8a5c29fe24cf3e8b2735f3717d4f"
+        }
+      ],
+      "localLines": 35,
+      "calls": [
+        {
+          "expression": "setTimeout",
+          "line": 232,
+          "args": [
+            "() => controller.abort()",
+            "this.timeoutMs"
+          ]
+        },
+        {
+          "expression": "this.fetchImpl",
+          "line": 234,
+          "args": [
+            "url",
+            "{\n        method: 'GET',\n        headers: { Accept: 'application/json', 'X-API-KEY': this.apiKey },\n        signal: controller.signal,\n      }"
+          ]
+        },
+        {
+          "expression": "rateOf",
+          "line": 247,
+          "args": [
+            "response.headers"
+          ]
+        },
+        {
+          "expression": "asCount",
+          "line": 277,
+          "args": [
+            "parsed.count"
+          ]
+        },
+        {
+          "expression": "nextPageOf",
+          "line": 278,
+          "args": [
+            "parsed.next",
+            "this.baseUrl"
+          ]
+        },
+        {
+          "expression": "rateOf",
+          "line": 279,
+          "args": [
+            "response.headers"
+          ]
+        },
+        {
+          "expression": "clearTimeout",
+          "line": 294,
+          "args": [
+            "timeout"
+          ]
+        }
+      ],
+      "clientConstructorSource": "constructor(config: TangoDibbsClientConfig = {}) {\n    this.apiKey = config.apiKey?.trim() || null;\n    this.baseUrl = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\\/+$/, '');\n    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;\n    this.fetchImpl = config.fetchImpl ?? fetch;\n  }",
+      "classSourceUnchanged": true
+    },
+    {
+      "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+      "functions": [
+        {
+          "name": "asCount",
+          "startLine": 168,
+          "endLine": 171,
+          "lines": 4,
+          "sha256": "1b739ac92c41f9360ee753ccbd01d113bbe327f309fafad922ab3c5cd6af3c07"
+        },
+        {
+          "name": "nextPageOf",
+          "startLine": 181,
+          "endLine": 190,
+          "lines": 10,
+          "sha256": "1ed9245111d0e5112b7c2ac98e8e0eb10b7d0dc9195413c6b6c44f62977e24ab"
+        },
+        {
+          "name": "rateOf",
+          "startLine": 192,
+          "endLine": 212,
+          "lines": 21,
+          "sha256": "b232d92df5df03026b00e41f7614cef8474c8a5c29fe24cf3e8b2735f3717d4f"
+        }
+      ],
+      "localLines": 35,
+      "calls": [
+        {
+          "expression": "setTimeout",
+          "line": 264,
+          "args": [
+            "() => controller.abort()",
+            "this.timeoutMs"
+          ]
+        },
+        {
+          "expression": "this.fetchImpl",
+          "line": 266,
+          "args": [
+            "url",
+            "{\n        method: 'GET',\n        headers: { Accept: 'application/json', 'X-API-KEY': this.apiKey },\n        signal: controller.signal,\n      }"
+          ]
+        },
+        {
+          "expression": "rateOf",
+          "line": 279,
+          "args": [
+            "response.headers"
+          ]
+        },
+        {
+          "expression": "asCount",
+          "line": 309,
+          "args": [
+            "parsed.count"
+          ]
+        },
+        {
+          "expression": "nextPageOf",
+          "line": 310,
+          "args": [
+            "parsed.next",
+            "this.baseUrl"
+          ]
+        },
+        {
+          "expression": "rateOf",
+          "line": 311,
+          "args": [
+            "response.headers"
+          ]
+        },
+        {
+          "expression": "clearTimeout",
+          "line": 326,
+          "args": [
+            "timeout"
+          ]
+        }
+      ],
+      "clientConstructorSource": "constructor(config: TangoSbirClientConfig = {}) {\n    this.apiKey = config.apiKey?.trim() || null;\n    this.baseUrl = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\\/+$/, '');\n    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;\n    this.fetchImpl = config.fetchImpl ?? fetch;\n  }",
+      "classSourceUnchanged": true
+    },
+    {
+      "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+      "functions": [
+        {
+          "name": "asCount",
+          "startLine": 53,
+          "endLine": 56,
+          "lines": 4,
+          "sha256": "1b739ac92c41f9360ee753ccbd01d113bbe327f309fafad922ab3c5cd6af3c07"
+        },
+        {
+          "name": "nextPageOf",
+          "startLine": 58,
+          "endLine": 67,
+          "lines": 10,
+          "sha256": "1ed9245111d0e5112b7c2ac98e8e0eb10b7d0dc9195413c6b6c44f62977e24ab"
+        },
+        {
+          "name": "rateOf",
+          "startLine": 69,
+          "endLine": 93,
+          "lines": 25,
+          "sha256": "841c234f1a46e1d8da8dee1e8c191b1d84e1e079015c630e2a6f2b1307bc77c9"
+        }
+      ],
+      "localLines": 39,
+      "calls": [
+        {
+          "expression": "setTimeout",
+          "line": 127,
+          "args": [
+            "() => controller.abort()",
+            "this.timeoutMs"
+          ]
+        },
+        {
+          "expression": "this.fetchImpl",
+          "line": 129,
+          "args": [
+            "url",
+            "{\n        method: 'GET',\n        headers: { Accept: 'application/json', 'X-API-KEY': this.apiKey },\n        signal: controller.signal,\n      }"
+          ]
+        },
+        {
+          "expression": "asCount",
+          "line": 159,
+          "args": [
+            "parsed.count"
+          ]
+        },
+        {
+          "expression": "nextPageOf",
+          "line": 160,
+          "args": [
+            "parsed.next",
+            "this.baseUrl"
+          ]
+        },
+        {
+          "expression": "rateOf",
+          "line": 161,
+          "args": [
+            "response.headers"
+          ]
+        },
+        {
+          "expression": "clearTimeout",
+          "line": 175,
+          "args": [
+            "timeout"
+          ]
+        }
+      ],
+      "clientConstructorSource": "constructor(config: TangoSubawardClientConfig = {}) {\n    this.apiKey = config.apiKey?.trim() || null;\n    this.baseUrl = (config.baseUrl ?? DEFAULT_BASE_URL).replace(/\\/+$/, '');\n    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;\n    this.fetchImpl = config.fetchImpl ?? fetch;\n  }",
+      "classSourceUnchanged": true
+    }
+  ],
+  "totalAstDeclarationLines": 109,
+  "totalRepeatedGroupOccupiedLines": 84,
+  "redundantCopiesWithinThoseGroupsLines": 49,
+  "netImplementationLineReductionClaim": false,
+  "existingRateCallSites": [
+    {
+      "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+      "count": 2
+    },
+    {
+      "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+      "count": 2
+    },
+    {
+      "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+      "count": 1
+    }
+  ],
+  "requiredProposedProfiles": {
+    "dibbs": "interleaved",
+    "sbir": "interleaved",
+    "subaward": "captured"
+  },
+  "originalFetchSitesExactlyThree": true,
+  "productionImplementationAccepted": false,
+  "nativeAcceptance": false
+}

@@ -1,0 +1,104 @@
+{
+  "reviewScope": "Independent read-only preconversion Tango source characterization, evidence binding and proposed pure-leaf design",
+  "authorHead": "ed43dbb5bad37763688a9553680253f9b756fca1",
+  "authorTree": "a11b987ee629d316a7074cd0587716216137599f",
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "baseTree": "f14d6fa3f191645839414972063e1057fce557bf",
+  "reviewWorktree": "/workspace/capirov2-next-tango-audit-independent-review",
+  "branch": "codex/next-tango-audit-independent-review-20261012",
+  "authorDocumentationPaths": 17,
+  "authorIndexedPacketHashesVerified": 16,
+  "frozenSourceHashesModesAndBlobsVerified": 28,
+  "originalAuthorPacketChanged": false,
+  "productionSourceChanged": false,
+  "authorMainLeafExecutionsReplayed": 204,
+  "authorEffectfulHeaderExecutionsReplayed": 9,
+  "authorEnvelopeExecutionsReplayed": 54,
+  "authorTotalOriginalFragmentExecutionsReplayed": 267,
+  "authorOutputsReplayedByteExact": true,
+  "independentAuthorVmParserExecutions": 54,
+  "independentCoherentRealmParserExecutions": 54,
+  "coherentParserRowsMatchingAuthor": 50,
+  "authoredMalformedMessageRowsQualified": 4,
+  "completeCoherentRealmSupplement": "evidence/error-realm-challenge-with-full-profiles.json",
+  "errorRealmQualification": "Four authored malformed-envelope TypeError message prefixes are VM/host Error identity artifacts. Use the complete coherent-realm supplement for these synthetic original-parser observations; no engine-independent or full-transport production message golden is accepted.",
+  "pureDeclarationAstLines": 109,
+  "repeatedGroupOccupiedLines": 84,
+  "redundantRepeatedCopiesLines": 49,
+  "netImplementationLineReductionAccepted": false,
+  "requiredRateProfiles": {
+    "dibbs": "interleaved",
+    "sbir": "interleaved",
+    "subaward": "captured"
+  },
+  "currentRateCallCounts": [
+    2,
+    2,
+    1
+  ],
+  "currentFetchCallCounts": [
+    1,
+    1,
+    1
+  ],
+  "pureLeafDesignAcceptedWithinDocumentedProfiles": true,
+  "applicationImplementationAccepted": false,
+  "sourceRetirementAccepted": false,
+  "parentPathCoordinationResolved": false,
+  "rootGuardTangoCoverageAccepted": false,
+  "clientConstructorOrFullClientExecuted": false,
+  "fetchResponseTextTimerProviderOrSyncEntrypointExecuted": false,
+  "existingApplicationSpecsOrStrictCompilerRun": false,
+  "nativeDatabaseMigrationProviderModelSecurityOrFullGateAcceptance": false,
+  "commands": [
+    {
+      "command": "node docs/cleanup-next-tango-audit-independent-review-20261012/evidence/author-replay/original-leaf-differential.mjs",
+      "exitCode": 0,
+      "stdout": "evidence/author-replay/leaf.stdout.log",
+      "stderr": "evidence/author-replay/leaf.stderr.log",
+      "result": "evidence/author-replay/original-leaf-differential.json",
+      "cwd": "/workspace/capirov2-next-tango-audit-independent-review"
+    },
+    {
+      "command": "node docs/cleanup-next-tango-audit-independent-review-20261012/evidence/author-replay/original-envelope-profiles.mjs",
+      "exitCode": 0,
+      "stdout": "evidence/author-replay/envelope.stdout.log",
+      "stderr": "evidence/author-replay/envelope.stderr.log",
+      "result": "evidence/author-replay/original-envelope-profiles.json",
+      "cwd": "/workspace/capirov2-next-tango-audit-independent-review"
+    },
+    {
+      "command": "node docs/cleanup-next-tango-audit-independent-review-20261012/evidence/error-realm-challenge.cjs",
+      "exitCode": 0,
+      "stdout": "evidence/error-realm-challenge-with-full-profiles.json",
+      "stderr": "evidence/error-realm-challenge-with-full-profiles.stderr.log",
+      "qualification": "The earlier four-row challenge output remains; the current script adds all 54 coherent observations without changing inputs or assertions.",
+      "cwd": "/workspace/capirov2-next-tango-audit-independent-review"
+    },
+    {
+      "command": "node docs/cleanup-next-tango-audit-independent-review-20261012/evidence/verify-frozen-packet.cjs",
+      "exitCode": 1,
+      "stdout": "evidence/independent-verification-first.json",
+      "stderr": "evidence/independent-verification-first.stderr.log",
+      "failure": "Independent tooling selected an error-class constructor instead of the named client class. Failed script and raw failure remain; no production-source change.",
+      "cwd": "/workspace/capirov2-next-tango-audit-independent-review",
+      "failedScriptSnapshot": "evidence/verify-frozen-packet-first.cjs"
+    },
+    {
+      "command": "node docs/cleanup-next-tango-audit-independent-review-20261012/evidence/verify-frozen-packet.cjs",
+      "exitCode": 0,
+      "stdout": "evidence/independent-verification.json",
+      "stderr": "evidence/independent-verification.stderr.log",
+      "correction": "Select the actual named Client class and read the capacity receipt's existing modelOverride field.",
+      "cwd": "/workspace/capirov2-next-tango-audit-independent-review"
+    }
+  ],
+  "allOriginalFailureAndPassingEvidenceRetained": true,
+  "remainingGates": [
+    "Parent retirement-map/application-path coordination",
+    "Profile-preserving pure helper implementation",
+    "Same-change root-owned canonical-consumer/data ratchet and CI",
+    "Independent adversarial candidate review",
+    "Applicable existing inert client/caller tests and focused strict checks"
+  ]
+}

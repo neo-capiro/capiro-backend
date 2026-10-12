@@ -1,0 +1,31 @@
+{
+  "authorHead": "ed43dbb5bad37763688a9553680253f9b756fca1",
+  "authorTree": "a11b987ee629d316a7074cd0587716216137599f",
+  "base": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70",
+  "node": "v24.19.0",
+  "cachedTypeScript": "5.9.3",
+  "docsOnlyAddedPaths": 17,
+  "indexedPacketHashesVerified": 16,
+  "frozenSourceHashesModesAndGitBlobsVerified": 28,
+  "pureDeclarationAstLines": 109,
+  "rateCallSites": [
+    2,
+    2,
+    1
+  ],
+  "originalFetchCallSites": [
+    1,
+    1,
+    1
+  ],
+  "authoredFragmentReplayExecutions": 267,
+  "authorReplayOutputsByteExact": true,
+  "explicitStableThrowingAndMutationTracesVerified": true,
+  "coherentOriginalParserProfiles": 54,
+  "unchangedAuthorProfiles": 50,
+  "qualifiedMalformedEnvelopeMessageProfiles": 4,
+  "historicalFailureAndCapacityReceiptsUnchanged": true,
+  "proposedPureLeafDesignAcceptedOnlyWithinDocumentedProfiles": true,
+  "productionImplementationAccepted": false,
+  "nativeOrFullGateAcceptance": false
+}

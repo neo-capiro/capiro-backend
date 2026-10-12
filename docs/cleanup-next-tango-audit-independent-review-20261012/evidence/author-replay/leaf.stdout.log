@@ -1,0 +1,10 @@
+{
+  "cases": 68,
+  "originalExecutions": 204,
+  "profileProbeCases": 3,
+  "profileProbeExecutions": 9,
+  "totalOriginalLeafExecutions": 213,
+  "allThreeMainOutputsEqual": true,
+  "providerCalls": false,
+  "source": "6a4b48e6286a270ab18c033eb4ccaf6f72f42c70"
+}
