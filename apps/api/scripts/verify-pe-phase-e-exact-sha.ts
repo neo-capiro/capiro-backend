@@ -1,11 +1,14 @@
 /**
  * @cleanup-smoke noArgsExit=1 helpExit=0
- * Phase E static verifier: every PE dollar loader must import the exact-SHA
- * contract and gate --commit on --approved-sha256. No DB or vendor calls.
+ * Phase E static verifier: write-capable PE dollar loaders must import the
+ * exact-SHA contract and gate --commit on --approved-sha256. The contained
+ * public-law facade must permanently refuse commit and remain inspection-only.
+ * No DB or vendor calls.
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PE_EXACT_SHA_DOLLAR_LOADERS } from './lib/pe-exact-sha-loader-contract.js';
+import { publicLawFacadeContainmentFailures } from './lib/pe-public-law-facade-containment.js';
 
 const USAGE = 'Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]';
 const argv = process.argv.slice(2);
@@ -38,6 +41,13 @@ const failures: string[] = [];
 
 for (const fileName of PE_EXACT_SHA_DOLLAR_LOADERS) {
   const source = sourceOf(fileName);
+
+  if (fileName === 'parse-defense-approps-public-law.ts') {
+    failures.push(
+      ...publicLawFacadeContainmentFailures(source).map((failure) => `${fileName}: ${failure}`),
+    );
+    continue;
+  }
 
   if (fileName === 'ingest-defense-budget-pdf.ts') {
     // Generalized PDF path already uses Phase B helpers; it must keep fail-closed
