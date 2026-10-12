@@ -122,7 +122,7 @@ export class OutreachSessionService {
       if (
         spec.sponsor.kind !== 'client' ||
         spec.sponsor.clientRefs.length !== 1 ||
-        spec.sponsor.clientRefs[0].clientId.toLowerCase() !== binding.clientId
+        spec.sponsor.clientRefs[0]?.clientId.toLowerCase() !== binding.clientId
       )
         throw new NotFoundException('Objective destination not found');
       const pendingProposalCount = await this.repository.countPendingProposals(tx, ctx, session.id);

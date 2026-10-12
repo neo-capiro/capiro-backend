@@ -110,9 +110,9 @@ describe('Outreach canonical Objective destination owner (synthetic transactions
     });
     expect(result.specHash).toBe(h.version.specHash);
     expect(result.currentStateVersion).toBe(4);
-    expect(h.sqlCalls[0].sql).toContain('FOR UPDATE');
-    expect(h.sqlCalls[0].sql).toContain('created_by_user_id = CAST(');
-    expect(h.sqlCalls[0].values).toEqual([sessionId, ctx.tenantId, ctx.userId]);
+    expect(h.sqlCalls[0]!.sql).toContain('FOR UPDATE');
+    expect(h.sqlCalls[0]!.sql).toContain('created_by_user_id = CAST(');
+    expect(h.sqlCalls[0]!.values).toEqual([sessionId, ctx.tenantId, ctx.userId]);
     expect(h.objectives.requireDestinationRevisionWithinTx).toHaveBeenCalledWith(h.tx, ctx, input);
     expect(h.repository.loadStateVersion).toHaveBeenCalledWith(h.tx, ctx, sessionId, 4);
   });

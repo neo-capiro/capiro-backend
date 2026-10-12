@@ -57,25 +57,25 @@ describe('Objective destination current revision authority (synthetic SQL bounda
   it('uses the existing immutable revision and parameterized current tenant/member/client authority', async () => {
     const h = harness();
     await expect(h.run()).resolves.toEqual({ ...input, objectiveRevisionId: revisionId });
-    expect(h.calls[0].values).toEqual([ctx.tenantId, ctx.userId, ctx.clerkUserId, input.clientId]);
-    expect(h.calls[0].sql).toContain("t.status::text='active'");
-    expect(h.calls[0].sql).toContain("m.status::text='active'");
-    expect(h.calls[0].sql).toContain(
+    expect(h.calls[0]!.values).toEqual([ctx.tenantId, ctx.userId, ctx.clerkUserId, input.clientId]);
+    expect(h.calls[0]!.sql).toContain("t.status::text='active'");
+    expect(h.calls[0]!.sql).toContain("m.status::text='active'");
+    expect(h.calls[0]!.sql).toContain(
       "m.role::text IN ('standard_user','user_admin','capiro_admin')",
     );
-    expect(h.calls[0].sql).toContain('u.clerk_user_id=?');
-    expect(h.calls[0].sql).toContain("c.status::text<>'archived'");
-    expect(h.calls[0].sql).toContain('FOR SHARE OF t,m,u,c');
-    expect(h.calls[1].sql).toContain('FOR SHARE');
-    expect(h.calls[1].values).toEqual([ctx.tenantId, input.clientId, ctx.userId]);
-    expect(h.calls[2].sql).toContain('deleted_at IS NULL FOR SHARE');
-    expect(h.calls[3].values).toEqual([
+    expect(h.calls[0]!.sql).toContain('u.clerk_user_id=?');
+    expect(h.calls[0]!.sql).toContain("c.status::text<>'archived'");
+    expect(h.calls[0]!.sql).toContain('FOR SHARE OF t,m,u,c');
+    expect(h.calls[1]!.sql).toContain('FOR SHARE');
+    expect(h.calls[1]!.values).toEqual([ctx.tenantId, input.clientId, ctx.userId]);
+    expect(h.calls[2]!.sql).toContain('deleted_at IS NULL FOR SHARE');
+    expect(h.calls[3]!.values).toEqual([
       ctx.tenantId,
       input.clientId,
       input.objectiveId,
       input.objectiveVersion,
     ]);
-    expect(h.calls[3].sql).toContain('FOR SHARE');
+    expect(h.calls[3]!.sql).toContain('FOR SHARE');
   });
 
   it.each([
