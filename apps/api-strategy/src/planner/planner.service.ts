@@ -793,7 +793,7 @@ export class PlannerService {
     const linkData = { clientId: dto.data.clientId ?? null, meetingId: dto.data.meetingId ?? null };
     if (linkData.clientId) uuid(linkData.clientId);
     if (linkData.meetingId) uuid(linkData.meetingId);
-    if (linkData.clientId || linkData.meetingId)
+    if (!command && (linkData.clientId || linkData.meetingId))
       await this.links.validate(
         linkData as { clientId: string | null; meetingId: string | null },
         authorization,
@@ -820,6 +820,13 @@ export class PlannerService {
               throw new ConflictException('This request ID already belongs to different task data');
             return this.taskView(tx, task, projects, ctx);
           }
+          // A replay authorizes current persisted links above, not obsolete input links.
+          // A new command still validates requested links before its first write.
+          if (linkData.clientId || linkData.meetingId)
+            await this.links.validate(
+              linkData as { clientId: string | null; meetingId: string | null },
+              authorization,
+            );
         }
         const importHash = imported
           ? createHash('sha256')

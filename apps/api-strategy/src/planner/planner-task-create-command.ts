@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 import { NotFoundException } from '@nestjs/common';
+import { PLANNER_DEFAULT_TASK } from '@capiro/strategy-verifier';
 import type { SpPlannerResource } from '../../generated/prisma-client/index.js';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
-import { keys, object, uuid } from './planner.validation.js';
+import { keys, object, uuid, validateTask } from './planner.validation.js';
 
 export const TASK_CREATE_RECEIPT = 'task_create_receipt';
 export type TaskCreateCommand = { requestId: string; hash: string };
@@ -23,6 +24,9 @@ export function taskCreateCommand(raw: unknown) {
   keys(input, ['requestId', 'data']);
   const requestId = uuid(input.requestId).toLowerCase();
   const data = object(input.data);
+  // Reject malformed/deep input with the existing bounded task schema before hashing.
+  // Canonical persistence still performs all context-sensitive validation and ACLs.
+  validateTask({ ...PLANNER_DEFAULT_TASK, ...data });
   return {
     data,
     command: {
