@@ -1,0 +1,17 @@
+{
+  "cwd": "/workspace/capirov2-cleanup-next-registry-guard-reacceptance",
+  "argv": [
+    "node",
+    "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/additional-repaired-probes.mjs"
+  ],
+  "environment": {
+    "NODE_PATH": "/workspace/capirov2/node_modules"
+  },
+  "exitCode": 1,
+  "frozenHead": "721bfd4825bfccd819be50172ed712023891f978",
+  "checks": 27,
+  "passed": 24,
+  "failed": 3,
+  "sourceStringsEvaluated": false,
+  "nativeAcceptance": false
+}

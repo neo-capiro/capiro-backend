@@ -1,0 +1,122 @@
+{
+  "scope": "preserved initial review plus721 repaired review snapshot; excludes this checksum self",
+  "frozenHead": "721bfd4825bfccd819be50172ed712023891f978",
+  "files": [
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/INITIAL-REVIEW.md",
+      "sha256": "0ec106ed8ebc39e82a2d983faed6cff1de8d3edcf60c99e7212087ea24db033b"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/REPAIRED-721-REVIEW.md",
+      "sha256": "83c2363f0a77f194cfca14f37639447ec59832e5b9ad5799d5df25f76fc830aa"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/SHA256SUMS.json",
+      "sha256": "d8021a1856658f5184f9213d7255d5a9eac5de72a0a85489173e9d1e05d365a3"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/additional-repaired-probes.command.json",
+      "sha256": "d44b03cfb985bbbbc3299a8455f8d1faa2c324bf4ae7000d0b15db88eeb6f01b"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/additional-repaired-probes.json",
+      "sha256": "012a1c790cb609972c42fd4d1fcd2a4b4fc5560ff3ac92f25abae262ee961dd4"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/additional-repaired-probes.mjs",
+      "sha256": "4d387d7195db2d7a2c47e2fdbeb60f944e580a8ce816764f858a865a6fd14a0e"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/adversarial-corpus-initial.command.json",
+      "sha256": "21486578ce159217431fff40b0c9b40ad33b4853dfb175cb4d738ddc737889e5"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/adversarial-corpus-initial.json",
+      "sha256": "1b67ecb6fa54cb60b7c01466b8b9876db02eda4b600e1d44f3212ef8b1cae25b"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/adversarial-corpus-repaired.command.json",
+      "sha256": "e73ed0be505e114fc864cc76feaf72193b9fb0d039ea01deb8ed597ae1f8bea9"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/adversarial-corpus-repaired.json",
+      "sha256": "e849d7e8449e3970d5c0b826477f2d82d6f4fe64533595e26e9c1a917596d911"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/adversarial-corpus-repaired.log",
+      "sha256": "3a8b82baf1a740edd7594c97da4fa3a1bd600cfb5fdcc6f9ed26241165925ca0"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/adversarial-corpus-repaired.mjs",
+      "sha256": "507c268cb57375c4bfb28bd61ec32cee9d07514bdf2919b2ce8a44cd7a38d599"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/adversarial-corpus.mjs",
+      "sha256": "a7c953eefb9eefc2b6f5504ee2e6fac1cd6bec97758650bf12b2223ad22faedd"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/ambient-export-probes.command.json",
+      "sha256": "ff1e12be55e69d5d4888383052c12948d372783c71fd937d3e360ac56baead7c"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/ambient-export-probes.json",
+      "sha256": "6775b1ab120e390e27a9c92b69bdc7c5721f21f80a9f6c5d27b02cc2b1802c78"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/ambient-export-probes.mjs",
+      "sha256": "38d7662507fa78bc06d2037e86a82611eccbd09e2fd62d25b7a354d12250936e"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/author-controls-reproduction.command.json",
+      "sha256": "04876952b9b2addb8936c0ce030cdbeec80fa111cd9c972e38bf95cb9a1f39c6"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/author-controls-reproduction.tap",
+      "sha256": "dc4bf8d3c6e91cad4a001fd437e064075e351acbd6b10e8d0e60c55ebef0838e"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/initial-source-preservation.json",
+      "sha256": "6537a412d28fa194eba4a8f3af60a7f18171a199b12043336ed0b69e462948a0"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/repaired-author-controls.command.json",
+      "sha256": "790715b9cc440791ecab3f882d66827c7147647d976f9d6a79bbb6ab930e72b2"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/repaired-author-controls.log",
+      "sha256": "7c22f05dc2357b6c26bfac4f3662ebb890abba8a636cea365c16fdcbf66ee6da"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/repaired-cli-help.command.json",
+      "sha256": "afdd2f6cd0887eb32e6623b260438052892ae01601d752096500a0bbe2cc159b"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/repaired-cli-help.log",
+      "sha256": "ca46c2d0d4e3950572b33f5ebdcffe1e40e400963cfe3a635d05946ed2657110"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/repaired-cli-unknown.command.json",
+      "sha256": "fd8a634bf6b24705e97e7d79413b607d178039275f6b403ce6aae942ef3613e4"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/repaired-cli-unknown.log",
+      "sha256": "bc4fed5d16edc2b69decfa91124f872b93bc90b7e378282b6cb9f3fc0993f233"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/repaired-preservation.json",
+      "sha256": "5e6acfd73ffb75b88ccaffda338515c3e230fee0af438193ad657fa7b8ed1806"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/repaired-real-profile-cli.command.json",
+      "sha256": "55fcfea3f941258fd2d4f2c0a7fb09ffb2fe6e3c451d4fa66ad66bb6d341e99d"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/repaired-real-profile-cli.log",
+      "sha256": "67fac2c83e17d6c0668512c043de88ba552c0242bc5da0493bf9ad14985aef08"
+    },
+    {
+      "path": "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/repaired-source-manifest.json",
+      "sha256": "fcbabca47488e49295f5a1d1ff48d0ee263ad277bf12cbdc030ea6aa3229f352"
+    }
+  ]
+}

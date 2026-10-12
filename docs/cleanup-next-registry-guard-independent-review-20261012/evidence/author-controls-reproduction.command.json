@@ -1,0 +1,17 @@
+{
+  "cwd": "/workspace/capirov2-cleanup-next-registry-guard-independent-review",
+  "argv": [
+    "node",
+    "--test",
+    "scripts/check-registry-ownership.test.mjs"
+  ],
+  "environment": {
+    "NODE_PATH": "/workspace/capirov2/node_modules"
+  },
+  "exitCode": 0,
+  "seconds": 0.693,
+  "frozenHead": "9c7bd2de80ae29fd2987fc3b079ca326295cdfcb",
+  "applicationModulesImported": 0,
+  "sourceStringsEvaluated": false,
+  "nativeAcceptance": false
+}

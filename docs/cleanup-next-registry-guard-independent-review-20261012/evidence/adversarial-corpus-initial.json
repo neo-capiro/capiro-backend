@@ -1,0 +1,265 @@
+{
+  "frozenHead": "9c7bd2de80ae29fd2987fc3b079ca326295cdfcb",
+  "frozenTree": "5451288b936e08c505c5fd9ca5a0896bcdf6bd56",
+  "checks": 24,
+  "passed": 7,
+  "failed": 17,
+  "results": [
+    {
+      "name": "canonical baseline",
+      "expectedRefuse": false,
+      "refused": false,
+      "pass": true,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "non-exported owner function",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "nested owner function not available as module export",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "namespace owner function not available as module export",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "default-only export cannot satisfy named import",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "duplicate object destructuring binding outside owner",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "duplicate renamed object destructuring binding outside owner",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "duplicate array destructuring binding outside owner",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "duplicate parameter binding outside owner",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "duplicate destructured parameter binding outside owner",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "imported module symbol absent from owner",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "consumer edge outside declared scan roots",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "carrier declaration outside declared scan roots",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "duplicate owned symbol entry",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "duplicate consumer edge entry",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "duplicate carrier entry",
+      "expectedRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "genuine top-level owner duplicate refused",
+      "expectedRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one function declaration in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "namespace import refused",
+      "expectedRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: apps/example/src/consumer.ts/canonicalRoute: expected one runtime named import, found 0"
+        ],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "parameter shadows import refused",
+      "expectedRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: apps/example/src/consumer.ts/canonicalRoute: expected 1 bound references, found 0",
+          "example: carrier drift or missing declaration: apps/example/src/consumer.ts/dispatch"
+        ],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "inert source string containing throw remains unevaluated",
+      "expectedRefuse": false,
+      "refused": false,
+      "pass": true,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "variable const-to-let mutability drift",
+      "expectedEqual": false,
+      "actualEqual": true,
+      "pass": false
+    },
+    {
+      "name": "variable exported-to-local visibility drift",
+      "expectedEqual": false,
+      "actualEqual": true,
+      "pass": false
+    },
+    {
+      "name": "literal change remains fingerprint-sensitive",
+      "expectedEqual": false,
+      "actualEqual": false,
+      "pass": true
+    },
+    {
+      "name": "comment and whitespace intentionally ignored",
+      "expectedEqual": true,
+      "actualEqual": true,
+      "pass": true
+    }
+  ],
+  "actualCanonicalProfilesChecked": false,
+  "sourceStringsEvaluated": false,
+  "applicationModulesImported": 0,
+  "nativeAcceptance": false,
+  "acceptance": false
+}

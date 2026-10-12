@@ -1,0 +1,19 @@
+{
+  "cwd": "/workspace/capirov2-cleanup-registry-guard-final-review",
+  "argv": [
+    "node",
+    "scripts/check-registry-ownership.mjs",
+    "--not-supported"
+  ],
+  "environment": {
+    "NODE_PATH": "/workspace/capirov2/node_modules"
+  },
+  "exitCode": 1,
+  "seconds": 0.076,
+  "frozenHead": "4104f49f6ebfdbf00ad1706079ba340bd9b566c8",
+  "frozenTree": "257856362ba9075b25bee52debf3efa35f3dfb77",
+  "stdout": "",
+  "stderr": "Unsupported registry ownership arguments\n",
+  "sourceStringsEvaluated": false,
+  "nativeAcceptance": false
+}

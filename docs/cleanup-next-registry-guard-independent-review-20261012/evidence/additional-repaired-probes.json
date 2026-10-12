@@ -1,0 +1,328 @@
+{
+  "frozenHead": "721bfd4825bfccd819be50172ed712023891f978",
+  "checks": 27,
+  "passed": 24,
+  "failed": 3,
+  "results": [
+    {
+      "name": "nested object-array-rest binding",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "array rest binding",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "object rest binding",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "nested renamed binding",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "rest parameter binding",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "named class expression",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "quoted class method",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "static-computed class method",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "class property field",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "quoted class property field",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "static-computed property field",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "getter property",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "setter property",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: canonicalRoute must have one named module export (function) in apps/example/src/registry.ts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "extra owner namespace import",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: unsupported owner import in apps/example/src/extra.cts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "extra owner side-effect import",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: unsupported owner import in apps/example/src/extra.cts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "extra owner literal dynamic import",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: unsupported dynamic owner import in apps/example/src/extra.cts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "extra owner literal require",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: unsupported dynamic owner import in apps/example/src/extra.cts"
+        ],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "extra imported owned name from unknown relative path",
+      "expectRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "extra extensionless owner import",
+      "expectRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "extra TypeScript import-equals require owner",
+      "expectRefuse": true,
+      "refused": false,
+      "pass": false,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "renamed property key is not a binding duplicate",
+      "expectRefuse": false,
+      "refused": false,
+      "pass": true,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 3
+      }
+    },
+    {
+      "name": "listed alias runtime use plus extra type reference remains one use",
+      "expectRefuse": false,
+      "refused": false,
+      "pass": true,
+      "output": {
+        "errors": [],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "type-only owned symbol cannot count as runtime edge",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: invalid or missing consumer edge"
+        ],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "syntax errors cannot create carrier fingerprints",
+      "expectRefuse": true,
+      "refused": true,
+      "pass": true,
+      "output": {
+        "errors": [
+          "example: carrier drift or missing declaration: apps/example/src/consumer.ts/dispatch"
+        ],
+        "profiles": 1,
+        "files": 2
+      }
+    },
+    {
+      "name": "var/const declaration-list mutability",
+      "pass": true,
+      "equal": false
+    },
+    {
+      "name": "export declare envelope",
+      "pass": true,
+      "equal": false
+    },
+    {
+      "name": "multi-declaration envelope",
+      "pass": true,
+      "equal": false
+    }
+  ],
+  "applicationImports": 0,
+  "sourceStringsEvaluated": false,
+  "nativeAcceptance": false
+}

@@ -1,0 +1,17 @@
+{
+  "cwd": "/workspace/capirov2-cleanup-next-registry-guard-reacceptance",
+  "argv": [
+    "node",
+    "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/adversarial-corpus-repaired.mjs"
+  ],
+  "environment": {
+    "NODE_PATH": "/workspace/capirov2/node_modules"
+  },
+  "exitCode": 0,
+  "seconds": 0.941,
+  "frozenHead": "721bfd4825bfccd819be50172ed712023891f978",
+  "stdout": "{\"checks\":24,\"passed\":24,\"failed\":0,\"reds\":[]}\n",
+  "stderr": "",
+  "sourceStringsEvaluated": false,
+  "nativeAcceptance": false
+}

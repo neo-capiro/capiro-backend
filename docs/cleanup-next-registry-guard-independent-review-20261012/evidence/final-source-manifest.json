@@ -1,0 +1,877 @@
+{
+  "frozenHead": "4104f49f6ebfdbf00ad1706079ba340bd9b566c8",
+  "frozenTree": "257856362ba9075b25bee52debf3efa35f3dfb77",
+  "files": [
+    {
+      "path": "scripts/check-registry-ownership.mjs",
+      "blob": "5e46f212702716896bd2e4e2a986180435ae6142",
+      "sha256": "1ee6be5fee4f958b29e57e7c9f77c1da9071b59aa8749b53553da75d1a024c35"
+    },
+    {
+      "path": "scripts/check-registry-ownership.test.mjs",
+      "blob": "0d1699b9c75a44e2d5541db42ee4aeeaca50f2ce",
+      "sha256": "031bb5c6a8b3ffb3df1d1fa1e824d1183cd92d301add8b6de38e499bd2422e65"
+    },
+    {
+      "path": "scripts/registry-ownership.json",
+      "blob": "7bee2f07b06ade07f7587c868afbe761972a4b8e",
+      "sha256": "f68cf0819176ebdd56f25ef3387b2a9fd3e014f40ade90ecb4dc7cca75699019"
+    },
+    {
+      "path": "package.json",
+      "blob": "dd946b25b0ab2d5ae8cbb223e4586e02227adea1",
+      "sha256": "78d6a5775c0e97ca2b1760139a5d60dbf8a298fd62f0d58b232ad24bfc28ca38"
+    },
+    {
+      "path": ".github/workflows/ci-pr.yml",
+      "blob": "baf92415c3c766a847a4fc60ee6ad5cb4dec1ca2",
+      "sha256": "4ab5e5b3aa91b3466ceafa1cd84f882ede5a21aeb083e96ca409cef0363fa91e"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/agents.controller.ts",
+      "blob": "a71cdf5b242128d97a85af59fa439c454db98aff",
+      "sha256": "67d61fb74e69ba16ef29e7496675e4cd3bb57b26db19d8883969259d3771dad5"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/agents.module.ts",
+      "blob": "a3be4aa176cf14241aca2af9d3072c17fc0f7135",
+      "sha256": "39f5230c4927c031c802a0fecaaec7543c3c2372d8ce10e3f04b3e4b6af03309"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/approval-binding.ts",
+      "blob": "78190b61e62db141b63352f5c0bc311167e653a9",
+      "sha256": "a10efb25b0e3e745986692a15c31177849968cd4989707d8a7331338f1edbea3"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/artifact-ref.ts",
+      "blob": "1904da6796390bf404e4b10082507eb0609a6c8a",
+      "sha256": "3ccbc568d6dacfd94ddf8b7389f1ceb10fd58e460ba2ff79978b3c8bf5a2295e"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/change-sets.service.ts",
+      "blob": "d4c535f42d3582282b61362ff82a18e50aa47be1",
+      "sha256": "f565821dbfb4b26b8b0f3bb3542dc51caa5dfdb153a7908836b2c047749e786f"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/dto/agents.dto.ts",
+      "blob": "545da21e7e4fb7ee94426c26fb055ee8d12021ba",
+      "sha256": "eb3f7d0e0675e5ff30d04e0495b7be9f427a530da34ac3686796fa60edd47dba"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/execution-artifact.client.ts",
+      "blob": "b6199dac332f6580edaae160e6a7007414ca994a",
+      "sha256": "60746234df95b5c207a984b584ca6574401625296fc56a7a07ef91a86ac29709"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/execution-assurance-tenant.interceptor.ts",
+      "blob": "19b522867d8d0a0bcf415902bde6aa97716c924c",
+      "sha256": "165e17fa810ca8136ca5b090db235d31800e5a207855a857fe0bdf400e81aeb3"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/execution-assurance.ts",
+      "blob": "88245958822412cca576321da58f8bcbd6015b69",
+      "sha256": "bc2635c09a585eb492d226d021fff7a80e153c347535c14983cfb78fafcb17c6"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/execution-blocker.ts",
+      "blob": "5311849f22bf621fb2d66622eb66ae1f8d67a9ef",
+      "sha256": "b8f7008e9e96be5fcdc8745de2719bbb9ffa48c1947af034fdb91c63c50fcbb1"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/execution-eligibility.ts",
+      "blob": "a7db69790d863a07c2b49a9bc5bd504dc580d421",
+      "sha256": "c42ad1ec363d44b7f80f6a96c4ab05b5a0bd465f4eb7d64116abcbc52486a0fe"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/execution.service.ts",
+      "blob": "6dd5a0d15f6174f1ba4c2cc2aeeabc39b35d399f",
+      "sha256": "87987cae461e2322114172c847bdb8ee6193efd1f9a6750ad0cd26c7e51caff2"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/missions.service.ts",
+      "blob": "cbf7e1efcf825854e35861d0084e7bdd97a34a84",
+      "sha256": "a1371c795b704dbe8b65b50cb93270f3da6834e6af83a62ecdd25a8c1cb032e1"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/outbox-consumer.service.ts",
+      "blob": "3d43eecff607c99614d9ec80eaeef1a9bc9af912",
+      "sha256": "b18adea78713f3ea8d997eb9c7c8d2e21d22e2de4095f8f1cc920aef19f7a1a8"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/risk-router.ts",
+      "blob": "6735a86c0ea1658af1669670461ed87eba2685ae",
+      "sha256": "f22cdbd906c86050efda083a41df35ed4a4aef44a340e0792a956f892299fea5"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/run-metrics.ts",
+      "blob": "75a8f6f6db45bbafdcfb32f728bd8df8d958c7aa",
+      "sha256": "d8c92a9c67d29ea514f98531feed5022fb1c6204abb3d881672a5180e54c19b5"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/run-reconciler.service.ts",
+      "blob": "2e09eea7fec0ad1154545cb6b7a9248a020baa21",
+      "sha256": "37cf022a03db106017b8fb88d9567576eaab7a523610fbf991a61dd03f879378"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/run-recovery.ts",
+      "blob": "e1f44b557892c6574750349ee4be20c5d064938f",
+      "sha256": "964918797e5803ebe501e3f19be6fa5f30bfb3a28536403fce9a9ff9bd5e0d5e"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/run-state.ts",
+      "blob": "96aaf492e894feea9c44ec068b91da260c955367",
+      "sha256": "485257051219ba600d8691dc386c5090e13c6a42d11d4c4d1b452dc1b8cbae62"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/runs.service.ts",
+      "blob": "5058b6e79c6dc3c1f4332da21264fc18f5f4e1d6",
+      "sha256": "0a2563c21c93a05ac97be2658b4da287ebcdfb6f2412acd65d42b73b63f64bb2"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/send-approval.ts",
+      "blob": "c743f5957f3382a8a0441ffbf17de5f0cff39468",
+      "sha256": "35f4f61fdbe5bb9e16490738fdcf0648da65647ffb2714e0b8b964c6864c6893"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/watch-batch-order.ts",
+      "blob": "aa2033a2a4afeb210874478256275056445af565",
+      "sha256": "50aff9d92bae152edfefbfa6b801e9e258bd174ef776908d3a3694aa76509f45"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/watch-mission.ts",
+      "blob": "c21426f1f862e8dcc00dfb303689e887d8cccd7e",
+      "sha256": "3c0eb5bc8142fd14d64d8badd5d50489edabbfd8011016d557cb51c24cdb88d8"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/watch-review.service.ts",
+      "blob": "eaf89a3e85935c200db1a9e1133b3c97600057b4",
+      "sha256": "41fcaac37ef434be6e56c033eede693b130a1910fce63eb792711b8d3fec41cb"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/watcher-checks.ts",
+      "blob": "5ece49213c2ab7e8339879639f2eee65fe0e83b6",
+      "sha256": "ff0d33101d28db5667383f98d05cb5d6adc7120e221c6c2a2d28dab5c51161e1"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/watcher-scheduler.service.ts",
+      "blob": "546789711bd8488661dbb5564f50a9a4afc2df6d",
+      "sha256": "53e7478e7b7d2332856fbf69bcab836011ed34d1635d18c1cb9c2d5ce27b3089"
+    },
+    {
+      "path": "apps/api-strategy/src/agents/watcher.service.ts",
+      "blob": "c762dfd87dd277f5a22ce81cca17a8f2c84440b3",
+      "sha256": "8989735a2b082398ae7cacb59aae88b0d24782bbff66995a77c8165cae4df5cb"
+    },
+    {
+      "path": "apps/api-strategy/src/app.module.ts",
+      "blob": "e97fded5a9eb26ba38493943898c4087ed16ce27",
+      "sha256": "4ce32f3ba78dee6ec1f6b3f37fbd5e415fc586af12af0dd3d088d9fc77b95b3a"
+    },
+    {
+      "path": "apps/api-strategy/src/auth/auth.module.ts",
+      "blob": "14cd7c17f755a5e71d18d006e97e9ecddc96feef",
+      "sha256": "3c815a114ff3c693adfc9a7cc8709b8aec6248a67bdb1c24d622728732988750"
+    },
+    {
+      "path": "apps/api-strategy/src/auth/current-tenant.decorator.ts",
+      "blob": "864212bac039b4090288fa3a52311c09f88600a0",
+      "sha256": "b2fecd08bfd254f9c7af244751ff7c538a4afb218f6aaba65827a737c4e93c8d"
+    },
+    {
+      "path": "apps/api-strategy/src/auth/org-tenant-resolver.module.ts",
+      "blob": "b023751832d7be398666582f5c8cfa9a67765599",
+      "sha256": "1b523d153ef4e30db679ceb37959e837b78c2cc293d561a05490fd014ac26ad9"
+    },
+    {
+      "path": "apps/api-strategy/src/auth/org-tenant-resolver.provider.ts",
+      "blob": "4278c40242b9b016a2a18ebe54d447161cd23f89",
+      "sha256": "81d99750960b5271c095c1036ed800250b322a0a749aa7e6824063f9d87c69e4"
+    },
+    {
+      "path": "apps/api-strategy/src/auth/tenant-context.ts",
+      "blob": "f18a9999f6827d7aace46f5a1db706d7ebb31016",
+      "sha256": "08d8f4bd3bf39b76ac4e6e3446ba662d7f678774ebf2050197e74d6cbb3cec89"
+    },
+    {
+      "path": "apps/api-strategy/src/auth/tenant.guard.ts",
+      "blob": "388f83c464bdbe82d1a0c37eb946f6c475652a21",
+      "sha256": "54654110e89b8d466afd9339f1a3917cbcab05e8b64e5f2e6210445ac4d0d707"
+    },
+    {
+      "path": "apps/api-strategy/src/context/context-documents.service.ts",
+      "blob": "6927bc8919b02baca90e75f8710698ada07bccaa",
+      "sha256": "39abf2099671088541ce94715a21231bdb93e8880353c583b9169f8e70187636"
+    },
+    {
+      "path": "apps/api-strategy/src/context/context-import.controller.ts",
+      "blob": "ecc7e8b106bbdba5e522b34087243b3f2789bf71",
+      "sha256": "1f36a0d97c73ac6b9b885c7f9b7b30a99d77324780044baf6ba667dc8a100e73"
+    },
+    {
+      "path": "apps/api-strategy/src/context/context-import.service.ts",
+      "blob": "a4b24c925dd6a794378d2c0f15ce2fc97f363e2b",
+      "sha256": "d8640aa0099641e4f108ae86db56e234a4e3fdde0671d4b737d9a09052513e30"
+    },
+    {
+      "path": "apps/api-strategy/src/context/context-import.types.ts",
+      "blob": "6385c9543b718038c093d03036708ef7ca0c057f",
+      "sha256": "6002ba7ca553b32950a7007e521adc4cee16e568ec88944b4b8d41f7a28abca7"
+    },
+    {
+      "path": "apps/api-strategy/src/context/context.controller.ts",
+      "blob": "475c834ab9df6e87d6941930232c3d63b22686fb",
+      "sha256": "09a84a13dc64a167316ef358eeab60ab163941b434e5be9ed74370ec91b80f56"
+    },
+    {
+      "path": "apps/api-strategy/src/context/context.module.ts",
+      "blob": "531d2f13f1bc50c9951adeaa60a07c5907556452",
+      "sha256": "4a16b6c410bbf090ea400565a188f1f5f47de93e8eb5f07ce18a7045ddbd80b8"
+    },
+    {
+      "path": "apps/api-strategy/src/context/current-plan-export.service.ts",
+      "blob": "4430134e4122057464d8f2b4741e43349ed69d32",
+      "sha256": "e3ae918f440d6a3283a3cc92a31dd8ae80920f1bf11828aea6bd99d8b42c999e"
+    },
+    {
+      "path": "apps/api-strategy/src/context/dto/context-import.dto.ts",
+      "blob": "d4a25600b325c3d208781ee53fcb0fb0476687f4",
+      "sha256": "3ccd0eeac6b49d254df9a0b9d1f995bcd9d08aeff70b3a50b83c896d553ff80b"
+    },
+    {
+      "path": "apps/api-strategy/src/context/dto/context.dto.ts",
+      "blob": "1c79b2673b5f8ec3bcbe02625933e2a586fa5bd5",
+      "sha256": "dd03f002fa3cb0b8da62e5aaf2dcb2670d73b8faf81dbfd479c9a07bfb887c12"
+    },
+    {
+      "path": "apps/api-strategy/src/context/dto/steward.dto.ts",
+      "blob": "f4efe8dad13ced3317ee1c71df630e13eea819bf",
+      "sha256": "abd766a7e19f9e981413286baeab6ffd103e61afd443b2e37f51907a72fbca71"
+    },
+    {
+      "path": "apps/api-strategy/src/context/frontmatter.ts",
+      "blob": "9d3564ce92fcc7a29d2f99bd1b1dcf379f1d49ba",
+      "sha256": "250a942a6b06f1529a02315b6bf07e3f7d1a872fdf6e70daecd0f69406353645"
+    },
+    {
+      "path": "apps/api-strategy/src/context/markdown-locate.ts",
+      "blob": "a7d20c606d06229cde4d9405b2db29013093cc29",
+      "sha256": "726a59cf25042ce41f70da618b3f14b95e887939c41b927cc107bc398dec6805"
+    },
+    {
+      "path": "apps/api-strategy/src/context/steward.controller.ts",
+      "blob": "27591d7a198101c796351b404b6531bf770a643f",
+      "sha256": "857f969dfb8458cfb67c518bbaff88b3bdac732c81ec4e18298d92ca25dea56f"
+    },
+    {
+      "path": "apps/api-strategy/src/context/steward.service.ts",
+      "blob": "9d41ae5eceba74e0fa0f0d43eb5197189d201f49",
+      "sha256": "7cf4f8a4a2dc3733d5138eb96d57ef8ade640ef35cb8fc91cac9d6529d5b64b6"
+    },
+    {
+      "path": "apps/api-strategy/src/cors-origins.ts",
+      "blob": "ae967b2bee105d62e1482b5c9d594d5ce5d49469",
+      "sha256": "68c294680405f0ebcfb850786ed60c91996c04a377f1d9501fb39cbe757c05a2"
+    },
+    {
+      "path": "apps/api-strategy/src/firm-phases/dto/firm-phases.dto.ts",
+      "blob": "52f1eef7083254195527a4c6c73dac0c46e592a5",
+      "sha256": "504500b77b053be98d8f4d78da207a74a806b818a754969ec3f3d5591f0f9567"
+    },
+    {
+      "path": "apps/api-strategy/src/firm-phases/firm-phases.controller.ts",
+      "blob": "5576432b15b0642dfbb3a5b5a7cc3807dcd34302",
+      "sha256": "681318aa5e154ce327c70d57cf2ebf4c5a36fd2f0a12ba0c4953a6e57a4d0c43"
+    },
+    {
+      "path": "apps/api-strategy/src/firm-phases/firm-phases.module.ts",
+      "blob": "635e35b7b524dc57b55d9659a25451c25c81148b",
+      "sha256": "01ed826e0c450a4180d52bd13ae973d49fe7934f0b89d04f5abfa74636a11ea4"
+    },
+    {
+      "path": "apps/api-strategy/src/firm-phases/firm-phases.service.ts",
+      "blob": "c7c587acda689c3c7cbe44d04540aa60bfafecca",
+      "sha256": "9bb3ec2a280b988b0218bb03460a21c472caee2a3eb904657253a74825634150"
+    },
+    {
+      "path": "apps/api-strategy/src/fiscal/fiscal.ts",
+      "blob": "08ba8d786d31b96382fc1b43d4fa92831ad1d72e",
+      "sha256": "31bbedc196283335625110729e4296ad6eb72d9d900da8696f770f166213003c"
+    },
+    {
+      "path": "apps/api-strategy/src/flags/agentic.guard.ts",
+      "blob": "af725688faa1ba292799b63df2016404b86cb38d",
+      "sha256": "9b2c7a381cdb3b6511a3b5a614c4380830e2bdac51a8c72e832ece88341a5370"
+    },
+    {
+      "path": "apps/api-strategy/src/flags/context-steward.guard.ts",
+      "blob": "d3182af4684ae414bbe1fa4781282769e2fc635a",
+      "sha256": "1cb5588f93db835ab5fd6e343d0ae754325f7d2854615ab0461f7329a0b07876"
+    },
+    {
+      "path": "apps/api-strategy/src/flags/execution-agent.guard.ts",
+      "blob": "01559841448b7525f327f742494abd1608215e9a",
+      "sha256": "0f621db3cda5c044357368d2d2a5228c68795949de0616b6f623975094adff38"
+    },
+    {
+      "path": "apps/api-strategy/src/flags/flags.module.ts",
+      "blob": "541328161d9defad2f617145ee0979e5756b44bf",
+      "sha256": "d0a29c3a69965767542a58685d47e0b80ebc49d7d82a1ec1640d8dffcf9fd8f5"
+    },
+    {
+      "path": "apps/api-strategy/src/flags/strategy-flags.service.ts",
+      "blob": "9aadc28593b62716998733dbbcf2275e9fe8ae50",
+      "sha256": "4624deb85f36c7d921b1a2d22751c2160c06edb7793952220917e30f241aa04d"
+    },
+    {
+      "path": "apps/api-strategy/src/flags/strategy-meri.guard.ts",
+      "blob": "58a24aec7c397da912fef807354190429e5b5897",
+      "sha256": "a41714172149816afb8cf51dd18e4f6790cb76e24abdf7370e5e5f395962b2fa"
+    },
+    {
+      "path": "apps/api-strategy/src/flags/strategy-planner.guard.ts",
+      "blob": "3600d67463cbfc3466f4f950355f49945392f67a",
+      "sha256": "b2155c3d843c9d4de686a5568dc8118052945b69920bde7be98a418283dffe74"
+    },
+    {
+      "path": "apps/api-strategy/src/flags/strategy-watcher.guard.ts",
+      "blob": "b38b67d6bb39e4e1fa41458ec3e8626a3c19cf78",
+      "sha256": "a4071a6cfb7d54b65ba8fa411eea2c78f27a68ebe647e79f7cea07c7c2430c87"
+    },
+    {
+      "path": "apps/api-strategy/src/health/health.controller.ts",
+      "blob": "1739c7cdd7d56d03eae76b2fb237d21797385d2a",
+      "sha256": "736d6fd926ac9716cfe1aa70020ee0230443bb8367eb64385a2aa7b399416c8e"
+    },
+    {
+      "path": "apps/api-strategy/src/health/health.module.ts",
+      "blob": "f08bd8b6d4c3f1d9c4e547d24bd9c8bbf68e51da",
+      "sha256": "fe8773d199e764f6e5235afbe03b4f28a8bd930e10a21b855a0753acf33f9608"
+    },
+    {
+      "path": "apps/api-strategy/src/main.ts",
+      "blob": "79d0d4b2322d8849f0a2122c6c91b89413c35c63",
+      "sha256": "b347f22ebee99aa918c61bc7a1831163de7137eaaa8f67f1fd70659e4580fcf3"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/context-load.ts",
+      "blob": "2fae41c88c7f3686eb81973e882bbe85f84ce2b4",
+      "sha256": "8a44d6eeaf5476aabfba62cb5c43c124aa1fd109563896e6aed9bf0cf0f8a0e6"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/draft-job-worker.service.ts",
+      "blob": "0c3b307519f722375c1a1711ee7bead1e9212714",
+      "sha256": "b160f261757aeb7653210225dc601aec62cfe52a448791d6dbb2a3499c68d0ad"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/draft-job.service.ts",
+      "blob": "ed7e9327e5e2f912d968d778b7041eba6d595751",
+      "sha256": "4e013d0f60b56f35c8469375fc40d133d539a0c34633321169221ef52cd5f6dc"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/draft-job.types.ts",
+      "blob": "0511eebb904c47b4502cdca06462b1164398e1d8",
+      "sha256": "428a4182d153d7f779c489e64260317be10b9a4b5ffe9831008752db0bbe114c"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/dto/meri.dto.ts",
+      "blob": "85622e3a8eb47a33efc3bc8f5d69220cb8b40604",
+      "sha256": "8cae54a0cb10a08840d02eab9ebb3824875ab0dd257526e56cd646b4638e7c0d"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/governed-strategy-meri.factory.ts",
+      "blob": "82bade7a425680fd88dc04ae080a618ac3ce12f1",
+      "sha256": "c480bf9563894c91b6a8b0661a1681a2c3cad4667ecfeb88f0749229b62a1d9b"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/meri.controller.ts",
+      "blob": "192ad9e13ae7264633e8fb1db67389406a43fc14",
+      "sha256": "c4139d8835021c8c7b7cc90f83ba5c4af3e2f121b9542c07aad4457016253054"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/meri.module.ts",
+      "blob": "f4d8cf791c041315e73384379ffa7f3c67587f7b",
+      "sha256": "1d4d25e208f07aca7d2fc89c9525cac1b97d1bff05417004ac6b126cf91dba4d"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/meri.service.ts",
+      "blob": "7579ff15d9fb4ef0757485529eb2e75a7b1b5ca3",
+      "sha256": "487b88a3da52861aac30d2c3be42c98a0442e157ceb9154df302c7696a9c0189"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/meri.types.ts",
+      "blob": "98652a1168ad5a913a367cbf0d4340e04e9e0a88",
+      "sha256": "6e8e7ac88138ef002c566f5b5b7d62ac940816a75ce0d46fe164d8921add80bf"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-ai-credential.resolver.ts",
+      "blob": "84c40198092d5cfe7ce029e91f241c0950731da2",
+      "sha256": "b6f54d4c965e41d75c9abc7bebcb7a8e22599fea4ea7f1d6fe019fc6e2d24469"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-attachment.resolver.ts",
+      "blob": "4b200721cf45e1cc06c938a2dbe3dd8a7978277b",
+      "sha256": "dae7b8604bbdaefe0aa5f406376ecdbba34cb68aa297d784f29f6c35663501b7"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-context-plane.client.ts",
+      "blob": "131a8ffd5b6510e729b466ad0d20f4298453fda4",
+      "sha256": "d807992150a747aae9d77bfb424920ee58b9708862b3d3dbdccd8fc31982015a"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-conversation.service.ts",
+      "blob": "0d02dfff0de2fae6f726e493a36f961b00b69a04",
+      "sha256": "27a446a8b51f3028981507ede658c2fb9c1ee6a0d63040074b159bb93158c754"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-governed-context.runtime.ts",
+      "blob": "28889ec0bb39b190addaf0ce92608f36f3abe988",
+      "sha256": "0e53b80812ea543c1767baea69d5a2f2368718df1bbb476523c2a0b955de6de6"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-governed-context.types.ts",
+      "blob": "eaf084256ff3c8587fd09e2977666d1c4f119393",
+      "sha256": "dc0486d9d6995b3e86b56757227c6c60a8f16b8c0a43b91b8fc6ee5b71b047f2"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-orchestrator.client.ts",
+      "blob": "8178bfb7f139955de27d7c0f225e5473cbc83d16",
+      "sha256": "b1926223687df558d73be5f116948259fa0a28c8aa44fe1f1a51b3b54e6d85eb"
+    },
+    {
+      "path": "apps/api-strategy/src/meri/strategy-time.providers.ts",
+      "blob": "9be11ff6c17a14c49087b5e3112cdd8d6b32b055",
+      "sha256": "457d68075d1d3a3078694761b8443468c89af678651f9889e21546c7a76cd39a"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-activity.ts",
+      "blob": "7b1643acbfe5206a826dee2b0e91b3f4c652ce6c",
+      "sha256": "5260893e98f42938bd75992a10070688aea7ee5646dd9b1c36fff5c6c2b5ca99"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-attachments.controller.ts",
+      "blob": "69c59848bf68cf407d5300d90bbb940c902c345d",
+      "sha256": "0063818f065d69e2dc5019433f6bed64e84406166a14d9cf0219c1d84afac24e"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-attachments.service.ts",
+      "blob": "834207cd47fbe1bf899c0fb2fb860cf2bed4ee5f",
+      "sha256": "f84cf80071e35db08d999fae9d37157720431b33aa4fd793a3b85a720d817c08"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-budgets.ts",
+      "blob": "3056be24c7fe6347789b26070f1949728d9e829c",
+      "sha256": "f7aa5765e9ddb0c420804f4c572e5178e84127cc5ebce5a9f75fa9629fde8a26"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-capacity.controller.ts",
+      "blob": "32cc42f178ca8628fdca725af44415fe68b556e7",
+      "sha256": "da0d8e304608043981cb21b005cc1b6e840591dbcabaf6918b2289da2de0c4bc"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-capacity.service.ts",
+      "blob": "fa09397401f9986cbdb078f49234e85434d0d966",
+      "sha256": "c2c84141bf7a0222a7eec7b44495cc4c779884ef8cf14bcc640e52e528cb8ae8"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-capacity.validation.ts",
+      "blob": "0b9876db813f042ab8549224f832423c7d52a150",
+      "sha256": "c5f4af4125720196ec78c7d11e3a8ddafced039337be2cf1b6f5a5c8671ec30c"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-command-scope.ts",
+      "blob": "0b387a531e845e2e3953c5761841e8b29d0d5954",
+      "sha256": "c9cf6e9530803450d9584b8b161ebb66adce396956d3032c022fd24f827aeb42"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-context.guard.ts",
+      "blob": "8ac88d98acb53f3d1dd19e177fe6f540a69b6043",
+      "sha256": "05862e6367d6957506f7aba020c1c6aa36111c45fc0b3af7476df7651be446e7"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-date-rules.ts",
+      "blob": "db50d3bff050d51a190132f2f5800a2b26d7e7f7",
+      "sha256": "cca1af572c41e3f48152039d62d30cf6fab31346c9003b85b76c938f08e4a97f"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-files.ts",
+      "blob": "41ea5b733fcb381240c186a9f88d3d09530954cf",
+      "sha256": "f46d7241b6640d298427929e1150d59ead9cef3ffcb8d0d413d155aa599a1ef0"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-form-files.service.ts",
+      "blob": "f023898deeb3b9f3040f8712058224c1551942a3",
+      "sha256": "2b7978a62f53f1a35490099122cc940c4ffabaf0e03aa709b3f52ddebd6eed05"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-form-upload.ts",
+      "blob": "087d47bc8f626dcfe1da8f1a51565cc189f9b18b",
+      "sha256": "26e9bd38847e1303061d4cb34f967dd01625cc104aea48652920937c450280ed"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-form.ts",
+      "blob": "fe9d7893e111417eb9483d75a4d52a942927908b",
+      "sha256": "ccea0d4edd7fe3c7c549f6139106136df02c6bc286333939d1a5670e7d417e72"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-goal-activity.ts",
+      "blob": "8031f746d13f7db02d79e0d8e5fef8f5a9bdefed",
+      "sha256": "39e991cf35fbd00baa27257e86463f7e121de9a36e08d0e493762454170e21c8"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-goals.ts",
+      "blob": "ffef86d47362a1ec9d721ee2dbe56510e17f48ef",
+      "sha256": "6b6ba381bbe838291e23cdd3bf391b953282f23980bca4a9f4c47c04e7af36bc"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-links.service.ts",
+      "blob": "87bc61828bcc14a217ee22adbbdf965dcc7efc0c",
+      "sha256": "3f8b66597c55368a68257690018057a380975de0b74426530bfdc8c38f9485c2"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-public-form.guard.ts",
+      "blob": "f74f85a27839cd9d812a017958845cd234dd15ab",
+      "sha256": "d5f8e7f8b228035500136d081d5d6d863fd6fd4b7b44898228cd8bb2f88398a2"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-public.controller.ts",
+      "blob": "61b936927be39a9f8507a75767acda594b571f3d",
+      "sha256": "eed8f32e79b5f7c996c7a1cd438da6f7907b3a28db360860628243f330a70701"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-reporting-data.ts",
+      "blob": "d55e2992c7dea5eacca1e36f6e5a2c4eb3b5b249",
+      "sha256": "43c627b4a9d877d354653b3f33d6e92caece39d7d0377fbf6c4f44df5f808ed6"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-reporting-sharing.ts",
+      "blob": "1b9c9225829795e888c21de8c70ba09b776a0b39",
+      "sha256": "7fdb4de547e119e1f9ee12583a303129436debcd8f04a92df41aef76fdace2c0"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-reporting.ts",
+      "blob": "5a8811573122987ba1dfd3b96bc920793d1d9c20",
+      "sha256": "a3ec2e771b315d44bb8ae067de08f84c4a396c93210c70d5403bfc1e84adfc9b"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-reporting.validation.ts",
+      "blob": "c44a06a06acd26b6e55361a6b62235915ea16514",
+      "sha256": "dc6c1ed15f3e5a177a312052b4cc4a245f7b005e91a0434bd2a875bd71027095"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-resources.ts",
+      "blob": "c5b6157107c4c5e76b661fba68906d598653bdbb",
+      "sha256": "9b88628b1285886e99e3849d250548ed9f17793ad919369818100fb82232dbf3"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-scheduler.service.ts",
+      "blob": "e2d8e244cfa9d550c5cd3faa46af04857984c6f3",
+      "sha256": "bb370c230c0e05f39c4f465f2bb7f831bc4dac93df6dd461089bf462c27dd9cf"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-task-create-command.ts",
+      "blob": "293ecddb044c27dc7c9d8de5eae78ee7e88960bd",
+      "sha256": "d67c2be5b167ac99669f9d4288aadd7f76f13facc2bdc0445200f74abd72d200"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-time-export.ts",
+      "blob": "1cc64c92b12271a13ac758fc40372acf70e8e608",
+      "sha256": "0652d939045d6d02d108dc1b7cb31b93e25ee7d439e56b8ffc543a32c8a8fae9"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-time-policy.ts",
+      "blob": "b30c530a9c3f918ee4c20117ee01ba7e86aa8001",
+      "sha256": "771bf5df1f14f3357c044c4c46da2606dd3a91f08cf3225952f9de0a3bdc3e57"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-time-review.ts",
+      "blob": "5fcca2372e68b0aea566761d65a30c9ec2b05182",
+      "sha256": "208705384583ee60a95beb44646e16910c9214a4277974fa282af23781caea7a"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-timers.ts",
+      "blob": "aa7cba536b9416690bac049dfde31cb90d20a7ad",
+      "sha256": "42b299159a5e6fd2f834149d7b2ba70c4759bad587e4d86881865fdeea62c301"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-timesheet-work.ts",
+      "blob": "16dde5840c9ad9a3dc30649e11541e8188ff6473",
+      "sha256": "b124914a0e40b23e12403fe67173b477ae7d7aea0e3683f5d0b134c22e09ca8e"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner-timesheets.ts",
+      "blob": "24cddfa23a7907ed63071eba788661810da8ac09",
+      "sha256": "ca90d38a2cd4bba3bd2a72224e36bffcb8bb82e3bad84875e34f2cc1494f5e6c"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.controller.ts",
+      "blob": "182e6ccf4af1b70f7902cd5b812f6b2b06413bda",
+      "sha256": "306e9ad090fa3039cf3ae05fc64994ed8418e3c3b9fdb2b314e68a363f2b3c99"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.module.ts",
+      "blob": "2f9041de5f665d3d4cf615833abe55e3d2e699d8",
+      "sha256": "7c2ebcda3ff38c4254f1c51739b33e8e54493f12aebc32f295206364f2659d57"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.service.ts",
+      "blob": "211a3bf1819180d7246179c73378f4c8a95d62b8",
+      "sha256": "42b0b2c9e08b01e73907248176117fa23d1cb26d219a30e2025be3750f8393bb"
+    },
+    {
+      "path": "apps/api-strategy/src/planner/planner.validation.ts",
+      "blob": "4617c3f277824d1ac059cd5262705f6247cf8f10",
+      "sha256": "e9f93e3e119fd6f1ed997759cd44683d6943bc663909f2265edaae4223d58050"
+    },
+    {
+      "path": "apps/api-strategy/src/prisma/prisma.module.ts",
+      "blob": "734188af80113cf2e03417de029f2c5abff6ec27",
+      "sha256": "0c27b53a548dad84fd5a8b86b92b4cfdcff6504ae927575b3fa9fab1fe7fb4b9"
+    },
+    {
+      "path": "apps/api-strategy/src/prisma/prisma.service.ts",
+      "blob": "e9210353e9026ac8313a2e3b32a63a1fac905e56",
+      "sha256": "0046e03c2303d7610ac11f6799b2e80f428c2c773d918bfd26da3ba1a60d33df"
+    },
+    {
+      "path": "apps/api-strategy/src/reference-ops.ts",
+      "blob": "7fe316bdc2679b98b3e58fb6b3b69988fd0b876c",
+      "sha256": "8df04e6016dd27b9846e6daf1bd1d8668ab86af62c7640668af9bcda40b1f334"
+    },
+    {
+      "path": "apps/api-strategy/src/reference/baseline.ts",
+      "blob": "73feba4620f26ccec16efe6603161377fdb3e720",
+      "sha256": "02c2a4bcf33d8a70662f984756dc225bfddf96f081d507da194a6356405a067a"
+    },
+    {
+      "path": "apps/api-strategy/src/reference/dto/reference-fork.dto.ts",
+      "blob": "ed298434e9790d7a396b7642ec2f2b9c1d387614",
+      "sha256": "0c501a0c909f9d352d33e83865b98271a9f8ddcd12a3f9c554302a1971342e48"
+    },
+    {
+      "path": "apps/api-strategy/src/reference/reference.controller.ts",
+      "blob": "c67a41424088e26b3c4b1ef343968ed72ba701a3",
+      "sha256": "b2c291bc510cf1a3e647b9a8af2bca4e6a40cbcbfb69d290f9af44f93cccc37b"
+    },
+    {
+      "path": "apps/api-strategy/src/reference/reference.module.ts",
+      "blob": "b5349bf11090f2831bbe16531caee2c103c433c5",
+      "sha256": "2df5b429d93f80c997d043975b7a6bc37d0cb246f5156771b8fdd9ba2aeeb794"
+    },
+    {
+      "path": "apps/api-strategy/src/reference/reference.service.ts",
+      "blob": "f6b2df65edf20b229e3ad448843cbc0345473518",
+      "sha256": "3c41066d37699b16fab3e3ea5fee7562071f90695b7457e46c32e8ca9beb171d"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/client-logo.reader.ts",
+      "blob": "77925aff08cc4b145f579e0b543d7859907caeff",
+      "sha256": "160a59141cb43dad0dde3f76d76a08ef8b3c75ba65b8b598a323e1b2e731fcce"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/docx-report.renderer.ts",
+      "blob": "b9776552f6c9b171a3d6b523d504264961d230d1",
+      "sha256": "481da57a25d3555ddf5fc1c254c12a272a5e6b0f44e8fd9c3704cf3c91ac8757"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/dto/report-export.dto.ts",
+      "blob": "d079bfd0ea726919c1bcfc0c2bc88d2b88ee56a7",
+      "sha256": "63fe6d0c6abf40bad4127caebc34534a7856da8dd733c8c4d91b1a2f9fffe500"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/member-office.reader.ts",
+      "blob": "9237ff109020150b5ed63e65a8e0f272e5e8ce9d",
+      "sha256": "701f7703d0c0d0621f134dd48dc09bcbf685f6425e7c27ffcfb83c1986585b7f"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/pdf-browser.driver.ts",
+      "blob": "8e62bcaff28985f54f7b295829d9b2a34ff3e188",
+      "sha256": "3bb1b868c3eada86d3ae8af36c9da8d673a787fc10ac552466f2e4982626e755"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/pdf-fonts.ts",
+      "blob": "e688a7e7d9c59770a13345e82887f6b5c9ac4f60",
+      "sha256": "edf51261f1a9ef4448ce1fc9f3a666d1b98fa3672fd915b4714037a90ca580c8"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/pdf-report.document.ts",
+      "blob": "baf107bd8fc9cb1bcc90a38a0d792490cae8b3b4",
+      "sha256": "1883b2a2481edf2ef502f18fdb7098b9c8ece6d6c8a1e0d5e46048c746d9a5da"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/pdf-report.renderer.ts",
+      "blob": "a5c4fd2c07af64646fbe58c7146ec605d381641e",
+      "sha256": "f2bbc7905032b6a1a5b247a413b8e0e2fb7aca8726a68f497a990070b612fbe6"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/pptx-report.renderer.ts",
+      "blob": "46904c6ae9db6e6cb1a50caa0bc29f8cc0cc399c",
+      "sha256": "c7a6f8fe0bcdbdaa52c3607cb7a9060d646279d0a8bdbd040ac1e09c1b22a843"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-content.ts",
+      "blob": "28e9a139b6212bf516ee9d3754bf3639952147e2",
+      "sha256": "9e41c78d5d7830595336e2ad2fcc27815d3fccbb1f9bb49bc2aff2935c0dec32"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-context.ts",
+      "blob": "7eab9da1adf4f2cab0b6d2554e738bbb19dadc2f",
+      "sha256": "a9ee28a55f064ee7e0211752e1721b296402a421b5fa2bcc9276e038ff17aabb"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-health.ts",
+      "blob": "f58fec6a15ddaee0d0f0dede9bcb945c7925c00d",
+      "sha256": "37a74f8e44efaa6c46b88212640f43928d6c81dc4b1798236c8522063a2e9d1f"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-image.ts",
+      "blob": "9bbe363c5fedd99956ffe7c7e9d33b2e06f8c76b",
+      "sha256": "baa95f35f4b4d5ff131d7686aaefe9cd9c61857621b11680681f6193ae91766d"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-narrative-evidence.ts",
+      "blob": "1b47555c04ef94ff48b635e7b9298fa8ad1050b7",
+      "sha256": "6206d8bf1d312908f3a9c1815b7c124a256af7e1759906d0f473fc380fb9dd32"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-narrative-verifier.ts",
+      "blob": "e7167301d8b0f18f914509d06f44c0364fa15632",
+      "sha256": "282131a0ea10b3ae1d42242f6b6654e2fd67af56d3e2feb4860f34ae415b0788"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-narrative.service.ts",
+      "blob": "72e9d6cccddafc57b4473df5b1fc604548dcb469",
+      "sha256": "7bcfb0c7d05490d162d631724fbdb45e589f8caf5be568eac503eea054a920df"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-narrative.types.ts",
+      "blob": "79ad2fbfcabb8138dfa903e7e60514b9281dba86",
+      "sha256": "309d8f184ce1e25a0331d60dde72c3daec436df28652804c21a94338fc25b5c6"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-policy.ts",
+      "blob": "d323b16fad603b5f95879c7fb9680dc55e861b61",
+      "sha256": "270ce5cd06e486f2bedf788a7f06bd37b37a0f8d80fc2eb7d263091a709a11a0"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-snapshot.service.ts",
+      "blob": "70e12bfb41eee7b725044661efa66e89c9d8ad9f",
+      "sha256": "18010ab952bcdbd4d13825cdb5711e0fe085b6fad3e6929a452c4733865ec18e"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-text.ts",
+      "blob": "4c8f514b1eea22b1ff55adbacba7bc0a35cf0cb7",
+      "sha256": "72417c4eb122ffeb16da80f7c2f7be75ad62f0a97ae212c77b1e6da3b9521a3f"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report-timeline.ts",
+      "blob": "54b8320772995e1be381832bc2cb66a0d60a4185",
+      "sha256": "b2f1131784b74531fcf048070b83006c3460b1af2da7618ef1d39784736eccd5"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/report.types.ts",
+      "blob": "2e11a492e422e438d85f2e9c198dc6c420aa79df",
+      "sha256": "0ad06184c6d40b6a585b329a57d15516e3e7e33006f895236f22947c98df016b"
+    },
+    {
+      "path": "apps/api-strategy/src/reports/strategy-report.service.ts",
+      "blob": "935c06970e2d28760b211b9df864b3128818bd2e",
+      "sha256": "7eb69be425bf3d27cc14a57f79eec5650d94d192a027c7af97c1cd1d55789126"
+    },
+    {
+      "path": "apps/api-strategy/src/seed.ts",
+      "blob": "770ce395c69b5f2b0d82d4d1eec0ba547f550a66",
+      "sha256": "3049261631c18a3752529b4568d6a3c04860462a577943168a5cf8f5304ff4f1"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/dates.ts",
+      "blob": "b6416e9ddd590a90615f5afe0cb3856fcf625a46",
+      "sha256": "bfba3f0e977524c6386a74e4ff2ebb3081daa3b7f151830f0b8a429c3e05d241"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/detail.ts",
+      "blob": "808cd7b35bd40685df8c4d5abebf33e730b680f4",
+      "sha256": "bda2c72481bc9c6ded127533d13f6d70448a20680adc19388c303505f5476c0f"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/dto/artifact.dto.ts",
+      "blob": "cb1cbcddbf8b286a91c0cd65d90d926d46182b53",
+      "sha256": "e00c986cc907199ea39e854d64a49e520363739d8f28c3320ebc227e127c06e4"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/dto/create-strategy.dto.ts",
+      "blob": "e77f3428ac9ebd47a4369799ffde982afd6259c9",
+      "sha256": "f848dac0ee038bf03173963841d1461315c9cfea97a73a4670103b6df88e9260"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/dto/node.dto.ts",
+      "blob": "2dafb1394e546e03c4edf42cc5b9d370ccdb8d88",
+      "sha256": "7fd3159f93d193d7d47cfb160c53167b0d27b4b3d7091499eaac62acd980b978"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/dto/patch-strategy.dto.ts",
+      "blob": "4a375876cd3ad94322c6655e2d318b9ce3f53504",
+      "sha256": "3c8e09c00c7c5ef224f481b9cfc3252e96cfcbc058243e55a8f08d09fd3bb580"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/live-node.ts",
+      "blob": "49dd3ae38dc6f9c35b255730e7b1ec94a2f52115",
+      "sha256": "349421a5ca97468189b52cc9ebb59a7221de49f71533b78b6b60656ccf3ef021"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/mutation-lock.ts",
+      "blob": "82161b6d455aa3404541df88040711fd7336f2e5",
+      "sha256": "42d9f362955d05cf098bb75011e0f5b2f7e5895d6babba54631f6b9a830ef5e9"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/node.service.ts",
+      "blob": "d67de186ecae485feb1e7e7c9c98426c13a16bd0",
+      "sha256": "b0a2fcf493d70a8832d04ab6e4216f9435b49b96a9adb429767377c10363561c"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/objective-destination.ts",
+      "blob": "c6c0e635a868aa862e4097f2d15d945b18b16b1b",
+      "sha256": "d8cfc6a767e6d79563b581e57c8fb0806c7a3472f2d28a9421234589f8bda981"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/restore-impact.ts",
+      "blob": "3d7f89a96423d497a5af7c58ef64510f095859ee",
+      "sha256": "d1c8eff2e1abf552af8f6827d496cda9397382e78ef824a4509e3475a096b6f0"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/strategy.controller.ts",
+      "blob": "c2d99378e71830d2a9c46a098e4bea004690212a",
+      "sha256": "f4291ce94b3ef1288f16ccb48b1281f9a25690dc040898f27976836b3087e8df"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/strategy.module.ts",
+      "blob": "cfd365dbfe626f1f98b9819b42f8ffa33a9e5caa",
+      "sha256": "19bb85783cee317c18e6e8cee898c13113e18eeeb2794b47f76ec71d23aaa5d1"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/strategy.service.ts",
+      "blob": "2993392d376ca298780b6dedfb5fc48664c1faea",
+      "sha256": "74023c6cd31305078dcad0798c7098368f912a83f56ced3d23332b373eea42b1"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/version.service.ts",
+      "blob": "8c2739ba68e553197b8b542fee6e90b55b8d1018",
+      "sha256": "ae1d39c13f318c42d94bb59d4cebbb56741b7714387cd136bbf029c997a1cce1"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/versioning.service.ts",
+      "blob": "e9a59987fe8a7ab0e0b43a27c04e79a0b77b66ff",
+      "sha256": "23041d3f81f0e54527a5e860302730728c3db2cca75d5d922e26aeb45fb23a2b"
+    },
+    {
+      "path": "apps/api-strategy/src/strategy/versioning.ts",
+      "blob": "367879ad5265f4d1ae4ea3f36b7864a71503f751",
+      "sha256": "376a3353ba98936a878df3c856265dbd651f50c0bc3c71de685020d4403f7913"
+    }
+  ],
+  "rootPaths": 5,
+  "currentProfileSourcePaths": 168,
+  "applicationSourcePreservedFromPR2412": true,
+  "JSONPackageCIExact721Bytes": true,
+  "sourceStringsEvaluated": false,
+  "nativeAcceptance": false
+}

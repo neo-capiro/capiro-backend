@@ -1,0 +1,29 @@
+{
+  "acceptedSourceHead": "4104f49f6ebfdbf00ad1706079ba340bd9b566c8",
+  "acceptedSourceTree": "257856362ba9075b25bee52debf3efa35f3dfb77",
+  "acceptedScope": "finite declaration/import/carrier source grammar + existing Strategy vocabulary profile only",
+  "independentVectors": {
+    "original": 24,
+    "additional": 27,
+    "ambient": 4
+  },
+  "authorControls": 78,
+  "countsOverlap": true,
+  "currentProfile": {
+    "profiles": 1,
+    "files": 168,
+    "errors": []
+  },
+  "helpExit": 0,
+  "unknownExit": 1,
+  "allOriginal31AndIntermediate65NamesRetained": true,
+  "allVectorBodiesUnchanged": true,
+  "sourceHashesVerified": 173,
+  "applicationSourceChanges": 0,
+  "reviewerSourceChanges": 0,
+  "pnpmCIAcceptance": false,
+  "nativeAcceptance": false,
+  "applicationExtractionAcceptance": false,
+  "retirementCoordination": "pending",
+  "sourceAccepted": true
+}

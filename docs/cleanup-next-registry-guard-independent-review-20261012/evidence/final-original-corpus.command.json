@@ -1,0 +1,18 @@
+{
+  "cwd": "/workspace/capirov2-cleanup-registry-guard-final-review",
+  "argv": [
+    "node",
+    "docs/cleanup-next-registry-guard-independent-review-20261012/evidence/final-original-corpus.mjs"
+  ],
+  "environment": {
+    "NODE_PATH": "/workspace/capirov2/node_modules"
+  },
+  "exitCode": 0,
+  "seconds": 0.503,
+  "frozenHead": "4104f49f6ebfdbf00ad1706079ba340bd9b566c8",
+  "frozenTree": "257856362ba9075b25bee52debf3efa35f3dfb77",
+  "stdout": "{\"checks\":24,\"passed\":24,\"failed\":0,\"reds\":[]}\n",
+  "stderr": "",
+  "sourceStringsEvaluated": false,
+  "nativeAcceptance": false
+}
