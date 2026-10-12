@@ -1,0 +1,57 @@
+{
+  "destination": "5470c6df029c9553dd49e531229c3c91b26275ef",
+  "incomingPublished": "8ac4c42cc49876ec19808369c0683956e0f2f474",
+  "excludesItselfOnly": true,
+  "entries": [
+    {
+      "path": "docs/cleanup-retirement-root-compatibility-20261012/ALIAS-MAPPINGS.md",
+      "bytes": 2559,
+      "sha256": "21a4ab2daecbd7762fe1bd498e8c13eee027fb01acdafe3ef8e88417b064a9b1"
+    },
+    {
+      "path": "docs/cleanup-retirement-root-compatibility-20261012/COMPATIBILITY-MATRIX.md",
+      "bytes": 8757,
+      "sha256": "c6dc14537fa090d26ce24deed12eaa8d448a38313fe72a601909136ac9d09157"
+    },
+    {
+      "path": "docs/cleanup-retirement-root-compatibility-20261012/DESTINATION-CONTRACT-PROPOSAL.md",
+      "bytes": 6410,
+      "sha256": "bc37c1bcc3b62f715058ec4ccbd87adcf5ad55f447ab200cff51d40c72bae8a2"
+    },
+    {
+      "path": "docs/cleanup-retirement-root-compatibility-20261012/RECEIPT.json",
+      "bytes": 2199,
+      "sha256": "61175d57d07d07b02d34c340e4ab393b20879edc9c35a5d13fdf1b27393f5be4"
+    },
+    {
+      "path": "docs/cleanup-retirement-root-compatibility-20261012/evidence/compatibility-inventory.initial-path-assumption.json",
+      "bytes": 480077,
+      "sha256": "65dc9e514abfe721312829b34bff3b475b21408f0ccb5f00d527800fa2b1f0a0"
+    },
+    {
+      "path": "docs/cleanup-retirement-root-compatibility-20261012/evidence/compatibility-inventory.initial-path-assumption.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-root-compatibility-20261012/evidence/compatibility-inventory.json",
+      "bytes": 480744,
+      "sha256": "4acad3c101c8ca16b80996d657f931ef5f700828f51ea80103885b6463b0fe9e"
+    },
+    {
+      "path": "docs/cleanup-retirement-root-compatibility-20261012/evidence/compatibility-inventory.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-retirement-root-compatibility-20261012/evidence/compatibility-inventory.py",
+      "bytes": 12245,
+      "sha256": "b9419988b1e85c6a9c1d47bc0523c0f9fcd219de337ab42a60b96a62cf57dc11"
+    },
+    {
+      "path": "docs/cleanup-retirement-root-compatibility-20261012/evidence/fixture-reader-continuity.json",
+      "bytes": 569,
+      "sha256": "1c07370f3147a6f3f260023487280910a4fbca7034c446f395ec1b9c6db4edcf"
+    }
+  ]
+}

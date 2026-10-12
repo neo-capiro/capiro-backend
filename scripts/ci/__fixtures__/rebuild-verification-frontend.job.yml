@@ -1,0 +1,35 @@
+
+  frontend:
+    # Retain all former frontend typecheck/test/route/header inputs in a sibling
+    # job. A failing backend step cannot silently suppress these checks.
+    runs-on: ubuntu-latest
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build retained frontend shared prerequisites
+        run: |
+          pnpm --filter @capiro/shared build
+          pnpm --filter @capiro/defense-contracts build
+          pnpm --filter @capiro/defense-domain build
+          pnpm --filter @capiro/auth build
+          pnpm --filter @capiro/strategy-verifier build
+          pnpm --filter @capiro/meriv2-core build
+      - name: Typecheck retained frontend workspaces (turbo)
+        run: pnpm typecheck:frontend
+      # CleanUp1 §5.3.2 — apps/web vitest so the ~6.4k web tests no longer
+      # depend on one unrelated workflow.
+      - name: Test apps/web
+        run: pnpm --filter @capiro/web test
+
+      - name: Engagement Phase1 retained frontend regression and routing contract
+        run: pnpm verify:engagement-phase-1:frontend
+      - name: Engagement Phase2 retained frontend header contract
+        run: pnpm verify:engagement-phase-2:frontend

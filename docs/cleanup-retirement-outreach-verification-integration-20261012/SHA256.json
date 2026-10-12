@@ -1,0 +1,19 @@
+{
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/AUTHOR-RECEIPT.json": "c45b8c59f0de0474a2a45b50c7261ef428c98b84a4eec915632a30a29c58156a",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/COMMANDS.md": "a104c3f90afcb0528cb9e755801ceafa1307fb8582130afa9a29ab5a4ee4268d",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/HANDOFF.md": "5b072056716a2bd0982c66c0ab1e7288bd4300e39ecd95161a64a2da533abb4a",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/01-plan-and-wrapper-tests.log": "a9f09f0625385193b579551bd4bafdba39401e8c76aea7fc3dc1713536214c67",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/02-structural-source-preservation.log": "9cf17ab07a68730387924e8fbe6100ac586bf84b93755a80e3c77a3fa0cd2342",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/03-before-after-scopes-initial.log": "23cb5a2d51cc21a7ac1ab8c7480ad4e283ca8ec86fb508691d4f4ce8131d236a",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/03-before-after-scopes-meta-diagnostic.log": "aa01b09949dc162a18a2afab78edc02986abe748d8d082c78462a731e0cd2620",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/03-before-after-scopes.log": "df794592899c42b45704114904a799597be8e265dec3187102b84697e96c2fd6",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/before-after-scoped-traces.json": "acfd9dba3c6ad3406c2594b7b5cc965c7879f88a49ffeaaaf9d58a04758f1990",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/before-source-snapshot.json": "e501d68aeb8c7a6af0d12d7a2175141724321f43e8facf3d4be66cbf47bb6de0",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/capture-before-after-scopes-initial.mjs": "3b0fef06244d8c53d1e22dd2cad3fc58a6fb4ba762d5e4912b59bd73d553b6a3",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/capture-before-after-scopes.mjs": "fba2a2ab2ae024adc47e72cc484d4b975ed3e0ae9b8c48782c3d064eacead1c1",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/check-source-preservation.cjs": "26c440a0e07f5a536c2e7e7f0230280ad28e0137d40ea9dc84997fb23ac0d6af",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/original-phase1.mjs": "65b3a56ae33dd3c5cc495128cd74f8e845a9b35ffa230aa2dacd6f75c89774be",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/original-phase3.mjs": "70252704632578ab4b3b4fc7f26d23aa1af649ef59a5e7b96096162c1ce16055",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/original-phase4.mjs": "1c9aa164be2a3e3b824d8c0e07387a6c27aaa3ac54fa69d77e171e66473d3c2e",
+  "docs/cleanup-retirement-outreach-verification-integration-20261012/evidence/source-structural-preservation.json": "846d1d912918e97d1ead6441ec78a4937406d54fb762db1146b2e3849e0a9978"
+}

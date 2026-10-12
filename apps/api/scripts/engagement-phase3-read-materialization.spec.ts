@@ -30,7 +30,7 @@ function fixtureIndex(): Phase3FixtureIndex {
 function inventory(): Inventory {
   const filename = path.resolve(
     __dirname,
-    '../../web/src/pages/engagement/__fixtures__/engagement-current-ui-surface-manifest.v1.json',
+    '__fixtures__/engagement-current-ui-surface-manifest.v1.json',
   );
   return JSON.parse(readFileSync(filename, 'utf8')) as Inventory;
 }
