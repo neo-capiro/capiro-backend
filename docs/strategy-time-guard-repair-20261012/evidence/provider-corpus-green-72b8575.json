@@ -1,0 +1,43 @@
+{
+  "testedSource": "72b85754840cf73b484631cb27dd73a48c0e68bd",
+  "phase": "green-72b8575",
+  "sourceFiles": 169,
+  "results": [
+    {
+      "name": "function-local same-name owner",
+      "addition": "export function reviewShadowProvider(){const STRATEGY_TIME_PROVIDERS={clock:systemWallClock};return STRATEGY_TIME_PROVIDERS;} export function reviewShadowCall(){return reviewShadowProvider().clock();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook reference outside its provider (1 > 0)",
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider (1 > 0)",
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:delay|system time hook reference outside its provider (1 > 0)",
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|reviewShadowProvider|PropertyAssignment:clock|system time hook reference outside its provider (1 > 0)"
+      ]
+    },
+    {
+      "name": "block-local same-name owner",
+      "addition": "{const STRATEGY_TIME_PROVIDERS={clock:systemWallClock};const reviewGet=()=>STRATEGY_TIME_PROVIDERS;exportedReviewSink(reviewGet);} declare function exportedReviewSink(x:unknown):void;",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook reference outside its provider (1 > 0)",
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider (1 > 0)",
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:delay|system time hook reference outside its provider (1 > 0)",
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:clock|system time hook reference outside its provider (1 > 0)"
+      ]
+    },
+    {
+      "name": "callback same-name owner",
+      "addition": "export const reviewFactory=()=>{const STRATEGY_TIME_PROVIDERS={clock:systemWallClock};return STRATEGY_TIME_PROVIDERS;}; export function reviewShadowCall(){return reviewFactory().clock();}",
+      "rejected": true,
+      "failures": [
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:useValue|system time hook reference outside its provider (1 > 0)",
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:random|system time hook reference outside its provider (1 > 0)",
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|<module>|PropertyAssignment:delay|system time hook reference outside its provider (1 > 0)",
+        "unadopted ambient time/randomness: apps/api-strategy/src/meri/strategy-time.providers.ts|reviewFactory|PropertyAssignment:clock|system time hook reference outside its provider (1 > 0)"
+      ]
+    }
+  ],
+  "rejected": 3,
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}
