@@ -1,6 +1,9 @@
 {
+  "FINAL-B-RECEIPT.json": "ec6c9e81e3f1eae6babbd1c07326703864a198f8bee9d3ab0ae009e3699dcb2b",
+  "FINAL-B-REVIEW.md": "b25848dac1441e25eabb72a6d8a792a3f18517656871f25c78865702668a35f8",
   "RECEIPT.json": "3264c9c16fe04d6b355a00a4bcca8bb4082ba77869eff59b51a979dc738ab6dc",
   "REVIEW.md": "1adaee87bd6179f7febf323c8219ca1e7fb70cd0f1291cad139d186f4130c05e",
+  "SHA256SUMS-CCE.json": "a01ccfa61260ac26aeabebba8bb33afe2387530a5ab00f33180f10c71ba1b6ef",
   "evidence/DISCRIMINANT-AUDIT.json": "a9a8f86be2a3828487f7171db1e58518f68522e42dac69c37029940f617a9eeb",
   "evidence/cce-focused-typecheck.json": "5c2aa1cce28eec59b4fb41c302a91289bca1a9f9644b7af16f67261cf3737daf",
   "evidence/cce-focused-typecheck.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -10,6 +13,13 @@
   "evidence/fcbf-grammar-red.log": "f49fb1b2f379e46a7aec61ef4086c6b2a5f35f3441f0ee2adab27d6c82344add",
   "evidence/fcbf-independent-red.json": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "evidence/fcbf-independent-red.log": "e1ff9053a074e5ea127b17a8ecd81c65a9596ed3ca6d5d47effd877f30464b7f",
+  "evidence/final-b-focused-typecheck.json": "f1b37a2beb486939ce2646c613f95a7121e2b0809d63814a6d27ef16fe7509a8",
+  "evidence/final-b-focused-typecheck.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "evidence/final-b-independent-green.json": "5fe5032a028cffdeab83f6aeafb754c2d5ba049ddc2ac77bd052d2af02eb6599",
+  "evidence/final-b-independent-green.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "evidence/final-b-smoke-assertions.json": "2dad601b803fb66eec7dc712ad0a8061fa260a7e061e025eef1b38efafda2f86",
+  "evidence/final-b-smoke-assertions.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "evidence/focused-helper-typecheck.mjs": "32bea645c22a27178cb99c17d68fc542ab5692da536a89f0788afd946b8e12bb",
-  "evidence/independent-containment-review.mjs": "b9f4f5fd79e7a62332a3e9c013127e370f1d26a4764a7e3d9d30b7444f0f7b61"
+  "evidence/independent-containment-review.mjs": "b9f4f5fd79e7a62332a3e9c013127e370f1d26a4764a7e3d9d30b7444f0f7b61",
+  "evidence/review-final-b-smoke.mjs": "ec5c095d27f5cbf49ece0f0d98e4d7db6c68c659a73f9a84a3fc4a13aedc81d1"
 }

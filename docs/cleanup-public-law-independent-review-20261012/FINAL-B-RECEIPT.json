@@ -1,0 +1,55 @@
+{
+  "reviewedSource": "364019751656acec243e49ef428044dd48425e95",
+  "reviewedTree": "149589a99dcb66e62999afbb68101359b620ae8d",
+  "correctedAuthorSource": "cce0cdd9544fd82c7099f3f2c56712994e2e2439",
+  "base": "1bf52945b9fa01496ce41a349f8eaace490ad4ac",
+  "sourceAndMetadataSmokeIntegrationAccepted": true,
+  "pendingBSourceIntegrationItems": [],
+  "independentCaseCounts": {
+    "grammar": 54,
+    "actualFacadeInert": 12,
+    "verifierInert": 54,
+    "total": 120,
+    "rootSmokePureAssertionControls": 11
+  },
+  "focusedStrictNoUncheckedHelperSemanticCompileExitCode": 0,
+  "truthfulDefaultMetadata": "noArgsExit=0 helpExit=0",
+  "completeCanonicalOrderedInventory": [
+    "sync-comptroller-jbooks.ts",
+    "sync-jbook-r2.ts",
+    "sync-jbook-performers.ts",
+    "parse-pdoc-army.ts",
+    "load-pdoc-enrichment.ts",
+    "load-om.ts",
+    "load-om-op5.ts",
+    "parse-hasc-sasc-reports.ts",
+    "parse-defense-approps-reports.ts",
+    "parse-ndaa-conference.ts",
+    "parse-defense-approps-public-law.ts",
+    "ingest-defense-budget-pdf.ts",
+    "load-defense-budget-package.ts"
+  ],
+  "bothMigrationFixturesRefusalAssertionsPreserved": true,
+  "fourCaseNamesInvocationResourcePreloadHelpUnknownOptionalPrismaControlsPreserved": true,
+  "rawChecks": [
+    {
+      "stdout": "final-b-independent-green.json",
+      "stderr": "final-b-independent-green.log",
+      "exitCode": 0
+    },
+    {
+      "stdout": "final-b-focused-typecheck.json",
+      "stderr": "final-b-focused-typecheck.log",
+      "exitCode": 0
+    },
+    {
+      "stdout": "final-b-smoke-assertions.json",
+      "stderr": "final-b-smoke-assertions.log",
+      "exitCode": 0
+    }
+  ],
+  "earlierRedAndPassingEvidencePreserved": true,
+  "existingMigrationRefusalsRemainSeparateBlockers": true,
+  "reviewerChangedRuntimeSource": false,
+  "scope": "Source parsing/inert VM/pure assertion controls and scoped JS TypeScript semantic compile only. No root child run, full Core/fullgate, native Prisma/DB/migration/RLS/provider/AWS/security/deployment or proof certification acceptance."
+}

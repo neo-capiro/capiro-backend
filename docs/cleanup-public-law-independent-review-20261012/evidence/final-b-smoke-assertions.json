@@ -1,0 +1,97 @@
+{
+  "source": "364019751656acec243e49ef428044dd48425e95",
+  "tree": "149589a99dcb66e62999afbb68101359b620ae8d",
+  "comparedTo": "cce0cdd9544fd82c7099f3f2c56712994e2e2439",
+  "sourceOnly": true,
+  "onlyMetadataAndBoundedRootTestSourceChanged": true,
+  "verifierMetadata": "noArgsExit=0 helpExit=0",
+  "allFourOriginalNamesAndInvocationResourceHelpUnknownOptionalPrismaControlsPreserved": true,
+  "bothMigrationFixturesAndRefusalAssertionsPreserved": true,
+  "completeExactOrderedInventory": [
+    "sync-comptroller-jbooks.ts",
+    "sync-jbook-r2.ts",
+    "sync-jbook-performers.ts",
+    "parse-pdoc-army.ts",
+    "load-pdoc-enrichment.ts",
+    "load-om.ts",
+    "load-om-op5.ts",
+    "parse-hasc-sasc-reports.ts",
+    "parse-defense-approps-reports.ts",
+    "parse-ndaa-conference.ts",
+    "parse-defense-approps-public-law.ts",
+    "ingest-defense-budget-pdf.ts",
+    "load-defense-budget-package.ts"
+  ],
+  "helperAndSpecUnchanged": true,
+  "purePositiveAssertionProbes": 11,
+  "rows": [
+    {
+      "name": "exact complete success",
+      "expectedAccepted": true,
+      "accepted": true,
+      "failure": null
+    },
+    {
+      "name": "ok false",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failure": "strict inspection containment and every unchanged write loader pass\n+ actual - expected\n... Skipped lines\n\n  {\n    loaders: [\n      'sync-comptroller-jbooks.ts',\n      'sync-jbook-r2.ts',\n      'sync-jbook-performers.ts',\n...\n    loadersChecked: 13,\n+   ok: false\n-   ok: true\n  }\n"
+    },
+    {
+      "name": "wrong count",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failure": "strict inspection containment and every unchanged write loader pass\n+ actual - expected\n... Skipped lines\n\n  {\n    loaders: [\n      'sync-comptroller-jbooks.ts',\n      'sync-jbook-r2.ts',\n      'sync-jbook-performers.ts',\n...\n    ],\n+   loadersChecked: 12,\n-   loadersChecked: 13,\n    ok: true\n  }\n"
+    },
+    {
+      "name": "missing facade",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failure": "strict inspection containment and every unchanged write loader pass\n+ actual - expected\n... Skipped lines\n\n  {\n    loaders: [\n      'sync-comptroller-jbooks.ts',\n      'sync-jbook-r2.ts',\n      'sync-jbook-performers.ts',\n...\n      'parse-ndaa-conference.ts',\n-     'parse-defense-approps-public-law.ts',\n      'ingest-defense-budget-pdf.ts',\n      'load-defense-budget-package.ts'\n    ],\n    loadersChecked: 13,\n    ok: true\n"
+    },
+    {
+      "name": "duplicate inventory entry",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failure": "strict inspection containment and every unchanged write loader pass\n+ actual - expected\n... Skipped lines\n\n  {\n    loaders: [\n      'sync-comptroller-jbooks.ts',\n      'sync-jbook-r2.ts',\n      'sync-jbook-performers.ts',\n...\n      'ingest-defense-budget-pdf.ts',\n+     'sync-comptroller-jbooks.ts'\n-     'load-defense-budget-package.ts'\n    ],\n    loadersChecked: 13,\n    ok: true\n  }\n"
+    },
+    {
+      "name": "wrong inventory order",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failure": "strict inspection containment and every unchanged write loader pass\n+ actual - expected\n\n  {\n    loaders: [\n+     'load-defense-budget-package.ts',\n+     'ingest-defense-budget-pdf.ts',\n+     'parse-defense-approps-public-law.ts',\n+     'parse-ndaa-conference.ts',\n+     'parse-defense-approps-reports.ts',\n+     'parse-hasc-sasc-reports.ts',\n+     'load-om-op5.ts',\n+     'load-om.ts',\n+     'load-pdoc-enrichment.ts',\n+     'parse-pdoc-army.ts',\n+     'sync-jbook-performers.ts',\n+     'sync-jbook-r2.ts',\n      'sync-comptroller-jbooks.ts',\n-     'sync-jbook-r2.ts',\n-     'sync-jbook-performers.ts',\n-     'parse-pdoc-army.ts',\n-     'load-pdoc-enrichment.ts',\n-     'load-om.ts',\n-     'load-om-op5.ts',\n-     'parse-hasc-sasc-reports.ts',\n-     'parse-defense-approps-reports.ts',\n-     'parse-ndaa-conference.ts',\n-     'parse-defense-approps-public-law.ts',\n-     'ingest-defense-budget-pdf.ts',\n-     'load-defense-budget-package.ts'\n    ],\n    loadersChecked: 13,\n    ok: true\n  }\n"
+    },
+    {
+      "name": "invented slot",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failure": "strict inspection containment and every unchanged write loader pass\n+ actual - expected\n... Skipped lines\n\n  {\n    loaders: [\n      'sync-comptroller-jbooks.ts',\n      'sync-jbook-r2.ts',\n      'sync-jbook-performers.ts',\n...\n      'parse-ndaa-conference.ts',\n+     'invented.ts',\n-     'parse-defense-approps-public-law.ts',\n      'ingest-defense-budget-pdf.ts',\n      'load-defense-budget-package.ts'\n    ],\n    loadersChecked: 13,\n    ok: true\n"
+    },
+    {
+      "name": "extra inventory slot",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failure": "strict inspection containment and every unchanged write loader pass\n+ actual - expected\n... Skipped lines\n\n  {\n    loaders: [\n      'sync-comptroller-jbooks.ts',\n      'sync-jbook-r2.ts',\n      'sync-jbook-performers.ts',\n...\n      'load-defense-budget-package.ts',\n+     'extra.ts'\n    ],\n    loadersChecked: 13,\n    ok: true\n  }\n"
+    },
+    {
+      "name": "fabricated report field",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failure": "strict inspection containment and every unchanged write loader pass\n+ actual - expected\n\n  {\n+   canonicalWrites: true,\n    loaders: [\n      'sync-comptroller-jbooks.ts',\n      'sync-jbook-r2.ts',\n      'sync-jbook-performers.ts',\n      'parse-pdoc-army.ts',\n"
+    },
+    {
+      "name": "unexpected stderr",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failure": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]\\n' +\n+   'unexpected failure\\n'\n- 'Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]\\n'\n"
+    },
+    {
+      "name": "empty output",
+      "expectedAccepted": false,
+      "accepted": false,
+      "failure": "Unexpected end of JSON input"
+    }
+  ],
+  "testSourceSha256": "10cfbc2f5c3c6348f7b2ad5524cb2bad6891d8ed064a2d7d06a84cfbb9b5fe1a",
+  "limits": "Pure inspected assertion branch and AST/source comparisons only; no actual subject/Prisma/native/DB/provider/child execution."
+}

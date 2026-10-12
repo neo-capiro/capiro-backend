@@ -1,0 +1,25 @@
+{
+  "source": "364019751656acec243e49ef428044dd48425e95",
+  "sourceSha256": "a5124c196aefce4b43b3e5882ef3cdc7a585f366934c53fd07ab2230628c728e",
+  "typescriptVersion": "5.9.3",
+  "rootFiles": [
+    "apps/api/scripts/lib/pe-public-law-facade-containment.ts"
+  ],
+  "compilerOptions": {
+    "noEmit": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "target": 9,
+    "module": 1,
+    "moduleResolution": 2,
+    "lib": [
+      "lib.es2022.d.ts"
+    ],
+    "types": [],
+    "esModuleInterop": true
+  },
+  "diagnostics": [],
+  "librarySourceFiles": 58,
+  "scope": "Only new pure AST helper with installed TypeScript declarations; not full Core, native Prisma or DB acceptance."
+}
