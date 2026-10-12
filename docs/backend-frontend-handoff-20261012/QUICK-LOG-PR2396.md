@@ -99,8 +99,10 @@ An available activity and a pending follow-up are separate outcomes.
 Core atomically commits activity plus command intent, then calls Planner outside
 the transaction. This is a recoverable cross-service command, not an atomic pair
 of service writes. Its idempotency scope is tenant + Core actor + client + browser
-request ID. The server freezes the normalized payload/hash, Planner payload,
-assignee mapping and separate Planner request key.
+request ID. The server persists the normalized input hash and freezes the Planner
+payload, assignee mapping and separate Planner request key. The activity remains
+editable through its authorized API; its original text is not copied into an
+immutable command payload.
 
 | Situation | Required interpretation / recovery |
 | --- | --- |
@@ -131,7 +133,7 @@ revealing a task ID. A receipt is not an ongoing permission grant.
 ## Authority and entitlements
 
 The caller must have current active tenant membership, a matching Clerk identity,
-at least `standard_user`, an active client and the existing `clientMemoryAllowed`
+at least `standard_user`, an existing non-archived client and the existing `clientMemoryAllowed`
 wall. Admin role does not bypass that wall. Receipts belong to the original actor;
 another tenant/member/client cannot use their keys. Assignee must be an active
 same-tenant Core member with current access to this client and the same Clerk
@@ -190,8 +192,9 @@ command context for recovery; exact message text is diagnostic, not an API code.
 Remote Planner failures normally return a successful Core HTTP response with
 `needs_attention`, not an HTTP failure: `planner_unavailable` covers transport/
 server failure; `planner_access_denied` covers remote 401/403; `planner_rejected`
-covers other non-success client statuses; `planner_receipt_invalid` covers an
-invalid/mismatching remote response. `planner_receipt_unavailable` withholds an
+covers other non-success client statuses; `planner_receipt_invalid` covers a
+missing/oversized body or parsed JSON with the wrong schema/request ID. Invalid
+JSON parsing is caught as `planner_unavailable`. `planner_receipt_unavailable` withholds an
 already-recorded task that current lookup cannot validate. Current activity,
 person and assignee issues use their explicit reason names above. These are
 recoverability signals, not claims that a task was never accepted.
