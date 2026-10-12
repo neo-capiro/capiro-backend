@@ -291,6 +291,7 @@ model Tenant {
   evaluationRecords                  EvaluationRecord[]
   clientMemoryAccessGrants           ClientMemoryAccess[]
   clientTeamMembers                  ClientTeamMember[]
+  clientObjectives                   ClientObjective[]
   clientGrantNexuses                 ClientGrantNexus[]
   clientFundingOpportunities         ClientFundingOpportunity[]
   fundingOpportunityStageTransitions FundingOpportunityStageTransition[]
@@ -973,6 +974,7 @@ model Client {
   actionRecommendations    ActionRecommendation[]
   memoryAccessGrants       ClientMemoryAccess[]
   teamMembers              ClientTeamMember[]
+  objectives               ClientObjective[]
   governedMemoryGrants     MemoryAccessGrant[]
   grantNexuses             ClientGrantNexus[]
   fundingOpportunities     ClientFundingOpportunity[]
@@ -1021,6 +1023,53 @@ model ClientMemoryAccess {
   @@unique([tenantId, clientId, userId], map: "client_memory_access_uniq")
   @@index([tenantId, userId], map: "client_memory_access_user_idx")
   @@map("client_memory_access")
+}
+
+/// Standalone Objectives, independent of strategy goals and advocacy history.
+model ClientObjective {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @map("tenant_id") @db.Uuid
+  clientId          String    @map("client_id") @db.Uuid
+  clientRequestId   String    @map("client_request_id") @db.Uuid
+  createRequestHash String    @map("create_request_hash") @db.Char(64)
+  outcome           String    @default("") @db.VarChar(2000)
+  governmentProblem String    @default("") @map("government_problem") @db.VarChar(4000)
+  askType           String?   @map("ask_type") @db.VarChar(32)
+  minimumWin        String    @default("") @map("minimum_win") @db.VarChar(2000)
+  limits            String    @default("") @db.VarChar(4000)
+  ownerUserId       String?   @map("owner_user_id") @db.Uuid
+  createdByUserId   String    @map("created_by_user_id") @db.Uuid
+  status            String    @default("draft") @db.VarChar(24)
+  version           Int       @default(1)
+  readyAt           DateTime? @map("ready_at") @db.Timestamptz(6)
+  reviewRequestedAt DateTime? @map("review_requested_at") @db.Timestamptz(6)
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client            Client    @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+  revisions         ClientObjectiveRevision[]
+
+  @@unique([tenantId, clientId, id], map: "client_objectives_scope_key")
+  @@unique([tenantId, clientId, clientRequestId], map: "client_objectives_request_key")
+  @@index([tenantId, clientId, deletedAt, createdAt], map: "client_objectives_list_idx")
+  @@map("client_objectives")
+}
+
+model ClientObjectiveRevision {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  clientId    String   @map("client_id") @db.Uuid
+  objectiveId String   @map("objective_id") @db.Uuid
+  version     Int
+  operation   String   @db.VarChar(32)
+  actorUserId String   @map("actor_user_id") @db.Uuid
+  snapshot    Json
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  objective   ClientObjective @relation(fields: [tenantId, clientId, objectiveId], references: [tenantId, clientId, id], onDelete: Cascade)
+
+  @@unique([tenantId, objectiveId, version], map: "client_objective_revisions_version_key")
+  @@map("client_objective_revisions")
 }
 
 /// Account team: which of the firm's own users work a given client.

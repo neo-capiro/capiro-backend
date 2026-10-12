@@ -35,6 +35,7 @@ import { ClientAccountOwnerController } from './client-account-owner.controller.
 import { ClientAccountOwnerService } from './client-account-owner.service.js';
 import { ClientTeamController } from './client-team.controller.js';
 import { ClientTeamService } from './client-team.service.js';
+import { ClientObjectivesModule } from './objectives/objectives.module.js';
 import { InternalClientBrandingController } from './internal-client-branding.controller.js';
 import { RepresentationModule } from './representation.module.js';
 import { EngagementModule } from '../engagement/engagement.module.js';
@@ -58,6 +59,7 @@ import { FundingOpportunitiesModule } from '../funding-opportunities/funding-opp
   // for FO projection (Phase C). Cycle risk verified none: TrackerModule only
   // imports IntelligenceModule + EngagementModule; FO module imports MemoryModule.
   imports: [
+    ClientObjectivesModule,
     EmbeddingsModule,
     IntelligenceModule,
     DirectoryModule,
