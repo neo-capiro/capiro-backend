@@ -1,0 +1,6 @@
+Original executor-output transcription:
+Traceback (most recent call last):
+  File "<stdin>", line 13, in <module>
+AssertionError
+
+The first packet-binding preparation treated all cumulative Git changes as the three source paths, although corrected7a deliberately descends from the preserved8a author evidence commit. It stopped before writing MARKER-CORRECTION-CHECKS.json or the historical index copy. The corrected check retains the complete changed-path list and asserts exactly the same three source paths plus only the explicitly owned author packet docs. This is evidence/source accounting; no runtime/verification floor or source assertion was changed. The original15-input and119-control outputs remain unchanged.
