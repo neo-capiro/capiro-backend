@@ -1,0 +1,32 @@
+✔ all 59 pinned source byte hashes verify without database (6.587172ms)
+✔ fixture source parts assemble without SQL execution (3.11666ms)
+✔ source extraction rejects missing or duplicate boundaries (0.330344ms)
+✔ target refuses mismatched dataDirectory (0.244589ms)
+✔ target refuses mismatched user (0.160036ms)
+✔ target refuses mismatched database (0.091035ms)
+✔ target refuses mismatched systemIdentifier (0.125947ms)
+✔ target refuses mismatched listenAddresses (0.082114ms)
+✔ target refuses mismatched inetServerAddr (0.111407ms)
+✔ target refuses mismatched version (0.238346ms)
+✔ target refuses mismatched publicTables (0.095843ms)
+✔ target refuses password input (0.146789ms)
+✔ target refuses connectionString input (0.107054ms)
+✔ target refuses url input (0.064668ms)
+✔ CLI rejects before driver work: [] (0.4507ms)
+✔ CLI rejects before driver work: ["--run"] (0.110533ms)
+✔ CLI rejects before driver work: ["--run","--run"] (0.08005ms)
+✔ CLI rejects before driver work: ["--plan","--run"] (0.063868ms)
+✔ CLI rejects before driver work: ["--unknown"] (0.068712ms)
+✔ CLI rejects before driver work: ["--run","--verified-target","unused","--output","/tmp/capirov2-cleanup-meri-local-dispatch-conversion/docs/cleanup-native-contract-prerequisites-20261012/README.md"] (0.131867ms)
+✔ actual canonical pure owners and reducers load through finite refusal loader (997.211628ms)
+✔ PG transaction adapter binds tagged values without interpolation and preserves rowCount (1.246664ms)
+✔ PG model projection adapters refuse unexpected arguments (2.043605ms)
+✔ harness contains no credential/database/extension installer or blanket cleanup (0.540715ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1155.576284

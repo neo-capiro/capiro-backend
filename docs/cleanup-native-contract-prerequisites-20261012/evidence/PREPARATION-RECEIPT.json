@@ -1,0 +1,66 @@
+{
+  "sourceHead": "b9dceb71e42d4e520760125d070542362dbaacdf",
+  "sourceTree": "ba7980ca621acbad577e7ad042442781963ee912",
+  "productSourceHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "productSourceTree": "b7b33bfa38bccf69aa1a94dd2942add016bf19d3",
+  "initialPreparation": {
+    "log": "evidence/01-preparation-controls.log",
+    "reportedTests": 24,
+    "passed": 22,
+    "failed": 2,
+    "nodeExitCode": null,
+    "nodeExitCodeReason": "Initial shell did not capture child exit independently; physical TAP-style output records two failed controls. Shell final reader returned0."
+  },
+  "preparationFinal": {
+    "startedAt": "2026-10-12T23:14:20.301Z",
+    "finishedAt": "2026-10-12T23:14:21.525Z",
+    "executable": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "args": [
+      "--test",
+      "docs/cleanup-native-contract-prerequisites-20261012/native-contract-harness.test.cjs"
+    ],
+    "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+    "envKeys": [
+      "PATH",
+      "LANG",
+      "TZ"
+    ],
+    "exitCode": 0,
+    "signal": null,
+    "error": null,
+    "rawLog": "evidence/02-preparation-controls.log",
+    "noDatabaseRun": true
+  },
+  "plan": {
+    "startedAt": "2026-10-12T23:15:40.666Z",
+    "finishedAt": "2026-10-12T23:15:40.734Z",
+    "executable": "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "args": [
+      "docs/cleanup-native-contract-prerequisites-20261012/native-contract-harness.cjs",
+      "--plan"
+    ],
+    "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-conversion",
+    "envKeys": [
+      "PATH",
+      "LANG",
+      "TZ"
+    ],
+    "exitCode": 0,
+    "signal": null,
+    "error": null,
+    "rawLog": "evidence/03-plan.log",
+    "noDatabaseRun": true
+  },
+  "rootVerifiedTarget": "/tmp/capirov2-cleanup-meri-reviewed-runtime-conversion/docs/native-acceptance-pr2429-20261012/evidence/verified-isolated-target.json",
+  "sqlExecuted": false,
+  "databaseConnected": false,
+  "nativeAcceptance": false,
+  "wholeCommittedWhitespace": "OPEN; original physical raw evidence preserved",
+  "sourceWhitespaceCheck": 0,
+  "notes": [
+    "No role/database/extension/credential/provider created or called.",
+    "Native runner awaits root exact script review.",
+    "59 reviewed source byte bindings; finite19 canonical runtime files.",
+    "Current eleven native groups are planned runnable cases; no result yet."
+  ]
+}

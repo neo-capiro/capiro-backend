@@ -1,0 +1,18 @@
+'use strict';
+const fs=require('node:fs');
+const path=require('node:path');
+const {spawnSync}=require('node:child_process');
+const root=path.resolve(__dirname,'../../..');
+const packet=path.dirname(__dirname);
+const label=process.argv[2];
+if(!/^[0-9]{2}-[a-z0-9-]+$/.test(label??''))throw new Error('Fresh receipt label required');
+const logfile=path.join(__dirname,label+'.log'),receiptfile=path.join(__dirname,label+'.json');
+if(fs.existsSync(logfile)||fs.existsSync(receiptfile))throw new Error('Never overwrite raw receipts');
+const args=process.argv.slice(3);
+if(!args.length)throw new Error('Command arguments required');
+const startedAt=new Date().toISOString();
+const result=spawnSync(process.execPath,args,{cwd:root,encoding:'utf8',env:{PATH:process.env.PATH,LANG:'C.UTF-8',TZ:'UTC'},maxBuffer:2000000});
+fs.writeFileSync(logfile,(result.stdout??'')+(result.stderr??''));
+fs.writeFileSync(receiptfile,JSON.stringify({startedAt,finishedAt:new Date().toISOString(),executable:process.execPath,args,cwd:root,envKeys:['PATH','LANG','TZ'],exitCode:result.status,signal:result.signal,error:result.error?.message??null,rawLog:path.relative(packet,logfile),noDatabaseRun:!args.includes('--run')},null,2)+'\n');
+process.stdout.write((result.stdout??'')+(result.stderr??''));
+process.exitCode=result.status??1;

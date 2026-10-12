@@ -1,0 +1,37 @@
+{
+  "acceptedNativeEvidence": "3c28ed933722ce896d6ba421236219001bea9ae5",
+  "acceptedHarnessSource": "b9dceb71e42d4e520760125d070542362dbaacdf",
+  "scope": "source/evidence review of11 nativePG groups;35 independent inert controls;no independentDB replay",
+  "files": [
+    {
+      "path": "HANDOFF.md",
+      "bytes": 5834,
+      "sha256": "48a9e1eecabeaccb18e69e43612157b8c0567c19180aeb6049ab60613afd8c51"
+    },
+    {
+      "path": "evidence/COMMAND.json",
+      "bytes": 815,
+      "sha256": "b7a5d0096ae4c6df018b9a16d5bdddae114ea7a81fbcf724f72685027b2b21dc"
+    },
+    {
+      "path": "evidence/SOURCE-AND-RESULT-REVIEW.json",
+      "bytes": 6886,
+      "sha256": "7c6e61d963e09b0e15b9ba7c5eec11aa547168dc39da889c3a55f92677a45bc2"
+    },
+    {
+      "path": "evidence/review-native-source-and-receipts.cjs",
+      "bytes": 12128,
+      "sha256": "d276e3b18e24dbd5910b8d3e761c15612ec96d1b21fcfa81eb7cd7b810cb354f"
+    },
+    {
+      "path": "evidence/source-review.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "evidence/source-review.stdout.log",
+      "bytes": 101,
+      "sha256": "edd34728f6de88bda07a2f1f5641f626125cda9f720b54163a261b6499577c61"
+    }
+  ]
+}

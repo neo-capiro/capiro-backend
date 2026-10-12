@@ -1,0 +1,79 @@
+{
+  "entries": [
+    {
+      "path": "CASE-MATRIX.md",
+      "bytes": 5607,
+      "sha256": "ef9f855b5237b051e8009b6ba18fbb492fba09d9e06278d3d9f14ba19720e8b2"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5195,
+      "sha256": "0dc8ff7ae2ce90ab1b4568f3305175de78e4063f31295b60975a893063c92e43"
+    },
+    {
+      "path": "canonical-loader.cjs",
+      "bytes": 5762,
+      "sha256": "00770910749e774bd8ddb25b8151cc6dd2e21548509380bd3d0c83aa3222d2f0"
+    },
+    {
+      "path": "evidence/01-preparation-controls.log",
+      "bytes": 3916,
+      "sha256": "9602100f3d22cc8ae98d05f719815146ad317bf736448f4cdc2db062379cd7b8"
+    },
+    {
+      "path": "evidence/02-preparation-controls.json",
+      "bytes": 547,
+      "sha256": "01250f6d19ea81477989b4079ad059b02fad52a472e055ec45070ac4122f9096"
+    },
+    {
+      "path": "evidence/02-preparation-controls.log",
+      "bytes": 1813,
+      "sha256": "1803c3e685123f08e7043a4b79c028237b7b0bb7bcf91f061e7c0d6e347a938b"
+    },
+    {
+      "path": "evidence/03-plan.json",
+      "bytes": 526,
+      "sha256": "17f75fcee00a1f1b8fb44a623db8b2e2278930942004db81d45a998b848d4109"
+    },
+    {
+      "path": "evidence/03-plan.log",
+      "bytes": 4807,
+      "sha256": "45cb1baab6518aedf356827e58ae3682a23a87d7e55059b0fd8692384649a3f9"
+    },
+    {
+      "path": "evidence/PREPARATION-RECEIPT.json",
+      "bytes": 2428,
+      "sha256": "ddceaf5f96597d920ea0a6444d439f2cdfcf60456412c4a3ed2885aef8dfbd09"
+    },
+    {
+      "path": "evidence/run-source-check.cjs",
+      "bytes": 1310,
+      "sha256": "bdc45f45092597a6f1795eb4c7b59a5c6632639c9a8a8a8205143542cabc48ec"
+    },
+    {
+      "path": "fixture-assembly.cjs",
+      "bytes": 4442,
+      "sha256": "73a6806f86f29d8fa6af1689d7071ac99a3ce486977357bbe16039068f5e8d46"
+    },
+    {
+      "path": "native-contract-harness.cjs",
+      "bytes": 27068,
+      "sha256": "f13f2b8086f6b4899d594fbec73489cbf3f123824e11770ffb038603368cd5be"
+    },
+    {
+      "path": "native-contract-harness.test.cjs",
+      "bytes": 4641,
+      "sha256": "f3782e3cf10b53cb81d8d2db729578af7257e937c862fc2096326116a26e58ef"
+    },
+    {
+      "path": "parent-fixture.sql",
+      "bytes": 1435,
+      "sha256": "8e5f948fd0b3edff07c7e7f9c672e98f259e784b2f3017f7fe62f961ebc81d26"
+    },
+    {
+      "path": "source-bindings.json",
+      "bytes": 15794,
+      "sha256": "1e73aaca116bf73009fc47d2f482e9501ba31b4625322b254e331b3c3b97d3be"
+    }
+  ]
+}

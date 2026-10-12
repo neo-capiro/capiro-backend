@@ -1,0 +1,11 @@
+PASS strict synthetic application role has no owner membership or bypass
+PASS Objective tenant RLS, missing GUC and foreign write
+PASS Objective constraints and immutable revision locking privileges
+PASS actual Objective owner requires live actor, same client and current revision
+PASS actual Workspace saved bytes/hash and immutable version
+PASS actual Outreach concurrent duplicate stages produce one durable mutation/receipt
+PASS stage wrong hash and request reuse cannot write or reinterpret receipt
+PASS current grant revocation refuses Objective, Workspace and durable-stage replay
+PASS native reader client SHARE versus writer grant DELETE/client UPDATE deadlock
+PASS Core rich newsletter receipt RLS uses distinct legacy identifiers
+PASS actual global calendar evidence and Repeatable Read snapshot

@@ -1,0 +1,21 @@
+{
+  "argv": [
+    "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+    "docs/cleanup-native-contract-independent-review-20261012/evidence/review-native-source-and-receipts.cjs"
+  ],
+  "cwd": "/tmp/capirov2-cleanup-meri-local-dispatch-independent-review",
+  "environment": {
+    "PATH": "/usr/bin:/bin",
+    "LANG": "C.UTF-8",
+    "TZ": "UTC"
+  },
+  "completedToolSession": 90832,
+  "exitCode": 0,
+  "nodeVersion": "24.19.0",
+  "parserVersion": "5.9.3",
+  "stdoutSha256": "edd34728f6de88bda07a2f1f5641f626125cda9f720b54163a261b6499577c61",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "databaseOrSqlExecutedByReviewer": false,
+  "childProcesses": "Git evidence reads only",
+  "sourceInputs": "immutable committed3c28/b9/277 and currentMemory tree"
+}
