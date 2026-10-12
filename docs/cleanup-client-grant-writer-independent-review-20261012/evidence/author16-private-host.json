@@ -1,0 +1,7 @@
+{
+  "privateRoot": "/tmp/capiro-grant-writer16-fixture-926-20261012",
+  "testCopyByteExact": true,
+  "actualMethodSourceSymlinkTarget": "/tmp/capirov2-four-runtime-controls-review/apps/api/src/clients/clients.service.ts",
+  "sourceScope": "Exact ClientsService MethodDeclaration only; no import/constructor/service graph",
+  "rootsOnlyPrivateHost": true
+}

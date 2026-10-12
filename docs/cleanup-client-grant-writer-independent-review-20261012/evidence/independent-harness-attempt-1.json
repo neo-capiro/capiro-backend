@@ -1,0 +1,6 @@
+{
+  "status": "terminated-own-inert-test-only",
+  "pids": [],
+  "reason": "Late-lock source mutant inserts an extra awaited operation before fake lock; two-microtask harness released before deferred promise existed, leaving its own fake promise pending. Correction waits bounded microtasks for lock or settlement. No production or database behavior implicated.",
+  "rawPartialOutputRetained": "independent-method-controls-attempt-1.log"
+}

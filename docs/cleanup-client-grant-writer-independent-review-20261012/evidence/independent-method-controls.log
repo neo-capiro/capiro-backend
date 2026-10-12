@@ -1,0 +1,40 @@
+✔ whole service is byte-exact baseline after unique nine-line insertion removal (1.695648ms)
+✔ exact bound lock is first callback operation and inherits same tenant transaction (2.412473ms)
+✔ unresolved lock prevents every later owner operation (52.083459ms)
+✔ absent lock row returns 404 before owner operations (32.61273ms)
+✔ lock infrastructure error propagates by exact identity before reads (0.436683ms)
+✔ foreign membership rejects before grant reads/writes or audit (1.037375ms)
+✔ actor attribution, replacement order, audit snapshots and input immutability remain exact (1.26364ms)
+✔ original/candidate non-lock differential: unchanged (0.483966ms)
+✔ original/candidate non-lock differential: empty-roster (0.804508ms)
+✔ original/candidate non-lock differential: wall-off (0.532641ms)
+✔ original/candidate non-lock differential: self-roster (0.676834ms)
+✔ original/candidate non-lock differential: absent-client (0.418112ms)
+✔ original/candidate non-lock differential: foreign-membership (0.209625ms)
+✔ original/candidate non-lock differential: error-client (0.138462ms)
+✔ original/candidate non-lock differential: error-members (0.165971ms)
+✔ original/candidate non-lock differential: error-roster (0.536616ms)
+✔ original/candidate non-lock differential: error-add (0.303144ms)
+✔ original/candidate non-lock differential: error-remove (0.281729ms)
+✔ original/candidate non-lock differential: error-update (0.523452ms)
+✔ original/candidate non-lock differential: error-audit (1.013932ms)
+✔ inert valid-TS source adversary refused: unbound-tenant (36.033045ms)
+✔ inert valid-TS source adversary refused: unbound-client (29.111999ms)
+✔ inert valid-TS source adversary refused: wrong-tenant-value (23.155741ms)
+✔ inert valid-TS source adversary refused: wrong-client-value (28.095125ms)
+✔ inert valid-TS source adversary refused: share-instead-of-exclusive (38.535146ms)
+✔ inert valid-TS source adversary refused: wrong-table (33.182297ms)
+✔ inert valid-TS source adversary refused: unawaited (24.140265ms)
+✔ inert valid-TS source adversary refused: missing-404 (20.094703ms)
+✔ inert valid-TS source adversary refused: late-lock (23.048851ms)
+✔ unmodified baseline is refused by new awaited-lock contract (18.02801ms)
+✔ same-client writer waits at exclusive client gate before any roster replacement read (1.313526ms)
+✔ different-client writers use separate tenant/client gates in the synthetic owner model (0.65783ms)
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 386.537157

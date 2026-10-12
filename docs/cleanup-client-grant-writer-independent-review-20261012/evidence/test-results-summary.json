@@ -1,0 +1,29 @@
+{
+  "authorSpecFreshReplay": {
+    "cases": 16,
+    "passed": 16,
+    "failed": 0,
+    "pending": 0,
+    "todo": 0,
+    "exit": 0
+  },
+  "independentControls": {
+    "cases": 41,
+    "passed": 41,
+    "failed": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0,
+    "exit": 0,
+    "sourceAdversaries": 9,
+    "nonLockDifferentialCases": 13,
+    "baselineLockContractRefused": true,
+    "canonicalMinimumRoleControls": 8,
+    "establishedMemberSelfGrantAuditControl": true
+  },
+  "nativeDatabaseConnections": 0,
+  "providerNativeModulesLoaded": 0,
+  "sourceFilesEdited": 0,
+  "initialProbeSchedulingFailureRetained": true,
+  "readRefusalPreload": "refuse-unrelated-runtime.cjs"
+}

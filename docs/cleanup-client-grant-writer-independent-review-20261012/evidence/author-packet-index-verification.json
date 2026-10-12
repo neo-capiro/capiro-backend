@@ -1,0 +1,330 @@
+{
+  "authorHead": "4c4791ea1e66032fa435b889562c02a3e43eb027",
+  "authorTree": "a25774212d56a1f4767cd106f7ddf586ac343eda",
+  "acceptedSource": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "verifiedFiles": [
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/HANDOFF.md",
+      "bytes": 4492,
+      "sha256": "9ab24ff547a63dc01737ffd2365d03b0a54637e3ce734eeb5e00d9165ed5dbd5",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/NATIVE-PLAN.md",
+      "bytes": 4367,
+      "sha256": "27c2f201347ac8b8065f11c5aba01b57d35664f26236611820b996a99f525478",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/01-before-command.json",
+      "bytes": 802,
+      "sha256": "83e7a996c5875dca25efa39e05ec7fb32dafc1b96bb238d6b2d58128aede6b66",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/01-before-jest.json",
+      "bytes": 56939,
+      "sha256": "fbc315cd7b8bba19ff7d1aa9329c1c24bad9c062adcfa482e3c56c3d70c2f27b",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/01-before-jest.stderr",
+      "bytes": 24368,
+      "sha256": "6487f3147b2121b2d171b2dba51ed8e7d912225607f5c2f977cbc547cf608122",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/01-before-jest.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/02-candidate-command.json",
+      "bytes": 751,
+      "sha256": "f48f6a472ca2d0c96179a62c050fb40e3538ca755b66d7770735b66fd7f96dda",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/02-candidate-jest.json",
+      "bytes": 8965,
+      "sha256": "6fe90bcd9de77c8d8fbbef077463d6fd9fc56703bda3d945624c7b6dda158ce0",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/02-candidate-jest.stderr",
+      "bytes": 1817,
+      "sha256": "7fdd4d37f96aaf3c15bb446fd56934f6c806d9f24a132e10ef008ea538399b02",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/02-candidate-jest.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/03-fragment-types-command.json",
+      "bytes": 494,
+      "sha256": "7bd21dfccdfbbb3bd3723863a7456c18f05f056c6b592fce7db9623594ccdbc4",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/03-fragment-types.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/03-fragment-types.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/04-source-inverse-command.json",
+      "bytes": 303,
+      "sha256": "9807c290b20040710fbbc01d703f5f0b0a1551462cdaf0a3c599f046d2784e2b",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/04-source-inverse.json",
+      "bytes": 3216,
+      "sha256": "5575fd4b679abfb36d27bef6b9aa9b09cab9ea53ec683615f5fa4c41f3e65cea",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/04-source-inverse.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/04-source-inverse.stdout",
+      "bytes": 3092,
+      "sha256": "b72d9c4681b6eab86f145624156423a0c52092b3c5834ffad0053c6bc013983c",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-actor-instead-client.json",
+      "bytes": 11843,
+      "sha256": "53d248db6f16180f43328b8b07b3c81b076f47d6a4ec3cf23c9c01d43f281dfe",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-actor-instead-client.stderr",
+      "bytes": 3323,
+      "sha256": "0c934d2cbc495bc3fb581186c4ad709abd86de4e1b974bdf8641790df49237ff",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-actor-instead-client.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-grant-read-before-lock.json",
+      "bytes": 50974,
+      "sha256": "3b479cbb8037de17162de9ea5b128089dd6386dca8ad1011d9cab389261d2509",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-grant-read-before-lock.stderr",
+      "bytes": 22517,
+      "sha256": "ce433766dc2143948461608183fd73702a5fdf0b09530820cecf5edd1dbc7882",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-grant-read-before-lock.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-no-absence-guard.json",
+      "bytes": 13006,
+      "sha256": "ca9ad111274894fc30df1894bb88622dc673d214183bccd4aae9598b761c47a7",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-no-absence-guard.stderr",
+      "bytes": 3220,
+      "sha256": "19630f1d284282d24b61a01ef01faedb33e18ef65ed957246f28fb8acd5801f0",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-no-absence-guard.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-share-instead-update.json",
+      "bytes": 11749,
+      "sha256": "dd1042fa8a51fb6386f6f1e38cb1f92be0c63771e80d9a3ecdbfc8f66958a135",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-share-instead-update.stderr",
+      "bytes": 3303,
+      "sha256": "8f783422b1f3c3d3e2a98492aaee6ba73c0a675dd3f3d0d69d6926d35149f117",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-share-instead-update.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-tenant-unbound.json",
+      "bytes": 11658,
+      "sha256": "7bb758cbaa91704d4336a469a404a8671aeac29a7be04d52bd727442239353b4",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-tenant-unbound.stderr",
+      "bytes": 3289,
+      "sha256": "d285c0b820eebab62c704e0186893c416c2569276b7b8f197afcc684412854c4",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-tenant-unbound.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-wrong-table.json",
+      "bytes": 11822,
+      "sha256": "b3da4783d88adac6979d20a3c7278eadd2257f719f5aa44ac91c8fff2b316a97",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-wrong-table.stderr",
+      "bytes": 3332,
+      "sha256": "07da7e6f8219b3dfb2df97fa76e12fca8f91066caf66684eb4896871a6048a09",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutant-wrong-table.stdout",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/05-mutation-results.json",
+      "bytes": 5051,
+      "sha256": "fead91eac4272de66ac5ded1938fc4da15e08b6c105563d09a26a2dac60eb713",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/06-differential-behavior-command.json",
+      "bytes": 310,
+      "sha256": "412dae6ab94ad91886b931d6df4b1cd246a8ffe27da8c6c63de6f904dd9d2381",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/06-differential-behavior.json",
+      "bytes": 79227,
+      "sha256": "78b8e63fa1f36badfbd37f39251f503cd677cd33e4201daae1587d621768acdd",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/06-differential-behavior.stderr",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/06-differential-behavior.stdout",
+      "bytes": 49,
+      "sha256": "302301287ebf5457e2dd5fa83a500a29a16123ba301214d3e6effa643a080ff3",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/CASE-MANIFEST.json",
+      "bytes": 7982,
+      "sha256": "88974efb5f6e9f82fbafd9f807e8095e9a89e642979b488e6591c6fb46e6d17f",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/SOURCE-MANIFEST.json",
+      "bytes": 1826,
+      "sha256": "88ee383c754516658192960535cb1d5553c8d26402fdbdf4e51c5869977a6ff3",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/clients.service.before.ts.txt",
+      "bytes": 69882,
+      "sha256": "0b04f5e819b86c68993627520cf41dd03524b7f66c3c4dd3751f537c630f352b",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/differential-behavior.cjs",
+      "bytes": 4562,
+      "sha256": "610f5e15b80fd8b1967ab67a2c8ed213f289e16d1d14eea2be6d583aca5af4df",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/focused.jest.cjs",
+      "bytes": 717,
+      "sha256": "4665128ad727dabf64160c0085c0ce270b14751c799cf65cbbc2c5c20218e507",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/lock-source-mutation-preload.cjs",
+      "bytes": 1629,
+      "sha256": "7ea1fe3ec41ca2eaa3ab256a426aaaaed39b7834743bf15e13348a1d1cb3bced",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/no-external-ports.cjs",
+      "bytes": 645,
+      "sha256": "aa5c72f3d795e1d9cdfe854127f6e50247fd45a4009e70259c62e1e5d0d101a8",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/run-lock-mutations.py",
+      "bytes": 1621,
+      "sha256": "a1658b062bff45d44bb4f978a4d8cdd70604beef7dd3a19eeabf6ea81344480e",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/source-inverse.cjs",
+      "bytes": 2247,
+      "sha256": "1324b39a1661419773100a549a99cf7a8f00059798b553d37d0c7116dae5044f",
+      "exact": true
+    },
+    {
+      "path": "docs/cleanup-client-memory-access-lock-order-20261012/evidence/strict-source-read-refusal.cjs",
+      "bytes": 850,
+      "sha256": "2d92b56bd7773bb127a0ddf4c86ea4bde79e266d18f66033b4519f5807c2d90f",
+      "exact": true
+    }
+  ],
+  "docsOnlyAfterSourceFreeze": true,
+  "indexTopLevelKeys": [
+    "sourceHead",
+    "sourceTree",
+    "files",
+    "sourceFiles"
+  ],
+  "sourceBindings": [
+    {
+      "path": "apps/api/src/clients/clients.service.ts",
+      "blob": "dbc180fe215e58b64f2d101f4aba56b20095309f",
+      "sha256": "1d854d3fa4080d2ff613741d3a607285a2e88e28a13f55358a8c508cfddc9dec",
+      "bytes": 70294
+    },
+    {
+      "path": "apps/api/src/clients/clients.memory-access-lock-order.spec.ts",
+      "blob": "5f4358f265e1313887d1002b43f08fbd2db5a4eb",
+      "sha256": "233c230fbfd5a29cd943c083b8a48f64783dda1c4c93a2bba972bf2d903cbe5c",
+      "bytes": 11688
+    }
+  ],
+  "missingExploratoryReceiptRead": "AUTHOR-RECEIPT.json absent; canonical HANDOFF.md and SHA256-INDEX.json used instead",
+  "sourceBindingsVerified": 2
+}

@@ -1,0 +1,94 @@
+{
+  "schema": "capiro.cleanup-client-grant-writer-independent-source-acceptance.v1",
+  "verdict": "ACCEPT bounded source; native qualification separate",
+  "acceptedSourceHead": "926b269ad6e3b5ed789b5d18f55306df310d046c",
+  "acceptedSourceTree": "20f6c336489913c6f4c16a98f2a16fed4847ecd4",
+  "sourceBaseHead": "277053c8196dc1be4789c42ea304b0de0553fe00",
+  "sourceBaseTree": "b7b33bfa38bccf69aa1a94dd2942add016bf19d3",
+  "sourcePaths": [
+    "apps/api/src/clients/clients.service.ts",
+    "apps/api/src/clients/clients.memory-access-lock-order.spec.ts"
+  ],
+  "productionInsertionLines": 9,
+  "wholeServiceByteExactInverse": true,
+  "allOutsidePriorPathsExact": 23161,
+  "authorEvidenceHead": "4c4791ea1e66032fa435b889562c02a3e43eb027",
+  "authorEvidenceTree": "a25774212d56a1f4767cd106f7ddf586ac343eda",
+  "authorPacketHashesVerified": 50,
+  "authorSourceBindingsVerified": 2,
+  "reviewerSourceEdits": 0,
+  "tests": {
+    "authorSpecFreshReplay": {
+      "cases": 16,
+      "passed": 16,
+      "failed": 0,
+      "pending": 0,
+      "todo": 0,
+      "exit": 0
+    },
+    "independentControls": {
+      "cases": 41,
+      "passed": 41,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0,
+      "exit": 0,
+      "sourceAdversaries": 9,
+      "nonLockDifferentialCases": 13,
+      "baselineLockContractRefused": true,
+      "canonicalMinimumRoleControls": 8,
+      "establishedMemberSelfGrantAuditControl": true
+    },
+    "nativeDatabaseConnections": 0,
+    "providerNativeModulesLoaded": 0,
+    "sourceFilesEdited": 0,
+    "initialProbeSchedulingFailureRetained": true,
+    "readRefusalPreload": "refuse-unrelated-runtime.cjs"
+  },
+  "authorization": {
+    "canonicalController": "ClientsController.setMemoryAccess",
+    "currentTenantParameterPreserved": true,
+    "tenantMiddlewareAndRolesGuardUnchanged": true,
+    "minimumRole": "user_admin",
+    "existingHigherRank": "capiro_admin",
+    "sqlTenantAndClientSeparateBoundUUIDParameters": true,
+    "rawSqlScopedHookCannotReplaceExplicitTenantPredicate": true,
+    "callerAuthenticationNotExecuted": true
+  },
+  "locking": {
+    "firstCallbackOperation": "await tenant/client SELECT FOR UPDATE",
+    "contextSetupBeforeCallbackPreserved": true,
+    "currentReaderClientBeforeGrantOrderMatched": true,
+    "sameClientSyntheticSerializationPass": true,
+    "differentClientSyntheticIndependencePass": true,
+    "notGlobalDeadlockFreedomClaim": true
+  },
+  "preservedFailures": [
+    "Initial late-lock fake promise scheduling and exact partial output/script",
+    "Initial literal-node process-match miss and exact own-process stop correction",
+    "Python source-proof reserved-keyword SyntaxError before execution",
+    "Absent exploratory shared tenant.ts and AUTHOR-RECEIPT.json paths"
+  ],
+  "nativeOpen": [
+    "actual application SELECT/UPDATE privileges and RLS",
+    "Prisma runtime/rollback/concurrency",
+    "verified target fixture completeness",
+    "malformed UUID diagnostics and HTTP envelopes",
+    "full application compilation/integration authentication"
+  ],
+  "operations": {
+    "databaseConnections": 0,
+    "sqlExecution": 0,
+    "migrations": 0,
+    "nativeEngineGenerationOrDownload": 0,
+    "providerCalls": 0,
+    "permissionOrCredentialChanges": 0,
+    "protectedReportingBodyReads": 0,
+    "deniedDetailedReportReads": 0,
+    "mainMergeOrDeployment": 0
+  },
+  "preservedPriorAuditHead": "bbc1bb5fad625970bd2d54d974b2a8cb7ca1f1ff",
+  "limitations": "Exact method fragments and fake transaction/lock owners prove source binding and sequencing; they do not certify PostgreSQL or real HTTP authorization.",
+  "rawEvidenceIndex": "SHA256-INDEX.json"
+}

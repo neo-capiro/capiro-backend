@@ -1,0 +1,11 @@
+{
+  "pids": [
+    515317
+  ],
+  "signal": "SIGTERM",
+  "onlyExactOwnNodeScriptMatched": true,
+  "reason": "Initial stop matcher expected an absolute Node argv[0]; actual launch used literal node. Corrected matcher stops only the preserved old inert probe.",
+  "fixedRunStatus": 0,
+  "fixedCases": 32,
+  "priorDetectionReceiptPreserved": true
+}
