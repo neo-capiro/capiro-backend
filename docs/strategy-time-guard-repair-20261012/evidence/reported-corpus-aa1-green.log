@@ -1,0 +1,14 @@
+{
+  "originalSource": "f86bf11b9b6da367d464da453ee1f260fa60e06e",
+  "testedSource": "aa1ce11fd480cf664f5b3d1902a61751368d238d",
+  "phase": "green-aa1ce11",
+  "sourceFiles": 169,
+  "baseline": [],
+  "deferredIdentities": 116,
+  "deferredSamples": 123,
+  "cases": 21,
+  "rejected": 21,
+  "unexpectedlyAccepted": [],
+  "mutantsExecuted": false,
+  "nativeAcceptance": false
+}
