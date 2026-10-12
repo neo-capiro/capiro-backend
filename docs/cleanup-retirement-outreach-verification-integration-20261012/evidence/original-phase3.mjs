@@ -1,0 +1,156 @@
+#!/usr/bin/env node
+/** @cleanup-smoke noArgsExit=2 helpExit=0 */
+import { execFileSync, spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const usage = 'Usage: node scripts/verify-outreach-v3-phase3-code.mjs (--run | --help)';
+if (process.argv.length === 3 && process.argv[2] === '--help') {
+  console.log(usage);
+  process.exit(0);
+}
+if (process.argv.length !== 3 || process.argv[2] !== '--run') {
+  console.error(usage);
+  process.exit(2);
+}
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const BASE_SHA =
+  process.env.OUTREACH_V3_PHASE3_BASE_SHA || '89b0a8e08e1cfcc7210a8684335faf6f8405bdf2';
+function resolveWhitespaceBase() {
+  const explicit = process.env.OUTREACH_V3_PHASE3_WHITESPACE_BASE;
+  if (explicit) return explicit;
+  try {
+    const originMain = execFileSync('git', ['rev-parse', 'origin/main'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    const mergeBase = execFileSync('git', ['merge-base', originMain, head], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    }).trim();
+    // Use the actual branch base even when origin/main advanced during a
+    // long closeout run; this keeps the check scoped to this branch's diff.
+    if (mergeBase) return mergeBase;
+  } catch {
+    // Keep the accepted Phase 3 range for detached or shallow checkouts.
+  }
+  return BASE_SHA;
+}
+const PHASE3_WHITESPACE_BASE = resolveWhitespaceBase();
+const ENGAGEMENT_PHASE3_SCOPE_END = process.env.ENGAGEMENT_PHASE3_SCOPE_END;
+if (ENGAGEMENT_PHASE3_SCOPE_END) {
+  process.env.ENGAGEMENT_PHASE3_SCOPE_END = ENGAGEMENT_PHASE3_SCOPE_END;
+}
+const DUMMY_DATABASE_URL = 'postgresql://phase3:phase3@127.0.0.1:1/phase3?schema=public';
+
+const reasoningSpecs = [
+  'src/outreach-v3/reasoning/outreach-v3-reasoning.guard.spec.ts',
+  'src/outreach-v3/reasoning/outreach-v3-phase3-architecture.spec.ts',
+  'src/outreach-v3/reasoning/outreach-v3-phase3-migration.spec.ts',
+  'src/outreach-v3/reasoning/outreach-reasoning-runtime-boundary.spec.ts',
+  'src/outreach-v3/reasoning/outreach-reasoning-credential-boundary.spec.ts',
+  'src/outreach-v3/reasoning/openai-outreach-reasoning.provider.spec.ts',
+  'src/outreach-v3/reasoning/outreach-reasoning-context.service.spec.ts',
+  'src/outreach-v3/reasoning/outreach-reasoning-turn-claim.service.spec.ts',
+  'src/outreach-v3/reasoning/outreach-reasoning-history.service.spec.ts',
+  'src/outreach-v3/reasoning/outreach-reasoning.service.spec.ts',
+  'src/outreach-v3/reasoning/outreach-reasoning-contract-eval.spec.ts',
+];
+
+const steps = [
+  ['Build shared API dependency', 'pnpm', ['--filter', '@capiro/shared', 'build']],
+  ['Build Meri core API dependency', 'pnpm', ['--filter', '@capiro/meriv2-core', 'build']],
+  [
+    'Build Defense contracts API dependency',
+    'pnpm',
+    ['--filter', '@capiro/defense-contracts', 'build'],
+  ],
+  ['Build Defense domain API dependency', 'pnpm', ['--filter', '@capiro/defense-domain', 'build']],
+  [
+    'Canonical API Prisma client generation',
+    'pnpm',
+    ['-C', 'apps/api', 'exec', 'prisma', 'generate', '--schema', 'prisma/schema.prisma'],
+    { DATABASE_URL: DUMMY_DATABASE_URL },
+  ],
+  [
+    'Phase 3 focused reasoning/runtime tests + 100-case contract eval',
+    'pnpm',
+    ['-C', 'apps/api', 'exec', 'jest', '--runInBand', '--forceExit', ...reasoningSpecs],
+    {
+      NODE_OPTIONS: [process.env.NODE_OPTIONS, '--max-old-space-size=6144']
+        .filter(Boolean)
+        .join(' '),
+    },
+  ],
+  [
+    'Phase 3 focused TypeScript project',
+    'pnpm',
+    ['-C', 'apps/api', 'exec', 'tsc', '-p', 'tsconfig.outreach-v3-phase3.json', '--noEmit'],
+  ],
+  [
+    'Phase 3 focused Prisma projection validation',
+    'pnpm',
+    [
+      '-C',
+      'apps/api',
+      'exec',
+      'prisma',
+      'validate',
+      '--schema',
+      'prisma/outreach-v3-phase3/schema.prisma',
+    ],
+    { DATABASE_URL: DUMMY_DATABASE_URL },
+  ],
+  ['Phase 3 DB rehearsal syntax', 'node', ['--check', 'scripts/verify-outreach-v3-phase3-db.mjs']],
+  ['Phase 2 state-substrate regression', 'pnpm', ['verify:outreach-v3-phase-2']],
+  [
+    'Engagement Phase 3 current-product regression',
+    'pnpm',
+    ['verify:engagement-phase-3'],
+    ENGAGEMENT_PHASE3_SCOPE_END ? { ENGAGEMENT_PHASE3_SCOPE_END } : {},
+  ],
+  ['API production build', 'pnpm', ['--filter', '@capiro/api', 'build']],
+  [
+    'Phase 3 committed-diff whitespace',
+    'git',
+    [
+      'diff',
+      '--check',
+      `${PHASE3_WHITESPACE_BASE}..HEAD`,
+      '--',
+      '.',
+      ':(exclude)docs/plans/**/*.md',
+      ':(exclude).github/**/*.yml',
+      ':(exclude).github/**/*.yaml',
+    ],
+  ],
+];
+
+function run(label, command, args, extraEnv = {}) {
+  console.log(`\n==> ${label}`);
+  const result = spawnSync(command, args, {
+    cwd: ROOT,
+    env: { ...process.env, ...extraEnv },
+    shell: process.platform === 'win32',
+    stdio: 'inherit',
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`${label} failed: ${command} ${args.join(' ')} (exit ${result.status})`);
+  }
+}
+
+try {
+  for (const [label, command, args, extraEnv] of steps) {
+    run(label, command, args, extraEnv);
+  }
+  console.log('\nOUTREACH_V3_PHASE3_DB_FREE_COMPLETE');
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
