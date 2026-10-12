@@ -81,6 +81,8 @@ import {authorizeResearchPortfolioArtifact} from '../research-portfolios/researc
 import { meetingPrepPdfSections, renderMeetingPrepPdf } from './meeting-prep-pdf.js';
 import { prepMeetingLogistics } from './meeting-prep-grounding.js';
 import { assertHearingRecordDocumentAccess } from './hearing-record-document-access.js';
+import { attachmentViewerWhere } from './attachments/attachment-viewer-access.js';
+import { assertOutboundAttachmentAccess } from './attachments/outbound-attachment-access.js';
 import {
   recordAiUsageEvent,
   deriveMeetingVirtuality,
@@ -3022,7 +3024,7 @@ export class EngagementService {
     const attachmentIds = Array.isArray(metadataAttachmentIds)
       ? metadataAttachmentIds.filter((a): a is string => typeof a === 'string')
       : undefined;
-    const campaignAttachments = await this.loadGraphAttachments(ctx, attachmentIds);
+    const campaignAttachments = await this.loadGraphAttachments(ctx, attachmentIds, record.clientId);
 
     const perRecipientEmails = (record.metadata as Record<string, unknown>)?.perRecipientEmails;
     const emailMap = Array.isArray(perRecipientEmails)
@@ -7684,11 +7686,7 @@ export class EngagementService {
           // listed viewerUserIds member. Meeting/mail parent lists still honor
           // the same rule so a restricted client file cannot leak through
           // another parent path.
-          OR: [
-            { viewerMode: 'all' },
-            { viewerMode: 'restricted', viewerUserIds: { has: ctx.userId } },
-            { uploadedByUserId: ctx.userId },
-          ],
+          OR: attachmentViewerWhere(ctx.userId),
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -7764,11 +7762,7 @@ export class EngagementService {
           tenantId: ctx.tenantId,
           ...(options.clientId ? { clientId: options.clientId } : {}),
           supersededByAttachmentId: null,
-          OR: [
-            { viewerMode: 'all' },
-            { viewerMode: 'restricted', viewerUserIds: { has: ctx.userId } },
-            { uploadedByUserId: ctx.userId },
-          ],
+          OR: attachmentViewerWhere(ctx.userId),
         },
       }),
     );
@@ -8671,42 +8665,37 @@ export class EngagementService {
 
   /**
    * Fetch EngagementAttachment rows by id and turn them into Graph inline file
-   * attachments (base64 contentBytes). Files over the ~3MB Graph simple-send
-   * inline limit are skipped rather than failing the whole send. Shared by the
-   * campaign send path (sendCampaign) and the wizard batch send path.
+   * attachments (base64 contentBytes). The complete selection must satisfy
+   * current viewer, client, parent, readiness and hearing-distribution access
+   * before any bytes are fetched. Shared by SingleMail and record campaign sends.
    */
   private async loadGraphAttachments(
     ctx: TenantContext,
     attachmentIds: string[] | undefined,
+    expectedClientId: string | null = null,
   ): Promise<Array<{ name: string; contentType: string; contentBytes: string }> | undefined> {
     if (!attachmentIds?.length) return undefined;
     const GRAPH_INLINE_ATTACHMENT_MAX = 3 * 1024 * 1024;
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findMany({
-        where: { tenantId: ctx.tenantId, id: { in: attachmentIds } },
+        where: {
+          tenantId: ctx.tenantId,
+          id: { in: attachmentIds },
+          supersededByAttachmentId: null,
+          OR: attachmentViewerWhere(ctx.userId),
+        },
       }),
     );
-    // Every requested id must resolve: an id the tenant does not own, or one that
-    // has since been deleted, cannot be silently dropped from a send the user
-    // believes carries it.
-    const foundIds = new Set(rows.map((r) => r.id));
-    const missing = attachmentIds.filter((id) => !foundIds.has(id));
-    if (missing.length) {
-      throw new BadRequestException({
-        statusCode: HttpStatus.BAD_REQUEST,
-        error: 'ATTACHMENT_MISSING',
-        message: `${missing.length} attachment(s) selected for this send are no longer available. Remove them and try again.`,
-      });
-    }
+    await assertOutboundAttachmentAccess(attachmentIds, rows, expectedClientId, {
+      parents: (row) => this.validateAttachmentParents(ctx, row),
+      usable: (row) => {
+        this.assertAttachmentUsable(row);
+      },
+      distribute: (row) => assertHearingRecordDocumentAccess(this.prisma, ctx, row, 'distribute'),
+    });
 
     const graphAttachments: Array<{ name: string; contentType: string; contentBytes: string }> = [];
     for (const row of rows) {
-      // Phase 1 §3.h1 — an external send is the highest-consequence consumer of
-      // these bytes. A quarantined / threat / unscanned file must never leave the
-      // building, and the failure is LOUD.
-      this.assertAttachmentUsable(row);
-      await assertHearingRecordDocumentAccess(this.prisma, ctx, row, 'distribute');
-
       // Global invariant: "no silently omitted attachment". This used to `continue`
       // past an oversized file, so the recipient received an email whose body
       // referred to a document that was never attached, and nobody was told. Now
@@ -9183,7 +9172,11 @@ export class EngagementService {
     // attachment's real bytes, and throws a clear, real reason (quarantined /
     // still scanning / removed) rather than silently sending without it or
     // pretending a not-yet-cleared file is safe to attach.
-    const attachments = await this.loadGraphAttachments(ctx, input.attachmentIds);
+    const attachments = await this.loadGraphAttachments(
+      ctx,
+      input.attachmentIds,
+      input.clientId ?? null,
+    );
     // Derived from what actually got attached, not from the request's id list:
     // `loadGraphAttachments` throws rather than silently dropping a file, so
     // these agree — but the resolved list is the one that describes the email
