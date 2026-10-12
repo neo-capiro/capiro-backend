@@ -1,0 +1,3 @@
+<unknown>:912: SyntaxWarning: invalid escape sequence '\.'
+<unknown>:912: SyntaxWarning: invalid escape sequence '\.'
+{"source": "ab0fc946192f3f49ce9e94d66a3d3ac5cf7a94cf", "paths": 5, "beforeAfterPredicateComparisons": 16035, "allAstAndStringValuesPreservedUnderDeclaredReturnRewrite": true, "optionalModulesImported": false}

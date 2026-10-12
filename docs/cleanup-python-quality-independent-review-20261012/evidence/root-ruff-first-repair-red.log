@@ -1,0 +1,12 @@
+E501 Line too long (102 > 100)
+   --> tests/test_docling_engine.py:438:101
+    |
+436 |         if DOCLING_PACKAGE_VERSION is not None:
+437 |             pytest.skip(
+438 |                 'docling is installed in this environment; NameError regression not reproducible here'
+    |                                                                                                     ^^
+439 |             )
+440 |         with pytest.raises(RuntimeError, match='Docling is not installed'):
+    |
+
+Found 1 error.
