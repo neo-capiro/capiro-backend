@@ -1,0 +1,190 @@
+{
+  "base": "674a856d7fee69cd133cf358f9262ed42300388f",
+  "initialReviewedComposition": "802bbd0b2c510a44e46a9952d8127e7edc55aaaa",
+  "acceptedMeriAndAdoption": "7ea444c74a5637577aa0eb3cb99cb420b5f8223e",
+  "independentMeriReview": "c77c601f74750a165582ae157d1e1dc9ecea1d14",
+  "independentGenericSource": "8f48604aa1cefdb3e420026633ce8e1f2ca95953",
+  "files": [
+    {
+      "file": ".github/workflows/ci-pr.yml",
+      "git": "100644 blob a6af5a8a530b627295f7cb82a0584944e576fefc",
+      "sha256": "ac548187c71bd5de607dcd6f06caee8fd512d6d9d35b800fbd76f347acba684a"
+    },
+    {
+      "file": "apps/api/src/meri/meri-local-dispatch.equivalence.spec.ts",
+      "git": "100644 blob 5a12ea1a984a6b9929636ae7342d4229a7173db4",
+      "sha256": "b88051b59c8d74328674350ce0b93e0e28c573955de0b93b2445556ed4016382"
+    },
+    {
+      "file": "apps/api/src/meri/meri-local-dispatch.ts",
+      "git": "100644 blob 5611ff79634d7b64b4dfe43a7b85ec450cd8016a",
+      "sha256": "4eb39bb943cfe8030860ab3c1d32cee2766a21d036bc37dbec1e1b72e53aa76b"
+    },
+    {
+      "file": "apps/api/src/meri/meri-tools.service.ts",
+      "git": "100644 blob 32a7a744ba9ab812337baaf6093a37540864333b",
+      "sha256": "03052d70373c65f935c0885103a946123a621bd7898e023b45b9ddf10da5f267"
+    },
+    {
+      "file": "package.json",
+      "git": "100644 blob b5e74ae3d6341c2c371a7366f00957cae35f12ee",
+      "sha256": "ea94b791a19e08886d6bfb42174074b4c7e882f71a3dad3902fd8eb476c0d869"
+    },
+    {
+      "file": "scripts/duplicate-helper-names.txt",
+      "git": "100644 blob 26c812bafd649771aa162467437a75717056bc65",
+      "sha256": "a6577ff6989458e5a2f4205608943e71917904d949d2c0c2e5450fab0f011b19"
+    },
+    {
+      "file": "scripts/registry-ownership.json",
+      "git": "100644 blob 04bb47461ea4c482137789e2fcb7bcf399f3a50f",
+      "sha256": "9c7bf9a64d581f223264181ffec3cdbc53d6b12cc0750e072bf2bc686ee85e8a"
+    }
+  ],
+  "fourRuntimeScopeUnion": [
+    {
+      "file": ".github/workflows/ci-pr.yml",
+      "git": "100644 blob a6af5a8a530b627295f7cb82a0584944e576fefc",
+      "sha256": "ac548187c71bd5de607dcd6f06caee8fd512d6d9d35b800fbd76f347acba684a"
+    },
+    {
+      "file": "apps/api-strategy/src/context/frontmatter.spec.ts",
+      "git": "100644 blob 64d6548c55217a666c9e99a2d6caf1a7a0151929",
+      "sha256": "c9562788190a020eb51ac3d9f12b5dc7f59d54a995e9759016864f4e45553727"
+    },
+    {
+      "file": "apps/api-strategy/src/context/frontmatter.ts",
+      "git": "100644 blob 2ed31f132a24dc1425c23c3ccf0ea36c36397f70",
+      "sha256": "09c1451c74d01742a2348dce9bd88c12babd06c98a673e899b0b96f30d8684e9"
+    },
+    {
+      "file": "apps/api-strategy/src/context/template-registry.spec.ts",
+      "git": "100644 blob dc3f84f2ab7010e96eddec1d269c95859afc06ec",
+      "sha256": "5657253f8f40128398e3f0bad3d8e444803b2dcdaf6ccffbf3d24e2fc7ade83c"
+    },
+    {
+      "file": "apps/api-strategy/src/context/template-registry.ts",
+      "git": "100644 blob 94c10925d1d04b58e7f18b4f8263816f64b6ce76",
+      "sha256": "088255d598e7c0319f05d6209f73c830bd2c59e3ab01ecd05c94596129d49ead"
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-context.spec.ts",
+      "git": "100644 blob 4e24a2bb06692a92be975a8c58a3b3c4bcf3cfc5",
+      "sha256": "1d3a066d359926ad92148cd402c3b212f8ed3ed369e71f752443e9e9ea811885"
+    },
+    {
+      "file": "apps/api-strategy/src/reports/report-context.ts",
+      "git": "100644 blob 76656bc1cf823a98c38f39ad6e6c2a51a5a28c02",
+      "sha256": "65619375d58a6689ee5ac633cf4c40cdfcac47baf8d748bdd0a21e05af23f8a9"
+    },
+    {
+      "file": "apps/api/src/external/tango/tango-dibbs.client.ts",
+      "git": "100644 blob f0e9ccff04fe4116cd1ee70861e74192fbb677ab",
+      "sha256": "50dfeda0178913b8718eb36d7c4e76f9e7058e6e066306b37ddac0ea13bb0269"
+    },
+    {
+      "file": "apps/api/src/external/tango/tango-rest-page.spec.ts",
+      "git": "100644 blob 94a35b5b6296e0e972c814bdbec977d7ab61bbe8",
+      "sha256": "aa811830dcfff1ade200097715c29d2ab26cc4eb102ad292eb16584aa24c7a61"
+    },
+    {
+      "file": "apps/api/src/external/tango/tango-rest-page.ts",
+      "git": "100644 blob 7a266d4b721dfca17862fd5aa9ec11497eb53c22",
+      "sha256": "acea0b45c771e67d8e7261924823b64c73cdfed78189feef140a1c08ec68872a"
+    },
+    {
+      "file": "apps/api/src/external/tango/tango-sbir.client.ts",
+      "git": "100644 blob 800243ca9006979f2e69bd207271dfdd13f7743b",
+      "sha256": "1414e9afedb5930fdbd3f35b848e08b54c7fae47b817e0997c848d392a7c5bbd"
+    },
+    {
+      "file": "apps/api/src/external/tango/tango-subaward.client.ts",
+      "git": "100644 blob ff5081ab9c4d3d10f7a9de0a39d1cfd084485952",
+      "sha256": "08453fe5638a18a5319d1e505bfc3290e05ebff8aa66963d966d50ef6bfe8c78"
+    },
+    {
+      "file": "apps/api/src/meri/meri-local-dispatch.equivalence.spec.ts",
+      "git": "100644 blob 5a12ea1a984a6b9929636ae7342d4229a7173db4",
+      "sha256": "b88051b59c8d74328674350ce0b93e0e28c573955de0b93b2445556ed4016382"
+    },
+    {
+      "file": "apps/api/src/meri/meri-local-dispatch.ts",
+      "git": "100644 blob 5611ff79634d7b64b4dfe43a7b85ec450cd8016a",
+      "sha256": "4eb39bb943cfe8030860ab3c1d32cee2766a21d036bc37dbec1e1b72e53aa76b"
+    },
+    {
+      "file": "apps/api/src/meri/meri-tools.service.ts",
+      "git": "100644 blob 32a7a744ba9ab812337baaf6093a37540864333b",
+      "sha256": "03052d70373c65f935c0885103a946123a621bd7898e023b45b9ddf10da5f267"
+    },
+    {
+      "file": "apps/workspace/src/cascade/cascade.config.ts",
+      "git": "100644 blob e9ab30fd797f80cc874be3371e6c8f02c2dcaf03",
+      "sha256": "411597caae641c0e70fc3c6bf25eb0c7813ca1e5ac4a9c52ec8b26431f378620"
+    },
+    {
+      "file": "apps/workspace/src/cascade/workspace-product.registry.ts",
+      "git": "100644 blob 2b1bb8c8ad41fbac5005d8e71e3ece66a507a23f",
+      "sha256": "8584e4d816647ee0a3861a14728485c4c9ddb43ec0ffd38088e643fa25b4a732"
+    },
+    {
+      "file": "apps/workspace/test/fixtures/product-registry-before.json",
+      "git": "100644 blob 8fa1d49748e6fdf22da39b21d55ad9ec0223cc45",
+      "sha256": "5b9e9a08b8ede106fa19ed8ff7f1341a1ff65729e8296c45ae2b328c37a01d9c"
+    },
+    {
+      "file": "apps/workspace/test/product-registry-characterization.spec.ts",
+      "git": "100644 blob 65da08cddfc67bb1336980b8dc9ced040c61f39c",
+      "sha256": "dc7ae9e34e26c5e3d3f9c56a5a8802865b3b3ce2d3d8cac504664b6af08c35d8"
+    },
+    {
+      "file": "package.json",
+      "git": "100644 blob b5e74ae3d6341c2c371a7366f00957cae35f12ee",
+      "sha256": "ea94b791a19e08886d6bfb42174074b4c7e882f71a3dad3902fd8eb476c0d869"
+    },
+    {
+      "file": "scripts/check-duplicate-helpers.mjs",
+      "git": "100644 blob 24ffb4c6e0a58fe3cc0f118eb600613ae2f91872",
+      "sha256": "eeaf236aade7bf9576f76e183f11a51eb9e8aa8203139eeb070ea0f2a6dcd5a6"
+    },
+    {
+      "file": "scripts/check-duplicate-helpers.test.mjs",
+      "git": "100644 blob fc802086ed11b731acf90ee97e5d3c8786cdc3ad",
+      "sha256": "9b939dae53b0117c6fb67753d51d053fcc3c9201dabc396b70531751fbfc761b"
+    },
+    {
+      "file": "scripts/check-registry-ownership.mjs",
+      "git": "100644 blob 41c3a36027814df988fc208e79beecd351b59b07",
+      "sha256": "c48c499d6dbb79d67e20bdd57526cfe4900ef09a4321fbc5004cff79581a637f"
+    },
+    {
+      "file": "scripts/check-registry-ownership.test.mjs",
+      "git": "100644 blob 618e55535da5f9a56ba470dd8195ded9135f275c",
+      "sha256": "2bc2b995d25640708353f4317e43fab6202403f1a24ac9d15855d74dd6a66619"
+    },
+    {
+      "file": "scripts/cleanup-runtime-equivalence.jest.cjs",
+      "git": "100644 blob 80c16954796a00453a595700d9a2ebe64cb2f930",
+      "sha256": "16bb7322aee00089c7ff17393fc1cbb125b345f5f66da7aa6a2399ee4708ad67"
+    },
+    {
+      "file": "scripts/duplicate-helper-names.txt",
+      "git": "100644 blob 26c812bafd649771aa162467437a75717056bc65",
+      "sha256": "a6577ff6989458e5a2f4205608943e71917904d949d2c0c2e5450fab0f011b19"
+    },
+    {
+      "file": "scripts/registry-ownership.json",
+      "git": "100644 blob 04bb47461ea4c482137789e2fcb7bcf399f3a50f",
+      "sha256": "9c7bf9a64d581f223264181ffec3cdbc53d6b12cc0750e072bf2bc686ee85e8a"
+    }
+  ],
+  "fourScopedApplicationFiles": 18,
+  "sharedControlPaths": 9,
+  "allInitialOutsideSourceScopePathsExact": 21367,
+  "allSchemaMigrationPathsExact": 603,
+  "allInitialDocumentsExact": 9697,
+  "sourceOnly": true,
+  "initialOutsideScopePathsIncludeDocuments": true,
+  "schemaMigrationSelector": "(?:schema\\.prisma$|/migrations/)",
+  "allNonDocumentSqlPrismaSuffixPathsExact": 612
+}

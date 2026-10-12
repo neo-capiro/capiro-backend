@@ -1,0 +1,50 @@
+{
+  "scope": "Read-only Git metadata/blob hashing, committed index verification, data/package/CI union and root draft handoff snapshots",
+  "worktree": "/tmp/capirov2-four-runtime-controls-review",
+  "branch": "codex/cleanup-four-runtime-composition-independent-review-20261012",
+  "preservedReviewParent": "4763e4c8c357c732a739e9a84f4d95abf2ccfab2",
+  "actualFastForwardMerge": "cb2af6234ba826e5ee8baa6722acaa16ca7ed40d",
+  "checks": [
+    {
+      "command": "python3 evidence/composition-proof.py",
+      "receipt": "evidence/composition-proof.initial.json",
+      "stderr": "evidence/composition-proof.initial.log",
+      "exitCode": 1,
+      "classification": "Reviewer predicate mismatch: broad non-document .sql/.prisma count 612 compared against narrower historical603 count; source identities passed."
+    },
+    {
+      "command": "python3 evidence/composition-proof.py after historical603 selector correction",
+      "receipt": "evidence/composition-proof.time-count-harness-red.json",
+      "stderr": "evidence/composition-proof.time-count-harness-red.log",
+      "exitCode": 1,
+      "classification": "Reviewer source count omitted the existing extra canonical packages/shared/src/time.ts; actual169 Strategy plus1 shared equals170."
+    },
+    {
+      "command": "python3 evidence/composition-proof.py with exact historical selector and source union",
+      "receipt": "evidence/composition-proof.final.json",
+      "stderr": "evidence/composition-proof.final.log",
+      "exitCode": 0,
+      "checks": 59
+    },
+    {
+      "command": "python3 evidence/root-handoff-proof.py",
+      "receipt": "evidence/root-handoff-literal-harness-red.json",
+      "stderr": "evidence/root-handoff-literal-harness-red.log",
+      "exitCode": 1,
+      "classification": "Reviewer exact sentence assertion expected different wording; root draft already accurately qualified21367 as including documents. Original snapshot retained."
+    },
+    {
+      "command": "python3 evidence/root-handoff-proof.py with corrected literal assertion",
+      "receipt": "evidence/root-handoff-proof.json",
+      "stderr": "evidence/root-handoff-proof.log",
+      "exitCode": 0,
+      "checks": 44
+    }
+  ],
+  "notExecuted": [
+    "Application suites or app modules",
+    "Full Core compiler by this reviewer",
+    "Phase1 --run or any closeout CLI",
+    "Package manager, native engine, database, migration, provider or hosted CI"
+  ]
+}

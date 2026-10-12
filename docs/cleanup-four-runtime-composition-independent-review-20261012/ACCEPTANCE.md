@@ -1,0 +1,24 @@
+# Independent four-runtime source composition acceptance
+
+ACCEPT the composition at `cb2af6234ba826e5ee8baa6722acaa16ca7ed40d`, tree `3f8a39aba38b4eb29fba9f0e1b32b04d519d7218`. This review verifies the union, ancestry, data/CI adoption and evidence identity. Individual application behavior remains covered by its separate independent acceptance; this receipt does not re-review the reviewer's authored Tango implementation.
+
+Published PR2419 (`09c5fdfb6bbea268195d3fbe15c9070c9efd3fbc`), PR2420 (`83ac1bddeefca2e75f913abbd04e3cb5e0b98f9d`) and PR2421 (`674a856d7fee69cd133cf358f9262ed42300388f`) are actual ancestors. All application and independent-review heads, generic `8f48604aa1cefdb3e420026633ce8e1f2ca95953` / `4763e4c8c357c732a739e9a84f4d95abf2ccfab2`, and the read-only newsletter plan are preserved as ancestors.
+
+| Slice | Exact application source | Files | Independent review preserved |
+| --- | --- | ---: | --- |
+| Tango | `6d243a1393b8736544e1d216cf2bd141595dd315` | 5 | `0bf68187d937a234db3ea8568aa9815aade5c5de` |
+| Strategy | `8834c1d76659b343fb37c60733fa1dd618a06db9` | 6 | `c51e57613fe7c3545acfc227e44aa0a1d2e95a78` |
+| Workspace | `77e936d2a695203819b7d46277bf63ab6a659539` | 4 | `55414fc4f44c0d2e05897a3e9a8d6d32e4889109`; `9ac33779feb7668bec885b8d359dbd90d2b15764`; `50a6ec7105462ccdbe1c867b1b291a1318022440` |
+| Meri | `eef2ee4b92aa6a16ae10225c3414794d5fb52a93` | 3 | `c77c601f74750a165582ae157d1e1dc9ecea1d14` |
+
+The cumulative non-document delta against `802bbd0b2c510a44e46a9952d8127e7edc55aaaa` is exactly 18 application/test/fixture paths plus nine root controls/data/CI paths. Each application blob and mode matches both its authored source and separately accepted integration. Five generic guard/test/runner files remain exact to accepted `8f`; only the four declared data/CI files evolve. The last delta beyond PR2421 is exactly three Meri files plus those four data/CI files.
+
+All five profile objects match their accepted snapshots, including ordered values, compatibility aliases, carrier digests and import/reference requirements. Their source-root union contains 2,199 tracked runtime files. Seven inventory rows exactly cover their public functions; the Meri row appends without altering the prior six rows. All original package scripts/dependencies are unchanged; five accepted aliases are added. CI preserves the accepted predecessor at each stage after removing only the corresponding new unconditional test step. The Phase1 alias retains its original `--run` operand and six syntax checks; it was inspected without execution.
+
+All 21,367 initial Git paths outside the delta are unchanged, including 9,697 documents. The original schema selector (`schema.prisma` suffix or `/migrations/` path) covers 603 unchanged paths. The broader non-document SQL/Prisma suffix selection covers 612 unchanged paths. The time guard's unchanged data/source spans 169 Strategy runtime files plus the canonical shared clock file, totaling 170. All prior deferred allowances remain byte-identical; no source or allowance expansion was introduced by this review.
+
+Sixteen committed checksum manifests verify 713 indexed entries, including the Tango/Strategy/Workspace master indices with 126/96/103 entries. Earlier root data/CI hashes in the Workspace review bind its exact accepted snapshot; later additions are separately proved as the coherent union. All original failed and passing evidence remains unchanged. The newsletter plan at `6d89253b4db7c2a1d792a9ff5605c61a84c6300a` retains exactly 35 document files and 34 indexed hashes, with zero application delta. Its 262-path original frontend family remains a source identity/owner boundary, not a backend restoration or proof about deployed assets.
+
+The final independent proof passes 59 source/evidence checks. The root-authored draft handoff, manifest and fresh evidence pass 44 additional checks; their read-only snapshots are retained. The root's 149 unit controls, five-profile/seven-helper checks and 170-file time result are qualified by their saved raw outputs. Full composed Core typing is root-reported exit zero in session 56061 with an empty raw log and cached declarations; this reviewer did not rerun it or the large application suites. Root's final publication master remains its own packaging step and can receive an append-only verification after publication.
+
+Three review-harness assumption failures are preserved: an overly broad schema count compared with the original 603 selector, omission of the shared clock from the time source count, and an overly literal handoff sentence assertion. They were corrected in the reviewer only; none identified a source defect. No product source, application behavior, unpublished reporting branch/body, provider, database, migration, native engine, hosted CI, package manager or closeout CLI was executed or edited. Native/full gates, frontend preservation implementation and wider Cleanup acceptance remain open.
