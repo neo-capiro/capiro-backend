@@ -1,3 +1,4 @@
+import { denyProspectTransfer } from '../prospect-resources/prospect-draft-access.js';
 // Approval Service — manages client-facing approval requests.
 // A document changed after approval becomes approval-stale.
 
@@ -31,7 +32,7 @@ export class ApprovalService {
     isStale: boolean;
   }> {
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
+      where: { prospectId: null, id: draftId, tenantId },
     });
     if (!draft) throw new NotFoundException('Draft not found');
 
@@ -81,6 +82,8 @@ export class ApprovalService {
     actorId: string,
     params: { versionId?: string; notes?: string; idempotencyKey?: string },
   ): Promise<{ requestId: string; status: string }> {
+    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+
     // Check for existing pending request.
     const existing = await this.prisma.wsApprovalRequest.findFirst({
       where: { tenantId, draftId, status: 'pending' },
@@ -121,6 +124,8 @@ export class ApprovalService {
     decision: 'approved' | 'rejected',
     note?: string,
   ): Promise<{ status: string }> {
+    denyProspectTransfer(await this.prisma.wsDraft.findFirst({ where: { tenantId: tenantId, id: draftId }, select: { prospectId: true } }));
+
     await this.collaborators.assertCan(tenantId, draftId, actorId, canReview);
 
     const request = await this.prisma.wsApprovalRequest.findFirst({

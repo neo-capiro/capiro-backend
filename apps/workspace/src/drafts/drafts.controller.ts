@@ -55,7 +55,7 @@ export class DraftsController {
    */
   @Post(':draftId/anonymize/detect')
   detectAnonymize(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
-    return this.drafts.detectAnonymizeNames(ctx.tenantId, draftId);
+    return this.drafts.detectAnonymizeNames(ctx.tenantId, draftId, ctx.clerkUserId);
   }
 
   @Delete(':id')

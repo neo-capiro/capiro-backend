@@ -119,7 +119,7 @@ export class ClientActivityService {
           select: { id: true, subject: true, startsAt: true, location: true },
         }),
         tx.engagementAttachment.findMany({
-          where: { tenantId: ctx.tenantId, clientId },
+          where: { prospectId: null, tenantId: ctx.tenantId, clientId },
           orderBy: { createdAt: 'desc' },
           take: limit,
           select: { id: true, fileName: true, createdAt: true, source: true },

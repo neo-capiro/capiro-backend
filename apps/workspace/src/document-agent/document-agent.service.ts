@@ -1144,7 +1144,7 @@ export class DocumentAgentService {
     predicate: (role: ResolvedRole) => boolean,
   ): Promise<DraftWithConfig> {
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
+      where: { prospectId: null, id: draftId, tenantId },
     });
     if (!draft) throw new NotFoundException('Draft not found');
     await this.collaborators.assertCan(

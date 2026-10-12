@@ -656,6 +656,18 @@ class AttachmentContextReadDto {
 class AttachmentUploadDto {
   @IsOptional()
   @IsUUID()
+  prospectId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  requestId?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(64, 64)
+  checksumSha256?: string;
+  @IsOptional()
+  @IsUUID()
   clientId?: string;
 
   @IsOptional()
@@ -681,6 +693,9 @@ class AttachmentUploadDto {
 }
 
 class ConfirmAttachmentDto {
+  @IsOptional()
+  @IsUUID()
+  prospectId?: string;
   @IsOptional()
   @IsUUID()
   clientId?: string;
@@ -2886,8 +2901,10 @@ export class EngagementController {
     @Query('meetingId') meetingId?: string,
     @Query('mailMessageId') mailMessageId?: string,
     @Query('unlinked') unlinked?: string,
+    @Query('prospectId') prospectId?: string,
   ) {
     return this.service.listAttachments(ctx, {
+      prospectId,
       clientId,
       meetingId,
       mailMessageId,

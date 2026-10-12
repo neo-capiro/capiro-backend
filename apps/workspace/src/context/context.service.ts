@@ -1,3 +1,4 @@
+import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
@@ -49,17 +50,21 @@ export class ContextService {
   }
 
   async listItems(tenantId: string, draftId: string, actorId?: string) {
-    await this.assertDraft(tenantId, draftId, actorId, canRead);
-    return this.prisma.wsContextItem.findMany({
-      where: { tenantId, draftId },
-      orderBy: { createdAt: 'asc' },
+    const draft = await this.assertDraft(tenantId, draftId, actorId, canRead);
+    return withProspectDraft(this.prisma, draft, actorId, canRead, 'read', async (db) => {
+      return db.wsContextItem.findMany({
+        where: { tenantId, draftId },
+        orderBy: { createdAt: 'asc' },
+      });
     });
   }
 
   async addItem(tenantId: string, draftId: string, dto: AddContextItemDto, actorId?: string) {
-    await this.assertDraft(tenantId, draftId, actorId, canEdit);
-    return this.prisma.wsContextItem.create({
-      data: { tenantId, draftId, kind: dto.kind, payload: dto.payload as never },
+    const draft = await this.assertDraft(tenantId, draftId, actorId, canEdit);
+    return withProspectDraft(this.prisma, draft, actorId, canEdit, 'write', async (db) => {
+      return db.wsContextItem.create({
+        data: { tenantId, draftId, kind: dto.kind, payload: dto.payload as never },
+      });
     });
   }
 
@@ -69,12 +74,14 @@ export class ContextService {
     itemId: string,
     actorId?: string,
   ): Promise<{ deleted: boolean }> {
-    await this.assertDraft(tenantId, draftId, actorId, canEdit);
-    const existing = await this.prisma.wsContextItem.findFirst({
-      where: { id: itemId, tenantId, draftId },
+    const draft = await this.assertDraft(tenantId, draftId, actorId, canEdit);
+    return withProspectDraft(this.prisma, draft, actorId, canEdit, 'write', async (db) => {
+      const existing = await db.wsContextItem.findFirst({
+        where: { id: itemId, tenantId, draftId },
+      });
+      if (!existing) throw new NotFoundException('Context item not found');
+      await db.wsContextItem.delete({ where: { id: itemId } });
+      return { deleted: true };
     });
-    if (!existing) throw new NotFoundException('Context item not found');
-    await this.prisma.wsContextItem.delete({ where: { id: itemId } });
-    return { deleted: true };
   }
 }

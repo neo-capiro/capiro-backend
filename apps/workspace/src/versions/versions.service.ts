@@ -1,3 +1,4 @@
+import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CollaboratorsService } from '../collaborators/collaborators.service.js';
@@ -48,15 +49,18 @@ export class VersionsService {
         'You do not have permission to access this document',
       );
     }
+    await assertProspectDraft(this.prisma, draft, actorId, predicate);
     return draft;
   }
 
   async list(tenantId: string, draftId: string, actorId?: string) {
-    await this.loadDraft(tenantId, draftId, actorId, canRead);
-    return this.prisma.wsDocVersion.findMany({
-      where: { tenantId, draftId },
-      orderBy: { createdAt: 'desc' },
-    });
+    const draft = await this.loadDraft(tenantId, draftId, actorId, canRead);
+    return withProspectDraft(this.prisma, draft, actorId, canRead, 'read', (db) =>
+      db.wsDocVersion.findMany({
+        where: { tenantId, draftId },
+        orderBy: { createdAt: 'desc' },
+      }),
+    );
   }
 
   /**
@@ -67,27 +71,34 @@ export class VersionsService {
   async create(tenantId: string, draftId: string, authorId: string, dto: CreateVersionDto) {
     // Snapshotting is a "Save draft" editor action — owner/editor only. authorId
     // is the acting user (the controller passes ctx.clerkUserId).
-    const draft = await this.loadDraft(tenantId, draftId, authorId, canEdit);
-    const snapshot = {
-      docTitle: draft.docTitle,
-      config: draft.config,
-      ask: draft.ask,
-      documents: draft.documents.map((d) => ({
-        id: d.id,
-        name: d.name,
-        ordinal: d.ordinal,
-        body: d.body,
-      })),
-    };
-    return this.prisma.wsDocVersion.create({
-      data: {
-        tenantId,
-        draftId,
-        label: dto.label ?? null,
-        authorId,
-        authorKind: dto.authorKind ?? 'person',
-        snapshot: snapshot as never,
-      },
+    let draft = await this.loadDraft(tenantId, draftId, authorId, canEdit);
+    return withProspectDraft(this.prisma, draft, authorId, canEdit, 'write', async (db) => {
+      if (draft.prospectId)
+        draft = await db.wsDraft.findFirstOrThrow({
+          where: { tenantId, id: draftId },
+          include: { documents: { orderBy: { ordinal: 'asc' } } },
+        });
+      const snapshot = {
+        docTitle: draft.docTitle,
+        config: draft.config,
+        ask: draft.ask,
+        documents: draft.documents.map((d) => ({
+          id: d.id,
+          name: d.name,
+          ordinal: d.ordinal,
+          body: d.body,
+        })),
+      };
+      return db.wsDocVersion.create({
+        data: {
+          tenantId,
+          draftId,
+          label: dto.label ?? null,
+          authorId,
+          authorKind: dto.authorKind ?? 'person',
+          snapshot: snapshot as never,
+        },
+      });
     });
   }
 
@@ -108,6 +119,7 @@ export class VersionsService {
 
     const snap = (version.snapshot as Snapshot) ?? {};
     await this.prisma.$transaction(async (tx) => {
+      await requireProspectDraftInTx(tx, draft, actorId, canEdit, 'write');
       await tx.wsDraft.update({
         where: { id: draftId },
         data: {
@@ -130,10 +142,12 @@ export class VersionsService {
       }
     });
 
-    return this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
-      include: { documents: { orderBy: { ordinal: 'asc' } } },
-    });
+    return withProspectDraft(this.prisma, draft, actorId, canRead, 'read', (db) =>
+      db.wsDraft.findFirst({
+        where: { id: draftId, tenantId },
+        include: { documents: { orderBy: { ordinal: 'asc' } } },
+      }),
+    );
   }
 }
 

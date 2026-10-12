@@ -24,7 +24,7 @@ export class MemoryPromotionService {
     note?: string,
   ): Promise<{ candidateId: string; status: string }> {
     const draft = await this.prisma.wsDraft.findFirst({
-      where: { id: draftId, tenantId },
+      where: { prospectId: null, id: draftId, tenantId },
       select: { id: true, product: true, docTitle: true, client: true },
     });
     if (!draft) throw new NotFoundException('Draft not found');

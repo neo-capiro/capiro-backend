@@ -106,27 +106,7 @@ export async function fetchDeniedClientIds(
  * with a grant. A client id that does not resolve in this tenant is DENIED
  * (fail-closed — the caller is asking about something it cannot name).
  */
-export async function clientMemoryAllowed(
-  tx: Tx,
-  tenantId: string,
-  userId: string | null,
-  clientId: string,
-): Promise<boolean> {
-  const rows = await tx.$queryRawUnsafe<Array<{ allowed: boolean }>>(
-    `SELECT (NOT c.memory_wall
-             OR ($3::uuid IS NOT NULL AND EXISTS (
-                   SELECT 1 FROM client_memory_access a
-                   WHERE a.tenant_id = c.tenant_id
-                     AND a.client_id = c.id
-                     AND a.user_id = $3::uuid))) AS allowed
-       FROM clients c
-      WHERE c.tenant_id = $1::uuid AND c.id = $2::uuid`,
-    tenantId,
-    clientId,
-    userId,
-  );
-  return rows[0]?.allowed === true;
-}
+export { clientMemoryAllowed } from '@capiro/shared';
 
 /**
  * Current client scope for a Clerk actor: visible, active client revisions for

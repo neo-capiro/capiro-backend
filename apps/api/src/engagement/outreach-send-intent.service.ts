@@ -1187,7 +1187,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     if (!attachmentIds.length) return { manifest: [], inlineAttachments: [] };
     const rows = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findMany({
-        where: { tenantId: ctx.tenantId, id: { in: attachmentIds } },
+        where: { tenantId: ctx.tenantId, prospectId: null, id: { in: attachmentIds } },
         select: OutreachSendIntentService.ATTACHMENT_SELECT,
       }),
     );
@@ -1281,7 +1281,7 @@ export class OutreachSendIntentService implements OnModuleInit, OnModuleDestroy 
     if (!manifest.length) return undefined;
     const rows = await this.prisma.withSystem((tx) =>
       tx.engagementAttachment.findMany({
-        where: { tenantId: ctx.tenantId, id: { in: manifest.map((m) => m.id) } },
+        where: { tenantId: ctx.tenantId, prospectId: null, id: { in: manifest.map((m) => m.id) } },
         select: OutreachSendIntentService.ATTACHMENT_SELECT,
       }),
     );

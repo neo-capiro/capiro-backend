@@ -796,7 +796,7 @@ export class EvidenceSourceService {
 
     const row = await this.prisma.withTenant(ctx.tenantId, (tx) =>
       tx.engagementAttachment.findFirst({
-        where: { id: attachmentId, tenantId: ctx.tenantId },
+        where: { id: attachmentId, tenantId: ctx.tenantId, prospectId: null },
       }),
     );
     if (!row) {

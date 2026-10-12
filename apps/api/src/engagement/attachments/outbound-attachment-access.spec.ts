@@ -146,6 +146,7 @@ describe('outbound attachment viewer and current-version boundary', () => {
       where: {
         tenantId: ctx.tenantId,
         id: { in: input.attachmentIds },
+        prospectId: null,
         supersededByAttachmentId: null,
         OR: [
           { viewerMode: 'all' },

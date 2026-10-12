@@ -1,3 +1,4 @@
+import { withProspectDraft, assertProspectDraft, denyProspectTransfer, requireProspectDraftInTx } from '../prospect-resources/prospect-draft-access.js';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
   Document,
@@ -400,6 +401,7 @@ export class ExportService {
         'You do not have access to this document',
       );
     }
+    await assertProspectDraft(this.prisma, draft, actorId);
     return draft;
   }
 
@@ -450,17 +452,16 @@ export class ExportService {
     const sections = (cfg.sections as string[] | undefined) ?? [];
     const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
     const letterhead = cfg.letterhead as
-      | { custom?: boolean; firmName?: string; firmAddr?: string; logoDataUrl?: string }
-      | undefined;
+      { custom?: boolean; firmName?: string; firmAddr?: string; logoDataUrl?: string } | undefined;
 
     // Theme settings from the Document Agent state (GAPS §17). The agent
     // stores its theme selection at config.documentAgent.theme.settings.
     // When present, paperColor / margins / pageSize are honored by the
     // export. This does NOT require theme CRUD (§15) — the theme is already
     // persisted on the draft's config blob via PATCH /agent.
-    const agentTheme = (cfg.documentAgent as
-      | { theme?: { settings?: Record<string, unknown> } }
-      | undefined)?.theme?.settings;
+    const agentTheme = (
+      cfg.documentAgent as { theme?: { settings?: Record<string, unknown> } } | undefined
+    )?.theme?.settings;
     const themePageSize = agentTheme?.pageSize === 'a4' ? 'A4' : 'LETTER';
     const themeMargins = (() => {
       const m = agentTheme?.margins;
@@ -625,6 +626,7 @@ export class ExportService {
       .replace(/[^a-z0-9]+/gi, '-')
       .replace(/^-+|-+$/g, '')
       .toLowerCase();
+    await assertProspectDraft(this.prisma, draft, actorId);
     return { filename: `${safeTitle || 'document'}.docx`, buffer };
   }
 
@@ -706,13 +708,12 @@ export class ExportService {
     const sections = (cfg.sections as string[] | undefined) ?? [];
     const content = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
     const letterhead = cfg.letterhead as
-      | { custom?: boolean; firmName?: string; firmAddr?: string; logoDataUrl?: string }
-      | undefined;
+      { custom?: boolean; firmName?: string; firmAddr?: string; logoDataUrl?: string } | undefined;
 
     // Theme settings from the Document Agent state (GAPS §17).
-    const agentTheme = (cfg.documentAgent as
-      | { theme?: { settings?: Record<string, unknown> } }
-      | undefined)?.theme?.settings;
+    const agentTheme = (
+      cfg.documentAgent as { theme?: { settings?: Record<string, unknown> } } | undefined
+    )?.theme?.settings;
     const themePageSize = agentTheme?.pageSize === 'a4' ? 'A4' : 'LETTER';
     const themeMargins = (() => {
       const m = agentTheme?.margins;
@@ -860,6 +861,7 @@ export class ExportService {
       .replace(/[^a-z0-9]+/gi, '-')
       .replace(/^-+|-+$/g, '')
       .toLowerCase();
+    await assertProspectDraft(this.prisma, draft, actorId);
     return { filename: `${safeTitle || 'document'}.pdf`, buffer };
   }
 

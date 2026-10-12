@@ -159,7 +159,7 @@ export class MeriJobDeliverablesService {
     if (deliverable.artifactId) {
       const existing = await this.prisma.withTenant(ctx.tenantId, (tx) =>
         tx.engagementAttachment.findFirst({
-          where: { id: deliverable.artifactId!, tenantId: ctx.tenantId, clientId: session.clientId },
+          where: { prospectId: null, id: deliverable.artifactId!, tenantId: ctx.tenantId, clientId: session.clientId },
           select: { id: true, fileName: true },
         }),
       );

@@ -5745,3 +5745,7 @@ export * from './schedule/time-zone';
 export * from './schedule/deadline';
 export * from './schedule/validate';
 export * from './schedule/synthesis';
+
+export * from './tenant-feature.js';
+export * from './client-memory-wall.js';
+export * from './prospect-resource-scope.js';

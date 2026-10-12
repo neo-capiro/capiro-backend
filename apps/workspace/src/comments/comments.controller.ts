@@ -13,7 +13,7 @@ export class CommentsController {
 
   @Get()
   list(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('documentId') documentId: string) {
-    return this.comments.list(ctx.tenantId, documentId);
+    return this.comments.list(ctx.tenantId, documentId, ctx.clerkUserId);
   }
 
   @Post()

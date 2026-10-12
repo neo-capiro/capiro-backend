@@ -21,7 +21,7 @@ export class CollaboratorsController {
   @Get()
   async list(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
     await this.collaborators.assertCan(ctx.tenantId, draftId, ctx.clerkUserId, canRead);
-    return this.collaborators.list(ctx.tenantId, draftId);
+    return this.collaborators.list(ctx.tenantId, draftId, ctx.clerkUserId);
   }
 
   @Post()
@@ -74,7 +74,7 @@ export class CollaboratorsController {
       canManageCollaborators,
       'Only the document owner can change roles',
     );
-    return this.collaborators.updateRole(ctx.tenantId, draftId, id, dto);
+    return this.collaborators.updateRole(ctx.tenantId, draftId, id, dto, ctx.clerkUserId);
   }
 
   @Delete(':id')
@@ -90,6 +90,6 @@ export class CollaboratorsController {
       canManageCollaborators,
       'Only the document owner can remove collaborators',
     );
-    return this.collaborators.remove(ctx.tenantId, draftId, id);
+    return this.collaborators.remove(ctx.tenantId, draftId, id, ctx.clerkUserId);
   }
 }

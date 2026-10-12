@@ -57,6 +57,7 @@ describe('canonical document extraction access', () => {
         id: 'doc-1',
         tenantId: ctx.tenantId,
         clientId: 'client-1',
+        prospectId: null,
         supersededByAttachmentId: null,
         OR: [
           { viewerMode: 'all' },

@@ -1,3 +1,5 @@
+import { createProspectDraft } from '../prospect-resources/prospect-draft-create.js';
+import { withProspectDraft, assertProspectDraft, assertImmutableProspectInput } from '../prospect-resources/prospect-draft-access.js';
 import {
   Injectable,
   NotFoundException,
@@ -39,7 +41,11 @@ export class DraftsService {
     ownerId: string,
     dto: CreateDraftDto,
     transaction?: Prisma.TransactionClient,
-  ) {
+  ): Promise<Prisma.WsDraftGetPayload<{ include: { documents: true } }>> {
+    if (dto.prospectId && !transaction)
+      return createProspectDraft(this.prisma, tenantId, ownerId, dto, (tx) =>
+        this.create(tenantId, ownerId, dto, tx),
+      );
     const db = transaction ?? this.prisma;
     const product = dto.product ?? '';
     const meta = product ? WSC.meta(product) : null;
@@ -76,6 +82,7 @@ export class DraftsService {
       data: {
         tenantId,
         ownerId,
+        prospectId: dto.prospectId ?? null,
         lastEditedById: ownerId, // creator is the first/last editor
         docTitle: dto.docTitle ?? (product ? `${product} draft` : 'Untitled draft'),
         industry: dto.industry ?? null,
@@ -241,6 +248,7 @@ export class DraftsService {
       const role = await this.collaborators.resolveRole(tenantId, id, actorId, signal);
       if (!role) throw new NotFoundException('Draft not found');
     }
+    await assertProspectDraft(this.prisma, draft, actorId);
     return draft;
   }
 
@@ -263,6 +271,7 @@ export class DraftsService {
 
     const where: Record<string, unknown> = { tenantId };
     if (q.sector) where.industry = q.sector;
+    if (q.prospectId) where.prospectId = q.prospectId;
     if (q.scope === 'mine') {
       where.ownerId = ownerId;
     } else if (q.scope === 'shared') {
@@ -289,6 +298,12 @@ export class DraftsService {
         industry: true,
         product: true,
         client: true,
+        prospectId: true,
+        versions: {
+          select: { id: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
         status: true,
         isPacket: true,
         docCount: true,
@@ -302,8 +317,15 @@ export class DraftsService {
     // Never reintroduce config. phase/qualityScore stay undefined on list;
     // status is the draft column (not agent run-status).
     const allowed = [];
-    for (const row of rows)
-      if (await this.collaborators.sourceAccess(tenantId, row.id, ownerId)) allowed.push(row);
+    for (const row of rows) {
+      if (!(await this.collaborators.sourceAccess(tenantId, row.id, ownerId))) continue;
+      try {
+        await assertProspectDraft(this.prisma, row, ownerId);
+        allowed.push(row);
+      } catch (error) {
+        if (!(error instanceof NotFoundException)) throw error;
+      }
+    }
     const drafts = allowed.map((row) => {
       const { config: _config, ...rest } = row as typeof row & { config?: unknown };
       return {
@@ -322,6 +344,7 @@ export class DraftsService {
    * rule. tenantId is checked first (no cross-tenant writes).
    */
   async update(tenantId: string, id: string, actorId: string, dto: UpdateDraftDto) {
+    assertImmutableProspectInput(dto);
     const existing = await this.prisma.wsDraft.findFirst({
       where: { id, tenantId },
       include: { documents: { select: { id: true } } },
@@ -357,22 +380,27 @@ export class DraftsService {
       ask = 'n/a';
     }
 
-    const updated = await this.prisma.wsDraft.update({
-      where: { id },
-      data: {
-        ...(dto.docTitle !== undefined ? { docTitle: dto.docTitle } : {}),
-        ...(dto.industry !== undefined ? { industry: dto.industry } : {}),
-        ...(dto.product !== undefined ? { product: dto.product } : {}),
-        ...(dto.client !== undefined ? { client: dto.client } : {}),
-        ...(dto.status !== undefined ? { status: dto.status } : {}),
-        lastEditedById: actorId, // stamp who last edited (for the Documents list)
-        config: mergedConfig as never,
-        ask: ask as never,
-        isPacket,
-        docCount,
-      },
+    return withProspectDraft(this.prisma, existing, actorId, canEdit, 'write', async (db) => {
+      const updated = await db.wsDraft.update({
+        where: { id },
+        data: {
+          ...(dto.docTitle !== undefined ? { docTitle: dto.docTitle } : {}),
+          ...(dto.industry !== undefined ? { industry: dto.industry } : {}),
+          ...(dto.product !== undefined ? { product: dto.product } : {}),
+          ...(dto.client !== undefined ? { client: dto.client } : {}),
+          ...(dto.status !== undefined ? { status: dto.status } : {}),
+          lastEditedById: actorId, // stamp who last edited (for the Documents list)
+          config: mergedConfig as never,
+          ask: ask as never,
+          isPacket,
+          docCount,
+        },
+      });
+      return db.wsDraft.findFirstOrThrow({
+        where: { tenantId, id: updated.id },
+        include: { documents: { orderBy: { ordinal: 'asc' } } },
+      });
     });
-    return this.byId(tenantId, updated.id);
   }
 
   /**
@@ -381,9 +409,10 @@ export class DraftsService {
    * The web modal lets the user approve/reject + set scope/replacement per item;
    * this only surfaces the candidates and their occurrence counts.
    */
-  async detectAnonymizeNames(tenantId: string, id: string) {
+  async detectAnonymizeNames(tenantId: string, id: string, actorId?: string) {
     const draft = await this.prisma.wsDraft.findFirst({ where: { id, tenantId } });
     if (!draft) throw new NotFoundException('Draft not found');
+    await assertProspectDraft(this.prisma, draft, actorId);
     const cfg = draft.config as Record<string, unknown>;
     const sectionContent = (cfg.sectionContent as Record<string, string> | undefined) ?? {};
     const sections = (cfg.sections as string[] | undefined) ?? [];
@@ -410,7 +439,9 @@ export class DraftsService {
       canEdit,
       'Only owners and editors can delete this document',
     );
-    await this.prisma.wsDraft.delete({ where: { id } });
+    await withProspectDraft(this.prisma, existing, actorId, canEdit, 'read', (db) =>
+      db.wsDraft.delete({ where: { id } }),
+    );
     return { deleted: true };
   }
 }

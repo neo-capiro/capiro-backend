@@ -21,7 +21,7 @@ export class DocumentsController {
 
   @Get()
   list(@CurrentTenant() ctx: WorkspaceTenantContext, @Param('draftId') draftId: string) {
-    return this.documents.list(ctx.tenantId, draftId);
+    return this.documents.list(ctx.tenantId, draftId, ctx.clerkUserId);
   }
 
   @Get(':docId/meri-import')

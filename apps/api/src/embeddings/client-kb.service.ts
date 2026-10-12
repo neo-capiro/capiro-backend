@@ -107,7 +107,7 @@ export class ClientKbService {
         : { OR: [{ scanStatus: null }, { scanStatus: { not: 'threat' } }] }),
     };
     const rows = await tx.engagementAttachment.findMany({
-      where: { tenantId, clientId, supersededByAttachmentId: null,
+      where: { prospectId: null, tenantId, clientId, supersededByAttachmentId: null,
         ...readinessFilter,
         AND: [
           { OR: [{ viewerMode: 'all' }, { viewerMode: 'restricted', viewerUserIds: { has: userId } },
@@ -290,7 +290,7 @@ export class ClientKbService {
   async indexAttachment(tenantId: string, attachmentId: string): Promise<void> {
     const attachment = await this.prisma.withTenant(tenantId, (tx) =>
       tx.engagementAttachment.findFirst({
-        where: { id: attachmentId },
+        where: { prospectId: null, id: attachmentId },
         select: {
           id: true,
           clientId: true,
@@ -459,7 +459,7 @@ export class ClientKbService {
               viewer_mode AS "viewerMode", lifecycle_status AS "lifecycleStatus",
               scan_status AS "scanStatus", superseded_by_attachment_id AS "supersededByAttachmentId",
               file_name AS "fileName", content_type AS "contentType"
-        FROM engagement_attachments WHERE tenant_id = $1::uuid AND id = $2::uuid FOR UPDATE`,
+        FROM engagement_attachments WHERE tenant_id = $1::uuid AND id = $2::uuid AND prospect_id IS NULL FOR UPDATE`,
       tenantId, snapshot.id,
     );
     const current = attachments[0];
@@ -624,7 +624,7 @@ export class ClientKbService {
     }
     const docs = await this.prisma.withTenant(tenantId, (tx) =>
       tx.engagementAttachment.findMany({
-        where: { clientId },
+        where: { prospectId: null, clientId },
         orderBy: { createdAt: 'desc' },
         select: { id: true },
       }),

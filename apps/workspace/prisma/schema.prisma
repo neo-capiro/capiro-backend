@@ -66,6 +66,8 @@ model WsDraft {
   industry  String?
   product   String?
   client    String?
+  // Canonical immutable Core origin; free-text client never grants authority.
+  prospectId String? @map("prospect_id") @db.Uuid
   status    WsDocStatus @default(draft)
   // Packet derivation (handoff §12.10): isPacket = coverLetter || documents>1.
   isPacket  Boolean     @default(false) @map("is_packet")
@@ -92,6 +94,7 @@ model WsDraft {
   guestComments WsGuestComment[]
 
   @@index([tenantId])
+  @@index([tenantId, prospectId, updatedAt], map: "ws_draft_prospect_idx")
   @@index([tenantId, ownerId])
   @@index([tenantId, updatedAt])
 
@@ -806,4 +809,19 @@ model WsHillDayExport {
 
   @@index([tenantId, documentId])
   @@map("ws_hillday_export")
+}
+
+/// Workspace-owned create receipt; survives draft deletion (no cascading FK).
+model WsProspectDraftReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  ownerId String @map("owner_id")
+  requestId String @map("request_id") @db.Uuid
+  prospectId String @map("prospect_id") @db.Uuid
+  inputHash String @map("input_hash") @db.VarChar(64)
+  draftId String @map("draft_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@unique([tenantId, ownerId, requestId], map: "ws_prospect_draft_receipt_request_key")
+  @@index([tenantId, prospectId], map: "ws_prospect_draft_receipt_prospect_idx")
+  @@map("ws_prospect_draft_receipt")
 }

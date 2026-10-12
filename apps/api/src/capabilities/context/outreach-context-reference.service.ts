@@ -406,6 +406,7 @@ export class OutreachContextReferenceService {
       where: {
         id: locator.id,
         tenantId: ctx.tenantId,
+        prospectId: null,
         supersededByAttachmentId: null,
       },
       select: {
