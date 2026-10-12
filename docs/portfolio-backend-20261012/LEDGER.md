@@ -74,3 +74,20 @@ before byte/provider calls; actor signature sanitization/opt-out; provider ambig
 without retry/persistence; DTO wire compatibility; safe mailbox projection. Run
 retained reply, attachment, provider and thread-dedup suites on the exact candidate.
 Report type/build/tooling failures and live gates separately.
+
+## Final candidate intersections
+
+`candidate-paths.json` recomputes actual sender candidate intersections after code
+and route-manifest generation. The sender has **one Cleanup overlap**:
+`apps/api/src/engagement/__fixtures__/engagement-route-manifest.v1.json`. Comparing
+manifest semantics without `sourceLine`, Cleanup changes no routes relative to main;
+this sender adds exactly `GET /api/engagement/mail/mailboxes` with no other semantic
+changes. Regenerate that artifact from combined source during future integration;
+do not select one side by overwriting another owner's generated evidence. This
+small overlap does not make the candidate dependent on Cleanup's release gate.
+
+Sender has no facility/stage/contact/objective changed-path intersections. The
+Engagement overlaps are the intentionally preserved prerequisites; both original
+PR branches remain unchanged. The facility reconciliation branch contains only
+PR2373's eight source/document paths plus new qualification documents. Its source
+is unchanged from PR2373, with the complete current Cleanup lifecycle prerequisite.
