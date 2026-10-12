@@ -1,0 +1,34 @@
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:101: trailing whitespace.
++  
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:114: trailing whitespace.
++  
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:133: trailing whitespace.
++  
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:186: trailing whitespace.
++  
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:205: trailing whitespace.
++  
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/01-pure-plan-controls.log:277: trailing whitespace.
++  
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/02-pure-plan-controls-repaired.log:101: trailing whitespace.
++  
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/02-pure-plan-controls-repaired.log:103: trailing whitespace.
++  
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/09-frozen-source-whitespace.log:2: trailing whitespace.
+++const full=JSON.parse(JSON.stringify(vm.runInNewContext(oldArray+'\nsteps;',context,{timeout:1000}))); 
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:8: trailing whitespace.
++ 
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:94: trailing whitespace.
++ 
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:106: trailing whitespace.
++ 
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:109: trailing whitespace.
++ 
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:128: trailing whitespace.
++ 
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:139: trailing whitespace.
++ 
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase2-original-adoption.patch:144: trailing whitespace.
++ 
+docs/cleanup-retirement-engagement-verification-integration-20261012/evidence/phase3-plan.spec.realm-repaired.mjs:19: trailing whitespace.
++const full=JSON.parse(JSON.stringify(vm.runInNewContext(oldArray+'\nsteps;',context,{timeout:1000}))); 

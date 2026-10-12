@@ -1,0 +1,5 @@
+# Preserved full whitespace qualification limit
+
+After source publication, a read-only direct invocation matching the current whitespace path exclusions was executed: `git diff --check 5470c6df029c9553dd49e531229c3c91b26275ef 0d0dc81566d9186c23feb8c84c977a04b14b843c -- . ':(exclude)docs/plans/**/*.md'`. It returned exit2 with17 warnings in preserved raw failure logs, original patch context and a historical failed fixture snapshot. The complete raw output is `evidence/18-current-full-whitespace-floor.log`. All eight final qualification source paths separately pass whitespace.
+
+This does not change the current full verifier's floor, exclusions, raw evidence or application source. The100/105 pure fake-plan proofs establish preserved command sequencing and scoped marker behavior; they do not claim an actual full verifier is green. Root's source-neutral evidence reconciliation may choose an independently checked byte-preserving encoding/archive, but no broad whitespace exemption or gate weakening is implemented here. All failed original bytes and original commits remain preserved. Actual verifier/build/native execution is still unrun.
