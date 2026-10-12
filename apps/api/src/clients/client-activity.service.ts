@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { TenantContext } from '@capiro/shared';
 import { isISO8601 } from 'class-validator';
 import type { Prisma } from '@prisma/client';
+import { clientMemoryAllowed } from '../memory/memory-wall.helpers.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EngagementService } from '../engagement/engagement.service.js';
 import { ownMeetingWhere, ownOutreachRecordWhere } from '../engagement/engagement-access.helpers.js';
@@ -97,6 +98,7 @@ export class ClientActivityService {
     const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 500) : 200;
 
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.requireClientWall(tx, ctx, clientId);
       const client = await tx.client.findFirst({
         where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
         select: { id: true },
@@ -229,6 +231,11 @@ export class ClientActivityService {
     });
   }
 
+  private async requireClientWall(tx: Prisma.TransactionClient, ctx: TenantContext, clientId: string) {
+    if (!await clientMemoryAllowed(tx, ctx.tenantId, ctx.userId ?? null, clientId))
+      throw new NotFoundException('Client not found');
+  }
+
   private validateCreate(input: CreateActivityInput) {
     if (!RECORDABLE_KINDS.includes(input.kind)) {
       // meeting/document/outreach are owned by their own features; letting the
@@ -258,6 +265,7 @@ export class ClientActivityService {
     input: CreateActivityInput,
   ) {
     this.validateCreate(input);
+    await this.requireClientWall(tx, ctx, clientId);
     const client = await tx.client.findFirst({
       where: { id: clientId, tenantId: ctx.tenantId, status: { not: 'archived' } },
       select: { id: true },
@@ -304,6 +312,7 @@ export class ClientActivityService {
     input: { pinned?: boolean; settled?: boolean; title?: string; body?: string | null },
   ) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.requireClientWall(tx, ctx, clientId);
       const existing = await tx.clientActivity.findFirst({
         where: { id, tenantId: ctx.tenantId, clientId },
         select: { id: true, dueAt: true },
@@ -330,6 +339,7 @@ export class ClientActivityService {
 
   async remove(ctx: TenantContext, clientId: string, id: string) {
     return this.prisma.withTenant(ctx.tenantId, async (tx) => {
+      await this.requireClientWall(tx, ctx, clientId);
       const result = await tx.clientActivity.deleteMany({
         where: { id, tenantId: ctx.tenantId, clientId },
       });

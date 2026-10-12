@@ -16568,7 +16568,7 @@ model ClientActivityCommand {
   updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade)
+  client Client @relation(fields: [tenantId, clientId], references: [tenantId, id], onDelete: Cascade, map: "client_activity_commands_client_fk")
 
   @@unique([tenantId, actorUserId, clientId, requestId], map: "client_activity_commands_request_key")
   @@map("client_activity_commands")

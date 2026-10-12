@@ -232,7 +232,7 @@ export class ActivityCommandService {
   private receipt({ row, issue }: Snapshot, remote?: PlannerResult) {
     const taskAvailable = !issue && remote?.kind === 'found' && remote.taskId === row.taskId;
     const remoteIssue = row.taskId && !taskAvailable ? 'planner_receipt_unavailable' : null;
-    const reason = issue ?? remoteIssue ?? row.errorCode;
+    const reason = issue ?? remoteIssue ?? (row.status === 'completed' ? null : row.errorCode);
     return {
       receiptVersion: 1,
       commandId: row.id,

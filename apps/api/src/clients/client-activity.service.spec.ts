@@ -5,7 +5,7 @@ import { ClientActivityService } from './client-activity.service.js';
 describe('Manual activity occurrence dates', () => {
   const ctx = { tenantId: 'tenant-1', userId: 'user-1' } as TenantContext;
   function setup() {
-    const tx = { client: { findFirst: jest.fn<() => Promise<unknown>>().mockResolvedValue({ id: 'client-1' }) },
+    const tx = { $queryRawUnsafe: jest.fn<() => Promise<unknown>>().mockResolvedValue([{ allowed: true }]), client: { findFirst: jest.fn<() => Promise<unknown>>().mockResolvedValue({ id: 'client-1' }) },
       clientActivity: { create: jest.fn<(value: unknown) => Promise<unknown>>().mockImplementation(async (value) => value) } };
     const prisma = { withTenant: jest.fn(async (_tenant: string, callback: (tx: unknown) => unknown) => callback(tx)) };
     return { service: new ClientActivityService(prisma as never, {} as never), tx, prisma };
@@ -30,6 +30,7 @@ describe('Manual activity occurrence dates', () => {
 describe('ClientActivityService email history', () => {
   test('includes client-associated synced mail threads in relationship history', async () => {
     const tx = {
+      $queryRawUnsafe: jest.fn<() => Promise<unknown>>().mockResolvedValue([{ allowed: true }]),
       client: { findFirst: jest.fn() },
       clientActivity: { findMany: jest.fn() },
       meeting: { findMany: jest.fn() },
