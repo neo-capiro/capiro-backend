@@ -1,0 +1,157 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "tree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "verifiedArchiveFiles": 36,
+  "packet": [
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/ACCEPTANCE.json",
+      "bytes": 3859,
+      "sha256": "1a088ff1545762cd6ebc8e0bc08c4e08b53696737f0e3bc5ed9461cba2eb74fa"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/COMMANDS.json",
+      "bytes": 1916,
+      "sha256": "0465cc3002f851ec4febfc90f1eafee5f0bcd7dcbb1f29841a8d7b506d4ca7d6"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/HANDOFF.md",
+      "bytes": 4041,
+      "sha256": "5ea764070d0104d56c6679453a5bdd2d1fef52476082c3a500b38a9009cb7ca1"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/READ-ATTEMPTS.json",
+      "bytes": 789,
+      "sha256": "363928e970a88f1a9013ab9df546dba9487aacc0e87f23e95e9b6acde954b785"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/REVIEW-PLAN.md",
+      "bytes": 2668,
+      "sha256": "9dbd5cae09fca68b630f05c90421b72a938358229aa1499f22e80db1e9154f1d"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/capture-locked-baseline.cjs",
+      "bytes": 2829,
+      "sha256": "45b7877221ef91dd683edf4023dcf03183298ac4955daa9dc3913031ae19ef6c"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/exact-parser-runtime.json",
+      "bytes": 3745,
+      "sha256": "54a928dfd4f1019da4dbd1f3bfb469f13ff5f6eed5f1a2068afe69fcb88d33f7"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/exact-parser-runtime.tap",
+      "bytes": 1001,
+      "sha256": "c07d37b0a5baab78149f79097765980ca9578875e230e7a9bc4533e8420003ab"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/exact-parser-runtime.test.cjs",
+      "bytes": 10770,
+      "sha256": "94e2cb011f9adf0e3076a5012a0264fe0aef924e0a14a3e7b3f1022cb4cc56b8"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/locked-baseline.json",
+      "bytes": 4172,
+      "sha256": "b632c30799e06935008301d967109c4dd2a805889a4deda4d3103052b09da536"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/locked-baseline.log",
+      "bytes": 225,
+      "sha256": "c491a8d008814b990886ba4232c6a1e863a5fde9e7797cc1348603fc6d43862d"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/official-exact-parser-metadata.json",
+      "bytes": 4005,
+      "sha256": "c19e498a98ef6a0e8af665cfd1c30746f78e9041ff5c09b975399eda42244a28"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/own-packet-whitespace.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/registry-cache-proof.json",
+      "bytes": 8320,
+      "sha256": "7148d111ebc09ac6ad97a03a43aae1569133b39d4cd95e5e0b8e37536df1c91c"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/registry-cache-proof.log",
+      "bytes": 143,
+      "sha256": "9e003cf9a4d8f9f9f66957b69a2d07e39c5c17a96dd7cfb44717a838323845ad"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/root-core-full-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/root-dependency-host.json",
+      "bytes": 1479,
+      "sha256": "6415c3c75ee1792b48edd1b0dcff79e7872f618150d0ee8e396f21006683bd82"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/root-parser-typeconfig.json",
+      "bytes": 812,
+      "sha256": "2de8da626f0e9cbd330b0d2715f0318ee7a3143f33e5e94915a3d24eb8b3185c"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/root-registry-fetch.log",
+      "bytes": 1645,
+      "sha256": "2ce0abf473ffa722784b67d9d9ce06743372c43e5783e46fe86713ba36b2afb8"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/root-registry-integrity.json",
+      "bytes": 1645,
+      "sha256": "2ce0abf473ffa722784b67d9d9ce06743372c43e5783e46fe86713ba36b2afb8"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/root-typing-receipt-initial.json",
+      "bytes": 1864,
+      "sha256": "7edea06aace6d876b8372c0ccd1b496d8a1f778599c7fdb1e3a7dac54112e925"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/root-typing-receipt.json",
+      "bytes": 1864,
+      "sha256": "7edea06aace6d876b8372c0ccd1b496d8a1f778599c7fdb1e3a7dac54112e925"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/root-workspace-full-types.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/typing-proof-initial.json",
+      "bytes": 2208,
+      "sha256": "64078b7382ec355638cba4ad8aa4f80f13e9e6e7f2bbaf6a5035ad9f187b3e9a"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/typing-proof-initial.log",
+      "bytes": 208,
+      "sha256": "46449fa4f71cc178fb676c2d2cf69603fc1a5cc73a9ccdaa4454efdca13f23e5"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/typing-proof.json",
+      "bytes": 2208,
+      "sha256": "bf249f27841b43a00e4c52ddbe75916922b0c256de3b7565e0d9d574dac967aa"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/typing-proof.log",
+      "bytes": 208,
+      "sha256": "46449fa4f71cc178fb676c2d2cf69603fc1a5cc73a9ccdaa4454efdca13f23e5"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/verify-index.py",
+      "bytes": 738,
+      "sha256": "5223c095fd9b2a2e7d292dfb90e723f343ca1bbb86f8c886dac0fd954262d9d4"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/verify-registry-cache.py",
+      "bytes": 5818,
+      "sha256": "47b29754c770d26cd8c09b355505b08249ccdad3ba71996f3ceee048b955e44e"
+    },
+    {
+      "path": "docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/verify-typing-receipt.cjs",
+      "bytes": 4245,
+      "sha256": "3bda5feca9f8f812c9df32fdd07da9e7e8eb59d8a58fc1f140aa414242c4a7f1"
+    }
+  ]
+}

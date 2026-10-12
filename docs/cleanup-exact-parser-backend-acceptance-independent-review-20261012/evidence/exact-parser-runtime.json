@@ -1,0 +1,149 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "parserVersion": "8.0.2",
+  "parserDirectory": "/tmp/capirov2-workspace-parser-acceptance-cache-20261012/htmlparser2-8.0.2/package",
+  "actualParserCjsEsmNotMocked": true,
+  "sanitizerVersion": "2.17.7",
+  "metadataOwnerSha256": "b97e2576af793606dc4715d189b8a4dfee613a9cb501b0a1ba319cc564a05881",
+  "transportPolicyOwnerSha256": "54b771e0c7c87e2ed36571d9f2fe4b76532f4943c07c0c5de80dd4ed117e08ac",
+  "selectedMetadataFunctionsSha256": "74541978c80fafaf1d889e3e770d2ddfaf5292b6bc9ae6d852c00f66eecc90e4",
+  "selectedUrlPolicySha256": "cc7503c19b574c8e23cbc7358b151ff20430247de3907e685e9e6dddc0f03bce",
+  "checks": 33,
+  "results": [
+    {
+      "name": "CJS runtime entry",
+      "passed": true
+    },
+    {
+      "name": "runtime domelementtype",
+      "passed": true
+    },
+    {
+      "name": "runtime domhandler",
+      "passed": true
+    },
+    {
+      "name": "runtime domutils",
+      "passed": true
+    },
+    {
+      "name": "runtime entities",
+      "passed": true
+    },
+    {
+      "name": "cached dom-serializer",
+      "passed": true
+    },
+    {
+      "name": "open lower-case and decoded attr",
+      "passed": true
+    },
+    {
+      "name": "chunked decoded text",
+      "passed": true
+    },
+    {
+      "name": "close callback",
+      "passed": true
+    },
+    {
+      "name": "XML real parser",
+      "passed": true
+    },
+    {
+      "name": "OpenGraph first entry and decode",
+      "passed": true
+    },
+    {
+      "name": "Twitter metadata fallback",
+      "passed": true
+    },
+    {
+      "name": "blank OG falls through to actual title",
+      "passed": true
+    },
+    {
+      "name": "body/script/base exclusion",
+      "passed": true
+    },
+    {
+      "name": "text sanitation removes embedded script contents",
+      "passed": true
+    },
+    {
+      "name": "control whitespace collapsed",
+      "passed": true
+    },
+    {
+      "name": "title limit",
+      "passed": true
+    },
+    {
+      "name": "description limit",
+      "passed": true
+    },
+    {
+      "name": "no metadata hostname",
+      "passed": true
+    },
+    {
+      "name": "plain input limit",
+      "passed": true
+    },
+    {
+      "name": "unsafe image https://127.0.0.1/x.png",
+      "passed": true
+    },
+    {
+      "name": "unsafe image http://news.example/x.png",
+      "passed": true
+    },
+    {
+      "name": "unsafe image data:image/png;base64,AA",
+      "passed": true
+    },
+    {
+      "name": "unsafe image https://name:secret@news.example/x.png",
+      "passed": true
+    },
+    {
+      "name": "unsafe image //local.internal/x.png",
+      "passed": true
+    },
+    {
+      "name": "unsafe image https://[::1]/x.png",
+      "passed": true
+    },
+    {
+      "name": "unsafe source http://news.example",
+      "passed": true
+    },
+    {
+      "name": "unsafe source https://127.0.0.1/a",
+      "passed": true
+    },
+    {
+      "name": "unsafe source https://local.internal/a",
+      "passed": true
+    },
+    {
+      "name": "unsafe source https://name:secret@news.example/a",
+      "passed": true
+    },
+    {
+      "name": "CJS/ESM leaf equality <head><title>Policy &amp; action</title></head>",
+      "passed": true
+    },
+    {
+      "name": "CJS/ESM leaf equality <head><meta property=\"og:title\" content=\"&lt;b&gt;Title&lt;/b&gt;\"><meta name=\"description\" content=\"Short\"></head>",
+      "passed": true
+    },
+    {
+      "name": "CJS/ESM leaf equality <html></html>",
+      "passed": true
+    }
+  ],
+  "applicationServiceGraphImported": false,
+  "realDownloadProviderDatabaseNativeEngineCalls": 0,
+  "scope": "Actual locked8 CJS/ESM parser and existing source-selected pure leaves; URL policy computed in memory, no transport or service constructor"
+}

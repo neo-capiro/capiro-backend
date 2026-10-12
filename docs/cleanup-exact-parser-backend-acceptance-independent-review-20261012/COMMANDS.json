@@ -1,0 +1,40 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "commands": [
+    {
+      "command": "node docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/capture-locked-baseline.cjs",
+      "cwd": "reviewer repository root",
+      "exit": 0,
+      "log": "evidence/locked-baseline.log",
+      "scope": "Read-only Git/lock source capture"
+    },
+    {
+      "command": "python3 docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/verify-registry-cache.py",
+      "exit": 0,
+      "log": "evidence/registry-cache-proof.log",
+      "scope": "Local archived tar/metadata/extracted bytes and tracked source; no download or execution"
+    },
+    {
+      "command": "node --test docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/exact-parser-runtime.test.cjs",
+      "exit": 0,
+      "log": "evidence/exact-parser-runtime.tap",
+      "scope": "Actual exact Parser CJS/ESM with original pure leaves, synthetic inputs"
+    },
+    {
+      "command": "node docs/cleanup-exact-parser-backend-acceptance-independent-review-20261012/evidence/verify-typing-receipt.cjs",
+      "exit": 0,
+      "log": "evidence/typing-proof.log",
+      "scope": "Config/source-list/argv/log binding only; no compiler rerun"
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit": 0,
+      "log": "evidence/own-packet-whitespace.log",
+      "scope": "Own new independent packet only; no raw prior evidence trims or broader full gate waiver"
+    }
+  ],
+  "rootCompilerCommandsAndToolZeroExits": "evidence/root-typing-receipt.json",
+  "allRuntimeInputsSynthetic": true,
+  "rootOwnsAllPublicationAndOtherLocalGates": true,
+  "typingReceiptWordingRebind": "Initial exact receipt/proof retained; updated receipt specifies additionalTypeDiagnosticSuppression=false/canonicalSkipLibCheck=true. Validator rebind only, no compiler/parser rerun."
+}

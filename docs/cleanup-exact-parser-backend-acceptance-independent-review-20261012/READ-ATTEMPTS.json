@@ -1,0 +1,22 @@
+{
+  "classification": "Initial read-only path lookup errors; no compiler/test/provider/native failure",
+  "attempts": [
+    {
+      "path": "packages/workspace/package.json",
+      "result": "Absent; actual owner is apps/workspace/package.json"
+    },
+    {
+      "path": "apps/workspace/jest.config.ts",
+      "result": "Absent; actual canonical file is jest.config.cjs"
+    },
+    {
+      "path": "apps/workspace/src/newsletters/newsletter-html-check.ts",
+      "result": "Absent; actual service filename includes .service.ts"
+    },
+    {
+      "path": "docs/cleanup-newsletter-two-contract-source-preservation-20261012/tsconfig.workspace-source.host.json",
+      "result": "Absent; actual inherited file is .host-repaired.json"
+    }
+  ],
+  "productionSourceAlteredToResolve": false
+}

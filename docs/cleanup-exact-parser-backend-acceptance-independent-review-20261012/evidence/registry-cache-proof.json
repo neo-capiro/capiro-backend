@@ -1,0 +1,227 @@
+{
+  "source": "61e9b467295235829e7d8097368ce41b0434818a",
+  "sourceTree": "6b49311aae5c26e31101c31a07ae2fc7865af3df",
+  "registryReceiptSha256": "2ce0abf473ffa722784b67d9d9ce06743372c43e5783e46fe86713ba36b2afb8",
+  "dependencyReceiptSha256": "6415c3c75ee1792b48edd1b0dcff79e7872f618150d0ee8e396f21006683bd82",
+  "metadataSha256": "c19e498a98ef6a0e8af665cfd1c30746f78e9041ff5c09b975399eda42244a28",
+  "tarballSha256": "7913fb842d292726d2b1b1fdd0ca8fb86be41c63efe06a15064c728353274966",
+  "lockRegistryActualSHA512Exact": "sha512-GYdjWKDkbRLkZ5geuHs5NY1puJ+PXwP7+fHPRz06Eirsb9ugf6d8kkXav6ADhcODhFFPMIXyxkxSuMf3D6NCFA==",
+  "tarballBytes": 38519,
+  "archiveFiles": [
+    {
+      "archivePath": "package/LICENSE",
+      "bytes": 1104,
+      "sha256": "204cfa747341660e4da64cd23e8c876c6b20279d247f48564993d3fc4a2eab47"
+    },
+    {
+      "archivePath": "package/lib/esm/index.js",
+      "bytes": 2292,
+      "sha256": "e6aeb9c7270ca4033a3681b3f61e2634cded0259d5e91262602af34cb0be0800"
+    },
+    {
+      "archivePath": "package/lib/index.js",
+      "bytes": 4606,
+      "sha256": "d76fda50bb12cd232e6e968df7208630c37ef6aca9bd45666e433988f24e2344"
+    },
+    {
+      "archivePath": "package/lib/esm/Parser.js",
+      "bytes": 16590,
+      "sha256": "34b0e4921b52a6726826db943748c8bc7b9e0ae4a4c28ae39b95367ce0027523"
+    },
+    {
+      "archivePath": "package/lib/Parser.js",
+      "bytes": 18820,
+      "sha256": "cd5912979dfdc17c1725ea2e0ca239417d71e456aa38c59776580ba6309f6140"
+    },
+    {
+      "archivePath": "package/lib/esm/Tokenizer.js",
+      "bytes": 35078,
+      "sha256": "1fbb10c17a7fa4c2a4cfd1939948f61d063f7f21d6194318cc2d5b1765e87732"
+    },
+    {
+      "archivePath": "package/lib/Tokenizer.js",
+      "bytes": 37017,
+      "sha256": "b43d15d0884f341b318274122a978e24d40335ba4e657b6d426c1c22d394742c"
+    },
+    {
+      "archivePath": "package/lib/esm/WritableStream.js",
+      "bytes": 1050,
+      "sha256": "b2316fb7ab0d9a18a6a7bb9b55c4afa19be6f480c987231db286c9c27961996e"
+    },
+    {
+      "archivePath": "package/lib/WritableStream.js",
+      "bytes": 2258,
+      "sha256": "28483e30c6ad1b457e3ddd7289a47f3c036f0cd7f58850dc85895b107de194f0"
+    },
+    {
+      "archivePath": "package/lib/esm/package.json",
+      "bytes": 18,
+      "sha256": "1239d4d885dcad42201a27ed9324f8f0f760b78700d8db9ced39a511cffe7eae"
+    },
+    {
+      "archivePath": "package/package.json",
+      "bytes": 2917,
+      "sha256": "59a1ccf2ff631d6c789aab23076f531299100f7d63d3e0b2102c179ff79b8d6b"
+    },
+    {
+      "archivePath": "package/lib/esm/index.d.ts.map",
+      "bytes": 1236,
+      "sha256": "a23eba7ec5f16530825f02d46f231e2db5460967edf1dbafb4fd1d89c532cb9f"
+    },
+    {
+      "archivePath": "package/lib/index.d.ts.map",
+      "bytes": 1236,
+      "sha256": "a23eba7ec5f16530825f02d46f231e2db5460967edf1dbafb4fd1d89c532cb9f"
+    },
+    {
+      "archivePath": "package/lib/esm/index.js.map",
+      "bytes": 1371,
+      "sha256": "143139fe5e586f27f16ef6c6deb0a4bb05d2418292171cb445fddcb299389601"
+    },
+    {
+      "archivePath": "package/lib/index.js.map",
+      "bytes": 1284,
+      "sha256": "1e662ae80b72777c71090cf1fb1b8016af96e5a2a4adc206b5271ffa87bd66e9"
+    },
+    {
+      "archivePath": "package/lib/esm/Parser.d.ts.map",
+      "bytes": 3698,
+      "sha256": "325bb013abd0f47f6a4491c2a72adf25464dedb7b9407b84fea130eb61463199"
+    },
+    {
+      "archivePath": "package/lib/Parser.d.ts.map",
+      "bytes": 3698,
+      "sha256": "325bb013abd0f47f6a4491c2a72adf25464dedb7b9407b84fea130eb61463199"
+    },
+    {
+      "archivePath": "package/lib/esm/Parser.js.map",
+      "bytes": 14618,
+      "sha256": "e69204f6369133e93c15adfaed79cdc855d4a494d24298719d1377d25502e265"
+    },
+    {
+      "archivePath": "package/lib/Parser.js.map",
+      "bytes": 14832,
+      "sha256": "b9d39d738e3095c2fb8c2785df63f656aa7ced37354e1e322278eac1d1d4fd2c"
+    },
+    {
+      "archivePath": "package/lib/esm/Tokenizer.d.ts.map",
+      "bytes": 3254,
+      "sha256": "38c00e5b7330cb68c9db98cd9fdee512ffe8fe16b89bcb72b89a4b2d3b9d7410"
+    },
+    {
+      "archivePath": "package/lib/Tokenizer.d.ts.map",
+      "bytes": 3254,
+      "sha256": "38c00e5b7330cb68c9db98cd9fdee512ffe8fe16b89bcb72b89a4b2d3b9d7410"
+    },
+    {
+      "archivePath": "package/lib/esm/Tokenizer.js.map",
+      "bytes": 27700,
+      "sha256": "a631f52a24ce661c19dc1f3750c8e5edd99178bbcedbc2736f9021b029b44c4f"
+    },
+    {
+      "archivePath": "package/lib/Tokenizer.js.map",
+      "bytes": 28030,
+      "sha256": "511d90eff8656354df87aa4d884614302599c60fcaaef595e879d17f28dd4c7a"
+    },
+    {
+      "archivePath": "package/lib/esm/WritableStream.d.ts.map",
+      "bytes": 628,
+      "sha256": "9b03da891e8bc2f3d5393cc8de74a01c201f92ea88eac86d14e59af8724238c4"
+    },
+    {
+      "archivePath": "package/lib/WritableStream.d.ts.map",
+      "bytes": 628,
+      "sha256": "9b03da891e8bc2f3d5393cc8de74a01c201f92ea88eac86d14e59af8724238c4"
+    },
+    {
+      "archivePath": "package/lib/esm/WritableStream.js.map",
+      "bytes": 1033,
+      "sha256": "8ec675d5247a9aa9d3f55b0330c1ead3f6fc2140391c16960653eee05f4bf885"
+    },
+    {
+      "archivePath": "package/lib/WritableStream.js.map",
+      "bytes": 1023,
+      "sha256": "d87b74f1d31f6ca759a36f63f628febeb96e6ad7f6e489e48cb9b30b5bdf8062"
+    },
+    {
+      "archivePath": "package/README.md",
+      "bytes": 7730,
+      "sha256": "46f48c85011fb5879a9ceb0eff069c38d2a4977c46a2b82edea4b3b0ad8bb0cf"
+    },
+    {
+      "archivePath": "package/lib/esm/index.d.ts",
+      "bytes": 2110,
+      "sha256": "ddad45d65ef8133e1f0cbd4b541219c70bcfc7c460d3deef668a2b7dc65309c2"
+    },
+    {
+      "archivePath": "package/lib/index.d.ts",
+      "bytes": 2110,
+      "sha256": "ddad45d65ef8133e1f0cbd4b541219c70bcfc7c460d3deef668a2b7dc65309c2"
+    },
+    {
+      "archivePath": "package/lib/esm/Parser.d.ts",
+      "bytes": 6180,
+      "sha256": "21f4b283586d94c6df8e71a811d8cadc32e7510ce8027b7901a22524de2b7cca"
+    },
+    {
+      "archivePath": "package/lib/Parser.d.ts",
+      "bytes": 6180,
+      "sha256": "21f4b283586d94c6df8e71a811d8cadc32e7510ce8027b7901a22524de2b7cca"
+    },
+    {
+      "archivePath": "package/lib/esm/Tokenizer.d.ts",
+      "bytes": 5125,
+      "sha256": "a9f87332c75ff064d1113454a108c237cc9f2c792c8175a1ca432cd81fcc6e2b"
+    },
+    {
+      "archivePath": "package/lib/Tokenizer.d.ts",
+      "bytes": 5125,
+      "sha256": "a9f87332c75ff064d1113454a108c237cc9f2c792c8175a1ca432cd81fcc6e2b"
+    },
+    {
+      "archivePath": "package/lib/esm/WritableStream.d.ts",
+      "bytes": 608,
+      "sha256": "326cdb48fb0c7a570dc4c1a67bfee4c53028f0e63c798cb3e8a87dd0f8e2200b"
+    },
+    {
+      "archivePath": "package/lib/WritableStream.d.ts",
+      "bytes": 608,
+      "sha256": "326cdb48fb0c7a570dc4c1a67bfee4c53028f0e63c798cb3e8a87dd0f8e2200b"
+    }
+  ],
+  "extractedExactFileCount": 36,
+  "totalExtractedBytes": 265049,
+  "directDependencyBindings": [
+    {
+      "name": "domelementtype",
+      "version": "2.3.0",
+      "path": "/workspace/capirov2/node_modules/.pnpm/domelementtype@2.3.0/node_modules/domelementtype",
+      "packageJsonSha256": "4ddf28a1e60ae7ec15f62cda0d72eb06bcae05b3819942d971c841b7cc0b6930"
+    },
+    {
+      "name": "domhandler",
+      "version": "5.0.3",
+      "path": "/workspace/capirov2/node_modules/.pnpm/domhandler@5.0.3/node_modules/domhandler",
+      "packageJsonSha256": "cbb42a446eef285863e04158c7f269e0e7b8e868c1042d6845e996d760f7376c"
+    },
+    {
+      "name": "domutils",
+      "version": "3.2.2",
+      "path": "/workspace/capirov2/node_modules/.pnpm/domutils@3.2.2/node_modules/domutils",
+      "packageJsonSha256": "9a04689cc67f52e9f7323e0dd4d18c8cbe68744c3373ad524d133ddf12bf99ab"
+    },
+    {
+      "name": "entities",
+      "version": "4.5.0",
+      "path": "/workspace/capirov2/node_modules/.pnpm/entities@4.5.0/node_modules/entities",
+      "packageJsonSha256": "c92f657f679669a91bc32cd98f0b4812b3f4a9c6f3b3af3022a70cb25b7efc7c"
+    }
+  ],
+  "sourceTrackedDiffOutsideDocs": [],
+  "existingTrackedBaselineEntries": 22301,
+  "registryHttpEvidence": "independently validated frozen root request URLs/status receipt plus archived metadata; reviewer did not repeat network retrieval",
+  "signatureVerificationClaim": false,
+  "npmLifecycleInstallHooksExecuted": false,
+  "parserRuntimeExecutionByThisProgram": false,
+  "nativeDatabaseSqlProviderCalls": 0
+}
