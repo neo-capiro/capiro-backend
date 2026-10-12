@@ -1,0 +1,12 @@
+ts-jest[config] (WARN) 
+    The "ts-jest" config option "isolatedModules" is deprecated and will be removed in v30.0.0. Please use "isolatedModules: true" in /tmp/capirov2-tango-page-leaf-conversion/apps/api/tsconfig.json instead, see https://www.typescriptlang.org/tsconfig/#isolatedModules
+  
+PASS apps/api/src/external/tango/tango-sbir.client.spec.ts
+PASS apps/api/src/external/tango/tango-rest-page.spec.ts
+PASS apps/api/src/external/tango/tango-subaward.client.spec.ts
+
+Test Suites: 3 passed, 3 total
+Tests:       237 passed, 237 total
+Snapshots:   0 total
+Time:        1.581 s
+Ran all test suites.

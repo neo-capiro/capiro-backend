@@ -1,0 +1,2 @@
+const path = require('node:path');
+module.exports={rootDir:path.resolve(__dirname,'../../../apps/api'),testEnvironment:'node',testMatch:['<rootDir>/src/external/tango/tango-rest-page.spec.ts','<rootDir>/src/external/tango/tango-sbir.client.spec.ts','<rootDir>/src/external/tango/tango-subaward.client.spec.ts'],transform:{'^.+\\.ts$':['/workspace/capirov2/apps/api/node_modules/ts-jest',{tsconfig:{target:'ES2022',module:'commonjs',esModuleInterop:true},diagnostics:false}]},moduleNameMapper:{'^(\\.{1,2}/.*)\\.js$':'$1'},maxWorkers:1};

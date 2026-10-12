@@ -1,0 +1,26 @@
+{
+  "extends": "../../../apps/api/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "types": [
+      "node",
+      "jest"
+    ],
+    "typeRoots": [
+      "/workspace/capirov2/apps/api/node_modules/@types",
+      "/workspace/capirov2/node_modules/@types"
+    ]
+  },
+  "files": [
+    "../../../apps/api/src/external/tango/tango-dibbs.client.ts",
+    "../../../apps/api/src/external/tango/tango-sbir.client.ts",
+    "../../../apps/api/src/external/tango/tango-subaward.client.ts",
+    "../../../apps/api/src/external/tango/tango-rest-page.ts",
+    "../../../apps/api/src/external/tango/tango-rest-page.spec.ts",
+    "../../../apps/api/src/external/tango/tango-sbir.client.spec.ts",
+    "../../../apps/api/src/external/tango/tango-subaward.client.spec.ts"
+  ],
+  "include": [],
+  "exclude": []
+}
