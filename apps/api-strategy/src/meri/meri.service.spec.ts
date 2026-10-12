@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from '@jest/globals';
+import { systemWallClock, type WallClock } from '@capiro/shared';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { CONTEXT_GAP_LABELS, MeriService } from './meri.service.js';
 import { StrategyConversationService } from './strategy-conversation.service.js';
@@ -11,9 +12,10 @@ import type { StrategyOrchestratorClient } from './strategy-orchestrator.client.
 import type { FirmPhasesService } from '../firm-phases/firm-phases.service.js';
 import type { ReferenceService } from '../reference/reference.service.js';
 import type { StewardService, StewardHealthReport } from '../context/steward.service.js';
-import type { DraftStrategyDto, AssistantDto } from './dto/meri.dto.js';
+import type { DraftStrategyDto, AssistantDto, ReferenceAssistDto } from './dto/meri.dto.js';
 import type { PlanEdit, StewardFactLine } from './meri.types.js';
 import type { Grounding } from './meri.service.js';
+import type { ContextRetryRuntime } from './strategy-time.providers.js';
 
 /*
  * MeriService apply-pipeline tests with a STUBBED orchestrator (no LLM, no
@@ -308,6 +310,8 @@ function makeService(
     attachmentDocs?: Array<{ filename: string; text: string }>;
     stewardFacts?: StewardFactLine[];
     stewardHealth?: StewardHealthReport;
+    clock?: WallClock;
+    retryRuntime?: ContextRetryRuntime;
   } = {},
 ) {
   const { prisma, withTenantUser, withSystem, $queryRaw } = makePrisma(store);
@@ -357,9 +361,14 @@ function makeService(
     attachments,
     steward,
     conversations,
+    overrides.clock ?? systemWallClock,
+    overrides.retryRuntime ?? { random: () => 0, delay: async () => undefined },
   );
   return {
     svc,
+    prisma,
+    firmPhases,
+    reference,
     conversations,
     versioning,
     withTenantUser,
@@ -657,6 +666,119 @@ describe('MeriService.draft', () => {
     expect(withTenantUser).not.toHaveBeenCalled();
     expect(store.strategies.size).toBe(0);
     expect(store.nodes.size).toBe(0);
+  });
+});
+
+describe('MeriService injected grounding time and retry hooks', () => {
+  it('propagates an unavailable injected clock instead of sending an ambient fiscal fallback', async () => {
+    const error = new Error('clock unavailable');
+    const referenceAssist = jest.fn(async () => ({ rows: [] }));
+    const { svc } = makeService({ referenceAssist }, makeStore(), { clock: () => { throw error; } });
+    await expect(svc.grounding(T)).rejects.toBe(error);
+    await expect(svc.referenceAssist(T, 'bearer', 'ppbe_lane_bar', {
+      instruction: 'Shift one quarter later', rows: [],
+    } as ReferenceAssistDto)).rejects.toBe(error);
+    expect(referenceAssist).not.toHaveBeenCalled();
+  });
+
+  it('forwards the same injected fiscal clock through reference assistance without persisting rows', async () => {
+    const now = new Date(2026, 9, 1);
+    const clock = jest.fn(() => now.getTime());
+    const referenceAssist = jest.fn(async (_body: unknown) => ({ rows: [] }));
+    const store = makeStore();
+    const { svc } = makeService({ referenceAssist }, store, { clock });
+    await expect(svc.referenceAssist(T, 'bearer', 'ppbe_lane_bar', {
+      instruction: 'Shift one quarter later', rows: [],
+    } as ReferenceAssistDto)).resolves.toEqual({ rows: [] });
+    expect(referenceAssist.mock.calls[0]![0]).toEqual({
+      kind: 'ppbe_lane_bar', instruction: 'Shift one quarter later', rows: [],
+      fiscal: { today: now.toISOString().slice(0, 10), fys: [2027, 2028, 2029],
+        fyLabels: ['FY27', 'FY28', 'FY29'], focalFy: 'FY28' },
+    });
+    expect(clock).toHaveBeenCalledTimes(1);
+    expect(store.strategies.size).toBe(0);
+    expect(store.nodes.size).toBe(0);
+  });
+
+  it('samples the injected clock once per fiscal projection and refreshes the next call', async () => {
+    const september = new Date(2026, 8, 30, 23, 59, 59);
+    const october = new Date(2026, 9, 1, 0, 0, 1);
+    let instant = september.getTime();
+    const clock = jest.fn(() => instant);
+    const { svc } = makeService({}, makeStore(), { clock });
+
+    expect((await svc.grounding(T)).fiscal).toEqual({
+      today: september.toISOString().slice(0, 10),
+      fys: [2026, 2027, 2028], fyLabels: ['FY26', 'FY27', 'FY28'], focalFy: 'FY27',
+    });
+    instant = october.getTime();
+    expect((await svc.grounding(T)).fiscal).toEqual({
+      today: october.toISOString().slice(0, 10),
+      fys: [2027, 2028, 2029], fyLabels: ['FY27', 'FY28', 'FY29'], focalFy: 'FY28',
+    });
+    expect(clock).toHaveBeenCalledTimes(2);
+  });
+
+  it('retains the existing sampling point after asynchronous grounding loads finish', async () => {
+    let instant = new Date(2026, 8, 30, 23, 59, 59).getTime();
+    const clock = jest.fn(() => instant);
+    const { svc, reference } = makeService({}, makeStore(), { clock });
+    let resume!: () => void;
+    const gate = new Promise<void>((resolve) => { resume = resolve; });
+    jest.spyOn(reference, 'getCalendars').mockImplementationOnce(async () => {
+      await gate;
+      return { congress: [], ppbeLanes: [], ppbeCurrentPhases: [], source: {} };
+    });
+    const pending = svc.grounding(T);
+    expect(clock).not.toHaveBeenCalled();
+    instant = new Date(2026, 9, 1, 0, 0, 1).getTime();
+    resume();
+    expect((await pending).fiscal.fys).toEqual([2027, 2028, 2029]);
+    expect(clock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['firm-phases', 'reference-calendars'] as const)('threads retry hooks into %s grounding', async (source) => {
+    const random = jest.fn(() => 0.5);
+    const delay = jest.fn<(ms: number) => Promise<void>>(async () => undefined);
+    const { svc, firmPhases, reference } = makeService({}, makeStore(), { retryRuntime: { random, delay } });
+    if (source === 'firm-phases') jest.spyOn(firmPhases, 'list').mockRejectedValueOnce({ code: 'P1001' });
+    else jest.spyOn(reference, 'getCalendars').mockRejectedValueOnce({ code: 'P2024' });
+
+    await expect(svc.grounding(T)).resolves.toHaveProperty('reference');
+    expect(random).toHaveBeenCalledTimes(1);
+    expect(delay.mock.calls).toEqual([[237]]);
+  });
+
+  it('threads retry hooks into draft client lookup without bypassing unknown-client denial', async () => {
+    const store = makeStore();
+    store.clientRows = [];
+    const draft = jest.fn(async () => { throw new Error('must not generate'); });
+    const random = jest.fn(() => 0.5);
+    const delay = jest.fn<(ms: number) => Promise<void>>(async () => undefined);
+    const { svc, prisma } = makeService({ draft }, store, { retryRuntime: { random, delay } });
+    jest.spyOn(prisma, 'withTenant').mockRejectedValueOnce({ code: 'P2024' });
+
+    await expect(svc.draft(T, U, 'bearer', { clientId: 'C1', type: 'appropriations' } as DraftStrategyDto))
+      .rejects.toThrow('Unknown client for this tenant');
+    expect(random).toHaveBeenCalledTimes(1);
+    expect(delay.mock.calls).toEqual([[237]]);
+    expect(draft).not.toHaveBeenCalled();
+    expect(store.strategies.size).toBe(0);
+  });
+
+  it.each(['steward-facts', 'steward-health'] as const)('threads retry hooks into %s before its existing fail-soft policy', async (source) => {
+    const random = jest.fn(() => 0.5);
+    const delay = jest.fn<(ms: number) => Promise<void>>(async () => undefined);
+    const { svc, stewardFactsFn, stewardHealthFn } = makeService({}, makeStore(), { retryRuntime: { random, delay } });
+    if (source === 'steward-facts') stewardFactsFn.mockRejectedValueOnce({ code: 'P1001' });
+    else stewardHealthFn.mockRejectedValueOnce({ code: 'P2024' });
+    const context = svc as unknown as {
+      stewardContext(tenantId: string, clientId: string): Promise<{ stewardFacts: StewardFactLine[] }>;
+    };
+
+    expect((await context.stewardContext(T, 'C1')).stewardFacts).toEqual([]);
+    expect(random).toHaveBeenCalledTimes(1);
+    expect(delay.mock.calls).toEqual([[237]]);
   });
 });
 

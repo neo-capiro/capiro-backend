@@ -9,6 +9,7 @@
  * message.
  */
 import { Logger } from '@nestjs/common';
+import type { ContextRetryRuntime } from './strategy-time.providers.js';
 
 const MAX_RETRIES = 2;
 const BASE_DELAY_MS = 200;
@@ -39,12 +40,8 @@ export function isTransientLoadError(err: unknown): boolean {
   return false;
 }
 
-function jitteredDelay(attempt: number): number {
-  return BASE_DELAY_MS * 2 ** attempt + Math.floor(Math.random() * MAX_JITTER_MS);
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function jitteredDelay(attempt: number, runtime: ContextRetryRuntime): number {
+  return BASE_DELAY_MS * 2 ** attempt + Math.floor(runtime.random() * MAX_JITTER_MS);
 }
 
 /**
@@ -55,7 +52,11 @@ function sleep(ms: number): Promise<void> {
  * `source` is a short correlation label ONLY ('firm-phases', 'steward-health')
  * — never the loaded content itself.
  */
-export async function withContextRetry<T>(source: string, fn: () => Promise<T>): Promise<T> {
+export async function withContextRetry<T>(
+  source: string,
+  fn: () => Promise<T>,
+  runtime: ContextRetryRuntime,
+): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
     try {
       const value = await fn();
@@ -73,7 +74,7 @@ export async function withContextRetry<T>(source: string, fn: () => Promise<T>):
       logger.warn(
         `${source}: transient load failure (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying — ${message}`,
       );
-      await sleep(jitteredDelay(attempt));
+      await runtime.delay(jitteredDelay(attempt, runtime));
     }
   }
 }

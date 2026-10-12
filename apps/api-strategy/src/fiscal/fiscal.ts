@@ -14,7 +14,7 @@ export function fyOf(d: Date): number {
 }
 
 /** The rolling 3-FY window shown on the board. */
-export function currentFyWindow(now: Date = new Date()): [number, number, number] {
+export function currentFyWindow(now: Date): [number, number, number] {
   const cur = fyOf(now);
   return [cur, cur + 1, cur + 2];
 }
@@ -23,7 +23,7 @@ export function currentFyWindow(now: Date = new Date()): [number, number, number
  * The axis origin (q=0): Oct 1 of the first shown FY. Since FY-N Q1 (Oct–Dec)
  * sits in calendar year N-1, this is Oct 1 of calendar year (CUR_FY - 1).
  */
-export function axisStart(now: Date = new Date()): Date {
+export function axisStart(now: Date): Date {
   const [first] = currentFyWindow(now);
   return new Date(first - 1, 9, 1);
 }
@@ -32,7 +32,7 @@ export function axisStart(now: Date = new Date()): Date {
  * Map a quarter-unit position on the axis to a real calendar date.
  * Mirrors the prototype's `qToDate`.
  */
-export function qToDate(q: number, now: Date = new Date()): Date {
+export function qToDate(q: number, now: Date): Date {
   const start = axisStart(now);
   const tot = q * 3; // months from the axis origin
   const mi = Math.floor(tot);

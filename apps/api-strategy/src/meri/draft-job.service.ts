@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { AuthTenantContext } from '../auth/tenant-context.js';
 import { Prisma } from '../../generated/prisma-client/index.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { withContextRetry } from './context-load.js';
+import { STRATEGY_CONTEXT_RETRY, type ContextRetryRuntime } from './strategy-time.providers.js';
 import type { DraftStrategyDto } from './dto/meri.dto.js';
 import {
   computeDraftRequestKey,
@@ -35,7 +36,10 @@ const json = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.Inp
  */
 @Injectable()
 export class DraftJobService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(STRATEGY_CONTEXT_RETRY) private readonly retryRuntime: ContextRetryRuntime,
+  ) {}
 
   /**
    * Enqueues a draft job (or returns the existing one for the same input).
@@ -62,6 +66,7 @@ export class DraftJobService {
         tx.$queryRaw<Array<{ ok: number }>>`
         SELECT 1 AS ok FROM clients WHERE id = ${dto.clientId}::uuid AND tenant_id = ${ctx.tenantId}::uuid LIMIT 1`,
       ),
+      this.retryRuntime,
     );
     if (clientRows.length === 0) {
       throw new BadRequestException('Unknown client for this tenant');
