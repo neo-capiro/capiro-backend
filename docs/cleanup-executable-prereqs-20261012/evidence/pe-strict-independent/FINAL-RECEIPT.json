@@ -1,0 +1,79 @@
+{
+  "reviewedSource": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+  "reviewedTree": "0c4aa78cb3d81697b5e57d1e1b546f893e56360d",
+  "earlierStrictRestorationSource": "de623f0e6dd1e34e24435bb93dd3851c615f7be1",
+  "base": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "priorAcceptedSource": "5db091dac54bc05f4a97a1495c8e6df238547c4d",
+  "sourceSemanticsAccepted": true,
+  "verifierPolicyQualityGreen": false,
+  "nativeSmokeOrCompilerRunByReviewer": false,
+  "originalFunctionBodiesImportsPredicatesPreserved": true,
+  "unchangedOriginalTopLevelStatements": 27,
+  "originalMainCallsWrapped": 2,
+  "canonicalPureOwnersUnchanged": 6,
+  "otherSelectedCliBlobsUnchanged": 447,
+  "callersUnchanged": true,
+  "inertSourceProbesPassing": 35,
+  "testOnlyControls": {
+    "allFourCaseNamesPreserved": true,
+    "invocationResourcePreloadHelpUnknownOptionalPrismaAssertionsUnchanged": true,
+    "originalExactFourMessagesAccepted": true,
+    "duplicatesRefused": true,
+    "arbitraryMessagesRefused": true
+  },
+  "rawChecks": [
+    {
+      "stdout": "review-termination-final.json",
+      "stderr": "review-termination-final.log",
+      "exitCode": 0,
+      "source": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "kind": "35 inert source probes"
+    },
+    {
+      "stdout": "review-bfd-final.json",
+      "stderr": "review-bfd-final.log",
+      "exitCode": 0,
+      "source": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+      "kind": "35 inert source probes plus immutable source/body comparisons"
+    },
+    {
+      "stdout": "controls-b859-red.json",
+      "stderr": "controls-b859-red.log",
+      "exitCode": 1,
+      "source": "b859600f6b51680da2894fb8441424ea0bc838dd",
+      "kind": "genuine duplicate/arbitrary refusal sentinel precision defect, fixed in final source"
+    },
+    {
+      "stdout": "controls-bfd-final.json",
+      "stderr": "controls-bfd-final.log",
+      "exitCode": 1,
+      "source": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+      "kind": "reviewer harness omitted new expected-property fake fixture; raw retained"
+    },
+    {
+      "stdout": "controls-bfd-exact-final.json",
+      "stderr": "controls-bfd-exact-final.log",
+      "exitCode": 0,
+      "source": "bfd81c534c3bc336fde1a4509ce1a84ab4cb7e12",
+      "kind": "exact source test assertion branch accepts original four and rejects duplicate/arbitrary variants"
+    }
+  ],
+  "existingPolicyAcceptanceBlockers": [
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "exitCode": 1,
+      "reason": "existing entrypoint.sh prisma migrate resolve"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "exitCode": 1,
+      "reason": "existing entrypoint.sh prisma migrate resolve"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "exitCode": 1,
+      "reason": "public-law facade lacks contract import, posture resolver, exact-SHA commit assertion and approved-SHA wiring"
+    }
+  ],
+  "limits": "No native smoke/typecheck/Prisma/Postgres/RLS/DB/migration/provider/deployment or full gate acceptance. Host subprocesses are read-only Git queries; subject child calls are faked."
+}

@@ -1,0 +1,3299 @@
+{
+  "source": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+  "tree": "543216cc28dd14e24ad64ace577f5de8e5eda5be",
+  "base": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+  "priorAcceptedSource": "5db091dac54bc05f4a97a1495c8e6df238547c4d",
+  "strictRestorationSource": "de623f0e6dd1e34e24435bb93dd3851c615f7be1",
+  "allEightOriginalFunctionBodiesIdentical": true,
+  "sourceOnly": true,
+  "sourceDelta": [
+    "apps/api/scripts/lint-pe-scripts.ts",
+    "apps/api/scripts/verify-pe-migration-guards.ts",
+    "apps/api/scripts/verify-pe-phase-e-exact-sha.ts"
+  ],
+  "allCallerPathsUnchangedSincePriorAcceptance": true,
+  "bodyRows": [
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "originalStatements": 10,
+      "allVerificationStatementsAndImportsIdentical": true,
+      "verificationAstSha256": "fe29846eb46521f68928a2ab4457094cee02fa961b574308090f49c533ccda3b",
+      "sourceSha256": "a6ca24471ffbdd30e4397a8357296b8fd714faa2d06bcd23c705e5e6c4266974",
+      "functionRows": [
+        {
+          "name": "apiRoot",
+          "sha256": "32fec593d7e2fbc4193831cf65cf129233ba6c130794cb86f8f681051b6c5402"
+        },
+        {
+          "name": "read",
+          "sha256": "db7972db03f483eb37323dcd0b87f69afe8523cd323847e50f174411ad25e151"
+        },
+        {
+          "name": "main",
+          "sha256": "a73918462ccc35ca718e587b6ec502367c3e7df8c756580fb3a1597063689917"
+        }
+      ],
+      "preflightAstSha256": "0c7b0e82a8f39df50fcf7ccaf7dd2d31c5cb974a38dc111ad48f8734f87ec9ef",
+      "preflightStatements": 6,
+      "exactHelpUnknownUsageOnlyPreflight": true,
+      "tailCatchAstSha256": "47f73b811b7b1965418ef745ad090a82eaa9ba6b7adf95d34742e9b97469adea",
+      "metadataBefore": "@cleanup-smoke noArgsExit=0 helpExit=0",
+      "metadataNow": "@cleanup-smoke noArgsExit=1 helpExit=0"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "originalStatements": 8,
+      "allVerificationStatementsAndImportsIdentical": true,
+      "verificationAstSha256": "9a52b2f2e9223966032ff82b1cd29c2f04e92a1ea8b9baef318c3a9b3f5b9f48",
+      "sourceSha256": "71d0bbbe598f744eda51094f578074679385cb5992adcb1d82eec88c1471190e",
+      "functionRows": [
+        {
+          "name": "apiRoot",
+          "sha256": "32fec593d7e2fbc4193831cf65cf129233ba6c130794cb86f8f681051b6c5402"
+        },
+        {
+          "name": "read",
+          "sha256": "db7972db03f483eb37323dcd0b87f69afe8523cd323847e50f174411ad25e151"
+        },
+        {
+          "name": "main",
+          "sha256": "933c8fe0c7d353b3899895ceb1eee2fd8c6e7512d302806cfff27d3ca0cc7dd4"
+        }
+      ],
+      "preflightAstSha256": "12c7f05576c0bf9857e86471a7c4ed6e2b16e0e196b8068392529f7a30c4a539",
+      "preflightStatements": 6,
+      "exactHelpUnknownUsageOnlyPreflight": true,
+      "tailCatchAstSha256": "556a18f565aa5f1c1db03d91f8e1a206b909a01f95cbd51589b64b3396e2aa7e",
+      "metadataBefore": "@cleanup-smoke noArgsExit=0 helpExit=0",
+      "metadataNow": "@cleanup-smoke noArgsExit=1 helpExit=0"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "originalStatements": 9,
+      "allVerificationStatementsAndImportsIdentical": true,
+      "verificationAstSha256": "7bf7a873ed1a6d36cc69c7141f1b0637864c9975f94deab96d18b26d46deb09f",
+      "sourceSha256": "b895211f165d32c6c0322ea3dd7d1cfef1bfefe06c2b4cc53e18e90658a6754d",
+      "functionRows": [
+        {
+          "name": "apiRoot",
+          "sha256": "32fec593d7e2fbc4193831cf65cf129233ba6c130794cb86f8f681051b6c5402"
+        },
+        {
+          "name": "sourceOf",
+          "sha256": "2aa9f22bfeb4cff94ea9febe5d997c7685625add6e35213bdcf75a6dd172eddd"
+        }
+      ],
+      "preflightAstSha256": "1a2a32c41bb3c4ceedb611addbb30624642ad184189bd29d581d4fca01dfcba9",
+      "preflightStatements": 6,
+      "exactHelpUnknownUsageOnlyPreflight": true,
+      "tailCatchAstSha256": null,
+      "metadataBefore": "@cleanup-smoke noArgsExit=0 helpExit=0",
+      "metadataNow": "@cleanup-smoke noArgsExit=1 helpExit=0"
+    }
+  ],
+  "owners": [
+    {
+      "path": "apps/api/scripts/lib/pe-production-scripts.ts",
+      "identicalToBaseline": true,
+      "sourceSha256": "3bf095747ca89a39a73d63724df7736a779c014b769b6f34838f5cdc22212185"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "identicalToBaseline": true,
+      "sourceSha256": "95424aff212423b61f05fd47a810c88242410ac514b9b40ce1a7e8b235876022"
+    },
+    {
+      "path": "apps/api/scripts/lib/defense-budget-commit.ts",
+      "identicalToBaseline": true,
+      "sourceSha256": "32c4431150a55badab4db64652d0b59bf68cc30b08204bd0493b1608a98b80ff"
+    },
+    {
+      "path": "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+      "identicalToBaseline": true,
+      "sourceSha256": "f9661fcb3536a83d053bd1f5489badd7c522f8e7307a1eeb2d63105eb7337f94"
+    },
+    {
+      "path": "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+      "identicalToBaseline": true,
+      "sourceSha256": "3ba75d85f335292f85fb4bedf1eb28235060ae23eff3407ebd9d1e0390f2ec04"
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-migration-guards.ts",
+      "identicalToBaseline": true,
+      "sourceSha256": "d1d5e0d06afb5b4675d33089b7895106c21341906eb2c8b51b86eb29bf31fba1"
+    }
+  ],
+  "imports": [
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "module": "node:assert",
+      "builtin": true
+    },
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "module": "node:fs",
+      "builtin": true
+    },
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "module": "node:path",
+      "builtin": true
+    },
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "module": "./lib/pe-production-scripts.js",
+      "resolved": "apps/api/scripts/lib/pe-production-scripts.ts",
+      "runtimeSymbols": [
+        "PE_PRODUCTION_SCRIPTS",
+        "PE_PRODUCTION_SCRIPT_HELPERS"
+      ],
+      "allPresent": true
+    },
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "module": "./lib/pe-exact-sha-loader-contract.js",
+      "resolved": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "runtimeSymbols": [
+        "PE_EXACT_SHA_DOLLAR_LOADERS"
+      ],
+      "allPresent": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "module": "node:path",
+      "builtin": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "module": "./defense-budget-commit.js",
+      "resolved": "apps/api/scripts/lib/defense-budget-commit.ts",
+      "runtimeSymbols": [
+        "assertApprovedShaMatches",
+        "assertQualityAuditPassed",
+        "requireApprovedSha256"
+      ],
+      "allPresent": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "module": "../../src/defense-budget/promotion/legacy-budget-write-gate-v1.js",
+      "resolved": "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+      "runtimeSymbols": [
+        "legacyBudgetCommitDecisionV1",
+        "legacyBudgetWriteModeFromEnvV1"
+      ],
+      "allPresent": true
+    },
+    {
+      "path": "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+      "module": "./snapshot-read-mode-v1.js",
+      "resolved": "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+      "runtimeSymbols": [
+        "legacyWritesUnsafeInModeV1"
+      ],
+      "allPresent": true
+    },
+    {
+      "path": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "module": "../../src/defense-budget/promotion/snapshot-read-mode-v1.js",
+      "resolved": "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+      "runtimeSymbols": [
+        "DEFAULT_SNAPSHOT_READ_MODE_V1",
+        "SNAPSHOT_READ_MODE_V1_VALUES"
+      ],
+      "allPresent": true
+    },
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "module": "./lib/pe-migration-guards.js",
+      "resolved": "apps/api/scripts/lib/pe-migration-guards.ts",
+      "runtimeSymbols": [
+        "assertNoMigrationHistoryMutation",
+        "stripShellComments"
+      ],
+      "allPresent": true
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "module": "node:assert",
+      "builtin": true
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "module": "node:child_process",
+      "builtin": true
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "module": "node:fs",
+      "builtin": true
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "module": "node:path",
+      "builtin": true
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "module": "./lib/pe-migration-guards.js",
+      "resolved": "apps/api/scripts/lib/pe-migration-guards.ts",
+      "runtimeSymbols": [
+        "assertNoMigrationHistoryMutation",
+        "countMigrateDeployInvocations",
+        "interpretPrismaValidateGenerate",
+        "stripShellComments"
+      ],
+      "allPresent": true
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "module": "node:fs",
+      "builtin": true
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "module": "node:path",
+      "builtin": true
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "module": "./lib/pe-exact-sha-loader-contract.js",
+      "resolved": "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+      "runtimeSymbols": [
+        "PE_EXACT_SHA_DOLLAR_LOADERS"
+      ],
+      "allPresent": true
+    }
+  ],
+  "unchangedSelectedCliCount": 447,
+  "unchangedSelectedCliRows": [
+    {
+      "path": "apps/api-strategy/eval/run-l2.ts",
+      "sha256": "ac0cff533109a3e16dd89ad6aca56c9d01247248e1ab7f4992a56bb686d3c5be"
+    },
+    {
+      "path": "apps/api-strategy/src/seed.ts",
+      "sha256": "3049261631c18a3752529b4568d6a3c04860462a577943168a5cf8f5304ff4f1"
+    },
+    {
+      "path": "apps/api/scripts/attach-pe-legacy-documents.ts",
+      "sha256": "b48fd4e0148da2ed2e4bedd506adf1e4e50bca8acf602cf1e12f4a0a802e02e4"
+    },
+    {
+      "path": "apps/api/scripts/audit-hearing-coverage.ts",
+      "sha256": "29dcd542fb3569093e14d3ab4ade2d17c06bcb09d0703e818072162ea629b67e"
+    },
+    {
+      "path": "apps/api/scripts/audit-llamaparse-pe-units.ts",
+      "sha256": "4a8584f0edc5094b589c75676a07b3bd0805b0650f179407ee0025808613f532"
+    },
+    {
+      "path": "apps/api/scripts/audit-pe-zero-request.ts",
+      "sha256": "4a8efa2d52e2f30ade6293f3b2eb2095c918f4d072e246c3025b53ca39f02042"
+    },
+    {
+      "path": "apps/api/scripts/authorize-defense-budget-promotion-v1.ts",
+      "sha256": "fdc952bb336b1323f7c496a67a394b3fafe1183b21ccaf2d866636adf40f0f49"
+    },
+    {
+      "path": "apps/api/scripts/auto-confirm-pe-person-candidates.ts",
+      "sha256": "0ea58f5bcdbc26ccd5a2a080b61d73a60ed0cf1a02e9c45576e130e26eb13c08"
+    },
+    {
+      "path": "apps/api/scripts/backfill-appropriation-type.ts",
+      "sha256": "433ded295d47e525e7e3f714a9ec2397ff04645d08b3d3e93e55113b1f77440a"
+    },
+    {
+      "path": "apps/api/scripts/backfill-assistance-awards-bulk.ts",
+      "sha256": "1e432f69fc40292bcdd14e8156e74f1894c1797d8b8ffdbac78b4a79a638e77f"
+    },
+    {
+      "path": "apps/api/scripts/backfill-bill-sponsors.ts",
+      "sha256": "aa6905a58afb394dcd12d7cc2ab5c134da4cd8967bf73c64f03d2e7b01ce1567"
+    },
+    {
+      "path": "apps/api/scripts/backfill-budget-candidate-source-metadata-v1.ts",
+      "sha256": "4fc49f74e8018ce8b923f573f0d8389a01725785783dbacaec9ebd86956fc396"
+    },
+    {
+      "path": "apps/api/scripts/backfill-canonical-entities.ts",
+      "sha256": "b73d45a5765642cc27a81f20588d9a40cb42e0f3d39205dd5cfe2e045d749fbe"
+    },
+    {
+      "path": "apps/api/scripts/backfill-canonical-public-references.ts",
+      "sha256": "bdf544a382013f4a633b0b87ee80a558835b4e73c23d42631f45836178aecc54"
+    },
+    {
+      "path": "apps/api/scripts/backfill-client-kb.ts",
+      "sha256": "34e6743c813ca529ac9bafa0561eb89d018c5cb67767a9435bdf62d01c65d030"
+    },
+    {
+      "path": "apps/api/scripts/backfill-clio-memory-embeddings.ts",
+      "sha256": "2a5f7fa1d52486ed139091c43d425a50d4dd078c716419cefd0ef600054b0c22"
+    },
+    {
+      "path": "apps/api/scripts/backfill-federal-award-dates.ts",
+      "sha256": "6153af1a0d1e74a78508bed26bd0bd8904d8528d86bf0e1a43286bda46db8173"
+    },
+    {
+      "path": "apps/api/scripts/backfill-funding-mapping-review.ts",
+      "sha256": "be14542ddef9164678b81ea652a8075c471122457b81d17e41f3c419816fa740"
+    },
+    {
+      "path": "apps/api/scripts/backfill-google-meeting-virtuality.ts",
+      "sha256": "f172882a40c4a270c70888e9e1d1f1d167ae4873c65af4041c2ce3a4f27e082b"
+    },
+    {
+      "path": "apps/api/scripts/backfill-intel-article-encoding.ts",
+      "sha256": "2d71d109b54978c5253163e7df0a6f97734f3dd1fbbb5a3e9a47c6628e1ff4a3"
+    },
+    {
+      "path": "apps/api/scripts/backfill-intel-article-sources.ts",
+      "sha256": "a983d83c7ac1025a6f6f9229a99700cb3514c4cbbb9209ebf058e800d9a76c8a"
+    },
+    {
+      "path": "apps/api/scripts/backfill-legiscan-datasets.ts",
+      "sha256": "955dc172a936ae270ab2abbbd3c4b652f394f86fc060fc6ccfa69d8a38f40908"
+    },
+    {
+      "path": "apps/api/scripts/backfill-mail-removal-state.ts",
+      "sha256": "3c8d193f202b88244508f0eb0621261c6d4a1763eb6a21496e0df8205aa80017"
+    },
+    {
+      "path": "apps/api/scripts/backfill-memory-governance-v2.ts",
+      "sha256": "3d66b217c734a2779adce4b2d49da11ff2bf3882afb4faae0fbca11fb4919f8c"
+    },
+    {
+      "path": "apps/api/scripts/backfill-pe-observation-keys.ts",
+      "sha256": "ce4162a396f208db5a3b84d7e3d49b3abdc36e3032c87a9a8d88c70b79cf4813"
+    },
+    {
+      "path": "apps/api/scripts/backfill-program-offices.ts",
+      "sha256": "aa65fb2627428cc4228c22022b4f8c4bb3867a401d118d746177a49bb4e4eb8b"
+    },
+    {
+      "path": "apps/api/scripts/backfill-sam-opportunity-fields.ts",
+      "sha256": "72defef0e0e9ac185aef358e2032683572dc9c2f0a9b148af796b959d3805d9e"
+    },
+    {
+      "path": "apps/api/scripts/backfill-sector-tags.ts",
+      "sha256": "4cc0785d03f6888362cf892f83568d7b956cbf9a7fbf451448f91c2fc4cd603e"
+    },
+    {
+      "path": "apps/api/scripts/backfill-source-documents.ts",
+      "sha256": "0b7c7a5a95bd2ec08da5754998015b6eacbc02191e0608b0041f29bcd85f0f86"
+    },
+    {
+      "path": "apps/api/scripts/backtest-deadline-physics.ts",
+      "sha256": "083f3ce46a11bfef34d85ad7300a09f14dc634f22c7d02103d5cece01b8b0877"
+    },
+    {
+      "path": "apps/api/scripts/bind-engagement-phase3-auth-fixtures.ts",
+      "sha256": "ab40b9e38f1fb13ded47c8da19c6ed25988d3040fb83c0e5599f4fae66326aa2"
+    },
+    {
+      "path": "apps/api/scripts/bootstrap-capiro-admin.ts",
+      "sha256": "56b27770e01c9113c368794ba28b765d807dd34c8304e0d9ed8c0c6b3c3ff762"
+    },
+    {
+      "path": "apps/api/scripts/bootstrap-roles.ts",
+      "sha256": "2536d8cb724c14f334c2061e0412cac3575689e46640aacc90d7bd08a17ae97b"
+    },
+    {
+      "path": "apps/api/scripts/bootstrap-tenant.ts",
+      "sha256": "54c1a9567adb3d814fe29d32c39453a1395364abc6184092ff13667881a8a0c6"
+    },
+    {
+      "path": "apps/api/scripts/build-district-boundary-artifacts.ts",
+      "sha256": "158fb9e8ceab4921927bb2d7e63bde6b8cf31f979842158cdce88cf7b3669d55"
+    },
+    {
+      "path": "apps/api/scripts/certify-defense-budget-rdte.ts",
+      "sha256": "86287d744450e6e867ebed149c04d87543d62743cc495feedd61123ff0d0edd4"
+    },
+    {
+      "path": "apps/api/scripts/check-comment-periods.ts",
+      "sha256": "67372d7eaf32a8f45fe5da0f1fdd4924c12bed5a9f894b43af9fc56c8da58daf"
+    },
+    {
+      "path": "apps/api/scripts/check-legiwatch-phase8-sources.ts",
+      "sha256": "2f0a53d4cc922b09dd647b6606685e3e622c20c8c608d8cc9b13d85be6767d4b"
+    },
+    {
+      "path": "apps/api/scripts/compare-defense-budget-canonical-reads-v1.ts",
+      "sha256": "8585213fb0d22153b318cfb36b1dc7af83f3c525f47b32d7a03c9657be263a90"
+    },
+    {
+      "path": "apps/api/scripts/compute-budget-deltas.ts",
+      "sha256": "68248f43951e483c86e7570c44b5469d1391d5d592fd9a2dd2dc92a23c6faadb"
+    },
+    {
+      "path": "apps/api/scripts/compute-health-scores.ts",
+      "sha256": "1f2e3a52961234f96b2379baa2e2a4bcd989e4ee5520a53a0e201d89e5b87633"
+    },
+    {
+      "path": "apps/api/scripts/correct-defense-budget-candidate-v1.ts",
+      "sha256": "f1000b3e36dd92a74bf4226fe363a335b461d921386f1fc41174c3c54f63bf41"
+    },
+    {
+      "path": "apps/api/scripts/crosswalk-state-people.ts",
+      "sha256": "6ff802543b140c8107ef5bd1198e5a617c0a3dd67faaf342704f521a99b4981a"
+    },
+    {
+      "path": "apps/api/scripts/delete-tenant.ts",
+      "sha256": "e665ff5427189e9a17d3e47baa6ca162de733472f0098314b2d550629a975090"
+    },
+    {
+      "path": "apps/api/scripts/demo-meriv2-control-alarms.ts",
+      "sha256": "ed305eb7c8940f750ec4c02d9d2cc95e094331846cba9c2cc3bee05f9498bfdb"
+    },
+    {
+      "path": "apps/api/scripts/derive-bill-status.ts",
+      "sha256": "ac1245137b9ad1b69b5a0d20effcb42af014e2fc6d3dfb94c2091e9e955fffce"
+    },
+    {
+      "path": "apps/api/scripts/derive-state-bill-status.ts",
+      "sha256": "57fbe1fe57fab69ccd80d53ff1c4dc4f7f39ebc100fcfb9ed0b72631fd6f3ed5"
+    },
+    {
+      "path": "apps/api/scripts/detect-committee-site-updates.ts",
+      "sha256": "fa5c0f94eb7e1f8406ef3aee71b00afe16b3ea935a53535e028d36e5b8549d3b"
+    },
+    {
+      "path": "apps/api/scripts/detect-tracker-alerts.ts",
+      "sha256": "80d18f14ebbe7c7dd93e7f53223e7b844a293c852f7698f123ec7fdbe3270457"
+    },
+    {
+      "path": "apps/api/scripts/diag-alert-coverage.ts",
+      "sha256": "02a7546050f4069c05c74761fc45f4591c444ed41646ea543a2795e8f48fccb2"
+    },
+    {
+      "path": "apps/api/scripts/diag-auditor-shadow.ts",
+      "sha256": "459a8f692bb49783e7dda556fa7c8f8d90ce023fca603174071f8da14cf51e51"
+    },
+    {
+      "path": "apps/api/scripts/diag-blin-coverage.ts",
+      "sha256": "2a5ff1f51cc66f0626fed9954f7aec28b6c4ea0e70160c773ad04c715bfc191b"
+    },
+    {
+      "path": "apps/api/scripts/diag-blueprint-qa.ts",
+      "sha256": "5332885b228e2f690016e56ecaf188421eb9412baf191018f4e9164e4b0457a2"
+    },
+    {
+      "path": "apps/api/scripts/diag-client-resolution.ts",
+      "sha256": "0b1f74b4d22ce0abfe57dd1ee00e8667ab3f2ada4165dfcb6047d39e17de345a"
+    },
+    {
+      "path": "apps/api/scripts/diag-clio-memory.ts",
+      "sha256": "88612eb72a91806ed66af64f968bf0f159e27b74ebd271b0445e11b3890d2f6a"
+    },
+    {
+      "path": "apps/api/scripts/diag-district-nexus-flag-state.ts",
+      "sha256": "0a99d1b780b59d2475a8e0be6dc290b6ad7a1cc1c77d6e6af8f20d4ef3135c9c"
+    },
+    {
+      "path": "apps/api/scripts/diag-district-nexus-source-matrix.ts",
+      "sha256": "cac30a16de7b48d82ff897c3bcaf3f13343dc606e7faf9892a0f16d22e43dda7"
+    },
+    {
+      "path": "apps/api/scripts/diag-engagement-campaigns.ts",
+      "sha256": "569452879d40250aad58c3ee50a92c1d99d0d0c2872b955f3d3c4a5848e17dc1"
+    },
+    {
+      "path": "apps/api/scripts/diag-facility-districts.ts",
+      "sha256": "ab32eecb52befee2ee9a618d8a592e1f4350be808ef014ffa3065d5728ed95c7"
+    },
+    {
+      "path": "apps/api/scripts/diag-federal-business-profile.ts",
+      "sha256": "73e51f81e9e646e2e65e7d80f003dce031329da4c4abe753ebce393a340c63bc"
+    },
+    {
+      "path": "apps/api/scripts/diag-funding-opportunities-makegov.ts",
+      "sha256": "03ae41a54ad5c91a73dd0542195d44d3d9f960d7ec0dd207056ddfbcb67c794c"
+    },
+    {
+      "path": "apps/api/scripts/diag-graph-coverage.ts",
+      "sha256": "3aff11c9123f3a250bb36b99ed4207d7b818eab0b4f926c6b11559f1470c92bb"
+    },
+    {
+      "path": "apps/api/scripts/diag-ingestion-health.ts",
+      "sha256": "2da6ba6ec6c59a1fd8b69f80b89c52608f300519e24ba871435e615d4c695ae5"
+    },
+    {
+      "path": "apps/api/scripts/diag-lda-identity.ts",
+      "sha256": "72bbd6f5ffdb7586216d758cb865d7e41b16324e609ae32af2eb5b891a2d733f"
+    },
+    {
+      "path": "apps/api/scripts/diag-mail-search-match.ts",
+      "sha256": "021598d65909c5dc4ceb80dda451cfb542ddc79f3e9a50e631ce9695e50a206d"
+    },
+    {
+      "path": "apps/api/scripts/diag-memory-governance-v2.ts",
+      "sha256": "3d16edf936df5da07dee68ddbfb7e05273d00ec234b01ee673033ab3b014d1a9"
+    },
+    {
+      "path": "apps/api/scripts/diag-memory-recall-parity.ts",
+      "sha256": "f7ea83f4942aa2f51c5f0e46c4269b030c6c7df0551b1446ea18cb5f8af78d8d"
+    },
+    {
+      "path": "apps/api/scripts/diag-outlook-sync.ts",
+      "sha256": "3813099ef8737b31bc09a13a6cb287e7db9d6da703beccdadd3d7b36329d3833"
+    },
+    {
+      "path": "apps/api/scripts/diag-outreach-usage.ts",
+      "sha256": "ec31cccfef36f7c7d8b07dd31415f82adc30603cf3fec3b03427d326c7e18271"
+    },
+    {
+      "path": "apps/api/scripts/diag-pe-detail-coverage.ts",
+      "sha256": "b3f090cda806721b82257e351f8db935e0492cbb072cf0b89bebf539228a74c8"
+    },
+    {
+      "path": "apps/api/scripts/diag-pe.ts",
+      "sha256": "bb618144987a2eb4b296b09c5890caf05c83ef529298b4d12524ffb0a3663b9a"
+    },
+    {
+      "path": "apps/api/scripts/diag-phantom-imports.ts",
+      "sha256": "acea1db107afe6544dd47f9620522c853228c38de6b2a62d0f3d6a0d3aec1af9"
+    },
+    {
+      "path": "apps/api/scripts/diag-profile-v1.ts",
+      "sha256": "90ca13bcaa206ce0ccc5f20d1af716c074bda6442c916df6d1a9e965334c1b71"
+    },
+    {
+      "path": "apps/api/scripts/diag-program-element-trust-baseline.ts",
+      "sha256": "267c679fbca78c135f3934b0c5882b4e744fa9ad87fc8a3cc22ce372c2d3e602"
+    },
+    {
+      "path": "apps/api/scripts/diag-recall-recency.ts",
+      "sha256": "eeb8feb62b876382d47d4aa670769877a037edb9f0516377426789e598e8ee6f"
+    },
+    {
+      "path": "apps/api/scripts/diag-reconciliation-units.ts",
+      "sha256": "aaac09ee08d465fca8908917c23e3c693a87ebe35e9c46e11e32d8151f3cae37"
+    },
+    {
+      "path": "apps/api/scripts/diag-stale-directory.ts",
+      "sha256": "e4473335dfbcde2716a2053cb4d27dbc133554fdc90200fa21f3adcb2bf1f6d4"
+    },
+    {
+      "path": "apps/api/scripts/diag-state-crosswalk-coverage.ts",
+      "sha256": "103d98993ced5f4b57f0486a9de1b0b518fb78b737890506a910fff9076af524"
+    },
+    {
+      "path": "apps/api/scripts/diag-state-legislator-detail.ts",
+      "sha256": "057602c63aaaf90779155e1824bca1038e67e92712db54220ba0cff7e4d82ee5"
+    },
+    {
+      "path": "apps/api/scripts/diag-tango-capabilities.ts",
+      "sha256": "4a12fae895cf3216949e9711da648c864d8984eed1e99fcaf5b7896e63b1aa75"
+    },
+    {
+      "path": "apps/api/scripts/diag-tango-dibbs-sbir-ingestion.ts",
+      "sha256": "f950c44c87194523028f1ee0f8a8aa5cb0b4d52293dd2059fb8aa7f99f02ce3f"
+    },
+    {
+      "path": "apps/api/scripts/diag-tango-health.ts",
+      "sha256": "1cc123454bd33e9633a5bf2603b02eaa3b4485b69dedd2de956f899a358e8627"
+    },
+    {
+      "path": "apps/api/scripts/diag-tango-opportunity-parity.ts",
+      "sha256": "87ac42a0ceb44cc00fa8d395255fce129fd4f8538046eff148daf87395ddf527"
+    },
+    {
+      "path": "apps/api/scripts/diag-tango-webhook-contract.ts",
+      "sha256": "63d464adaa5b88f7fa49d119740bbb22100bba2a39c315d49b9dc3a14854f39d"
+    },
+    {
+      "path": "apps/api/scripts/diag-tenant-config.ts",
+      "sha256": "3729c3903b2fa2a9acdfe6a7f4b4ea407d04598d596ffcbaeac31e0e608ef454"
+    },
+    {
+      "path": "apps/api/scripts/diag-tracker-readiness.ts",
+      "sha256": "9c32fdde54345ec5aeeb0da2bef4724cea7de4871267395c157bb2c4b2eebfd2"
+    },
+    {
+      "path": "apps/api/scripts/discover-hearings.ts",
+      "sha256": "99cbc976b25be0cb7782ec6f7a012874dc18501605977ad1d1805a190377eeb7"
+    },
+    {
+      "path": "apps/api/scripts/dispatch-memory-review-notifications.ts",
+      "sha256": "f2bca43beb6c2284055ac46c1fa3994ea410ad8b6d3a11c2afcf9af408570b50"
+    },
+    {
+      "path": "apps/api/scripts/disposable-pg-proof-outbox-claim-by-id.ts",
+      "sha256": "45bb18e12b73ed73704135b00513ba6544bedc02f9cdb80ff1689b93418ed8f2"
+    },
+    {
+      "path": "apps/api/scripts/drain-defense-budget-ingestion-outbox-v1.ts",
+      "sha256": "4a6247ea0d170ff0f4b03d22f188744c6f410006a92dc015279ad47d7cbc6db0"
+    },
+    {
+      "path": "apps/api/scripts/drain-federal-evidence-outbox.ts",
+      "sha256": "3c97282f0f2d2df9826c4b1076b8f21c1d2cf286069385171ead2d5a582a5a48"
+    },
+    {
+      "path": "apps/api/scripts/drain-identity-outbox.ts",
+      "sha256": "488acad6538b2639e8838ccc222a95ec782331723bc9196293f17a8971a707dc"
+    },
+    {
+      "path": "apps/api/scripts/drain-mailbox-knowledge.ts",
+      "sha256": "a3b8f0092a8843f057e862760a7618d8d3a317d255edceda0004de80a275a19a"
+    },
+    {
+      "path": "apps/api/scripts/drain-memory-cleanup-outbox.ts",
+      "sha256": "9aebbe64a65f4a79a45cd6fad283354854c2d1dffa0108a3f45407644f00dd5a"
+    },
+    {
+      "path": "apps/api/scripts/drain-pe-change-outbox.ts",
+      "sha256": "ee2531a366a4db7d4a8d31ef12f62de16d5707975ace08e35caf7d6ba45a9644"
+    },
+    {
+      "path": "apps/api/scripts/embed-backfill.ts",
+      "sha256": "d96656c8746424345dce9f785dc5607d8843eaaf77a43a4902da125d175f2254"
+    },
+    {
+      "path": "apps/api/scripts/embed-program-elements.ts",
+      "sha256": "34c5652ecc725c35e450cd6d4dc88208cf431a50746215492ada6f11af1faecc"
+    },
+    {
+      "path": "apps/api/scripts/emit-bill-alerts.ts",
+      "sha256": "812d75188ad804fea2a7bfb86c66f21a6bfe3133fab50bde1216e4cf758df10d"
+    },
+    {
+      "path": "apps/api/scripts/emit-changes.ts",
+      "sha256": "b16a7278c3e6700e1b1f245f36101445794d9e244f7794e24869d614e8b749a6"
+    },
+    {
+      "path": "apps/api/scripts/emit-clio-alerts.ts",
+      "sha256": "8c1fd6cf3cb40265da5b32f8c3f5281fa507c78acdcf83892261d9f6ff7f5b20"
+    },
+    {
+      "path": "apps/api/scripts/emit-committee-changes.ts",
+      "sha256": "00cdda2b87f06e2f35084347e8b775ac379c5ec9e276ebcafdb13f580e65d401"
+    },
+    {
+      "path": "apps/api/scripts/emit-district-nexus-alerts.ts",
+      "sha256": "c3d20d14174dcc19b98848d94676431c3f99496652708bde6dd8e38711f14845"
+    },
+    {
+      "path": "apps/api/scripts/emit-meriv2-control-metrics.ts",
+      "sha256": "3fffaff09860e40ccdb9ac1a214f59d6dbbdb2cdeca8f2fbd377e66dc62f8d02"
+    },
+    {
+      "path": "apps/api/scripts/emit-redistricting-alerts.ts",
+      "sha256": "dffb3a7ddd4885242bb24ada45675741ca25c666f04a6020754303bec4a581c0"
+    },
+    {
+      "path": "apps/api/scripts/emit-state-changes.ts",
+      "sha256": "d85a0af8a067f115baf6323736a96e5a12f8f41cb18ec5b30ab9dff6cc093905"
+    },
+    {
+      "path": "apps/api/scripts/enable-district-nexus-for-all-tenants.ts",
+      "sha256": "e8899a4555d1242a345a9ed132ff4526713606a0da326636570b73e09cc9e7b6"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase0-side-effect-verify.ts",
+      "sha256": "87a7f68fb2d7bc61e89a2b8f54ed806214bef6b1632e7c3c474c38049c9d1e22"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase1-assert-sole-membership.ts",
+      "sha256": "0565b666071c305f41c616c8361f7abb6c505dc47a0488539555da64b00bf23d"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase1-read-parity.ts",
+      "sha256": "54f30471a3ca2cd57508fd99072c8bd0160ca38a74bb58b2dc2e680f97a49a32"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-containment-tables.ts",
+      "sha256": "1f9d7d8cd1eb629d99a19af69f2a75789a786302822c27dc95656a3818e73e1f"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-external-denial.ts",
+      "sha256": "15ea2e2e484be9c7c14d4938b356f65d1b2d923302b355de35548302f9daa895"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-fixture-plan.ts",
+      "sha256": "0e6aa22738c0735fb30a70cf6235c88c26f8e00c3aea251ee517ea755a4dac8d"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-full-read-parity.ts",
+      "sha256": "cfdb767736e2e743b771fca11fe179e7ed1f0cf54d4073e047b2ed0024a732c3"
+    },
+    {
+      "path": "apps/api/scripts/engagement-phase3-read-materialization.ts",
+      "sha256": "a2f5ab3365cace4ed6f0365fe9bed8b1d615dea2467256d80be3d3756a59f94c"
+    },
+    {
+      "path": "apps/api/scripts/enrich-assistance-award-details.ts",
+      "sha256": "aa6075d7d6467c43f000da063ac0957b747e2489e1aba469812c8bbbefe405a2"
+    },
+    {
+      "path": "apps/api/scripts/enrich-award-districts.ts",
+      "sha256": "5d70be802e156325dedc30f3c0c2dbaed54ce787d39ae6d27c4e7dd71c595c8f"
+    },
+    {
+      "path": "apps/api/scripts/enrich-award-pe-tas.ts",
+      "sha256": "85123b987638fad6f1f2393e44f9298938bb11182da21b725c450e8e96c13251"
+    },
+    {
+      "path": "apps/api/scripts/enrich-award-pe.ts",
+      "sha256": "c1c76b53a312127a4c0cefe2680dabb7d1d53ee479f5a188740ebb555450ff2c"
+    },
+    {
+      "path": "apps/api/scripts/enrich-committee-hearings.ts",
+      "sha256": "b2378eb3c7ddad8cf190bf1859670179ae44fc00d88db4703889da429900056e"
+    },
+    {
+      "path": "apps/api/scripts/enrich-federal-award-recipient-uei.ts",
+      "sha256": "ba63afd4aede14892b7e9255406151d71210edad255d0e9ef91905f14751f038"
+    },
+    {
+      "path": "apps/api/scripts/enrich-grant-details.ts",
+      "sha256": "318c8ec041d0f54a2b72aa1ba5aa296e0fa2931d0558962a1619cf8eef506baf"
+    },
+    {
+      "path": "apps/api/scripts/eval-canonical-entity-resolution.ts",
+      "sha256": "7632d96eb58a6ff8a12cdf112b06c5fd9e5649c97191703b27f4f9b1715e38fd"
+    },
+    {
+      "path": "apps/api/scripts/execute-defense-budget-promotion-v1.ts",
+      "sha256": "4cb2954174e83470a4543e3180adc7a78a195fec444f77eef40ff1d13eda44ba"
+    },
+    {
+      "path": "apps/api/scripts/export-master-lists.ts",
+      "sha256": "2ba4fc98f27bc38b502a82f00103dec3ba9c4dfb75a722508ad48fe8a746e4e5"
+    },
+    {
+      "path": "apps/api/scripts/extract-bill-pe-codes.ts",
+      "sha256": "4b830c59f1f03d221187c850630ea6d7d46e8609df188a282362a857b66f53a8"
+    },
+    {
+      "path": "apps/api/scripts/extract-gao-interviewees.ts",
+      "sha256": "dd635cbabf06a62bd98c0ad406da7b330e5a2f30cc2c44828ecc2d4a058f7f2f"
+    },
+    {
+      "path": "apps/api/scripts/extract-hearing-witnesses.ts",
+      "sha256": "387b71197f67cec547f4cfab701954b86513ed239005daae72926b015bcd7d0c"
+    },
+    {
+      "path": "apps/api/scripts/extract-personnel-from-press-releases.ts",
+      "sha256": "6e9d74eaf19dcf7a2cd87d0c3206cc72d6e3b56230d338af77ed3e2f3df858ea"
+    },
+    {
+      "path": "apps/api/scripts/file-defense-budget-promotion-plan-v1.ts",
+      "sha256": "bcfd2c13b669c26d9aef6a26042f3e53e783b80f1776e5fdd1ebb22ae224311d"
+    },
+    {
+      "path": "apps/api/scripts/fill-govids-all.ts",
+      "sha256": "1f662d3e95c9914594484c9b94bcf0e0cee41afc6f877515f871419af7bc328b"
+    },
+    {
+      "path": "apps/api/scripts/flush-tracker-digests.ts",
+      "sha256": "6325e7c33406d7a019207aad3a0f2a8afe38f9c8dfbdfbdf64b7d09a823e3f82"
+    },
+    {
+      "path": "apps/api/scripts/funding-execution-certification-worker.ts",
+      "sha256": "5e56b9c76e616770a665b41612f508a565da48697bd7b343d5b541a54a7f112e"
+    },
+    {
+      "path": "apps/api/scripts/funding-execution-source-adapter.ts",
+      "sha256": "04f8db976e91282dae9b093d9e8814aea93059d35f3ac6c4e1cad052aed4914b"
+    },
+    {
+      "path": "apps/api/scripts/gc-client-logos.ts",
+      "sha256": "586fc4b2916ad751122898970859624245117598bf8f12a151e9c12e2f494765"
+    },
+    {
+      "path": "apps/api/scripts/generate-actions.ts",
+      "sha256": "ef4f5684f35d7b6f5dbb49d47cb113d705161abe9d7e5d6540dbda821b056e6a"
+    },
+    {
+      "path": "apps/api/scripts/generate-briefings.ts",
+      "sha256": "d032bb5dc6ca8a045c1d3a8baa434e140dfd848b671216d040b743316bc90031"
+    },
+    {
+      "path": "apps/api/scripts/generate-grant-opportunity-candidates.ts",
+      "sha256": "301d9b3c5d56929aa999250623365fecc2b4129acd520d5fbc03978fe888a170"
+    },
+    {
+      "path": "apps/api/scripts/generate-meeting-briefings.ts",
+      "sha256": "c2988637c01b66af9f7529e3ab74d778375a83cb976ee226d23c92473d25d76e"
+    },
+    {
+      "path": "apps/api/scripts/generate-pe-person-candidates.ts",
+      "sha256": "880be08507f07fe65fd7d1beeac7d2b20c7e25a49985269d5ddcbbfc45b5fbb7"
+    },
+    {
+      "path": "apps/api/scripts/generate-report-card-docx.ts",
+      "sha256": "484e51c7a049808032928446f34c93a2ebef7992e66c853f1c73bce9d13520d7"
+    },
+    {
+      "path": "apps/api/scripts/generate-tango-enrichment-candidates.ts",
+      "sha256": "ea8f3e79e12d178027dd96e142c3cc2bdfafddb108795666c5741936ea46eacf"
+    },
+    {
+      "path": "apps/api/scripts/import-dow-directory-v6.ts",
+      "sha256": "603d37bf478b52a6790564d42a5c8db64b319971a1500e265f17bf67d65ff51c"
+    },
+    {
+      "path": "apps/api/scripts/import-dow-orgs.ts",
+      "sha256": "0aeb12b495c6405f35c8db85d79211842f67c68fda433d29ee7897289be4814e"
+    },
+    {
+      "path": "apps/api/scripts/import-stanford-dow-directory.ts",
+      "sha256": "9744fc418c374186147260752230a8e8785c0027b500d9ffb151c531acd3473a"
+    },
+    {
+      "path": "apps/api/scripts/ingest-cpf-cds.ts",
+      "sha256": "76ad7212dcf2ebe9203e2ef9542a3a8dde4acc95c5b3bb0da2dbe0f970f14030"
+    },
+    {
+      "path": "apps/api/scripts/ingest-defense-budget-pdf.ts",
+      "sha256": "b4d22f0baca8465a72f983e633fa5eb378f02d22ba1c12871518ceb4d2487d88"
+    },
+    {
+      "path": "apps/api/scripts/ingest-florida-legislative-directories.ts",
+      "sha256": "672acd6cb361d8a7bbfa7bf58e46b4aa03b2f7f304cdb13b868ad457a6c8f6d3"
+    },
+    {
+      "path": "apps/api/scripts/inspect-defense-budget-non-rdte.ts",
+      "sha256": "e05a71bb9f3f130b73965ed14257efc3daff4489995f98a3761c4a05f3655ae8"
+    },
+    {
+      "path": "apps/api/scripts/load-press-personnel-mentions.ts",
+      "sha256": "481fdc3879db50e03d232f6fdf538fc04c225b2187f0bb17558e89ad2015895b"
+    },
+    {
+      "path": "apps/api/scripts/load-state-calendars.ts",
+      "sha256": "f5a1297fe2ed9f092462de9a98a18365745330d28834a741a2135da7d2e88fef"
+    },
+    {
+      "path": "apps/api/scripts/match-contractor-identifiers.ts",
+      "sha256": "17e107517930b21499d24005c7576add21d02c7d0d13a5cf535c7bbee5b38182"
+    },
+    {
+      "path": "apps/api/scripts/match-pe-mentions.ts",
+      "sha256": "936814fe9a86bcd91b50076b4fb98cb7d1d3f24f5e8862d1d1897be6bead9612"
+    },
+    {
+      "path": "apps/api/scripts/match-pe-person.ts",
+      "sha256": "f43cc5a7c75cedb50c7ae6c70010d4ca8fa28d146cc990a2b67613875b5a097a"
+    },
+    {
+      "path": "apps/api/scripts/match-pe-program.ts",
+      "sha256": "e810a9ff8587a3c12e0153ed940141a3ee880300226428dd6b811119f7a6ba5e"
+    },
+    {
+      "path": "apps/api/scripts/measure-accuracy.ts",
+      "sha256": "e88ec4150e7949e2b81962793dbe21fb0d2fe7b7720e070291fd925f91400e28"
+    },
+    {
+      "path": "apps/api/scripts/meriv2-phase18-application-rehearsal.ts",
+      "sha256": "29dd832b2438abeae409c4a46745f42ac7e55466d02874d8ac5d36f5c83a2bb9"
+    },
+    {
+      "path": "apps/api/scripts/meriv2-phase18-backfill-rehearsal.ts",
+      "sha256": "a2147e013ce6c1427de0c7b8bd6e73b230bb32372b47c02e7404a981a91c8e3f"
+    },
+    {
+      "path": "apps/api/scripts/move-ndaa-conference.ts",
+      "sha256": "344f9ad6ced4fe78e1d9bcbc0c10e3874c8b3cffa266343b2cc45de1998c63f9"
+    },
+    {
+      "path": "apps/api/scripts/normalize-pe-units.ts",
+      "sha256": "2afaa2dfbd5f180836585cfdcd4d518777714cf92ae0b252e1f3083bfaea01b8"
+    },
+    {
+      "path": "apps/api/scripts/ops/rehearse-bizdev-discover-filters.ts",
+      "sha256": "7abcb89caad855dd12430ca5898c6910d99dc876c4998df6bc0d3cbd7b8d56bc"
+    },
+    {
+      "path": "apps/api/scripts/outreach-v3-phase2-delete-protection-rehearsal.ts",
+      "sha256": "1899d91e0024fa5bf4c80205ee24d6e93c8d5bd37125dde93851fd117e21bff8"
+    },
+    {
+      "path": "apps/api/scripts/outreach-v3-phase2-flow-rehearsal.ts",
+      "sha256": "1fcbd04ec7b2d0fa3663c490e740300bee3d91be98ebb6fcf327e6effab24750"
+    },
+    {
+      "path": "apps/api/scripts/parse-defense-approps-public-law.ts",
+      "sha256": "975303f4a2386b30a8069446c844106f3a44f69b09261c0a5ec7db9bc9e05aca"
+    },
+    {
+      "path": "apps/api/scripts/parse-dow-directory.ts",
+      "sha256": "e38bc4502fd7e147dbd4f5f9ea9a5e00c9c4434c79d62dcb6072eb7780e714d8"
+    },
+    {
+      "path": "apps/api/scripts/pe-budget-phase7-drain-rehearsal.ts",
+      "sha256": "e92d869a8f6496c75d7ff235d3fc5fc4f73a016302eea0e95876181f83a52434"
+    },
+    {
+      "path": "apps/api/scripts/pe-budget-phase7-engine-rehearsal.ts",
+      "sha256": "02e716772c6a570f313ed99438881fa5aa29a1df0409f92edf9e1a0b88c58098"
+    },
+    {
+      "path": "apps/api/scripts/pe-budget-phase7-gap3-authorize-rehearsal.ts",
+      "sha256": "db4a1055a18b0146e1044877f52cf137b692938a48998448ef9754bf405fb385"
+    },
+    {
+      "path": "apps/api/scripts/pe-budget-phase7-read-rehearsal.ts",
+      "sha256": "f5ac10df1007a2383feed63296f9e7f42c3e57a1fa6e8bf7919e51e1be6f6712"
+    },
+    {
+      "path": "apps/api/scripts/persist-defense-budget-projection-plan-v1.ts",
+      "sha256": "60cb0cfdf23db0683ba092749f8c120b2d8c787c710e9ccdb372d6289eb653ef"
+    },
+    {
+      "path": "apps/api/scripts/persist-phase6-audit-projections-v1.ts",
+      "sha256": "0a816f7b2b568e4f775adc3c89f20eca317de4454a2e6411d23d70bd27b15f8e"
+    },
+    {
+      "path": "apps/api/scripts/phase6-producer-rehearsal.ts",
+      "sha256": "f5c87608c14e66591730d96855d0b09a850f355bc384396a419f5656df95ea44"
+    },
+    {
+      "path": "apps/api/scripts/phase6-stage-cycle.ts",
+      "sha256": "e9005acc539c1e9cb3e8d0187b4e9c3fc41391a7dde0ce08973f387020a987f2"
+    },
+    {
+      "path": "apps/api/scripts/plan-defense-budget-non-rdte-projection.ts",
+      "sha256": "9f098d6933aa61e45a5cb7b764e2b6a58e587a975e0ad9fd27939fba33f21212"
+    },
+    {
+      "path": "apps/api/scripts/plan-defense-budget-promotion-v1.ts",
+      "sha256": "0527611e0f93d7378c5c3ac270541096a623391ae061976f2f5ff0c283c80424"
+    },
+    {
+      "path": "apps/api/scripts/preflight-ingestion.ts",
+      "sha256": "3ad8dd6936fac9dc338864f41202a8b0785b3a86ca5998b186cf598648190797"
+    },
+    {
+      "path": "apps/api/scripts/prepopulate-all.ts",
+      "sha256": "aed20b5251123d3afbc30227796b1df600cdfc5a20ea5c8313de4999d28383d2"
+    },
+    {
+      "path": "apps/api/scripts/probe-committee-sources.ts",
+      "sha256": "bf3be82558e814a1576e75a6ea893cced370f40e50f1ee49f5a0a5a33a08d9ef"
+    },
+    {
+      "path": "apps/api/scripts/process-funding-opportunity-lifecycle.ts",
+      "sha256": "82df6dbb1c121f062f8864416335ff5d445687e02c990c002cff01d0deafc610"
+    },
+    {
+      "path": "apps/api/scripts/process-tango-events.ts",
+      "sha256": "acb35eb949c4891c5ab1f288649c7241dbc7a926501485a81ac3fc15391d06ab"
+    },
+    {
+      "path": "apps/api/scripts/promote-procurement-lines.ts",
+      "sha256": "a5d89e97326d38deba024ff5dd18bf7bc7792517a0f541581be61fa434a424f0"
+    },
+    {
+      "path": "apps/api/scripts/purge-client-memory.ts",
+      "sha256": "799df92719906f1c268b2530fb0e7d0a0436b44d7c67bf103057601c670b4f09"
+    },
+    {
+      "path": "apps/api/scripts/qualify-legiwatch-phase5.ts",
+      "sha256": "4e622e3ceaf60afdd360ae0bc71cea5485f497056d179506296ec6e94c28b51b"
+    },
+    {
+      "path": "apps/api/scripts/qualify-package3-congressional-artifact.ts",
+      "sha256": "d4829367d2d80ab3e9021f1d053ad6bd1ccfd11b959a379d27c9ead736e69b39"
+    },
+    {
+      "path": "apps/api/scripts/qualify-package4-legislative-updates.ts",
+      "sha256": "5d0cb1ad127fb9e2119a506e5604df08c79494e351ec3eaf05fa906d9e0152c6"
+    },
+    {
+      "path": "apps/api/scripts/qualify-package5-program-acquisition.ts",
+      "sha256": "64cf276237f0b4f3d36e33c5936dd1c5ccb33d2def42e3df9935bfbd1f7d1c8f"
+    },
+    {
+      "path": "apps/api/scripts/qualify-package6-funding-execution.ts",
+      "sha256": "bd276b7aebdd02b3597f24269f4f87e80050ca33c63d703db9dfd5eb01c0d97e"
+    },
+    {
+      "path": "apps/api/scripts/rebuild-program-element-years.ts",
+      "sha256": "2e2d65caabfe854036863b2d81c5ff875a16346afaaa8d8ae07caa22a325d311"
+    },
+    {
+      "path": "apps/api/scripts/reclaim-google-mail.ts",
+      "sha256": "93a493b72ddd8bda1888db0b142ce765ebdc3382607e173269edaa77b70d79ba"
+    },
+    {
+      "path": "apps/api/scripts/recompute-conference-probability.ts",
+      "sha256": "e588098785fb0b89175aa4d3673014543976a0a678cd76ba74aca4c90ae255e0"
+    },
+    {
+      "path": "apps/api/scripts/reconcile-hearing-aliases.ts",
+      "sha256": "9dd2ee2ad2804d6427b9d42ac8b0784b2fd9e2944586e472616c6ecc4f22ed61"
+    },
+    {
+      "path": "apps/api/scripts/reconcile-hearing-archives.ts",
+      "sha256": "a2259b3a795cc6265ecf9fbd39c87321765b2993f0857b7a8993bf7437111faf"
+    },
+    {
+      "path": "apps/api/scripts/reconcile-person-role-staleness.ts",
+      "sha256": "b905e524a8e2c1159de3d107f3b27af64a2d4ce12d0b5218f50f1c6b480a3e11"
+    },
+    {
+      "path": "apps/api/scripts/reconcile-personnel-supersede.ts",
+      "sha256": "bbbadf490920e168adecf6ecd85a32bad95b70b43ad046f0b74dfbed68c2f099"
+    },
+    {
+      "path": "apps/api/scripts/reconcile-stale-pes.ts",
+      "sha256": "3f8f37e14d8fd4b0279293996d1a21b49d74409a604114ac40f48c012a405537"
+    },
+    {
+      "path": "apps/api/scripts/reconcile-tango-webhook-alerts.ts",
+      "sha256": "5d2236ca355388ba4c13c592559b03765a9080c5d0094caf7bd7bf14a7d1e45c"
+    },
+    {
+      "path": "apps/api/scripts/reextract-defense-budget-candidate-v1.ts",
+      "sha256": "3900036394a1ede8ddc39ce55ea1ffeaa0d80ad6557e22cfc1fa1d5a7f67e74b"
+    },
+    {
+      "path": "apps/api/scripts/refresh-kg-edge-cache.ts",
+      "sha256": "71ebeb86a99b0bc80a75eaa67601510df479a4546c3bce5b527e50cc57a6a18f"
+    },
+    {
+      "path": "apps/api/scripts/refresh-lobby-intel-mv.ts",
+      "sha256": "acce0c95c9f694a54d43c8a5c0eabdf7eb8ee70884eff79b8f65254bab4e38b9"
+    },
+    {
+      "path": "apps/api/scripts/refresh-memory-graph.ts",
+      "sha256": "0e8dd0ef000708bb6abf5403447bdee4e7280bc1907a22578d456a5ab35f1002"
+    },
+    {
+      "path": "apps/api/scripts/rehearse-budget-verification-v1.ts",
+      "sha256": "74e5b8f2b5033e9f865415efdf900da2be2b789a84dd1f54ae60c48ab9d10764"
+    },
+    {
+      "path": "apps/api/scripts/repair-facility-district-codes.ts",
+      "sha256": "8d5126a2db14a6a3ada0dc59f07e395a406f6fa9187d521ea0adbe5bec1f6489"
+    },
+    {
+      "path": "apps/api/scripts/repair-florida-jlbc-openstates-alias.ts",
+      "sha256": "1bdedc5366215ab8f1fae0f3f547d19bebf198cc59c5c7b2f9f040afd0a5b5cd"
+    },
+    {
+      "path": "apps/api/scripts/repair-florida-openstates-aliases.ts",
+      "sha256": "8306137122301fe70aca89811f6317aebd01411af0957a99c14c302e36d97097"
+    },
+    {
+      "path": "apps/api/scripts/repair-official-hearing-observations.ts",
+      "sha256": "b586d88da5f0ad872e6b8cacfb9b8bbdf00217931608f54aa0d773e223fc8e35"
+    },
+    {
+      "path": "apps/api/scripts/repair-pe-thousands-as-millions.ts",
+      "sha256": "062fe10c33ab93b7de69a941529f03588172594a4ca18e9b404031961fe75020"
+    },
+    {
+      "path": "apps/api/scripts/repair-person-pe-links.ts",
+      "sha256": "6e7b4a5177029df51db7bb8b97d63a3092e63f1aed5c6faa925c13d8bd24a76d"
+    },
+    {
+      "path": "apps/api/scripts/repair-set-aside-certifications.ts",
+      "sha256": "66b5d2b066a519684133978a8e3426b641317e84510468f3720374ea5067d01f"
+    },
+    {
+      "path": "apps/api/scripts/replace-defense-budget-candidate-approvals-v1.ts",
+      "sha256": "dea462229b2203fc070b53cea569ca0ee0379339636c6b97e690a86c5f78e0d1"
+    },
+    {
+      "path": "apps/api/scripts/replay-defense-budget-parser-artifact.ts",
+      "sha256": "f5886507fc8d756efd41a9ca7a5342a76cd592946a0a4bfdb9acc6b9dfd12449"
+    },
+    {
+      "path": "apps/api/scripts/report-award-pe-coverage.ts",
+      "sha256": "9f8159683d0ebfaa9cdc35e68b9775e32f3164a1b2fc5935c229b8a89277763f"
+    },
+    {
+      "path": "apps/api/scripts/report-bizdev-jev-shadow.ts",
+      "sha256": "879ab67599b80535ad32d6389aea138b291a9328634bd49ba3bb672782c76ba5"
+    },
+    {
+      "path": "apps/api/scripts/report-defense-budget-verification-cycle-v1.ts",
+      "sha256": "5a6a7c6687c58b777cf96994ab8ce945f7ad21ac00123edcd1aa8002fcb01aa3"
+    },
+    {
+      "path": "apps/api/scripts/report-meri-retrieval-v2.ts",
+      "sha256": "ffa62e377cc2fd52598b5022f991d65a90aa7b81fe142dae6186e5aae3b601d4"
+    },
+    {
+      "path": "apps/api/scripts/report-pe-attribution-gaps.ts",
+      "sha256": "0d94e8a157ffe8a81e84e47332724da4fbdd639892fd0a8d18832d7ffa657ca6"
+    },
+    {
+      "path": "apps/api/scripts/report-pe-coverage.ts",
+      "sha256": "690819eaf3cf55cc9d2f6738219df3298ae15cd50f2bf95d8a2de60bf54906b5"
+    },
+    {
+      "path": "apps/api/scripts/resume-defense-budget-promotion-side-effects-v1.ts",
+      "sha256": "c0511e642495b7f2a5ab843904e626d360fc018a7cc93b3a294fc8066c03677f"
+    },
+    {
+      "path": "apps/api/scripts/review-defense-budget-scoped-fact-v1.ts",
+      "sha256": "83311a427caaf1b54395889da1b79c2c122ba07dd27a2d2e628acfd3fe18da70"
+    },
+    {
+      "path": "apps/api/scripts/review-defense-budget-verification-v1.ts",
+      "sha256": "c82275ad5e85825937c1f98466e441118ff876ccbc4029c25cadf07d9050455c"
+    },
+    {
+      "path": "apps/api/scripts/review-tango-enrichment-candidate.ts",
+      "sha256": "c859589442a2bc1d71fdf77386a18e5054fa9434a2dcb5d82a7380100df472c4"
+    },
+    {
+      "path": "apps/api/scripts/revoke-defense-budget-scoped-fact-v1.ts",
+      "sha256": "44eeffbff3b105e7e0967d3fc663ffb8e43a0119bfee325ef3a03c6e4ff69f76"
+    },
+    {
+      "path": "apps/api/scripts/rollback-defense-budget-snapshot-v1.ts",
+      "sha256": "d570b7df4ce5f374792d8095291e3a2384b6707e5c04eb38de7d6b31beffba27"
+    },
+    {
+      "path": "apps/api/scripts/run-bizdev-watch.ts",
+      "sha256": "fa915778aa39111c40c87888aa01367f1446cd9473c67ca7d40423ecb7eb5c1d"
+    },
+    {
+      "path": "apps/api/scripts/run-clio-scheduled-tasks.postgres-child.ts",
+      "sha256": "d4aaf53d22c0fae9c29852a1df336a63a80929d0df08330af2a6a1a507306127"
+    },
+    {
+      "path": "apps/api/scripts/run-clio-scheduled-tasks.ts",
+      "sha256": "d58365121ba50c9c40429a5d5ac07f92b5f01f76f76c55be116ce4e42d46f4d1"
+    },
+    {
+      "path": "apps/api/scripts/run-defense-budget-cycle-family-readiness-v1.ts",
+      "sha256": "0187e47205ac90e47149386d5521c87967933bc0c379d0c77543ced092eca58a"
+    },
+    {
+      "path": "apps/api/scripts/run-defense-budget-ingestion-manifest-v1.ts",
+      "sha256": "c815ab1d2a05c7265cc23335d787c3265a0ba84f677e5143a33ee86094c13821"
+    },
+    {
+      "path": "apps/api/scripts/run-governed-import-cli.ts",
+      "sha256": "53abc0d3c2c1fcc36143728a57fc3c232eed30a73632da84b26a8209b460f920"
+    },
+    {
+      "path": "apps/api/scripts/run-intel-workflows.ts",
+      "sha256": "1bb103da841c1fc1a0dd96d2229e1038d08b318ed72f67c35e8b7b4519f6f0a6"
+    },
+    {
+      "path": "apps/api/scripts/run-learning-signal-candidate-generation.ts",
+      "sha256": "5471b6f174e16ae8aa5e1a5de9e3c3896d2181d6736cc17ba46a2fb361c650da"
+    },
+    {
+      "path": "apps/api/scripts/run-pe-budget-phase7-migration-rehearsal.mjs",
+      "sha256": "b1965430051ea5e3e71399b9ae4a6d1010ec6b3dc424d44ab5302dfc11513a89"
+    },
+    {
+      "path": "apps/api/scripts/run-pe-derive-chain.ts",
+      "sha256": "7b000b1369caf917f17529240476368d6c07df8c686a26a7e54cf5fd089e5313"
+    },
+    {
+      "path": "apps/api/scripts/sam-opportunity-matcher.ts",
+      "sha256": "052d144fa46948290cec046be11cc43726da05310b16e3d4a812d002838a9120"
+    },
+    {
+      "path": "apps/api/scripts/seed-acq-program-map.ts",
+      "sha256": "f9871b697cf8959d9ec89717d212651245d52ff06ff26db5c6d5cd0e9c89435c"
+    },
+    {
+      "path": "apps/api/scripts/seed-budget-line-lineage.ts",
+      "sha256": "eeee683b9cb5b613d420eb6ae50304a25fadc49db92634c3a2d0d7d27e39bfac"
+    },
+    {
+      "path": "apps/api/scripts/seed-engagement-phase0-browser-fixtures.ts",
+      "sha256": "e4afd32166ac77b9e002c413b71b6705912710f5080dcf521676f1a90f7c17b4"
+    },
+    {
+      "path": "apps/api/scripts/seed-federal-contractors-from-awards.ts",
+      "sha256": "0ffd2f1727dd2c4f69e1f7c3131c802e958494f29010c6dba851975be6747b10"
+    },
+    {
+      "path": "apps/api/scripts/seed-meriv2-phase19-browser-fixtures.ts",
+      "sha256": "955ca9fa805338cb0d4dabe74f0ac43155c613d2fda0ae978d8392bfe797151b"
+    },
+    {
+      "path": "apps/api/scripts/seed-outreach-ai-templates.ts",
+      "sha256": "f911876c031709fabc2590f1e41351f62a1aaaa70e87f1ebbd2267ca6586ff3d"
+    },
+    {
+      "path": "apps/api/scripts/seed-program-element-fixtures.ts",
+      "sha256": "a5a946054f754b555bda7e3b72ecb81a70c7b47e15b6978760f3ab7b60a30e62"
+    },
+    {
+      "path": "apps/api/scripts/seed-programs.ts",
+      "sha256": "9fd1899a720991b669ef9fc355baf48232c9351fb21090072e89533b04af686a"
+    },
+    {
+      "path": "apps/api/scripts/send-pe-alert-emails.ts",
+      "sha256": "93cfab9d5d141d7a47705323c68443316c4771e2622450405ed581a5749ec4ac"
+    },
+    {
+      "path": "apps/api/scripts/set-tenant-flag.ts",
+      "sha256": "a18e7f241748dce479434e803c18066f04936069f11f7175f2dca1914637fe38"
+    },
+    {
+      "path": "apps/api/scripts/smoke-clio-research.ts",
+      "sha256": "50be3deab50ccdc594bed84e120b12e1c5c0bafedfb150ac7f176a4688607889"
+    },
+    {
+      "path": "apps/api/scripts/smoke-clio-tooluse.ts",
+      "sha256": "c6dc0671464e511847487b1b76104adc0067fb105665123067687699ca3e6197"
+    },
+    {
+      "path": "apps/api/scripts/smoke-integrations.ts",
+      "sha256": "7636fdb54fb7b81b2edc519fa7fc593f19bc714c955aefc29cab5bb824fb5b66"
+    },
+    {
+      "path": "apps/api/scripts/snapshot-defense-budget-package0-v1.ts",
+      "sha256": "53653037fe2895662b355822a468a45f375a4af60cdcd8489bafeeb8f6d8cc64"
+    },
+    {
+      "path": "apps/api/scripts/snapshot-defense-budget-package1-v1.ts",
+      "sha256": "89f6c5a1f09eef05540d6d9ada38d7d5fda15ac2cd0450d765cc2de81eb406d8"
+    },
+    {
+      "path": "apps/api/scripts/status-defense-budget-promotion-v1.ts",
+      "sha256": "48662d2c8fa69ee9d1041964b48bef8b6baa2ac6c0ddf97111c44a90d34c1531"
+    },
+    {
+      "path": "apps/api/scripts/sync-bea.ts",
+      "sha256": "ae652cf134bb7c3682e39da3458f50578121c2b7e136e4e90068f0fded2d0c04"
+    },
+    {
+      "path": "apps/api/scripts/sync-bls.ts",
+      "sha256": "bef6a81efdb625793e8e98cac49753d3efda526118888751cb3708d15fd381d5"
+    },
+    {
+      "path": "apps/api/scripts/sync-cbo.ts",
+      "sha256": "371aff18be5d2a75330fc7c49423eb508816776d55dde0d02ba47859f615bb72"
+    },
+    {
+      "path": "apps/api/scripts/sync-census.ts",
+      "sha256": "20e70e345f4843c3c005ff5e0ef73ec6f271095ce3936d414176ba53df6fb80a"
+    },
+    {
+      "path": "apps/api/scripts/sync-committees-precedence-proof.ts",
+      "sha256": "3be0ac150cddffab98becfc9ad830af97ee860416d6a5b92b51cb948df12107f"
+    },
+    {
+      "path": "apps/api/scripts/sync-crs.ts",
+      "sha256": "c1c350bebf8b6668d7e22c493340c5ae2c9e20e5845f81ff8df3d0c8968a80f3"
+    },
+    {
+      "path": "apps/api/scripts/sync-district-economic-acs.ts",
+      "sha256": "cd57aab06de723920e1f98c0b8a8b02188983e18c1e418d37613fad189b96724"
+    },
+    {
+      "path": "apps/api/scripts/sync-district-economic-cbp.ts",
+      "sha256": "29f9ce9cd50efca0c32ca8eb6b44d935a3e9db5f6952ab65597207dbd87b0ca1"
+    },
+    {
+      "path": "apps/api/scripts/sync-district-economic-lodes.ts",
+      "sha256": "35810286a940595033d8c60ca1bb53828a0cc7de06eeaf34996641773ab981b1"
+    },
+    {
+      "path": "apps/api/scripts/sync-dod-orgcharts.ts",
+      "sha256": "2b982d85140835fb98d67260c7822b1411e5e2b4835a95e0c762e84ce0d6f902"
+    },
+    {
+      "path": "apps/api/scripts/sync-dod-press-personnel.ts",
+      "sha256": "33d97447f937109937721984c8a0c233ddb38264e1be03be4ed2e2c23c496d73"
+    },
+    {
+      "path": "apps/api/scripts/sync-dow-headshots.ts",
+      "sha256": "83df9031431828929ce6bb99c619a982864b839d1cf02491de6b12ccfa98446c"
+    },
+    {
+      "path": "apps/api/scripts/sync-entity-resolution.ts",
+      "sha256": "fa30511973a3bc061ae1fe67f4873cb712cb2508d38aa79cdef1d27c7e5b8496"
+    },
+    {
+      "path": "apps/api/scripts/sync-fara-enrichment.ts",
+      "sha256": "80623f1dd95bb6eee931108ddf83b859cef4ee3c4fd4162ac595fec283e4ed4d"
+    },
+    {
+      "path": "apps/api/scripts/sync-fara.ts",
+      "sha256": "2a0807e0a245b89eed9c1502b59716014729ea76935175a2e0958f1fb2f322df"
+    },
+    {
+      "path": "apps/api/scripts/sync-fec-pac.ts",
+      "sha256": "c97569b4ecc95f928b4f8e27754b9c17c26fae93bcdd582f21f6198474171845"
+    },
+    {
+      "path": "apps/api/scripts/sync-fec.ts",
+      "sha256": "e1c637d2622daced74b9291037ad2725249ec0a7107c08de2887b99a43f9b189"
+    },
+    {
+      "path": "apps/api/scripts/sync-federal-assistance-awards.ts",
+      "sha256": "75bfc4c50031916a9e0679eaa9f2e5be020f31b938fff6c07ceb224214c360ea"
+    },
+    {
+      "path": "apps/api/scripts/sync-federal-award.ts",
+      "sha256": "599dfffc76c789a26cb5ea9b3a914e2ca50d0829d9f489dd32788ffacf5071db"
+    },
+    {
+      "path": "apps/api/scripts/sync-federal-legislative-evidence.ts",
+      "sha256": "0f58ccc3bab71174b0ef6da5539e1c4a52b96de941262f055ac05dfe98714254"
+    },
+    {
+      "path": "apps/api/scripts/sync-florida-official-committees.ts",
+      "sha256": "c9a6afac89f4d49360b2fa3eb2f7928cdc6848dafff051cd5aa0cad8273dbe4a"
+    },
+    {
+      "path": "apps/api/scripts/sync-gao.ts",
+      "sha256": "a7592a56fdebdb6110a85124d37d63b64d401d6d4519ad22aec844a5bac8f4eb"
+    },
+    {
+      "path": "apps/api/scripts/sync-grants.ts",
+      "sha256": "de7ddead526e7c1160f09cc3c3463e2ff79fa688d0e8dd94a24a165a95747c2a"
+    },
+    {
+      "path": "apps/api/scripts/sync-gsa-frpp.ts",
+      "sha256": "dbee40e88246a5f966a2d87ad386ef7e4ed37e09f6432a9376a944a40085c19f"
+    },
+    {
+      "path": "apps/api/scripts/sync-hearing-transcripts.ts",
+      "sha256": "8b578f8f5ae60079e4a371b23b91e6185d3b698d86da7594f39a67c3886e1118"
+    },
+    {
+      "path": "apps/api/scripts/sync-hearings.ts",
+      "sha256": "528ed02b92c386785fc733af683febca98fbbdb347b512295b4d3030fc1432d7"
+    },
+    {
+      "path": "apps/api/scripts/sync-jbook-performers.ts",
+      "sha256": "cbb8395e03205d20830040adf9cb391dcebdbc7dfc2164a5344aaf123c677cf5"
+    },
+    {
+      "path": "apps/api/scripts/sync-jbook-r2.ts",
+      "sha256": "d1aa75865075424a80d7ac08c43ada183c778c7057c1a14adefa8a05c1de36b1"
+    },
+    {
+      "path": "apps/api/scripts/sync-lda.ts",
+      "sha256": "be3bde3768ea890121b64c7a9efdde5b829254dff59190d394fafac64d824534"
+    },
+    {
+      "path": "apps/api/scripts/sync-legal-research.ts",
+      "sha256": "52523808b162085292108e952c83c3a820843fb939cbe72c5e54bc5ee900c09e"
+    },
+    {
+      "path": "apps/api/scripts/sync-legiscan-bills.ts",
+      "sha256": "c09375e96910d6bf12a6195315c715738aefb9a1e9da71ca0e3c3ad349ae0c90"
+    },
+    {
+      "path": "apps/api/scripts/sync-legiscan-masterlist.ts",
+      "sha256": "8674c7bb396ba2212d6c900fe06d9559187fa4fbab732dd85a13c926dd7f4c2a"
+    },
+    {
+      "path": "apps/api/scripts/sync-legistorm-directory.ts",
+      "sha256": "ad28c868d32b687c77e311d99e0973266ba5cacbfb225ad34c0f59f1f55ba5b4"
+    },
+    {
+      "path": "apps/api/scripts/sync-legistorm-trips.ts",
+      "sha256": "592760aac8301f2f826386cc9f4a987a588e04c843fdde842c9ca5f1843f8720"
+    },
+    {
+      "path": "apps/api/scripts/sync-legiwatch-phase8.ts",
+      "sha256": "8f1ac859ccceebf4fb8a5ba3e73a4cc44cb4795635dba7182532d2a461bffd4d"
+    },
+    {
+      "path": "apps/api/scripts/sync-openspending.ts",
+      "sha256": "29768f805a2340ff78ff3fd085b1cfcdd282326103b8980e5d42d38ca6dddc93"
+    },
+    {
+      "path": "apps/api/scripts/sync-openstates-events.ts",
+      "sha256": "b7c066f22dbc4015c6d6d51e837478f8f991172992967de7f19665580554a422"
+    },
+    {
+      "path": "apps/api/scripts/sync-openstates.ts",
+      "sha256": "4aafee4caa8788b5ca8f830fab92146915a85268e346f4978723aa50fb4e612e"
+    },
+    {
+      "path": "apps/api/scripts/sync-peo-rosters.ts",
+      "sha256": "7d014f49d819c94fd508f2eda38b99b32dff3c5708f39387fa7d9366ed0896eb"
+    },
+    {
+      "path": "apps/api/scripts/sync-program-acquisition-continuity.ts",
+      "sha256": "8c07ce904a13a345da965146eb0981320cdbb368435380354dabd34d30490398"
+    },
+    {
+      "path": "apps/api/scripts/sync-regulations.ts",
+      "sha256": "87f620062c1b7749f39552fa3a52ef7365335132dfb33be5ed5d969b06290c56"
+    },
+    {
+      "path": "apps/api/scripts/sync-report-provisions.ts",
+      "sha256": "9e75dfa91aa0f56032e4541ee77190e8e3f1f330a8fa2dddf4b85be317282e1f"
+    },
+    {
+      "path": "apps/api/scripts/sync-rss-intel.ts",
+      "sha256": "03430ecc4ae70b78b685f2aa0183f91c54bda690f2af36a621d4ec45f8a24bbf"
+    },
+    {
+      "path": "apps/api/scripts/sync-sam-opportunities.ts",
+      "sha256": "bcc285d20223b7012a3aa0bf7ed7fb19acde3142eabc65c2571b2c384ff8d469"
+    },
+    {
+      "path": "apps/api/scripts/sync-sam-personnel.ts",
+      "sha256": "525c6d0ae5f23067f7a0f9d664b3e1f28ccb74c0760267f1919883235126c228"
+    },
+    {
+      "path": "apps/api/scripts/sync-sec-edgar.ts",
+      "sha256": "ecc9cea9ac39185942d8919539136e51438c475bb526e1cd4be01a9674bdfc75"
+    },
+    {
+      "path": "apps/api/scripts/sync-state-register.ts",
+      "sha256": "c981bad414d462836e593c01f01b8b35e8c5f3f8a67465b0ac958fe3a92f59f3"
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-dibbs.ts",
+      "sha256": "593ff5406d16287d10cb7998d41c3e61e9872b85b2624b41152855e2de195b23"
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-entities.ts",
+      "sha256": "da7b85e64e8cd9061ca9da2ebb0946cc0295d3693b8e2602edf4d0f9079111db"
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-forecasts.ts",
+      "sha256": "4b94a8ce543e693739667c98d2be83c4f37db38cf37aa347a8c7d37cdb3127cc"
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-opportunity-attachments.ts",
+      "sha256": "5fcd8fd7e60378fcb7a9328fab3d8bc171ce7687b1bf33ad9498f7aafd862b01"
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-opportunity-notices.ts",
+      "sha256": "e14fd0f8655f9f4f69ca5fe29eae55e80de2d26d753530ac2f92b11f124946ac"
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-opportunity-shadow.ts",
+      "sha256": "a4e469057f82070c763a072f0ec7c3d4d583988d00ede23cd49f2d6edb698799"
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-opportunity-text.ts",
+      "sha256": "24a3d4ae4b09b5565c60fbcd2fd726505e73dc14bb4e908a6ebf46d2f48625b7"
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-sbir.ts",
+      "sha256": "b61ce082f90359edf0dae49c74bba1f132576fe7e94932139b989f10c1de4fb2"
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-subawards.ts",
+      "sha256": "1142e46ec95282460a3c5687ded17e106cf799987fe1e8883a6506260570711e"
+    },
+    {
+      "path": "apps/api/scripts/sync-tango-vehicles.ts",
+      "sha256": "29322ac740a65dd635eb3523888f11ed52110088dd432cc64b5afd97772b9e65"
+    },
+    {
+      "path": "apps/api/scripts/triage-pe-reconciliation.ts",
+      "sha256": "bde1e7ad416113e6272c605cb0e617a9e8a7e7ca936f8afd98e39ba12dbbe832"
+    },
+    {
+      "path": "apps/api/scripts/validate-defense-budget-cycle-manifest.ts",
+      "sha256": "e534cfde75086adc85cdb61246864f0ad9b8307fb921cca6655e1ed3bfd4e053"
+    },
+    {
+      "path": "apps/api/scripts/validate-defense-budget-extraction-artifact.ts",
+      "sha256": "24ef78c1196b61a95db7b8ea269b9de6298bbd47680dbf2393346412e367240d"
+    },
+    {
+      "path": "apps/api/scripts/validate-defense-budget-promotion-v1.ts",
+      "sha256": "ed8cf8b816ee957859c4bb0c722278338035441bf820142be1f3d91eecdf508a"
+    },
+    {
+      "path": "apps/api/scripts/verify-canonical-backfill-checkpoint-resume.ts",
+      "sha256": "55763b6d6518fc65d18472ab8f78a9125146b6df41dad7089f92c7568ed7433e"
+    },
+    {
+      "path": "apps/api/scripts/verify-canonical-backfill-replay.ts",
+      "sha256": "9510483996d384585e97c128cf356da534b7156259144ee8690023351692f9ff"
+    },
+    {
+      "path": "apps/api/scripts/verify-defense-budget-extraction-v1.ts",
+      "sha256": "dea060c734248b0c49cfa2ad6cb1239d1989d2c207a35288d25de0a354eebc08"
+    },
+    {
+      "path": "apps/api/scripts/verify-defense-budget-non-rdte.ts",
+      "sha256": "504c07d2591d0ef05bf4c824e9c774dfa9937cb8706a77a70dac951bf120eb7f"
+    },
+    {
+      "path": "apps/api/scripts/verify-defense-budget-packages.ts",
+      "sha256": "172c84321d90e8c7dde7fa18593f202da314ca8f9ece0f41c8b8b7b0dd92b3d6"
+    },
+    {
+      "path": "apps/api/scripts/verify-defense-budget-parser-architecture.ts",
+      "sha256": "87ca00097a8dea86525742322889f6d822bcc976f9564b3ab3c5da78e421adaa"
+    },
+    {
+      "path": "apps/api/scripts/verify-defense-budget-rdte.ts",
+      "sha256": "7896f4747464f3bd5830b67f283095f87527f0642927cabe37398a528d9dd7b9"
+    },
+    {
+      "path": "apps/api/scripts/verify-defense-budget-release-qualification-v1.ts",
+      "sha256": "780d7ad2c98bacea2e4ca10f99c05949728a9a492e8e0394155ec22f9fe522f3"
+    },
+    {
+      "path": "apps/api/scripts/verify-engagement-phase1-runtime.ts",
+      "sha256": "516cdee5c9fb35bfdf35b04b03523e9eec827e860d1554c269858d8bc845bf0a"
+    },
+    {
+      "path": "apps/api/scripts/verify-krisp-notetaker-db.ts",
+      "sha256": "267657d607cbaea5c9eac78e1e9a549509e11b8e171bcc24362d50fb69a3096e"
+    },
+    {
+      "path": "apps/api/scripts/verify-mcp-connectivity.ts",
+      "sha256": "2ab214340d3ac4d4c44c40da90fbdd8261cb8bb2c3b2cba14e88628ae177ae85"
+    },
+    {
+      "path": "apps/api/scripts/verify-memory-admin-self-approval-database.ts",
+      "sha256": "89dfc7fe7ae77166166a79412d5bfb600541d6953323ac2104c7c9b3827f9d37"
+    },
+    {
+      "path": "apps/api/scripts/verify-memory-phase2-notification-closeout.ts",
+      "sha256": "0784d81fc2644818fd70eebfe2d86fbee1acecdeece73a63da8096b69da81e63"
+    },
+    {
+      "path": "apps/api/scripts/verify-memory-phase2-persistence-contract.ts",
+      "sha256": "398481f2c07523a457952e504368ada0c9328bea66c62b63288e922de6e9b76d"
+    },
+    {
+      "path": "apps/api/scripts/verify-memory-phase3-review-inbox-closeout.ts",
+      "sha256": "29dab507ec784ee9822f911ce3381d7470ab04b6a4193b57dcd9222a4b93b00f"
+    },
+    {
+      "path": "apps/api/scripts/verify-memory-phase3-review-inbox-database.ts",
+      "sha256": "c6da156af4e1a817c7036df26a41da8e360a2613b3c3bf4da659266c773a4adb"
+    },
+    {
+      "path": "apps/api/scripts/verify-meriv2-phase20-control-system.ts",
+      "sha256": "5432a97ed9a64b27b61a8a62099c5b54b003391ff6f1661a590f57e8f53eb618"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-budget-phase-3-closeout.ts",
+      "sha256": "560630a61144205ce491dd69e689bdbf40158fe0296afcc2ff789deba1d7c9fc"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-budget-phase-4-closeout.ts",
+      "sha256": "3ccbc34e3c78b55a19f7ff6fc7ea0b1273cb6f52e4b2115193bfd657e29b04c7"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-budget-phase-5-closeout.ts",
+      "sha256": "879dad4109a7397d36acebcc865fdc85465f147d53d58ca43c950d63be502c66"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-budget-phase-7-safety.ts",
+      "sha256": "f94037b11f5140d8cddab0591e4a3462d7e78c4d5e055473b66bf45cad1e6882"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-budget-phase6-safety.ts",
+      "sha256": "37f86f27705bd44770f12e230c64bd137b0e647ad2a6154b50c69130fc5d65f2"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-budget-phases-1-7-audit-repairs.ts",
+      "sha256": "f9e07ff373c4206b18670003cd4d300723542dfcfe5779636a89e26f70d3cc99"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-k.ts",
+      "sha256": "378171b54eb571e89d3d3f8920f28d6db5d61eef9582e23a30c3ee1d4749595c"
+    },
+    {
+      "path": "apps/api/scripts/verify-public-audio-policy.ts",
+      "sha256": "551c14b71a1cae3cb5b5936cee239c868d8b6794347a770d4711902cb4c6074c"
+    },
+    {
+      "path": "apps/api/scripts/verify-rdte-phase-4-safety.ts",
+      "sha256": "d401685a1eefdb288aebedc025dec10e9d98ad9a9b33976005d0d3cff9dfcc5f"
+    },
+    {
+      "path": "apps/api/scripts/verify-state-document-records.ts",
+      "sha256": "36d9e3ef41f5e93adadfb5a7af6d7e384100605fbac8408a4a9cd8652faba4c1"
+    },
+    {
+      "path": "apps/api/scripts/watch-budget-docs.ts",
+      "sha256": "cc8d345d54532bc99d7c4c70420108e341ee80be4c685681cc7879560f407e6e"
+    },
+    {
+      "path": "apps/api/src/california-grants/california-grants-ingestion.ts",
+      "sha256": "11982e82e152ca31283913ddd733bddbe8189337510bd3cbd40b17afbec5f1a7"
+    },
+    {
+      "path": "apps/clio-sandbox/scripts/pentest.ts",
+      "sha256": "8f43fb265fb466e1e614f55720c1c0c095c347f49a0bbf27f16301911ffdb7f7"
+    },
+    {
+      "path": "apps/clio-sandbox/scripts/visual-smoke.ts",
+      "sha256": "91ebc59259547823e9c837558cf242c9c2c035dd663c34f404d1ebeff56b98a7"
+    },
+    {
+      "path": "apps/defense-api/scripts/ingest-federal-funding.mjs",
+      "sha256": "f51d1498fda5adeb22b1bd4fb65ae7b4bdfe7a48c3f3ed4efc2fc65304bd15c1"
+    },
+    {
+      "path": "apps/defense-api/scripts/job.mjs",
+      "sha256": "dd612753d7450aa1e80a6bafd1d5b6bd7d5a8f5152fbdfcadf6eed6131eb9ad0"
+    },
+    {
+      "path": "apps/defense-api/scripts/run-lifecycle-watcher.mjs",
+      "sha256": "a47f08e85314debde8f1586ee3061468370cab82cb7de13cd4a083c5934ed088"
+    },
+    {
+      "path": "apps/defense-api/scripts/run-schedule-controller.mjs",
+      "sha256": "6c460c4b742b6066634ec38969cfe63a3620793c5650542f98d2da554b7553ba"
+    },
+    {
+      "path": "apps/intel-api/src/hearing/intelligence/run-hearing-intelligence.ts",
+      "sha256": "9991903f5171a049067359683f913f0674863baa0c13bc81a0b80b7c6bfa26ab"
+    },
+    {
+      "path": "apps/meriv2-orchestrator/scripts/eval-tool-injection.ts",
+      "sha256": "e935d24f29e8fed75e9d6219de83e6347482d57fab45fd9bb66230d8e99ea66a"
+    },
+    {
+      "path": "apps/web/scripts/engagement-phase1-browser-parity.mjs",
+      "sha256": "ca9221396586f87cd7e80881ce76ff95bda9952dd659b7be553cb945ea5869cd"
+    },
+    {
+      "path": "apps/web/scripts/engagement-phase1-post-acceptance.mjs",
+      "sha256": "6b8189e8b503fdc34c4913abb8aeacfde7fc5f9175c0288355abfba8194cf8b9"
+    },
+    {
+      "path": "apps/web/scripts/lighthouse-pe-watch.mjs",
+      "sha256": "a95097927f22979b5b80f3127df7f26b6305e96c89a9e88a4864ee53e20cc796"
+    },
+    {
+      "path": "apps/web/scripts/vnext-visual-capture.mjs",
+      "sha256": "614c77b847793ac7ca6b2cc6ebab0cdcbb02a27d6c52f1c0ff3b0bad38406ee8"
+    },
+    {
+      "path": "apps/workspace/prisma/seed-workspace.ts",
+      "sha256": "930eb05e1a81997b4d0c80613395deca7aa5b819f8d920e7be912e4b0e5b0852"
+    },
+    {
+      "path": "infra/cdk/scripts/run-construct-tests.cjs",
+      "sha256": "92f658e9e5a473a34793bb2e5e9ac699c9a43cf9d7778fae5a42d5186b1a708e"
+    },
+    {
+      "path": "infra/cdk/scripts/run-engagement-api-tests.mjs",
+      "sha256": "69f63a16b4bf4fabea160be25b46c61c31b5b8277c13e2fb469f57fca4497460"
+    },
+    {
+      "path": "infra/cdk/scripts/synth-engagement-api-test.mjs",
+      "sha256": "9cd583dfe2d973f63e779d93cac231f1d16a9d2492e2f049ca45639861672d9a"
+    },
+    {
+      "path": "marketing/build.mjs",
+      "sha256": "60ddea5e1104831dd66e42f26bc1d59b090c00ce3383bff7c009bc5d370d78bc"
+    },
+    {
+      "path": "packages/defense-domain/scripts/package9-scorecard.mjs",
+      "sha256": "680a3cf256e0a7f20783d2ffdbd92beb5b537245d37c4db3f8eb16a66dbd0d1b"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/canary-report.ts",
+      "sha256": "b04d9b53de4a7313861775f377f7b3bfe73836c69884f11ac3a8aa18b624bc81"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-bd-gate-eval.ts",
+      "sha256": "ba70849c6635b366bcaf3baf7718f07cf534e56d18241723c03b825ebd98c254"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-package2-eval.ts",
+      "sha256": "4597ce697bd7df32d9f4993f80790610db984ab7804e12a564c6a92459f45ad2"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-package9-economics.ts",
+      "sha256": "82ec3180d7c74be659e3d7baa6ee5a9a530fa4eb2debbb70913f639cf86a7b35"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-replay-eval.ts",
+      "sha256": "3fc51ea6b87d7bb5098e78c8e5743642b3aaf5edcc39be4123c3ba44f603c313"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/jev-shadow-report.ts",
+      "sha256": "cd9d48d21445174de3e5aee2540aa335946ef998127a76c19ed1dcd52efe875d"
+    },
+    {
+      "path": "packages/meriv2-core/scripts/repair-replay-eval.ts",
+      "sha256": "8fea8be371e3ed519b68a893bc4f250d96e21afef50cd30338345dbb5bd0f831"
+    },
+    {
+      "path": "scripts/check-context-plane-new-bypasses.mjs",
+      "sha256": "c42def8003206269bd21e5c127ded616c1ab3a194a671514f5e64e2a34021bd6"
+    },
+    {
+      "path": "scripts/check-ethical-wall-literals.mjs",
+      "sha256": "02486adf141ae85f531182315ec91567389e884fd77f2a498d10078c983cb639"
+    },
+    {
+      "path": "scripts/engagement-phase3-api-replay.mjs",
+      "sha256": "267114c246901bddfe66e248530991847793ccf792668f36be4e8513053b3b31"
+    },
+    {
+      "path": "scripts/engagement-phase3-faults.mjs",
+      "sha256": "8d73562cdf3cc4b26e8046284b9c18b01b2da1562d4491ea05aeeb9b948ce331"
+    },
+    {
+      "path": "scripts/engagement-phase3-resilience.mjs",
+      "sha256": "2a94b02b58bc9219a37f12905216f31154a91ad95a210b02d972b926a14a84c9"
+    },
+    {
+      "path": "scripts/engagement-runtime-ownership.mjs",
+      "sha256": "8f0c69e8e17c302cff51db9c57df152299d71552ef15d7634557d86ed9d1e914"
+    },
+    {
+      "path": "scripts/execute-meriv2-ecs-release.mjs",
+      "sha256": "0718d9ed3c5723290c1eab6523705a0e164fbfa02a98eb283e8cc6a527cdb647"
+    },
+    {
+      "path": "scripts/meri-release.mjs",
+      "sha256": "ba78ac6f4c26375366a16aa098ec85713404df909e6cea1196c4ea9058d6e9ce"
+    },
+    {
+      "path": "scripts/mint-engagement-phase1-jwt.mjs",
+      "sha256": "baed55c3d601f2fa2040edf2af8efe051f72284a7a0b1f037175f7d26b70bc7f"
+    },
+    {
+      "path": "scripts/outreach-v3-p1-change-scope.mjs",
+      "sha256": "4faa6bd72d3b975020ed0014485c6d3cb814a11ec51a75557339010a0f75a12f"
+    },
+    {
+      "path": "scripts/phase8-session7-lifecycle-replay.mjs",
+      "sha256": "3b5501498bbc34e9794f6c9bfda6acde552d8005b212801ee8ab0af68e09479a"
+    },
+    {
+      "path": "scripts/prepare-phase8-session6-federal-funding-corpus.mjs",
+      "sha256": "a36802d7e1996798515fa7731064899410242b8c82bfc6ed70fc75781a4fa94b"
+    },
+    {
+      "path": "scripts/prepare-phase8-session7-lifecycle-corpus.mjs",
+      "sha256": "3875caf96f261cb88d413e03d79a0a33a16e5883380ce9a3a023beb2d1f463c8"
+    },
+    {
+      "path": "scripts/run-engagement-phase0-local.mjs",
+      "sha256": "88b68fabdce60429756ed1740852cc9abeeb886d543c6ab0f69af8c831d4b2c1"
+    },
+    {
+      "path": "scripts/run-engagement-phase1-local.mjs",
+      "sha256": "994ed14d2ee976a1aace8ee1e799fe8f1a6b29f597a0b17203ccbacb19b27215"
+    },
+    {
+      "path": "scripts/run-engagement-phase1-post-acceptance.mjs",
+      "sha256": "acb7b4ca6e83f1103690eb08e45f86d183300f5d4668c5dae95b2f3d67aa0ddb"
+    },
+    {
+      "path": "scripts/run-engagement-phase3-local.mjs",
+      "sha256": "0da6e006bb2d6fd1ef3e3142c120da1b92f04821a910ad5bdd55fab1f2bb2c82"
+    },
+    {
+      "path": "scripts/run-engagement-phase3-resilience.mjs",
+      "sha256": "7298a452b940f8b02d5250da6c34440721eccb845a1f60820706da47305d860b"
+    },
+    {
+      "path": "scripts/run-outreach-v3-p1-owner-rehearsal.mjs",
+      "sha256": "71ed25fc8a915423f9c170d6ee57ebc44c971dff6d641273abd9f8206071f93f"
+    },
+    {
+      "path": "scripts/run-outreach-v3-phase1-local.mjs",
+      "sha256": "2572b34daf650587ccf99b9d391155ad0f7adb779323b218a46018f67c41fe0e"
+    },
+    {
+      "path": "scripts/seed-phase8-session11-corpus.mjs",
+      "sha256": "5d995ff38fce8eef184fbcc109c44093f605db795e4ef5c994b18f8d8a61effd"
+    },
+    {
+      "path": "scripts/seed-phase8-session12-corpus.mjs",
+      "sha256": "3adf05ef889e9a70a5a384fb7f613cf6c42586fded40d406f866781b49b43ef6"
+    },
+    {
+      "path": "scripts/test-phase10b5-expected-source-resolution-domain.mjs",
+      "sha256": "cefcc3c114175fef2af930e9943610e4dfe238f1657dcb9bfaca089476e489f8"
+    },
+    {
+      "path": "scripts/test-phase8-session10-schedule-domain.mjs",
+      "sha256": "96619e65763c7712aa5c3639cef682c549047b25f6d273d2542176f801c3c5bd"
+    },
+    {
+      "path": "scripts/test-phase8-session11-domain.mjs",
+      "sha256": "8df6f90a60866102c66bf7a5a1819ea6acedc3855bb4d9995f71c67a7c59fbd8"
+    },
+    {
+      "path": "scripts/test-phase8-session6-federal-funding-domain.mjs",
+      "sha256": "bb5d9820ee41f839fc6736bb5947b85d508696b41de8bab0e907f2cb78ae120f"
+    },
+    {
+      "path": "scripts/test-phase8-session7-lifecycle-domain.mjs",
+      "sha256": "682f8ab3b804c3e9ee9de9675fc9e8c22b473d44b05b70b5b5eeec6a4a734c57"
+    },
+    {
+      "path": "scripts/test-phase8-session8-discovery-domain.mjs",
+      "sha256": "e772f3187fdad9def57435b1891b7f004b4b36e2ad39eb13465c47668006a899"
+    },
+    {
+      "path": "scripts/test-phase8-session8-publisher-native-domain.mjs",
+      "sha256": "90a1ce7fa223b4bb5d4065ceef2e848dc3e8de7f0ea5c690fdfaa904788c3f01"
+    },
+    {
+      "path": "scripts/test-phase8-session9-provider-domain.mjs",
+      "sha256": "56f0c8ac548dcc0329bde01254f59ffc7021e678deafbd35350edc1a48d2db67"
+    },
+    {
+      "path": "scripts/validate-knowledge-plane-phase26.mjs",
+      "sha256": "3363dfbe27f2cf7c33a209e4b4bce140751357382479abe3c0411ce8af27fe37"
+    },
+    {
+      "path": "scripts/validate-knowledge-plane-phase27.mjs",
+      "sha256": "9e2ebfc9bef9f8b0bfbb48c20074050ce30815b19c8583be1816e4c26c3979be"
+    },
+    {
+      "path": "scripts/validate-knowledge-plane-phase27e.mjs",
+      "sha256": "d6d1fd316b3c412b2f990bef0cbb38070d7d1d913bb0c9477200fed7488c5779"
+    },
+    {
+      "path": "scripts/validate-knowledge-plane-phase27f.mjs",
+      "sha256": "c532d817862cf9d203604753a0bc80f35adcb1053628899e9b761b563fb4963d"
+    },
+    {
+      "path": "scripts/verify-defense-budget-mirror-parity.mjs",
+      "sha256": "6dcf6a94537e122c483fe3aa1f8df6df29e49d179b123c01c4711c72444a5ca2"
+    },
+    {
+      "path": "scripts/verify-engagement-phase1-background-final.mjs",
+      "sha256": "498513fd908938138aac07ff6987a806edab93bd9586b68ab3fee29bf83aada0"
+    },
+    {
+      "path": "scripts/verify-engagement-phase1-local.mjs",
+      "sha256": "ded50cdc346d1d90e3cea1c371aabfc425793e8f3ada6a9a0fa2db08044d78e2"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-scope.mjs",
+      "sha256": "fd39a27e9c584b0b4b3a7a8b13258ae231e031bef181b7f9ed2a33dbb95ec58d"
+    },
+    {
+      "path": "scripts/verify-engagement-phase2-template.mjs",
+      "sha256": "c7850cc0c380f99c30720af9b10f111248faf2c8a4f9b7f6d3c8d55c25f6dbff"
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-code.mjs",
+      "sha256": "56f89a1f87f841afafd415c6568a40cd8f2326efd4391a7f955f75d7c794e8e8"
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-local-evidence.mjs",
+      "sha256": "b3bec3448ee3c28034fa539c4bd33683c5955603f551194ea5b0196538f11220"
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-prototype-boundary.mjs",
+      "sha256": "c61330913b739f3e333988dec4b6517e6a4c310319bfca10da480267a4d4d5d8"
+    },
+    {
+      "path": "scripts/verify-engagement-phase3-scope.mjs",
+      "sha256": "c405fd6fee865db3d1ec043f3eac75853434fd52c89d9ebc7c93bc997872ae84"
+    },
+    {
+      "path": "scripts/verify-engagement-web-no-preview-header.mjs",
+      "sha256": "3c0690ab8b91dac7d49439c18bd2dc46503073de458e3dc85cc43557d1630dc2"
+    },
+    {
+      "path": "scripts/verify-meriv3-adjacent-import-boundary.mjs",
+      "sha256": "b353509805b16cb44c756d6b1732b141e9076556230d285456f93c41fa23f166"
+    },
+    {
+      "path": "scripts/verify-meriv3-import-boundary.mjs",
+      "sha256": "c24a658d9bf611a561b27f7d46e90e0f4d2e7e2531e445c3a29d8ca9b33ef57d"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-p1-architecture.mjs",
+      "sha256": "a2e6496f1936a06c4ee8ba6336092f368aa118ab3666f72847d6ca56ed3a8f42"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-p1-route-parity.mjs",
+      "sha256": "b50c06433f456540fb0208da3b671e5e9cc9875814a9bac1e9217850dd64b280"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase1-code.mjs",
+      "sha256": "65b3a56ae33dd3c5cc495128cd74f8e845a9b35ffa230aa2dacd6f75c89774be"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase2-code.mjs",
+      "sha256": "f10d470f3b6b75f9c3b5b81c6a52d4907af4b5e1d87bb15fbafb3ebbb005296b"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase3-code.mjs",
+      "sha256": "70252704632578ab4b3b4fc7f26d23aa1af649ef59a5e7b96096162c1ce16055"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase3-provider-contract.mjs",
+      "sha256": "7b349299290262b09a169a14db466b12636a09bd3b750c70b6d9877919f1c101"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase4-6-combined.mjs",
+      "sha256": "a1579c75b71a8a5e4d09d1fbfce2f665cd9c005d8f3a817f3cff92209e4891f4"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase4-6-final.mjs",
+      "sha256": "3fb6f7af4b53291846aee1c590e91f0847db23e81f37cf2e5ce90027b1cfaa67"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase4-code.mjs",
+      "sha256": "1c9aa164be2a3e3b824d8c0e07387a6c27aaa3ac54fa69d77e171e66473d3c2e"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase6-code.mjs",
+      "sha256": "a135ae726af9d1e20926a7fd86c9daa626316b434a388fd05337bf2f6790fc2e"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-phase6-final.mjs",
+      "sha256": "6fcb5e6a430eb84bb7b4e5cef206153a6162ddf0b70406f6a629db775003bb20"
+    },
+    {
+      "path": "scripts/verify-outreach-v3-templates-code.mjs",
+      "sha256": "b1f3d65a60412a21fd6d66f95c93d6e305517c564bf770d7be4bd2812dfffad3"
+    },
+    {
+      "path": "scripts/verify-phase12-provider-inventory.mjs",
+      "sha256": "cbf74d8006e7d14f92f88253f96f23e17ea0031735aaa7f94e2912667518ed98"
+    },
+    {
+      "path": "scripts/verify-phase8-session10-db.mjs",
+      "sha256": "31ba3c9fdf881ebf1e032ec87c4d661f408982441c4809f2b0f07be5f9be01a1"
+    },
+    {
+      "path": "scripts/verify-phase8-session11-db.mjs",
+      "sha256": "ad91f0d3cf372434856708ddb50ad3723a0df4b7c85541bc4147ab653cdd18db"
+    },
+    {
+      "path": "scripts/verify-phase8-session11-integration.mjs",
+      "sha256": "cf973eb40d06f7199497ecd1ad992cf41bbc6f131f1018d98a26a0ab5dc8c73e"
+    },
+    {
+      "path": "scripts/verify-phase8-session12-e2e-db.mjs",
+      "sha256": "e366a0861de0846ff1e5b203c440e9d16371228b7bebf205b5021b405052e8e5"
+    },
+    {
+      "path": "scripts/verify-phase8-session12-e2e.mjs",
+      "sha256": "d59c204538efe166f48f4850fbf074e4babc8f46afc1cdbb82e505515fe35755"
+    },
+    {
+      "path": "scripts/verify-phase8-session2-db.mjs",
+      "sha256": "5ffd5f44059c942548b96728f87e5d43eeaa60b89d3ee4ef4ab5af2f70c43117"
+    },
+    {
+      "path": "scripts/verify-phase8-session2.mjs",
+      "sha256": "1450deedbbe369be9a5a5f448e257da995464da30d6dd60f019f8a32b207a566"
+    },
+    {
+      "path": "scripts/verify-phase8-session3-db.mjs",
+      "sha256": "c7ce07a4a0ef67cde53f90b7e1ee2437caf1c245a8b36bdd6f0636098f10bc9c"
+    },
+    {
+      "path": "scripts/verify-phase8-session3.mjs",
+      "sha256": "ab1410b6a9aff5cf64737f880c3f812aed25b3279926292637778c3b0b76f27a"
+    },
+    {
+      "path": "scripts/verify-phase8-session4-phase7-baseline.mjs",
+      "sha256": "8bc02f6745e49af5aa1dfd24434a09ef5604bece1e172d1e9ba7258db43c4832"
+    },
+    {
+      "path": "scripts/verify-phase8-session4.mjs",
+      "sha256": "6eacfcd7328737700091757381094bea3ab6b3f9996e38d7e15d2112070eba08"
+    },
+    {
+      "path": "scripts/verify-phase8-session5-corpus.mjs",
+      "sha256": "7b4935d6a4576bfa3a85b423ebaddb2e084dc3e462dcbad1f6d71e3a4984ac7c"
+    },
+    {
+      "path": "scripts/verify-phase8-session5.mjs",
+      "sha256": "e7e9ad1f9385d610b97002d2d8452c4293bb9a642dd7ca1fc2839af990510d43"
+    },
+    {
+      "path": "scripts/verify-phase8-session6-db.mjs",
+      "sha256": "c8d79d47a2fc977483c20190d15164bf057e275174132a0c1ab3c7dc7e5c3b69"
+    },
+    {
+      "path": "scripts/verify-phase8-session6.mjs",
+      "sha256": "ea410eec9fcaf1956b6b4bfe8d33b4fe0ce0e2e6bade7d81db173119f8665bdc"
+    },
+    {
+      "path": "scripts/verify-phase8-session7-db.mjs",
+      "sha256": "639262ed69b40324378b1b735dbc3d98cb5d6e15419437a2746949b21344a522"
+    },
+    {
+      "path": "scripts/verify-phase8-session7.mjs",
+      "sha256": "70ec7633bdf3e68b1b845109f9635cd97d854475d6745b239cf9d7fca663056d"
+    },
+    {
+      "path": "scripts/verify-phase8-session8-db.mjs",
+      "sha256": "d0095df80b35f9e8a899c156956d3b19422b96bc185c400bb836072db291118d"
+    },
+    {
+      "path": "scripts/verify-phase8-session8.mjs",
+      "sha256": "410eec56876e9f08c6e5e0aa4b4b1573c664a5c4a2068aac5d240312a2c63321"
+    },
+    {
+      "path": "scripts/verify-phase8-session9-db.mjs",
+      "sha256": "e9cd733107d7b2f6213864a0ee7ccb9282482fbb660297a6c156d14d0ee5899f"
+    },
+    {
+      "path": "scripts/verify-phase8-session9.mjs",
+      "sha256": "dcaa52fb94e76df9b263a82c83b430c7231684c70979e5a631999ebfc299315c"
+    },
+    {
+      "path": "scripts/verify-research-portfolios-phase0.mjs",
+      "sha256": "1610880204ddeb98bddb715f05f1217b52386958b9e99d337ae1347f66e444dc"
+    },
+    {
+      "path": "scripts/verify-research-portfolios-phases1-4.mjs",
+      "sha256": "f2efb434f9c5e58e8a7f949c108a6e1ab862f80876b832df7b27e00462b8e376"
+    },
+    {
+      "path": "scripts/verify-research-portfolios-phases9-11.mjs",
+      "sha256": "f4410219b5ae16ab04ffdb7bd4c2f112222ba0909fc2ec0d791d28bb5b9a4157"
+    },
+    {
+      "path": "scripts/wave5-database-qualification.mjs",
+      "sha256": "fa4fc989c7c79c627f90e4e593feddfe5f0f5ca68446bb66df88055401fef749"
+    }
+  ],
+  "probes": 35,
+  "rows": [
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "argv": [
+        "--help"
+      ],
+      "exitCode": 0,
+      "error": null,
+      "output": [
+        {
+          "channel": "log",
+          "text": "Usage: tsx scripts/lint-pe-scripts.ts [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/lint-pe-scripts.ts",
+        "apps/api/scripts/lib/pe-production-scripts.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "exitCode": 2,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Unknown argument(s): --unknown"
+        },
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/lint-pe-scripts.ts [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/lint-pe-scripts.ts",
+        "apps/api/scripts/lib/pe-production-scripts.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "argv": [
+        "--help",
+        "--unknown"
+      ],
+      "exitCode": 2,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Unknown argument(s): --unknown"
+        },
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/lint-pe-scripts.ts [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/lint-pe-scripts.ts",
+        "apps/api/scripts/lib/pe-production-scripts.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "argv": [
+        "--help",
+        "--run"
+      ],
+      "exitCode": 2,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Unknown argument(s): --run"
+        },
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/lint-pe-scripts.ts [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/lint-pe-scripts.ts",
+        "apps/api/scripts/lib/pe-production-scripts.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": {
+        "name": "AssertionError",
+        "message": "scripts/entrypoint.sh: contains prisma migrate resolve\n\nfalse !== true\n"
+      },
+      "output": [],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts",
+        "apps/api/scripts/drain-pe-change-outbox.ts",
+        "apps/api/scripts/backfill-pe-observation-keys.ts",
+        "apps/api/scripts/sync-sam-opportunities.ts",
+        "apps/api/scripts/sam-opportunity-matcher.ts",
+        "apps/api/scripts/send-pe-alert-emails.ts",
+        "apps/api/scripts/run-pe-derive-chain.ts",
+        "apps/api/package.json",
+        "apps/api/scripts/entrypoint.sh",
+        "apps/api/scripts/entrypoint-legacy.sh",
+        "apps/api/scripts/entrypoint-dispatcher.inc"
+      ],
+      "loaded": [
+        "apps/api/scripts/lint-pe-scripts.ts",
+        "apps/api/scripts/lib/pe-production-scripts.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "default strict verifier on exact tracked source snapshots; refusal preserved as evidence"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/lint-pe-scripts.ts [--help]"
+        },
+        {
+          "channel": "error",
+          "text": "PE_LINT_SCRIPTS_FAILED: scripts/entrypoint.sh: contains prisma migrate resolve\n\nfalse !== true\n"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts",
+        "apps/api/scripts/drain-pe-change-outbox.ts",
+        "apps/api/scripts/backfill-pe-observation-keys.ts",
+        "apps/api/scripts/sync-sam-opportunities.ts",
+        "apps/api/scripts/sam-opportunity-matcher.ts",
+        "apps/api/scripts/send-pe-alert-emails.ts",
+        "apps/api/scripts/run-pe-derive-chain.ts",
+        "apps/api/package.json",
+        "apps/api/scripts/entrypoint.sh",
+        "apps/api/scripts/entrypoint-legacy.sh",
+        "apps/api/scripts/entrypoint-dispatcher.inc"
+      ],
+      "loaded": [
+        "apps/api/scripts/lint-pe-scripts.ts",
+        "apps/api/scripts/lib/pe-production-scripts.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "default strict verifier on exact tracked source snapshots; refusal preserved as evidence"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [
+        "--help"
+      ],
+      "exitCode": 0,
+      "error": null,
+      "output": [
+        {
+          "channel": "log",
+          "text": "Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "exitCode": 2,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Unknown argument(s): --unknown"
+        },
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [
+        "--help",
+        "--unknown"
+      ],
+      "exitCode": 2,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Unknown argument(s): --unknown"
+        },
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [
+        "--help",
+        "--run"
+      ],
+      "exitCode": 2,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Unknown argument(s): --run"
+        },
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": {
+        "name": "AssertionError",
+        "message": "migration history mutation forbidden:\nscripts/entrypoint.sh: contains prisma migrate resolve\n\nfalse !== true\n"
+      },
+      "output": [],
+      "reads": [
+        "apps/api/scripts/entrypoint.sh",
+        "apps/api/scripts/entrypoint-legacy.sh",
+        "apps/api/scripts/entrypoint-dispatcher.inc"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "default strict verifier on exact tracked source snapshots; refusal preserved as evidence"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]"
+        },
+        {
+          "channel": "error",
+          "text": "PE_MIGRATION_GUARDS_FAILED: migration history mutation forbidden:\nscripts/entrypoint.sh: contains prisma migrate resolve\n\nfalse !== true\n"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/entrypoint.sh",
+        "apps/api/scripts/entrypoint-legacy.sh",
+        "apps/api/scripts/entrypoint-dispatcher.inc"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "default strict verifier on exact tracked source snapshots; refusal preserved as evidence"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [
+        "--help"
+      ],
+      "exitCode": 0,
+      "error": null,
+      "output": [
+        {
+          "channel": "log",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [
+        "--unknown"
+      ],
+      "exitCode": 2,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Unknown argument(s): --unknown"
+        },
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [
+        "--help",
+        "--unknown"
+      ],
+      "exitCode": 2,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Unknown argument(s): --unknown"
+        },
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [
+        "--help",
+        "--run"
+      ],
+      "exitCode": 2,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Unknown argument(s): --run"
+        },
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/refusal before all file reads and child/database/provider effects"
+    },
+    {
+      "ref": "f1e83a3f194a8ebd972e370ff6e5b5f559888b29",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: does not import pe-exact-sha-loader-contract\",\n    \"parse-defense-approps-public-law.ts: missing resolvePeDollarLoaderPosture\",\n    \"parse-defense-approps-public-law.ts: missing assertExactShaCommitAllowed\",\n    \"parse-defense-approps-public-law.ts: missing approved-sha256 wiring\"\n  ]\n}"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "default strict verifier on exact tracked source snapshots; refusal preserved as evidence"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        },
+        {
+          "channel": "error",
+          "text": "{\n  \"ok\": false,\n  \"failures\": [\n    \"parse-defense-approps-public-law.ts: does not import pe-exact-sha-loader-contract\",\n    \"parse-defense-approps-public-law.ts: missing resolvePeDollarLoaderPosture\",\n    \"parse-defense-approps-public-law.ts: missing assertExactShaCommitAllowed\",\n    \"parse-defense-approps-public-law.ts: missing approved-sha256 wiring\"\n  ]\n}"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "default strict verifier on exact tracked source snapshots; refusal preserved as evidence"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [
+        "--help",
+        "--validate-generate"
+      ],
+      "exitCode": 0,
+      "error": null,
+      "output": [
+        {
+          "channel": "log",
+          "text": "Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/unknown stops before optional native path"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [
+        "--validate-generate",
+        "--help"
+      ],
+      "exitCode": 0,
+      "error": null,
+      "output": [
+        {
+          "channel": "log",
+          "text": "Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/unknown stops before optional native path"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [
+        "--validate-generate",
+        "--unknown"
+      ],
+      "exitCode": 2,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Unknown argument(s): --unknown"
+        },
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]"
+        }
+      ],
+      "reads": [],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "help/unknown stops before optional native path"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [],
+      "exitCode": 0,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-migration-guards.ts [--validate-generate] [--help]"
+        },
+        {
+          "channel": "log",
+          "text": "PE_MIGRATION_GUARDS_OK"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/entrypoint.sh",
+        "apps/api/scripts/entrypoint-legacy.sh",
+        "apps/api/scripts/entrypoint-dispatcher.inc",
+        "apps/api/package.json"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "default performs only synthetic snapshot checks; no native child"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [
+        "--validate-generate"
+      ],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "PE_MIGRATION_GUARDS_FAILED: migration history mutation forbidden:\nscripts/entrypoint-dispatcher.inc: references _prisma_migrations (hand-edit / auto-resolve hazard)\n\nfalse !== true\n"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/entrypoint.sh",
+        "apps/api/scripts/entrypoint-legacy.sh",
+        "apps/api/scripts/entrypoint-dispatcher.inc"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "strict guarded/manual history references refused before optional native path"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [
+        "--validate-generate"
+      ],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "PE_MIGRATION_GUARDS_FAILED: migration history mutation forbidden:\nscripts/entrypoint-dispatcher.inc: contains prisma migrate resolve\n\nfalse !== true\n"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/entrypoint.sh",
+        "apps/api/scripts/entrypoint-legacy.sh",
+        "apps/api/scripts/entrypoint-dispatcher.inc"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "strict guarded/manual history references refused before optional native path"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [
+        "--validate-generate"
+      ],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "PE_MIGRATION_GUARDS_FAILED: migration history mutation forbidden:\nscripts/entrypoint-dispatcher.inc: auto-sets rolled_back_at = NOW()\n\nfalse !== true\n"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/entrypoint.sh",
+        "apps/api/scripts/entrypoint-legacy.sh",
+        "apps/api/scripts/entrypoint-dispatcher.inc"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "strict guarded/manual history references refused before optional native path"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "argv": [
+        "--validate-generate"
+      ],
+      "exitCode": 0,
+      "error": null,
+      "output": [
+        {
+          "channel": "log",
+          "text": "PE_MIGRATION_VALIDATE_GENERATE_OK"
+        },
+        {
+          "channel": "log",
+          "text": "PE_MIGRATION_GUARDS_OK"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/entrypoint.sh",
+        "apps/api/scripts/entrypoint-legacy.sh",
+        "apps/api/scripts/entrypoint-dispatcher.inc",
+        "apps/api/package.json"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-migration-guards.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [
+        {
+          "kind": "INERT_CHILD",
+          "args": [
+            "node",
+            [
+              "/workspace/capirov2-cleanup-pe-strict-review/apps/api/node_modules/prisma/build/index.js",
+              "validate"
+            ],
+            {
+              "cwd": "/workspace/capirov2-cleanup-pe-strict-review/apps/api",
+              "env": {
+                "DATABASE_URL": "postgresql://pe_gate:***@127.0.0.1:5432/pe_gate_offline?schema=public"
+              },
+              "stdio": "pipe"
+            }
+          ]
+        },
+        {
+          "kind": "INERT_CHILD",
+          "args": [
+            "node",
+            [
+              "/workspace/capirov2-cleanup-pe-strict-review/apps/api/node_modules/prisma/build/index.js",
+              "generate"
+            ],
+            {
+              "cwd": "/workspace/capirov2-cleanup-pe-strict-review/apps/api",
+              "env": {
+                "DATABASE_URL": "postgresql://pe_gate:***@127.0.0.1:5432/pe_gate_offline?schema=public"
+              },
+              "stdio": "pipe"
+            }
+          ]
+        }
+      ],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "optional argv preserved at mock child only; no native subprocess executed"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "argv": [],
+      "exitCode": 0,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/lint-pe-scripts.ts [--help]"
+        },
+        {
+          "channel": "log",
+          "text": "PE_LINT_SCRIPTS_OK"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts",
+        "apps/api/scripts/drain-pe-change-outbox.ts",
+        "apps/api/scripts/backfill-pe-observation-keys.ts",
+        "apps/api/scripts/sync-sam-opportunities.ts",
+        "apps/api/scripts/sam-opportunity-matcher.ts",
+        "apps/api/scripts/send-pe-alert-emails.ts",
+        "apps/api/scripts/run-pe-derive-chain.ts",
+        "apps/api/package.json",
+        "apps/api/scripts/entrypoint.sh",
+        "apps/api/scripts/entrypoint-legacy.sh",
+        "apps/api/scripts/entrypoint-dispatcher.inc"
+      ],
+      "loaded": [
+        "apps/api/scripts/lint-pe-scripts.ts",
+        "apps/api/scripts/lib/pe-production-scripts.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "all original lint checks remain reachable and success0 with clean synthetic entrypoints/package"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/lint-pe-scripts.ts [--help]"
+        },
+        {
+          "channel": "error",
+          "text": "PE_LINT_SCRIPTS_FAILED: scripts/sync-jbook-r2.ts: references _prisma_migrations (hand-edit / auto-resolve hazard); scripts/sync-jbook-r2.ts: auto-sets rolled_back_at = NOW()\n\nfalse !== true\n"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts",
+        "apps/api/scripts/drain-pe-change-outbox.ts",
+        "apps/api/scripts/backfill-pe-observation-keys.ts",
+        "apps/api/scripts/sync-sam-opportunities.ts",
+        "apps/api/scripts/sam-opportunity-matcher.ts",
+        "apps/api/scripts/send-pe-alert-emails.ts",
+        "apps/api/scripts/run-pe-derive-chain.ts"
+      ],
+      "loaded": [
+        "apps/api/scripts/lint-pe-scripts.ts",
+        "apps/api/scripts/lib/pe-production-scripts.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts",
+        "apps/api/scripts/lib/pe-migration-guards.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "runtime-writer migration-history hazard remains exit1 through handled failure tail"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [],
+      "exitCode": 0,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        },
+        {
+          "channel": "log",
+          "text": "{\n  \"ok\": true,\n  \"loadersChecked\": 13,\n  \"loaders\": [\n    \"sync-comptroller-jbooks.ts\",\n    \"sync-jbook-r2.ts\",\n    \"sync-jbook-performers.ts\",\n    \"parse-pdoc-army.ts\",\n    \"load-pdoc-enrichment.ts\",\n    \"load-om.ts\",\n    \"load-om-op5.ts\",\n    \"parse-hasc-sasc-reports.ts\",\n    \"parse-defense-approps-reports.ts\",\n    \"parse-ndaa-conference.ts\",\n    \"parse-defense-approps-public-law.ts\",\n    \"ingest-defense-budget-pdf.ts\",\n    \"load-defense-budget-package.ts\"\n  ]\n}"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "all 13 exact-SHA loader predicates pass synthetic source matching original strict checks"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        },
+        {
+          "channel": "error",
+          "text": "{\n  \"ok\": false,\n  \"failures\": [\n    \"sync-jbook-r2.ts: does not import pe-exact-sha-loader-contract\"\n  ]\n}"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "missing from './lib/pe-exact-sha-loader-contract.js'; fails unchanged strict loader predicate"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        },
+        {
+          "channel": "error",
+          "text": "{\n  \"ok\": false,\n  \"failures\": [\n    \"sync-jbook-r2.ts: missing resolvePeDollarLoaderPosture\"\n  ]\n}"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "missing resolvePeDollarLoaderPosture; fails unchanged strict loader predicate"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        },
+        {
+          "channel": "error",
+          "text": "{\n  \"ok\": false,\n  \"failures\": [\n    \"sync-jbook-r2.ts: missing assertExactShaCommitAllowed\"\n  ]\n}"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "missing assertExactShaCommitAllowed; fails unchanged strict loader predicate"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        },
+        {
+          "channel": "error",
+          "text": "{\n  \"ok\": false,\n  \"failures\": [\n    \"sync-jbook-r2.ts: missing approved-sha256 wiring\"\n  ]\n}"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "missing 'approved-sha256'; fails unchanged strict loader predicate"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        },
+        {
+          "channel": "error",
+          "text": "{\n  \"ok\": false,\n  \"failures\": [\n    \"sync-jbook-r2.ts: missing inspect posture handling\"\n  ]\n}"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "missing INSPECT; fails unchanged strict loader predicate"
+    },
+    {
+      "ref": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "argv": [],
+      "exitCode": 1,
+      "error": null,
+      "output": [
+        {
+          "channel": "error",
+          "text": "Usage: tsx scripts/verify-pe-phase-e-exact-sha.ts [--help]"
+        },
+        {
+          "channel": "error",
+          "text": "{\n  \"ok\": false,\n  \"failures\": [\n    \"sync-jbook-r2.ts: does not import pe-exact-sha-loader-contract\",\n    \"sync-jbook-r2.ts: missing resolvePeDollarLoaderPosture\",\n    \"sync-jbook-r2.ts: missing assertExactShaCommitAllowed\",\n    \"sync-jbook-r2.ts: missing approved-sha256 wiring\"\n  ]\n}"
+        }
+      ],
+      "reads": [
+        "apps/api/scripts/sync-comptroller-jbooks.ts",
+        "apps/api/scripts/sync-jbook-r2.ts",
+        "apps/api/scripts/sync-jbook-performers.ts",
+        "apps/api/scripts/parse-pdoc-army.ts",
+        "apps/api/scripts/load-pdoc-enrichment.ts",
+        "apps/api/scripts/load-om.ts",
+        "apps/api/scripts/load-om-op5.ts",
+        "apps/api/scripts/parse-hasc-sasc-reports.ts",
+        "apps/api/scripts/parse-defense-approps-reports.ts",
+        "apps/api/scripts/parse-ndaa-conference.ts",
+        "apps/api/scripts/parse-defense-approps-public-law.ts",
+        "apps/api/scripts/ingest-defense-budget-pdf.ts",
+        "apps/api/scripts/load-defense-budget-package.ts"
+      ],
+      "loaded": [
+        "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+        "apps/api/scripts/lib/pe-exact-sha-loader-contract.ts",
+        "apps/api/scripts/lib/defense-budget-commit.ts",
+        "apps/api/src/defense-budget/promotion/legacy-budget-write-gate-v1.ts",
+        "apps/api/src/defense-budget/promotion/snapshot-read-mode-v1.ts"
+      ],
+      "events": [],
+      "realFileWriteDatabaseProviderBootstrapOrChildExecuted": false,
+      "expected": "inspect-only facade receives no special exemption from exact-SHA inventory"
+    }
+  ],
+  "limits": "AST/source and inert VM only; no native compiler acceptance, real DB/migration/provider/bootstrap or child invocation."
+}

@@ -1,0 +1,6 @@
+{
+  "origin": "/workspace/capirov2-cleanup-source-prereqs/docs/cleanup-executable-prereqs-20261012/evidence/pe-core-verifier-controls-published-original.mjs",
+  "identicalGitSource": "cb5d83e6b2d64dba0e882685e102883b9da0fea0:scripts/cleanup-script-smoke/pe-core-verifier-cli-contracts.test.mjs",
+  "sha256": "c83069bbe428e5ad2f700227441245b941a0e4feacd1a6092d9e3316057a079e",
+  "note": "Original incompatible published default-success control bytes retained; not executed by reviewer."
+}

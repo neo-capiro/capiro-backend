@@ -1,0 +1,56 @@
+{
+  "source": "b859600f6b51680da2894fb8441424ea0bc838dd",
+  "tree": "635383e831498272ca49fcfe63bd1acd03ea4e7d",
+  "comparedTo": "cb5d83e6b2d64dba0e882685e102883b9da0fea0",
+  "testSourceSha256": "b072019163877efeb482820a8f4f084a58eb2751a6eabd840c26fe50243a0d55",
+  "allFourTestCaseNamesPreserved": true,
+  "childInvocationResourcePreloadHelpUnknownAndOptionalPrismaControlsUnchanged": true,
+  "wrapperSourceByteIdentical": [
+    {
+      "path": "apps/api/scripts/lint-pe-scripts.ts",
+      "sourceSha256": "a6ca24471ffbdd30e4397a8357296b8fd714faa2d06bcd23c705e5e6c4266974"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-migration-guards.ts",
+      "sourceSha256": "71d0bbbe598f744eda51094f578074679385cb5992adcb1d82eec88c1471190e"
+    },
+    {
+      "path": "apps/api/scripts/verify-pe-phase-e-exact-sha.ts",
+      "sourceSha256": "b895211f165d32c6c0322ea3dd7d1cfef1bfefe06c2b4cc53e18e90658a6754d"
+    }
+  ],
+  "sourceOnly": true,
+  "actualSubjectOrNativeSubprocessInvoked": false,
+  "probes": [
+    {
+      "failures": [
+        "parse-defense-approps-public-law.ts: does not import pe-exact-sha-loader-contract",
+        "parse-defense-approps-public-law.ts: missing resolvePeDollarLoaderPosture",
+        "parse-defense-approps-public-law.ts: missing assertExactShaCommitAllowed",
+        "parse-defense-approps-public-law.ts: missing approved-sha256 wiring"
+      ],
+      "accepted": true,
+      "failure": null
+    },
+    {
+      "failures": [
+        "parse-defense-approps-public-law.ts: does not import pe-exact-sha-loader-contract",
+        "parse-defense-approps-public-law.ts: does not import pe-exact-sha-loader-contract",
+        "parse-defense-approps-public-law.ts: does not import pe-exact-sha-loader-contract",
+        "parse-defense-approps-public-law.ts: does not import pe-exact-sha-loader-contract"
+      ],
+      "accepted": true,
+      "failure": null
+    },
+    {
+      "failures": [
+        "parse-defense-approps-public-law.ts: arbitrary unrelated failure",
+        "parse-defense-approps-public-law.ts: arbitrary unrelated failure",
+        "parse-defense-approps-public-law.ts: arbitrary unrelated failure",
+        "parse-defense-approps-public-law.ts: arbitrary unrelated failure"
+      ],
+      "accepted": true,
+      "failure": null
+    }
+  ]
+}
